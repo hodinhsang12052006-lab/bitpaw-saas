@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>POS Nails & Salon | BitPaw OS</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
+        
+        /* 3D Background Canvas */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        
+        /* Hiệu ứng scanline và laser */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .light-ray { position: absolute; background: linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.3), transparent); height: 2px; width: 150%; transform: rotate(-35deg); transform-origin: left; pointer-events: none; }
+        .absolute-blur {
+            position: absolute;
+            top: -10%;
+            left: 20%;
+            width: 600px;
+            height: 600px;
+            background: rgba(236, 72, 153, 0.1);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glassmorphism */
+        .glass-panel { background: rgba(10, 15, 37, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-sidebar { background: rgba(8, 6, 26, 0.6); backdrop-filter: blur(30px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
+
+        /* Hologram Logo */
+        @keyframes float-hologram {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+        }
+        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
+        @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .scanner-line { position: absolute; width: 120%; height: 2px; background: #06b6d4; box-shadow: 0 0 10px #06b6d4; left: -10%; animation: scan-laser 2.5s linear infinite; z-index: 20; border-radius: 50%; pointer-events: none; }
+
+        /* Custom Input Styles */
+        .pos-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; color: #fff; width: 100%; outline: none; transition: 0.3s; font-size: 1.1rem; font-weight: bold; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+        .pos-input:focus { border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244,63,94,0.2), inset 0 2px 5px rgba(0,0,0,0.5); background: rgba(255,255,255,0.05); }
+        
+        .receipt-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; font-weight: 500; }
+        
+        /* Screens transition */
+        .screen { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; position: relative; z-index: 10; }
+        .screen.active { display: flex; opacity: 1; animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; opacity: 0.6; transition: 0.3s; }
+        input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: 1; filter: invert(0.7) sepia(1) saturate(5) hue-rotate(300deg); }
+
+        @keyframes slideUpCascade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .cascade-item { opacity: 0; animation: slideUpCascade 0.5s ease forwards; }
+        
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative">
+
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="light-ray top-0 -left-[20%] z-0"></div>
+    <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
+    <div class="absolute-blur"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-pink-600/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar đồng bộ với dashboard -->
+    <aside class="w-64 glass-sidebar flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.8)] z-20 shrink-0 overflow-y-auto h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
+                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="/static/cho1.jpg" onerror="this.src='/static/cho1.jpg'" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+            
+            <nav class="flex flex-col py-6 space-y-3 px-5">
+                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                </a>
+                <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                </a>
+                <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                </a>
+                <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                </a>
+                <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
+                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Trạm Liên Lạc</span>
+                </a>
+                <a href="/map_dashboard" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                </a>
+                <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Công nợ</span>
+                </a>
+                <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Thu Chi</span>
+                </a>
+                <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Báo cáo lợi nhuận</span>
+                </a>
+                <a href="#" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
+                    <i class="fas fa-spa w-5 text-xl group-hover:scale-110 transition-transform"></i><span>POS Nails</span>
+                </a>
+            </nav>
+
+            <!-- Kết nối CSKH -->
+            <div class="px-5 pb-4 mt-auto">
+                <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:border-cyan-500/50 transition-colors">
+                    <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
+                    </p>
+                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline: 0794.678.904</span></a>
+                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo: 0794.678.904</span></a>
+                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ Đình Sang</span></a>
+                    </div>
+                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')" class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
+                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto relative z-10">
+        <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+        <!-- Screen 1: Danh sách thợ -->
+        <div id="screen_list" class="screen active flex-col h-full">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 shrink-0 gap-4">
+                <div>
+                    <h2 class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-md flex items-center gap-3">
+                        <i class="fas fa-users-cog text-rose-500 drop-shadow-[0_0_8px_currentColor]"></i> Quản Lý Thợ Salon
+                    </h2>
+                    <p class="text-gray-400 mt-2 text-sm font-medium">Bảng tính Tua, chia Supply và Tips tự động.</p>
+                </div>
+                <a href="{{ url_for('chamcong') }}" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-rose-400 flex items-center gap-2 shadow-lg active:scale-95">
+                    <i class="fas fa-arrow-left"></i> Trở về Menu
+                </a>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
+                <i class="fas fa-spa text-gray-400"></i>
+                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs">Danh Sách Thợ Nails / KTV</h3>
+            </div>
+
+            <div id="employeeGrid" class="flex flex-col gap-4 overflow-y-auto pb-10 custom-scrollbar pr-2">
+                <div class="animate-pulse flex items-center gap-4 bg-white/5 p-5 rounded-2xl border border-white/5">
+                    <div class="w-16 h-16 bg-gray-700 rounded-full shrink-0"></div>
+                    <div class="flex-1 space-y-3"><div class="h-4 bg-gray-700 rounded w-1/3"></div><div class="h-3 bg-gray-700 rounded w-1/4"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Tính Tua -->
+        <div id="screen_pos" class="screen flex-col h-full min-h-0">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 shrink-0 glass-panel p-4 lg:p-6 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] gap-4">
+                <div class="flex items-center gap-4">
+                    <button onclick="backToList()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-rose-500/20 border border-white/10 text-gray-400 hover:text-rose-400 transition-all flex items-center justify-center text-xl shadow-inner active:scale-95">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md">Tính Tua: <span id="pos_worker_name" class="text-rose-400">---</span></h2>
+                        <p class="text-xs text-gray-400 mt-1 font-mono tracking-widest uppercase">Mã NV: <span id="pos_worker_id" class="font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">---</span></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-black/50 border border-white/10 px-5 py-3 rounded-2xl shadow-inner w-full md:w-auto">
+                    <i class="far fa-calendar-alt text-emerald-400 text-lg"></i>
+                    <div class="flex flex-col flex-1">
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Ngày Thực Hiện</span>
+                        <input type="date" id="pos_date" class="bg-transparent border-none outline-none text-white text-sm font-bold cursor-pointer font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+                <div class="lg:col-span-8 glass-panel rounded-[2rem] p-6 lg:p-8 shadow-2xl flex flex-col overflow-y-auto relative border border-rose-500/20">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-bl-full pointer-events-none blur-md"></div>
+                    
+                    <div class="mb-6 border-b border-white/10 pb-6 relative z-10">
+                        <label class="block text-rose-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-paint-brush mr-2 text-lg"></i> Tên Dịch Vụ</label>
+                        <input type="text" id="ten_dv" placeholder="VD: Fullset Acrylic + Design..." class="pos-input text-white focus:border-rose-400 text-lg" value="Làm Nail">
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-6 border-b border-white/10 pb-6 relative z-10">
+                        <div class="col-span-2">
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">1. Tổng Giá Bill</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-black text-xl">$</span>
+                                <input type="number" id="val_total" value="100" oninput="calculatePos()" class="pos-input pl-10 text-3xl h-16 text-emerald-400 border-emerald-500/30 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-emerald-900/10">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">2. Tỉ Lệ Chia</label>
+                            <div class="relative">
+                                <input type="number" id="val_split" value="60" oninput="calculatePos()" class="pos-input text-center text-cyan-400 text-2xl h-16 bg-cyan-900/10 border-cyan-500/30 pr-8">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500/50 font-black text-lg">%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">3. Phí Supply</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-black text-lg">$</span>
+                                <input type="number" id="val_supply" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-400 text-2xl h-16 bg-rose-900/10 border-rose-500/30">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-5 mb-8 relative z-10">
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip tiền mặt khách đưa">4. Tip Mặt</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-bold">$</span>
+                                <input type="number" id="val_cash_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-emerald-300 font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip khách quẹt thẻ">5. Tip Thẻ</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500/50 font-bold">$</span>
+                                <input type="number" id="val_cc_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-purple-300 font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Phí quẹt thẻ trừ vào Tip">6. Phí C/C Tip</label>
+                            <div class="relative">
+                                <input type="number" id="val_cc_fee" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-300 font-mono pr-6">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-bold">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto relative z-10">
+                        <button onclick="submitPos()" id="btnSubmitPos" class="w-full bg-gradient-to-r from-rose-500 to-pink-600 font-black p-5 rounded-2xl text-xl hover:scale-[1.02] transition-transform shadow-[0_10px_30px_rgba(244,63,94,0.4)] tracking-widest uppercase flex items-center justify-center gap-3 active:scale-95">
+                            <i class="fas fa-check-double"></i> LƯU PHIẾU TÍNH TUA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-4 flex flex-col gap-6 min-h-0">
+                    <div class="bg-[#100b12] border border-white/10 rounded-[2rem] p-6 shadow-inner shrink-0 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-cyan-500"></div>
+                        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] opacity-[0.03] pointer-events-none"></div>
+                        
+                        <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-700 pb-4 flex justify-center items-center gap-2"><i class="fas fa-receipt"></i> Tạm Tính Biên Lai</h3>
+                        
+                        <div class="space-y-1.5 mb-5 text-gray-400 font-mono text-sm border-b border-dashed border-gray-700 pb-5">
+                            <div class="receipt-line"><span>Tổng thu:</span> <span class="text-white font-bold" id="r_total">$100.00</span></div>
+                            <div class="receipt-line text-rose-400"><span>- Supply:</span> <span id="r_supply">-$3.00</span></div>
+                            <div class="receipt-line pt-2 mt-2 border-t border-gray-800"><span>Doanh thu chia %:</span> <span class="text-cyan-300 font-bold text-base" id="r_net">$97.00</span></div>
+                        </div>
+
+                        <div class="space-y-1.5 mb-5 text-gray-400 font-mono text-sm">
+                            <div class="receipt-line"><span>Tua Thợ (<span id="r_split_rate">60</span>%):</span> <span class="text-white font-bold" id="r_worker_tua">$58.20</span></div>
+                            <div class="receipt-line text-emerald-400"><span>Tip Mặt:</span> <span id="r_cash_tip">+$0.00</span></div>
+                            <div class="receipt-line text-purple-400"><span>Tip Thẻ (-3%):</span> <span id="r_net_cc_tip">+$0.00</span></div>
+                        </div>
+
+                        <div class="mt-2 pt-4 bg-black/50 p-4 rounded-2xl border border-white/5 shadow-inner">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Thợ Cầm Về</span>
+                                <span class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-md" id="final_worker">$58.20</span>
+                            </div>
+                            <div class="flex justify-between items-center border-t border-white/5 pt-3">
+                                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tiệm Giữ Lại</span>
+                                <span class="text-lg font-black text-rose-400" id="final_salon">$41.80</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-[2rem] p-5 flex-1 flex flex-col min-h-0 border border-white/5">
+                        <h3 class="font-black text-gray-300 mb-4 text-xs uppercase tracking-widest flex items-center border-b border-white/10 pb-3"><i class="fas fa-history text-cyan-400 mr-2 text-lg"></i>Lịch sử vừa nhập</h3>
+                        <div id="historyBox" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden receipt for export -->
+        <div id="hiddenReceipt" style="display: none; position: absolute; top: -9999px; left: -9999px; width: 450px; background: white; color: black; padding: 40px; font-family: monospace; border: 1px solid #ddd; z-index: -1;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="margin:0; font-size: 32px; font-weight: 900; letter-spacing: 2px;">BITPAW SALON</h1>
+                <p style="margin: 5px 0 0 0; font-size: 16px;">SALARY STATEMENT</p>
+            </div>
+            <div style="margin-bottom: 20px; font-size: 16px; border-bottom: 2px dashed #000; padding-bottom: 10px;">
+                <p style="margin: 5px 0;"><strong>Employee:</strong> <span id="rcpt_name">---</span></p>
+                <p style="margin: 5px 0;"><strong>ID:</strong> <span id="rcpt_id">---</span></p>
+                <p style="margin: 5px 0;"><strong>Print Date:</strong> <span id="rcpt_date">---</span></p>
+            </div>
+            <table style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
+                <thead>
+                    <tr style="border-bottom: 2px dashed #000;">
+                        <th style="padding-bottom: 10px;">Date/Service</th>
+                        <th style="padding-bottom: 10px;">Pay</th>
+                        <th style="padding-bottom: 10px;">Tip</th>
+                    <tr>
+                </thead>
+                <tbody id="rcpt_tbody"></tbody>
+            </table>
+            <div style="border-top: 2px dashed #000; padding-top: 15px; font-size: 18px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Total Pay:</span><strong id="rcpt_total_tua">$0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Total Tip:</span><strong id="rcpt_total_tip">$0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 26px; font-weight: 900;">
+                    <span>TAKE-HOME:</span><strong id="rcpt_final">$0.00</strong>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 40px; font-size: 14px; color: #666;">
+                <p>Thank you for your hard work!</p>
+                <p>Powered by BitPaw Management System</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ========================================================
+        // THREE.JS BACKGROUND NÂNG CẤP
+        // ========================================================
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0xec4899, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.04) % 1;
+                material.color.setHSL(hue, 0.9, 0.65);
+                
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // ========================================================
+        // TOAST & CONFETTI
+        // ========================================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colorClass = 'cyan', iconClass = 'fa-info-circle';
+            if(type === 'success') { colorClass = 'emerald'; iconClass = 'fa-check-circle'; }
+            if(type === 'error') { colorClass = 'rose'; iconClass = 'fa-exclamation-triangle'; }
+            toast.className = `bg-[#0a0f25]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+            toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-xl shrink-0"></i> <span class="text-[13px] font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('-translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function triggerConfetti() {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                var particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#f43f5e', '#ec4899', '#fbbf24', '#ffffff'] }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#f43f5e', '#ec4899', '#fbbf24', '#ffffff'] }));
+            }, 250);
+        }
+
+        // ========================================================
+        // SUPABASE & LOGIC CHÍNH
+        // ========================================================
+        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        
+        let bitpawSupabaseClient = window.bitpawSupabaseClient;
+        if (!bitpawSupabaseClient && window.supabase && typeof window.supabase.createClient === 'function') {
+            bitpawSupabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+            window.bitpawSupabaseClient = bitpawSupabaseClient;
+        } else if (!bitpawSupabaseClient) {
+            console.error('Supabase SDK chưa được tải hoặc thiếu config.');
+        }
+
+        let globalEmployees = [];
+        let currentWorkerId = "";
+        let finalData = { workerPay: 0, workerTip: 0, salonProfit: 0, billNote: "" };
+
+        function getFormattedDate() {
+            const rawDate = document.getElementById('pos_date').value || new Date().toISOString().split('T')[0];
+            const parts = rawDate.split('-');
+            if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            return rawDate;
+        }
+
+        // Tải danh sách nhân viên
+        async function loadWorkers() {
+            try {
+                if (!bitpawSupabaseClient) throw new Error('Supabase client is not initialized.');
+                const { data: emps, error } = await bitpawSupabaseClient.from('employees').select('*').order('ho_ten', { ascending: true });
+                if (error) throw error;
+                globalEmployees = emps;
+
+                const grid = document.getElementById('employeeGrid');
+                grid.innerHTML = '';
+                if(!emps || emps.length === 0) {
+                    grid.innerHTML = '<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Chưa có nhân sự nào trong hệ thống.</div>';
+                    return;
+                }
+
+                emps.forEach((emp, index) => {
+                    const delay = index * 50;
+                    const card = `
+                        <div class="cascade-item glass-panel hover:border-rose-500/50 hover:bg-rose-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1" style="animation-delay: ${delay}ms;" onclick="openPos('${emp.ma_nv}', '${emp.ho_ten}')">
+                            <div class="flex items-center gap-4 lg:gap-5 z-10 w-full md:w-auto">
+                                <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-rose-400 to-purple-600 p-[2px] shadow-lg group-hover:scale-105 transition-transform shrink-0">
+                                    <div class="w-full h-full bg-[#0a0508] rounded-full flex items-center justify-center text-2xl font-black text-white border border-[#0a0508] overflow-hidden">
+                                        ${emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0)}
+                                    </div>
+                                </div>
+                                <div class="text-left min-w-0">
+                                    <h3 class="font-black text-white text-lg lg:text-xl group-hover:text-rose-400 transition-colors truncate drop-shadow-md">${emp.ho_ten}</h3>
+                                    <p class="text-[11px] text-gray-400 font-mono mt-0.5 uppercase tracking-widest"><i class="fas fa-id-badge text-rose-500/50 mr-1"></i>${emp.ma_nv}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 z-10">
+                                <button class="flex-1 md:flex-none bg-gradient-to-r from-rose-500 to-pink-600 text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-calculator text-lg"></i> Tính Tua</button>
+                                <button id="btn-export-${emp.ma_nv}" onclick="event.stopPropagation(); exportSalary('${emp.ma_nv}', '${emp.ho_ten}')" class="bg-black/50 border border-white/10 hover:border-emerald-400 hover:text-emerald-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-file-invoice-dollar"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    grid.innerHTML += card;
+                });
+                setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
+            } catch(e) { showToast("Lỗi tải danh sách thợ!", "error"); }
+        }
+
+        // Hàm xuất báo cáo lương (từ Supabase)
+        async function exportSalary(ma_nv, ho_ten) {
+            showToast("Đang kết xuất báo cáo lương...", "warning");
+            const btn = document.getElementById(`btn-export-${ma_nv}`);
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-emerald-400"></i>';
+            btn.disabled = true;
+            
+            try {
+                if (!bitpawSupabaseClient) throw new Error('Supabase client is not initialized.');
+                const { data: records, error } = await bitpawSupabaseClient
+                    .from('chamcong')
+                    .select('*')
+                    .eq('ma_nv', ma_nv)
+                    .eq('nganh_nghe', 'Nails')
+                    .order('ngay_cham', { ascending: false });
+                if (error) throw error;
+                
+                if(!records || records.length === 0) {
+                    showToast("Thợ này chưa làm bill nào để xuất!", "error");
+                    btn.innerHTML = originalHTML; btn.disabled = false; return;
+                }
+
+                let totalTua = 0; let totalTip = 0;
+                let csvContent = "\uFEFF"; 
+                csvContent += `BẢNG TỔNG KẾT LƯƠNG - BITPAW OS\nNhân viên:,${ho_ten}\nMã NV:,${ma_nv}\nNgày xuất:,${new Date().toLocaleDateString('vi-VN')}\n\n`;
+                csvContent += "Ngày,Trạng Thái,Tiền Tua ($),Tiền Tips ($),Chi tiết Bill\n";
+
+                let receiptRows = '';
+
+                records.forEach(row => {
+                    let date = row.ngay_cham || ''; let status = row.trang_thai || 'Hoàn thành';
+                    let tua = parseFloat(row.tien_tua) || 0; let tip = parseFloat(row.tien_tips) || 0; let note = row.ghi_chu || '';
+                    totalTua += tua; totalTip += tip;
+                    let safeNote = note.replace(/"/g, '""');
+                    csvContent += `${date},${status},${tua},${tip},"${safeNote}"\n`;
+
+                    receiptRows += `
+                        <tr style="border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 10px 0;">${date}<br><span style="color:#666; font-size:12px;">${status}</span></td>
+                            <td style="padding: 10px 0; font-weight: bold;">$${tua.toFixed(2)}</td>
+                            <td style="padding: 10px 0;">$${tip.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                csvContent += `\nTổng Cộng:,,,${totalTua},${totalTip},Take-home: $${(totalTua + totalTip).toFixed(2)}`;
+
+                // Xuất CSV
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url); link.setAttribute("download", `Bang_Luong_${ma_nv}_${ho_ten}.csv`);
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+                // Xuất ảnh biên lai
+                const receiptDiv = document.getElementById('hiddenReceipt');
+                document.getElementById('rcpt_name').innerText = ho_ten; document.getElementById('rcpt_id').innerText = ma_nv;
+                document.getElementById('rcpt_date').innerText = new Date().toLocaleDateString('vi-VN');
+                document.getElementById('rcpt_tbody').innerHTML = receiptRows;
+                document.getElementById('rcpt_total_tua').innerText = `$${totalTua.toFixed(2)}`;
+                document.getElementById('rcpt_total_tip').innerText = `$${totalTip.toFixed(2)}`;
+                document.getElementById('rcpt_final').innerText = `$${(totalTua + totalTip).toFixed(2)}`;
+
+                receiptDiv.style.display = 'block'; 
+                html2canvas(receiptDiv, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+                    const imgLink = document.createElement('a');
+                    imgLink.href = canvas.toDataURL("image/png");
+                    imgLink.download = `Phieu_Luong_${ma_nv}.png`;
+                    imgLink.click(); 
+                    receiptDiv.style.display = 'none'; 
+                    btn.innerHTML = '<i class="fas fa-check text-emerald-400"></i>';
+                    showToast("Xuất bảng lương thành công!", "success");
+                    setTimeout(() => { btn.innerHTML = originalHTML; btn.disabled = false; }, 2000);
+                });
+            } catch(e) {
+                showToast("Lỗi khi kết nối để xuất dữ liệu!", "error");
+                btn.innerHTML = originalHTML; btn.disabled = false;
+            }
+        }
+
+        function openPos(id, name) {
+            currentWorkerId = id;
+            document.getElementById('pos_worker_id').innerText = id;
+            document.getElementById('pos_worker_name').innerText = name;
+            
+            document.getElementById('screen_list').classList.remove('active');
+            setTimeout(() => { document.getElementById('screen_pos').classList.add('active'); }, 50);
+            
+            loadHistory(id);
+            
+            // Reset form
+            document.getElementById('ten_dv').value = "Làm Nail";
+            document.getElementById('val_total').value = "100";
+            document.getElementById('val_split').value = "60";
+            document.getElementById('val_supply').value = "3";
+            document.getElementById('val_cash_tip').value = "0";
+            document.getElementById('val_cc_tip').value = "0";
+            document.getElementById('val_cc_fee').value = "3";
+            calculatePos();
+        }
+
+        function backToList() {
+            document.getElementById('screen_pos').classList.remove('active');
+            setTimeout(() => { document.getElementById('screen_list').classList.add('active'); }, 50);
+        }
+
+        // Tải lịch sử gần đây
+        async function loadHistory(ma_nv) {
+            const box = document.getElementById('historyBox');
+            box.innerHTML = '<div class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+            try {
+                if (!bitpawSupabaseClient) throw new Error('Supabase client is not initialized.');
+                const { data: records, error } = await bitpawSupabaseClient
+                    .from('chamcong')
+                    .select('*')
+                    .eq('ma_nv', ma_nv)
+                    .eq('nganh_nghe', 'Nails')
+                    .order('ngay_cham', { ascending: false })
+                    .limit(10);
+                if (error) throw error;
+                if(!records || records.length === 0) {
+                    box.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">Chưa có giao dịch nào</div>';
+                    return;
+                }
+                let html = '';
+                records.forEach(rec => {
+                    const pay = (parseFloat(rec.tien_tua) || 0) + (parseFloat(rec.tien_tips) || 0);
+                    html += `
+                        <div class="bg-black/60 p-4 rounded-xl border border-white/5 flex justify-between items-center mb-3 border-l-4 border-l-emerald-500 shadow-inner cascade-item">
+                            <div>
+                                <p class="font-black text-emerald-400 text-sm tracking-widest uppercase">${rec.ghi_chu?.substring(0, 30) || 'Dịch vụ'}</p>
+                                <p class="text-[10px] font-mono text-gray-500 mt-1">${rec.ngay_cham}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-black text-white text-base">$${pay.toFixed(2)}</p>
+                                <p class="text-[10px] text-gray-400 font-mono mt-0.5">Tua: $${rec.tien_tua||0} | Tip: $${rec.tien_tips||0}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                box.innerHTML = html;
+            } catch(e) { box.innerHTML = '<div class="text-center text-rose-500 text-sm py-4">Lỗi tải lịch sử</div>'; }
+        }
+
+        function calculatePos() {
+            let total = parseFloat(document.getElementById('val_total').value) || 0;
+            let split = parseFloat(document.getElementById('val_split').value) || 0;
+            let supply = parseFloat(document.getElementById('val_supply').value) || 0;
+            let cashTip = parseFloat(document.getElementById('val_cash_tip').value) || 0;
+            let ccTip = parseFloat(document.getElementById('val_cc_tip').value) || 0;
+            let ccFee = parseFloat(document.getElementById('val_cc_fee').value) || 0;
+
+            let netRev = total - supply;
+            if(netRev < 0) netRev = 0;
+            let workerTua = netRev * (split / 100);
+            let salonTua = netRev - workerTua;
+            let feeAmount = ccTip * (ccFee / 100);
+            let netCcTip = ccTip - feeAmount;
+
+            let workerTotalTip = cashTip + netCcTip;
+            let workerTakeHome = workerTua + workerTotalTip;
+            let salonProfit = salonTua + supply - feeAmount;
+
+            finalData.workerPay = workerTua;
+            finalData.workerTip = workerTotalTip;
+            finalData.salonProfit = salonProfit;
+            finalData.billNote = `Bill:$${total} | Tua:${split}% | Sup:$${supply} | Tip:$${cashTip+ccTip} | CCFee:${ccFee}%`;
+
+            document.getElementById('r_total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('r_supply').innerText = `-$${supply.toFixed(2)}`;
+            document.getElementById('r_net').innerText = `$${netRev.toFixed(2)}`;
+            document.getElementById('r_split_rate').innerText = split;
+            document.getElementById('r_worker_tua').innerText = `$${workerTua.toFixed(2)}`;
+            document.getElementById('r_cash_tip').innerText = `+$${cashTip.toFixed(2)}`;
+            document.getElementById('r_net_cc_tip').innerText = `+$${netCcTip.toFixed(2)}`;
+            document.getElementById('final_worker').innerText = `$${workerTakeHome.toFixed(2)}`;
+            document.getElementById('final_salon').innerText = `$${salonProfit.toFixed(2)}`;
+        }
+
+        async function submitPos() {
+            const tendv = document.getElementById('ten_dv').value.trim();
+            const chosenDate = getFormattedDate();
+            if(!tendv) return showToast("Vui lòng nhập tên dịch vụ!", "warning");
+            
+            const total = parseFloat(document.getElementById('val_total').value) || 0;
+            const split = parseFloat(document.getElementById('val_split').value) || 0;
+            const supply = parseFloat(document.getElementById('val_supply').value) || 0;
+            const cashTip = parseFloat(document.getElementById('val_cash_tip').value) || 0;
+            const ccTip = parseFloat(document.getElementById('val_cc_tip').value) || 0;
+            const ccFee = parseFloat(document.getElementById('val_cc_fee').value) || 0;
+
+            const netRev = total - supply;
+            const workerTua = netRev * (split / 100);
+            const feeAmount = ccTip * (ccFee / 100);
+            const netCcTip = ccTip - feeAmount;
+            const workerTotalTip = cashTip + netCcTip;
+
+            const payload = {
+                ma_nv: currentWorkerId,
+                ngay_cham: chosenDate,
+                nganh_nghe: 'Nails',
+                trang_thai: 'Đã chốt',
+                ghi_chu: `[NAILS] ${tendv} | ${finalData.billNote}`,
+                tien_tua: workerTua,
+                tien_tips: workerTotalTip,
+                phu_cap: 0,
+                so_gio: 0,
+                tang_ca: 0
+            };
+
+            const btn = document.getElementById('btnSubmitPos');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ĐANG TÍNH TUA...';
+            btn.disabled = true;
+
+            try {
+                if (!bitpawSupabaseClient) throw new Error('Supabase client is not initialized.');
+                const { error } = await bitpawSupabaseClient.from('chamcong').insert([payload]);
+                if (error) throw error;
+
+                loadHistory(currentWorkerId);
+                // Reset form
+                document.getElementById('val_total').value = "100";
+                document.getElementById('val_cash_tip').value = "0";
+                document.getElementById('val_cc_tip').value = "0";
+                calculatePos();
+                showToast("Đã chốt bill và tính Tua thành công!", "success");
+                triggerConfetti();
+            } catch(e) {
+                showToast("Lỗi lưu dữ liệu: " + e.message, "error");
+            }
+            btn.innerHTML = origHtml; btn.disabled = false;
+        }
+
+        // Khởi tạo
+        window.onload = () => {
+            loadWorkers();
+            VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+            document.getElementById('pos_date').valueAsDate = new Date();
+        };
+    </script>
+</body>
+</html>
