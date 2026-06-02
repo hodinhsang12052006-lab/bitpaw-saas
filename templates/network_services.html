@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Danh Bạ Dịch Vụ Địa Phương</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/network.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+    <div class="cyber-grid"></div>
+
+    <!-- Header HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-8">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('network_home') }}" class="w-10 h-10 rounded-full border border-cyan-500/30 overflow-hidden">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Services</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_home') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition">Sảnh chính</a>
+            <button onclick="alert('Hãy đăng nhập tài khoản Dịch Vụ (Provider) để tạo danh mục dịch vụ của riêng bạn!')" class="cyber-btn-primary px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition"><i class="fas fa-plus"></i> Đăng Dịch Vụ</button>
+        </div>
+    </div>
+
+    <!-- Directory Introduction -->
+    <div class="w-full max-w-6xl mx-auto mb-10 text-center space-y-3">
+        <span class="px-3 py-1 bg-purple-500/15 border border-purple-500/25 text-purple-400 rounded-full text-xs font-black uppercase tracking-widest"><i class="fas fa-map-marker-alt"></i> Khớp thợ theo vị trí quận huyện</span>
+        <h2 class="text-3xl font-black text-white uppercase font-sans">Tìm thợ sửa chữa & làm đẹp gần nhất</h2>
+        <p class="text-xs text-gray-400 max-w-md mx-auto">Danh sách các chuyên gia tự do đã được xác thực hồ sơ và phản hồi uy tín.</p>
+    </div>
+
+    <!-- Service Catalog Listing Grid -->
+    <div class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {% for svc in services %}
+        <div class="glass-panel p-5 rounded-3xl flex flex-col justify-between h-72">
+            <div>
+                <div class="flex justify-between items-start gap-2 mb-3">
+                    <span class="px-3 py-0.5 bg-black/40 border border-white/10 rounded-xl text-[9px] font-mono text-gray-400">{{ "💅 Nails Art" if svc.industry == "nails" else ("❄️ Kỹ thuật" if svc.industry == "technical" else "💆 Spa & Beauty") }}</span>
+                    <span class="text-[9px] text-yellow-400"><i class="fas fa-star mr-0.5"></i> {{ svc.rating }} ({{ svc.reviews_count }} đánh giá)</span>
+                </div>
+                
+                <h3 class="font-bold text-white text-sm mb-1">{{ svc.name }}</h3>
+                <span class="text-gray-400 text-xs font-semibold block mb-2">{{ svc.service_type }}</span>
+                <p class="text-gray-500 text-[10px] leading-relaxed mb-3"><i class="far fa-clock"></i> Lịch rảnh: {{ svc.availability }}</p>
+                
+                <!-- Skills Tags -->
+                <div class="flex flex-wrap gap-1">
+                    {% for skill in svc.skills %}
+                    <span class="px-2 py-0.5 bg-white/5 border border-white/5 rounded text-[8px] text-gray-400">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Price & Book Quote Actions -->
+            <div class="flex justify-between items-center border-t border-white/5 pt-4 mt-4 text-xs">
+                <div class="min-w-0">
+                    <span class="text-gray-500 text-[9px] block"><i class="fas fa-coins"></i> Chi phí dự kiến</span>
+                    <span class="font-bold text-emerald-400 truncate block">{{ svc.price }}</span>
+                </div>
+                <button onclick="alert('Đã gửi yêu cầu nhận báo giá! Chuyên gia sẽ liên hệ phản hồi qua phòng chat.')" class="cyber-btn-primary px-4 py-2 rounded-xl text-xs font-bold transition">Đặt thợ / Báo giá</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Footer HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono mt-8">
+        <span>© 2026 BitPaw Network. Service Hub.</span>
+        <span class="text-yellow-400"><i class="fas fa-shield-halved mr-1"></i> Demo Preview Mode</span>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+</body>
+</html>

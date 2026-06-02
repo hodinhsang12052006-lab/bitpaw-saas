@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Khám Phá Mạng Lưới</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/network.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+    <div class="cyber-grid"></div>
+
+    <!-- Header HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-8">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('network_home') }}" class="w-10 h-10 rounded-full border border-cyan-500/30 overflow-hidden">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Discover</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_home') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition"><i class="fas fa-home"></i> Sảnh chính</a>
+        </div>
+    </div>
+
+    <!-- Discover Workspace Grid (Left: Filters, Right: Search Results Grid) -->
+    <div class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start my-auto py-4">
+        
+        <!-- Left: Filters Column (Col: 3) -->
+        <div class="lg:col-span-3 glass-panel p-5 space-y-5">
+            <h3 class="text-xs font-black text-cyan-400 uppercase tracking-widest border-b border-white/5 pb-2"><i class="fas fa-filter"></i> Bộ Lọc Khám Phá</h3>
+            
+            <form action="{{ url_for('network_discover') }}" method="GET" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Mục tìm kiếm</label>
+                    <select name="category" class="cyber-input w-full px-3 py-2.5 rounded-xl outline-none cursor-pointer">
+                        <option value="all" {% if category == 'all' %}selected{% endif %}>Tất cả kết quả</option>
+                        <option value="jobs" {% if category == 'jobs' %}selected{% endif %}>Việc làm</option>
+                        <option value="services" {% if category == 'services' %}selected{% endif %}>Thợ kỹ thuật / Dịch vụ</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Khu vực quận huyện</label>
+                    <select class="cyber-input w-full px-3 py-2.5 rounded-xl outline-none cursor-pointer">
+                        <option>Tất cả quận huyện</option>
+                        <option>Quận 1</option>
+                        <option>Quận 3</option>
+                        <option>Quận 10</option>
+                        <option>Bình Thạnh</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-wider mb-1">Mức thu nhập / Giá</label>
+                    <select class="cyber-input w-full px-3 py-2.5 rounded-xl outline-none cursor-pointer">
+                        <option>Tất cả mức giá</option>
+                        <option>Dưới 10.000.000đ</option>
+                        <option>10tr - 20tr</option>
+                        <option>Trên 20.000.000đ</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="cyber-btn-primary w-full py-2.5 rounded-xl font-bold uppercase tracking-wider">
+                    Áp Dụng Lọc
+                </button>
+            </form>
+        </div>
+
+        <!-- Right: Results Grid (Col: 9) -->
+        <div class="lg:col-span-9 space-y-6">
+            <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                <h2 class="text-sm font-black text-white uppercase">Kết quả tìm kiếm cho: <span class="text-cyan-400">"{{ query or 'Tất cả' }}"</span></h2>
+                <span class="text-[10px] text-gray-500 font-mono">Tìm thấy {{ (jobs|length) + (services|length) if category == 'all' else (jobs|length if category == 'jobs' else services|length) }} kết quả</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- RENDER JOBS -->
+                {% if category == 'all' or category == 'jobs' %}
+                {% for job in jobs %}
+                <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-48 border-cyan-500/10">
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <span class="badge-cyan px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest"><i class="fas fa-briefcase mr-1"></i> Việc làm</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-mono">{{ job.company }}</span>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mb-1">{{ job.title }}</h4>
+                        <p class="text-gray-400 text-xs line-clamp-2 leading-relaxed mb-3">{{ job.description }}</p>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono border-t border-white/5 pt-3">
+                        <span><i class="fas fa-map-marker-alt"></i> {{ job.location }}</span>
+                        <span class="font-bold text-emerald-400">{{ job.salary }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                <!-- RENDER SERVICES -->
+                {% if category == 'all' or category == 'services' %}
+                {% for svc in services %}
+                <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-48 border-purple-500/10">
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <span class="badge-purple px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest"><i class="fas fa-tools mr-1"></i> Dịch vụ</span>
+                            <span class="text-yellow-400 text-[9px]"><i class="fas fa-star"></i> {{ svc.rating }} ({{ svc.reviews_count }})</span>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mb-1">{{ svc.name }}</h4>
+                        <p class="text-gray-400 text-xs line-clamp-2 leading-relaxed mb-3">Dịch vụ: {{ svc.service_type }} • Bảng giá: {{ svc.price }}</p>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono border-t border-white/5 pt-3">
+                        <span><i class="fas fa-map-marker-alt"></i> {{ svc.location }}</span>
+                        <span class="text-cyan-400 font-bold">{{ svc.availability }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono mt-8">
+        <span>© 2026 BitPaw Network. Unified Discoverer.</span>
+        <span class="text-yellow-400"><i class="fas fa-shield-halved mr-1"></i> Demo Preview Mode</span>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+</body>
+</html>

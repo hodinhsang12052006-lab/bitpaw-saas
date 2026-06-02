@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Hộp Thư Tin Nhắn</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/network.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+    <div class="cyber-grid"></div>
+
+    <!-- Header HUD -->
+    <div class="w-full max-w-5xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-6">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('network_home') }}" class="w-10 h-10 rounded-full border border-cyan-500/30 overflow-hidden">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Inbox</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_dashboard') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition">Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Split Pane Workspace for Chat (Col: Left list, Right conversation) -->
+    <div class="w-full max-w-5xl mx-auto split-pane mb-8">
+        
+        <!-- Left Pane: Conversations List -->
+        <div class="split-pane-left p-4 space-y-4">
+            <h3 class="text-xs font-black text-cyan-400 uppercase tracking-widest border-b border-white/5 pb-2">Hộp thư hội thoại</h3>
+            
+            <div class="space-y-2">
+                <!-- Active Conversation Item -->
+                <div class="p-3 bg-cyan-500/10 border border-cyan-500/25 rounded-2xl flex gap-3 items-center cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg">🤖</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-white text-xs">AI Career Copilot</span>
+                            <span class="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></span>
+                        </div>
+                        <span class="text-gray-400 text-[10px] block truncate">Đã kết nối trợ lý tuyển dụng...</span>
+                    </div>
+                </div>
+
+                <!-- Recruiter Conversation Item -->
+                <div class="p-3 hover:bg-white/5 border border-transparent hover:border-white/5 rounded-2xl flex gap-3 items-center cursor-pointer" onclick="alert('Phòng chat riêng với nhà tuyển dụng sẽ kích hoạt khi họ chấp nhận hồ sơ của bạn.')">
+                    <div class="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-lg">💼</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-white text-xs">Bloom Nails Q3</span>
+                            <span class="text-[9px] text-gray-500 font-mono">1 ngày trước</span>
+                        </div>
+                        <span class="text-gray-500 text-[10px] block truncate">Mời phỏng vấn vị trí thợ chính...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Pane: Active Messages Log Workspace -->
+        <div class="split-pane-right flex flex-col justify-between h-full relative">
+            <!-- Messages timeline stream -->
+            <div id="chatMessagesLog" class="flex-1 p-6 overflow-y-auto space-y-4 max-h-[480px]">
+                <!-- Filled dynamically by network.js -->
+            </div>
+
+            <!-- Stamped Message sending form input -->
+            <div class="p-4 border-t border-white/5 bg-black/40 flex gap-2 items-center">
+                <input id="chatInput" type="text" placeholder="Nhập tin nhắn trao đổi hoặc đặt câu hỏi nghề nghiệp..." class="cyber-input flex-1 px-4 py-3 rounded-xl text-xs outline-none">
+                <button id="chatSendBtn" class="cyber-btn-primary px-5 py-3 rounded-xl text-xs font-black transition">Gửi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer HUD -->
+    <div class="w-full max-w-5xl mx-auto flex justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono mt-4">
+        <span>© 2026 BitPaw Chat Stream.</span>
+        <span class="text-yellow-400"><i class="fas fa-shield-halved mr-1"></i> Demo Preview Mode</span>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+</body>
+</html>

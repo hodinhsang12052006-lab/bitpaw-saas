@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Sàn Việc Làm Ngành Nghề</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/network.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+    <div class="cyber-grid"></div>
+
+    <!-- Header HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-8">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('network_home') }}" class="w-10 h-10 rounded-full border border-cyan-500/30 overflow-hidden">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Jobs</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_home') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition">Sảnh chính</a>
+            <a href="{{ url_for('network_cv_builder') }}" class="cyber-btn-primary px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition"><i class="fas fa-file-invoice"></i> Viết CV</a>
+        </div>
+    </div>
+
+    <!-- Urgent Job Board Header -->
+    <div class="w-full max-w-6xl mx-auto mb-10 text-center space-y-3">
+        <span class="px-3 py-1 bg-red-500/15 border border-red-500/25 text-red-400 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-fire"></i> Việc làm tuyển gấp trong tuần</span>
+        <h2 class="text-3xl font-black text-white uppercase">Tìm kiếm cơ hội nghề nghiệp phù hợp</h2>
+        <p class="text-xs text-gray-400 max-w-md mx-auto">Hệ thống phân tích kỹ năng và tự động tính toán điểm phù hợp (Match Score) cho hồ sơ của bạn.</p>
+    </div>
+
+    <!-- Job Cards Grid Workspace -->
+    <div class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        {% for job in jobs %}
+        <div class="glass-panel p-6 rounded-3xl flex flex-col justify-between h-64 relative overflow-hidden">
+            {% if job.urgent %}
+            <div class="absolute top-0 right-0 bg-red-600 text-black text-[8px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-widest animate-pulse">Tuyển gấp</div>
+            {% endif %}
+            
+            <div>
+                <div class="flex justify-between items-start gap-2 mb-3">
+                    <span class="px-3 py-0.5 bg-black/40 border border-white/10 rounded-xl text-[9px] font-mono text-gray-400">{{ job.company }}</span>
+                    <span class="text-[9px] text-cyan-400 font-bold"><i class="fas fa-bolt"></i> Khớp 92%</span>
+                </div>
+                
+                <h3 class="font-bold text-white text-base mb-1.5">{{ job.title }}</h3>
+                <p class="text-gray-400 text-xs leading-relaxed line-clamp-3 mb-4">{{ job.description }}</p>
+                
+                <!-- Skills Tags Required -->
+                <div class="flex flex-wrap gap-1.5">
+                    {% for skill in job.skills %}
+                    <span class="px-2 py-0.5 bg-white/5 border border-white/5 rounded text-[8px] text-gray-500">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Job Bottom info & Action trigger -->
+            <div class="flex justify-between items-center border-t border-white/5 pt-4 mt-4">
+                <div class="text-[10px] text-gray-500 font-mono">
+                    <span><i class="fas fa-map-marker-alt text-cyan-500 mr-1"></i> {{ job.location }}</span>
+                    <span class="block font-bold text-emerald-400 mt-0.5">{{ job.salary }}</span>
+                </div>
+                <button onclick="alert('Ứng tuyển thành công! Nhà tuyển dụng sẽ xem xét hồ sơ CV của bạn.')" class="cyber-btn-primary px-4 py-2 rounded-xl text-xs transition">Nộp CV</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Footer HUD -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono mt-8">
+        <span>© 2026 BitPaw Network. Job Exchange.</span>
+        <span class="text-yellow-400"><i class="fas fa-shield-halved mr-1"></i> Demo Preview Mode</span>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+</body>
+</html>

@@ -2976,14 +2976,139 @@ def expense_alias():
 
 
 # ==========================================
-# BITPAW NETWORK BLUEPRINT ROUTING (PHASE 1A)
+# BITPAW NETWORK BLUEPRINT ROUTING (PHASE 1A + 1B + OVERHAUL)
 # ==========================================
+MOCK_JOBS = [
+    {
+        'id': 'job-1',
+        'title': 'Kỹ thuật viên Nails Acrylic (Thợ chính)',
+        'company': 'Bloom Nails Salon Q3',
+        'salary': '12.000.000đ - 18.000.000đ',
+        'location': 'Quận 3, TP. HCM',
+        'type': 'full_time',
+        'industry': 'nails',
+        'skills': ['Acrylic Extensions', 'Gel Polish Art', 'Đắp bột', 'Cắt móng'],
+        'description': 'Cần tuyển thợ nails chính biết đắp bột, vẽ gel chuyên nghiệp. Làm việc trong môi trường salon máy lạnh cao cấp, có phần trăm hoa hồng cao.',
+        'urgent': True
+    },
+    {
+        'id': 'job-2',
+        'title': 'Thợ phụ chăm sóc tóc & gội đầu dưỡng sinh',
+        'company': 'Luxury Spa & Hair Q1',
+        'salary': '7.000.000đ - 10.000.000đ',
+        'location': 'Quận 1, TP. HCM',
+        'type': 'full_time',
+        'industry': 'spa',
+        'skills': ['Gội đầu dưỡng sinh', 'Massage đầu', 'Phụ làm tóc'],
+        'description': 'Tuyển nhân viên phụ tóc gội dưỡng sinh làm việc xoay ca. Chưa biết nghề được đào tạo thêm.',
+        'urgent': False
+    },
+    {
+        'id': 'job-3',
+        'title': 'Thợ lắp đặt & sửa chữa điều hòa (HVAC)',
+        'company': 'Điện Lạnh Bách Khoa SG',
+        'salary': '10.000.000đ - 15.000.000đ',
+        'location': 'Quận 10, TP. HCM',
+        'type': 'shift_work',
+        'industry': 'technical',
+        'skills': ['Lắp đặt máy lạnh', 'Sửa board mạch', 'Nạp gas điều hòa'],
+        'description': 'Tuyển thợ điện lạnh lắp đặt, bảo dưỡng máy lạnh văn phòng và gia đình. Có xe máy đi lại, trợ cấp xăng xe.',
+        'urgent': True
+    },
+    {
+        'id': 'job-4',
+        'title': 'Nhân viên phục vụ & pha chế ca tối',
+        'company': 'BitPaw F&B Coffee',
+        'salary': '25.000đ - 30.000đ/giờ',
+        'location': 'Bình Thạnh, TP. HCM',
+        'type': 'part_time',
+        'industry': 'fnb',
+        'skills': ['Pha chế basic', 'Phục vụ bàn', 'Order món'],
+        'description': 'Tuyển pha chế kiêm phục vụ ca tối (18h-23h). Thân thiện, nhanh nhẹn, ưu tiên sinh viên.',
+        'urgent': False
+    }
+]
+
+MOCK_SERVICES = [
+    {
+        'id': 'svc-1',
+        'name': 'Đặng Ngọc Minh Triết',
+        'service_type': 'Thiết kế & Làm móng Nails Art',
+        'rating': 4.9,
+        'reviews_count': 32,
+        'price': 'Chỉ từ 150k - 500k',
+        'location': 'Quận 3, TP. HCM',
+        'industry': 'nails',
+        'skills': ['Acrylic Extensions', 'Gel Polish Art', 'Chăm sóc móng', 'Đính đá'],
+        'availability': 'Hàng ngày 8:00 - 20:00'
+    },
+    {
+        'id': 'svc-2',
+        'name': 'Nguyễn Hoàng Nam',
+        'service_type': 'Sửa chữa & Vệ sinh Máy lạnh tại nhà',
+        'rating': 4.8,
+        'reviews_count': 19,
+        'price': 'Vệ sinh 150k/máy, sửa bo mạch báo giá trước',
+        'location': 'Quận 10, TP. HCM',
+        'industry': 'technical',
+        'skills': ['Vệ sinh máy lạnh', 'Lắp đặt máy lạnh', 'Nạp gas điều hòa'],
+        'availability': 'Cuối tuần & Ngày thường sau 18h'
+    },
+    {
+        'id': 'svc-3',
+        'name': 'Phạm Thu Thảo',
+        'service_type': 'Liệu trình Massage body & Chăm sóc da mụn',
+        'rating': 4.7,
+        'reviews_count': 25,
+        'price': 'Combo 90 phút 350k',
+        'location': 'Quận 1, TP. HCM',
+        'industry': 'spa',
+        'skills': ['Massage trị liệu', 'Chăm sóc da', 'Nặn mụn chuẩn y khoa'],
+        'availability': 'Nhận lịch đặt trước 1 ngày'
+    }
+]
+
+MOCK_COMMUNITIES = [
+    {
+        'slug': 'nails-viet',
+        'name': 'Cộng đồng Nail Việt Nam',
+        'members': 4250,
+        'description': 'Nơi chia sẻ các mẫu nail hot trend, kinh nghiệm đắp bột, vẽ cọ nét và tìm kiếm thợ nails nhanh chóng.',
+        'pinned_job': 'Kỹ thuật viên Nails Acrylic (Thợ chính) - Bloom Nails Salon'
+    },
+    {
+        'slug': 'spa-beauty',
+        'name': 'Spa & Thẩm Mỹ Master',
+        'members': 3100,
+        'description': 'Diễn đàn chia sẻ kỹ năng massage, công nghệ trị liệu da y khoa, vận hành spa chuyên nghiệp.',
+        'pinned_job': 'Kỹ thuật viên Spa Trị liệu da - Luxury Spa'
+    },
+    {
+        'slug': 'electrical-hvac',
+        'name': 'Thợ Kỹ Thuật Điện Lạnh HCMC',
+        'members': 1850,
+        'description': 'Nhóm giao lưu thợ điện gia dụng, thợ lắp ráp điều hòa, chia sẻ sơ đồ mạch điện tử và hỗ trợ xử lý lỗi khó.',
+        'pinned_job': 'Thợ lắp đặt & sửa chữa điều hòa (HVAC) - Điện Lạnh Bách Khoa'
+    },
+    {
+        'slug': 'fnb-owners',
+        'name': 'F&B Owners Guild',
+        'members': 2900,
+        'description': 'Nhóm kết nối các chủ quán cafe, nhà hàng, quán ăn chia sẻ nguồn nguyên liệu sỉ chất lượng, kinh nghiệm vận hành và tuyển nhân viên.',
+        'pinned_job': 'Nhân viên phục vụ & pha chế ca tối - BitPaw Coffee'
+    }
+]
+
 @app.route('/network')
 def network_home():
+    from supabase_client import SUPABASE_URL, SUPABASE_KEY
     return render_template(
         'network_home.html',
         supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY
+        supabase_key=SUPABASE_KEY,
+        jobs=MOCK_JOBS[:3],
+        services=MOCK_SERVICES[:2],
+        communities=MOCK_COMMUNITIES[:3]
     )
 
 @app.route('/network/login', methods=['GET', 'POST'])
@@ -3084,6 +3209,49 @@ def network_dashboard():
         flash('Vui lòng đăng nhập để xem dashboard!', 'info')
         return redirect(url_for('network_login'))
     return render_template('network_dashboard.html', user=user)
+
+@app.route('/network/discover')
+def network_discover():
+    q = request.args.get('q', '')
+    category = request.args.get('category', 'all')
+    return render_template('network_discover.html', jobs=MOCK_JOBS, services=MOCK_SERVICES, communities=MOCK_COMMUNITIES, query=q, category=category)
+
+@app.route('/network/jobs')
+def network_jobs():
+    return render_template('network_jobs.html', jobs=MOCK_JOBS)
+
+@app.route('/network/services')
+def network_services():
+    return render_template('network_services.html', services=MOCK_SERVICES)
+
+@app.route('/network/communities')
+def network_communities():
+    return render_template('network_communities.html', communities=MOCK_COMMUNITIES)
+
+@app.route('/network/messages')
+def network_messages():
+    user = session.get('network_user')
+    if not user:
+        user = {'fullname': 'Khách Vãng Lai', 'role': 'job_seeker'}
+    return render_template('network_messages.html', user=user)
+
+@app.route('/network/cv-builder')
+def network_cv_builder():
+    user = session.get('network_user')
+    if not user:
+        user = {
+            'fullname': 'Đặng Ngọc Minh Triết',
+            'email': 'minhtriet.acrylics@gmail.com',
+            'phone': '0794.678.904',
+            'role': 'job_seeker',
+            'location': 'Quận 3, TP. Hồ Chí Minh',
+            'headline': 'Chuyên viên Thiết kế Nails & Chăm sóc móng chuyên nghiệp (5+ năm kinh nghiệm)',
+            'skills': 'Acrylic Extensions, Gel Polish Art, Chăm sóc móng, Đính đá, Nail design',
+            'experience': 'Làm việc 3 năm tại Nail Salon Luxury Q1, 2 năm KTV chính tại Bloom Spa.',
+            'salary_expect': '12.000.000đ - 15.000.000đ',
+            'is_onboarded': True
+        }
+    return render_template('network_cv_builder.html', profile=user)
 
 
 if __name__ == '__main__':
