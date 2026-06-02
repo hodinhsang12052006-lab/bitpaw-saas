@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Khởi Tạo Bản Quyền & Chọn Vai Trò</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #05030f;
+            color: #f1f3f9;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+        }
+        .cyber-input {
+            background: rgba(4, 3, 12, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            color: #ffffff !important;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        .cyber-input:focus {
+            background: rgba(4, 3, 12, 0.85) !important;
+            border-color: rgba(6, 182, 212, 0.85) !important;
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.18), 0 0 22px rgba(6, 182, 212, 0.45) !important;
+            outline: none !important;
+        }
+        .cyber-btn-primary {
+            background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .cyber-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.6);
+        }
+        .aurora-bg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 65%);
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="relative flex items-center justify-center min-h-screen">
+    <div class="aurora-bg"></div>
+
+    <div class="w-full max-w-lg glass-panel p-6 sm:p-8 space-y-6">
+        <div class="text-center space-y-2">
+            <a href="{{ url_for('network_home') }}" class="inline-block relative w-16 h-16 rounded-full overflow-hidden border border-purple-500/30">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h2 class="text-2xl font-black tracking-wider text-white">ĐĂNG KÝ BẢN QUYỀN</h2>
+            <p class="text-xs text-gray-400">Chọn vai trò & Kích hoạt bản quyền hệ thống</p>
+        </div>
+
+        <form action="{{ url_for('network_register') }}" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="relative">
+                    <i class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" name="fullname" required placeholder="Họ và tên" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="email" name="email" required placeholder="Email đăng ký" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="relative">
+                    <i class="fas fa-phone-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" name="phone" required placeholder="Số ĐT / Zalo" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fas fa-map-marker-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" name="location" required placeholder="Khu vực hoạt động (Quận, TP)" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-400 mb-1.5 ml-1 uppercase tracking-wider"><i class="fas fa-user-tag mr-1 text-cyan-400"></i> Chọn phân vùng tài khoản</label>
+                <select name="role" required class="cyber-input w-full px-4 py-3 rounded-xl text-xs cursor-pointer outline-none">
+                    <option value="job_seeker">👤 Người tìm việc (KTV Nails, Spa, Phục vụ, Thợ sửa chữa...)</option>
+                    <option value="employer">💼 Nhà tuyển dụng (Tiệm Nails, cơ sở Spa, nhà hàng, doanh nghiệp)</option>
+                    <option value="provider">🔧 Người cung cấp dịch vụ (Điện lạnh, sửa chữa, vệ sinh, IT...)</option>
+                    <option value="local_business">🏢 Doanh nghiệp địa phương (Đối tác SaaS & Ecosystem)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="password" name="password" required placeholder="Mật khẩu" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+
+                <div class="relative">
+                    <i class="fas fa-shield-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="password" name="confirm_password" required placeholder="Xác nhận mật khẩu" class="cyber-input w-full pl-12 pr-4 py-3 rounded-xl text-sm outline-none">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 px-1">
+                <input type="checkbox" required id="agree" class="cursor-pointer bg-black/60 border border-white/10 rounded">
+                <label for="agree" class="text-[10px] text-gray-400 cursor-pointer">Tôi hoàn toàn đồng ý với <span class="text-cyan-400 font-bold hover:text-cyan-300 transition">Điều khoản dịch vụ & Chính sách bảo mật</span> của BitPaw.</label>
+            </div>
+
+            <button type="submit" class="cyber-btn-primary w-full text-black font-black text-xs py-3.5 rounded-xl uppercase tracking-widest transition">
+                Khởi tạo tài khoản
+            </button>
+        </form>
+
+        <div class="text-center pt-2">
+            <a href="{{ url_for('network_login') }}" class="text-xs text-gray-400 hover:text-white transition">Đã có tài khoản? <span class="text-cyan-400 font-bold border-b border-cyan-400/30">Đăng nhập ngay</span></a>
+        </div>
+    </div>
+</body>
+</html>

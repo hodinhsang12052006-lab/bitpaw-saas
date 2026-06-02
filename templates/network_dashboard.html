@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Điều Hành Hồ Sơ & Quản Trị Hệ Sinh Thái</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #05030f;
+            color: #f1f3f9;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+        }
+        .glass-card {
+            background: rgba(11, 8, 25, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 1.5rem;
+            transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(6, 182, 212, 0.45);
+        }
+        .aurora-bg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 65%);
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+
+    <!-- Header navigation -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-6">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('network_home') }}" class="inline-block relative w-10 h-10 rounded-full overflow-hidden border border-cyan-500/30">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-full h-full object-cover">
+            </a>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Network</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_profile') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5"><i class="fas fa-user-circle"></i> Xem Hồ Sơ</a>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch my-auto py-4">
+        
+        <!-- Left details panel -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- User Status Info Card -->
+            <div class="glass-panel p-6 space-y-4">
+                <h3 class="text-xs font-black text-cyan-400 uppercase tracking-widest border-b border-white/5 pb-2 flex items-center gap-1.5"><i class="fas fa-fingerprint"></i> Thông Tin Quản Trị</h3>
+                
+                <div class="flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-12 h-12 rounded-full border border-cyan-400 object-cover">
+                    <div>
+                        <span class="font-bold text-white block text-sm">{{ user.fullname }}</span>
+                        <span class="text-[9px] text-gray-500 uppercase tracking-widest font-mono">{{ user.email }}</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-400">Phân vùng vai trò:</span>
+                        <span class="text-cyan-400 font-bold uppercase tracking-widest text-[10px]">
+                            {% if user.role == 'job_seeker' %} 👤 Ứng viên
+                            {% elif user.role == 'employer' %} 💼 Tuyển dụng
+                            {% elif user.role == 'provider' %} 🔧 Dịch vụ
+                            {% else %} 🏢 Doanh nghiệp {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-400">Trạng thái hồ sơ:</span>
+                        <span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fas fa-check-circle animate-pulse"></i> Hoàn tất</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-400">Vùng phục vụ:</span>
+                        <span class="text-white font-semibold">{{ user.location }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fast Quick-links panel -->
+            <div class="glass-panel p-6 space-y-3">
+                <h3 class="text-xs font-black text-cyan-400 uppercase tracking-widest border-b border-white/5 pb-2"><i class="fas fa-external-link-alt mr-1"></i> Liên kết hệ thống</h3>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <a href="{{ url_for('pos') }}" class="p-3 bg-black/30 border border-white/5 rounded-xl text-center hover:bg-cyan-500/10 hover:text-cyan-300 transition font-bold"><i class="fas fa-cash-register block text-lg mb-1"></i> Quầy POS</a>
+                    <a href="{{ url_for('index') }}" class="p-3 bg-black/30 border border-white/5 rounded-xl text-center hover:bg-purple-500/10 hover:text-purple-300 transition font-bold"><i class="fas fa-home block text-lg mb-1"></i> SaaS Portal</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Dashboard Metrics -->
+        <div class="lg:col-span-8 glass-panel p-6 flex flex-col justify-between">
+            <div class="space-y-6">
+                <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2 border-b border-white/5 pb-3">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard quản lý
+                </h2>
+
+                <!-- ROLE 1: JOB SEEKER -->
+                {% if user.role == 'job_seeker' %}
+                <div class="space-y-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Lượt xem hồ sơ</span>
+                            <span class="text-2xl font-black text-cyan-400 font-mono">142</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Việc làm phù hợp</span>
+                            <span class="text-2xl font-black text-purple-400 font-mono">28</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Ứng tuyển đã gửi</span>
+                            <span class="text-2xl font-black text-emerald-400 font-mono">12</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-black text-gray-400 uppercase tracking-wider"><i class="fas fa-briefcase text-cyan-400 mr-1"></i> Gợi ý việc làm Nails/Spa tuyển gấp</h4>
+                        
+                        <div class="space-y-2">
+                            <div class="glass-card p-4 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-white block">Thợ Nails bột / KTV Nails Salon - Q1</span>
+                                    <span class="text-gray-400 font-medium">Lương: 12.000.000đ - 18.000.000đ | Quận 1 HCMC</span>
+                                </div>
+                                <span class="px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl font-bold">Tuyển gấp</span>
+                            </div>
+
+                            <div class="glass-card p-4 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-white block">Kỹ thuật viên Spa Trị liệu da - Q3</span>
+                                    <span class="text-gray-400 font-medium">Lương: $3500 - $4500 | Houston Texas</span>
+                                </div>
+                                <span class="px-3 py-1 bg-white/5 text-gray-400 border border-white/10 rounded-xl font-bold">Thỏa thuận</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ROLE 2: EMPLOYER -->
+                {% if user.role == 'employer' %}
+                <div class="space-y-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Tin tuyển dụng</span>
+                            <span class="text-2xl font-black text-cyan-400 font-mono">4</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Ứng cử viên</span>
+                            <span class="text-2xl font-black text-purple-400 font-mono">19</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Phỏng vấn tuần này</span>
+                            <span class="text-2xl font-black text-emerald-400 font-mono">3</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ROLE 3: PROVIDER -->
+                {% if user.role == 'provider' %}
+                <div class="space-y-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Dịch vụ đăng</span>
+                            <span class="text-2xl font-black text-cyan-400 font-mono">2</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Yêu cầu báo giá</span>
+                            <span class="text-2xl font-black text-purple-400 font-mono">18</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Lịch hẹn trống</span>
+                            <span class="text-2xl font-black text-emerald-400 font-mono">9</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ROLE 4: LOCAL BUSINESS -->
+                {% if user.role == 'local_business' %}
+                <div class="space-y-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">SaaS Modules</span>
+                            <span class="text-2xl font-black text-cyan-400 font-mono">4</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">CRM Leads</span>
+                            <span class="text-2xl font-black text-purple-400 font-mono">142</span>
+                        </div>
+                        <div class="glass-card p-4 text-center">
+                            <span class="text-[10px] text-gray-500 block uppercase font-bold">Hệ thống đồng bộ</span>
+                            <span class="text-2xl font-black text-emerald-400 font-mono">100%</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- Seed Community Activities Indicator (DEMO DATA ONLY) -->
+            <div class="mt-8 border-t border-white/5 pt-4 text-[10px] text-gray-500 font-mono text-center relative">
+                <span class="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded uppercase font-bold">Demo Preview Mode</span>
+                <p class="mt-2.5">Hệ thống đang chạy giả lập giao diện trực quan của Phase 1A. Dữ liệu thay đổi tạm thời lưu tại Client Session.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer component -->
+    <div class="w-full max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono gap-4">
+        <span>© 2026 BitPaw Network. Control Dashboard.</span>
+        <div class="flex gap-4">
+            <a href="{{ url_for('network_home') }}" class="hover:text-cyan-400 transition">BitPaw Home</a>
+        </div>
+    </div>
+</body>
+</html>

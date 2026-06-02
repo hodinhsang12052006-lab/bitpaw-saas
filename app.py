@@ -148,10 +148,13 @@ def inject_industry_config():
         active_cfg = None
     else:
         active_cfg = INDUSTRY_CONFIG[business_mode]
+    from supabase_client import SUPABASE_URL, SUPABASE_KEY
     return dict(
         industry_config=INDUSTRY_CONFIG,
         active_industry_code=business_mode,
-        active_industry_cfg=active_cfg
+        active_industry_cfg=active_cfg,
+        supabase_url=SUPABASE_URL,
+        supabase_key=SUPABASE_KEY
     )
 
 
@@ -2972,9 +2975,115 @@ def expense_alias():
     return redirect(url_for('quanly_thuchi'))
 
 
-@app.route('/omnichannel')
-def omnichannel_alias():
-    return redirect(url_for('connect_platforms'))
+# ==========================================
+# BITPAW NETWORK BLUEPRINT ROUTING (PHASE 1A)
+# ==========================================
+@app.route('/network')
+def network_home():
+    return render_template(
+        'network_home.html',
+        supabase_url=SUPABASE_URL,
+        supabase_key=SUPABASE_KEY
+    )
+
+@app.route('/network/login', methods=['GET', 'POST'])
+def network_login():
+    if request.method == 'POST':
+        email = request.form.get('email', '')
+        password = request.form.get('password', '')
+        role = request.form.get('role', 'job_seeker')
+        
+        session['network_user'] = {
+            'fullname': email.split('@')[0].capitalize(),
+            'email': email,
+            'phone': '0794.678.904',
+            'role': role,
+            'location': 'Quận 1, TP. HCM',
+            'is_onboarded': False
+        }
+        flash('Đăng nhập vào BitPaw Network thành công!', 'success')
+        return redirect(url_for('network_onboarding'))
+    return render_template('network_login.html')
+
+@app.route('/network/register', methods=['GET', 'POST'])
+def network_register():
+    if request.method == 'POST':
+        fullname = request.form.get('fullname', '')
+        email = request.form.get('email', '')
+        phone = request.form.get('phone', '')
+        role = request.form.get('role', 'job_seeker')
+        location = request.form.get('location', 'Quận 1, TP. HCM')
+        
+        session['network_user'] = {
+            'fullname': fullname,
+            'email': email,
+            'phone': phone,
+            'role': role,
+            'location': location,
+            'is_onboarded': False
+        }
+        flash('Đăng ký tài khoản BitPaw Network thành công!', 'success')
+        return redirect(url_for('network_onboarding'))
+    return render_template('network_register.html')
+
+@app.route('/network/onboarding', methods=['GET', 'POST'])
+def network_onboarding():
+    if not session.get('network_user'):
+        return redirect(url_for('network_login'))
+        
+    if request.method == 'POST':
+        user = session['network_user']
+        user['is_onboarded'] = True
+        
+        if user['role'] == 'job_seeker':
+            user['headline'] = request.form.get('headline', '')
+            user['skills'] = request.form.get('skills', '')
+            user['experience'] = request.form.get('experience', '')
+            user['salary_expect'] = request.form.get('salary_expect', '')
+        elif user['role'] == 'employer':
+            user['company_name'] = request.form.get('company_name', '')
+            user['industry'] = request.form.get('industry', '')
+            user['company_size'] = request.form.get('company_size', '')
+        elif user['role'] == 'provider':
+            user['service_type'] = request.form.get('service_type', '')
+            user['price_sheet'] = request.form.get('price_sheet', '')
+            user['availability'] = request.form.get('availability', '')
+        elif user['role'] == 'local_business':
+            user['business_name'] = request.form.get('business_name', '')
+            user['business_industry'] = request.form.get('business_industry', '')
+            user['interested_modules'] = request.form.getlist('interested_modules')
+            
+        session['network_user'] = user
+        flash('Thiết lập hồ sơ onboarding hoàn tất!', 'success')
+        return redirect(url_for('network_dashboard'))
+        
+    return render_template('network_onboarding.html')
+
+@app.route('/network/profile')
+def network_profile():
+    user = session.get('network_user')
+    if not user:
+        user = {
+            'fullname': 'Đặng Ngọc Minh Triết',
+            'email': 'minhtriet.acrylics@gmail.com',
+            'phone': '0794.678.904',
+            'role': 'job_seeker',
+            'location': 'Quận 3, TP. Hồ Chí Minh',
+            'headline': 'Chuyên viên Thiết kế Nails & Chăm sóc móng chuyên nghiệp (5+ năm kinh nghiệm)',
+            'skills': 'Acrylic Extensions, Gel Polish Art, Chăm sóc móng, Đính đá, Nail design',
+            'experience': 'Làm việc 3 năm tại Nail Salon Luxury Q1, 2 năm KTV chính tại Bloom Spa.',
+            'salary_expect': '12.000.000đ - 15.000.000đ',
+            'is_onboarded': True
+        }
+    return render_template('network_profile.html', profile=user)
+
+@app.route('/network/dashboard')
+def network_dashboard():
+    user = session.get('network_user')
+    if not user:
+        flash('Vui lòng đăng nhập để xem dashboard!', 'info')
+        return redirect(url_for('network_login'))
+    return render_template('network_dashboard.html', user=user)
 
 
 if __name__ == '__main__':

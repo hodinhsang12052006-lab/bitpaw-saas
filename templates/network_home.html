@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw Network | Cổng Kết Nối Ngành Nghề & Dịch Vụ Địa Phương</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #05030f;
+            color: #f1f3f9;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+        }
+        .glass-card {
+            background: rgba(11, 8, 25, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(6, 182, 212, 0.45);
+            box-shadow: 0 12px 30px rgba(6, 182, 212, 0.15);
+        }
+        .aurora-bg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.15) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 60%);
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .cyber-btn-primary {
+            background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .cyber-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.6);
+        }
+    </style>
+</head>
+<body class="antialiased relative min-h-screen p-4 sm:p-6 md:p-8 flex flex-col justify-between">
+    <div class="aurora-bg"></div>
+
+    <!-- Header navigation -->
+    <div class="w-full max-w-6xl mx-auto flex justify-between items-center glass-panel px-6 py-4 mb-10">
+        <div class="flex items-center gap-3">
+            <img src="{{ url_for('static', filename='cho1.jpg') }}" onerror="this.src='/static/cho1.jpg'" class="w-10 h-10 rounded-full border border-cyan-400/50 object-cover shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30 uppercase tracking-widest font-mono font-bold">Network</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('network_login') }}" class="px-4 py-2 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs sm:text-sm font-semibold transition">Đăng nhập</a>
+            <a href="{{ url_for('network_register') }}" class="cyber-btn-primary px-4 py-2 text-black rounded-xl text-xs sm:text-sm font-black transition">Đăng ký</a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="w-full max-w-4xl mx-auto text-center my-auto py-10 space-y-6">
+        <span class="px-3 py-1 bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-network-wired"></i> Hệ điều hành & Chợ Dịch vụ địa phương</span>
+        <h2 class="text-4xl sm:text-6xl font-black tracking-tight leading-tight text-white">BitPaw <span class="text-cyan-400">Network</span></h2>
+        <p class="text-gray-400 text-sm sm:text-lg max-w-2xl mx-auto leading-relaxed">Nền tảng tìm kiếm việc làm, kết nối dịch vụ địa phương và nâng tầm doanh nghiệp bằng hệ sinh thái BitPaw SaaS OS.</p>
+        
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+            <a href="{{ url_for('network_register') }}" class="cyber-btn-primary px-6 py-3.5 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg">Khởi tạo tài khoản</a>
+            <a href="{{ url_for('pos') }}" class="px-6 py-3.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition">Khám phá POS</a>
+        </div>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="glass-card p-6 flex flex-col justify-between">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-xl mb-4"><i class="fas fa-briefcase"></i></div>
+            <div>
+                <h3 class="font-bold text-white text-base mb-1">Tìm việc & Tạo CV</h3>
+                <p class="text-gray-400 text-xs leading-relaxed">Tạo CV chuyên nghiệp cho ngành Nails, Spa, F&B, Kỹ thuật địa phương. Ứng tuyển siêu tốc nhận lịch phỏng vấn tức thì.</p>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 flex flex-col justify-between">
+            <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-xl mb-4"><i class="fas fa-map-marker-alt"></i></div>
+            <div>
+                <h3 class="font-bold text-white text-base mb-1">Dịch vụ địa phương</h3>
+                <p class="text-gray-400 text-xs leading-relaxed">Tìm kiếm các thợ sửa chữa, tiệm Nails, Spa, F&B gần nhất. Đánh giá chất lượng thật, đặt lịch trống real-time.</p>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 flex flex-col justify-between">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl mb-4"><i class="fas fa-chart-line"></i></div>
+            <div>
+                <h3 class="font-bold text-white text-base mb-1">Doanh nghiệp SaaS OS</h3>
+                <p class="text-gray-400 text-xs leading-relaxed">Kết nối trực tiếp với POS bán hàng, HRM chấm công, tính lương và CRM tự động hóa để quản trị hiệu quả.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="w-full max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center border-t border-white/5 pt-6 text-[10px] text-gray-500 font-mono gap-4">
+        <span>© 2026 BitPaw Network. All rights reserved.</span>
+        <div class="flex gap-4">
+            <span>Secure Session</span>
+            <span>Cloud Sync Ready</span>
+        </div>
+    </div>
+</body>
+</html>
