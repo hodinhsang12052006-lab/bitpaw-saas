@@ -8,15 +8,18 @@
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
     <style>
+        html {
+            scroll-padding-top: 100px;
+        }
         body {
             margin: 0; padding: 0;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: #08061a;
             color: white;
             overflow-x: hidden;
@@ -39,27 +42,27 @@
 
         /* Glassmorphism System */
         .glass {
-            background: rgba(10, 8, 30, 0.55);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(8, 6, 26, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
         .glass-card {
-            background: linear-gradient(135deg, rgba(236, 72, 153, 0.04) 0%, rgba(10, 8, 30, 0.75) 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(236, 72, 153, 0.12);
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.02) 0%, rgba(8, 6, 26, 0.4) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(236, 72, 153, 0.15);
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .glass-card:hover {
-            border-color: rgba(236, 72, 153, 0.45);
-            box-shadow: 0 0 30px rgba(236, 72, 153, 0.2);
+            border-color: rgba(236, 72, 153, 0.5);
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.35);
             transform: translateY(-5px);
         }
         
         /* Neon accents */
         .text-gradient-pink {
-            background: linear-gradient(135deg, #ff79b0 0%, #ec4899 50%, #c084fc 100%);
+            background: linear-gradient(to right, #ec4899 0%, #06b6d4 50%, #a855f7 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -157,6 +160,80 @@
         .faq-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s; opacity: 0; }
         .faq-item.active .faq-content { max-height: 250px; opacity: 1; margin-top: 12px; }
         .faq-item.active .faq-icon { transform: rotate(180deg); color: #ec4899; }
+
+        /* Floating Widget & Back to Top Transition */
+        #backToTop {
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        #backToTop.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .btn-mail { background: #ea4335; }
+        
+        /* Ẩn block liên hệ tĩnh dư thừa theo feedback người dùng */
+        #cskh-static-block {
+            display: none !important;
+        }
+
+        /* ==============================================================
+           3D HOLOGRAM SHIBA & SCANNER EFFECTS (ĐỒNG BỘ LANDING CHÍNH)
+           ============================================================== */
+        .hologram-container {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes float-3d-pink {
+            0% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(236, 72, 153, 0.45));
+            }
+            50% {
+                transform: translateY(-20px) rotateX(-5deg) rotateY(10deg);
+                filter: drop-shadow(0 30px 25px rgba(168, 85, 247, 0.55));
+            }
+            100% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(236, 72, 153, 0.45));
+            }
+        }
+
+        .animated-logo-3d {
+            animation: float-3d-pink 5s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes scan-laser-pink {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 3px;
+            background: #ec4899;
+            box-shadow: 0 0 15px #ec4899, 0 0 30px #ec4899;
+            left: -10%;
+            animation: scan-laser-pink 3s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .mascot-glow {
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.45);
+            border-color: #ec4899;
+            transition: all 0.3s;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-pink-500 selection:text-black relative">
@@ -165,11 +242,11 @@
     <canvas id="bg-canvas"></canvas>
 
     <!-- Header Navigation -->
-    <header class="fixed w-full top-0 z-50 glass border-b border-white/5 py-4">
+    <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
             <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
                 <div class="w-10 h-10 bg-pink-500/20 rounded-xl flex items-center justify-center border border-pink-500/50 overflow-hidden shadow-[0_0_12px_#ec4899]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Nails Logo">
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Nails Logo">
                 </div>
                 <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-pink-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-pink-500/20 rounded-md border border-pink-500/30 text-pink-300 font-normal">Nails</span></h1>
             </div>
@@ -188,37 +265,43 @@
                 <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-1">
                     <i class="fas fa-arrow-left text-xs"></i> Trở về
                 </a>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
-                <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)]">
                     <i class="fas fa-rocket"></i> Dùng thử miễn phí
                 </a>
             </div>
         </div>
     </header>
 
+    <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-32 pb-16 lg:pt-40 lg:pb-28 overflow-hidden flex items-center min-h-[90vh]">
-        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left lg:col-span-7">
-                <div class="inline-block bg-pink-500/10 border border-pink-500/30 text-pink-400 text-xs font-bold px-4 py-2 rounded-full mb-6 backdrop-blur-md">
+    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+        <!-- Deep Space Glow Effects -->
+        <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-pink-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
+            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+                <div class="inline-block bg-pink-500/10 border border-pink-500/30 text-pink-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
                     💅 BitPaw OS: Quản Trị Vận Hành Tiệm Nails Chuyên Nghiệp
                 </div>
-                <h1 class="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black leading-tight mb-6 tracking-tight">
-                    Quản lý tiệm Nail không còn <br>
-                    <span class="text-gradient-pink">loạn tua, sai bill, thất thoát tip và quên chăm khách cũ.</span>
+                <h1 class="text-[38px] lg:text-[68px] font-black leading-[1.1] mb-6 tracking-tight">
+                    Quản lý tiệm Nail <br class="hidden sm:inline">
+                    <span class="text-gradient-pink drop-shadow-[0_4px_25px_rgba(236,72,153,0.65)]">không còn loạn tua, sai bill.</span> <br class="hidden sm:inline">
+                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI giữ khách quay lại.</span>
                 </h1>
-                <p class="text-sm sm:text-base lg:text-lg text-gray-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
-                    BitPaw Nail OS giúp chủ tiệm gom lịch hẹn đặt trước, chia tua thợ công bằng, kiểm soát POS tính bill thợ, khấu trừ supply, giữ tip và kích hoạt AI bám đuổi kéo khách cũ quay lại trong một hệ thống duy nhất.
+                <p class="text-[18px] lg:text-[22px] text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                    Một màn hình gom lịch hẹn, chia tua thợ, POS tính bill, tip/supply, CRM và AI gợi ý chăm khách quay lại.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black text-base font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
+                    <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
                         <i class="fas fa-magic"></i> Dùng thử cho tiệm Nail
                     </a>
-                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-base font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
+                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
                         <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo
                     </a>
                 </div>
-                <div class="mt-8 flex flex-wrap justify-center lg:justify-start items-center gap-3.5 text-[10px] text-gray-300 font-bold uppercase tracking-wider">
+                <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
                     <span class="flex items-center gap-2 bg-pink-500/15 px-3 py-2 rounded-full border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.1)]"><i class="fas fa-balance-scale text-pink-400"></i> Chia tua minh bạch</span>
                     <span class="flex items-center gap-2 bg-pink-500/15 px-3 py-2 rounded-full border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.1)]"><i class="fas fa-calculator text-pink-400"></i> Tính tip/supply rõ</span>
                     <span class="flex items-center gap-2 bg-pink-500/15 px-3 py-2 rounded-full border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.1)]"><i class="fas fa-users text-pink-400"></i> CRM giữ khách cũ</span>
@@ -226,83 +309,44 @@
                 </div>
             </div>
             
-            <!-- Hero Dashboard Mockup Visual -->
-            <div class="lg:col-span-5 relative" data-aos="fade-left" data-aos-duration="800">
-                <div class="absolute inset-0 bg-gradient-to-br from-pink-500/20 to-purple-600/20 rounded-full blur-[80px] opacity-70"></div>
+            <!-- Hero Right Visual (Đồng bộ & Constrained) -->
+            <div class="relative w-full max-w-[560px] min-h-[500px] mx-auto flex items-center justify-center" data-aos="fade-left" data-aos-duration="1000">
+                <div class="absolute inset-0 bg-gradient-to-br from-pink-500/20 via-cyan-500/10 to-purple-600/20 rounded-full blur-[80px] opacity-80 pointer-events-none"></div>
                 
-                <div class="relative glass border border-white/10 rounded-3xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col gap-4 text-left w-full max-w-[440px] mx-auto z-10" data-tilt data-tilt-max="4">
-                    <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-                            <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                        </div>
-                        <span class="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 uppercase tracking-widest font-black">BitPaw OS Live</span>
-                    </div>
+                <div class="relative flex justify-center items-center w-full h-[500px] lg:h-[550px] hologram-container">
                     
-                    <!-- Lịch hẹn hôm nay widget -->
-                    <div class="bg-black/40 border border-white/5 rounded-2xl p-3 shadow-inner">
-                        <div class="flex justify-between items-center mb-2">
-                            <h4 class="text-[11px] font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="far fa-calendar-check text-pink-400"></i> Lịch Hẹn Hôm Nay</h4>
-                            <span class="text-[8px] font-bold text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded">3 Lịch hẹn</span>
-                        </div>
-                        <div class="space-y-2 text-[10px] font-medium">
-                            <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg border-l-2 border-pink-500">
-                                <div><p class="font-bold text-white">Chị Vy - Ombre & Design</p><p class="text-gray-500">Thợ: Vy Vy • 15:30</p></div>
-                                <span class="bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded text-[8px] font-bold">Đã đến tiệm</span>
-                            </div>
-                            <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg border-l-2 border-purple-500">
-                                <div><p class="font-bold text-white">Chị Mai - Chà gót & Sơn gel</p><p class="text-gray-500">Thợ: Hoàng Nam • 16:45</p></div>
-                                <span class="bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded text-[8px] font-bold">Đang chờ</span>
-                            </div>
+                    <!-- 3D Mascot Orb Center -->
+                    <div class="relative w-64 h-64 lg:w-72 lg:h-72 rounded-full border-4 border-pink-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(236,72,153,0.4)] z-10 cursor-pointer"
+                        data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="false">
+                        <div class="absolute w-full h-full border-t-4 border-purple-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
+                        <div class="absolute w-[110%] h-[110%] border-b-4 border-pink-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
+     
+                        <div class="relative animated-logo-3d w-40 h-40 lg:w-44 lg:h-44 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a] border border-pink-500/20">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Nails AI">
+                            <!-- Tia laser quét AI chuyển động dọc -->
+                            <div class="scanner-line"></div>
                         </div>
                     </div>
-                    
-                    <!-- Trạng thái thợ và phân tua widget -->
-                    <div class="bg-black/40 border border-white/5 rounded-2xl p-3 shadow-inner">
-                        <div class="flex justify-between items-center mb-2">
-                            <h4 class="text-[11px] font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-users-cog text-cyan-400"></i> Trạng Thái Thợ Nails</h4>
-                            <span class="text-[8px] font-bold text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">Phân Tua</span>
+     
+                    <!-- Floating Mini Cards quanh Orb (Desktop Only for Clean Visual) -->
+                    <!-- 1. Lịch hẹn card -->
+                    <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-pink-500/30 p-4 rounded-2xl shadow-2xl hover:border-pink-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-pink 5s infinite ease-in-out;">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-pink-400 animate-pulse"></span>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Lịch Hẹn Hôm Nay</h4>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-[9px] font-semibold">
-                            <div class="bg-emerald-950/20 border border-emerald-500/15 p-2 rounded-xl flex items-center justify-between">
-                                <span class="text-white truncate">Thợ: Vy Vy</span>
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Đang Rảnh"></span>
-                            </div>
-                            <div class="bg-rose-950/20 border border-rose-500/15 p-2 rounded-xl flex items-center justify-between">
-                                <span class="text-white truncate">Thợ: Hoài An</span>
-                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500" title="Đang Làm"></span>
-                            </div>
-                        </div>
+                        <p class="text-sm text-white font-extrabold truncate">Chị Vy - Ombre & Design</p>
+                        <p class="text-xs text-pink-300 font-bold mt-1">Vy Vy • 15:30 • Đã đến</p>
                     </div>
-                    
-                    <!-- Doanh thu & POS mẫu row -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-black/40 border border-white/5 rounded-2xl p-3 shadow-inner flex flex-col justify-between">
-                            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-wallet text-emerald-400 animate-pulse"></i> Doanh Thu Hôm Nay</span>
-                            <div class="mt-1.5 flex items-baseline gap-1">
-                                <span class="text-sm font-black text-emerald-400 font-mono">$645.00</span>
-                                <span class="text-[7px] text-gray-500 font-bold uppercase tracking-wider">12 bills</span>
-                            </div>
+     
+                    <!-- 2. Thợ Rảnh card -->
+                    <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl hover:border-cyan-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-pink 6s infinite ease-in-out reverse;">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-users-cog text-cyan-400"></i> Xoay Tua</h4>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <div class="bg-black/40 border border-white/5 rounded-2xl p-3 shadow-inner flex flex-col justify-between">
-                            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-file-invoice-dollar text-cyan-400"></i> POS Bill Mẫu</span>
-                            <div class="mt-1.5 text-[8px] leading-normal">
-                                <p class="font-extrabold truncate text-white">Bill #1084 - Chị Vy</p>
-                                <p class="text-gray-500 text-[7px] font-mono mt-0.5 font-bold">Tua: $46.20 • Tip: $24.55</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- AI Churn Alert widget -->
-                    <div class="bg-gradient-to-r from-pink-500/15 to-purple-600/5 border border-pink-500/20 rounded-2xl p-3 shadow-md">
-                        <div class="flex items-center gap-2 text-[11px] font-black text-pink-400 uppercase tracking-widest mb-1">
-                            <i class="fas fa-robot text-xs animate-bounce"></i>
-                            <span>AI Gợi Ý Chăm Sóc Khách Cũ</span>
-                        </div>
-                        <p class="text-[10px] text-gray-300 leading-relaxed font-medium">
-                            Phát hiện <strong class="text-white">Chị Mai</strong> đã quá <strong class="text-pink-400">14 ngày</strong> chưa dặm lại gel. AI đã tạo mẫu tin nhắn gửi dặm móng kèm voucher giảm 15%.
-                        </p>
+                        <p class="text-sm text-white font-extrabold">Thợ Vy: Đã check-in</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Xoay tua: Thợ Vy</span>
                     </div>
                 </div>
             </div>
@@ -310,193 +354,368 @@
     </section>
 
     <!-- 2. Pain Points Section -->
-    <section id="problems" class="py-24 bg-[#0a0826] border-y border-white/5 relative z-10">
-        <div class="max-w-6xl mx-auto px-6">
+    <section id="problems" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">Thực tế tiệm móng</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Chủ tiệm Nail <span class="text-pink-400">đau đầu vì những điều này?</span></h2>
-                <p class="text-gray-400 max-w-2xl mx-auto text-sm font-medium">Vận hành tiệm làm móng có thợ thầy phức tạp hơn bán lẻ rất nhiều. Dưới đây là những nỗi lo canh cánh mỗi ngày của chủ tiệm:</p>
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">Thực tế vận hành</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Chủ tiệm Nail đang <span class="text-gradient-pink drop-shadow-[0_2px_10px_rgba(236,72,153,0.3)]">đau đầu vì nỗi lo nào?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Vận hành tiệm làm móng có thợ thầy phức tạp hơn bán lẻ rất nhiều. Dưới đây là những nỗi lo canh cánh mỗi ngày của các chủ tiệm:
+                </p>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
                 <!-- Pain Point 1 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="100">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-users-slash"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Thợ tị nạnh vì chia tua thiếu rõ ràng</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Không có quy trình xếp khách công bằng khiến thợ nghi ngờ chủ thiên vị thợ ruột. Việc tị nạnh tua làm móng dẫn đến thợ chán nản, dễ bỏ việc hoặc chia rẽ nội bộ.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="100">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-users-slash"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất tua</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Thợ tị nạnh vì chia tua thợ thiếu công bằng</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Thiếu quy trình xếp khách rõ ràng khiến thợ nghi ngờ chủ thiên vị. Việc tranh giành tua làm móng làm thợ chán nản, nội bộ chia rẽ và dễ bỏ việc.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Pain Point 2 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="200">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-calculator"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Nhức đầu tính bill, hoa hồng & tip thợ</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Mỗi khách làm một kiểu (đắp bột, gel, đá, vẽ). Cuối ngày mò mẫm đối soát từng bill, chia tip thẻ, tip tiền mặt và khấu trừ phụ liệu (supply) thủ công cực kỳ tốn thời gian.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="200">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Sai bill</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Nhức đầu tính bill, hoa hồng & tip thợ</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Mỗi thợ làm một kiểu (đắp bột, gel, đá, vẽ). Cuối ngày chủ tiệm mò mẫm cộng bill, chia tip thẻ, tip mặt và trừ supply thủ công vô cùng mệt mỏi.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Pain Point 3 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="300">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-phone-slash"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Loạn lịch hẹn khách đặt chéo kênh</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Khách đặt hẹn qua Facebook, Zalo, gọi điện riêng. Chủ tiệm ghi chép sổ tay dễ bị quên hoặc trùng lặp giờ của thợ, khiến khách đến phải chờ lâu rồi bỏ về.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="300">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-phone-slash"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lệch lịch</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Loạn lịch hẹn khách đặt chéo kênh</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách đặt hẹn rải rác qua Fanpage, Zalo, điện thoại. Ghi chép sổ tay dễ bị quên hoặc trùng giờ thợ, khiến khách đến phải chờ lâu rồi bỏ về.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Pain Point 4 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="400">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-ghost"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Khách làm móng một lần rồi mất hút</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Khách làm móng xong ra về là tiệm mất kết nối. Không ai nhớ chu kỳ 2-3 tuần của khách để nhắn tin dặm lại gel hay giới thiệu BST màu sơn mới nhằm kéo khách cũ quay lại.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="400">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-ghost"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất khách</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Khách làm móng một lần rồi mất hút</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Làm móng xong ra về là tiệm mất kết nối. Không ai nhớ chu kỳ 2-3 tuần của khách để nhắn tin dặm lại gel hay giới thiệu BST màu sơn mới.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Pain Point 5 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="500">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-hand-holding-usd"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Thất thoát chi phí hao phí phụ liệu (Supply)</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Không thể định lượng thợ đã dùng hao hụt bao nhiêu sơn gel, phụ liệu của tiệm. Chủ tiệm khó nắm bắt được chi phí supply thực tế phát sinh trên mỗi bộ móng thợ làm.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="500">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Hao phí</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Thất thoát chi phí hao phí phụ liệu (Supply)</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chủ tiệm khó nắm bắt và định lượng thợ đã dùng hao hụt bao nhiêu sơn gel, phụ liệu trên mỗi bộ móng làm cho khách, dễ gây thất thoát chi phí.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
                 <!-- Pain Point 6 -->
-                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="600">
-                    <div class="w-12 h-12 bg-red-500/15 text-red-400 rounded-2xl flex items-center justify-center text-xl mb-6 border border-red-500/25"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <h3 class="text-lg font-black text-white mb-3">Mất hàng giờ làm kế toán mỗi tối</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Sau giờ đóng cửa, thợ đứng xếp hàng chờ tính lương đối soát hoa hồng, chủ ngồi ôm máy tính hay sổ sách toát mồ hôi. Cuối tuần đối soát công nợ vô cùng mệt mỏi.</p>
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="600">
+                    <!-- Bottom line accent -->
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mệt cuối ngày</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Mất hàng giờ làm kế toán mỗi tối</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Sau giờ đóng cửa, thợ đứng xếp hàng chờ tính lương đối soát, chủ tiệm ngồi ôm máy tính toát mồ hôi. Cuối tuần đối soát công nợ cực kỳ mệt mỏi.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- 3. Big Promise Section -->
-    <section id="promise" class="py-24 relative overflow-hidden z-10 bg-[#08061a]">
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[160px] pointer-events-none"></div>
-        <div class="max-w-5xl mx-auto px-6 text-center">
+    <section id="promise" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div data-aos="zoom-in">
-                <span class="text-xs font-black tracking-widest text-cyan-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
-                <h2 class="text-3xl lg:text-5xl font-black mt-3 mb-6 leading-tight">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 leading-tight tracking-tight">
                     BitPaw biến tiệm Nail từ vận hành thủ công <br>
                     thành một <span class="text-gradient-pink">cỗ máy giữ khách và kiểm soát tiền bạc.</span>
                 </h2>
-                <p class="text-gray-400 max-w-2xl mx-auto mb-16 text-sm lg:text-base leading-relaxed font-medium">
-                    Chúng tôi số hóa những quy trình mệt mỏi nhất của bạn, hỗ trợ đưa thợ thầy vào quy trình chia tua rõ ràng, tính toán tiền bạc minh bạch và để AI gợi ý chăm khách quay lại.
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium">
+                    Chúng tôi số hóa những quy trình mệt mỏi nhất của bạn, đưa thợ thầy vào quy trình chia tua rõ ràng, tính toán tiền bạc minh bạch và để AI tự động gợi ý chăm khách quay lại.
                 </p>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="glass p-6 rounded-2xl border border-white/5 text-center">
-                    <div class="text-pink-400 text-3xl mb-4"><i class="fas fa-balance-scale"></i></div>
-                    <h4 class="font-bold text-white text-base mb-2">Chia tua rõ ràng</h4>
-                    <p class="text-xs text-gray-500 leading-relaxed">Giúp chia tua thợ móng công bằng dựa trên check-in GPS và lịch đặt hẹn. Thợ vui vẻ, đồng lòng.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
+                    <div class="text-pink-500 text-5xl mb-5"><i class="fas fa-balance-scale"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Chia tua rõ ràng</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Chia tua thợ móng công bằng dựa trên check-in GPS và lịch đặt hẹn. Thợ vui vẻ, đồng lòng.</p>
                 </div>
-                <div class="glass p-6 rounded-2xl border border-white/5 text-center">
-                    <div class="text-cyan-400 text-3xl mb-4"><i class="fas fa-coins"></i></div>
-                    <h4 class="font-bold text-white text-base mb-2">Đối soát chính xác</h4>
-                    <p class="text-xs text-gray-500 leading-relaxed">POS tự động bóc tách tiền tua thợ, hoa hồng dịch vụ, nợ supply gel và tip thẻ/tiền mặt của thợ.</p>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
+                    <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-coins"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Đối soát chính xác</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">POS tự động bóc tách tiền tua thợ, hoa hồng dịch vụ, nợ supply gel và tip thẻ/tiền mặt.</p>
                 </div>
-                <div class="glass p-6 rounded-2xl border border-white/5 text-center">
-                    <div class="text-purple-400 text-3xl mb-4"><i class="fas fa-magic"></i></div>
-                    <h4 class="font-bold text-white text-base mb-2">Giảm bỏ sót khách cũ</h4>
-                    <p class="text-xs text-gray-500 leading-relaxed">Tăng cơ hội giữ chân khách hàng nhờ CRM và AI tự động gợi ý các kịch bản tin nhắn chăm móng sau 14 ngày.</p>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-purple-500/20 transition-all duration-300">
+                    <div class="text-purple-400 text-5xl mb-5"><i class="fas fa-magic"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Giảm bỏ sót khách cũ</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Gia tăng cơ hội giữ chân khách hàng nhờ CRM và AI tự động gợi ý các kịch bản tin nhắn chăm sóc.</p>
                 </div>
-                <div class="glass p-6 rounded-2xl border border-white/5 text-center">
-                    <div class="text-pink-400 text-3xl mb-4"><i class="fas fa-chart-line"></i></div>
-                    <h4 class="font-bold text-white text-base mb-2">Lời lỗ trực quan</h4>
-                    <p class="text-xs text-gray-500 leading-relaxed">Báo cáo doanh thu và chi phí thực tế của tiệm được tổng hợp rõ ràng giúp hạn chế tối đa thất thoát.</p>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
+                    <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-chart-line"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Lời lỗ trực quan</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Báo cáo doanh thu và chi phí thực tế của tiệm được tổng hợp rõ ràng giúp hạn chế thất thoát.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- 4. Workflow Section -->
-    <section id="workflow" class="py-24 bg-[#0a0826] border-y border-white/5 relative z-10">
-        <div class="max-w-5xl mx-auto px-6">
-            <div class="text-center mb-20" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Hành trình tiệm Nails <span class="text-pink-400">Khép Kín</span></h2>
-                <p class="text-gray-400 max-w-xl mx-auto text-xs font-medium">Bản đồ quy trình tối giản số hóa toàn bộ trải nghiệm của khách hàng và thợ Nails từ online đến offline:</p>
+    <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hành trình tiệm Nails <span class="text-gradient-pink drop-shadow-[0_2px_10px_rgba(236,72,153,0.3)]">khép kín và tự động</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Bản đồ quy trình tối giản số hóa toàn bộ trải nghiệm của khách hàng và thợ Nails từ online đến offline:
+                </p>
             </div>
             
-            <div class="relative">
-                <div class="timeline-line"></div>
-                
-                <div class="space-y-12">
-                    <!-- Step 1 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 md:text-right flex flex-col md:items-end">
-                            <span class="bg-pink-500/10 text-pink-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 01</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2"><i class="fas fa-bullhorn text-pink-500 md:hidden"></i> Khách thấy quảng cáo</h4>
-                            <p class="text-xs text-gray-400 max-w-md md:text-right leading-relaxed font-medium">Khách hàng tiếp cận hình ảnh móng nghệ thuật sang trọng được tạo từ gợi ý nội dung của trợ lý AI Marketing.</p>
-                        </div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-pink-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#ec4899]">1</div>
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                    </div>
-                    
-                    <!-- Step 2 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-cyan-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#06b6d4]">2</div>
-                        <div class="w-full md:w-1/2 text-left flex flex-col items-start">
-                            <span class="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 02</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2">AI Bot hỗ trợ phản hồi <i class="fas fa-robot text-cyan-400 md:hidden"></i></h4>
-                            <p class="text-xs text-gray-400 max-w-md leading-relaxed font-medium">Khách hàng inbox hỏi giá dịch vụ làm móng. AI Bot tự động trả lời tư vấn và gửi link liên kết đặt lịch hẹn tiện lợi.</p>
+            <!-- Row 1: Steps 1-4 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch mb-6 lg:mb-8">
+                <!-- Step 1 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="100">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">01</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-bullhorn"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khách thấy quảng cáo</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                AI gợi ý nội dung để tiệm kéo khách mới từ Facebook/Zalo/TikTok.
+                            </p>
                         </div>
                     </div>
-                    
-                    <!-- Step 3 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 md:text-right flex flex-col md:items-end">
-                            <span class="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 03</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2"><i class="far fa-calendar-alt text-purple-400 md:hidden"></i> Khách đặt lịch trước</h4>
-                            <p class="text-xs text-gray-400 max-w-md md:text-right leading-relaxed font-medium">Khách truy cập cổng <strong>booking.html</strong> tự động lựa chọn khung giờ rảnh, gói dịch vụ Nails và chỉ định thợ móng mong muốn.</p>
-                        </div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-purple-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#a855f7]">3</div>
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
+                    <!-- Desktop Flow Arrow (1->2) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
                     </div>
-                    
-                    <!-- Step 4 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-pink-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#ec4899]">4</div>
-                        <div class="w-full md:w-1/2 text-left flex flex-col items-start">
-                            <span class="bg-pink-500/10 text-pink-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 04</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2">Khách quét QR Menu <i class="fas fa-qrcode text-pink-400 md:hidden"></i></h4>
-                            <p class="text-xs text-gray-400 max-w-md leading-relaxed font-medium">Khách đến tiệm làm móng, quét mã QR tại bàn để xem menu dịch vụ <strong>qr_menu.html</strong> và có thể chọn thêm dịch vụ nâng cấp.</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 5 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 md:text-right flex flex-col md:items-end">
-                            <span class="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 05</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2"><i class="fas fa-users text-cyan-400 md:hidden"></i> Phân tua làm việc</h4>
-                            <p class="text-xs text-gray-400 max-w-md md:text-right leading-relaxed font-medium">Chủ tiệm Nails xếp Tua thợ theo danh sách thợ đang rảnh một cách minh bạch, công bằng ngay tại <strong>chamcong_nail.html</strong>.</p>
-                        </div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-cyan-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#06b6d4]">5</div>
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                    </div>
-                    
-                    <!-- Step 6 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-purple-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#a855f7]">6</div>
-                        <div class="w-full md:w-1/2 text-left flex flex-col items-start">
-                            <span class="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 06</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2">POS tự đối soát tiền tua <i class="fas fa-file-invoice text-purple-400 md:hidden"></i></h4>
-                            <p class="text-xs text-gray-400 max-w-md leading-relaxed font-medium">Thu ngân thanh toán POS. Hệ thống tự động chia phần thợ nhận, trừ phí supply móng gel và tích lũy tips thẻ rõ ràng.</p>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 2 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="200">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">02</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-robot"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI Bot tư vấn</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Tự động trả lời câu hỏi phổ biến, gửi bảng giá và giữ khách không rơi.
+                            </p>
                         </div>
                     </div>
-                    
-                    <!-- Step 7 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 md:text-right flex flex-col md:items-end">
-                            <span class="bg-pink-500/10 text-pink-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 07</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2"><i class="fas fa-user-tag text-pink-400 md:hidden"></i> Lưu trữ lịch sử CRM</h4>
-                            <p class="text-xs text-gray-400 max-w-md md:text-right leading-relaxed font-medium">Hồ sơ khách được ghi lại trên <strong>crm.html</strong> giúp tiệm lưu trữ ngày làm móng gần nhất, dịch vụ yêu thích và tổng tiền đã chi.</p>
-                        </div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-pink-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#ec4899]">7</div>
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
+                    <!-- Desktop Flow Arrow (2->3) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
                     </div>
-                    
-                    <!-- Step 8 -->
-                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 relative z-10 pl-16 md:pl-0" data-aos="fade-up">
-                        <div class="w-full md:w-1/2 hidden md:block"></div>
-                        <div class="absolute left-3 top-1 md:relative md:top-auto md:left-auto w-10 h-10 rounded-full bg-cyan-500 border-4 border-[#0a0826] flex items-center justify-center font-black text-black z-20 shrink-0 shadow-[0_0_15px_#06b6d4]">8</div>
-                        <div class="w-full md:w-1/2 text-left flex flex-col items-start">
-                            <span class="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-2">Bước 08</span>
-                            <h4 class="text-white font-extrabold text-lg mb-1 flex items-center gap-2">AI gợi ý tin nhắn chăm lại <i class="fas fa-magic text-cyan-400 md:hidden"></i></h4>
-                            <p class="text-xs text-gray-400 max-w-md leading-relaxed font-medium">Tròn chu kỳ mọc móng gel (14 ngày), AI gợi ý tin nhắn nhắc dặm da, làm sạch móng gel giúp tiệm Nails gia tăng cơ hội kéo khách quay lại.</p>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 3 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="300">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">03</div>
+                                <div class="text-pink-400 text-2xl"><i class="far fa-calendar-alt"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khách đặt lịch</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách chọn dịch vụ, thợ và giờ trống trước khi đến tiệm.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Desktop Flow Arrow (3->4) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 4 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="400">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">04</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-qrcode"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">QR Menu / Check-in</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách quét QR xem dịch vụ, chọn gói nâng cấp hoặc check-in.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+ 
+            <!-- Row 2: Steps 5-8 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch">
+                <!-- Step 5 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="500">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">05</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-users"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Chia tua thợ</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chủ tiệm thấy ai rảnh, ai đang làm, tua nào tới lượt.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Desktop Flow Arrow (5->6) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 6 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="600">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">06</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-file-invoice-dollar"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">POS tính bill</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Tính dịch vụ, tips, supply, phí thẻ và tiền thợ rõ ràng.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Desktop Flow Arrow (6->7) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 7 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="700">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">07</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-user-tag"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">CRM lưu hồ sơ</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Lưu lịch sử làm móng, thói quen và chu kỳ quay lại của từng khách.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Desktop Flow Arrow (7->8) -->
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-pink-500/10 border border-pink-500/30 items-center justify-center text-pink-400 text-xs shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <!-- Mobile Flow Arrow -->
+                    <div class="lg:hidden flex justify-center py-2 text-pink-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 8 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="800">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-pink-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">08</div>
+                                <div class="text-pink-400 text-2xl"><i class="fas fa-magic"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI nhắc khách cũ</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Gợi ý tin nhắn chăm sóc để kéo khách quay lại đúng thời điểm.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -504,169 +723,323 @@
         </div>
     </section>
 
-    <!-- 5. Tính năng lõi cho tiệm Nail -->
-    <section id="features" class="py-24 relative z-10 bg-[#08061a]">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center mb-20" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">HỆ THỐNG THỰC TẾ</span>
-                <h2 class="text-3xl lg:text-5xl font-black mt-2 mb-4">Các tính năng lõi <span class="text-pink-400">chuyên sâu tiệm Nails</span></h2>
-                <p class="text-gray-400 max-w-2xl mx-auto text-sm font-medium">Tất cả chức năng dưới đây đều được lập trình thật sự trong source code của hệ thống, giúp bạn số hóa tiệm Nails trơn tru:</p>
+    <!-- 5. Feature Grid Section -->
+    <section id="features" class="py-24 relative z-10 bg-transparent scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Các tính năng lõi <span class="text-gradient-pink drop-shadow-[0_2px_10px_rgba(236,72,153,0.3)]">chuyên sâu tiệm Nails</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp bạn số hóa tiệm Nails trơn tru:
+                </p>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Feature 1 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="far fa-calendar-alt"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">Booking thông minh</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Khách tự đặt lịch trực tuyến qua trang <a href="{{ url_for('public_booking') }}" class="text-pink-400 hover:underline">booking.html</a>. Tự động khóa lịch khi thợ bận hoặc giường dịch vụ đã hết chỗ trống.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                <!-- Feature 1: Booking -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="100">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="far fa-calendar-alt"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Booking</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">Booking thông minh</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách tự đặt lịch trực tuyến qua <a href="{{ url_for('public_booking') }}" class="text-pink-400 hover:underline font-bold">Cổng đặt lịch online</a>. Tự động khóa lịch khi thợ bận hoặc giường dịch vụ đã hết chỗ.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 2 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-users"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">Chia tua thợ công bằng</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Chủ tiệm theo dõi trực quan trạng thái thợ rảnh/bận ngay tại <a href="{{ url_for('chamcong_industry', industry_code='nail') }}" class="text-pink-400 hover:underline">chamcong_nail.html</a> để phân việc xoay tua công bằng, thợ Nails vui vẻ.</p>
+                
+                <!-- Feature 2: Tua Thợ -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="200">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-users-cog"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Tua thợ</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Chia tua thợ công bằng</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chủ tiệm theo dõi trực quan trạng thái thợ rảnh/bận ngay tại <a href="{{ url_for('chamcong_industry', industry_code='nail') }}" class="text-pink-400 hover:underline font-bold">Bảng xoay tua & tính lương thợ</a> để phân việc xoay tua công bằng.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 3 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-calculator"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">POS tính bill & tips</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Trình POS thu ngân tính tiền dịch vụ móng, phụ phí đá/gel nhanh gọn. Bóc tách rõ ràng tiền tua thợ, tiền tip tiền mặt, tip thẻ trừ phí quẹt cà thẻ.</p>
+                
+                <!-- Feature 3: POS -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="300">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">POS</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">POS tính bill & tips</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Tính tiền móng, phụ phí đá/gel nhanh gọn. Bóc tách tiền tua thợ nhận, tiền tip mặt, tip thẻ trừ phí quẹt cà thẻ minh bạch.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 4 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-hand-holding-usd"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">Khấu trừ hoa hồng / supply</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Tự động trừ phí phụ liệu (Supply) của thợ ngay trên từng bill làm móng tại màn hình <a href="{{ url_for('staff_list') }}" class="text-pink-400 hover:underline">staff_management.html</a>. Minh bạch tài chính.</p>
+                
+                <!-- Feature 4: Supply -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="400">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Supply</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Khấu trừ hoa hồng / supply</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Tự động trừ phí phụ liệu (Supply) thợ dùng ngay trên từng bill làm móng tại màn hình <a href="{{ url_for('staff_list') }}" class="text-pink-400 hover:underline font-bold">Quản lý thợ & hoa hồng</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 5 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-fingerprint"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">Chấm công GPS thợ tiệm</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Thợ tự check-in GPS tại tiệm để đối soát ca và thời gian làm việc chuẩn xác, hỗ trợ chủ tiệm Nails theo dõi đi trễ về sớm dễ dàng.</p>
+                
+                <!-- Feature 5: GPS -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="500">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-fingerprint"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">GPS</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">Chấm công GPS tại tiệm</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Thợ tự check-in GPS tại tiệm để đối soát ca và thời gian làm việc chuẩn xác, hỗ trợ chủ tiệm Nails theo dõi đi trễ về sớm dễ dàng.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 6 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-magic"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">AI gợi ý tin nhắn bám đuổi</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Hệ thống <a href="{{ url_for('crm_automation') }}" class="text-pink-400 hover:underline">crm_automation.html</a> kết hợp AI tự động lên kịch bản gợi ý dặm gel móng tay theo chu kỳ 14 ngày mọc móng.</p>
+                
+                <!-- Feature 6: CRM -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="600">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-magic"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">AI CSKH</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">AI gợi ý tin nhắn bám đuổi</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống <a href="{{ url_for('crm_automation') }}" class="text-pink-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a> kết hợp AI tự động lên kịch bản gợi ý dặm gel móng theo chu kỳ 14 ngày mọc móng.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 7 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-bullhorn"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">AI Marketing Assistant</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">AI hỗ trợ viết caption bài đăng quảng cáo móng ombre, gợi ý ưu đãi, đề xuất ý tưởng quay video ngắn Reels/TikTok kéo khách vắng ca sáng.</p>
+                
+                <!-- Feature 7: AI Ads -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="700">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-bullhorn"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">AI Ads</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">AI Marketing Assistant</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                AI viết caption bài đăng, gợi ý chương trình ưu đãi, đề xuất ý tưởng quay video ngắn Reels/TikTok kéo khách cực nhanh cho tiệm Nails.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
-                <!-- Feature 8 -->
-                <div class="glass-card p-6 rounded-3xl" data-tilt data-tilt-max="5">
-                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-lg mb-5 border border-pink-500/20"><i class="fas fa-qrcode"></i></div>
-                    <h4 class="font-extrabold text-white text-base mb-2">QR Menu / QR Check-in</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed font-medium">Khách quét mã QR đặt tại bàn làm móng để tự do tham khảo các gói dịch vụ phụ trợ, đắp paraffin, đắp gel tại <a href="{{ url_for('quanly_dichvu') }}" class="text-pink-400 hover:underline">quanly_dichvu.html</a>.</p>
+                
+                <!-- Feature 8: QR Code -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="800">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-qrcode"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">QR Code</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">QR Menu / QR Check-in</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách quét mã QR tại bàn để tự xem <a href="{{ url_for('quanly_dichvu') }}" class="text-pink-400 hover:underline font-bold">QR Menu dịch vụ</a>, tự gọi thêm dịch vụ đắp paraffin, đắp gel dễ dàng.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- 6. Section “Tính tua & tiền thợ minh bạch” (Interactive Calculator) -->
-    <section id="calculator" class="py-24 bg-[#0a0826] border-y border-white/5 relative z-10">
-        <div class="max-w-6xl mx-auto px-6">
+    <section id="calculator" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">Trải nghiệm tương tác thật</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Tính tua & lương thợ <span class="text-pink-400">Minh Bạch trong 3 giây</span></h2>
-                <p class="text-gray-400 max-w-xl mx-auto text-sm font-medium">Cuối ngày không còn cộng bill bằng tay, thợ thắc mắc, chủ dò từng bill. Hãy thử chọn hoặc nhập số ca làm để kiểm chứng cỗ máy đối soát của BitPaw:</p>
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">Interactive Demo</span>
+                <h2 class="text-[32px] lg:text-[48px] font-black mt-2 mb-4 tracking-tight leading-tight">
+                    Tính tua & lương thợ <span class="text-gradient-pink">minh bạch trong 3 giây</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Cuối ngày không còn cộng bill bằng tay, thợ thắc mắc, chủ dò từng bill. Hãy thử chọn hoặc nhập số ca làm để kiểm chứng cỗ máy đối soát của BitPaw:
+                </p>
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                 <!-- Calculator Inputs -->
-                <div class="lg:col-span-7 glass border border-white/10 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-xl">
-                    <h3 class="text-lg font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-pink-500"></i> Bảng Nhập Phiếu Tính Tua</h3>
-                    
-                    <div class="space-y-5">
-                        <!-- Chọn gói dịch vụ móng nhanh -->
-                        <div>
-                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Chọn Dịch Vụ Mẫu</label>
-                            <select id="quick_service" class="calc-input w-full p-3 font-semibold text-sm bg-[#08061a]">
-                                <option value="ombre">Đắp Bột Ombre (Thu khách $80 - Tua 60% - Supply $3)</option>
-                                <option value="gel">Sơn Gel Hàn Quốc (Thu khách $40 - Tua 60% - Supply $2)</option>
-                                <option value="design">Vẽ Móng Nghệ Thuật (Thu khách $30 - Tua 50% - Supply $1)</option>
-                                <option value="custom">Tự điền tay thông số bên dưới...</option>
-                            </select>
-                        </div>
+                <div class="lg:col-span-7 glass border border-white/10 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-xl" data-aos="fade-right">
+                    <div>
+                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-pink-500"></i> Nhập bill mẫu</h3>
                         
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-5">
+                            <!-- Chọn gói dịch vụ móng nhanh -->
                             <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">1. Tổng Giá Bill Dịch Vụ ($)</label>
-                                <input type="number" id="calc_total" value="80" class="calc-input w-full p-3 font-mono text-sm font-bold">
+                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">Chọn Dịch Vụ Mẫu</label>
+                                <select id="quick_service" class="calc-input w-full p-4 font-semibold text-base bg-[#08061a] border border-white/10 text-white rounded-xl focus:border-pink-500 focus:outline-none">
+                                    <option value="ombre">Đắp Bột Ombre (Thu khách $80 - Tua 60% - Supply $3)</option>
+                                    <option value="gel">Sơn Gel Hàn Quốc (Thu khách $40 - Tua 60% - Supply $2)</option>
+                                    <option value="design">Vẽ Móng Nghệ Thuật (Thu khách $30 - Tua 50% - Supply $1)</option>
+                                    <option value="custom">Tự điền tay thông số bên dưới...</option>
+                                </select>
                             </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">2. Tỉ Lệ Chia Thợ (%)</label>
-                                <input type="number" id="calc_split" value="60" class="calc-input w-full p-3 font-mono text-sm font-bold">
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">1. Tổng Giá Bill ($)</label>
+                                    <input type="number" id="calc_total" value="80" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">2. Tỉ Lệ Chia Thợ (%)</label>
+                                    <input type="number" id="calc_split" value="60" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">3. Phí Supply Khấu Trừ ($)</label>
-                                <input type="number" id="calc_supply" value="3" class="calc-input w-full p-3 font-mono text-sm font-bold">
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">3. Phí Supply Khấu Trừ ($)</label>
+                                    <input type="number" id="calc_supply" value="3" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">4. Phí Quẹt Thẻ C/C (%)</label>
+                                    <input type="number" id="calc_cc_fee" value="3" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">4. Phí Quẹt Thẻ C/C (%)</label>
-                                <input type="number" id="calc_cc_fee" value="3" class="calc-input w-full p-3 font-mono text-sm font-bold">
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">5. Tiền Tip Tiền Mặt ($)</label>
-                                <input type="number" id="calc_cash_tip" value="10" class="calc-input w-full p-3 font-mono text-sm font-bold text-emerald-400">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">6. Tiền Tip Quẹt Thẻ ($)</label>
-                                <input type="number" id="calc_cc_tip" value="15" class="calc-input w-full p-3 font-mono text-sm font-bold text-purple-400">
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">5. Tiền Tip Tiền Mặt ($)</label>
+                                    <input type="number" id="calc_cash_tip" value="10" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">6. Tiền Tip Quẹt Thẻ ($)</label>
+                                    <input type="number" id="calc_cc_tip" value="15" class="calc-input w-full p-4 font-mono text-base font-bold text-purple-400 bg-black/40 border border-white/10 rounded-xl focus:border-pink-500 focus:outline-none">
+                                </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="mt-8 pt-4 border-t border-white/5 flex gap-2">
-                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-info-circle text-pink-500"></i> Giúp thợ và chủ tiệm dễ đối soát hơn, giảm thiểu các tranh cãi không đáng có.</span>
+                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-pink-500 text-base animate-pulse"></i> Giúp thợ và chủ tiệm dễ đối soát hơn, giảm thiểu các tranh cãi không đáng có.</span>
                     </div>
                 </div>
                 
                 <!-- Calculator Outputs (Receipt Style) -->
-                <div class="lg:col-span-5 flex flex-col gap-6 justify-between">
-                    <div class="bg-[#100b12] border border-white/10 rounded-3xl p-6 shadow-inner relative overflow-hidden flex-1 flex flex-col justify-between">
-                        <div class="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-pink-500 to-purple-600"></div>
+                <div class="lg:col-span-5 flex flex-col justify-between" data-aos="fade-left">
+                    <div class="bg-[#120c15]/90 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-between">
+                        <!-- Top neon bar -->
+                        <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-pink-500 to-purple-600"></div>
                         
                         <div>
-                            <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-800 pb-4 flex justify-center items-center gap-2 text-xs"><i class="fas fa-receipt text-pink-500"></i> BIÊN LAI ĐỐI SOÁT REALTIME</h3>
+                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-pink-500"></i> Biên lai đối soát realtime</h3>
                             
-                            <div class="space-y-2 mb-5 text-gray-400 font-mono text-xs border-b border-dashed border-gray-800 pb-5">
+                            <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base border-b border-dashed border-white/10 pb-6">
                                 <div class="flex justify-between"><span>Tổng Thu Khách:</span> <span class="text-white font-bold" id="rc_total">$80.00</span></div>
-                                <div class="flex justify-between text-rose-400"><span>- Phí Phụ Liệu Supply:</span> <span id="rc_supply">-$3.00</span></div>
-                                <div class="flex justify-between pt-2 border-t border-gray-900"><span>Doanh thu tính chia %:</span> <span class="text-cyan-400 font-bold" id="rc_net">$77.00</span></div>
+                                <div class="flex justify-between text-rose-400"><span>- Phí Phụ Liệu (Supply):</span> <span id="rc_supply">-$3.00</span></div>
+                                <div class="flex justify-between pt-2 border-t border-white/5"><span>Doanh thu tính chia %:</span> <span class="text-cyan-400 font-bold" id="rc_net">$77.00</span></div>
                             </div>
                             
-                            <div class="space-y-2 mb-5 text-gray-400 font-mono text-xs">
-                                <div class="flex justify-between"><span>Tua Thợ Nhận (<span id="rc_split_rate">60</span>%):</span> <span class="text-white font-bold" id="rc_worker_tua">$46.20</span></div>
-                                <div class="flex justify-between text-emerald-400"><span>+ Tip Tiền Mặt:</span> <span id="rc_cash_tip">+$10.00</span></div>
-                                <div class="flex justify-between text-purple-400"><span>+ Tip Quẹt Thẻ (Sau phí quẹt <span id="rc_cc_fee_rate">3</span>%):</span> <span id="rc_cc_tip">+$14.55</span></div>
+                            <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base">
+                                <div class="flex justify-between"><span>Tua Thợ Nhận (<span id="rc_split_rate" class="text-pink-400">60</span>%):</span> <span class="text-white font-bold" id="rc_worker_tua">$46.20</span></div>
+                                <div class="flex justify-between text-emerald-400"><span>+ Tiền Tip Tiền Mặt:</span> <span id="rc_cash_tip">+$10.00</span></div>
+                                <div class="flex justify-between text-purple-400"><span>+ Tip Quẹt Thẻ (Sau CC Fee <span id="rc_cc_fee_rate">3</span>%):</span> <span id="rc_cc_tip">+$14.55</span></div>
                             </div>
                         </div>
-
+                        
                         <div>
-                            <div class="mt-4 pt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
+                            <div class="mt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-[9px] text-gray-400 font-black uppercase tracking-widest">Thợ Móng Cầm Về</span>
-                                    <span class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-md" id="rc_final_worker">$70.75</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Thợ Nhận Thực Tế</span>
+                                    <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_final_worker">$70.75</span>
                                 </div>
                                 <div class="flex justify-between items-center border-t border-white/5 pt-3">
-                                    <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Tiệm Nails Giữ Lại</span>
-                                    <span class="text-base font-black text-rose-400 font-mono" id="rc_final_salon">$33.80</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Tiệm Nails Giữ Lại</span>
+                                    <span class="text-lg lg:text-xl font-black text-rose-400 font-mono" id="rc_final_salon">$33.80</span>
                                 </div>
                             </div>
                             
-                            <button onclick="window.location.href='{{ url_for('register') }}'" class="w-full mt-5 bg-gradient-to-r from-pink-500 to-purple-600 font-black p-3.5 rounded-xl text-xs hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(236,72,153,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white">
-                                <i class="fas fa-check-double"></i> ĐĂNG KÝ BẢN QUYỀN ĐỂ DÙNG NGAY
-                            </button>
+                            <a href="{{ url_for('register') }}" class="w-full mt-6 bg-gradient-to-r from-pink-500 to-purple-600 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(236,72,153,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white">
+                                <i class="fas fa-check-double text-xs"></i> Đăng ký dùng ngay
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -675,139 +1048,156 @@
     </section>
 
     <!-- 7. Section AI giữ khách cũ (AI CSKH Message Previews) -->
-    <section id="ai-cskh" class="py-24 relative overflow-hidden z-10 bg-[#08061a]">
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="text-center mb-20" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-cyan-400 uppercase">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Khách làm móng luôn có chu kỳ. <br>Vấn đề là <span class="text-pink-400">tiệm có nhớ để nhắc hay không?</span></h2>
-                <p class="text-gray-400 max-w-2xl mx-auto text-sm font-medium">
-                    AI hỗ trợ gợi ý và tạo tin nhắn chăm sóc khách cũ định kỳ theo chu kỳ mọc móng để chủ tiệm hoặc nhân viên xác nhận và gửi qua kênh phù hợp (Zalo/Messenger), giúp tăng cơ hội kéo khách cũ quay lại tiệm:
+    <section id="ai-cskh" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Khách làm móng luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-pink">tiệm có nhớ để nhắc hay không?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-slate-300 max-w-3xl mx-auto leading-relaxed font-medium">
+                    AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo chu kỳ mọc móng của thợ Nails, giúp tăng cơ hội kéo khách cũ quay lại tiệm:
                 </p>
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Message 1 -->
-                <div class="glass border border-pink-500/20 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg">
+                <div class="glass border border-pink-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="100">
                     <div class="absolute top-0 right-0 w-16 h-16 bg-pink-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-[9px] font-black text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded uppercase tracking-wider">AI gợi ý - Sau 3 ngày</span>
-                            <span class="text-xs text-gray-500 font-mono"><i class="fas fa-check-double text-emerald-400 mr-1"></i>Đã phê duyệt</span>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 3 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
                         </div>
-                        <h4 class="font-extrabold text-white text-base mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-pink-500"></i>Hỏi thăm chất lượng móng</h4>
-                        <div class="bg-black/50 p-4 rounded-2xl border border-white/5 text-xs text-gray-300 font-mono leading-relaxed shadow-inner">
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-pink-500"></i> Hỏi thăm chất lượng móng</h4>
+                        
+                        <!-- Chat Bubble Representation -->
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
                             "Chào chị Vy thương mến! 🐾 Đã 3 ngày kể từ buổi sơn gel dưỡng móng tại BitPaw Nails, nước sơn có bền màu và bóng mịn như ý chị không ạ? Nếu móng cần dặm lại miễn phí, chị nhắn em liền nhé! 💅"
                         </div>
                     </div>
-                    <div class="mt-6 border-t border-white/5 pt-4 text-[10px] text-gray-500 font-bold uppercase">Mục tiêu: Đảm bảo khách hài lòng & Tạo niềm tin tuyệt đối</div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-pink-400"></i> Mục tiêu: Đo lường mức độ hài lòng thợ làm
+                    </div>
                 </div>
                 
                 <!-- Message 2 -->
-                <div class="glass border border-cyan-500/20 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg">
+                <div class="glass border border-cyan-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="200">
                     <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded uppercase tracking-wider">AI gợi ý - Sau 7 ngày</span>
-                            <span class="text-xs text-gray-500 font-mono"><i class="fas fa-check-double text-emerald-400 mr-1"></i>Đã phê duyệt</span>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 7 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
                         </div>
-                        <h4 class="font-extrabold text-white text-base mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-cyan-400"></i>Gợi ý mẫu sơn gel mới về</h4>
-                        <div class="bg-black/50 p-4 rounded-2xl border border-white/5 text-xs text-gray-300 font-mono leading-relaxed shadow-inner">
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-cyan-400"></i> Gợi ý BST màu sơn mới</h4>
+                        
+                        <!-- Chat Bubble Representation -->
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
                             "Kính chào Qúy khách Vy. Một tuần rồi chị Vy chưa ghé tiệm nails nhà em làm móng. Tiệm vừa cập bến BST màu sơn thạch pastel cực kỳ trendy và tôn da, em giữ slot ca trống chiều nay ưu đãi giảm 10% riêng cho chị Vy nhé! 🎁"
                         </div>
                     </div>
-                    <div class="mt-6 border-t border-white/5 pt-4 text-[10px] text-gray-500 font-bold uppercase">Mục tiêu: Upsell dịch vụ & Giới thiệu combo hot</div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-cyan-400"></i> Mục tiêu: Giới thiệu BST & kích thích đi lại
+                    </div>
                 </div>
                 
                 <!-- Message 3 -->
-                <div class="glass border border-purple-500/20 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg">
+                <div class="glass border border-purple-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="300">
                     <div class="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-[9px] font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded uppercase tracking-wider">AI gợi ý - Sau 14 ngày</span>
-                            <span class="text-xs text-gray-500 font-mono"><i class="fas fa-check-double text-emerald-400 mr-1"></i>Đã phê duyệt</span>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý - Sau 14 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
                         </div>
-                        <h4 class="font-extrabold text-white text-base mb-3 flex items-center gap-1.5"><i class="fas fa-bell text-purple-400"></i>Nhắc lịch dặm da móng</h4>
-                        <div class="bg-black/50 p-4 rounded-2xl border border-white/5 text-xs text-gray-300 font-mono leading-relaxed shadow-inner">
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-bell text-purple-400"></i> Nhắc lịch dặm da móng</h4>
+                        
+                        <!-- Chat Bubble Representation -->
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
                             "🚨 CHỊ VY ƠI! ƯU ĐÃI ĐỘC QUYỀN SẮP HẾT HẠN! Đã 2 tuần móng gel của chị Vy mọc dài cần được dọn da lại và dưỡng ẩm Paraffin tay rồi ạ. Bên em tặng riêng chị voucher giảm 30% dọn da, dặm gel cao cấp. Click đặt lịch Zalo giữ thợ VIP liền chị ơi!"
                         </div>
                     </div>
-                    <div class="mt-6 border-t border-white/5 pt-4 text-[10px] text-gray-500 font-bold uppercase">Mục tiêu: Kéo khách cũ quay lại định kỳ</div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-purple-400"></i> Mục tiêu: Kéo khách cũ quay lại định kỳ
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- 8. Section AI Marketing / Ads / Video -->
-    <section class="py-24 bg-[#0a0826] border-y border-white/5 relative z-10">
+    <section class="pt-32 pb-24 lg:pt-40 lg:pb-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-24">
         <div class="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             <div class="lg:col-span-5 relative" data-aos="fade-right">
                 <div class="absolute inset-0 bg-pink-500/10 rounded-full blur-[80px] opacity-70"></div>
-                <div class="relative glass border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 font-mono text-xs">
-                    <div class="text-pink-400 font-black mb-1 flex items-center gap-1.5"><i class="fas fa-brain animate-pulse"></i> AI SUGGESTIONS LOG</div>
-                    <div class="bg-black/60 p-4 rounded-2xl border border-white/5 space-y-3">
+                <div class="relative glass border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 font-mono text-sm">
+                    <div class="text-pink-400 font-black mb-1 flex items-center gap-1.5 text-base"><i class="fas fa-brain animate-pulse text-lg"></i> AI SUGGESTIONS LOG</div>
+                    <div class="bg-black/60 p-4 rounded-2xl border border-white/5 space-y-4">
                         <div>
-                            <span class="text-gray-500">Mẫu Tiêu Đề Quảng Cáo Gợi Ý:</span>
-                            <p class="text-white font-bold mt-1">"✨ Đắp Bột Ombre Cao Cấp – Tay Xinh Đón Hè, Nhận Ngay Ưu Đãi Combo Paraffin 99k!"</p>
+                            <span class="text-xs lg:text-sm text-slate-400 uppercase font-bold tracking-wider">Mẫu Tiêu Đề Quảng Cáo Gợi Ý:</span>
+                            <p class="text-white font-bold mt-1 text-[16px] lg:text-[18px]">"✨ Đắp Bột Ombre Cao Cấp – Tay Xinh Đón Hè, Nhận Ngay Ưu Đãi Combo Paraffin 99k!"</p>
                         </div>
                         <div>
-                            <span class="text-gray-500">Đối Tượng Target Đề Xuất (Facebook):</span>
-                            <p class="text-white mt-1">Độ tuổi 20-45, Nữ giới, Vị trí bán kính 5km quanh tiệm, thích Làm đẹp, Mỹ phẩm, Nails, Spa.</p>
+                            <span class="text-xs lg:text-sm text-slate-400 uppercase font-bold tracking-wider">Đối Tượng Target Đề Xuất (Facebook):</span>
+                            <p class="text-white mt-1 text-[16px] lg:text-[18px]">Độ tuổi 20-45, Nữ giới, Vị trí bán kính 5km quanh tiệm, thích Làm đẹp, Mỹ phẩm, Nails, Spa.</p>
                         </div>
                         <div>
-                            <span class="text-gray-500">Ý Tưởng Video Ngắn Hút Khách:</span>
-                            <p class="text-white mt-1">Review quá trình đắp bột móng tay xỉn màu lột xác thành móng Ombre đính đá sang chảnh trong 60 giây.</p>
+                            <span class="text-xs lg:text-sm text-slate-400 uppercase font-bold tracking-wider">Ý Tưởng Video Ngắn Hút Khách:</span>
+                            <p class="text-white mt-1 text-[16px] lg:text-[18px]">Review quá trình đắp bột móng tay xỉn màu lột xác thành móng Ombre đính đá sang chảnh trong 60 giây.</p>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="lg:col-span-7 text-center lg:text-left" data-aos="fade-left">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">HỖ TRỢ TRUYỀN THÔNG ĐẮT GIÁ</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-6">AI Trợ Lý Hỗ Trợ <span class="text-pink-400">Marketing & Viết Bài</span></h2>
-                <p class="text-gray-400 mb-6 text-sm leading-relaxed font-medium">
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">HỖ TRỢ TRUYỀN THÔNG ĐẮT GIÁ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 tracking-tight leading-tight">AI Trợ Lý Hỗ Trợ <span class="text-gradient-pink">Marketing & Viết Bài</span></h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 mb-6 leading-relaxed font-medium">
                     Bạn chưa biết hôm nay đăng gì lên Fanpage, viết bài ưu đãi ra sao để kéo khách làm móng vắng ca sáng? Trợ lý thông minh AI Ads Assistant (kết nối proxy AI Deepseek) được tích hợp sẵn sẽ hỗ trợ sếp lên ý tưởng cực nhanh:
                 </p>
-                <ul class="space-y-4 text-xs font-bold text-gray-300 text-left max-w-lg mx-auto lg:mx-0">
-                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-sm"></i> <span>AI gợi ý mẫu quảng cáo móng ombre, gel nghệ thuật trendy bắt mắt.</span></li>
-                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-sm"></i> <span>AI viết caption bài đăng giới thiệu bảng giá ưu đãi, mini game của tiệm.</span></li>
-                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-sm"></i> <span>AI đề xuất kịch bản quay video ngắn Reels/TikTok cho tiệm Nails.</span></li>
-                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-sm"></i> <span>AI gợi ý tệp target đối tượng và mức ngân sách quảng cáo tối ưu tham khảo. Việc chạy quảng cáo và ngân sách thực tế do chủ tiệm xác nhận để kiểm soát chi phí.</span></li>
+                <ul class="space-y-4 text-[16px] lg:text-[18px] font-semibold text-gray-300 text-left max-w-lg mx-auto lg:mx-0">
+                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-base"></i> <span>AI gợi ý mẫu quảng cáo móng ombre, gel nghệ thuật trendy bắt mắt.</span></li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-base"></i> <span>AI viết caption bài đăng giới thiệu bảng giá ưu đãi, mini game của tiệm.</span></li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-base"></i> <span>AI đề xuất kịch bản quay video ngắn Reels/TikTok cho tiệm Nails.</span></li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check text-pink-500 text-base"></i> <span>AI gợi ý tệp target đối tượng và mức ngân sách quảng cáo tối ưu tham khảo. Việc chạy quảng cáo và ngân sách thực tế do chủ tiệm xác nhận để kiểm soát chi phí.</span></li>
                 </ul>
             </div>
         </div>
     </section>
 
     <!-- 9. Section Trust / Vì sao chủ tiệm tin được -->
-    <section class="py-24 bg-[#08061a] relative z-10">
+    <section class="pt-32 pb-24 lg:pt-40 lg:pb-32 bg-transparent relative z-10 scroll-mt-24">
         <div class="max-w-5xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-cyan-400 uppercase">UY TÍN & AN TOÀN TUYỆT ĐỐI</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Vì sao hàng trăm chủ tiệm <span class="text-cyan-400">tin dùng BitPaw OS?</span></h2>
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">UY TÍN & AN TOÀN TUYỆT ĐỐI</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">Vì sao hàng trăm chủ tiệm <span class="text-gradient-cyan">tin dùng BitPaw OS?</span></h2>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
                 <div class="p-6" data-aos="zoom-in">
-                    <h3 class="text-4xl font-black text-pink-500 mb-3"><i class="fas fa-shield-alt"></i></h3>
-                    <p class="text-xs text-gray-400 uppercase tracking-wider font-extrabold mb-2">Thợ Gắn Bó Hơn</p>
-                    <p class="text-xs text-gray-500 font-medium">Nhờ vòng chia tua minh bạch rõ ràng, thợ cảm thấy công bằng, triệt tiêu hẳn tranh giành tị nạnh nội bộ.</p>
+                    <h3 class="text-5xl font-black text-pink-500 mb-4"><i class="fas fa-shield-alt"></i></h3>
+                    <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Thợ Gắn Bó Hơn</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Nhờ vòng chia tua minh bạch rõ ràng, thợ cảm thấy công bằng, triệt tiêu hẳn tranh giành tị nạnh nội bộ.</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="100">
-                    <h3 class="text-4xl font-black text-pink-500 mb-3"><i class="fas fa-clock"></i></h3>
-                    <p class="text-xs text-gray-400 uppercase tracking-wider font-extrabold mb-2">Tiết Kiệm Thời Gian</p>
-                    <p class="text-xs text-gray-500 font-medium">Bảng lương tự động đối soát supply và tips chính xác. Giúp giảm thiểu thời gian cộng bill cuối ngày và cuối tuần.</p>
+                    <h3 class="text-5xl font-black text-pink-500 mb-4"><i class="fas fa-clock"></i></h3>
+                    <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Tiết Kiệm Thời Gian</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Bảng lương tự động đối soát supply và tips chính xác. Giúp giảm thiểu thời gian cộng bill cuối ngày và cuối tuần.</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="200">
-                    <h3 class="text-4xl font-black text-pink-500 mb-3"><i class="fas fa-chart-line"></i></h3>
-                    <p class="text-xs text-gray-400 uppercase tracking-wider font-extrabold mb-2">Lời Lỗ Rõ Ràng</p>
-                    <p class="text-xs text-gray-500 font-medium">Hạn chế tối đa thất thoát dòng tiền của tiệm, giúp chủ tiệm dễ đối soát và kiểm soát tình hình kinh doanh.</p>
+                    <h3 class="text-5xl font-black text-pink-500 mb-4"><i class="fas fa-chart-line"></i></h3>
+                    <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Lời Lỗ Rõ Ràng</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Hạn chế tối đa thất thoát dòng tiền của tiệm, giúp chủ tiệm dễ đối soát và kiểm soát tình hình kinh doanh.</p>
                 </div>
             </div>
             
             <!-- CSKH Widget Inline Integration -->
             <div class="mt-16 text-center border-t border-white/5 pt-16">
-                <p class="text-sm text-gray-400 mb-4 font-semibold">Cần chuyên viên hỗ trợ cài đặt menu và thiết lập hoa hồng thợ?</p>
+                <p class="text-base text-gray-300 mb-4 font-bold">Cần chuyên viên hỗ trợ cài đặt menu và thiết lập hoa hồng thợ?</p>
                 <div class="flex justify-center">
-                    <a href="https://zalo.me/0794678904" target="_blank" class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md">
+                    <a href="https://zalo.me/0794678904" target="_blank" class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md">
                         <i class="fas fa-comment-medical text-base"></i> Chat Zalo Chuyên Viên BitPaw
                     </a>
                 </div>
@@ -816,88 +1206,88 @@
     </section>
 
     <!-- 10. FAQ Accordion Section -->
-    <section id="faq" class="py-24 bg-[#0a0826] border-y border-white/5 relative z-10">
+    <section id="faq" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-xs font-black tracking-widest text-pink-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
-                <h2 class="text-3xl lg:text-4xl font-black mt-2 mb-4">Hỏi đáp về <span class="text-pink-400">BitPaw Nail OS</span></h2>
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">Hỏi đáp về <span class="text-gradient-pink">BitPaw Nail OS</span></h2>
             </div>
-
+ 
             <div class="space-y-4">
                 <!-- FAQ 1 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">1. Tiệm nhỏ 3-5 thợ có sử dụng được không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">1. Tiệm nhỏ 3-5 thợ có sử dụng được không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Cực kỳ thích hợp. BitPaw Nail OS được thiết kế linh hoạt cho mọi quy mô tiệm. Giúp tiệm nhỏ xây dựng quy trình chia tua thợ chuyên nghiệp và đối soát minh bạch ngay từ đầu, tạo thói quen làm việc công bằng cho thợ.
                     </div>
                 </div>
-
+ 
                 <!-- FAQ 2 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">2. Phần mềm có tự động tính tiền tip, supply và hoa hồng thợ không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">2. Phần mềm có tự động tính tiền tip, supply và hoa hồng thợ không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Có. Đây là tính năng cốt lõi chuyên sâu cho tiệm Nails. Hệ thống tự động tính hoa hồng thợ theo % cấu hình riêng biệt, trừ phí phụ liệu móng gel (supply) của từng bill làm móng và bóc tách rõ ràng tiền tip thẻ/tiền mặt của thợ.
                     </div>
                 </div>
-
+ 
                 <!-- FAQ 3 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">3. Có dùng được cho tiệm Nails người Việt ở nước ngoài (Mỹ, Canada, Úc...) không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">3. Có dùng được cho tiệm Nails người Việt ở nước ngoài (Mỹ, Canada, Úc...) không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Hoàn toàn phù hợp. Hệ thống hỗ trợ thiết lập đa tiền tệ (USD, CAD, AUD, VND...), bóc tách CC Fee (phí cà thẻ trừ trực tiếp vào tip thợ) theo đúng mô hình vận hành thực tế của các salon Nails tại hải ngoại hiện nay.
                     </div>
                 </div>
-
+ 
                 <!-- FAQ 4 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">4. Tôi không rành máy tính có thể tự setup và sử dụng được không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">4. Tôi không rành máy tính có thể tự setup và sử dụng được không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Rất đơn giản. Giao diện của BitPaw được tối ưu hóa trực quan, sử dụng dễ dàng trên cả điện thoại và máy tính bảng. Đội ngũ kỹ thuật của BitPaw hỗ trợ sếp trọn gói từ khâu cài đặt menu dịch vụ, danh sách thợ ban đầu hoàn toàn miễn phí.
                     </div>
                 </div>
-
+ 
                 <!-- FAQ 5 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">5. Trợ lý AI có tự động chạy quảng cáo tự tiêu tiền của tôi không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">5. Trợ lý AI có tự động chạy quảng cáo tự tiêu tiền của tôi không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Không. AI chỉ đóng vai trò trợ lý thông minh gợi ý tiêu đề, caption bài viết quảng cáo, ý tưởng Reels và tệp đối tượng/ngân sách tham khảo. Việc chạy quảng cáo và thanh toán ngân sách thực tế vẫn hoàn toàn do chủ tiệm xác nhận trên trình quản lý tài khoản quảng cáo cá nhân để kiểm soát chi phí.
                     </div>
                 </div>
-
+ 
                 <!-- FAQ 6 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-sm sm:text-base font-extrabold text-white">6. Khi cần hỗ trợ kỹ thuật hay hướng dẫn tôi có thể liên hệ qua đâu?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">6. Khi cần hỗ trợ kỹ thuật hay hướng dẫn tôi có thể liên hệ qua đâu?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
                         Đội ngũ kỹ thuật hỗ trợ sếp 24/7. Sếp có thể bấm trực tiếp vào nút Chat Zalo Hotline: 0794.678.904, gửi email hoặc chat Messenger để gặp trực tiếp chuyên viên hỗ trợ cài đặt nhanh chóng nhất.
                     </div>
                 </div>
             </div>
         </div>
     </section>
-
+ 
     <!-- 11. CTA Section -->
-    <section class="py-24 relative z-10 bg-gradient-to-b from-[#0a0826] to-[#08061a] border-t border-white/5 text-center">
+    <section class="py-24 relative z-10 bg-transparent border-t border-white/5 text-center scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
-            <h2 class="text-2xl sm:text-3xl lg:text-5xl font-black mb-6 leading-tight">Đừng để tiệm Nail tiếp tục mất thời gian vì chia tua thủ công và đối soát bằng sổ tay!</h2>
-            <p class="text-gray-400 mb-8 max-w-xl mx-auto text-xs lg:text-sm leading-relaxed font-medium">
+            <h2 class="text-[30px] sm:text-[36px] lg:text-[52px] font-black mb-6 leading-tight">Đừng để tiệm Nail tiếp tục mất thời gian vì chia tua thủ công và đối soát bằng sổ tay!</h2>
+            <p class="text-[16px] lg:text-[18px] text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-medium">
                 Hãy để BitPaw Nail OS kiểm soát toàn diện tiệm làm móng của bạn: đặt lịch hẹn tự động, phân tua thợ minh bạch, POS tính lương hoa hồng chi tiết và AI CSKH gợi ý bám đuổi.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -905,40 +1295,169 @@
                     <i class="fas fa-rocket"></i> Dùng thử hệ thống cho tiệm Nail
                 </a>
                 <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
-                    <i class="fab fa-whatsapp text-emerald-400"></i> Nhận tư vấn qua Zalo 24/7
+                    <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo 24/7
                 </a>
             </div>
-            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-6">
+            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6">
                 Phù hợp cho tiệm Nail nhỏ, tiệm nhiều thợ, salon người Việt, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.
             </p>
         </div>
     </section>
-
+    </main>
+ 
     <!-- Footer -->
-    <footer class="relative z-10 bg-[#04030a] border-t border-white/10 py-12">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 bg-pink-500/20 rounded-xl flex items-center justify-center border border-pink-500/50 overflow-hidden shadow-[0_0_10px_rgba(236,72,153,0.3)]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Nails Footer Logo">
+    <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-20 pb-8">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-10 border-b border-white/10 pb-12">
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(236,72,153,0.5)]">
+                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Logo">
+                    </div>
+                    <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-pink-400">Paw</span></h2>
                 </div>
-                <span class="font-bold text-white">BitPaw Nails Solution</span>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+ 
+                <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-pink-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
+                    <p class="flex items-center gap-3"><i class="fas fa-id-card text-pink-500 w-4"></i> <span>MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM</span></p>
+                    <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-pink-500 w-4"></i> <span>Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM</span></p>
+                </div>
             </div>
-            <p class="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">&copy; 2026 BitPaw Technology. Hỗ trợ kỹ thuật 24/7 Hotline: 0794.678.904</p>
-            <div class="flex items-center gap-4 text-xs text-gray-400">
-                <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-pink-400">Email: hodinhsang30052003@gmail.com</a>
-                <span>|</span>
-                <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-pink-400">fb.com/chuyhieuhong</a>
+ 
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-pink-500/30 w-max pb-2">Sản Phẩm</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
+                    <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-pink-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-pink-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-pink-400 transition flex items-center gap-2">E-Com Omni</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-pink-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                </ul>
+            </div>
+ 
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-pink-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-pink-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-pink-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-pink-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                </ul>
+
+                <div class="flex flex-col gap-3">
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-pink-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(236,72,153,0.15)] group hover:border-pink-400 transition">
+                        <i class="fas fa-shield-check text-green-400 text-2xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">SSL Secured</strong><span class="text-[10px] block text-gray-500">256-bit Encryption</span></div>
+                    </div>
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-orange-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(249,115,22,0.15)] group hover:border-orange-400 transition">
+                        <i class="fab fa-aws text-orange-400 text-3xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">AWS Cloud</strong><span class="text-[10px] block text-gray-500">99.99% Uptime SLA</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-pink-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <ul class="space-y-4 text-sm text-gray-300 mb-6">
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-pink-500/10 flex justify-center items-center shrink-0 border border-pink-500/30 group-hover:bg-pink-500/30 transition">
+                            <i class="fas fa-phone-alt text-pink-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Hotline 24/7</p>
+                            <a href="tel:0794678904" class="hover:text-pink-400 transition font-black text-base lg:text-[17px] text-white">0794.678.904</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/10 flex justify-center items-center shrink-0 border border-rose-500/30 group-hover:bg-rose-500/30 transition">
+                            <i class="fas fa-envelope text-rose-400 text-lg"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/10 flex justify-center items-center shrink-0 border border-blue-500/30 group-hover:bg-blue-500/30 transition">
+                            <i class="fas fa-comment-dots text-blue-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Zalo Support</p>
+                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white">Zalo Kỹ Thuật (Sếp Sang)</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-600/10 flex justify-center items-center shrink-0 border border-blue-600/30 group-hover:bg-blue-600/30 transition">
+                            <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
+                        </div>
+                    </li>
+                </ul>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-pink-900 hover:to-rose-900 text-white border border-gray-700 hover:border-pink-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
+            <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
+            <div class="flex items-center gap-2 mt-4 md:mt-0">
+                <span>Thiết kế & Lập trình bởi:</span>
+                <span class="bg-pink-500/20 text-pink-400 px-2 py-1 rounded border border-pink-500/30 font-bold">Hồ Đình Sang</span>
+                <span>&</span>
+<span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
             </div>
         </div>
     </footer>
 
-    <!-- Contact Widget Floating -->
+    <!-- Floating contact widget (Đồng bộ với Landing Page chính) -->
     <div class="contact-widget z-[100]">
-        <a href="tel:0794678904" class="contact-btn btn-call" title="Hotline tư vấn"><i class="fas fa-phone-alt"></i></a>
-        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo"><span class="font-black text-xs">Zalo</span></a>
-        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Messenger"><i class="fab fa-facebook-messenger"></i></a>
+        <div class="relative group cursor-pointer mb-2" onclick="toggleChat()">
+            <div class="absolute right-14 top-2 bg-[#08061a]/95 border border-pink-500/40 text-pink-400 text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
+                Sếp cần hỗ trợ?<br>Gọi em ngay!
+            </div>
+            <div class="w-14 h-14 bg-[#08061a] border-2 border-pink-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow animate-pulse">
+                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Mascot">
+            </div>
+        </div>
+
+        <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 mb-2 text-sm" title="Lên đầu trang">
+            <i class="fas fa-chevron-up"></i>
+        </button>
+        <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" title="Gửi Email">
+            <i class="fas fa-envelope text-[20px]"></i>
+        </a>
+        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo">
+            <h1 class="font-black text-[12px] tracking-tighter">Zalo</h1>
+        </a>
+        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Chat Messenger">
+            <i class="fab fa-facebook-messenger"></i>
+        </a>
+        <a href="tel:0794678904" class="contact-btn btn-call" title="Gọi Hotline">
+            <i class="fas fa-phone-alt"></i>
+        </a>
     </div>
 
+    <!-- Policy Modal (Đồng bộ với Landing Page chính) -->
+    <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div
+            class="bg-[#0a0f25] border border-pink-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(236,72,153,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
+            <div
+                class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-pink-900/40 to-transparent rounded-t-2xl">
+                <h3 id="modalTitle" class="text-xl font-black text-pink-400 tracking-wider uppercase">Tiêu đề</h3>
+                <button onclick="closeModal()"
+                    class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent"
+                class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
+            <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
+                <button onclick="closeModal()"
+                    class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+            </div>
+        </div>
+    </div>
+ 
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
@@ -969,19 +1488,19 @@
             const particlesGeometry = new THREE.BufferGeometry();
             // Tối ưu hóa hiệu năng: Mobile giảm hạt chống giật lag
             const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 250 : 650;
+            const particlesCount = isMobile ? 350 : 1200;
             const posArray = new Float32Array(particlesCount * 3);
 
             for (let i = 0; i < particlesCount * 3; i++) {
-                posArray[i] = (Math.random() - 0.5) * 100;
+                posArray[i] = (Math.random() - 0.5) * 110;
             }
             particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
 
             const material = new THREE.PointsMaterial({
-                size: isMobile ? 0.18 : 0.14,
+                size: isMobile ? 0.18 : 0.16,
                 color: 0xec4899, // Neon Pink
                 transparent: true,
-                opacity: 0.35,
+                opacity: 0.75, // Rực rỡ nổi bật như landing chính
                 blending: THREE.AdditiveBlending
             });
             const particlesMesh = new THREE.Points(particlesGeometry, material);
@@ -990,8 +1509,8 @@
             let mouseX = 0, mouseY = 0;
             if (!isMobile) {
                 document.addEventListener('mousemove', (e) => {
-                    mouseX = (e.clientX - window.innerWidth/2) * 0.0002;
-                    mouseY = (e.clientY - window.innerHeight/2) * 0.0002;
+                    mouseX = (e.clientX - window.innerWidth/2) * 0.0005; // Độ nhạy di chuột cao sinh động
+                    mouseY = (e.clientY - window.innerHeight/2) * 0.0005;
                 });
             }
 
@@ -999,12 +1518,12 @@
             function animate() {
                 requestAnimationFrame(animate);
                 const elapsed = clock.getElapsedTime();
-                particlesMesh.rotation.y = elapsed * 0.012;
-                particlesMesh.rotation.x = elapsed * 0.006;
+                particlesMesh.rotation.y = elapsed * 0.04; // Xoay sinh động hơn
+                particlesMesh.rotation.x = elapsed * 0.015;
                 
                 if (!isMobile) {
-                    particlesMesh.rotation.y += 0.5 * (mouseX - particlesMesh.rotation.y);
-                    particlesMesh.rotation.x += 0.5 * (mouseY - particlesMesh.rotation.x);
+                    particlesMesh.rotation.y += 0.5 * (mouseX * 0.5 - particlesMesh.rotation.y); // Mouse interaction smooth
+                    particlesMesh.rotation.x += 0.5 * (mouseY * 0.5 - particlesMesh.rotation.x);
                 }
                 
                 renderer.render(scene, camera);
@@ -1150,6 +1669,50 @@
             // Chạy tính toán lần đầu
             calculateRealtime();
         });
+
+        // ========================================================
+        // POLICY MODAL LOGIC (ĐỒNG BỘ BITPAW)
+        // ========================================================
+        window.openModal = function(type) {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            
+            const titles = {
+                terms: 'Điều khoản sử dụng',
+                privacy: 'Chính sách bảo mật',
+                payment: 'Chính sách thanh toán'
+            };
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-pink-400"></i> ' + (titles[type] || 'Chính sách');
+            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ Nails...</p></div>';
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                if (modalInner) modalInner.classList.remove('scale-95'); 
+            }, 10);
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            if (modalInner) modalInner.classList.add('scale-95');
+            setTimeout(() => { 
+                modal.classList.add('hidden'); 
+                document.body.style.overflow = ''; 
+            }, 300);
+        };
+        
+        const policyModalEl = document.getElementById('policyModal');
+        if (policyModalEl) {
+            policyModalEl.addEventListener('click', function (e) { 
+                if (e.target === this) closeModal(); 
+            });
+        }
     </script>
 </body>
 </html>

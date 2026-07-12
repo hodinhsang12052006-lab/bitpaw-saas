@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPay | Chờ thanh toán - Payment Pending</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+        
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #eab308, #06b6d4, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: scanMove 10s linear infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+
+        .absolute-blur {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vw;
+            height: 500px;
+            background: rgba(234, 179, 8, 0.1);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(234, 179, 8, 0.25);
+            border-radius: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+        
+        @keyframes pulse-yellow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(234, 179, 8, 0.4)); }
+            50% { transform: scale(1.03); filter: drop-shadow(0 0 15px rgba(234, 179, 8, 0.7)); }
+        }
+        .pulse-yellow-effect {
+            animation: pulse-yellow 2.5s infinite ease-in-out;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10003;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid #eab308;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10002;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10">
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-yellow-400 object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-yellow-400">Pay</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Payment Pending</p>
+                </div>
+            </div>
+            <a href="/pos" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> Trở về POS</a>
+        </div>
+
+        <!-- Pending Status Card -->
+        <div class="glass-panel p-8 text-center">
+            <div class="relative inline-block mb-6 pulse-yellow-effect">
+                <i class="fas fa-spinner fa-spin text-7xl text-yellow-400"></i>
+            </div>
+            
+            <h2 class="text-3xl font-black text-white mb-2">
+                <span class="text-yellow-400">Chờ thanh toán...</span>
+            </h2>
+            <p class="text-gray-300 text-sm mb-6 max-w-md mx-auto">
+                Khách chưa được ghi nhận thanh toán thành công. Nhân viên thu ngân chỉ được bấm xác nhận sau khi đã nhận đủ tiền mặt hoặc tài khoản ngân hàng báo có tiền.
+            </p>
+            
+            <!-- Box POS đối soát -->
+            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-6 text-left max-w-md mx-auto mb-6">
+                <h3 class="text-sm font-bold text-yellow-400 mb-4 border-b border-yellow-500/20 pb-2 flex items-center gap-2">
+                    <i class="fas fa-cash-register"></i> CHI TIẾT ĐỐI SOÁT THANH TOÁN (DEMO MODE)
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-400">Mã giao dịch / Trans ID:</span><span class="font-mono text-yellow-300 font-bold" id="pendingTxnId">FNB-PENDING</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Bàn / Table:</span><span class="font-bold text-white" id="pendingTable">Bàn 1</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Phương thức / Method:</span><span class="font-medium text-white" id="pendingMethod">POS (Thanh toán tại quầy)</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Số tiền cần thu / Amount:</span><span class="text-yellow-400 font-bold text-xl" id="pendingAmount">35.200₫</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Trạng thái / Status:</span><span class="text-yellow-400 font-bold"><i class="fas fa-circle-notch fa-spin text-xs mr-1"></i> Đang chờ xác nhận...</span></div>
+                </div>
+            </div>
+
+            <!-- VietQR block / Alert block / Terminal instruction block -->
+            {% if config and config.active %}
+                {% if not config.type or config.type == 'vietqr' %}
+                <!-- VietQR Việt Nam -->
+                <div id="vietqrBlock" class="bg-black/40 rounded-2xl p-6 text-center max-w-md mx-auto mb-6 border border-white/5">
+                    <h4 class="text-xs font-bold text-cyan-400 mb-3 tracking-wider uppercase flex items-center justify-center gap-2">
+                        <i class="fas fa-qrcode"></i> Quét mã VietQR chuyển khoản nhanh
+                    </h4>
+                    <div class="bg-white p-3 rounded-xl inline-block shadow-lg mb-3">
+                        <img id="qrImage" src="" class="w-48 h-48 mx-auto">
+                    </div>
+                    <div class="space-y-1 text-xs mb-3 text-left max-w-[280px] mx-auto bg-black/40 p-3 rounded-xl border border-white/5">
+                        <div class="flex justify-between"><span class="text-gray-400">Ngân hàng:</span><span class="font-bold text-white">{{ config.bank_name }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Số tài khoản:</span><span class="font-mono font-bold text-white">{{ config.account_number }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Chủ tài khoản:</span><span class="font-bold text-cyan-300">{{ config.account_holder }}</span></div>
+                    </div>
+                    <p class="text-[10px] text-gray-400">
+                        * Lưu ý: Đây là mã QR demo chế độ UAT. Nhân viên kiểm tra app ngân hàng rồi bấm nút Xác nhận thủ công bên dưới.
+                    </p>
+                </div>
+                {% else %}
+                <!-- US / International Terminal/Instructions -->
+                <div class="bg-black/40 rounded-2xl p-6 text-center max-w-md mx-auto mb-6 border border-white/5 space-y-4">
+                    <div class="relative w-16 h-16 bg-cyan-500/10 border border-cyan-500/30 rounded-full flex items-center justify-center mx-auto">
+                        {% if config.type in ['square_terminal', 'clover_terminal', 'stripe_terminal', 'external_terminal'] %}
+                            <i class="fas fa-credit-card text-2xl text-cyan-400 animate-pulse"></i>
+                        {% elif config.type in ['zelle', 'ach'] %}
+                            <i class="fas fa-university text-2xl text-cyan-400 animate-pulse"></i>
+                        {% else %}
+                            <i class="fas fa-wallet text-2xl text-cyan-400 animate-pulse"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="text-left space-y-2">
+                        <h4 class="text-sm font-black text-cyan-400 text-center uppercase tracking-widest">
+                            {% if config.type == 'square_terminal' %}
+                                Square Terminal
+                            {% elif config.type == 'clover_terminal' %}
+                                Clover Terminal
+                            {% elif config.type == 'stripe_terminal' %}
+                                Stripe Terminal
+                            {% elif config.type == 'zelle' %}
+                                Zelle Business
+                            {% elif config.type == 'ach' %}
+                                ACH Bank Wire
+                            {% elif config.type == 'cash_app' %}
+                                Cash App Pay
+                            {% elif config.type == 'paypal_venmo' %}
+                                PayPal / Venmo
+                            {% elif config.type == 'external_terminal' %}
+                                External Card Terminal
+                            {% else %}
+                                Wise / International Gateway
+                            {% endif %}
+                        </h4>
+                        
+                        <p class="text-xs text-gray-300 leading-relaxed bg-black/40 p-4 rounded-xl border border-white/5 text-center">
+                            {% if config.type == 'square_terminal' %}
+                                Vui lòng sạc thẻ hoặc yêu cầu khách Tap to Pay trên thiết bị <strong>Square Terminal</strong> (Thiết bị: {{ config.device_name or 'Default Counter' }}). Đợi máy báo Approved rồi bấm "Xác nhận đã nhận tiền".
+                            {% elif config.type == 'clover_terminal' %}
+                                Vui lòng thực hiện thanh toán trên thiết bị **Clover** (Thiết bị: {{ config.device_name or 'Clover Flex' }}). Đợi máy Clover hiển thị **Approved** rồi nhấn nút Xác nhận bên dưới.
+                            {% elif config.type == 'stripe_terminal' %}
+                                Vui lòng cho khách chèn/quẹt thẻ trên thiết bị **Stripe Reader** (Tên: {{ config.reader_label or 'Stripe BBP Reader' }}). Nhấn nút Xác nhận sau khi Stripe báo giao dịch thành công.
+                            {% elif config.type == 'zelle' %}
+                                Hướng dẫn khách chuyển khoản Zelle qua thông tin:<br>
+                                • Email/Phone: <strong>{{ config.zelle_email_or_phone }}</strong><br>
+                                • Tên doanh nghiệp: <strong>{{ config.business_name }}</strong><br>
+                                • Nội dung: <strong>{{ config.transfer_prefix }} <span class="font-mono text-yellow-400 font-bold" id="zelleTxnId"></span></strong>
+                            {% elif config.type == 'ach' %}
+                                Hướng dẫn khách chuyển khoản an toàn vào tài khoản Mỹ:<br>
+                                • Ngân hàng: <strong>{{ config.bank_name }}</strong><br>
+                                • Routing (9-digit): <strong>{{ config.routing_number }}</strong><br>
+                                • Account che: <strong>{{ config.account_last4_or_masked }}</strong><br>
+                                • Chủ tài khoản: <strong>{{ config.account_holder }}</strong>
+                            {% elif config.type == 'cash_app' %}
+                                Yêu cầu khách gửi tiền qua Cash App tới Cashtag:<br>
+                                • Cashtag: <strong class="text-emerald-400">{{ config.cashtag }}</strong><br>
+                                • Doanh nghiệp: <strong>{{ config.business_name }}</strong>
+                            {% elif config.type == 'paypal_venmo' %}
+                                Yêu cầu khách gửi tiền qua:<br>
+                                • Venmo Handle: <strong>{{ config.venmo_handle or 'N/A' }}</strong><br>
+                                • PayPal Email: <strong>{{ config.paypal_email or 'N/A' }}</strong>
+                            {% elif config.type == 'external_terminal' %}
+                                Quẹt thẻ khách trên thiết bị quẹt thẻ ngoài tiệm <strong>{{ config.provider_name }}</strong> (ID: {{ config.terminal_id or 'N/A' }}). Sau khi in biên lai thành công, nhấn nút Xác nhận.
+                            {% else %}
+                                Khách chuyển khoản quốc tế qua tài khoản Wise/PayPal: <strong>{{ config.intl_email_account }}</strong> (Thụ hưởng: <strong>{{ config.intl_beneficiary }}</strong>).
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <p class="text-[9px] text-gray-500 text-center">
+                        * Chế độ UAT: Thu ngân xác nhận nhận tiền thủ công từ app/terminal của doanh nghiệp. Không tự động chốt đơn khi chưa nhấn Xác nhận.
+                    </p>
+                </div>
+                {% endif %}
+            {% else %}
+            <div class="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center max-w-md mx-auto mb-6">
+                <i class="fas fa-exclamation-triangle text-4xl text-rose-500 mb-3 block"></i>
+                <h3 class="text-sm font-bold text-rose-400 mb-2">Chưa cấu hình tài khoản nhận thanh toán</h3>
+                <p class="text-xs text-gray-300 mb-4 leading-relaxed">
+                    Vui lòng truy cập <strong>Cấu hình thanh toán</strong> trong trang quản trị/dashboard để thiết lập tài khoản ngân hàng nhận tiền riêng của doanh nghiệp.
+                </p>
+                <a href="/payment_gateway" class="inline-block bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/50 px-4 py-2 rounded-full text-xs font-semibold transition">
+                    <i class="fas fa-cog mr-1"></i> Đến trang Cấu hình
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Cụm nút Cashier -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                <button id="confirmPaymentBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-check-double"></i> Xác nhận đã nhận tiền
+                </button>
+                <button id="backToPosBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Quay lại POS
+                </button>
+                <button id="cancelPaymentBtn" class="bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-400 font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fas fa-times-circle"></i> Hủy giao dịch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/90 rounded-2xl p-6 flex flex-col items-center gap-3 border border-yellow-500/30"><i class="fas fa-spinner fa-spin text-3xl text-yellow-400"></i><span class="text-sm font-bold">Đang xử lý nghiệp vụ...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableId = urlParams.get('table_id');
+        const txnId = urlParams.get('txn_id') || 'FNB-' + Date.now();
+        const amount = urlParams.get('amount') || '0';
+        const method = urlParams.get('method') || 'POS';
+        const ind = urlParams.get('industry') || 'fnb';
+        
+        const storedAddress = localStorage.getItem('customerAddress') || 'Bàn ăn';
+        
+        const amountDisplay = parseInt(amount).toLocaleString('vi-VN') + '₫';
+        
+        document.getElementById('pendingTxnId').innerText = txnId;
+        document.getElementById('pendingTable').innerText = storedAddress;
+        document.getElementById('pendingAmount').innerText = amountDisplay;
+        
+        const zelleTxnIdEl = document.getElementById('zelleTxnId');
+        if (zelleTxnIdEl) {
+            zelleTxnIdEl.innerText = txnId;
+        }
+        
+        {% if config and config.active %}
+        // Generate dynamic VietQR image link from merchant configurations
+        const bankCode = '{{ config.bank_code }}';
+        const accountNumber = '{{ config.account_number }}';
+        const accountHolder = '{{ config.account_holder }}';
+        const transferPrefix = '{{ config.transfer_prefix }}';
+        
+        if (bankCode && accountNumber && accountHolder) {
+            const vietQRLink = `https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferPrefix + ' ' + txnId)}&accountName=${encodeURIComponent(accountHolder)}`;
+            const qrImageEl = document.getElementById('qrImage');
+            if (qrImageEl) {
+                qrImageEl.src = vietQRLink;
+            }
+        }
+        {% endif %}
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#eab308';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) overlay.classList.add('active');
+            else overlay.classList.remove('active');
+        }
+
+        // 1. Xác nhận đã nhận tiền (POST /api/payment/confirm)
+        document.getElementById('confirmPaymentBtn').addEventListener('click', async () => {
+            if (!confirm("Sếp đã kiểm tra kỹ tài khoản/tiền mặt và muốn Xác nhận giao dịch thành công?")) return;
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/api/payment/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        table_id: tableId,
+                        txn_id: txnId,
+                        method: method
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅ Đã xác nhận thành công! Đang xuất hóa đơn...');
+                    setTimeout(() => {
+                        window.location.href = result.redirect_url;
+                    }, 1000);
+                } else {
+                    showToast('Lỗi: ' + result.message, true);
+                }
+            } catch(e) {
+                showToast('Lỗi kết nối server: ' + e.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        // 2. Quay lại POS (Giữ nguyên giỏ hàng và bàn ăn)
+        document.getElementById('backToPosBtn').addEventListener('click', () => {
+            window.location.href = `/pos?industry=${ind}`;
+        });
+
+        // 3. Hủy giao dịch (POST /api/payment/cancel)
+        document.getElementById('cancelPaymentBtn').addEventListener('click', async () => {
+            if (!confirm("Hủy giao dịch thanh toán này? Món ăn vẫn sẽ treo tại bàn POS.")) return;
+            
+            showLoading(true);
+            try {
+                const response = await fetch('/api/payment/cancel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ txn_id: txnId })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('🔴 Đã hủy giao dịch tạm thời. Quay lại POS...');
+                    setTimeout(() => {
+                        window.location.href = `/pos?industry=${ind}`;
+                    }, 1000);
+                } else {
+                    showToast('Lỗi hủy: ' + result.message, true);
+                }
+            } catch(e) {
+                showToast('Lỗi kết nối server: ' + e.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        // 3D Particles Background (giữ nguyên phong cách BitPaw)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 500 : 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: 0.2, color: 0xeab308, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                particles.rotation.y = clock.getElapsedTime() * 0.02;
+                particles.rotation.x = clock.getElapsedTime() * 0.01;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

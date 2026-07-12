@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu Hình Lương - BitPaw</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #04030a; color: white; overflow-x: hidden; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; } 
+        ::-webkit-scrollbar-track { background: transparent; } 
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.5); border-radius: 10px; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* 3D Canvas Background */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.6; pointer-events: none; }
+        
+        /* Glassmorphism Classes */
+        .glass-panel { background: rgba(10, 15, 37, 0.4); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-sidebar { background: rgba(8, 6, 26, 0.6); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
+
+        /* Hologram Logo 3D */
+        .hologram-container { perspective: 1000px; transform-style: preserve-3d; }
+        @keyframes float-3d {
+            0% { transform: translateY(0px) rotateX(5deg) rotateY(-5deg); filter: drop-shadow(0 10px 10px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-10px) rotateX(-5deg) rotateY(10deg); filter: drop-shadow(0 20px 15px rgba(59, 130, 246, 0.6)); }
+            100% { transform: translateY(0px) rotateX(5deg) rotateY(-5deg); filter: drop-shadow(0 10px 10px rgba(6, 182, 212, 0.4)); }
+        }
+        .animated-logo-3d { animation: float-3d 5s ease-in-out infinite; position: relative; z-index: 10; }
+
+        /* Floating Input Labels */
+        .floating-input { position: relative; width: 100%; }
+        .floating-input input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 1.5rem 3.5rem 0.5rem 1rem;
+            border-radius: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            font-family: monospace;
+            font-weight: bold;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .floating-input input:focus {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .floating-input label {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.9rem;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        }
+        .floating-input input:focus ~ label,
+        .floating-input input:not(:placeholder-shown) ~ label {
+            top: 0.4rem;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Specific Input Glow Colors */
+        .input-cyan input:focus { border-color: #06b6d4; box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.15), inset 0 2px 4px rgba(0,0,0,0.5); }
+        .input-cyan input:focus ~ label { color: #06b6d4; }
+        
+        .input-orange input:focus { border-color: #f97316; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15), inset 0 2px 4px rgba(0,0,0,0.5); }
+        .input-orange input:focus ~ label { color: #f97316; }
+        
+        .input-pink input:focus { border-color: #ec4899; box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.15), inset 0 2px 4px rgba(0,0,0,0.5); }
+        .input-pink input:focus ~ label { color: #ec4899; }
+
+        .input-unit { position: absolute; right: 1.25rem; top: 50%; transform: translateY(-50%); font-weight: 900; opacity: 0.7; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative">
+    
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    
+    <div class="absolute top-[-10%] right-[10%] w-[500px] h-[500px] bg-cyan-700/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+    <div class="absolute bottom-[-10%] left-[10%] w-[400px] h-[400px] bg-blue-700/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+
+    <aside class="w-64 glass-sidebar flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.8)] z-20 shrink-0">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4 cursor-pointer group hologram-container" data-tilt data-tilt-scale="1.05" data-tilt-glare="true" data-tilt-max-glare="0.2">
+                <div class="relative w-12 h-12 rounded-xl flex items-center justify-center border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] bg-gradient-to-br from-cyan-900/40 to-blue-900/20 mb-2">
+                    <div class="absolute w-[110%] h-[110%] border-t-2 border-r-2 border-cyan-400/50 rounded-xl animate-spin" style="animation-duration: 4s;"></div>
+                    <div class="relative animated-logo-3d w-full h-full flex items-center justify-center overflow-hidden rounded-lg bg-[#08061a]">
+                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="w-8 h-8 object-contain drop-shadow-[0_0_8px_#06b6d4]">
+                    </div>
+                </div>
+                <h1 class="text-2xl font-black tracking-widest drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] text-white">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+            
+            <nav class="flex flex-col py-6 space-y-3 px-5">
+                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                </a>
+                <a href="/nhanvien" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                </a>
+                <a href="/chamcong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                </a>
+                <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                </a>
+            </nav>
+        </div>
+        <div class="p-6 border-t border-white/10">
+            <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-8 lg:p-10 overflow-y-auto relative z-10 flex flex-col items-center">
+        
+        <div class="w-full max-w-4xl mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3 text-white">
+                    Cấu Hình <span class="text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Lương</span> <i class="fas fa-hand-holding-usd text-cyan-400 text-3xl"></i>
+                </h2>
+                <p class="text-gray-400 mt-2 font-medium text-sm">Thiết lập cơ chế tính lương linh hoạt cho từng nhân sự.</p>
+            </div>
+            <a href="/nhanvien" class="glass-panel px-5 py-2.5 hover:border-cyan-500/50 rounded-xl transition-all text-gray-300 hover:text-cyan-400 flex items-center gap-2 font-bold shadow-lg active:scale-95">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+        </div>
+
+        <div class="glass-panel rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.6)] p-6 md:p-8 w-full max-w-4xl relative overflow-hidden border border-cyan-500/20">
+            <div class="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+
+            <div class="bg-[#0a0f25]/80 backdrop-blur-md border border-white/10 rounded-2xl p-5 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-inner" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1">
+                <div class="flex items-center gap-5 w-full md:w-auto">
+                    <div class="w-16 h-16 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center border border-cyan-400/50 shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0 transform -rotate-3">
+                        <i class="fas fa-user-tie text-white text-2xl drop-shadow-md"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-black text-white tracking-wide drop-shadow-md">{{ emp[1] }}</h3>
+                        <p class="text-xs text-cyan-400 mt-1 font-bold uppercase tracking-widest flex items-center gap-1">
+                            <i class="fas fa-id-badge text-gray-500"></i> <span id="nv_id" class="font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">{{ emp[0] }}</span>
+                        </p>
+                    </div>
+                </div>
+                <span id="badge_linhvuc" class="px-4 py-2 text-xs font-black tracking-widest uppercase rounded-xl border bg-blue-600/20 text-blue-300 border-blue-500/50 shadow-inner w-full md:w-auto text-center">
+                    <i class="fas fa-briefcase mr-1 opacity-70"></i> {{ emp[2] }}
+                </span>
+            </div> 
+
+            <form id="salarySetupForm" class="space-y-6 relative z-10">
+                <div class="bg-white/5 p-5 rounded-2xl border border-white/5 shadow-inner">
+                    <label class="block text-xs text-gray-400 font-bold uppercase tracking-widest mb-3"><i class="fas fa-cogs mr-1 text-cyan-500"></i> Engine tính lương chính</label>
+                    <div class="relative">
+                        <select id="salaryType" onchange="toggleSalaryFields()" class="w-full bg-black/60 border border-white/10 text-white font-bold px-5 py-4 rounded-xl outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all cursor-pointer appearance-none shadow-inner">
+                            <option value="thang" class="bg-gray-900">Lương cứng cố định theo tháng (Khối VP, Kỹ thuật)</option>
+                            <option value="gio" class="bg-gray-900">Lương khoán theo giờ làm (F&B, Nhà hàng, Part-time)</option>
+                            <option value="hoahong" class="bg-gray-900">Lương cơ bản + Hoa hồng dịch vụ (Spa, Nails, Salon)</option>
+                        </select>
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center pointer-events-none">
+                            <i class="fas fa-chevron-down text-cyan-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    
+                    <div id="field_luongcung" class="col-span-1 md:col-span-2 floating-input input-cyan transition-all duration-300">
+                        <input type="number" id="inp_luong_cung" placeholder=" ">
+                        <label><i class="fas fa-money-check-alt mr-1"></i> Lương Cơ Bản Cố Định</label>
+                        <span class="input-unit text-cyan-500">VNĐ/Tháng</span>
+                    </div>
+
+                    <div id="field_luonggio" class="col-span-1 md:col-span-2 floating-input input-orange transition-all duration-300 hidden">
+                        <input type="number" id="inp_luong_gio" placeholder=" ">
+                        <label><i class="fas fa-clock mr-1"></i> Mức Lương Khoán Theo Giờ</label>
+                        <span class="input-unit text-orange-500">VNĐ/Giờ</span>
+                    </div>
+
+                    <div id="field_hoahong" class="col-span-1 md:col-span-2 floating-input input-pink transition-all duration-300 hidden">
+                        <input type="number" id="inp_hoa_hong" placeholder=" ">
+                        <label><i class="fas fa-percent mr-1"></i> Tỉ Lệ Hoa Hồng (Doanh thu DV)</label>
+                        <span class="input-unit text-pink-500">%</span>
+                    </div>
+
+                    <div class="floating-input input-cyan">
+                        <input type="number" id="inp_tang_ca" placeholder=" ">
+                        <label><i class="fas fa-business-time mr-1"></i> Tiền Tăng Ca (OT)</label>
+                        <span class="input-unit text-gray-500">VNĐ/Giờ</span>
+                    </div>
+
+                    <div class="floating-input input-cyan">
+                        <input type="number" id="inp_phu_cap" placeholder=" ">
+                        <label><i class="fas fa-gas-pump mr-1"></i> Phụ Cấp (Ăn trưa, Xăng xe)</label>
+                        <span class="input-unit text-gray-500">VNĐ/Tháng</span>
+                    </div>
+                </div>
+
+                <div class="pt-6 mt-2 border-t border-white/10 flex justify-end">
+                    <button type="button" onclick="saveConfig()" id="btnSave" class="w-full md:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black tracking-widest uppercase py-4 px-10 rounded-xl transition-all shadow-[0_10px_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-3 active:scale-95">
+                        <i class="fas fa-save text-xl"></i> CHỐT CẤU HÌNH LƯƠNG
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+    // ========================================================
+    // 🚀 UI/UX SYSTEM (TOAST, CONFETTI, 3D BACKGROUND)
+    // ========================================================
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        let colorClass = 'cyan'; let iconClass = 'fa-info-circle';
+        if(type === 'success') { colorClass = 'emerald'; iconClass = 'fa-check-circle'; }
+        if(type === 'error') { colorClass = 'rose'; iconClass = 'fa-exclamation-triangle'; }
+        if(type === 'warning') { colorClass = 'amber'; iconClass = 'fa-exclamation-circle'; }
+
+        toast.className = `bg-[#0a0f25]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.5)] flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+        toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-2xl shrink-0 drop-shadow-[0_0_5px_currentColor]"></i> <span class="text-sm font-medium leading-relaxed">${message}</span>`;
+        
+        container.appendChild(toast);
+        setTimeout(() => { toast.classList.remove('-translate-y-full', 'opacity-0'); toast.classList.add('translate-y-2'); }, 10);
+        setTimeout(() => { toast.classList.remove('translate-y-2'); toast.classList.add('-translate-y-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    function triggerConfetti() {
+        var duration = 3 * 1000; var animationEnd = Date.now() + duration; var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) return clearInterval(interval);
+            var particleCount = 50 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+    }
+
+    function init3DBackground() {
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 700;
+        const posArray = new Float32Array(particlesCount * 3);
+        for(let i = 0; i < particlesCount * 3; i++) { posArray[i] = (Math.random() - 0.5) * 100; }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        
+        const material = new THREE.PointsMaterial({ size: 0.15, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+        const particlesMesh = new THREE.Points(particlesGeometry, material);
+        scene.add(particlesMesh);
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+            particlesMesh.rotation.y = elapsedTime * 0.03;
+            particlesMesh.rotation.x = elapsedTime * 0.01;
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    }
+
+    // ========================================================
+    // 🚀 LOGIC ĐIỀU KHIỂN FORM
+    // ========================================================
+    function toggleSalaryFields() {
+        const type = document.getElementById('salaryType').value;
+        const fLuongCung = document.getElementById('field_luongcung');
+        const fLuongGio = document.getElementById('field_luonggio');
+        const fHoaHong = document.getElementById('field_hoahong');
+
+        // Reset
+        fLuongCung.classList.add('hidden');
+        fLuongGio.classList.add('hidden');
+        fHoaHong.classList.add('hidden');
+
+        // Reveal based on selection with slight delay for smooth transition if needed
+        if (type === 'thang') {
+            fLuongCung.classList.remove('hidden');
+        } else if (type === 'gio') {
+            fLuongGio.classList.remove('hidden');
+        } else if (type === 'hoahong') {
+            fLuongCung.classList.remove('hidden'); 
+            fHoaHong.classList.remove('hidden');   
+        }
+    }
+
+    window.onload = function() {
+        init3DBackground();
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+
+        const linhVuc = "{{ emp[2] }}"; 
+        const selectBox = document.getElementById('salaryType');
+
+        // Logic Auto-select Engine
+        if (linhVuc.includes('Spa') || linhVuc.includes('Beauty') || linhVuc.includes('Nails')) {
+            selectBox.value = 'hoahong';
+        } else if (linhVuc.includes('Nhà Hàng') || linhVuc.includes('Khách Sạn') || linhVuc.includes('F&B')) {
+            selectBox.value = 'gio';
+        } else {
+            selectBox.value = 'thang'; 
+        }
+        toggleSalaryFields();
+    };
+
+    // ========================================================
+    // 🚀 GỬI DATA VỀ FLASK BACKEND
+    // ========================================================
+    async function saveConfig() {
+        const ma_nv = document.getElementById('nv_id').innerText;
+        const btn = document.getElementById('btnSave');
+        const origText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> ĐANG MÃ HÓA & LƯU...';
+        btn.disabled = true;
+        
+        const payload = {
+            luong_cung: document.getElementById('inp_luong_cung').value || 0,
+            luong_gio: document.getElementById('inp_luong_gio').value || 0,
+            hoa_hong: document.getElementById('inp_hoa_hong').value || 0,
+            phu_cap: document.getElementById('inp_phu_cap').value || 0,
+            tang_ca: document.getElementById('inp_tang_ca').value || 0
+        };
+
+        try {
+            const res = await fetch(`/api/cauhinh_luong/${ma_nv}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                showToast("Đã chốt cấu hình lương thành công vào Database!", "success");
+                triggerConfetti();
+            } else {
+                showToast(data.message || "Có lỗi từ phía Máy chủ!", "error");
+            }
+        } catch (error) {
+            showToast("Lỗi kết nối đến máy chủ! Kiểm tra lại mạng.", "error");
+        } finally {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
+    }
+    </script>
+</body>
+</html>

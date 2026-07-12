@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Quản lý Nhân viên</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 24px;
+        }
+        
+        /* 3D Background Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        /* Scanline + Laser */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .absolute-blur {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vw;
+            height: 500px;
+            background: rgba(6, 182, 212, 0.15);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .glass-card {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 1rem;
+            transition: all 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: #06b6d4;
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        
+        /* Logo float */
+        @keyframes float-logo {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(168, 85, 247, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+        }
+        .logo-float {
+            animation: float-logo 4s ease-in-out infinite;
+        }
+
+        /* Table style */
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .custom-table th {
+            text-align: left;
+            padding: 1rem 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #9ca3af;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .custom-table td {
+            padding: 1rem 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+        .custom-table tr:hover td {
+            background: rgba(6, 182, 212, 0.1);
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+        
+        /* Role badge */
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .role-admin { background: rgba(244, 63, 94, 0.2); color: #f87171; border: 1px solid #ef4444; }
+        .role-manager { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; }
+        .role-staff { background: rgba(6, 182, 212, 0.2); color: #06b6d4; border: 1px solid #06b6d4; }
+        .role-karaoke { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+        
+        /* Button */
+        .btn-primary {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 700;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(6,182,212,0.4);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #06b6d4;
+            color: #06b6d4;
+            border-radius: 2rem;
+            padding: 0.3rem 1rem;
+            font-weight: 600;
+            transition: 0.2s;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .btn-outline:hover {
+            background: rgba(6,182,212,0.2);
+            box-shadow: 0 0 8px rgba(6,182,212,0.5);
+        }
+        .btn-danger {
+            background: rgba(239,68,68,0.2);
+            border: 1px solid #f87171;
+            color: #f87171;
+            border-radius: 2rem;
+            padding: 0.3rem 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: rgba(239,68,68,0.4);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-container {
+            background: rgba(10, 15, 37, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            max-width: 90%;
+            width: 500px;
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+        .modal-overlay.active .modal-container {
+            transform: scale(1);
+        }
+        .glass-input {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 0.6rem 1rem;
+            border-radius: 1rem;
+            width: 100%;
+            outline: none;
+        }
+        .glass-input:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 10px rgba(6,182,212,0.4);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.5);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10002;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* CSKH Widget */
+        .cskh-widget {
+            background: rgba(0,0,0,0.4);
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .cskh-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .cskh-item:hover {
+            background: rgba(6,182,212,0.15);
+        }
+        .cskh-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .cskh-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+        }
+        .cskh-value {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: white;
+        }
+        .glass-input-sm {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 0.8rem;
+        }
+        .glass-input-sm:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 8px rgba(6,182,212,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .custom-table th, .custom-table td { font-size: 0.7rem; padding: 0.5rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="relative w-12 h-12 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight">
+                        Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg font-medium">| Quản lý Nhân viên</span>
+                    </h1>
+                    <p class="text-sm text-gray-400">Quản lý thông tin, phân quyền và hoa hồng</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button id="addStaffBtn" class="btn-primary text-sm">
+                    <i class="fas fa-plus-circle"></i> Thêm nhân viên
+                </button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold transition">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Danh sách nhân viên -->
+        <div class="glass-panel p-5">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-users text-cyan-400"></i> Danh sách nhân viên</h2>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" id="searchStaff" placeholder="Tìm theo tên, số điện thoại..." class="pl-9 pr-4 py-2 bg-black/50 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400 w-64">
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="custom-table" id="staffTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Họ tên</th>
+                            <th>Số điện thoại</th>
+                            <th>Vai trò</th>
+                            <th>Hoa hồng (%)</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody">
+                        <tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CSKH Widget -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thêm/sửa nhân viên -->
+    <div id="staffModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> Thêm nhân viên</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="staffForm" class="space-y-4">
+                <input type="hidden" id="staffId" value="">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Họ và tên</label>
+                    <input type="text" id="staffName" required class="glass-input" placeholder="VD: Nguyễn Văn A">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Số điện thoại</label>
+                    <input type="tel" id="staffPhone" required class="glass-input" placeholder="0901234567">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Vai trò</label>
+                    <select id="staffRole" class="glass-input">
+                        <option value="staff">Nhân viên (Staff)</option>
+                        <option value="admin">Quản trị viên (Admin)</option>
+                        <option value="manager">Quản lý (Manager)</option>
+                        <option value="karaoke">Nhân viên Karaoke</option>
+                        <option value="spa">Kỹ thuật viên Spa</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Hoa hồng (%)</label>
+                    <input type="number" id="staffCommission" step="0.5" value="0" class="glass-input" placeholder="VD: 10.5">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Trạng thái</label>
+                    <select id="staffStatus" class="glass-input">
+                        <option value="active">Đang hoạt động</option>
+                        <option value="inactive">Tạm nghỉ</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="saveStaffBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Lưu</button>
+                    <button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal xóa xác nhận -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-container text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-3 block"></i>
+            <h3 class="text-xl font-bold mb-2">Xác nhận xóa</h3>
+            <p class="text-gray-400 mb-4">Bạn có chắc chắn muốn xóa nhân viên <span id="deleteStaffName" class="text-cyan-400"></span>?</p>
+            <div class="flex gap-3">
+                <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 py-2 rounded-full font-bold">Xóa</button>
+                <button id="cancelDeleteBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold">Hủy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading + Toast -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
+            <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
+            <span class="text-sm font-medium">Đang xử lý...</span>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // ========== SUPABASE CONFIG ==========
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // ========== DOM Elements ==========
+        const staffTableBody = document.getElementById('staffTableBody');
+        const searchInput = document.getElementById('searchStaff');
+        const addStaffBtn = document.getElementById('addStaffBtn');
+        const staffModal = document.getElementById('staffModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const staffForm = document.getElementById('staffForm');
+        const staffIdInput = document.getElementById('staffId');
+        const staffNameInput = document.getElementById('staffName');
+        const staffPhoneInput = document.getElementById('staffPhone');
+        const staffRoleSelect = document.getElementById('staffRole');
+        const staffCommissionInput = document.getElementById('staffCommission');
+        const staffStatusSelect = document.getElementById('staffStatus');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelModalBtn = document.getElementById('cancelModalBtn');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const deleteStaffNameSpan = document.getElementById('deleteStaffName');
+        const toast = document.getElementById('toast');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        let currentDeleteId = null;
+
+        // Helper functions
+        function showToast(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showLoading(show) {
+            if (show) loadingOverlay.classList.add('active');
+            else loadingOverlay.classList.remove('active');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+
+        function getRoleBadge(role) {
+            const roleMap = {
+                admin: { class: 'role-admin', text: 'Quản trị viên' },
+                manager: { class: 'role-manager', text: 'Quản lý' },
+                staff: { class: 'role-staff', text: 'Nhân viên' },
+                karaoke: { class: 'role-karaoke', text: 'Karaoke' },
+                spa: { class: 'role-staff', text: 'Kỹ thuật viên Spa' }
+            };
+            const r = roleMap[role] || roleMap.staff;
+            return `<span class="role-badge ${r.class}">${r.text}</span>`;
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'active') return '<span class="text-emerald-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> Hoạt động</span>';
+            return '<span class="text-rose-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> Tạm nghỉ</span>';
+        }
+
+        // Load staff list from Supabase
+        async function loadStaff() {
+            showLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('staff')
+                    .select('*')
+                    .order('id', { ascending: true });
+                if (error) throw error;
+                renderStaffTable(data || []);
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi tải danh sách nhân viên: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderStaffTable(staffList, filter = '') {
+            const filtered = staffList.filter(s => 
+                s.name.toLowerCase().includes(filter.toLowerCase()) || 
+                s.phone.includes(filter)
+            );
+            if (filtered.length === 0) {
+                staffTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Không tìm thấy nhân viên</td></tr>';
+                return;
+            }
+            staffTableBody.innerHTML = filtered.map(s => `
+                <tr data-id="${s.id}">
+                    <td class="text-gray-400">#${s.id}</td>
+                    <td class="font-semibold">${escapeHtml(s.name)}</td>
+                    <td>${escapeHtml(s.phone)}</td>
+                    <td>${getRoleBadge(s.role)}</td>
+                    <td class="font-mono">${s.commission_rate}%</td>
+                    <td>${getStatusBadge(s.is_active ? 'active' : 'inactive')}</td>
+                    <td class="flex gap-2">
+                        <button class="edit-staff btn-outline text-xs px-3 py-1" data-id="${s.id}"><i class="fas fa-edit"></i> Sửa</button>
+                        <button class="delete-staff btn-danger text-xs px-3 py-1" data-id="${s.id}" data-name="${escapeHtml(s.name)}"><i class="fas fa-trash-alt"></i> Xóa</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Attach edit/delete events
+            document.querySelectorAll('.edit-staff').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    const staff = staffList.find(s => s.id === id);
+                    if (staff) openEditModal(staff);
+                });
+            });
+            document.querySelectorAll('.delete-staff').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    const name = btn.getAttribute('data-name');
+                    openDeleteModal(id, name);
+                });
+            });
+        }
+
+        // Modal handlers
+        function openAddModal() {
+            staffIdInput.value = '';
+            staffNameInput.value = '';
+            staffPhoneInput.value = '';
+            staffRoleSelect.value = 'staff';
+            staffCommissionInput.value = '0';
+            staffStatusSelect.value = 'active';
+            modalTitle.innerHTML = '<i class="fas fa-user-plus mr-2"></i> Thêm nhân viên';
+            staffModal.classList.add('active');
+        }
+
+        function openEditModal(staff) {
+            staffIdInput.value = staff.id;
+            staffNameInput.value = staff.name;
+            staffPhoneInput.value = staff.phone;
+            staffRoleSelect.value = staff.role;
+            staffCommissionInput.value = staff.commission_rate;
+            staffStatusSelect.value = staff.is_active ? 'active' : 'inactive';
+            modalTitle.innerHTML = '<i class="fas fa-user-edit mr-2"></i> Chỉnh sửa nhân viên';
+            staffModal.classList.add('active');
+        }
+
+        function closeModal() {
+            staffModal.classList.remove('active');
+        }
+
+        // Save staff (insert or update)
+        async function saveStaff(event) {
+            event.preventDefault();
+            const id = staffIdInput.value;
+            const name = staffNameInput.value.trim();
+            const phone = staffPhoneInput.value.trim();
+            const role = staffRoleSelect.value;
+            const commission_rate = parseFloat(staffCommissionInput.value) || 0;
+            const is_active = staffStatusSelect.value === 'active';
+
+            if (!name || !phone) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+
+            showLoading(true);
+            try {
+                if (id) {
+                    // Update
+                    const { error } = await supabase
+                        .from('staff')
+                        .update({ name, phone, role, commission_rate, is_active })
+                        .eq('id', id);
+                    if (error) throw error;
+                    showToast('Cập nhật nhân viên thành công');
+                } else {
+                    // Insert
+                    const { error } = await supabase
+                        .from('staff')
+                        .insert([{ name, phone, role, commission_rate, is_active, created_at: new Date() }]);
+                    if (error) throw error;
+                    showToast('Thêm nhân viên thành công');
+                }
+                closeModal();
+                await loadStaff(); // refresh list
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi lưu dữ liệu: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Delete staff
+        function openDeleteModal(id, name) {
+            currentDeleteId = id;
+            deleteStaffNameSpan.innerText = name;
+            deleteModal.classList.add('active');
+        }
+
+        async function confirmDelete() {
+            if (!currentDeleteId) return;
+            showLoading(true);
+            try {
+                const { error } = await supabase
+                    .from('staff')
+                    .delete()
+                    .eq('id', currentDeleteId);
+                if (error) throw error;
+                showToast('Xóa nhân viên thành công');
+                deleteModal.classList.remove('active');
+                await loadStaff();
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi xóa: ' + err.message, true);
+            } finally {
+                showLoading(false);
+                currentDeleteId = null;
+            }
+        }
+
+        function closeDeleteModal() {
+            deleteModal.classList.remove('active');
+            currentDeleteId = null;
+        }
+
+        // Search filter
+        function filterStaff() {
+            const keyword = searchInput.value;
+            // Reload and filter client-side (to avoid extra API calls)
+            loadStaff().then(() => {
+                const rows = document.querySelectorAll('#staffTableBody tr');
+                if (!rows.length) return;
+                rows.forEach(row => {
+                    const name = row.cells[1]?.innerText.toLowerCase() || '';
+                    const phone = row.cells[2]?.innerText || '';
+                    const match = name.includes(keyword.toLowerCase()) || phone.includes(keyword);
+                    row.style.display = match ? '' : 'none';
+                });
+            });
+        }
+
+        // CSKH: track click & send support request
+        async function trackCSKHClick(channel) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                } else {
+                    console.log('Anonymous click tracked:', channel);
+                }
+            } catch(e) { console.warn('track click error', e); }
+        }
+
+        async function sendSupportRequest(e) {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const phone = document.getElementById('supportPhone').value;
+            const message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                document.getElementById('supportForm').reset();
+            } catch(err) {
+                showToast('Lỗi: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Event listeners
+        addStaffBtn.addEventListener('click', openAddModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelModalBtn.addEventListener('click', closeModal);
+        staffModal.addEventListener('click', (e) => { if (e.target === staffModal) closeModal(); });
+        staffForm.addEventListener('submit', saveStaff);
+        confirmDeleteBtn.addEventListener('click', confirmDelete);
+        cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+        deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
+        searchInput.addEventListener('input', filterStaff);
+
+        document.querySelectorAll('[data-channel]').forEach(link => {
+            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+        });
+        document.getElementById('supportForm').addEventListener('submit', sendSupportRequest);
+
+        // Initial load
+        loadStaff();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+            
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.03) % 1;
+                material.color.setHSL(hue, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

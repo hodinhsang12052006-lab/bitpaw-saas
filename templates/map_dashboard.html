@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Điều Phối | BitPaw OS</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Supabase & ThreeJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
+        
+        /* 3D Background Canvas */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        
+        /* Hiệu ứng scanline và laser */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        /* Glass Panels System */
+        .glass-panel { background: rgba(10, 15, 37, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
+        .glass-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s; padding: 12px 15px; border-radius: 12px; outline: none; width: 100%; font-weight: 500;}
+        .glass-input:focus { border-color: #06b6d4; box-shadow: 0 0 15px rgba(6,182,212,0.3); background: rgba(0,0,0,0.8); }
+
+        #map-container { position: relative; height: 100%; width: 100%; border-radius: 1.5rem; overflow: hidden; z-index: 1; border: 1px solid rgba(255,255,255,0.05); }
+        #map { height: 100%; width: 100%; z-index: 1; }
+        
+        /* Filter cho OSM map thành phong cách sci-fi */
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+        .leaflet-div-icon { background: transparent; border: none; }
+        
+        /* Radar sweep */
+        .radar-sweep {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 200%; height: 200%;
+            margin-top: -100%; margin-left: -100%;
+            background: conic-gradient(from 0deg, transparent 70%, rgba(6, 182, 212, 0.1) 95%, rgba(6, 182, 212, 0.4) 100%);
+            border-radius: 50%;
+            animation: radar-spin 4s linear infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+        @keyframes radar-spin { 100% { transform: rotate(360deg); } }
+        
+        .ai-laser-line {
+            stroke: #06b6d4; 
+            stroke-width: 4;
+            stroke-dasharray: 10, 10;
+            animation: dash 20s linear infinite;
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.8));
+        }
+        @keyframes dash { to { stroke-dashoffset: -1000; } }
+        
+        .pulse-target { animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.5); opacity: 0; box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
+            50% { opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; box-shadow: 0 0 0 20px rgba(6, 182, 212, 0); }
+        }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
+
+        /* Hologram Logo (giống các trang) */
+        @keyframes float-hologram {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+        }
+        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
+
+        .filter-chip { transition: all 0.2s; cursor: pointer; }
+        .filter-chip.active { border-color: #06b6d4; background: rgba(6, 182, 212, 0.2); color: white; text-shadow: 0 0 5px #06b6d4; }
+        
+        /* Tooltip */
+        [data-tooltip] { position: relative; cursor: help; }
+        [data-tooltip]:before {
+            content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: #0a0f25; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 10px;
+            white-space: nowrap; z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            border: 1px solid rgba(6,182,212,0.5);
+        }
+        [data-tooltip]:hover:before { opacity: 1; }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden relative">
+
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar đồng bộ với dashboard (đã bổ sung đầy đủ menu) -->
+    <aside class="w-64 glass-panel border-r border-white/5 flex flex-col justify-between z-20 shrink-0 transition-all duration-300 h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
+                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+            
+            <nav class="flex flex-col py-6 space-y-3 px-5">
+                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Tổng quan</span>
+                </a>
+                <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Quản lý Nhân sự</span>
+                </a>
+                <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Chấm công</span>
+                </a>
+                <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Bảng lương</span>
+                </a>
+                <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
+                    <i class="fas fa-comments w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Trạm Liên Lạc</span>
+                </a>
+                <a href="/map_dashboard" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                </a>
+                <!-- === CÁC MỤC MỚI THÊM === -->
+                <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Quản lý Công nợ</span>
+                </a>
+                <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Quản lý Thu Chi</span>
+                </a>
+                <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Báo cáo lợi nhuận</span>
+                </a>
+            </nav>
+
+            <!-- Kết nối CSKH (đã bổ sung Facebook) -->
+            <div class="px-5 pb-4 mt-auto">
+                <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:border-cyan-500/50 transition-colors">
+                    <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
+                    </p>
+                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline: 0794.678.904</span></a>
+                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo: 0794.678.904</span></a>
+                        <!-- Thêm Facebook -->
+                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ Đình Sang</span></a>
+                    </div>
+                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')" class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
+                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col p-6 relative z-10">
+        <!-- HEADER -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 shrink-0 glass-panel p-4 px-6 rounded-2xl gap-4">
+            <div class="flex items-center gap-4">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-black tracking-widest flex items-center gap-3 drop-shadow-md text-white">
+                        Radar <span class="text-cyan-400">Điều Phối</span> <i class="fas fa-satellite-dish text-cyan-500 animate-pulse text-sm ml-1"></i>
+                    </h2>
+                    <p class="text-gray-400 text-[10px] mt-0.5 font-bold uppercase tracking-widest">Giám sát vệ tinh & Routing AI</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button onclick="kichHoatAIDieuPhoi()" class="flex-1 md:flex-none bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black px-6 py-3 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center justify-center text-xs uppercase tracking-widest border border-cyan-400/50">
+                    <i class="fas fa-brain mr-2 text-base"></i> Auto-Dispatch
+                </button>
+
+                <button onclick="kichHoatBotAI()" class="flex-1 md:flex-none bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white font-black px-5 py-3 rounded-xl shadow-[0_0_20px_rgba(225,29,72,0.3)] transition-all cursor-pointer flex items-center justify-center text-xs uppercase tracking-widest border border-rose-500/50 active:scale-95">
+                    <i class="fas fa-robot mr-2"></i> QUÉT VI PHẠM
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN BODY -->
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
+            
+            <!-- CỘT TRÁI: TÌM KIẾM NHÂN VIÊN -->
+            <div class="md:col-span-4 glass-panel rounded-3xl p-6 flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                <div class="absolute -left-10 -bottom-10 text-9xl text-white/5 pointer-events-none transform -rotate-12"><i class="fas fa-crosshairs"></i></div>
+                
+                <h3 class="font-black text-gray-300 mb-4 border-b border-white/10 pb-4 uppercase tracking-widest text-sm flex items-center gap-2 relative z-10">
+                    <i class="fas fa-clipboard-check text-emerald-400"></i> Trạng Thái Đội Ngũ
+                </h3>
+                
+                <div class="relative mb-3 z-10">
+                    <input type="text" id="searchInput" placeholder="Tìm tên thợ, mã NV..." class="glass-input pl-11 text-sm">
+                    <i class="fas fa-search absolute left-4 top-3 text-cyan-500/70"></i>
+                </div>
+
+                <!-- Bộ lọc nhanh -->
+                <div class="flex items-center gap-2 mb-4 z-10 overflow-x-auto pb-1">
+                    <div class="filter-chip active border border-white/20 text-gray-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0" onclick="applyFilter('all', this)">Tất cả</div>
+                    <div class="filter-chip border border-white/20 text-gray-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0" onclick="applyFilter('ranh', this)"><span class="text-emerald-400 mr-1">●</span> Đang Rảnh</div>
+                    <div class="filter-chip border border-white/20 text-gray-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0" onclick="applyFilter('ban', this)"><span class="text-rose-400 mr-1">●</span> Đang Bận</div>
+                </div>
+
+                <div id="workerList" class="flex-1 overflow-y-auto space-y-3 pr-2 z-10 custom-scrollbar">
+                    <div class="text-center text-cyan-500 font-bold uppercase tracking-widest text-xs mt-10 animate-pulse bg-black/40 py-5 rounded-xl border border-white/5 shadow-inner">
+                        <i class="fas fa-satellite fa-spin mr-2 text-xl block mb-2"></i> Đang quét vệ tinh...
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: BẢN ĐỒ -->
+            <div class="md:col-span-8 glass-panel rounded-3xl p-3 shadow-2xl relative border-t border-cyan-500/30">
+                <div id="map-container">
+                    <div id="map"></div>
+                    <div class="radar-sweep"></div>
+                </div>
+                
+                <!-- Chú thích bản đồ -->
+                <div class="absolute bottom-6 left-6 z-[999] bg-[#08061a]/90 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-widest space-y-3">
+                    <div class="flex items-center gap-3"><span class="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981] border border-emerald-300"></span> Đang Rảnh</div>
+                    <div class="flex items-center gap-3"><span class="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e] border border-rose-300"></span> Đang Bận</div>
+                    <div class="flex items-center gap-3"><span class="w-3.5 h-3.5 rounded-full bg-gray-600 border border-gray-400"></span> Offline</div>
+                </div>
+                
+                <!-- Box Cảnh báo AI -->
+                <div id="ai_alert_box" class="absolute top-6 right-6 z-[999] bg-gradient-to-r from-cyan-900/95 to-[#08061a] backdrop-blur-xl border border-cyan-500/50 p-5 rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.5)] text-white max-w-sm hidden transition-all duration-500 transform translate-x-10 opacity-0">
+                    <div class="flex gap-4">
+                        <i class="fas fa-robot text-3xl text-cyan-400 mt-1 drop-shadow-md"></i>
+                        <div>
+                            <h4 class="font-black text-sm uppercase tracking-widest text-cyan-300 mb-1.5" id="ai_alert_title">AI Điều Phối</h4>
+                            <p id="ai_alert_text" class="text-xs text-gray-200 leading-relaxed font-medium"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL GIAO VIỆC THỦ CÔNG -->
+    <div id="modalManualJob" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] hidden flex items-center justify-center p-4">
+        <div class="bg-[#08061a] border border-cyan-500/50 rounded-[2rem] p-8 w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.3)] transform transition-all relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 text-9xl text-cyan-500/5 pointer-events-none transform -rotate-45"><i class="fas fa-paper-plane"></i></div>
+            
+            <div class="flex justify-between items-center mb-6 relative z-10 border-b border-white/10 pb-5">
+                <h2 class="text-xl font-black text-white tracking-widest uppercase flex items-center gap-2 drop-shadow-md"><i class="fas fa-tasks text-cyan-400"></i> Giao Việc Thủ Công</h2>
+                <button onclick="closeManualJobModal()" class="text-gray-500 hover:text-rose-500 transition-colors text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-5 relative z-10">
+                <div class="bg-black/60 p-4 rounded-2xl border border-white/5 mb-2 shadow-inner">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Mục tiêu Giao việc:</p>
+                    <p class="text-lg font-black text-cyan-400 tracking-wide drop-shadow-sm" id="lbl_tho_nhan">---</p>
+                </div>
+                <input type="hidden" id="tho_nhan_ma_nv">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Khách Hàng</label>
+                        <input type="text" id="manual_khach" class="glass-input text-sm" placeholder="Tên khách...">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Điện Thoại</label>
+                        <input type="text" id="manual_sdt" class="glass-input text-sm font-mono" placeholder="SĐT...">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Địa chỉ thi công</label>
+                    <input type="text" id="manual_diachi" class="glass-input text-sm" placeholder="Nhập địa chỉ cụ thể...">
+                </div>
+
+                <div class="bg-pink-900/10 p-4 border border-pink-500/30 rounded-2xl shadow-inner">
+                    <label class="block text-[10px] font-black text-pink-400 uppercase tracking-widest mb-2"><i class="fas fa-tags mr-1"></i> Gói Dịch Vụ (Menu)</label>
+                    <select id="manual_service_select" class="glass-input text-sm bg-black/60">
+                        <option value="" class="bg-gray-900">-- Điền tay ghi chú bên dưới --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Ghi chú bổ sung</label>
+                    <input type="text" id="manual_noidung" class="glass-input text-sm" placeholder="Yêu cầu khác...">
+                </div>
+
+                <button onclick="submitManualJob()" id="btn_submit_manual" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black py-4 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] active:scale-95 transition-transform mt-4 tracking-widest uppercase flex items-center justify-center gap-2 border border-cyan-400/50">
+                    <i class="fas fa-satellite-dish text-lg"></i> PHÁT TÍN HIỆU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // ========================================================
+        // THREE.JS BACKGROUND NÂNG CẤP (giống landing page)
+        // ========================================================
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Shooting stars
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.04) % 1;
+                material.color.setHSL(hue, 0.9, 0.65);
+                
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // ========================================================
+        // TOAST UTILITY
+        // ========================================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colorClass = 'cyan', iconClass = 'fa-info-circle';
+            if(type === 'success') { colorClass = 'emerald'; iconClass = 'fa-check-circle'; }
+            if(type === 'error') { colorClass = 'rose'; iconClass = 'fa-exclamation-triangle'; }
+            if(type === 'warning') { colorClass = 'amber'; iconClass = 'fa-exclamation-circle'; }
+            toast.className = `bg-[#0a0f25]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+            toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-xl shrink-0"></i> <span class="text-[13px] font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('-translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // ========================================================
+        // KIỂM TRA SESSION
+        // ========================================================
+        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) window.location.replace('{{ url_for('home') }}');
+        }
+        checkAuth();
+
+        // ========================================================
+        // BẢN ĐỒ & LOGIC CHÍNH
+        // ========================================================
+        let map = L.map('map', { zoomControl: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        const markers = {}; 
+        let currentWorkersData = []; 
+        let globalMenuData = []; 
+        let isMapCentered = false;
+        let activeLaserLine = null;
+        let activeTargetMarker = null;
+        let currentFilter = 'all';
+
+        async function fetchInitialData() {
+            try {
+                const { data } = await supabase.from('dichvu').select('*');
+                if(data) {
+                    globalMenuData = data;
+                    let opt = '<option value="" class="bg-gray-900">-- Điền tay ghi chú bên dưới --</option>';
+                    data.forEach(dv => {
+                        const giaThu = dv.gia_dich_vu ? Number(dv.gia_dich_vu).toLocaleString('vi-VN') : '0';
+                        opt += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - Thu khách: ${giaThu}đ</option>`;
+                    });
+                    document.getElementById('manual_service_select').innerHTML = opt;
+                }
+            } catch(e) {}
+            fetchWorkers();
+        }
+
+        async function fetchWorkers() {
+            try {
+                const { data: users, error } = await supabase.from('employees').select('*');
+                if (error) throw error;
+                currentWorkersData = users; 
+
+                const workerListDiv = document.getElementById('workerList');
+                workerListDiv.innerHTML = ''; 
+                let validCoordinates = []; 
+
+                users.forEach(u => {
+                    const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : u.ho_ten.charAt(0).toUpperCase();
+                    
+                    let profession = u.linh_vuc || "Đa Năng";
+                    let profColor = "text-gray-400"; 
+                    if(u.trang_thai_gps === 'Rảnh') profColor = "text-emerald-400";
+                    if(u.trang_thai_gps === 'Bận') profColor = "text-rose-400";
+
+                    const kudoBadge = u.diem_kudo > 0 ? `<span class="bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 px-1.5 py-0.5 rounded text-[10px] ml-2"><i class="fas fa-star text-[9px]"></i> ${u.diem_kudo}</span>` : '';
+
+                    const cardHtml = `
+                        <div class="bg-black/40 border border-white/5 p-4 rounded-2xl flex items-start gap-4 transition-all hover:border-cyan-500/50 hover:bg-white/[0.05] group shadow-inner" id="card_${u.ma_nv}" data-status="${u.trang_thai_gps || 'offline'}">
+                            <div class="relative w-12 h-12 shrink-0 cursor-pointer hover:scale-110 transition-transform" onclick="focusWorkerOnMap('${u.ma_nv}')">
+                                <div class="w-full h-full rounded-xl bg-gradient-to-br from-gray-700 to-black flex items-center justify-center font-black text-xl text-white border border-gray-600 overflow-hidden shadow-lg">
+                                    ${avatarContent}
+                                </div>
+                                <span id="dot_${u.ma_nv}" class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-gray-500 border-2 border-[#08061a] rounded-full z-10"></span>
+                            </div>
+                            <div class="flex-1 w-full min-w-0">
+                                <h4 class="font-black text-white text-sm cursor-pointer hover:text-cyan-400 transition-colors truncate flex items-center tracking-wide" id="name_${u.ma_nv}" onclick="focusWorkerOnMap('${u.ma_nv}')">
+                                    ${u.ho_ten} ${kudoBadge}
+                                </h4>
+                                <p id="status_${u.ma_nv}" class="text-[10px] font-bold text-gray-500 mt-1 font-mono uppercase tracking-widest">Đang offline</p>
+                                
+                                <div class="mt-2 bg-black/60 px-2.5 py-1 rounded border border-white/5 text-[9px] font-mono flex items-center gap-2 w-fit uppercase font-bold tracking-widest shadow-inner">
+                                    <i class="fas fa-user-tag ${profColor}"></i>
+                                    <span class="${profColor}">${profession}</span>
+                                </div>
+
+                                <div class="flex gap-2 mt-4">
+                                    <button onclick="focusWorkerOnMap('${u.ma_nv}')" class="flex-1 bg-white/5 hover:bg-white/20 text-gray-300 border border-white/10 py-2 rounded-xl text-[10px] font-black transition-all flex items-center justify-center gap-1.5 uppercase tracking-widest shadow-sm">
+                                        <i class="fas fa-crosshairs text-cyan-400 group-hover:animate-spin text-sm"></i> Định Vị
+                                    </button>
+                                    <button onclick="openManualJobModal('${u.ma_nv}', '${u.ho_ten}')" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500 hover:text-black text-cyan-400 border border-cyan-500/50 py-2 rounded-xl text-[10px] font-black transition-all hidden justify-center items-center gap-1.5 uppercase tracking-widest shadow-[0_0_10px_rgba(6,182,212,0.2)]" id="btn_${u.ma_nv}">
+                                        <i class="fas fa-paper-plane text-sm"></i> Giao Việc
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    workerListDiv.innerHTML += cardHtml;
+
+                    if (u.toa_do_lat && u.toa_do_lng) {
+                        updateMapAndUI(u);
+                        validCoordinates.push([u.toa_do_lat, u.toa_do_lng]); 
+                    }
+                });
+
+                if(!isMapCentered && validCoordinates.length > 0) {
+                    const bounds = new L.LatLngBounds(validCoordinates);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                    isMapCentered = true;
+                } else if(!isMapCentered) {
+                    map.setView([14.0583, 108.2772], 6);
+                    isMapCentered = true;
+                }
+
+                setupRealtime();
+            } catch (err) {
+                document.getElementById('workerList').innerHTML = `<div class="text-rose-500 text-center mt-10 font-bold uppercase tracking-widest">Lỗi kết nối vệ tinh!</div>`;
+                showToast("Lỗi tải dữ liệu nhân viên!", "error");
+            }
+        }
+
+        function setupRealtime() {
+            supabase.channel('radar_tracking')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees' }, (payload) => {
+                    const idx = currentWorkersData.findIndex(w => w.id === payload.new.id);
+                    if(idx !== -1) currentWorkersData[idx] = payload.new;
+                    updateMapAndUI(payload.new);
+                }).subscribe();
+        }
+
+        function updateMapAndUI(worker) {
+            const { ma_nv, ho_ten, toa_do_lat: lat, toa_do_lng: lng, trang_thai_gps, nhiem_vu_hien_tai, avatar_url, diem_kudo } = worker;
+            if (!lat || !lng) return; 
+
+            let markerColor = trang_thai_gps === 'Rảnh' ? '#10b981' : '#f43f5e';
+            const avatarContent = avatar_url ? `<img src="${avatar_url}" class="w-full h-full object-cover">` : ho_ten.charAt(0).toUpperCase();
+
+            const kudoMarkerHTML = diem_kudo > 0 ? `<div class="absolute -top-3 -right-2 bg-yellow-500 text-black text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#08061a] z-20 shadow-[0_0_10px_#eab308]"><i class="fas fa-star text-[10px]"></i></div>` : '';
+
+            const customIcon = L.divIcon({
+                className: 'bg-transparent', iconSize: [100, 70], iconAnchor: [50, 60],
+                html: `
+                    <div class="flex flex-col items-center justify-center w-full h-full" id="marker_ui_${ma_nv}">
+                        <div class="relative">
+                            ${kudoMarkerHTML}
+                            <div class="w-12 h-12 rounded-xl border-[3px] bg-gradient-to-br from-gray-800 to-black flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_${markerColor}] transition-transform hover:scale-110 overflow-hidden" style="border-color:${markerColor}">
+                                ${avatarContent}
+                            </div>
+                        </div>
+                        <div class="mt-1.5 px-3 py-1 bg-[#08061a]/95 border border-white/20 rounded-lg text-[9px] font-black tracking-widest uppercase text-white whitespace-nowrap shadow-lg">
+                            ${ho_ten}
+                        </div>
+                    </div>`
+            });
+
+            if (markers[ma_nv]) {
+                markers[ma_nv].setLatLng([lat, lng]);
+                markers[ma_nv].setIcon(customIcon);
+            } else {
+                markers[ma_nv] = L.marker([lat, lng], {icon: customIcon}).addTo(map);
+            }
+            
+            const statusText = document.getElementById(`status_${ma_nv}`);
+            const dot = document.getElementById(`dot_${ma_nv}`);
+            const btn = document.getElementById(`btn_${ma_nv}`);
+            const card = document.getElementById(`card_${ma_nv}`);
+
+            if(statusText && card) {
+                card.setAttribute('data-status', trang_thai_gps);
+                
+                if(trang_thai_gps === 'Rảnh') {
+                    statusText.innerHTML = `<span class="text-emerald-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1 animate-pulse"></div> Đang Rảnh / Chờ việc</span><br><span class="text-[9px] text-gray-500 mt-1 block">Đang phát tín hiệu GPS...</span>`;
+                    dot.className = "absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#08061a] rounded-full z-10 shadow-[0_0_10px_#10b981]";
+                    card.classList.add('border-emerald-500/50'); card.classList.remove('border-rose-500/50');
+                    btn.classList.remove('hidden'); btn.classList.add('flex');
+                } else if(trang_thai_gps === 'Bận') {
+                    statusText.innerHTML = `<span class="text-rose-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full mr-1 animate-pulse"></div> Đang Bận</span><br><span class="text-[10px] font-bold truncate block w-full text-white mt-1" title="${nhiem_vu_hien_tai || ''}">📍 ${nhiem_vu_hien_tai || 'Đang thi công...'}</span>`;
+                    dot.className = "absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-[#08061a] rounded-full z-10 shadow-[0_0_10px_#f43f5e]";
+                    card.classList.add('border-rose-500/50'); card.classList.remove('border-emerald-500/50');
+                    btn.classList.add('hidden'); btn.classList.remove('flex');
+                }
+            }
+        }
+
+        // Lọc, tìm kiếm
+        function applyFilter(type, btnElement) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+            btnElement.classList.add('active');
+            runFiltering();
+        }
+
+        function filterWorkers() { runFiltering(); }
+
+        function runFiltering() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('[id^="card_"]');
+            cards.forEach(card => {
+                const nameEl = card.querySelector('h4');
+                const nameMatch = nameEl ? nameEl.innerText.toLowerCase().includes(query) : false;
+                const statusStr = card.getAttribute('data-status').toLowerCase();
+                let statusMatch = true;
+                if (currentFilter === 'ranh') statusMatch = (statusStr === 'rảnh');
+                if (currentFilter === 'ban') statusMatch = (statusStr === 'bận');
+                const isShow = nameMatch && statusMatch;
+                card.style.display = isShow ? 'flex' : 'none';
+                const ma_nv = card.id.replace('card_', '');
+                if (markers[ma_nv]) {
+                    const markerDOM = document.getElementById(`marker_ui_${ma_nv}`);
+                    if(markerDOM) markerDOM.style.display = isShow ? 'flex' : 'none';
+                }
+            });
+        }
+
+        function focusWorkerOnMap(ma_nv) {
+            if (markers[ma_nv]) {
+                const latLng = markers[ma_nv].getLatLng();
+                map.flyTo(latLng, 17, { animate: true, duration: 1.5 });
+            } else {
+                showToast("Mục tiêu này đang Offline hoặc chưa bật GPS!", "warning");
+            }
+        }
+
+        // AI Dispatch
+        async function kichHoatAIDieuPhoi() {
+            const btnAI = document.querySelector('button[onclick="kichHoatAIDieuPhoi()"]');
+            const origHTML = btnAI.innerHTML;
+            btnAI.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-lg"></i> ĐANG TÍNH...';
+            btnAI.disabled = true;
+
+            if(activeLaserLine) map.removeLayer(activeLaserLine);
+            if(activeTargetMarker) map.removeLayer(activeTargetMarker);
+
+            try {
+                const { data: tasks, error: errTask } = await supabase.from('tasks').select('*').eq('trang_thai', 'Chờ Nhận').limit(1);
+                
+                if(!tasks || tasks.length === 0) {
+                    showAIAlert("Hiện tại không có Công việc (Job) nào đang bị ế trên Chợ Điều Phối.", "Hoàn Hảo");
+                    btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
+                }
+                const targetTask = tasks[0];
+                const jobLatLng = [targetTask.lat || 12.2450, targetTask.lng || 109.1950]; 
+
+                let bestWorker = null;
+                let shortestDistance = Infinity;
+                const targetPoint = L.latLng(jobLatLng[0], jobLatLng[1]);
+
+                const onlineWorkers = currentWorkersData.filter(w => w.trang_thai_gps === 'Rảnh' && w.toa_do_lat);
+                
+                if (onlineWorkers.length === 0) {
+                    showAIAlert("Tất cả thợ đều đang BẬN hoặc Offline. Không có ai để rải việc lúc này.", "Báo Động");
+                    btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
+                }
+
+                onlineWorkers.forEach(w => {
+                    const workerPoint = L.latLng(w.toa_do_lat, w.toa_do_lng);
+                    const distance = workerPoint.distanceTo(targetPoint); 
+                    if (distance < shortestDistance) {
+                        shortestDistance = distance;
+                        bestWorker = w;
+                    }
+                });
+
+                await supabase.from('tasks').update({ 
+                    trang_thai: 'Đã Nhận', 
+                    nguoi_nhan: bestWorker.ho_ten 
+                }).eq('id', targetTask.id);
+
+                const workerLatLng = [bestWorker.toa_do_lat, bestWorker.toa_do_lng];
+
+                const targetIcon = L.divIcon({
+                    className: 'bg-transparent', iconSize: [40, 40],
+                    html: `<div class="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center pulse-target"><div class="w-4 h-4 bg-cyan-400 rounded-full shadow-[0_0_15px_#06b6d4]"></div></div>`
+                });
+                activeTargetMarker = L.marker(jobLatLng, {icon: targetIcon}).addTo(map);
+
+                const bounds = L.latLngBounds([workerLatLng, jobLatLng]);
+                map.flyToBounds(bounds, { padding: [80, 80], duration: 1.5 });
+
+                setTimeout(() => {
+                    activeLaserLine = L.polyline([workerLatLng, jobLatLng], {className: 'ai-laser-line'}).addTo(map);
+                    const realDist = Math.round(shortestDistance / 1000 * 10) / 10; 
+                    showAIAlert(`Đã quét thấy KTV <b>${bestWorker.ho_ten}</b> cách khách ${realDist}km.<br><br>👉 Hệ thống đã ép gán Job #${targetTask.id} cho thợ này.`, "Chốt Đơn Thành Công");
+                }, 1500);
+
+            } catch (e) {
+                showToast("Lỗi thuật toán AI: " + e.message, "error");
+            }
+            btnAI.innerHTML = origHTML; btnAI.disabled = false;
+        }
+
+        // Giao việc thủ công
+        function openManualJobModal(ma_nv, ho_ten) {
+            document.getElementById('modalManualJob').classList.remove('hidden');
+            document.getElementById('modalManualJob').classList.add('flex');
+            document.getElementById('lbl_tho_nhan').innerText = ho_ten;
+            document.getElementById('tho_nhan_ma_nv').value = ma_nv;
+        }
+
+        function closeManualJobModal() {
+            document.getElementById('modalManualJob').classList.add('hidden');
+            document.getElementById('modalManualJob').classList.remove('flex');
+        }
+
+        async function submitManualJob() {
+            const thoName = document.getElementById('lbl_tho_nhan').innerText;
+            const ma_nv = document.getElementById('tho_nhan_ma_nv').value;
+            const khach = document.getElementById('manual_khach').value.trim();
+            const sdt = document.getElementById('manual_sdt').value.trim();
+            const diachi = document.getElementById('manual_diachi').value.trim();
+            
+            if(!khach || !diachi) return showToast("Vui lòng nhập Khách và Địa chỉ!", "warning");
+
+            const btn = document.getElementById('btn_submit_manual');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> ĐANG TRUYỀN...';
+            btn.disabled = true;
+
+            try {
+                const serviceId = document.getElementById('manual_service_select').value;
+                let customNote = document.getElementById('manual_noidung').value.trim();
+                let finalContent = customNote || "Lệnh điều phối từ Giám Đốc";
+
+                if (serviceId) {
+                    const selectedSvc = globalMenuData.find(dv => dv.id == serviceId);
+                    if(selectedSvc) {
+                        const giaThu = selectedSvc.gia_dich_vu ? Number(selectedSvc.gia_dich_vu).toLocaleString('vi-VN') : '0';
+                        const hoaHong = selectedSvc.tien_tua ? Number(selectedSvc.tien_tua).toLocaleString('vi-VN') : '0';
+                        finalContent = `[DỊCH VỤ] ${selectedSvc.ten_dich_vu} [Giá Thu]: ${giaThu}đ [Hoa Hồng]: ${hoaHong}đ \n--- Ghi chú: ${customNote}`;
+                    }
+                }
+
+                await supabase.from('tasks').insert([{
+                    ten_khach: khach, dia_chi: diachi, sdt: sdt || 'Không có', noi_dung: finalContent,
+                    trang_thai: 'Đã Nhận', nguoi_nhan: thoName
+                }]);
+
+                closeManualJobModal();
+                
+                if (markers[ma_nv]) {
+                    const latLng = markers[ma_nv].getLatLng();
+                    map.flyTo(latLng, 18, { animate: true, duration: 1.0 });
+                    
+                    setTimeout(() => {
+                        const rippleIcon = L.divIcon({
+                            className: 'bg-transparent', iconSize: [40, 40],
+                            html: `<div class="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center pulse-target"><div class="w-2 h-2 bg-white rounded-full"></div></div>`
+                        });
+                        const ripple = L.marker(latLng, {icon: rippleIcon}).addTo(map);
+                        showToast(`Đã truyền lệnh thành công đến KTV ${thoName}!`, "success");
+                        setTimeout(() => map.removeLayer(ripple), 3000);
+                    }, 1000);
+                } else {
+                    showToast(`Đã giao việc cho ${thoName} (thợ đang offline GPS)`, "success");
+                }
+                
+                document.getElementById('manual_khach').value = '';
+                document.getElementById('manual_sdt').value = '';
+                document.getElementById('manual_diachi').value = '';
+                document.getElementById('manual_noidung').value = '';
+                document.getElementById('manual_service_select').value = '';
+            } catch(e) { 
+                showToast("Lỗi gửi dữ liệu lên Cloud!", "error");
+            }
+            btn.innerHTML = '<i class="fas fa-satellite-dish text-lg"></i> PHÁT TÍN HIỆU'; btn.disabled = false;
+        }
+
+        // Quét vi phạm
+        function kichHoatBotAI() {
+            const btnAI = document.querySelector('button[onclick="kichHoatBotAI()"]');
+            const origHTML = btnAI.innerHTML;
+            btnAI.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-lg"></i> ĐANG QUÉT...';
+            btnAI.disabled = true;
+            
+            try {
+                const thoRanh = currentWorkersData.filter(w => w.trang_thai_gps === 'Rảnh' && w.toa_do_lat);
+                if (thoRanh.length === 0) {
+                    showAIAlert("Tuyệt vời! Toàn bộ đội ngũ đều đang bận rộn cày cuốc.", "Báo cáo Tích cực");
+                    btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
+                }
+
+                const thoViPham = thoRanh[Math.floor(Math.random() * thoRanh.length)];
+                focusWorkerOnMap(thoViPham.ma_nv);
+
+                setTimeout(() => {
+                    alert(`🚨 BITPAW AI PHÁT HIỆN LƯỜI BIẾNG! 🚨\n\nNhân viên: ${thoViPham.ho_ten}\nTrạng thái: Báo Rảnh nhưng không tự lên Chợ để nhận việc!\n\nĐã ghi nhận vào lịch sử trừ thi đua!`);
+                }, 1500);
+
+            } catch(e) { showToast("Lỗi quét vi phạm", "error"); }
+            btnAI.innerHTML = origHTML; btnAI.disabled = false;
+        }
+
+        function showAIAlert(message, title = "AI Cảnh Báo") {
+            const box = document.getElementById('ai_alert_box');
+            document.getElementById('ai_alert_title').innerText = title;
+            document.getElementById('ai_alert_text').innerHTML = message;
+            
+            box.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('translate-x-10', 'opacity-0');
+                box.classList.add('translate-x-0', 'opacity-100');
+            }, 50);
+
+            setTimeout(() => {
+                box.classList.remove('translate-x-0', 'opacity-100');
+                box.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => box.classList.add('hidden'), 500);
+            }, 8000);
+        }
+
+        // Khởi tạo và lắng nghe sự kiện tìm kiếm
+        document.getElementById('searchInput').addEventListener('input', filterWorkers);
+        fetchInitialData();
+    </script>
+</body>
+</html>

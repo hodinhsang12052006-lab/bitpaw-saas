@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BitPaw Office | Tự Động Hóa Bảng Lương & Quy Trình Văn Phòng Thông Minh</title>
+    <meta name="description" content="BitPaw Office - Giải pháp văn phòng số và quản trị nhân sự toàn diện: Chấm công Wifi văn phòng, tự động hóa bảng lương KPI phức tạp chỉ trong 1 click, báo cáo doanh thu chi phí real-time và hệ thống đề xuất duyệt phê online không giấy tờ.">
+
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    
+    <!-- CSS cho AOS hoạt ảnh mượt mà -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        html {
+            scroll-padding-top: 100px;
+        }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow-x: hidden;
+        }
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1; opacity: 0.85;
+            pointer-events: none;
+        }
+        
+        /* Neon scan line trang nhã */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #4f46e5, #10b981, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.15;
+            animation: scanMove 14s linear infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+
+        /* Glassmorphism System */
+        .glass {
+            background: rgba(8, 6, 26, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.02) 0%, rgba(8, 6, 26, 0.4) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(79, 70, 229, 0.15);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(79, 70, 229, 0.5);
+            box-shadow: 0 0 30px rgba(79, 70, 229, 0.35);
+            transform: translateY(-5px);
+        }
+        
+        /* Neon accents */
+        .text-gradient-indigo {
+            background: linear-gradient(to right, #4f46e5 0%, #10b981 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn-neon-indigo {
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            z-index: 1;
+            border: 1px solid rgba(79, 70, 229, 0.4);
+        }
+        .btn-neon-indigo::before {
+            content: '';
+            position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transition: left 0.6s ease;
+            z-index: -1;
+        }
+        .btn-neon-indigo:hover::before { left: 100%; }
+        .btn-neon-indigo:hover {
+            box-shadow: 0 0 25px rgba(79, 70, 229, 0.45);
+            transform: translateY(-2px);
+            border-color: rgba(79, 70, 229, 0.7);
+        }
+        
+        /* Inputs cho Calculator */
+        .calc-input {
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: white;
+            transition: all 0.3s;
+        }
+        .calc-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 10px rgba(79, 70, 229, 0.25);
+            background: rgba(0, 0, 0, 0.75);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #08061a; }
+        ::-webkit-scrollbar-thumb { background: rgba(79, 70, 229, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(79, 70, 229, 0.5); }
+
+        /* Floating widget */
+        .contact-widget {
+            position: fixed; bottom: 30px; right: 30px;
+            z-index: 999; display: flex; flex-direction: column; gap: 12px;
+        }
+        .contact-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: white; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+        }
+        .contact-btn:hover { transform: scale(1.1) translateY(-4px); }
+        .btn-zalo { background: #0068FF; }
+        .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
+        .btn-call { background: #10b981; animation: pulseCall 2s infinite; }
+        @keyframes pulseCall {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* FAQ Accordion */
+        .faq-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; }
+        .faq-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s; opacity: 0; }
+        .faq-item.active .faq-content { max-height: 250px; opacity: 1; margin-top: 12px; }
+        .faq-item.active .faq-icon { transform: rotate(180deg); color: #4f46e5; }
+
+        /* Floating Widget & Back to Top Transition */
+        #backToTop {
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        #backToTop.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .btn-mail { background: #ea4335; }
+        
+        #cskh-static-block {
+            display: none !important;
+        }
+
+        /* 3D HOLOGRAM MASCOT EFFECTS */
+        .hologram-container {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes float-3d-indigo {
+            0% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(79, 70, 229, 0.45));
+            }
+            50% {
+                transform: translateY(-20px) rotateX(-5deg) rotateY(10deg);
+                filter: drop-shadow(0 30px 25px rgba(16, 185, 129, 0.55));
+            }
+            100% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(79, 70, 229, 0.45));
+            }
+        }
+
+        .animated-logo-3d {
+            animation: float-3d-indigo 5s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes scan-laser-indigo {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 3px;
+            background: #4f46e5;
+            box-shadow: 0 0 15px #4f46e5, 0 0 30px #4f46e5;
+            left: -10%;
+            animation: scan-laser-indigo 3s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .mascot-glow {
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.45);
+            border-color: #4f46e5;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-black relative">
+
+    <div class="scan-line"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                <div class="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-500/50 overflow-hidden shadow-[0_0_12px_#4f46e5]">
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Office Logo">
+                </div>
+                <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-indigo-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-indigo-500/20 rounded-md border border-indigo-500/30 text-indigo-300 font-normal">Office</span></h1>
+            </div>
+            
+            <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300">
+                <a href="#problems" class="hover:text-indigo-400 transition-colors">Nỗi Đau</a>
+                <a href="#promise" class="hover:text-indigo-400 transition-colors">Giải Pháp</a>
+                <a href="#workflow" class="hover:text-indigo-400 transition-colors">Quy Trình Vận Hành</a>
+                <a href="#features" class="hover:text-indigo-400 transition-colors">Tính Năng Lõi</a>
+                <a href="#calculator" class="hover:text-indigo-400 transition-colors">Bảng Tính Thử</a>
+                <a href="#ai-cskh" class="hover:text-indigo-400 transition-colors">AI CSKH</a>
+                <a href="#faq" class="hover:text-indigo-400 transition-colors">Hỏi Đáp</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fas fa-arrow-left text-xs"></i> Trở về
+                </a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-indigo bg-indigo-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="overflow-x-hidden w-full relative">
+    <!-- 1. Hero Section -->
+    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+        <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
+            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+                <div class="inline-block bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                    🏢 BitPaw OS: Số Hóa Quy Trình & Tính Lương Tự Động Khối Văn Phòng
+                </div>
+                <h1 class="text-[38px] lg:text-[68px] font-black leading-[1.1] mb-6 tracking-tight">
+                    Chốt lương tự động, <br class="hidden sm:inline">
+                    <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">không còn giấy tờ, sai số.</span> <br class="hidden sm:inline">
+                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI chốt công, lương chỉ 1 click.</span>
+                </h1>
+                <p class="text-[18px] lg:text-[22px] text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                    Hệ thống chấm công Wifi/GPS thông minh chống gian lận, tự động tính toán KPI hiệu suất phức tạp, quy trình duyệt đề xuất không giấy tờ và tự tổng hợp báo cáo lợi nhuận ròng P&L tức thời.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="btn-neon-indigo bg-indigo-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)]">
+                        <i class="fas fa-magic"></i> Chuyển đổi văn phòng số
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
+                        <i class="fas fa-comments text-emerald-400 animate-pulse"></i> Nhận demo chốt lương
+                    </a>
+                </div>
+                <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-calculator text-indigo-400"></i> Lương KPI tự động 1-Click</span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-wifi text-indigo-400"></i> Chấm công bảo mật Wifi</span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-file-invoice-dollar text-indigo-400"></i> Quản lý thu chi dòng tiền</span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-robot text-indigo-400"></i> AI gợi ý tối ưu nhân lực</span>
+                </div>
+            </div>
+            
+            <!-- Hero Right Visual -->
+            <div class="relative w-full max-w-[560px] min-h-[500px] mx-auto flex items-center justify-center" data-aos="fade-left" data-aos-duration="1000">
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-emerald-500/10 to-cyan-600/20 rounded-full blur-[80px] opacity-80 pointer-events-none"></div>
+                
+                <div class="relative flex justify-center items-center w-full h-[500px] lg:h-[550px] hologram-container">
+                    
+                    <!-- 3D Mascot Orb Center -->
+                    <div class="relative w-64 h-64 lg:w-72 lg:h-72 rounded-full border-4 border-indigo-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(79,70,229,0.4)] z-10 cursor-pointer"
+                        data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="false">
+                        <div class="absolute w-full h-full border-t-4 border-emerald-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
+                        <div class="absolute w-[110%] h-[110%] border-b-4 border-indigo-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
+     
+                        <div class="relative animated-logo-3d w-40 h-40 lg:w-44 lg:h-44 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a] border border-indigo-500/20">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Office AI">
+                            <div class="scanner-line"></div>
+                        </div>
+                    </div>
+     
+                    <!-- Floating Mini Cards quanh Orb -->
+                    <!-- 1. Bảng lương tự động card -->
+                    <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-indigo-500/30 p-4 rounded-2xl shadow-2xl hover:border-indigo-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-indigo 5s infinite ease-in-out;">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Bảng Lương Tháng 5</h4>
+                        </div>
+                        <p class="text-sm text-white font-extrabold truncate">Đã chốt: 45 nhân sự</p>
+                        <p class="text-xs text-indigo-300 font-bold mt-1">Trạng thái: 100% Chính xác</p>
+                    </div>
+     
+                    <!-- 2. Quỹ tiền mặt card -->
+                    <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl hover:border-emerald-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-indigo 6s infinite ease-in-out reverse;">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-wallet text-emerald-400"></i> Quỹ Tiền Mặt</h4>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        </div>
+                        <p class="text-sm text-white font-extrabold">Số dư: 996,100,000 ₫</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Lợi nhuận ròng: +15%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Pain Points Section -->
+    <section id="problems" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">Thực tế vận hành</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Khối văn phòng hành chính đang <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">mệt mỏi vì nỗi lo nào?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Vận hành thủ công bằng Excel và phê duyệt giấy tờ truyền thống làm tiêu tốn vô cùng nhiều thời gian hành chính của kế toán và giám đốc.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                <!-- Pain Point 1 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Cộng Lương Tay</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Mất nhiều ngày trời làm bảng lương cuối tháng</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Kế toán mò mẫm cộng trừ công đi trễ, phép năm, phụ cấp, hoa hồng doanh số, bảo hiểm thủ công trên file Excel cực kỳ phức tạp và dễ sai lệch số liệu.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 2 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-chart-line-down"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Thu Chi Mập Mờ</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Dòng tiền thu chi văn phòng mập mờ, thất thoát</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chi phí văn phòng phẩm, chi tạm ứng dự án phát sinh vụn vặt không được số hóa kiểm soát tức thời, làm chủ doanh nghiệp khó xác định thực tế lợi nhuận ròng.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 3 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="300">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-fingerprint"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Gian Lận Công</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Chấm công lách giờ qua máy vân tay cũ</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Máy vân tay hỏng hóc gây trễ nải đầu ngày, hoặc nhân viên lách luật nhờ đồng nghiệp chấm công ảo hộ khi có việc đột xuất, khó nắm bắt công thực tế.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 4 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="400">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-contract"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Rối Hồ Sơ</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Hồ sơ nhân sự lộn xộn, dễ thất lạc hợp đồng</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tủ hồ sơ giấy hoặc rải rác trên Drive cá nhân, mất nhiều thời gian tra cứu khi có thanh kiểm tra.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 5 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="500">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">KPI Mơ Hồ</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Đánh giá hiệu suất nhân viên theo cảm tính</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Không có thước đo KPI định lượng rõ ràng, dẫn đến việc xét tăng lương, thưởng cuối năm phụ thuộc vào cảm xúc cá nhân của sếp, thiếu công bằng khách quan.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 6 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="600">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Duyệt Phê Giấy</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Quy trình duyệt đề xuất rườm rà bằng giấy tờ</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự xin nghỉ phép hoặc đề xuất mua văn phòng phẩm phải in đơn giấy, chờ sếp đi công tác về ký duyệt vô cùng chậm trễ trì trệ công việc.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Big Promise Section -->
+    <section id="promise" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div data-aos="zoom-in">
+                <span class="text-sm font-black tracking-widest text-emerald-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 leading-tight tracking-tight">
+                    Biến văn phòng hành chính thành một cỗ máy số <br>
+                    <span class="text-gradient-indigo">tự động hóa chốt lương, kiểm soát chi phí thực tế.</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium">
+                    BitPaw số hóa và đồng bộ liền mạch toàn bộ các thủ tục, giúp nhân sự vui vẻ cống hiến, lãnh đạo yên tâm kiểm soát tài chính từ xa.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
+                    <div class="text-indigo-500 text-5xl mb-5"><i class="fas fa-magic"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Duyệt Phép Online</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Đệ trình và phê duyệt nghỉ phép, tạm ứng chi phí qua mobile tức thời, hoàn toàn không giấy tờ.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-emerald-500/20 transition-all duration-300">
+                    <div class="text-emerald-400 text-5xl mb-5"><i class="fas fa-calculator"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Chốt Lương Chớp Nhoáng</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Công thức chốt bảng lương Excel phức tạp được tự động hóa hoàn toàn chỉ trong 1 click chuột.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
+                    <div class="text-indigo-400 text-5xl mb-5"><i class="fas fa-wifi"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Chấm Công Wifi An Toàn</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Chấm công bảo mật khớp địa chỉ MAC Wifi hoặc định vị GPS văn phòng tuyệt đối chính xác.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-emerald-500/20 transition-all duration-300">
+                    <div class="text-emerald-400 text-5xl mb-5"><i class="fas fa-chart-line"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Báo Cáo Tài Chính</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Thống kê P&L dòng tiền thu chi văn phòng, khấu hao và quỹ tiền mặt realtime minh bạch.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Workflow Section -->
+    <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hành trình quản lý nhân sự văn phòng <br>
+                    <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">số hóa trơn tru khép kín.</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Bản đồ quy trình số hóa từ lúc nhân viên check-in đầu ngày đến phê duyệt và chốt bảng lương cuối tháng:
+                </p>
+            </div>
+            
+            <!-- Row 1: Steps 1-4 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch mb-6 lg:mb-8">
+                <!-- Step 1 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="100">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">01</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-fingerprint"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Chấm công Wifi/GPS</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự bước chân vào văn phòng tự động check-in qua kết nối mạng Wifi bảo mật.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 2 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="200">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">02</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-clock"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Ghi nhận công realtime</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống tự động ghi nhận số phút đi trễ, về sớm thực tế, đồng bộ lên bảng tổng hợp.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 3 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="300">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">03</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-paper-plane"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Đề xuất duyệt online</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự gửi đề xuất nghỉ phép hoặc tạm ứng văn phòng phẩm ngay trên điện thoại di động.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 4 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="400">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">04</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-user-check"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Sếp phê duyệt tức thì</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Lãnh đạo nhận thông báo đẩy trên điện thoại và ký duyệt online chỉ với 1 click nhanh gọn.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+ 
+            <!-- Row 2: Steps 5-8 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch">
+                <!-- Step 5 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="500">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">05</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-chart-line"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Đo lường KPI tự động</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống tự tổng hợp điểm số hoàn thành mục tiêu, tự động tính lương hiệu suất nhân sự.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 6 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="600">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">06</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-magic"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Chốt bảng lương 1-Click</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Kế toán click "Chốt lương", toàn bộ bảo hiểm, thuế TNCN và thực nhận tự tính chuẩn xác.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 7 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="700">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">07</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-paperclip"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Gửi phiếu lương bảo mật</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Phiếu lương tự động mã hóa và gửi thẳng về email/Zalo của từng nhân sự đối soát riêng tư.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/30 items-center justify-center text-indigo-400 text-xs shadow-[0_0_10px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 8 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="800">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-indigo-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(79,70,229,0.3)]">08</div>
+                                <div class="text-indigo-400 text-2xl"><i class="fas fa-chart-pie"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Xuất báo cáo P&L ròng</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống tự đối soát quỹ ngân hàng và tiền mặt, xuất biểu đồ dòng tiền thu chi P&L của sếp.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-indigo-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Feature Grid Section -->
+    <section id="features" class="py-24 relative z-10 bg-[#08061a] scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Tính Năng Lõi Số Hóa <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">Quy Trình Văn Phòng Số</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Toàn bộ module vận hành thực tế được liên kết chặt chẽ với nhau, loại bỏ hoàn toàn các sai sót giấy tờ.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                <!-- Feature 1 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="100">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-fingerprint"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Chấm Công GPS & Wifi</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Chấp nhận chấm công dựa trên định vị văn phòng hoặc trùng địa chỉ MAC Wifi bảo mật tuyệt đối chống chấm công ảo tại <a href="{{ url_for('chamcong_fnb') }}" class="text-indigo-400 underline hover:text-indigo-300">chamcong_vanphong.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="200">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Tính Lương Tự Động 1-Click</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Chốt lương cứng, cộng thưởng KPI, trừ phạt đi trễ và bảo hiểm trong nháy mắt thay vì mất 3 ngày làm Excel thủ công tại <a href="{{ url_for('bangluong') }}" class="text-indigo-400 underline hover:text-indigo-300">bangluong.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="300">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Phê Duyệt Đề Xuất Online</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Tạo và ký duyệt tờ trình mua sắm, đề xuất nghỉ phép, tạm ứng online mọi lúc mọi nơi ngay trên smartphone, chốt quy trình không giấy tờ.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="400">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Hồ Sơ Nhân Sự Đám Mây</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Số hóa hồ sơ bảo hiểm, thông tin liên hệ và lịch sử hợp đồng lao động lưu trữ tập trung tại <a href="{{ url_for('nhanvien') }}" class="text-indigo-400 underline hover:text-indigo-300">nhanvien.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="500">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Quản Lý Sổ Quỹ Thu Chi</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Ghi nhận các phiếu thu chi vụn vặt, quỹ tiền mặt két sắt và đối soát quỹ tài khoản ngân hàng real-time tại <a href="{{ url_for('quanly_thuchi') }}" class="text-indigo-400 underline hover:text-indigo-300">quanly_thuchi.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="600">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">KPI Hiệu Suất Định Lượng</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Đo lường KPI nhân viên khoa học dựa trên số liệu thực tế hoàn thành công việc, loại bỏ các thiên kiến cá nhân của sếp hành chính.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 7 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="700">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Phân Quyền Nhân Sự Chặt Chẽ</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Hệ thống bảo mật dữ liệu tuyệt đối, phân quyền chi tiết cho nhân viên, kế toán, sếp hành chính theo tiêu chuẩn SaaS đám mây.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 8 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="800">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI Financial Planner</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Trợ lý AI tự bóc tách dữ liệu thu chi thực tế, xuất báo cáo P&L lợi nhuận ròng trực quan tại <a href="{{ url_for('baocao_loinhuan') }}" class="text-indigo-400 underline hover:text-indigo-300">baocao_loinhuan.html</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. Interactive Calculator Section -->
+    <section id="calculator" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-emerald-400 uppercase">CÔNG CỤ ĐỐI SOÁT</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Bảng Tính Thử <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">Lương KPI & Khấu Trừ Nhân Viên</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Hãy thử tính toán bảng lương thực tế của nhân sự văn phòng để trải nghiệm thuật toán tính lương tự động, minh bạch của BitPaw OS:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                <!-- Inputs Column (7 Cols) -->
+                <div class="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-3xl p-7 lg:p-8 flex flex-col justify-between" data-aos="fade-right">
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-black text-gray-300 uppercase tracking-wider">1. Lương cứng cơ bản (26 ngày công chuẩn)</label>
+                                <span id="salary-display" class="text-lg font-black text-indigo-400">12,000,000 ₫</span>
+                            </div>
+                            <input type="range" id="base-salary" min="5000000" max="40000000" step="500000" value="12000000" class="w-full accent-indigo-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-xs font-black text-gray-400 uppercase">2. Số ngày công thực tế</span>
+                                    <span id="days-display" class="text-sm font-extrabold text-white">26 ngày</span>
+                                </div>
+                                <input type="range" id="actual-days" min="10" max="26" value="26" class="w-full accent-emerald-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-xs font-black text-gray-400 uppercase">3. Số phút đi trễ (Phạt 2k/phút)</span>
+                                    <span id="late-display" class="text-sm font-extrabold text-white">0 phút</span>
+                                </div>
+                                <input type="range" id="late-minutes" min="0" max="120" step="5" value="0" class="w-full accent-emerald-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-black text-gray-300 uppercase tracking-wider">4. Hiệu suất hoàn thành KPI</label>
+                                <span id="kpi-display" class="text-lg font-black text-indigo-400">100%</span>
+                            </div>
+                            <input type="range" id="kpi-performance" min="50" max="150" step="5" value="100" class="w-full accent-indigo-500">
+                            <div class="flex justify-between text-xs text-gray-500 font-bold mt-1">
+                                <span>Yếu (50%)</span>
+                                <span>Chuẩn (100%)</span>
+                                <span>Xuất sắc (150%)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5">5. Lương KPI Hiệu Suất Cơ Bản</label>
+                            <select id="kpi-base" class="w-full p-4 calc-input text-base font-extrabold">
+                                <option value="2000000">Thấp (2,000,000 đ)</option>
+                                <option value="4000000" selected>Trung bình (4,000,000 đ)</option>
+                                <option value="6000000">Cao (6,000,000 đ)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display Result Column (5 Cols) -->
+                <div class="lg:col-span-5 bg-gradient-to-b from-[#0f1938] to-[#08061a] border border-indigo-500/30 rounded-3xl p-7 lg:p-8 flex flex-col justify-between relative overflow-hidden" data-aos="fade-left">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                    <div>
+                        <h3 class="text-white font-black text-[22px] lg:text-[28px] mb-6 border-b border-white/10 pb-4 flex items-center gap-2"><i class="fas fa-file-invoice text-indigo-400"></i> Phiếu Lương Chi Tiết</h3>
+                        
+                        <div class="space-y-4 font-mono text-sm mb-8">
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Lương cứng gốc:</span>
+                                <span id="bill-base" class="text-white font-bold">12,000,000 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Lương cứng theo công:</span>
+                                <span id="bill-actual-base" class="text-white font-bold">12,000,000 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Thưởng KPI hiệu suất:</span>
+                                <span id="bill-kpi-bonus" class="text-white font-bold">4,000,000 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
+                                <span>Phạt đi trễ:</span>
+                                <span id="bill-late-penalty">- 0 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
+                                <span>Bảo hiểm & Thuế ước tính:</span>
+                                <span id="bill-insurance">- 1,280,000 ₫</span>
+                            </div>
+                            
+                            <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
+                                <span>THỰC LĨNH:</span>
+                                <span id="bill-net-pay" class="text-xl">14,720,000 ₫</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-2xl">
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-history text-indigo-400 text-lg mt-0.5 animate-pulse"></i>
+                            <div>
+                                <h4 class="text-xs font-black text-white uppercase tracking-wider mb-1">Tối ưu hóa thời gian kế toán</h4>
+                                <p class="text-xs text-gray-300 leading-relaxed font-medium">
+                                    Thay vì kế toán tốn 16 giờ làm việc mệt mỏi cuối tháng để tính tay, BitPaw OS hoàn tất chốt và gửi phiếu lương bảo mật này trong <span class="text-indigo-300 font-bold">1 Click duy nhất</span>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. AI Customer Nurturing Section -->
+    <section id="ai-cskh" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">AI ANALYTICS ENGINE</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    AI Human Resources & Financial Forecast
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Hệ thống tích hợp trí tuệ nhân tạo dự đoán xu hướng biến động nhân sự, tỷ lệ trễ giờ hành chính và đề xuất tối ưu quỹ lương.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <!-- Left Content -->
+                <div data-aos="fade-right" class="space-y-6">
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-user-shield text-indigo-400"></i> Cảnh báo nguy cơ nghỉ việc</h4>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            AI tự bóc tách hành vi (đi trễ tăng đột biến, xin nghỉ phép nhiều ngày liên tục) để cảnh báo sớm nhân sự cốt cán có nguy cơ nghỉ việc lên màn hình sếp.
+                        </p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-coins text-emerald-400"></i> Dự báo lợi nhuận ròng P&L</h4>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            AI tự phân tích tốc độ tăng trưởng doanh thu so với sự phình to của quỹ lương để đề xuất thời điểm tuyển dụng nhân sự mới an toàn tối ưu chi phí.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Visual (Chat simulator) -->
+                <div data-aos="fade-left" class="bg-black/80 border border-indigo-500/30 rounded-3xl p-6 font-sans relative shadow-2xl">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl"></div>
+                    <div class="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/50 overflow-hidden flex items-center justify-center">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw AI">
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-black text-white">BitPaw AI HR Director</h4>
+                            <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> Active Now</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Bubbles -->
+                    <div class="space-y-4 text-xs font-medium">
+                        <div class="flex gap-2">
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-indigo-400"></i></div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
+                                Phát hiện nhân sự "Trần Quốc Bảo - Phòng Tech" đi trễ liên tiếp 4 ca trong 2 tuần qua, đồng thời xin nghỉ phép 2 ngày không rõ lý do.
+                            </div>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <div class="bg-indigo-500/20 border border-indigo-500/30 p-3 rounded-2xl max-w-[80%] text-white text-right font-bold">
+                                Xuất báo cáo hiệu suất KPI chi tiết của nhân viên này?
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0"><i class="fas fa-user-tie text-emerald-400"></i></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-indigo-400"></i></div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
+                                <p class="font-black text-white mb-1.5"><i class="fas fa-exclamation-triangle text-rose-400"></i> Cảnh báo sớm:</p>
+                                KPI tháng này đạt 98% (Rất tốt). Nguy cơ nghỉ việc do mất động lực làm việc: 78%. Sếp nên có buổi đối thoại trực tiếp để thấu hiểu nhân viên.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 8. FAQ Section -->
+    <section id="faq" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hỏi Đáp <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">Về Phần Mềm BitPaw Office</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Những thắc mắc thường gặp của các chủ doanh nghiệp hành chính khi số hóa văn phòng số:
+                </p>
+            </div>
+
+            <div class="space-y-4" data-aos="fade-up">
+                <!-- FAQ 1 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">Làm sao để bảo mật địa chỉ Wifi chấm công chống hack?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            BitPaw OS ghi nhận chính xác mã MAC và dải IP tĩnh của modem Wifi văn phòng. Nhân viên phải kết nối trực tiếp vào mạng Wifi được chỉ định mới có thể bấm chấm công, loại bỏ hoàn toàn cơ hội hack chấm công từ xa hay giả lập vị trí ảo.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 2 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">Hệ thống có tự động trừ bảo hiểm và thuế thu nhập không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Có. Bạn có thể thiết lập tỷ lệ khấu trừ bảo hiểm xã hội (8% người lao động đóng) và các bậc thuế thu nhập cá nhân (TNCN) lũy tiến theo quy định pháp luật. Hệ thống tự động bóc tách khấu trừ khi chốt lương, giảm tải hoàn toàn công việc cho kế toán hành chính.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 3 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">Dữ liệu hồ sơ nhân sự lưu trữ đám mây có an toàn không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Tuyệt đối an toàn. Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tập trung trên hệ thống đám mây được mã hóa AES-256 cao cấp. Đồng thời, cơ chế phân quyền chặt chẽ giúp chỉ những người được cấp quyền (HR, Kế toán, Giám đốc) mới có thể truy cập xem.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. Final Call to Action -->
+    <section class="py-24 relative z-10 bg-gradient-to-b from-[#0a0826] to-[#08061a] border-t border-white/5 text-center">
+        <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-emerald-500/10 opacity-30 rounded-full blur-[100px] pointer-events-none"></div>
+        <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
+            <h2 class="text-[32px] lg:text-[52px] font-black mb-6 tracking-tight leading-tight">Bắt Đầu Chuyển Đổi Văn Phòng Số Ngay Hôm Nay!</h2>
+            <p class="text-[16px] lg:text-[20px] text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed font-medium">Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công Wifi, chốt lương 1-Click và báo cáo tài chính ròng tự động.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('register') }}" class="btn-neon-indigo bg-indigo-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)]">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí 14 ngày
+                </a>
+                <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
+                    <i class="fas fa-comments text-emerald-400"></i> Nhận tư vấn qua Zalo
+                </a>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-20 pb-8">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-10 border-b border-white/10 pb-12">
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(79,70,229,0.5)]">
+                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Logo">
+                    </div>
+                    <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-indigo-400">Paw</span></h2>
+                </div>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+
+                <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-indigo-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
+                    <p class="flex items-center gap-3"><i class="fas fa-id-card text-indigo-500 w-4"></i> <span>MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM</span></p>
+                    <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-indigo-500 w-4"></i> <span>Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM</span></p>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-indigo-500/30 w-max pb-2">Sản Phẩm</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
+                    <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-indigo-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-indigo-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-indigo-400 transition flex items-center gap-2">E-Com Omni</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-indigo-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-indigo-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-indigo-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-indigo-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-indigo-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                </ul>
+
+                <div class="flex flex-col gap-3">
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-indigo-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(79,70,229,0.15)] group hover:border-indigo-400 transition">
+                        <i class="fas fa-shield-check text-green-400 text-2xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">SSL Secured</strong><span class="text-[10px] block text-gray-500">256-bit Encryption</span></div>
+                    </div>
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-orange-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(249,115,22,0.15)] group hover:border-orange-400 transition">
+                        <i class="fab fa-aws text-orange-400 text-3xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">AWS Cloud</strong><span class="text-[10px] block text-gray-500">99.99% Uptime SLA</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-indigo-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <ul class="space-y-4 text-sm text-gray-300 mb-6">
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/10 flex justify-center items-center shrink-0 border border-indigo-500/30 group-hover:bg-indigo-500/30 transition">
+                            <i class="fas fa-phone-alt text-indigo-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Hotline 24/7</p>
+                            <a href="tel:0794678904" class="hover:text-indigo-400 transition font-black text-base lg:text-[17px] text-white">0794.678.904</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/10 flex justify-center items-center shrink-0 border border-rose-500/30 group-hover:bg-rose-500/30 transition">
+                            <i class="fas fa-envelope text-rose-400 text-lg"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/10 flex justify-center items-center shrink-0 border border-blue-500/30 group-hover:bg-blue-500/30 transition">
+                            <i class="fas fa-comment-dots text-blue-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Zalo Support</p>
+                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white">Zalo Kỹ Thuật (Sếp Sang)</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-600/10 flex justify-center items-center shrink-0 border border-blue-600/30 group-hover:bg-blue-600/30 transition">
+                            <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
+                        </div>
+                    </li>
+                </ul>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-indigo-900 hover:to-blue-900 text-white border border-gray-700 hover:border-indigo-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
+            <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
+            <div class="flex items-center gap-2 mt-4 md:mt-0">
+                <span>Thiết kế & Lập trình bởi:</span>
+                <span class="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded border border-indigo-500/30 font-bold">Hồ Đình Sang</span>
+                <span>&</span>
+                <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating contact widget (Đồng bộ với Landing Page chính) -->
+    <div class="contact-widget z-[100]">
+        <div class="relative group cursor-pointer mb-2" onclick="toggleChat()">
+            <div class="absolute right-14 top-2 bg-[#08061a]/95 border border-indigo-500/40 text-indigo-400 text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
+                Sếp cần hỗ trợ?<br>Gọi em ngay!
+            </div>
+            <div class="w-14 h-14 bg-[#08061a] border-2 border-indigo-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow animate-pulse">
+                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Mascot">
+            </div>
+        </div>
+
+        <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 mb-2 text-sm" title="Lên đầu trang">
+            <i class="fas fa-chevron-up"></i>
+        </button>
+        <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" title="Gửi Email">
+            <i class="fas fa-envelope text-[20px]"></i>
+        </a>
+        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo">
+            <h1 class="font-black text-[12px] tracking-tighter">Zalo</h1>
+        </a>
+        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Chat Messenger">
+            <i class="fab fa-facebook-messenger"></i>
+        </a>
+        <a href="tel:0794678904" class="contact-btn btn-call" title="Gọi Hotline">
+            <i class="fas fa-phone-alt"></i>
+        </a>
+    </div>
+
+    <!-- Policy Modal (Đồng bộ với Landing Page chính) -->
+    <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div
+            class="bg-[#0a0f25] border border-indigo-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(79,70,229,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
+            <div
+                class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-indigo-900/40 to-transparent rounded-t-2xl">
+                <h3 id="modalTitle" class="text-xl font-black text-indigo-400 tracking-wider uppercase">Tiêu đề</h3>
+                <button onclick="closeModal()"
+                    class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent"
+                class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
+            <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
+                <button onclick="closeModal()"
+                    class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reusable Premium CSKH Global Component -->
+    {% include 'components/cskh_global.html' %}
+
+    <!-- Background Animation (Three.js Indigo Particles Network) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = window.innerWidth < 768 ? 300 : 800;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 100;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.15,
+            color: 0x4f46e5,
+            transparent: true,
+            opacity: 0.35,
+            blending: THREE.AdditiveBlending
+        });
+        const particlesMesh = new THREE.Points(particlesGeometry, material);
+        scene.add(particlesMesh);
+
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth/2) * 0.0003;
+            mouseY = (e.clientY - window.innerHeight/2) * 0.0003;
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+            particlesMesh.rotation.y = elapsed * 0.015;
+            particlesMesh.rotation.x = elapsed * 0.008;
+            particlesMesh.rotation.y += 0.5 * (mouseX - particlesMesh.rotation.y);
+            particlesMesh.rotation.x += 0.5 * (mouseY - particlesMesh.rotation.x);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize AOS
+        AOS.init({ once: true, offset: 50, duration: 800 });
+
+        // Accordion FAQ Logic
+        document.querySelectorAll('.faq-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.parentElement;
+                const wasActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+                
+                if (!wasActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // Dynamic Employee Salary & KPI Calculator
+        const baseSalaryInput = document.getElementById('base-salary');
+        const baseSalaryDisplay = document.getElementById('salary-display');
+        const actualDaysInput = document.getElementById('actual-days');
+        const actualDaysDisplay = document.getElementById('days-display');
+        const lateMinutesInput = document.getElementById('late-minutes');
+        const lateMinutesDisplay = document.getElementById('late-display');
+        const kpiInput = document.getElementById('kpi-performance');
+        const kpiDisplay = document.getElementById('kpi-display');
+        const kpiBaseSelect = document.getElementById('kpi-base');
+
+        // Bill outputs
+        const billBase = document.getElementById('bill-base');
+        const billActualBase = document.getElementById('bill-actual-base');
+        const billKpiBonus = document.getElementById('bill-kpi-bonus');
+        const billLatePenalty = document.getElementById('bill-late-penalty');
+        const billInsurance = document.getElementById('bill-insurance');
+        const billNetPay = document.getElementById('bill-net-pay');
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+        }
+
+        function calculatePayroll() {
+            const baseSalary = parseFloat(baseSalaryInput.value);
+            baseSalaryDisplay.textContent = formatCurrency(baseSalary);
+
+            const days = parseInt(actualDaysInput.value);
+            actualDaysDisplay.textContent = `${days} ngày`;
+
+            const lates = parseInt(lateMinutesInput.value);
+            lateMinutesDisplay.textContent = `${lates} phút`;
+
+            const kpiPercent = parseInt(kpiInput.value);
+            kpiDisplay.textContent = `${kpiPercent}%`;
+
+            const kpiBase = parseFloat(kpiBaseSelect.value);
+
+            // Calculation
+            const actualBase = (baseSalary / 26.0) * days;
+            const kpiBonus = kpiBase * (kpiPercent / 100.0);
+            const latePenalty = lates * 2000;
+            
+            // Insurance & Tax estimation (approx 10.5% base)
+            const insuranceCost = baseSalary * 0.105;
+
+            const netPay = actualBase + kpiBonus - latePenalty - insuranceCost;
+
+            // Display in outputs
+            billBase.textContent = formatCurrency(baseSalary);
+            billActualBase.textContent = formatCurrency(Math.round(actualBase));
+            billKpiBonus.textContent = formatCurrency(Math.round(kpiBonus));
+            billLatePenalty.textContent = "- " + formatCurrency(latePenalty);
+            billInsurance.textContent = "- " + formatCurrency(Math.round(insuranceCost));
+            billNetPay.textContent = formatCurrency(Math.round(netPay));
+        }
+
+        // Add event listeners
+        baseSalaryInput.addEventListener('input', calculatePayroll);
+        actualDaysInput.addEventListener('input', calculatePayroll);
+        lateMinutesInput.addEventListener('input', calculatePayroll);
+        kpiInput.addEventListener('input', calculatePayroll);
+        kpiBaseSelect.addEventListener('change', calculatePayroll);
+
+        // Initialize values
+        calculatePayroll();
+
+        // ========================================================
+        // POLICY MODAL LOGIC (ĐỒNG BỘ BITPAW)
+        // ========================================================
+        window.openModal = function(type) {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            
+            const titles = {
+                terms: 'Điều khoản sử dụng',
+                privacy: 'Chính sách bảo mật',
+                payment: 'Chính sách thanh toán'
+            };
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-indigo-400"></i> ' + (titles[type] || 'Chính sách');
+            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ Office...</p></div>';
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                if (modalInner) modalInner.classList.remove('scale-95'); 
+            }, 10);
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            if (modalInner) modalInner.classList.add('scale-95');
+            setTimeout(() => { 
+                modal.classList.add('hidden'); 
+                document.body.style.overflow = ''; 
+            }, 300);
+        };
+        
+        const policyModalEl = document.getElementById('policyModal');
+        if (policyModalEl) {
+            policyModalEl.addEventListener('click', function (e) { 
+                if (e.target === this) closeModal(); 
+            });
+        }
+
+        // Back to top behavior
+        const backToTopBtn = document.getElementById('backToTop');
+        if (backToTopBtn) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+            });
+            backToTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+    </script>
+</body>
+</html>

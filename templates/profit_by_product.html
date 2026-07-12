@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Báo cáo lợi nhuận theo sản phẩm</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+        
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
+        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+        .absolute-blur { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 80vw; height: 500px; background: rgba(6,182,212,0.15); border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+
+        .glass-panel { background: rgba(10,15,37,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(6,182,212,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .glass-card { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid rgba(6,182,212,0.25); border-radius: 1rem; transition: all 0.2s ease; }
+        .glass-card:hover { border-color: #06b6d4; transform: translateY(-2px); box-shadow: 0 0 15px rgba(6,182,212,0.3); }
+        
+        @keyframes float-logo { 0%,100%{transform:translateY(0px);filter:drop-shadow(0 5px 5px rgba(6,182,212,0.4))} 50%{transform:translateY(-4px);filter:drop-shadow(0 12px 12px rgba(168,85,247,0.5))} }
+        .logo-float { animation: float-logo 4s ease-in-out infinite; }
+
+        .custom-table { width: 100%; border-collapse: collapse; }
+        .custom-table th { text-align: left; padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); color: #9ca3af; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .custom-table td { padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; vertical-align: middle; }
+        .custom-table tr:hover td { background: rgba(6,182,212,0.1); }
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        
+        .profit-badge { padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 700; display: inline-block; }
+        .profit-high { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid #10b981; }
+        .profit-medium { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+        .profit-low { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; }
+        
+        .filter-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; width: 100%; color: white; outline: none; transition: 0.2s; }
+        .filter-input:focus { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6,182,212,0.4); }
+        select.filter-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1rem; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10001; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-container { background: rgba(10,15,37,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(6,182,212,0.4); border-radius: 2rem; padding: 1.5rem; max-width: 90%; width: 500px; transform: scale(0.9); transition: transform 0.2s; }
+        .modal-overlay.active .modal-container { transform: scale(1); }
+        .glass-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.6rem 1rem; width: 100%; color: white; outline: none; }
+        
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .loading-overlay.active { visibility: visible; opacity: 1; }
+        
+        .pagination-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+        .pagination-btn:hover:not(:disabled) { background: rgba(6,182,212,0.2); border-color: #06b6d4; }
+        .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        /* CSKH Widget */
+        .cskh-widget { background: rgba(0,0,0,0.4); border-radius: 1.5rem; padding: 1rem; margin-top: 2rem; border: 1px solid rgba(255,255,255,0.05); }
+        .cskh-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 1rem; transition: 0.2s; text-decoration: none; }
+        .cskh-item:hover { background: rgba(6,182,212,0.15); }
+        .cskh-info { display: flex; flex-direction: column; }
+        .cskh-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+        .cskh-value { font-size: 0.85rem; font-weight: 500; color: white; }
+        .glass-input-sm { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.5rem 1rem; width: 100%; color: white; outline: none; font-size: 0.8rem; }
+        .glass-input-sm:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+        
+        @media (max-width: 768px) { body { padding: 1rem; } .custom-table th, .custom-table td { font-size: 0.7rem; padding: 0.5rem; } }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Lợi nhuận theo sản phẩm</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Phân tích doanh thu – chi phí – lợi nhuận thực tế</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+                <button id="addCostBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-dollar-sign"></i> Cập nhật giá vốn</button>
+            </div>
+        </div>
+
+        <!-- Thống kê nhanh -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng doanh thu</div><div class="text-2xl font-bold text-cyan-400" id="totalRevenue">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng giá vốn</div><div class="text-2xl font-bold text-rose-400" id="totalCost">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Lợi nhuận gộp</div><div class="text-2xl font-bold text-emerald-400" id="totalProfit">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Biên lợi nhuận TB</div><div class="text-2xl font-bold text-purple-400" id="avgMargin">0%</div></div>
+        </div>
+
+        <!-- Bộ lọc -->
+        <div class="glass-panel p-5 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm sản phẩm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên, mã sản phẩm..."></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Danh mục</label><select id="categoryFilter" class="filter-input"><option value="all">Tất cả</option><option value="F&B">F&B</option><option value="Spa">Spa</option><option value="Bán lẻ">Bán lẻ</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Biên lợi nhuận</label><select id="marginFilter" class="filter-input"><option value="all">Tất cả</option><option value="high">Cao (>50%)</option><option value="medium">Trung bình (20-50%)</option><option value="low">Thấp (<20%)</option></select></div>
+            </div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+        </div>
+
+        <!-- Bảng sản phẩm & lợi nhuận -->
+        <div class="glass-panel p-5">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-chart-line mr-2"></i> Phân tích lợi nhuận chi tiết</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="table-wrapper">
+                <table class="custom-table">
+                    <thead><tr><th>ID</th><th>Sản phẩm</th><th>Danh mục</th><th>Đã bán</th><th>Doanh thu</th><th>Giá vốn TB</th><th>Tổng giá vốn</th><th>Lợi nhuận</th><th>Biên LN</th><th>Thao tác</th></tr></thead>
+                    <tbody id="profitTableBody"><tr><td colspan="10" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+        </div>
+
+        <!-- Biểu đồ lợi nhuận theo danh mục -->
+        <div class="glass-panel p-5 mt-6">
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Lợi nhuận theo danh mục sản phẩm</h3>
+            <canvas id="categoryProfitChart" height="150" style="max-height: 220px;"></canvas>
+        </div>
+
+        <!-- CSKH Widget đầy đủ (thêm mới) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal cập nhật giá vốn -->
+    <div id="costModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-dollar-sign mr-2"></i> Cập nhật giá vốn</h3><button id="closeCostModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+            <input type="hidden" id="costProductId">
+            <div><label class="block text-xs font-bold text-gray-400 mb-1">Tên sản phẩm</label><div id="costProductName" class="glass-input bg-black/30">---</div></div>
+            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1">Giá vốn hiện tại</label><div id="currentCostDisplay" class="glass-input bg-black/30">---</div></div>
+            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1">Giá vốn mới (VNĐ)</label><input type="number" id="newCost" class="glass-input" placeholder="Nhập giá vốn"></div>
+            <div class="flex gap-3 mt-4"><button id="saveCostBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Lưu</button><button id="cancelCostBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // ========== SUPABASE CONFIG ==========
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Global variables
+        let products = [];          // sẽ lưu {id, name, category, sold, price, cost}
+        let currentPage = 1, rowsPerPage = 6;
+        let filteredProducts = [];
+        let categoryChart = null;
+
+        // DOM elements
+        const tbody = document.getElementById('profitTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const marginFilter = document.getElementById('marginFilter');
+        const resetBtn = document.getElementById('resetFilterBtn');
+        const exportBtn = document.getElementById('exportExcelBtn');
+        const addCostBtn = document.getElementById('addCostBtn');
+        const costModal = document.getElementById('costModal');
+        const closeCostModalBtn = document.getElementById('closeCostModalBtn');
+        const saveCostBtn = document.getElementById('saveCostBtn');
+        const cancelCostBtn = document.getElementById('cancelCostBtn');
+        const costProductId = document.getElementById('costProductId');
+        const costProductName = document.getElementById('costProductName');
+        const currentCostDisplay = document.getElementById('currentCostDisplay');
+        const newCostInput = document.getElementById('newCost');
+        const recordCountSpan = document.getElementById('recordCount');
+        const totalRevenueSpan = document.getElementById('totalRevenue');
+        const totalCostSpan = document.getElementById('totalCost');
+        const totalProfitSpan = document.getElementById('totalProfit');
+        const avgMarginSpan = document.getElementById('avgMargin');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const toast = document.getElementById('toast');
+        const prevPageBtn = document.getElementById('prevPage');
+        const nextPageBtn = document.getElementById('nextPage');
+        const pageInfoSpan = document.getElementById('pageInfo');
+
+        // Helper functions
+        function showToast(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            if (show) loadingOverlay.classList.add('active');
+            else loadingOverlay.classList.remove('active');
+        }
+        function formatCurrency(amount) { return amount.toLocaleString('vi-VN') + '₫'; }
+        function getMarginClass(margin) {
+            if (margin >= 50) return 'profit-high';
+            if (margin >= 20) return 'profit-medium';
+            return 'profit-low';
+        }
+        function getMarginText(margin) {
+            if (margin >= 50) return 'Cao (≥50%)';
+            if (margin >= 20) return 'Trung bình (20-50%)';
+            return 'Thấp (<20%)';
+        }
+
+        // Tải dữ liệu từ Supabase: products (đã bán, giá bán, giá vốn) và order_items để tính số lượng bán
+        async function loadProfitData() {
+            showLoading(true);
+            try {
+                // 1. Lấy tất cả sản phẩm (is_active = true)
+                const { data: productsData, error: pErr } = await supabase
+                    .from('products')
+                    .select('id, name, category, price, cost_price')
+                    .eq('is_active', true);
+                if (pErr) throw pErr;
+                // 2. Lấy tổng số lượng đã bán của từng sản phẩm từ bảng order_items
+                const { data: orderItems, error: oErr } = await supabase
+                    .from('order_items')
+                    .select('product_id, quantity');
+                if (oErr) throw oErr;
+                // Tổng hợp số lượng bán
+                const soldMap = new Map();
+                if (orderItems) {
+                    orderItems.forEach(item => {
+                        const pid = item.product_id;
+                        const qty = item.quantity || 0;
+                        soldMap.set(pid, (soldMap.get(pid) || 0) + qty);
+                    });
+                }
+                // Xây dựng mảng products
+                products = (productsData || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    category: p.category || 'Khác',
+                    sold: soldMap.get(p.id) || 0,
+                    price: p.price || 0,
+                    cost: p.cost_price || 0
+                }));
+                applyFilters(); // sẽ render và thống kê
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Cập nhật thống kê tổng quan
+        function updateStats() {
+            let totalRevenue = 0, totalCost = 0;
+            filteredProducts.forEach(p => {
+                const revenue = p.sold * p.price;
+                const cost = p.sold * p.cost;
+                totalRevenue += revenue;
+                totalCost += cost;
+            });
+            const totalProfitVal = totalRevenue - totalCost;
+            const avgMargin = totalRevenue ? (totalProfitVal / totalRevenue * 100) : 0;
+            totalRevenueSpan.innerText = formatCurrency(totalRevenue);
+            totalCostSpan.innerText = formatCurrency(totalCost);
+            totalProfitSpan.innerText = formatCurrency(totalProfitVal);
+            avgMarginSpan.innerText = avgMargin.toFixed(1) + '%';
+        }
+
+        // Lọc dữ liệu
+        function applyFilters() {
+            const search = searchInput.value.toLowerCase();
+            const category = categoryFilter.value;
+            const marginLevel = marginFilter.value;
+            filteredProducts = products.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(search);
+                const matchCategory = category === 'all' || p.category === category;
+                const margin = p.sold ? ((p.price - p.cost) / p.price * 100) : 0;
+                let matchMargin = true;
+                if (marginLevel === 'high') matchMargin = margin >= 50;
+                else if (marginLevel === 'medium') matchMargin = margin >= 20 && margin < 50;
+                else if (marginLevel === 'low') matchMargin = margin < 20;
+                return matchSearch && matchCategory && matchMargin;
+            });
+            currentPage = 1;
+            renderTable();
+            updateStats();
+            updateCategoryChart();
+            recordCountSpan.innerText = `Tổng: ${filteredProducts.length} sản phẩm`;
+        }
+
+        // Render bảng
+        function renderTable() {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = filteredProducts.slice(start, end);
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-gray-500">Không có sản phẩm nào</td></tr>';
+                pageInfoSpan.innerText = 'Trang 0 / 0';
+                return;
+            }
+            tbody.innerHTML = pageData.map(p => {
+                const revenue = p.sold * p.price;
+                const totalCostVal = p.sold * p.cost;
+                const profit = revenue - totalCostVal;
+                const margin = revenue ? (profit / revenue * 100) : 0;
+                return `
+                    <tr>
+                        <td class="text-gray-400">#${p.id}</td>
+                        <td class="font-medium">${escapeHtml(p.name)}</td>
+                        <td>${escapeHtml(p.category)}</td>
+                        <td class="text-emerald-400 font-mono">${p.sold}</td>
+                        <td class="font-mono text-cyan-400">${formatCurrency(revenue)}</td>
+                        <td class="font-mono text-gray-300">${formatCurrency(p.cost)}</td>
+                        <td class="font-mono text-rose-400">${formatCurrency(totalCostVal)}</td>
+                        <td class="font-mono text-emerald-400 font-bold">${formatCurrency(profit)}</td>
+                        <td><span class="profit-badge ${getMarginClass(margin)}">${margin.toFixed(1)}%<br>${getMarginText(margin)}</span></td>
+                        <td><button class="edit-cost-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-cost="${p.cost}"><i class="fas fa-edit"></i> Cập nhật giá vốn</button></td>
+                    </tr>
+                `;
+            }).join('');
+            document.querySelectorAll('.edit-cost-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    const name = btn.getAttribute('data-name');
+                    const cost = parseInt(btn.getAttribute('data-cost'));
+                    openCostModal(id, name, cost);
+                });
+            });
+            const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
+            pageInfoSpan.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        // Biểu đồ lợi nhuận theo danh mục
+        function updateCategoryChart() {
+            const categoryMap = {};
+            filteredProducts.forEach(p => {
+                const profit = (p.price - p.cost) * p.sold;
+                if (!categoryMap[p.category]) categoryMap[p.category] = 0;
+                categoryMap[p.category] += profit;
+            });
+            const labels = Object.keys(categoryMap);
+            const data = Object.values(categoryMap);
+            if (categoryChart) categoryChart.destroy();
+            const ctx = document.getElementById('categoryProfitChart').getContext('2d');
+            categoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Lợi nhuận (VNĐ)', data, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa', callback: (v) => v.toLocaleString() } }, x: { ticks: { color: '#aaa' } } } }
+            });
+        }
+
+        // Mở modal cập nhật giá vốn
+        function openCostModal(id, name, currentCost) {
+            costProductId.value = id;
+            costProductName.innerText = name;
+            currentCostDisplay.innerText = formatCurrency(currentCost);
+            newCostInput.value = '';
+            costModal.classList.add('active');
+        }
+        function closeCostModal() { costModal.classList.remove('active'); }
+
+        // Cập nhật giá vốn lên Supabase
+        async function updateCost() {
+            const id = parseInt(costProductId.value);
+            const newCostVal = parseInt(newCostInput.value);
+            if (isNaN(newCostVal) || newCostVal < 0) {
+                showToast('Vui lòng nhập giá vốn hợp lệ', true);
+                return;
+            }
+            showLoading(true);
+            const { error } = await supabase
+                .from('products')
+                .update({ cost_price: newCostVal })
+                .eq('id', id);
+            if (error) {
+                showToast('Lỗi cập nhật: ' + error.message, true);
+            } else {
+                // Cập nhật trong mảng products
+                const product = products.find(p => p.id === id);
+                if (product) product.cost = newCostVal;
+                applyFilters(); // reload bảng và biểu đồ
+                showToast('Đã cập nhật giá vốn thành công');
+                closeCostModal();
+            }
+            showLoading(false);
+        }
+
+        // Reset bộ lọc
+        function resetFilters() {
+            searchInput.value = '';
+            categoryFilter.value = 'all';
+            marginFilter.value = 'all';
+            applyFilters();
+        }
+
+        // Xuất Excel
+        function exportToExcel() {
+            const wsData = [['ID','Sản phẩm','Danh mục','Đã bán','Doanh thu','Giá vốn/đơn vị','Tổng giá vốn','Lợi nhuận','Biên lợi nhuận (%)']];
+            filteredProducts.forEach(p => {
+                const revenue = p.sold * p.price;
+                const totalCostVal = p.sold * p.cost;
+                const profit = revenue - totalCostVal;
+                const margin = revenue ? (profit / revenue * 100) : 0;
+                wsData.push([p.id, p.name, p.category, p.sold, revenue, p.cost, totalCostVal, profit, margin.toFixed(2)]);
+            });
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'ProfitByProduct');
+            XLSX.writeFile(wb, `profit_${new Date().toISOString().slice(0,19)}.xlsx`);
+            showToast('Xuất Excel thành công');
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', applyFilters);
+        categoryFilter.addEventListener('change', applyFilters);
+        marginFilter.addEventListener('change', applyFilters);
+        resetBtn.addEventListener('click', resetFilters);
+        exportBtn.addEventListener('click', exportToExcel);
+        addCostBtn.addEventListener('click', () => {
+            if (products.length) openCostModal(products[0].id, products[0].name, products[0].cost);
+            else showToast('Chưa có sản phẩm', true);
+        });
+        closeCostModalBtn.addEventListener('click', closeCostModal);
+        cancelCostBtn.addEventListener('click', closeCostModal);
+        saveCostBtn.addEventListener('click', updateCost);
+        document.getElementById('costModal').addEventListener('click', (e) => { if (e.target === costModal) closeCostModal(); });
+        prevPageBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+        nextPageBtn.addEventListener('click', () => { const total = Math.ceil(filteredProducts.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); } });
+
+        // CSKH track click & gửi yêu cầu
+        async function trackCSKHClick(channel) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+            } catch(e) { console.warn(e); }
+        }
+        document.querySelectorAll('[data-channel]').forEach(link => {
+            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+        });
+
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const phone = document.getElementById('supportPhone').value;
+            const message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) {
+                showToast('Lỗi: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+
+        // Khởi tạo
+        loadProfitData();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 600 : 1200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.05, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xa855f7, transparent: true, opacity: 0.6 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

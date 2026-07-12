@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BitPaw HRM | Chấm Công GPS FaceID Chống Fake & Quản Trị Nhân Sự Cloud</title>
+    <meta name="description" content="BitPaw HRM - Giải pháp quản trị nhân sự và chấm công thông minh 4.0: Chấm công định vị vệ tinh GPS chống Fake tuyệt đối, FaceID sinh trắc học, quản lý phân ca kíp linh hoạt và chốt phép năm trực tuyến.">
+
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    
+    <!-- CSS cho AOS hoạt ảnh mượt mà -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        html {
+            scroll-padding-top: 100px;
+        }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow-x: hidden;
+        }
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1; opacity: 0.85;
+            pointer-events: none;
+        }
+        
+        /* Neon scan line trang nhã */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #0ea5e9, #2563eb, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.15;
+            animation: scanMove 14s linear infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+
+        /* Glassmorphism System */
+        .glass {
+            background: rgba(8, 6, 26, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.02) 0%, rgba(8, 6, 26, 0.4) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(14, 165, 233, 0.15);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(14, 165, 233, 0.5);
+            box-shadow: 0 0 30px rgba(14, 165, 233, 0.35);
+            transform: translateY(-5px);
+        }
+        
+        /* Neon accents */
+        .text-gradient-sky {
+            background: linear-gradient(to right, #0ea5e9 0%, #2563eb 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn-neon-sky {
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            z-index: 1;
+            border: 1px solid rgba(14, 165, 233, 0.4);
+        }
+        .btn-neon-sky::before {
+            content: '';
+            position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transition: left 0.6s ease;
+            z-index: -1;
+        }
+        .btn-neon-sky:hover::before { left: 100%; }
+        .btn-neon-sky:hover {
+            box-shadow: 0 0 25px rgba(14, 165, 233, 0.45);
+            transform: translateY(-2px);
+            border-color: rgba(14, 165, 233, 0.7);
+        }
+        
+        /* Inputs cho Calculator */
+        .calc-input {
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: white;
+            transition: all 0.3s;
+        }
+        .calc-input:focus {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.25);
+            background: rgba(0, 0, 0, 0.75);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #08061a; }
+        ::-webkit-scrollbar-thumb { background: rgba(14, 165, 233, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.5); }
+
+        /* Floating widget */
+        .contact-widget {
+            position: fixed; bottom: 30px; right: 30px;
+            z-index: 999; display: flex; flex-direction: column; gap: 12px;
+        }
+        .contact-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: white; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+        }
+        .contact-btn:hover { transform: scale(1.1) translateY(-4px); }
+        .btn-zalo { background: #0068FF; }
+        .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
+        .btn-call { background: #10b981; animation: pulseCall 2s infinite; }
+        @keyframes pulseCall {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* FAQ Accordion */
+        .faq-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; }
+        .faq-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s; opacity: 0; }
+        .faq-item.active .faq-content { max-height: 250px; opacity: 1; margin-top: 12px; }
+        .faq-item.active .faq-icon { transform: rotate(180deg); color: #0ea5e9; }
+
+        /* Floating Widget & Back to Top Transition */
+        #backToTop {
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        #backToTop.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .btn-mail { background: #ea4335; }
+        
+        #cskh-static-block {
+            display: none !important;
+        }
+
+        /* 3D HOLOGRAM MASCOT EFFECTS */
+        .hologram-container {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes float-3d-sky {
+            0% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(14, 165, 233, 0.45));
+            }
+            50% {
+                transform: translateY(-20px) rotateX(-5deg) rotateY(10deg);
+                filter: drop-shadow(0 30px 25px rgba(37, 99, 235, 0.55));
+            }
+            100% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(14, 165, 233, 0.45));
+            }
+        }
+
+        .animated-logo-3d {
+            animation: float-3d-sky 5s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes scan-laser-sky {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 3px;
+            background: #0ea5e9;
+            box-shadow: 0 0 15px #0ea5e9, 0 0 30px #0ea5e9;
+            left: -10%;
+            animation: scan-laser-sky 3s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .mascot-glow {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.45);
+            border-color: #0ea5e9;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-sky-500 selection:text-black relative">
+
+    <div class="scan-line"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                <div class="w-10 h-10 bg-sky-500/20 rounded-xl flex items-center justify-center border border-sky-500/50 overflow-hidden shadow-[0_0_12px_#0ea5e9]">
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw HRM Logo">
+                </div>
+                <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-sky-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-sky-500/20 rounded-md border border-sky-500/30 text-sky-300 font-normal">HRM</span></h1>
+            </div>
+            
+            <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300">
+                <a href="#problems" class="hover:text-sky-400 transition-colors">Nỗi Đau</a>
+                <a href="#promise" class="hover:text-sky-400 transition-colors">Giải Pháp</a>
+                <a href="#workflow" class="hover:text-sky-400 transition-colors">Quy Trình Vận Hành</a>
+                <a href="#features" class="hover:text-sky-400 transition-colors">Tính Năng Lõi</a>
+                <a href="#calculator" class="hover:text-sky-400 transition-colors">Bảng Tính Thử</a>
+                <a href="#ai-cskh" class="hover:text-sky-400 transition-colors">AI CSKH</a>
+                <a href="#faq" class="hover:text-sky-400 transition-colors">Hỏi Đáp</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fas fa-arrow-left text-xs"></i> Trở về
+                </a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-sky bg-sky-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="overflow-x-hidden w-full relative">
+    <!-- 1. Hero Section -->
+    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+        <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-sky-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
+            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+                <div class="inline-block bg-sky-500/10 border border-sky-500/30 text-sky-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                    ⚡ BitPaw OS: Chấm Công GPS FaceID Chống Fake 100% & Quản Trị HRM
+                </div>
+                <h1 class="text-[38px] lg:text-[68px] font-black leading-[1.1] mb-6 tracking-tight">
+                    Chấm công FaceID, <br class="hidden sm:inline">
+                    <span class="text-gradient-sky drop-shadow-[0_4px_25px_rgba(14,165,233,0.65)]">định vị GPS chống fake.</span> <br class="hidden sm:inline">
+                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI tự động xếp ca kíp thông minh.</span>
+                </h1>
+                <p class="text-[18px] lg:text-[22px] text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                    Ngăn chặn triệt để tình trạng chấm công hộ và gian lận định vị. Xác thực sinh trắc học FaceID khớp tọa độ vệ tinh thực địa, tự động quản lý phép năm và kết chuyển bảng lương chớp mắt.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="btn-neon-sky bg-sky-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(14,165,233,0.4)]">
+                        <i class="fas fa-magic"></i> Số hóa chấm công & HRM
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
+                        <i class="fas fa-comments text-sky-400 animate-pulse"></i> Nhận demo định vị GPS
+                    </a>
+                </div>
+                <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-satellite text-sky-400"></i> Định vị GPS chống fake 100%</span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-camera text-sky-400"></i> FaceID nhận dạng sinh trắc</span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-calendar-check text-sky-400"></i> Quản lý ca kíp, ca gãy</span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-robot text-sky-400"></i> AI chốt phép năm online</span>
+                </div>
+            </div>
+            
+            <!-- Hero Right Visual -->
+            <div class="relative w-full max-w-[560px] min-h-[500px] mx-auto flex items-center justify-center" data-aos="fade-left" data-aos-duration="1000">
+                <div class="absolute inset-0 bg-gradient-to-br from-sky-500/20 via-indigo-500/10 to-blue-600/20 rounded-full blur-[80px] opacity-80 pointer-events-none"></div>
+                
+                <div class="relative flex justify-center items-center w-full h-[500px] lg:h-[550px] hologram-container">
+                    
+                    <!-- 3D Mascot Orb Center -->
+                    <div class="relative w-64 h-64 lg:w-72 lg:h-72 rounded-full border-4 border-sky-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(14,165,233,0.4)] z-10 cursor-pointer"
+                        data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="false">
+                        <div class="absolute w-full h-full border-t-4 border-indigo-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
+                        <div class="absolute w-[110%] h-[110%] border-b-4 border-sky-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
+     
+                        <div class="relative animated-logo-3d w-40 h-40 lg:w-44 lg:h-44 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a] border border-sky-500/20">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw HRM AI">
+                            <div class="scanner-line"></div>
+                        </div>
+                    </div>
+     
+                    <!-- Floating Mini Cards quanh Orb -->
+                    <!-- 1. Trực quan chấm công card -->
+                    <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-sky-500/30 p-4 rounded-2xl shadow-2xl hover:border-sky-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-sky 5s infinite ease-in-out;">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Check-in Hiện Trường</h4>
+                        </div>
+                        <p class="text-sm text-white font-extrabold truncate">Hùng (Sales) - Đã chụp mặt</p>
+                        <p class="text-xs text-sky-300 font-bold mt-1">Toạ độ: 10.776, 106.701 • Đúng vị trí</p>
+                    </div>
+     
+                    <!-- 2. Quản lý ca kíp card -->
+                    <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-indigo-500/30 p-4 rounded-2xl shadow-2xl hover:border-indigo-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-sky 6s infinite ease-in-out reverse;">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-calendar-alt text-indigo-400"></i> Ca kíp tháng này</h4>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        </div>
+                        <p class="text-sm text-white font-extrabold">Đạt (KTV) - Đã nhận ca gãy</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Công chuyên cần: +500k</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Pain Points Section -->
+    <section id="problems" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">Thực tế vận hành</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Doanh nghiệp đang <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đau đầu vì gian lận chấm công chéo?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Nhân viên ngoài thị trường, kỹ thuật viên công trình hoặc nhân sự chuỗi dễ dàng lách luật chấm công nếu hệ thống không có chốt định vị và FaceID sinh trắc.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                <!-- Pain Point 1 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-satellite"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Fake GPS</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Gian lận chấm công bằng app Fake GPS ảo</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự thị trường sử dụng các ứng dụng giả lập vị trí GPS để chấm công khống tại điểm hẹn khi thực tế vẫn ở nhà ngủ nướng, gây tổn thất tiền lương vô lý.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 2 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-user-friends"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Chấm Hộ</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Nhờ đồng nghiệp quét vân tay chấm công hộ</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự đi trễ dễ dàng nhờ vả đồng nghiệp tại cơ sở quét vân tay hoặc quẹt thẻ từ chấm công hộ đầu ngày, làm mất đi tính minh bạch chuyên cần.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 3 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="300">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-calendar-times"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Loạn Ca</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Xếp lịch làm việc ca gãy, ca kíp phức tạp bừa bãi</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chuỗi chi nhánh hoặc xưởng sản xuất có nhiều ca trực gãy chồng chéo, quản lý bằng Excel dễ gây nhầm lẫn ca gác trực của nhân sự.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 4 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="400">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-contract"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Rối Phép Năm</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Khó theo dõi lịch nghỉ phép năm chính xác</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự xin nghỉ phép chế độ, phép năm rải rác. Đến cuối năm không rõ thợ đã nghỉ hết bao nhiêu ngày phép, gây bất bình đẳng khi đối soát.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 5 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="500">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-folder-open"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lưu Trữ Rời Rạc</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Hồ sơ nhân sự cất giữ tủ giấy tờ lộn xộn</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hợp đồng lao động, bằng cấp và dải thông tin lý lịch nhân sự bị lưu giữ vụn vặt, tốn nhiều thời gian hành chính tìm kiếm lục lại khi cần chốt.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 6 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="600">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mệt Chốt Lương</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Tốn nhiều ngày chốt công tính lương thủ công</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Cuối tháng HR và Kế toán phải chắp vá bảng công giấy, file Excel, trừ phạt chuyên cần vô cùng mệt mỏi, dễ sai số làm nảy sinh khiếu nại nhân sự.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Big Promise Section -->
+    <section id="promise" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sky-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div data-aos="zoom-in">
+                <span class="text-sm font-black tracking-widest text-indigo-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 leading-tight tracking-tight">
+                    Đưa quy trình quản trị nhân sự HRM lên đám mây <br>
+                    <span class="text-gradient-sky">chấm công chính xác tuyệt đối, tự động hóa 100%.</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium">
+                    BitPaw số hóa triệt để khâu chốt công hiện trường, kết xuất bảng lương và số hóa hồ sơ hợp đồng lao động bảo mật tối đa.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-sky-500/20 transition-all duration-300">
+                    <div class="text-sky-500 text-5xl mb-5"><i class="fas fa-satellite-dish"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">GPS Chống Fake Tuyệt Đối</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Bắt buộc check-in đúng tọa độ thực tế ngoài hiện trường, ngăn chặn hoàn toàn ứng dụng Fake vị trí.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
+                    <div class="text-indigo-400 text-5xl mb-5"><i class="fas fa-camera"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">FaceID Nhận Diện Chéo</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Xác thực sinh trắc học khuôn mặt chụp thực địa chớp mắt, triệt tiêu 100% cơ hội chấm công hộ.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-sky-500/20 transition-all duration-300">
+                    <div class="text-sky-400 text-5xl mb-5"><i class="fas fa-calendar-check"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Quản Lý Phân Ca Linh Hoạt</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Tự động cấu hình ca kíp, ca gãy, tăng ca Overtime và tự động gán lịch làm việc cho thợ/nhân sự.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
+                    <div class="text-indigo-400 text-5xl mb-5"><i class="fas fa-folder-open"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Số Hóa Hồ Sơ Nhân Sự</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Toàn bộ hợp đồng lao động, bằng cấp và dải lịch sử phép năm được số hóa lưu cloud an toàn.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Workflow Section -->
+    <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hành trình chấm công GPS FaceID <br>
+                    <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đồng bộ kết chuyển lương tự động khép kín.</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Bản đồ quy trình số hóa từ lúc nhân viên check-in sinh trắc học hiện trường đến khi chốt bảng lương cuối tháng:
+                </p>
+            </div>
+            
+            <!-- Row 1: Steps 1-4 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch mb-6 lg:mb-8">
+                <!-- Step 1 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="100">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">01</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-user-plus"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khai báo hồ sơ mới</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân sự mới được khai báo thông tin lý lịch, đăng ký FaceID ban đầu lên cloud.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 2 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="200">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">02</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-calendar-alt"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Gán lịch ca trực</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Quản lý phân chia ca trực gãy, ca kíp xoay tua linh hoạt cho từng thợ/nhân sự.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 3 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="300">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">03</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-map-marker-alt"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Check-in FaceID & GPS</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân viên chốt tọa độ vệ tinh GPS ngoài hiện trường, chụp ảnh xác minh FaceID sinh trắc.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 4 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="400">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">04</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-wifi"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Đồng bộ công real-time</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Giờ công, số phút đi trễ, ca trực lập tức đồng bộ real-time lên hệ thống bảng công đám mây.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+ 
+            <!-- Row 2: Steps 5-8 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch">
+                <!-- Step 5 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="500">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">05</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-paper-plane"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Xin nghỉ phép online</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân viên xin nghỉ phép hoặc báo tăng ca ngay trên điện thoại di động tiện lợi nhanh chóng.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 6 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="600">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">06</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-check-double"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Duyệt phép phép năm</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Quản lý duyệt nghỉ phép online, hệ thống tự động chốt phép năm thực tế chính xác.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 7 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="700">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">07</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-magic"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Kết chuyển lương 1-Click</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Cuối tháng kết chuyển toàn bộ ngày công, ca kíp sang bảng tính lương tự động chỉ trong 1 click.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/30 items-center justify-center text-sky-400 text-xs shadow-[0_0_10px_rgba(14,165,233,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 8 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="800">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-sky-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">08</div>
+                                <div class="text-sky-400 text-2xl"><i class="fas fa-check-circle"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Xuất phiếu lương bảo mật</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Phiếu lương tự động gửi thẳng về Zalo/Email bảo mật cho từng nhân viên đối soát riêng tư.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-sky-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Feature Grid Section -->
+    <section id="features" class="py-24 relative z-10 bg-[#08061a] scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Tính Năng Lõi Số Hóa <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">Quản Trị Nhân Sự & Ca Kíp</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Toàn bộ module được xây dựng chuyên sâu, bám sát logic thực tế để loại bỏ 100% rủi ro gian lận giờ công.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                <!-- Feature 1 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="100">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-satellite-dish"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Chấm Công Vệ Tinh GPS</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Xác thực vị trí hiện trường thực tế, chốt tọa độ vệ tinh GPS chống tuyệt đối các ứng dụng Fake định vị gian lận tại <a href="{{ url_for('chamcong') }}" class="text-sky-400 underline hover:text-sky-300">chamcong.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="200">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">FaceID Nhận Diện Sinh Trắc</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Bắt buộc chụp ảnh quét sinh trắc học khuôn mặt khi chấm công hiện trường, đảm bảo không thể nhờ người chấm công hộ chéo tại <a href="{{ url_for('chamcong') }}" class="text-sky-400 underline hover:text-sky-300">chamcong.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="300">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Phân Ca Trực & Ca Kíp Đa Dạng</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Cấu hình xoay ca, xếp ca gãy, ca kíp phức tạp và tự động gán ca gác trực của nhân viên chuỗi hành chính tại <a href="{{ url_for('staff_list') }}" class="text-sky-400 underline hover:text-sky-300">staff_management.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="400">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-plane-departure"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Duyệt Nghỉ Phép Phép Năm Online</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Tạo và phê duyệt đơn xin nghỉ phép, phép năm trực tuyến qua điện thoại di động, hệ thống tự động kết trừ dải phép năm đám mây bảo mật.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="500">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Số Hóa Hợp Đồng & Hồ Sơ Nhân Sự</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Lưu trữ tập trung hợp đồng lao động, thông tin liên hệ, bằng cấp nhân sự trên cloud được mã hóa bảo mật tại <a href="{{ url_for('nhanvien') }}" class="text-sky-400 underline hover:text-sky-300">nhanvien.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="600">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Kết Chuyển Bảng Lương 1-Click</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Đồng bộ chốt ngày công thực tế, phụ cấp, chuyên cần sang bảng tính lương tự động chớp mắt tại <a href="{{ url_for('bangluong') }}" class="text-sky-400 underline hover:text-sky-300">bangluong.html</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 7 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="700">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">KPI Hiệu Suất Đa Tiêu Chí</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Đo lường KPI nhân viên dựa trên doanh số bán hàng, điểm hoàn thành công việc định lượng khoa học công bằng tuyệt đối.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 8 -->
+                <div class="glass-card rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between h-full group" data-aos="fade-up" data-aos-delay="800">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400 text-xl mb-6 border border-sky-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI Smart HR Predictor</h3>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            AI tự bóc tách hành vi (đi trễ tăng đột biến, xin nghỉ phép nhiều) để dự báo nguy cơ nghỉ việc sớm của các nhân sự nòng cốt.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. Interactive Calculator Section -->
+    <section id="calculator" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-400 uppercase">CÔNG CỤ ĐỐI SOÁT</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Bảng Tính Thử <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">Lương Ca Trực & Phụ Thu Overtime</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Hãy thử tính toán bảng lương ca trực và các khoản phụ thu tăng ca OT, ca đêm để xem BitPaw HRM chốt công minh bạch ra sao:
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                <!-- Inputs Column (7 Cols) -->
+                <div class="lg:col-span-7 bg-white/[0.03] border border-white/10 rounded-3xl p-7 lg:p-8 flex flex-col justify-between" data-aos="fade-right">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5">1. Đơn giá lương theo ca trực chuẩn</label>
+                            <select id="shift-rate" class="w-full p-4 calc-input text-base font-extrabold">
+                                <option value="150000">Ca Phổ Thông / Nhân viên phục vụ (150,000đ/ca)</option>
+                                <option value="250000" selected>Ca Kỹ Thuật / Lễ tân VIP (250,000đ/ca)</option>
+                                <option value="400000">Ca Quản lý / KTV Trưởng (400,000đ/ca)</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-xs font-black text-gray-400 uppercase">2. Số ca trực thực tế trong tháng</span>
+                                    <span id="shifts-display" class="text-sm font-extrabold text-white">26 ca</span>
+                                </div>
+                                <input type="range" id="actual-shifts" min="10" max="30" value="26" class="w-full accent-sky-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-xs font-black text-gray-400 uppercase">3. Số giờ tăng ca Overtime (1.5x)</span>
+                                    <span id="ot-display" class="text-sm font-extrabold text-white">0 giờ</span>
+                                </div>
+                                <input type="range" id="ot-hours" min="0" max="50" step="2" value="0" class="w-full accent-sky-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-black text-gray-300 uppercase tracking-wider">4. Ca trực đêm muộn (Phụ thu +30% đơn giá ca)</label>
+                                <span id="night-display" class="text-lg font-black text-sky-400">0 ca</span>
+                            </div>
+                            <input type="range" id="night-shifts" min="0" max="15" value="0" class="w-full accent-sky-500">
+                            <div class="flex justify-between text-xs text-gray-500 font-bold mt-1">
+                                <span>0 ca đêm</span>
+                                <span>7 ca đêm</span>
+                                <span>15 ca đêm</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5">5. Phụ cấp chuyên cần & ăn trưa cố định</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <label class="flex items-center gap-2.5 p-4 bg-black/40 border border-white/10 rounded-2xl cursor-pointer hover:border-sky-500/50 transition">
+                                    <input type="radio" name="allowance-opt" value="0" checked class="text-sky-500 focus:ring-0">
+                                    <span class="text-sm font-bold text-white">Không nhận phụ cấp</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 p-4 bg-black/40 border border-white/10 rounded-2xl cursor-pointer hover:border-sky-500/50 transition">
+                                    <input type="radio" name="allowance-opt" value="800000" class="text-sky-500 focus:ring-0">
+                                    <span class="text-sm font-bold text-white">Chuyên cần + Ăn trưa (+800k)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display Result Column (5 Cols) -->
+                <div class="lg:col-span-5 bg-gradient-to-b from-[#0e2738] to-[#08061a] border border-sky-500/30 rounded-3xl p-7 lg:p-8 flex flex-col justify-between relative overflow-hidden" data-aos="fade-left">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl"></div>
+                    <div>
+                        <h3 class="text-white font-black text-[22px] lg:text-[28px] mb-6 border-b border-white/10 pb-4 flex items-center gap-2"><i class="fas fa-file-invoice text-sky-400"></i> Phiếu Lương Ca Trực</h3>
+                        
+                        <div class="space-y-4 font-mono text-sm mb-8">
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Đơn giá ca trực:</span>
+                                <span id="bill-shift-rate" class="text-white font-bold">250,000 ₫/ca</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Lương ca trực thực nhận:</span>
+                                <span id="bill-shifts-sum" class="text-white font-bold">6,500,000 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Tiền tăng ca Overtime:</span>
+                                <span id="bill-ot-sum" class="text-white font-bold">0 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Phụ cấp ca trực đêm:</span>
+                                <span id="bill-night-sum" class="text-white font-bold">0 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5">
+                                <span class="text-gray-400">Phụ cấp chuyên cần:</span>
+                                <span id="bill-allowance" class="text-white font-bold">0 ₫</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
+                                <span>Khấu trừ bảo hiểm TNCN:</span>
+                                <span id="bill-insurance">- 650,000 ₫</span>
+                            </div>
+                            
+                            <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
+                                <span>THỰC LĨNH:</span>
+                                <span id="bill-net-pay" class="text-xl">5,850,000 ₫</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-sky-500/10 border border-sky-500/30 p-4 rounded-2xl">
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-history text-sky-400 text-lg mt-0.5 animate-pulse"></i>
+                            <div>
+                                <h4 class="text-xs font-black text-white uppercase tracking-wider mb-1">Chống gian lận giờ công</h4>
+                                <p class="text-xs text-gray-300 leading-relaxed font-medium">
+                                    Loại bỏ hoàn toàn cơ hội chấm công khống từ xa. Dữ liệu công chốt thực tế khớp tọa độ định vị vệ tinh GPS hiện trường chuẩn xác 100%.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. AI Customer Nurturing Section -->
+    <section id="ai-cskh" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">AI ANALYTICS & HRM PREDICTOR</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    AI HRM Predictive Analytics Engine
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Hệ thống tích hợp trí tuệ nhân tạo dự đoán xu hướng đi trễ, phân tích mức độ động lực cống hiến và dự báo nguy cơ biến động nhân sự nòng cốt.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <!-- Left Content -->
+                <div data-aos="fade-right" class="space-y-6">
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-user-shield text-sky-400"></i> Cảnh báo biến động nhân lực</h4>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            AI tự bóc tách hành vi lịch sử chấm công (đi trễ tăng vọt, xin nghỉ phép nhiều ca gãy liên tục) để cảnh báo sớm thợ/kỹ thuật viên nòng cốt có nguy cơ nhảy việc.
+                        </p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-calendar-check text-emerald-400"></i> Dự báo công suất lao động</h4>
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            AI phân tích mối liên hệ giữa thời gian ca trực và doanh thu thực phẩm/dịch vụ thu về để đề xuất lịch trình xoay ca gãy tối ưu hóa năng suất.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Visual (Chat simulator) -->
+                <div data-aos="fade-left" class="bg-black/80 border border-sky-500/30 rounded-3xl p-6 font-sans relative shadow-2xl">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-3xl"></div>
+                    <div class="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/50 overflow-hidden flex items-center justify-center">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw AI">
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-black text-white">BitPaw AI HRM Manager Director</h4>
+                            <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> Active Now</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Bubbles -->
+                    <div class="space-y-4 text-xs font-medium">
+                        <div class="flex gap-2">
+                            <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-sky-400"></i></div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
+                                Phát hiện Kỹ Thuật Viên "Phạm Văn Hùng" đi trễ liên tiếp 5 ca gãy trong 2 tuần qua, đồng thời đã xin phép nghỉ 2 ca gác.
+                            </div>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <div class="bg-sky-500/20 border border-sky-500/30 p-3 rounded-2xl max-w-[80%] text-white text-right font-bold">
+                                Xuất biểu đồ lịch sử chấm công FaceID sinh trắc học của KTV này?
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0"><i class="fas fa-user-tie text-indigo-400"></i></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-sky-400"></i></div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
+                                <p class="font-black text-white mb-1.5"><i class="fas fa-exclamation-triangle text-rose-400"></i> Cảnh báo sớm:</p>
+                                KPI hiệu suất bảo trì: 96% (Xuất sắc). Điểm chuyên cần sụt giảm mạnh. Nguy cơ biến động nhảy việc: 82%. Khuyến nghị sếp đối thoại giữ chân thợ.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 8. FAQ Section -->
+    <section id="faq" class="py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hỏi Đáp <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">Về Phần Mềm BitPaw HRM</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Những thắc mắc thường gặp của các chủ doanh nghiệp hành chính khi số hóa quản trị nhân sự:
+                </p>
+            </div>
+
+            <div class="space-y-4" data-aos="fade-up">
+                <!-- FAQ 1 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">Định vị vệ tinh GPS hoạt động ra sao nếu mạng 4G yếu?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Hệ thống BitPaw GPS tích hợp công nghệ định vị Hybrid kết hợp định vị vệ tinh GPS toàn cầu và sóng trạm gốc di động. Dù mạng 4G chập chờn yếu, hệ thống vẫn chốt tọa độ thực tế của nhân sự chính xác trong bán kính sai số cực nhỏ 10-15m.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 2 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">FaceID nhận dạng có sợ bị giả mạo bằng hình ảnh tĩnh không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Tuyệt đối không. Công nghệ quét sinh trắc FaceID của BitPaw OS tích hợp tính năng Liveness Detection (nhận diện thực thể sống). Nhân sự phải nháy mắt, cử động nhẹ cơ mặt khi camera quét, triệt tiêu hoàn toàn khả năng lách luật bằng hình ảnh in sẵn hay video.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 3 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight">Hồ sơ nhân viên cũ có thể khôi phục lại khi họ quay lại làm việc không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                            Có. Khi nhân viên cũ quay lại làm việc, quản lý chỉ cần chuyển trạng thái hồ sơ từ "Đã nghỉ việc" sang "Đang làm việc" trên hệ thống, toàn bộ dải lịch sử phép năm cũ và FaceID đăng ký ban đầu sẽ tự động khôi phục giúp giảm thiểu thời gian setup.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. Final Call to Action -->
+    <section class="py-24 relative z-10 bg-gradient-to-b from-[#0a0826] to-[#08061a] border-t border-white/5 text-center">
+        <div class="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 opacity-30 rounded-full blur-[100px] pointer-events-none"></div>
+        <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
+            <h2 class="text-[32px] lg:text-[52px] font-black mb-6 tracking-tight leading-tight">Bắt Đầu Số Hóa Chấm Công GPS FaceID Ngay Hôm Nay!</h2>
+            <p class="text-[16px] lg:text-[20px] text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed font-medium">Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công chống Fake GPS, FaceID nhận dạng và tự động xoay ca trực kíp đám mây.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('register') }}" class="btn-neon-sky bg-sky-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(14,165,233,0.4)]">
+                    <i class="fas fa-rocket"></i> Trải nghiệm dùng thử miễn phí
+                </a>
+                <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
+                    <i class="fas fa-comments text-sky-400"></i> Nhận tư vấn qua Zalo
+                </a>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-20 pb-8">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-10 border-b border-white/10 pb-12">
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(14,165,233,0.5)]">
+                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Logo">
+                    </div>
+                    <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-sky-400">Paw</span></h2>
+                </div>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+
+                <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-sky-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
+                    <p class="flex items-center gap-3"><i class="fas fa-id-card text-sky-500 w-4"></i> <span>MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM</span></p>
+                    <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-sky-500 w-4"></i> <span>Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM</span></p>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-sky-500/30 w-max pb-2">Sản Phẩm</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
+                    <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-sky-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-sky-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-sky-400 transition flex items-center gap-2">E-Com Omni</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-sky-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-sky-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-sky-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-sky-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-sky-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                </ul>
+
+                <div class="flex flex-col gap-3">
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-sky-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(14,165,233,0.15)] group hover:border-sky-400 transition">
+                        <i class="fas fa-shield-check text-green-400 text-2xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">SSL Secured</strong><span class="text-[10px] block text-gray-500">256-bit Encryption</span></div>
+                    </div>
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-orange-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(249,115,22,0.15)] group hover:border-orange-400 transition">
+                        <i class="fab fa-aws text-orange-400 text-3xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">AWS Cloud</strong><span class="text-[10px] block text-gray-500">99.99% Uptime SLA</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-sky-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <ul class="space-y-4 text-sm text-gray-300 mb-6">
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-sky-500/10 flex justify-center items-center shrink-0 border border-sky-500/30 group-hover:bg-sky-500/30 transition">
+                            <i class="fas fa-phone-alt text-sky-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Hotline 24/7</p>
+                            <a href="tel:0794678904" class="hover:text-sky-400 transition font-black text-base lg:text-[17px] text-white">0794.678.904</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/10 flex justify-center items-center shrink-0 border border-rose-500/30 group-hover:bg-rose-500/30 transition">
+                            <i class="fas fa-envelope text-rose-400 text-lg"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/10 flex justify-center items-center shrink-0 border border-blue-500/30 group-hover:bg-blue-500/30 transition">
+                            <i class="fas fa-comment-dots text-blue-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Zalo Support</p>
+                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white">Zalo Kỹ Thuật (Sếp Sang)</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-600/10 flex justify-center items-center shrink-0 border border-blue-600/30 group-hover:bg-blue-600/30 transition">
+                            <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
+                        </div>
+                    </li>
+                </ul>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-sky-900 hover:to-blue-900 text-white border border-gray-700 hover:border-sky-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
+            <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
+            <div class="flex items-center gap-2 mt-4 md:mt-0">
+                <span>Thiết kế & Lập trình bởi:</span>
+                <span class="bg-sky-500/20 text-sky-400 px-2 py-1 rounded border border-sky-500/30 font-bold">Hồ Đình Sang</span>
+                <span>&</span>
+                <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating contact widget (Đồng bộ với Landing Page chính) -->
+    <div class="contact-widget z-[100]">
+        <div class="relative group cursor-pointer mb-2" onclick="toggleChat()">
+            <div class="absolute right-14 top-2 bg-[#08061a]/95 border border-sky-500/40 text-sky-400 text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
+                Sếp cần hỗ trợ?<br>Gọi em ngay!
+            </div>
+            <div class="w-14 h-14 bg-[#08061a] border-2 border-sky-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(14,165,233,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow animate-pulse">
+                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Mascot">
+            </div>
+        </div>
+
+        <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 mb-2 text-sm" title="Lên đầu trang">
+            <i class="fas fa-chevron-up"></i>
+        </button>
+        <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" title="Gửi Email">
+            <i class="fas fa-envelope text-[20px]"></i>
+        </a>
+        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo">
+            <h1 class="font-black text-[12px] tracking-tighter">Zalo</h1>
+        </a>
+        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Chat Messenger">
+            <i class="fab fa-facebook-messenger"></i>
+        </a>
+        <a href="tel:0794678904" class="contact-btn btn-call" title="Gọi Hotline">
+            <i class="fas fa-phone-alt"></i>
+        </a>
+    </div>
+
+    <!-- Policy Modal (Đồng bộ với Landing Page chính) -->
+    <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div
+            class="bg-[#0a0f25] border border-sky-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(14,165,233,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
+            <div
+                class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-sky-900/40 to-transparent rounded-t-2xl">
+                <h3 id="modalTitle" class="text-xl font-black text-sky-400 tracking-wider uppercase">Tiêu đề</h3>
+                <button onclick="closeModal()"
+                    class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent"
+                class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
+            <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
+                <button onclick="closeModal()"
+                    class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reusable Premium CSKH Global Component -->
+    {% include 'components/cskh_global.html' %}
+
+    <!-- Background Animation (Three.js Sky Blue Particles Network) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = window.innerWidth < 768 ? 300 : 800;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 100;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.15,
+            color: 0x0ea5e9,
+            transparent: true,
+            opacity: 0.35,
+            blending: THREE.AdditiveBlending
+        });
+        const particlesMesh = new THREE.Points(particlesGeometry, material);
+        scene.add(particlesMesh);
+
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth/2) * 0.0003;
+            mouseY = (e.clientY - window.innerHeight/2) * 0.0003;
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+            particlesMesh.rotation.y = elapsed * 0.015;
+            particlesMesh.rotation.x = elapsed * 0.008;
+            particlesMesh.rotation.y += 0.5 * (mouseX - particlesMesh.rotation.y);
+            particlesMesh.rotation.x += 0.5 * (mouseY - particlesMesh.rotation.x);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize AOS
+        AOS.init({ once: true, offset: 50, duration: 800 });
+
+        // Accordion FAQ Logic
+        document.querySelectorAll('.faq-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.parentElement;
+                const wasActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+                
+                if (!wasActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // Dynamic HRM Attendance Shift Calculator
+        const shiftRateSelect = document.getElementById('shift-rate');
+        const actualShiftsInput = document.getElementById('actual-shifts');
+        const actualShiftsDisplay = document.getElementById('shifts-display');
+        const otHoursInput = document.getElementById('ot-hours');
+        const otHoursDisplay = document.getElementById('ot-display');
+        const nightShiftsInput = document.getElementById('night-shifts');
+        const nightShiftsDisplay = document.getElementById('night-display');
+
+        // Bill outputs
+        const billShiftRate = document.getElementById('bill-shift-rate');
+        const billShiftsSum = document.getElementById('bill-shifts-sum');
+        const billOtSum = document.getElementById('bill-ot-sum');
+        const billNightSum = document.getElementById('bill-night-sum');
+        const billAllowance = document.getElementById('bill-allowance');
+        const billInsurance = document.getElementById('bill-insurance');
+        const billNetPay = document.getElementById('bill-net-pay');
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+        }
+
+        function calculateHrmPayroll() {
+            const shiftRate = parseFloat(shiftRateSelect.value);
+            const shifts = parseInt(actualShiftsInput.value);
+            actualShiftsDisplay.textContent = `${shifts} ca`;
+
+            const otHours = parseInt(otHoursInput.value);
+            otHoursDisplay.textContent = `${otHours} giờ`;
+
+            const nights = parseInt(nightShiftsInput.value);
+            nightShiftsDisplay.textContent = `${nights} ca`;
+
+            // Calculations
+            const shiftsSum = shifts * shiftRate;
+            
+            // OT rate = 1.5x of hourly rate of standard shift (assume shift is 8 hours standard)
+            const hourlyRate = shiftRate / 8.0;
+            const otSum = otHours * hourlyRate * 1.5;
+
+            // Night surcharge = +30% of shiftRate per night shift
+            const nightSum = nights * shiftRate * 0.3;
+
+            // Allowance
+            const allowanceOption = document.querySelector('input[name="allowance-opt"]:checked').value;
+            const allowanceCost = parseFloat(allowanceOption);
+
+            // Insurance deduction (estimate 10% shiftsSum)
+            const insuranceCost = shiftsSum * 0.1;
+
+            const netPay = shiftsSum + otSum + nightSum + allowanceCost - insuranceCost;
+
+            // Display in outputs
+            billShiftRate.textContent = formatCurrency(shiftRate) + "/ca";
+            billShiftsSum.textContent = formatCurrency(Math.round(shiftsSum));
+            billOtSum.textContent = formatCurrency(Math.round(otSum));
+            billNightSum.textContent = formatCurrency(Math.round(nightSum));
+            billAllowance.textContent = formatCurrency(allowanceCost);
+            billInsurance.textContent = "- " + formatCurrency(Math.round(insuranceCost));
+            billNetPay.textContent = formatCurrency(Math.round(netPay));
+        }
+
+        // Add event listeners
+        shiftRateSelect.addEventListener('change', calculateHrmPayroll);
+        actualShiftsInput.addEventListener('input', calculateHrmPayroll);
+        otHoursInput.addEventListener('input', calculateHrmPayroll);
+        nightShiftsInput.addEventListener('input', calculateHrmPayroll);
+        document.querySelectorAll('input[name="allowance-opt"]').forEach(radio => {
+            radio.addEventListener('change', calculateHrmPayroll);
+        });
+
+        // Initialize values
+        calculateHrmPayroll();
+
+        // ========================================================
+        // POLICY MODAL LOGIC (ĐỒNG BỘ BITPAW)
+        // ========================================================
+        window.openModal = function(type) {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            
+            const titles = {
+                terms: 'Điều khoản sử dụng',
+                privacy: 'Chính sách bảo mật',
+                payment: 'Chính sách thanh toán'
+            };
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-sky-400"></i> ' + (titles[type] || 'Chính sách');
+            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ HRM...</p></div>';
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                if (modalInner) modalInner.classList.remove('scale-95'); 
+            }, 10);
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            if (modalInner) modalInner.classList.add('scale-95');
+            setTimeout(() => { 
+                modal.classList.add('hidden'); 
+                document.body.style.overflow = ''; 
+            }, 300);
+        };
+        
+        const policyModalEl = document.getElementById('policyModal');
+        if (policyModalEl) {
+            policyModalEl.addEventListener('click', function (e) { 
+                if (e.target === this) closeModal(); 
+            });
+        }
+
+        // Back to top behavior
+        const backToTopBtn = document.getElementById('backToTop');
+        if (backToTopBtn) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+            });
+            backToTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+    </script>
+</body>
+</html>

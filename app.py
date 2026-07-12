@@ -292,6 +292,12 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS qr_tokens (
+            token TEXT PRIMARY KEY,
+            expires_at TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -657,8 +663,14 @@ def submit_feedback():
         return jsonify({'error': str(e)}), 500
 
 
-# ========== ROUTE CHÍNH ==========
 @app.route('/')
+def root():
+    if 'user_id' in session:
+        return redirect(url_for('home'))
+    return redirect(url_for('landingpage'))
+
+
+# ========== ROUTE CHÍNH ==========
 @app.route('/index')
 @app.route('/index.html')
 def home():
@@ -888,7 +900,11 @@ def delete_product(id):
 @app.route('/pos')
 def pos():
     try:
-        tables = supabase.table('dining_tables').select('*').execute()
+        business_id = session.get('business_id')
+        query = supabase.table('dining_tables').select('*')
+        if business_id:
+            query = query.eq('business_id', business_id)
+        tables = query.execute()
         tables_data = tables.data
         if len(tables_data) == 0:
             default_tables = [
@@ -899,11 +915,17 @@ def pos():
             ]
             for name, token in default_tables:
                 try:
-                    supabase.table('dining_tables').insert({'name': name, 'qr_token': token}).execute()
+                    insert_data = {'name': name, 'qr_token': token}
+                    if business_id:
+                        insert_data['business_id'] = business_id
+                    supabase.table('dining_tables').insert(insert_data).execute()
                 except Exception as e:
                     print(f"Supabase dining_tables insert failed: {str(e)}")
             try:
-                tables = supabase.table('dining_tables').select('*').execute()
+                query = supabase.table('dining_tables').select('*')
+                if business_id:
+                    query = query.eq('business_id', business_id)
+                tables = query.execute()
                 tables_data = tables.data
             except Exception as e:
                 print(f"Supabase dining_tables secondary select failed: {str(e)}")
@@ -927,7 +949,11 @@ def pos():
 def add_table():
     table_name = request.form['table_name']
     qr_token = uuid.uuid4().hex[:8]
-    supabase.table('dining_tables').insert({'name': table_name, 'qr_token': qr_token}).execute()
+    business_id = session.get('business_id')
+    insert_payload = {'name': table_name, 'qr_token': qr_token}
+    if business_id:
+        insert_payload['business_id'] = business_id
+    supabase.table('dining_tables').insert(insert_payload).execute()
     return redirect(url_for('pos'))
 
 
@@ -1132,8 +1158,15 @@ def delete_staff(id):
 # ========== QUẢN LÝ KHÁCH HÀNG (CRM) ==========
 @app.route('/customers')
 def customers():
-    custs = supabase.table('customers').select('*').order('id', desc=True).execute()
-    return render_template('crm.html', customers=custs.data)
+    try:
+        custs = supabase.table('customers').select('*').order('id', desc=True).execute()
+        customers_data = custs.data
+        error_message = None
+    except Exception as e:
+        print(f"Error fetching customers (network/offline): {e}")
+        customers_data = []
+        error_message = "Đang hiển thị chế độ Offline"
+    return render_template('crm.html', customers=customers_data, error_message=error_message)
 
 
 @app.route('/add_customer', methods=['POST'])
@@ -1169,8 +1202,15 @@ def delete_customer(id):
 # ========== QUẢN LÝ GIAO DỊCH THANH TOÁN ==========
 @app.route('/payment_transactions')
 def payment_transactions():
-    txs = supabase.table('payment_transactions').select('*').order('created_at', desc=True).execute()
-    return render_template('admin_payment_management.html', transactions=txs.data)
+    try:
+        txs = supabase.table('payment_transactions').select('*').order('created_at', desc=True).execute()
+        transactions_data = txs.data
+        error_message = None
+    except Exception as e:
+        print(f"Error fetching payment transactions (network/offline): {e}")
+        transactions_data = []
+        error_message = "Đang hiển thị chế độ Offline"
+    return render_template('admin_payment_management.html', transactions=transactions_data, error_message=error_message)
 
 
 @app.route('/update_payment_status/<int:id>', methods=['POST'])
@@ -1355,30 +1395,36 @@ def report():
 
 @app.route('/profit_report')
 def profit_report():
-    # Lấy tất cả products, tính số lượng bán từ order_items
-    products = supabase.table('products').select('id, name, category, price, cost_price').eq('is_active', 1).execute()
-    order_items = supabase.table('order_items').select('product_id, quantity').execute()
-    sold_map = {}
-    for oi in order_items.data:
-        sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + oi['quantity']
-    profit_data = []
-    for p in products.data:
-        sold = sold_map.get(p['id'], 0)
-        revenue = sold * p['price']
-        cost = sold * (p.get('cost_price') or 0)
-        profit_val = revenue - cost
-        margin = (profit_val / revenue * 100) if revenue else 0
-        profit_data.append({
-            'id': p['id'],
-            'name': p['name'],
-            'category': p['category'],
-            'sold': sold,
-            'revenue': revenue,
-            'cost': cost,
-            'profit': profit_val,
-            'margin': margin
-        })
-    return render_template('profit_by_product.html', products=profit_data)
+    try:
+        # Lấy tất cả products, tính số lượng bán từ order_items
+        products = supabase.table('products').select('id, name, category, price, cost_price').eq('is_active', 1).execute()
+        order_items = supabase.table('order_items').select('product_id, quantity').execute()
+        sold_map = {}
+        for oi in order_items.data:
+            sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + oi['quantity']
+        profit_data = []
+        for p in products.data:
+            sold = sold_map.get(p['id'], 0)
+            revenue = sold * p['price']
+            cost = sold * (p.get('cost_price') or 0)
+            profit_val = revenue - cost
+            margin = (profit_val / revenue * 100) if revenue else 0
+            profit_data.append({
+                'id': p['id'],
+                'name': p['name'],
+                'category': p['category'],
+                'sold': sold,
+                'revenue': revenue,
+                'cost': cost,
+                'profit': profit_val,
+                'margin': margin
+            })
+        error_message = None
+    except Exception as e:
+        print(f"Error calculating profit report (network/offline): {e}")
+        profit_data = []
+        error_message = "Đang hiển thị chế độ Offline"
+    return render_template('profit_by_product.html', products=profit_data, error_message=error_message)
 
 
 # ========== NHẬT KÝ HỆ THỐNG ==========
@@ -1575,11 +1621,18 @@ def brand_settings():
             print("Error updating brand_color settings:", e)
         # Xử lý upload logo và cover nếu có
         return redirect(url_for('spa'))
-    brand_res = supabase.table('system_settings').select('value').eq('key', 'brand_name').execute()
-    brand_name = brand_res.data[0]['value'] if brand_res.data else 'BitPaw'
-    color_res = supabase.table('system_settings').select('value').eq('key', 'brand_color').execute()
-    brand_color = color_res.data[0]['value'] if color_res.data else '#06b6d4'
-    return render_template('brand_settings.html', brand_name=brand_name, brand_color=brand_color)
+    try:
+        brand_res = supabase.table('system_settings').select('value').eq('key', 'brand_name').execute()
+        brand_name = brand_res.data[0]['value'] if brand_res.data else 'BitPaw'
+        color_res = supabase.table('system_settings').select('value').eq('key', 'brand_color').execute()
+        brand_color = color_res.data[0]['value'] if color_res.data else '#06b6d4'
+        error_message = None
+    except Exception as e:
+        print(f"Error fetching brand settings (network/offline): {e}")
+        brand_name = 'BitPaw'
+        brand_color = '#06b6d4'
+        error_message = "Đang hiển thị chế độ Offline"
+    return render_template('brand_settings.html', brand_name=brand_name, brand_color=brand_color, error_message=error_message)
 
 
 # ========== MỚI: ROUTE CHO CÁC TEMPLATE CÒN THIẾU ==========
@@ -1597,11 +1650,213 @@ def ecommerce_sync():
 
 @app.route('/payment_gateway')
 def payment_gateway():
-    return render_template('payment_gateway.html')
+    business_id = session.get('business_id', 'mock-business-123')
+    config = None
+    try:
+        res = supabase.table('system_settings').select('*').eq('key', 'payment_config').eq('business_id', business_id).maybeSingle().execute()
+        if res.data:
+            config = json.loads(res.data['value'])
+    except Exception as e:
+        print(f"Error loading payment config: {e}")
+        
+    return render_template('payment_gateway.html', config=config)
+
+
+@app.route('/api/payment/save_config', methods=['POST'])
+def api_save_payment_config():
+    try:
+        business_id = session.get('business_id', 'mock-business-123')
+        config = request.get_json() or {}
+        
+        if not config:
+            return jsonify({'success': False, 'message': 'Không nhận được cấu hình.'}), 400
+            
+        val_str = json.dumps(config)
+        
+        # Check if already exists
+        res = supabase.table('system_settings').select('id').eq('key', 'payment_config').eq('business_id', business_id).execute()
+        if res.data:
+            supabase.table('system_settings').update({'value': val_str}).eq('id', res.data[0]['id']).execute()
+        else:
+            supabase.table('system_settings').insert({
+                'key': 'payment_config',
+                'value': val_str,
+                'business_id': business_id
+            }).execute()
+            
+        return jsonify({'success': True, 'message': 'Đã lưu cấu hình tài khoản nhận tiền thành công!'})
+    except Exception as e:
+        print(f"Error saving payment config: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/payment_history')
 def payment_history():
     return render_template('payment_history.html')
+
+@app.route('/payment_pending')
+def payment_pending():
+    table_id = request.args.get('table_id')
+    business_id = session.get('business_id', 'mock-business-123')
+    
+    if table_id:
+        try:
+            # Look up table to find business_id
+            tbl_res = supabase.table('dining_tables').select('business_id').eq('id', table_id).maybeSingle().execute()
+            if tbl_res.data and tbl_res.data['business_id']:
+                business_id = tbl_res.data['business_id']
+        except Exception as e:
+            print(f"Error resolving table business_id: {e}")
+            
+    config = None
+    try:
+        res = supabase.table('system_settings').select('*').eq('key', 'payment_config').eq('business_id', business_id).maybeSingle().execute()
+        if res.data:
+            config = json.loads(res.data['value'])
+    except Exception as e:
+        print(f"Error loading payment config for pending: {e}")
+        
+    return render_template('payment_pending.html', config=config)
+
+
+@app.route('/api/payment/start', methods=['POST'])
+def api_payment_start():
+    try:
+        data = request.get_json() or {}
+        table_id = data.get('table_id')
+        amount = data.get('amount')
+        method = data.get('method', 'POS')
+        industry = data.get('industry', 'fnb')
+        
+        if not table_id:
+            return jsonify({'success': False, 'message': 'Missing table_id'}), 400
+            
+        txn_id = f"{industry.upper()}-{uuid.uuid4().hex[:8].upper()}"
+        
+        # Insert payment_transactions with status = pending
+        try:
+            supabase.table('payment_transactions').insert({
+                'transaction_id': txn_id,
+                'customer_name': 'Khách POS Vãng Lai',
+                'customer_email': 'pos_walkin@bitpaw.com',
+                'amount': amount,
+                'currency': 'VND',
+                'method': method,
+                'status': 'pending',
+                'created_at': datetime.now().isoformat()
+            }).execute()
+        except Exception as db_err:
+            print(f"Database insert pending txn failed: {str(db_err)}")
+            
+        redirect_url = f"/payment_pending?table_id={table_id}&txn_id={txn_id}&amount={amount}&method={method}&industry={industry}"
+        return jsonify({
+            'success': True,
+            'txn_id': txn_id,
+            'redirect_url': redirect_url
+        })
+    except Exception as e:
+        print(f"Error in api_payment_start: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/confirm', methods=['POST'])
+def api_payment_confirm():
+    try:
+        data = request.get_json() or {}
+        table_id = data.get('table_id')
+        txn_id = data.get('txn_id')
+        method = data.get('method', 'POS')
+        
+        if not table_id or not txn_id:
+            return jsonify({'success': False, 'message': 'Missing table_id or txn_id'}), 400
+            
+        # 1. Đọc table_orders theo table_id
+        orders_res = supabase.table('table_orders').select('*').eq('table_id', table_id).execute()
+        if not orders_res.data:
+            return jsonify({'success': False, 'message': 'Không tìm thấy món ăn nào đang treo tại bàn này.'}), 400
+            
+        # 2. Tính tổng tiền server-side và trừ tồn kho
+        total_bill = 0
+        for item in orders_res.data:
+            prod_res = supabase.table('products').select('price, stock').eq('id', item['product_id']).execute()
+            if prod_res.data:
+                price = prod_res.data[0]['price']
+                total_bill += item['quantity'] * price
+                new_stock = prod_res.data[0]['stock'] - item['quantity']
+                supabase.table('products').update({'stock': new_stock}).eq('id', item['product_id']).execute()
+                
+        # Lấy industry từ transaction hoặc mặc định fnb
+        industry = 'fnb'
+        
+        # 3. Tạo order mới trong orders
+        order_res = supabase.table('orders').insert({
+            'order_code': txn_id,
+            'channel': industry,
+            'total_amount': total_bill
+        }).execute()
+        
+        if not order_res.data:
+            return jsonify({'success': False, 'message': 'Tạo hóa đơn thất bại.'}), 500
+            
+        order_id = order_res.data[0]['id']
+        
+        # 4. Tạo chi tiết trong order_items
+        for item in orders_res.data:
+            prod_res = supabase.table('products').select('price').eq('id', item['product_id']).execute()
+            if prod_res.data:
+                price = prod_res.data[0]['price']
+                supabase.table('order_items').insert({
+                    'order_id': order_id,
+                    'product_id': item['product_id'],
+                    'quantity': item['quantity'],
+                    'price': price,
+                    'total_price': item['quantity'] * price
+                }).execute()
+                
+        # 5. Update payment_transactions status = completed
+        supabase.table('payment_transactions').update({
+            'status': 'completed',
+            'amount': total_bill,
+            'method': method,
+            'updated_at': datetime.now().isoformat()
+        }).eq('transaction_id', txn_id).execute()
+        
+        # 6. Dọn table_orders
+        supabase.table('table_orders').delete().eq('table_id', table_id).execute()
+        
+        # 7. Trả bàn về trạng thái 'Còn trống'
+        supabase.table('dining_tables').update({'status': 'Còn trống'}).eq('id', table_id).execute()
+        
+        redirect_url = f"/payment_success?txn_id={txn_id}&method={method}&amount={total_bill}&currency=VND&industry={industry}"
+        return jsonify({
+            'success': True,
+            'redirect_url': redirect_url
+        })
+    except Exception as e:
+        print(f"Error in api_payment_confirm: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/cancel', methods=['POST'])
+def api_payment_cancel():
+    try:
+        data = request.get_json() or {}
+        txn_id = data.get('txn_id')
+        
+        if not txn_id:
+            return jsonify({'success': False, 'message': 'Missing txn_id'}), 400
+            
+        # Update transaction status = failed
+        supabase.table('payment_transactions').update({
+            'status': 'failed',
+            'updated_at': datetime.now().isoformat()
+        }).eq('transaction_id', txn_id).execute()
+        
+        return jsonify({'success': True, 'message': 'Transaction cancelled successfully'})
+    except Exception as e:
+        print(f"Error in api_payment_cancel: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/payment_success')
 def payment_success():
@@ -3252,6 +3507,92 @@ def network_cv_builder():
             'is_onboarded': True
         }
     return render_template('network_cv_builder.html', profile=user)
+
+
+# ========== API QR CODE DYNAMIC (PHASE 1) ==========
+@app.route('/api/workspace/generate-qr', methods=['POST'])
+def generate_qr():
+    import secrets
+    from datetime import datetime, timedelta
+    
+    qr_token = secrets.token_hex(16)
+    expires_at = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS qr_tokens (
+                token TEXT PRIMARY KEY,
+                expires_at TEXT NOT NULL
+            )
+        ''')
+        c.execute("INSERT INTO qr_tokens (token, expires_at) VALUES (?, ?)", (qr_token, expires_at))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "status": "success",
+            "qr_token": qr_token,
+            "expires_at": expires_at
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+@app.route('/api/workspace/validate-qr', methods=['POST'])
+def validate_qr():
+    from datetime import datetime
+    
+    data = request.json or {}
+    qr_token = data.get('qr_token')
+    
+    if not qr_token:
+        return jsonify({
+            "status": "error",
+            "message": "Thiếu qr_token"
+        }), 400
+        
+    try:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS qr_tokens (
+                token TEXT PRIMARY KEY,
+                expires_at TEXT NOT NULL
+            )
+        ''')
+        c.execute("SELECT expires_at FROM qr_tokens WHERE token = ?", (qr_token,))
+        row = c.fetchone()
+        conn.close()
+        
+        if not row:
+            return jsonify({
+                "status": "error",
+                "message": "Token không hợp lệ hoặc không tồn tại"
+            }), 404
+            
+        expires_at_str = row[0]
+        expires_at = datetime.strptime(expires_at_str, "%Y-%m-%d %H:%M:%S")
+        
+        if datetime.now() > expires_at:
+            return jsonify({
+                "status": "error",
+                "message": "QR hết hạn"
+            })
+            
+        return jsonify({
+            "status": "success",
+            "message": "Hợp lệ"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 if __name__ == '__main__':

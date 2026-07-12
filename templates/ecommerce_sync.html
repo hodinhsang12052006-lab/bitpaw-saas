@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Đồng bộ E-commerce | Shopee, TikTok, Lazada</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+        
+        /* 3D Background */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
+        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+        .absolute-blur { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 80vw; height: 500px; background: rgba(6,182,212,0.15); border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+
+        .glass-panel { background: rgba(10,15,37,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(6,182,212,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .glass-card { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid rgba(6,182,212,0.25); border-radius: 1rem; transition: all 0.2s ease; }
+        .glass-card:hover { border-color: #06b6d4; transform: translateY(-2px); box-shadow: 0 0 15px rgba(6,182,212,0.3); }
+        
+        @keyframes float-logo { 0%,100%{transform:translateY(0px);filter:drop-shadow(0 5px 5px rgba(6,182,212,0.4))} 50%{transform:translateY(-4px);filter:drop-shadow(0 12px 12px rgba(168,85,247,0.5))} }
+        .logo-float { animation: float-logo 4s ease-in-out infinite; }
+
+        .custom-table { width: 100%; border-collapse: collapse; }
+        .custom-table th { text-align: left; padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); color: #9ca3af; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .custom-table td { padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; vertical-align: middle; }
+        .custom-table tr:hover td { background: rgba(6,182,212,0.1); }
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        
+        .platform-badge { padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 700; display: inline-block; }
+        .shopee { background: rgba(238,77,45,0.2); color: #ee4d2d; border: 1px solid #ee4d2d; }
+        .tiktok { background: rgba(0,0,0,0.3); color: #25f4ee; border: 1px solid #25f4ee; }
+        .lazada { background: rgba(11,102,193,0.2); color: #0f67b3; border: 1px solid #0f67b3; }
+        
+        .filter-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; width: 100%; color: white; outline: none; transition: 0.2s; }
+        .filter-input:focus { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6,182,212,0.4); }
+        
+        .sync-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #06b6d4; animation: spin 0.6s linear infinite; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* CSKH Widget */
+        .cskh-widget { background: rgba(0,0,0,0.4); border-radius: 1.5rem; padding: 1rem; margin-top: 2rem; border: 1px solid rgba(255,255,255,0.05); }
+        .cskh-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 1rem; transition: 0.2s; text-decoration: none; }
+        .cskh-item:hover { background: rgba(6,182,212,0.15); }
+        .cskh-info { display: flex; flex-direction: column; }
+        .cskh-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+        .cskh-value { font-size: 0.85rem; font-weight: 500; color: white; }
+        .glass-input-sm { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.5rem 1rem; width: 100%; color: white; outline: none; font-size: 0.8rem; }
+        .glass-input-sm:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .loading-overlay.active { visibility: visible; opacity: 1; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        @media (max-width: 768px) { body { padding: 1rem; } }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Đồng bộ đa sàn</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Shopee, TikTok Shop, Lazada | Tự động cập nhật đơn & tồn kho</p>
+                </div>
+            </div>
+            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+        </div>
+
+        <!-- Cấu hình kết nối -->
+        <div class="glass-panel p-5 mb-6">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-plug mr-2"></i> Kết nối sàn thương mại điện tử</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Shopee -->
+                <div class="glass-card p-4">
+                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-shopee text-3xl text-orange-500"></i><h3 class="font-bold text-white">Shopee</h3><span class="text-xs text-gray-400 ml-auto" id="shopeeStatus">Chưa kết nối</span></div>
+                    <div class="space-y-2">
+                        <input type="text" id="shopeeKey" placeholder="API Key" class="glass-input text-sm">
+                        <input type="text" id="shopeeSecret" placeholder="API Secret" class="glass-input text-sm">
+                        <button class="connect-shopee w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                    </div>
+                </div>
+                <!-- TikTok Shop -->
+                <div class="glass-card p-4">
+                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-tiktok text-3xl text-white"></i><h3 class="font-bold text-white">TikTok Shop</h3><span class="text-xs text-gray-400 ml-auto" id="tiktokStatus">Chưa kết nối</span></div>
+                    <div class="space-y-2">
+                        <input type="text" id="tiktokAppId" placeholder="App ID" class="glass-input text-sm">
+                        <input type="text" id="tiktokSecret" placeholder="App Secret" class="glass-input text-sm">
+                        <button class="connect-tiktok w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                    </div>
+                </div>
+                <!-- Lazada -->
+                <div class="glass-card p-4">
+                    <div class="flex items-center gap-3 mb-3"><i class="fas fa-shopping-cart text-3xl text-blue-500"></i><h3 class="font-bold text-white">Lazada</h3><span class="text-xs text-gray-400 ml-auto" id="lazadaStatus">Chưa kết nối</span></div>
+                    <div class="space-y-2">
+                        <input type="text" id="lazadaKey" placeholder="API Key" class="glass-input text-sm">
+                        <input type="text" id="lazadaSecret" placeholder="API Secret" class="glass-input text-sm">
+                        <button class="connect-lazada w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="syncAllBtn" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold transition"><i class="fas fa-sync-alt mr-1"></i> Đồng bộ tất cả</button>
+                <button id="syncProductsBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-boxes mr-1"></i> Đồng bộ sản phẩm</button>
+                <button id="syncOrdersBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-shopping-cart mr-1"></i> Đồng bộ đơn hàng</button>
+            </div>
+        </div>
+
+        <!-- Thống kê đồng bộ -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đơn hàng từ sàn</div><div class="text-2xl font-bold text-cyan-400" id="syncOrderCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm đã đồng bộ</div><div class="text-2xl font-bold text-emerald-400" id="syncProductCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đồng bộ lần cuối</div><div class="text-sm font-medium text-white" id="lastSyncTime">Chưa có</div></div>
+        </div>
+
+        <!-- Danh sách đơn hàng từ sàn -->
+        <div class="glass-panel p-5">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-list-alt mr-2"></i> Đơn hàng từ sàn TMĐT</h2><div class="text-sm text-gray-400" id="orderRecordCount">Đang tải...</div></div>
+            <div class="table-wrapper">
+                <table class="custom-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sàn</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody id="orderTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Biểu đồ & log -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Đơn hàng theo sàn</h3><canvas id="platformChart" height="200" style="max-height: 200px;"></canvas></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-history mr-2"></i> Nhật ký đồng bộ</h3><div id="syncLog" class="h-48 overflow-y-auto text-xs space-y-1 font-mono text-gray-400"></div></div>
+        </div>
+
+        <!-- CSKH Widget đầy đủ (thêm mới) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline"><i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i><div class="cskh-info"><span class="cskh-label">Hotline (24/7)</span><span class="cskh-value">0794.678.904</span></div></a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo"><i class="fab fa-zalo text-blue-400 w-6 text-xl"></i><div class="cskh-info"><span class="cskh-label">Zalo Official</span><span class="cskh-value">0794.678.904 (Mr. Sang)</span></div></a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger"><i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i><div class="cskh-info"><span class="cskh-label">Messenger</span><span class="cskh-value">fb.com/chuyhieuhong</span></div></a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email"><i class="fas fa-envelope text-rose-400 w-6 text-lg"></i><div class="cskh-info"><span class="cskh-label">Email hỗ trợ</span><span class="cskh-value">hodinhsang30052003@gmail.com</span></div></a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        let platformChart = null;
+        let syncOrders = [];
+        let syncProducts = [];
+
+        function showToast(msg, isErr = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.borderColor = isErr ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) overlay.classList.add('active');
+            else overlay.classList.remove('active');
+        }
+        function addLog(msg) {
+            const logDiv = document.getElementById('syncLog');
+            const p = document.createElement('div');
+            p.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function loadSyncData() {
+            showLoading(true);
+            try {
+                const { data: ordersData, error: oErr } = await supabase.from('ecommerce_orders').select('*').order('created_at', { ascending: false });
+                if (oErr) throw oErr;
+                syncOrders = ordersData || [];
+                const { data: productsData, error: pErr } = await supabase.from('ecommerce_products').select('*');
+                if (pErr) throw pErr;
+                syncProducts = productsData || [];
+
+                document.getElementById('syncOrderCount').innerText = syncOrders.length;
+                document.getElementById('syncProductCount').innerText = syncProducts.length;
+                document.getElementById('orderRecordCount').innerText = `Tổng: ${syncOrders.length} đơn`;
+
+                const tbody = document.getElementById('orderTableBody');
+                if (syncOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Chưa có đơn hàng từ sàn</td></tr>';
+                } else {
+                    tbody.innerHTML = syncOrders.map(o => `
+                        <tr>
+                            <td class="font-mono text-xs">${o.id}</td>
+                            <td>${o.customer_name || 'N/A'}</td>
+                            <td><span class="platform-badge ${o.platform.toLowerCase()}">${o.platform}</span></td>
+                            <td class="font-mono text-emerald-400">${(o.amount || 0).toLocaleString('vi-VN')}₫</td>
+                            <td>${o.status === 'pending' ? '<span class="text-yellow-400">Chờ xử lý</span>' : '<span class="text-emerald-400">Đã hoàn thành</span>'}</td>
+                            <td class="text-xs text-gray-400">${new Date(o.created_at).toLocaleString()}</td>
+                            <td><button class="text-cyan-400 hover:text-cyan-300 text-sm view-order" data-id="${o.id}"><i class="fas fa-eye"></i> Xem</button></td>
+                        </tr>
+                    `).join('');
+                    document.querySelectorAll('.view-order').forEach(btn => btn.addEventListener('click', () => showToast(`Xem chi tiết đơn ${btn.getAttribute('data-id')}`)));
+                }
+
+                const platformCount = { Shopee:0, TikTok:0, Lazada:0 };
+                syncOrders.forEach(o => { if (platformCount[o.platform] !== undefined) platformCount[o.platform]++; });
+                if (platformChart) platformChart.destroy();
+                const ctx = document.getElementById('platformChart').getContext('2d');
+                platformChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: ['Shopee', 'TikTok', 'Lazada'], datasets: [{ data: [platformCount.Shopee, platformCount.TikTok, platformCount.Lazada], backgroundColor: ['#ee4d2d', '#25f4ee', '#0f67b3'] }] },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } } }
+                });
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function saveConnection(platform, apiKey, apiSecret) {
+            const { error } = await supabase.from('ecommerce_connections').upsert({ platform, api_key: apiKey, api_secret: apiSecret, updated_at: new Date() });
+            if (error) throw error;
+        }
+
+        async function syncAll(platformsList, type = 'all') {
+            showLoading(true);
+            addLog(`Bắt đầu đồng bộ ${type === 'all' ? 'tất cả' : type}...`);
+            try {
+                // Ghi vào hàng đợi đồng bộ
+                for (const platform of platformsList) {
+                    const { error } = await supabase.from('ecommerce_sync_queue').insert([{ platform, action: type === 'products' ? 'sync_products' : (type === 'orders' ? 'sync_orders' : 'sync_all'), status: 'pending', created_at: new Date() }]);
+                    if (error) throw error;
+                }
+                // Giả lập đồng bộ (thực tế sẽ có worker xử lý)
+                setTimeout(() => {
+                    addLog('Đồng bộ sản phẩm: ' + syncProducts.length + ' sản phẩm được cập nhật');
+                    addLog('Đồng bộ đơn hàng: ' + syncOrders.length + ' đơn hàng mới');
+                    document.getElementById('lastSyncTime').innerText = new Date().toLocaleString();
+                    showToast('Đồng bộ hoàn tất!');
+                    loadSyncData(); // reload
+                    showLoading(false);
+                }, 1500);
+            } catch (err) {
+                addLog('Lỗi: ' + err.message);
+                showToast('Lỗi đồng bộ: ' + err.message, true);
+                showLoading(false);
+            }
+        }
+
+        // Kết nối sàn (lưu config)
+        document.querySelectorAll('.connect-shopee, .connect-tiktok, .connect-lazada').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                let platform = '';
+                let key = '', secret = '';
+                if (btn.classList.contains('connect-shopee')) {
+                    platform = 'Shopee';
+                    key = document.getElementById('shopeeKey').value;
+                    secret = document.getElementById('shopeeSecret').value;
+                } else if (btn.classList.contains('connect-tiktok')) {
+                    platform = 'TikTok';
+                    key = document.getElementById('tiktokAppId').value;
+                    secret = document.getElementById('tiktokSecret').value;
+                } else {
+                    platform = 'Lazada';
+                    key = document.getElementById('lazadaKey').value;
+                    secret = document.getElementById('lazadaSecret').value;
+                }
+                if (!key || !secret) { showToast('Vui lòng nhập API Key và Secret', true); return; }
+                showLoading(true);
+                try {
+                    await saveConnection(platform, key, secret);
+                    addLog(`Kết nối ${platform} thành công!`);
+                    showToast(`Đã kết nối ${platform}`);
+                    document.getElementById(`${platform.toLowerCase()}Status`).innerText = 'Đã kết nối';
+                } catch (err) {
+                    showToast('Lỗi kết nối: ' + err.message, true);
+                } finally {
+                    showLoading(false);
+                }
+            });
+        });
+
+        document.getElementById('syncAllBtn').addEventListener('click', () => syncAll(['Shopee','TikTok','Lazada'], 'all'));
+        document.getElementById('syncProductsBtn').addEventListener('click', () => syncAll(['Shopee','TikTok','Lazada'], 'products'));
+        document.getElementById('syncOrdersBtn').addEventListener('click', () => syncAll(['Shopee','TikTok','Lazada'], 'orders'));
+
+        // CSKH track click
+        async function trackCSKHClick(channel) {
+            try { const { data: { user } } = await supabase.auth.getUser(); if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]); } catch(e) { console.warn(e); } }
+        document.querySelectorAll('[data-channel]').forEach(link => link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel'))));
+
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value, phone = document.getElementById('supportPhone').value, message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            finally { showLoading(false); }
+        });
+
+        loadSyncData();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 600 : 1200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.05, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xa855f7, transparent: true, opacity: 0.6 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

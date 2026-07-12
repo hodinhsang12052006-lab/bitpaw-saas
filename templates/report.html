@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Báo Cáo Doanh Thu & Phân Tích</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: #ffffff;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* 3D Background */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        /* Scanline + Laser */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .absolute-blur {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vw;
+            height: 500px;
+            background: rgba(6, 182, 212, 0.15);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .glass-card {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1rem;
+            transition: all 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: #06b6d4;
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        
+        /* Logo float */
+        @keyframes float-logo {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(168, 85, 247, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+        }
+        .logo-float {
+            animation: float-logo 4s ease-in-out infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.5); border-radius: 10px; }
+
+        /* Filter select */
+        .filter-select {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            border-radius: 2rem;
+            padding: 0.5rem 1rem;
+            color: white;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+        }
+        .filter-select option {
+            background: #0f111a;
+        }
+        
+        /* Responsive grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.2rem;
+        }
+        @media (max-width: 768px) {
+            .stats-grid { gap: 0.8rem; }
+        }
+        
+        /* CSKH Widget */
+        .cskh-widget {
+            background: rgba(0,0,0,0.4);
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .cskh-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .cskh-item:hover {
+            background: rgba(6,182,212,0.15);
+        }
+        .cskh-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .cskh-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+        }
+        .cskh-value {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: white;
+        }
+        .glass-input-sm {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 0.8rem;
+        }
+        .glass-input-sm:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 8px rgba(6,182,212,0.3);
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10002;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10003;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-4 py-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div class="flex items-center gap-4">
+                <div class="relative w-12 h-12 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium">| Báo cáo tài chính</span></h1>
+                    <p class="text-xs text-gray-400">Phân tích doanh thu, chi phí và lợi nhuận chi tiết</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded-full text-sm font-bold transition">
+                    <i class="fas fa-file-excel"></i> Xuất Excel
+                </button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold transition">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Bộ lọc thời gian -->
+        <div class="glass-panel p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-400"><i class="fas fa-calendar-alt mr-1"></i> Kỳ báo cáo:</span>
+                <select id="filterPeriod" class="filter-select text-sm">
+                    <option value="today">Hôm nay</option>
+                    <option value="yesterday">Hôm qua</option>
+                    <option value="week" selected>7 ngày qua</option>
+                    <option value="month">30 ngày qua</option>
+                    <option value="custom">Tuỳ chỉnh</option>
+                </select>
+                <div id="customDateRange" class="hidden flex gap-2">
+                    <input type="date" id="startDate" class="filter-select text-sm">
+                    <input type="date" id="endDate" class="filter-select text-sm">
+                    <button id="applyCustomBtn" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 px-3 py-1 rounded-full text-xs">Áp dụng</button>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="refreshBtn" class="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fas fa-sync-alt text-sm"></i></button>
+            </div>
+        </div>
+
+        <!-- 3 chỉ số chính -->
+        <div class="stats-grid mb-8">
+            <div class="glass-card p-5 text-center">
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-chart-line text-cyan-400"></i> Tổng doanh thu</div>
+                <div id="revenueValue" class="text-3xl md:text-4xl font-black text-cyan-400">0₫</div>
+            </div>
+            <div class="glass-card p-5 text-center">
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-receipt text-rose-400"></i> Tổng chi tiêu</div>
+                <div id="expenseValue" class="text-3xl md:text-4xl font-black text-rose-400">0₫</div>
+            </div>
+            <div class="glass-card p-5 text-center">
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-gem text-purple-400"></i> Lợi nhuận ròng</div>
+                <div id="profitValue" class="text-3xl md:text-4xl font-black text-purple-400">0₫</div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ + Top sản phẩm -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="lg:col-span-2 glass-panel p-5">
+                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-chart-simple mr-2"></i> Doanh thu theo ngày</h3>
+                <canvas id="revenueChart" height="250" style="max-height: 250px; width: 100%"></canvas>
+                <p class="text-[10px] text-gray-500 text-center mt-3">* Dữ liệu cập nhật theo bộ lọc</p>
+            </div>
+            <div class="glass-panel p-5">
+                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-fire mr-2"></i> Top sản phẩm bán chạy</h3>
+                <div id="topProductsList" class="space-y-3 max-h-[250px] overflow-y-auto pr-2">
+                    <div class="text-gray-500 text-center py-5">Đang tải...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phân tích theo ngành + Top khách hàng -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="glass-panel p-5">
+                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-chart-pie mr-2"></i> Doanh thu theo ngành</h3>
+                <div id="categoryBreakdown" class="space-y-3">
+                    <div class="text-gray-500 text-center py-4">Đang tải...</div>
+                </div>
+            </div>
+            <div class="glass-panel p-5">
+                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-trophy mr-2"></i> Khách hàng thân thiết</h3>
+                <div id="topCustomersList" class="space-y-3 max-h-[300px] overflow-y-auto">
+                    <div class="text-gray-500 text-center py-5">Đang tải...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chi tiêu gần đây -->
+        <div class="glass-panel p-5">
+            <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400 mb-4"><i class="fas fa-history mr-2"></i> Khoản chi gần đây</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-white/10">
+                        <tr class="text-gray-400 text-xs">
+                            <th class="text-left py-2">Lý do</th>
+                            <th class="text-left py-2">Số tiền</th>
+                            <th class="text-left py-2">Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentExpenses">
+                        <tr><td colspan="3" class="text-center py-5 text-gray-500">Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CSKH Widget đầy đủ (thêm mới) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // ========== SUPABASE CONFIG ==========
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // DOM elements
+        const revenueSpan = document.getElementById('revenueValue');
+        const expenseSpan = document.getElementById('expenseValue');
+        const profitSpan = document.getElementById('profitValue');
+        const categoryBreakdownDiv = document.getElementById('categoryBreakdown');
+        const topProductsDiv = document.getElementById('topProductsList');
+        const topCustomersDiv = document.getElementById('topCustomersList');
+        const recentExpensesBody = document.getElementById('recentExpenses');
+        const filterPeriod = document.getElementById('filterPeriod');
+        const customDateRange = document.getElementById('customDateRange');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const applyCustomBtn = document.getElementById('applyCustomBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const exportBtn = document.getElementById('exportExcelBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const toast = document.getElementById('toast');
+
+        let revenueChart = null;
+
+        function showToastMsg(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            if (show) loadingOverlay.classList.add('active');
+            else loadingOverlay.classList.remove('active');
+        }
+
+        // Lấy dữ liệu thực tế từ Supabase
+        async function fetchReportData(period, start = null, end = null) {
+            showLoading(true);
+            try {
+                let startDateObj, endDateObj;
+                const now = new Date();
+                if (period === 'today') {
+                    startDateObj = new Date(now.setHours(0,0,0,0));
+                    endDateObj = new Date(now.setHours(23,59,59,999));
+                } else if (period === 'yesterday') {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    startDateObj = new Date(yesterday.setHours(0,0,0,0));
+                    endDateObj = new Date(yesterday.setHours(23,59,59,999));
+                } else if (period === 'week') {
+                    startDateObj = new Date();
+                    startDateObj.setDate(startDateObj.getDate() - 6);
+                    startDateObj.setHours(0,0,0,0);
+                    endDateObj = new Date();
+                    endDateObj.setHours(23,59,59,999);
+                } else if (period === 'month') {
+                    startDateObj = new Date();
+                    startDateObj.setDate(startDateObj.getDate() - 29);
+                    startDateObj.setHours(0,0,0,0);
+                    endDateObj = new Date();
+                    endDateObj.setHours(23,59,59,999);
+                } else {
+                    startDateObj = new Date(start);
+                    endDateObj = new Date(end);
+                    endDateObj.setHours(23,59,59,999);
+                }
+                const startIso = startDateObj.toISOString();
+                const endIso = endDateObj.toISOString();
+
+                // 1. Doanh thu từ orders
+                const { data: orders, error: oErr } = await supabase
+                    .from('orders')
+                    .select('total_amount, created_at')
+                    .gte('created_at', startIso)
+                    .lte('created_at', endIso);
+                if (oErr) throw oErr;
+                const revenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+
+                // 2. Chi tiêu từ expenses
+                const { data: expenses, error: eErr } = await supabase
+                    .from('expenses')
+                    .select('amount, expense_date, description')
+                    .gte('expense_date', startIso.slice(0,10))
+                    .lte('expense_date', endIso.slice(0,10));
+                if (eErr) throw eErr;
+                const totalExpense = expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+
+                // 3. Doanh thu theo ngày (cho biểu đồ)
+                const revenueByDayMap = new Map();
+                const labels = [];
+                let curDate = new Date(startDateObj);
+                while (curDate <= endDateObj) {
+                    const dateStr = curDate.toISOString().slice(0,10);
+                    labels.push(dateStr.slice(5));
+                    revenueByDayMap.set(dateStr, 0);
+                    curDate.setDate(curDate.getDate() + 1);
+                }
+                if (orders) {
+                    orders.forEach(o => {
+                        const date = o.created_at.slice(0,10);
+                        if (revenueByDayMap.has(date)) {
+                            revenueByDayMap.set(date, revenueByDayMap.get(date) + (o.total_amount || 0));
+                        }
+                    });
+                }
+                const revenueByDay = Array.from(revenueByDayMap.values());
+
+                // 4. Top sản phẩm bán chạy
+                const { data: orderItems, error: oiErr } = await supabase
+                    .from('order_items')
+                    .select('product_id, quantity');
+                if (oiErr) throw oiErr;
+                const { data: products, error: pErr } = await supabase
+                    .from('products')
+                    .select('id, name');
+                if (pErr) throw pErr;
+                const productMap = new Map();
+                products.forEach(p => productMap.set(p.id, p.name));
+                const productSoldMap = new Map();
+                orderItems?.forEach(item => {
+                    const pid = item.product_id;
+                    productSoldMap.set(pid, (productSoldMap.get(pid) || 0) + (item.quantity || 0));
+                });
+                const topProducts = Array.from(productSoldMap.entries())
+                    .map(([id, sold]) => ({ id, name: productMap.get(id) || `SP${id}`, sold, revenue: 0 }))
+                    .sort((a,b) => b.sold - a.sold)
+                    .slice(0,5);
+                // Tính doanh thu ước lượng (cần giá bán từ products, nhưng tạm thời bỏ qua revenue)
+                // Ở đây chỉ hiển thị số lượng bán, có thể thêm bước tính revenue nếu có giá
+                for (let tp of topProducts) {
+                    // Tìm giá bán từ bảng products (nếu cần)
+                    const prod = products.find(p => p.id === tp.id);
+                    tp.name = prod?.name || tp.name;
+                    tp.revenue = tp.sold * (prod?.price || 0);
+                }
+
+                // 5. Phân bổ theo ngành (dựa trên category của products)
+                const categoryRevenue = new Map();
+                if (orderItems && products) {
+                    for (let item of orderItems) {
+                        const prod = products.find(p => p.id === item.product_id);
+                        if (prod) {
+                            const cat = prod.category || 'Khác';
+                            const rev = (prod.price || 0) * (item.quantity || 0);
+                            categoryRevenue.set(cat, (categoryRevenue.get(cat) || 0) + rev);
+                        }
+                    }
+                }
+                const categoryData = Array.from(categoryRevenue.entries()).map(([name, total]) => ({ name, total }));
+
+                // 6. Top khách hàng thân thiết (từ orders, join customers)
+                const { data: ordersWithCust, error: ocErr } = await supabase
+                    .from('orders')
+                    .select('customer_id, total_amount')
+                    .gte('created_at', startIso)
+                    .lte('created_at', endIso);
+                if (ocErr) throw ocErr;
+                const customerSpent = new Map();
+                ordersWithCust?.forEach(o => {
+                    if (o.customer_id) {
+                        customerSpent.set(o.customer_id, (customerSpent.get(o.customer_id) || 0) + (o.total_amount || 0));
+                    }
+                });
+                const { data: customers, error: cErr } = await supabase
+                    .from('customers')
+                    .select('id, name, phone');
+                if (cErr) throw cErr;
+                const topCustomers = Array.from(customerSpent.entries())
+                    .map(([id, spent]) => ({ id, name: customers.find(c => c.id === id)?.name || `KH${id}`, phone: customers.find(c => c.id === id)?.phone || '', spent }))
+                    .sort((a,b) => b.spent - a.spent)
+                    .slice(0,5);
+
+                // 7. Chi tiêu gần đây (5 khoản)
+                const recentExp = (expenses || []).sort((a,b) => new Date(b.expense_date) - new Date(a.expense_date)).slice(0,5);
+
+                return {
+                    revenue, expense: totalExpense, profit: revenue - totalExpense,
+                    revenueByDay, labels,
+                    categoryData,
+                    topProducts,
+                    topCustomers,
+                    recentExpenses: recentExp
+                };
+            } catch (err) {
+                console.error(err);
+                showToastMsg('Lỗi tải dữ liệu: ' + err.message, true);
+                return null;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function updateDashboard() {
+            const period = filterPeriod.value;
+            let start = null, end = null;
+            if (period === 'custom') {
+                start = startDateInput.value;
+                end = endDateInput.value;
+                if (!start || !end) {
+                    showToastMsg('Vui lòng chọn ngày bắt đầu và kết thúc', true);
+                    return;
+                }
+            }
+            const data = await fetchReportData(period, start, end);
+            if (!data) return;
+
+            // Cập nhật số liệu
+            revenueSpan.innerText = data.revenue.toLocaleString('vi-VN') + '₫';
+            expenseSpan.innerText = data.expense.toLocaleString('vi-VN') + '₫';
+            profitSpan.innerText = data.profit.toLocaleString('vi-VN') + '₫';
+
+            // Cập nhật phân tích theo ngành
+            if (data.categoryData.length) {
+                categoryBreakdownDiv.innerHTML = data.categoryData.map(cat => `
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-gray-300 text-sm">${escapeHtml(cat.name)}</span>
+                        <span class="text-cyan-400 font-mono font-bold">${cat.total.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                `).join('');
+            } else {
+                categoryBreakdownDiv.innerHTML = '<div class="text-center text-gray-500 py-4">Chưa có dữ liệu</div>';
+            }
+
+            // Top sản phẩm
+            if (data.topProducts.length) {
+                topProductsDiv.innerHTML = data.topProducts.map(p => `
+                    <div class="glass-card p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-white">${escapeHtml(p.name)}</span>
+                            <span class="text-cyan-400 font-mono">${p.revenue.toLocaleString('vi-VN')}₫</span>
+                        </div>
+                        <div class="text-xs text-gray-500">Đã bán: ${p.sold}</div>
+                    </div>
+                `).join('');
+            } else {
+                topProductsDiv.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có dữ liệu</div>';
+            }
+
+            // Top khách hàng
+            if (data.topCustomers.length) {
+                topCustomersDiv.innerHTML = data.topCustomers.map(c => `
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <div><span class="font-medium text-white">${escapeHtml(c.name)}</span><div class="text-[10px] text-gray-500">${c.phone}</div></div>
+                        <span class="text-purple-300 font-mono">${c.spent.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                `).join('');
+            } else {
+                topCustomersDiv.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có dữ liệu</div>';
+            }
+
+            // Chi tiêu gần đây
+            if (data.recentExpenses.length) {
+                recentExpensesBody.innerHTML = data.recentExpenses.map(e => `
+                    <tr class="border-b border-white/5">
+                        <td class="py-2 text-gray-300">${escapeHtml(e.description)}</td>
+                        <td class="py-2 text-rose-300 font-mono">${e.amount.toLocaleString('vi-VN')}₫</td>
+                        <td class="py-2 text-gray-500 text-xs">${new Date(e.expense_date).toLocaleDateString('vi-VN')}</td>
+                    </tr>
+                `).join('');
+            } else {
+                recentExpensesBody.innerHTML = '<tr><td colspan="3" class="text-center py-5 text-gray-500">Chưa có chi tiêu</td></tr>';
+            }
+
+            // Biểu đồ
+            if (revenueChart) revenueChart.destroy();
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Doanh thu (₫)',
+                        data: data.revenueByDay,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#a855f7',
+                        pointBorderColor: '#fff',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { labels: { color: '#ccc' } },
+                        tooltip: { callbacks: { label: (ctx) => ctx.raw.toLocaleString() + '₫' } }
+                    },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#aaa', callback: (v) => v.toLocaleString() } },
+                        x: { ticks: { color: '#aaa' } }
+                    }
+                }
+            });
+        }
+
+        // Xuất Excel
+        async function exportToExcel() {
+            const period = filterPeriod.value;
+            let start = null, end = null;
+            if (period === 'custom') {
+                start = startDateInput.value;
+                end = endDateInput.value;
+            }
+            const data = await fetchReportData(period, start, end);
+            if (!data) return;
+            const wsData = [
+                ['Báo cáo doanh thu BitPaw OS', ''],
+                ['Thời gian', period === 'today' ? 'Hôm nay' : period === 'yesterday' ? 'Hôm qua' : period === 'week' ? '7 ngày' : period === 'month' ? '30 ngày' : 'Tuỳ chỉnh'],
+                ['Tổng doanh thu', data.revenue],
+                ['Tổng chi tiêu', data.expense],
+                ['Lợi nhuận', data.profit],
+                [],
+                ['Phân tích theo ngành'],
+                ['Ngành', 'Doanh thu (₫)'],
+                ...data.categoryData.map(c => [c.name, c.total]),
+                [],
+                ['Top sản phẩm bán chạy'],
+                ['Sản phẩm', 'Số lượng bán', 'Doanh thu (₫)'],
+                ...data.topProducts.map(p => [p.name, p.sold, p.revenue]),
+                [],
+                ['Top khách hàng thân thiết'],
+                ['Tên', 'SĐT', 'Tổng chi tiêu'],
+                ...data.topCustomers.map(c => [c.name, c.phone, c.spent])
+            ];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoDoanhThu');
+            XLSX.writeFile(wb, `baocao_${new Date().toISOString().slice(0,19)}.xlsx`);
+            showToastMsg('Đã xuất file Excel thành công!');
+        }
+
+        // Xử lý bộ lọc
+        filterPeriod.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                customDateRange.classList.remove('hidden');
+                const today = new Date().toISOString().slice(0,10);
+                const lastWeek = new Date();
+                lastWeek.setDate(lastWeek.getDate() - 7);
+                startDateInput.value = lastWeek.toISOString().slice(0,10);
+                endDateInput.value = today;
+            } else {
+                customDateRange.classList.add('hidden');
+                updateDashboard();
+            }
+        });
+        applyCustomBtn.addEventListener('click', () => updateDashboard());
+        refreshBtn.addEventListener('click', () => updateDashboard());
+        exportBtn.addEventListener('click', exportToExcel);
+
+        // CSKH: track click & gửi yêu cầu
+        async function trackCSKHClick(channel) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+            } catch(e) { console.warn(e); }
+        }
+        document.querySelectorAll('[data-channel]').forEach(link => {
+            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+        });
+
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const phone = document.getElementById('supportPhone').value;
+            const message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) {
+                showToastMsg('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToastMsg('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) {
+                showToastMsg('Lỗi: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+
+        // Khởi tạo
+        updateDashboard();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length) {
+                    mouseX = (e.touches[0].clientX - halfX) * 0.001;
+                    mouseY = (e.touches[0].clientY - halfY) * 0.001;
+                }
+            }, { passive: true });
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.03) % 1;
+                material.color.setHSL(hue, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

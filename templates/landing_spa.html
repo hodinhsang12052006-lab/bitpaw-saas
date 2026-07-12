@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV</title>
+    <meta name="description" content="BitPaw Spa - Giải pháp quản trị tự động hóa chuyên sâu cho Spa, Viện thẩm mỹ, Massage & Clinic: Cổng đặt lịch trực tuyến thông minh, quản lý gói liệu trình nhiều buổi, Smart POS tính tiền, tự động chia ca trực và tính hoa hồng kỹ thuật viên rõ ràng.">
+
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    
+    <!-- CSS cho AOS hoạt ảnh mượt mà -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        html {
+            scroll-padding-top: 100px;
+        }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow-x: hidden;
+        }
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1; opacity: 0.85;
+            pointer-events: none;
+        }
+        
+        /* Neon scan line trang nhã */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #ec4899, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.15;
+            animation: scanMove 14s linear infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+
+        /* Glassmorphism System */
+        .glass {
+            background: rgba(8, 6, 26, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.02) 0%, rgba(8, 6, 26, 0.4) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.35);
+            transform: translateY(-5px);
+        }
+        
+        /* Neon accents */
+        .text-gradient-cyan {
+            background: linear-gradient(to right, #06b6d4 0%, #ec4899 50%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .btn-neon-cyan {
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            z-index: 1;
+            border: 1px solid rgba(6, 182, 212, 0.4);
+        }
+        .btn-neon-cyan::before {
+            content: '';
+            position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transition: left 0.6s ease;
+            z-index: -1;
+        }
+        .btn-neon-cyan:hover::before { left: 100%; }
+        .btn-neon-cyan:hover {
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.45);
+            transform: translateY(-2px);
+            border-color: rgba(6, 182, 212, 0.7);
+        }
+        
+        /* Inputs cho Calculator */
+        .calc-input {
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: white;
+            transition: all 0.3s;
+        }
+        .calc-input:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+            background: rgba(0, 0, 0, 0.75);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #08061a; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.5); }
+
+        /* Floating widget */
+        .contact-widget {
+            position: fixed; bottom: 30px; right: 30px;
+            z-index: 999; display: flex; flex-direction: column; gap: 12px;
+        }
+        .contact-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: white; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+        }
+        .contact-btn:hover { transform: scale(1.1) translateY(-4px); }
+        .btn-zalo { background: #0068FF; }
+        .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
+        .btn-call { background: #10b981; animation: pulseCall 2s infinite; }
+        @keyframes pulseCall {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* FAQ Accordion */
+        .faq-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; }
+        .faq-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s; opacity: 0; }
+        .faq-item.active .faq-content { max-height: 250px; opacity: 1; margin-top: 12px; }
+        .faq-item.active .faq-icon { transform: rotate(180deg); color: #06b6d4; }
+
+        /* Floating Widget & Back to Top Transition */
+        #backToTop {
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        #backToTop.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .btn-mail { background: #ea4335; }
+        
+        #cskh-static-block {
+            display: none !important;
+        }
+
+        /* 3D HOLOGRAM MASCOT EFFECTS */
+        .hologram-container {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes float-3d-cyan {
+            0% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(6, 182, 212, 0.45));
+            }
+            50% {
+                transform: translateY(-20px) rotateX(-5deg) rotateY(10deg);
+                filter: drop-shadow(0 30px 25px rgba(236, 72, 153, 0.55));
+            }
+            100% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 15px 15px rgba(6, 182, 212, 0.45));
+            }
+        }
+
+        .animated-logo-3d {
+            animation: float-3d-cyan 5s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes scan-laser-cyan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 3px;
+            background: #06b6d4;
+            box-shadow: 0 0 15px #06b6d4, 0 0 30px #06b6d4;
+            left: -10%;
+            animation: scan-laser-cyan 3s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .mascot-glow {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.45);
+            border-color: #06b6d4;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-cyan-500 selection:text-black relative">
+
+    <div class="scan-line"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                <div class="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center border border-cyan-500/50 overflow-hidden shadow-[0_0_12px_#06b6d4]">
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Spa Logo">
+                </div>
+                <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-cyan-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-cyan-500/20 rounded-md border border-cyan-500/30 text-cyan-300 font-normal">Spa</span></h1>
+            </div>
+            
+            <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300">
+                <a href="#problems" class="hover:text-cyan-400 transition-colors">Nỗi Đau</a>
+                <a href="#promise" class="hover:text-cyan-400 transition-colors">Giải Pháp</a>
+                <a href="#workflow" class="hover:text-cyan-400 transition-colors">Quy Trình Vận Hành</a>
+                <a href="#features" class="hover:text-cyan-400 transition-colors">Tính Năng Lõi</a>
+                <a href="#calculator" class="hover:text-cyan-400 transition-colors">Bảng Tính Thử</a>
+                <a href="#ai-cskh" class="hover:text-cyan-400 transition-colors">AI CSKH</a>
+                <a href="#faq" class="hover:text-cyan-400 transition-colors">Hỏi Đáp</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fas fa-arrow-left text-xs"></i> Trở về
+                </a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="overflow-x-hidden w-full relative">
+    <!-- 1. Hero Section -->
+    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+        <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-pink-500/10 rounded-full blur-[140px] pointer-events-none"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
+            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+                <div class="inline-block bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                    💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện
+                </div>
+                <h1 class="text-[38px] lg:text-[68px] font-black leading-[1.1] mb-6 tracking-tight">
+                    Quản lý Spa & Beauty <br class="hidden sm:inline">
+                    <span class="text-gradient-cyan drop-shadow-[0_4px_25px_rgba(6,182,212,0.65)]">không còn trùng lịch, sót khách.</span> <br class="hidden sm:inline">
+                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI bám đuổi liệu trình tự động.</span>
+                </h1>
+                <p class="text-[18px] lg:text-[22px] text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                    Một màn hình gom lịch hẹn từ nhiều kênh, tự động phân phòng/giường/KTV, quản lý thẻ liệu trình số chi tiết, POS tính hoa hồng thợ và AI CSKH tự nhắc tái chăm sóc.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                        <i class="fas fa-magic"></i> Dùng thử cho Spa của sếp
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
+                        <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo
+                    </a>
+                </div>
+                <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="far fa-calendar-alt text-cyan-400"></i> Booking thông minh</span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-magic text-cyan-400"></i> Quản lý liệu trình</span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-users-cog text-cyan-400"></i> Xoay ca trực KTV</span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-calculator text-cyan-400"></i> Hoa hồng tự động</span>
+                </div>
+            </div>
+            
+            <!-- Hero Right Visual -->
+            <div class="relative w-full max-w-[560px] min-h-[500px] mx-auto flex items-center justify-center" data-aos="fade-left" data-aos-duration="1000">
+                <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-pink-500/10 to-indigo-600/20 rounded-full blur-[80px] opacity-80 pointer-events-none"></div>
+                
+                <div class="relative flex justify-center items-center w-full h-[500px] lg:h-[550px] hologram-container">
+                    
+                    <!-- 3D Mascot Orb Center -->
+                    <div class="relative w-64 h-64 lg:w-72 lg:h-72 rounded-full border-4 border-cyan-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(6,182,212,0.4)] z-10 cursor-pointer"
+                        data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="false">
+                        <div class="absolute w-full h-full border-t-4 border-pink-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
+                        <div class="absolute w-[110%] h-[110%] border-b-4 border-cyan-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
+     
+                        <div class="relative animated-logo-3d w-40 h-40 lg:w-44 lg:h-44 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a] border border-cyan-500/20">
+                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Spa AI">
+                            <div class="scanner-line"></div>
+                        </div>
+                    </div>
+     
+                    <!-- Floating Mini Cards -->
+                    <!-- 1. Lịch hẹn card -->
+                    <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl hover:border-cyan-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 5s infinite ease-in-out;">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Lịch Trị Liệu Hôm Nay</h4>
+                        </div>
+                        <p class="text-sm text-white font-extrabold truncate">Chị Thảo - Chăm Sóc Da</p>
+                        <p class="text-xs text-cyan-300 font-bold mt-1">KTV Vy • 14:00 • Đang làm</p>
+                    </div>
+     
+                    <!-- 2. Thợ Rảnh card -->
+                    <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-pink-500/30 p-4 rounded-2xl shadow-2xl hover:border-pink-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 6s infinite ease-in-out reverse;">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-magic text-pink-400"></i> Liệu Trình Số</h4>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        </div>
+                        <p class="text-sm text-white font-extrabold">Trị Mụn Y Khoa 5 Buổi</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Buổi còn lại: 3 Buổi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Pain Points Section -->
+    <section id="problems" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">Thực tế vận hành</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Chủ Spa & Viện thẩm mỹ <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">đau đầu vì nỗi lo nào?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Quản lý cơ sở làm đẹp với kỹ thuật viên và gói dịch vụ dài hạn cực kỳ phức tạp. Đây là những khó khăn sếp phải đối mặt hàng ngày:
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                <!-- Pain Point 1 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="far fa-calendar-times"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lệch lịch</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Lịch hẹn chồng chéo, bỏ sót đặt lịch</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Lịch hẹn đặt rải rác từ Facebook, Zalo, gọi điện. Ghi chép sổ tay dễ bị quên hoặc trùng ca của Kỹ thuật viên làm khách đến phải chờ đợi lâu rồi bỏ về.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 2 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Thất lạc</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Gói liệu trình nhiều buổi khó kiểm soát</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách mua liệu trình 5-10 buổi nhưng quản lý thẻ giấy dễ bị rách, mất hoặc nhầm lẫn số buổi đã làm, dễ gây ra tranh cãi lúc đối soát.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 3 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="300">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-users-cog"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Tị nạnh</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Kỹ thuật viên tị nạnh vì chia ca trực không đều</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Quy trình xếp tua thợ làm mặt, làm body thiếu công bằng dẫn đến Kỹ thuật viên nghi ngờ chủ thiên vị, gây mất đoàn kết nội bộ và dễ xin nghỉ việc.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 4 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="400">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-bell-slash"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Quên nhắc lịch</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Khách dùng xong liệu trình không được nhắc lịch</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách làm đẹp xong ra về là Spa quên mất. Không ai nhớ chu kỳ 7-14 ngày để chủ động nhắc nhở làm giảm hiệu quả phục hồi của da.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 5 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="500">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Sai hoa hồng</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Tính hoa hồng thợ & KTV thủ công mệt mỏi</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Mỗi dịch vụ chăm sóc da, massage có mức hoa hồng khác nhau cho kỹ thuật viên. Cuối ngày sếp mò mẫm tính hoa hồng thủ công rất dễ xảy ra sai số.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pain Point 6 -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl p-7 lg:p-8 min-h-[260px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-red-500/40 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]" data-aos="fade-up" data-aos-delay="600">
+                    <div class="absolute bottom-0 left-0 h-[3px] bg-red-500/40 w-0 group-hover:w-full transition-all duration-300"></div>
+                    <div class="flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
+                                    <i class="fas fa-bed"></i>
+                                </div>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lãng phí giường</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Lãng phí công suất phòng & giường dịch vụ</h3>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Chủ Spa khó biết phòng nào đang bận, giường nào trống realtime để linh hoạt điều phối khách, gây lãng phí tài nguyên vận hành của Spa.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Big Promise Section -->
+    <section id="promise" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div data-aos="zoom-in">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 leading-tight tracking-tight">
+                    Biến Spa & Thẩm mỹ viện thành cỗ máy <br>
+                    <span class="text-gradient-cyan">giữ khách trung thành và kiểm soát doanh thu ròng.</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium">
+                    BitPaw số hóa và khép kín quy trình vận hành Spa: tự động gom lịch đặt hẹn từ xa, phân chia Kỹ thuật viên công bằng, chốt buổi liệu trình số và nhắc nhở khách tự động.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
+                    <div class="text-cyan-500 text-5xl mb-5"><i class="far fa-calendar-check"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Booking online tự động</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
+                    <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-magic"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Thẻ liệu trình số</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
+                    <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-user-check"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Xoay ca KTV minh bạch</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
+                    <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-calculator"></i></div>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Hoa hồng tự động</h4>
+                    <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Workflow Section -->
+    <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Hành trình trải nghiệm dịch vụ Spa <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">số hóa khép kín 4.0</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Bản đồ quy trình số hóa toàn diện tối ưu hóa công suất kỹ thuật viên và chăm sóc khách hàng tự động:
+                </p>
+            </div>
+            
+            <!-- Row 1: Steps 1-4 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch mb-6 lg:mb-8">
+                <!-- Step 1 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="100">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">01</div>
+                                <div class="text-cyan-400 text-2xl"><i class="far fa-calendar-alt"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khách đặt lịch online</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách tự chọn gói dịch vụ, kỹ thuật viên yêu thích và giờ trống từ xa.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 2 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="200">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">02</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-robot"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI xác nhận lịch hẹn</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống chốt lịch và tự động gửi tin nhắn xác nhận lịch hẹn tức thời qua Zalo.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 3 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="300">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">03</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-bed"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Điều phối phòng KTV</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Lễ tân điều phối phòng dịch vụ trống và Kỹ thuật viên thực hiện ca làm.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 4 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="400">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">04</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-magic"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">KTV thực hiện liệu trình</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Nhân viên tiến hành liệu trình chăm sóc sắc đẹp, massage chuyên nghiệp cho khách.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+            </div>
+ 
+            <!-- Row 2: Steps 5-8 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch">
+                <!-- Step 5 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="500">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">05</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-calculator"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">POS chốt hóa đơn</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                POS tính bill nhanh gọn, tự động khấu trừ số buổi liệu trình hoặc chia hoa hồng KTV.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 6 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="600">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">06</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-qrcode"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">QR Code thanh toán động</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 7 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="700">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">07</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-user-tag"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">CRM lưu hồ sơ da</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 items-center justify-center text-cyan-400 text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="lg:hidden flex justify-center py-2 text-cyan-500/40 text-sm pointer-events-none mt-2"><i class="fas fa-arrow-down animate-bounce"></i></div>
+                </div>
+ 
+                <!-- Step 8 -->
+                <div class="relative flex flex-col justify-between" data-aos="fade-up" data-aos-delay="800">
+                    <div class="bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-cyan-500/30 rounded-3xl p-6 lg:p-7 transition-all duration-300 relative shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col justify-between h-full relative z-10">
+                        <div>
+                            <div class="flex justify-between items-center mb-5">
+                                <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">08</div>
+                                <div class="text-cyan-400 text-2xl"><i class="fas fa-magic"></i></div>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI nhắc lịch tái liệu trình</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                AI tự động nhắc nhở khách đến buổi hẹn tiếp theo theo chu kỳ liệu trình da.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Feature Grid Section -->
+    <section id="features" class="py-24 relative z-10 bg-transparent scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Các tính năng lõi <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">chuyên sâu Spa & Thẩm mỹ viện</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp vận hành Spa trơn tru:
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                <!-- Feature 1: Booking -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="far fa-calendar-alt"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Booking</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Booking Online Tự Động</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Khách tự đặt lịch trực tuyến, tự chọn Kỹ thuật viên qua <a href="{{ url_for('public_booking') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>. Tự động kiểm tra khóa ca thông minh.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng trong vận hành Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 2: Xoay tua KTV -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-users-cog"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Xoay ca trực</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">Xoay Ca Trực KTV</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Theo dõi trạng thái rảnh/bận để phân chia tua trực, ca phục vụ cho kỹ thuật viên công bằng ngay tại <a href="{{ url_for('chamcong_spa') }}" class="text-cyan-400 hover:underline font-bold">Bảng xoay tua & tính lương thợ</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng quản lý nhân viên</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 3: Quản lý phòng/giường -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="300">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-bed"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Giường dịch vụ</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Quản Lý Phòng & Giường</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Theo dõi sơ đồ phòng, giường dịch vụ trống/dơ/sạch theo thời gian thực để phân bổ khách hàng hiệu quả cao ở màn hình <a href="{{ url_for('quanly_dichvu') }}" class="text-cyan-400 hover:underline font-bold">QR Menu dịch vụ</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng điều phối tài nguyên</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 4: CRM Liệu trình -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="400">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-magic"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">CRM Liệu trình</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">Thẻ Liệu Trình Số</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Hệ thống hóa lịch sử làm đẹp, số buổi liệu trình còn lại của từng khách hàng, AI tự động nhắc tái chăm sóc thông minh trên <a href="{{ url_for('crm_automation') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng quản lý khách hàng</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 5: Smart POS -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="500">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-cash-register"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Thu ngân POS</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Smart POS Thu Ngân</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                In bill nhiệt siêu tốc, bóc tách hoa hồng KTV theo %, quản lý tiền tip thẻ, tip mặt, CC fee cà thẻ rõ ràng, minh bạch 100% tại <a href="{{ url_for('pos') }}" class="text-cyan-400 hover:underline font-bold">POS tính tiền</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng tại quầy thu ngân</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 6: Tạo dịch vụ mới -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="600">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-plus-circle"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Tạo dịch vụ</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">Thêm Mới Liệu Trình</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Thêm mới menu dịch vụ Spa, thiết lập đơn giá, tải ảnh liệu trình làm đẹp trực quan và nhanh chóng tại <a href="{{ url_for('add_spa') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng cập nhật menu</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 7: Báo Cáo Doanh Thu -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="700">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-cyan-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Báo cáo</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight">Báo Cáo Doanh Thu Realtime</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Biểu đồ thống kê doanh số, theo dõi hiệu suất phòng ban, hoa hồng kỹ thuật viên chi tiết phục vụ sếp quản trị từ xa tại <a href="{{ url_for('baocao_loinhuan') }}" class="text-cyan-400 hover:underline font-bold">Báo cáo doanh thu realtime</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng cho sếp quản lý</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feature 8: AI Marketing -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-pink-500/40" data-aos="fade-up" data-aos-delay="800">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-pink-500/20 transition-all duration-300"></div>
+                    
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500/10 text-pink-400 text-2xl border border-pink-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.15)] group-hover:scale-110 group-hover:text-pink-300 transition-all duration-300">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">AI Marketing</span>
+                            </div>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight">AI Content Assistant</h4>
+                            <p class="text-[16px] lg:text-[18px] text-slate-300 leading-relaxed font-medium">
+                                Trợ lý AI đắc lực hỗ trợ lên ý tưởng bài viết quảng cáo dịch vụ làm đẹp, đề xuất kịch bản video ngắn Reels/TikTok cực hút khách quen ở <a href="{{ url_for('campaign_builder') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span>Dùng làm marketing Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. Section Interactive Calculator -->
+    <section id="calculator" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">Interactive Demo</span>
+                <h2 class="text-[32px] lg:text-[48px] font-black mt-2 mb-4 tracking-tight leading-tight">
+                    Tính hoa hồng & tiền thợ <span class="text-gradient-cyan">minh bạch trong 3 giây</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium">
+                    Cuối ngày không lo đối soát thủ công bằng sổ sách. Tránh các tranh cãi không đáng có với nhân viên, kỹ thuật viên:
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                <!-- Calculator Inputs -->
+                <div class="lg:col-span-7 glass border border-white/10 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-xl" data-aos="fade-right">
+                    <div>
+                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-cyan-500"></i> Nhập giá trị liệu trình mẫu</h3>
+                        
+                        <div class="space-y-5">
+                            <!-- Chọn dịch vụ mẫu -->
+                            <div>
+                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">Chọn Liệu Trình Mẫu</label>
+                                <select id="quick_service" class="calc-input w-full p-4 font-semibold text-base bg-[#08061a] border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
+                                    <option value="skin_treatment">Liệu Trình Mụn Y Khoa (Thu khách 500.000 ₫ - Tua KTV 15% - Phụ thu 20.000 ₫)</option>
+                                    <option value="body_massage">Massage Body Đá Nóng (Thu khách 400.000 ₫ - Tua KTV 20% - Phụ thu 30.000 ₫)</option>
+                                    <option value="whitening">Cấy Collagen Dưỡng Trắng (Thu khách 800.000 ₫ - Tua KTV 12% - Phụ thu 50.000 ₫)</option>
+                                    <option value="custom">Tự nhập thông số thủ công bên dưới...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">1. Đơn Giá Dịch Vụ (₫)</label>
+                                    <input type="number" id="calc_total" value="500000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">2. Hoa Hồng KTV (%)</label>
+                                    <input type="number" id="calc_split" value="15" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">3. Phụ Thu Giường / Mỹ Phẩm (₫)</label>
+                                    <input type="number" id="calc_supply" value="20000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">4. Phí Cà Thẻ / Cổng CC (%)</label>
+                                    <input type="number" id="calc_cc_fee" value="2" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">5. Tiền Tip Khách Cho KTV (₫)</label>
+                                    <input type="number" id="calc_tip" value="50000" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">6. Số Buổi Đã Thanh Toán Trước</label>
+                                    <input type="number" id="calc_prepaid_sessions" value="1" class="calc-input w-full p-4 font-mono text-base font-bold text-yellow-400 bg-black/40 border border-white/10 rounded-xl focus:border-cyan-500 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 pt-4 border-t border-white/5 flex gap-2">
+                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-cyan-500 text-base animate-pulse"></i> In phiếu tính lương hoa hồng tức thời giúp tăng tính minh bạch, kỹ thuật viên tin tưởng đồng hành cùng Spa.</span>
+                    </div>
+                </div>
+                
+                <!-- Calculator Outputs (Receipt Style) -->
+                <div class="lg:col-span-5 flex flex-col justify-between" data-aos="fade-left">
+                    <div class="bg-[#120c15]/90 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-between">
+                        <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-cyan-500 to-pink-500"></div>
+                        
+                        <div>
+                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-cyan-500"></i> Phiếu chốt hoa hồng ca làm</h3>
+                            
+                            <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base border-b border-dashed border-white/10 pb-6">
+                                <div class="flex justify-between"><span>Đơn Giá Dịch Vụ:</span> <span class="text-white font-bold" id="rc_subtotal">500,000 ₫</span></div>
+                                <div class="flex justify-between text-rose-400"><span>- Phụ Thu Giường/Mỹ phẩm:</span> <span id="rc_supply_val">-20,000 ₫</span></div>
+                                <div class="flex justify-between pt-2 border-t border-white/5"><span>Doanh thu tính hoa hồng:</span> <span class="text-cyan-400 font-bold" id="rc_net_commission">480,000 ₫</span></div>
+                            </div>
+                            
+                            <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base">
+                                <div class="flex justify-between"><span>Hoa Hồng KTV Nhận (<span id="rc_split_rate" class="text-pink-400">15</span>%):</span> <span class="text-white font-bold" id="rc_worker_commission">72,000 ₫</span></div>
+                                <div class="flex justify-between text-emerald-400"><span>+ Tiền Tip Khách Cho:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
+                                <div class="flex justify-between text-rose-400"><span>- Phí Cà Thẻ (Nợ thẻ <span id="rc_cc_fee_rate">2</span>%):</span> <span id="rc_cc_fee_val">-1,000 ₫</span></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="mt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
+                                <div class="flex justify-between items-center mb-3">
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">KTV Thực Nhận</span>
+                                    <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_final_worker">121,000 ₫</span>
+                                </div>
+                                <div class="flex justify-between items-center border-t border-white/5 pt-3">
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Spa Giữ Lại</span>
+                                    <span class="text-lg lg:text-xl font-black text-rose-400 font-mono" id="rc_final_salon">428,000 ₫</span>
+                                </div>
+                            </div>
+                            
+                            <a href="{{ url_for('register') }}" class="w-full mt-6 bg-gradient-to-r from-cyan-500 to-pink-500 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(6,182,212,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white animate-pulse">
+                                <i class="fas fa-check-double text-xs"></i> Đăng ký dùng ngay Spa OS
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. Section AI giữ khách cũ (AI CSKH Message Previews) -->
+    <section id="ai-cskh" class="py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">
+                    Khách làm đẹp luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-cyan">tiệm có nhớ để nhắc hay không?</span>
+                </h2>
+                <p class="text-[16px] lg:text-[20px] text-slate-300 max-w-3xl mx-auto leading-relaxed font-medium">
+                    AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo chu kỳ liệu trình da mặt hay massage cơ thể của Spa, nâng cao cơ hội giữ chân khách hàng cũ:
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Message 1 -->
+                <div class="glass border border-cyan-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="100">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 1 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                        </div>
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-cyan-500"></i> Hỏi thăm chất lượng da</h4>
+                        
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
+                            "Chào chị Vy! 🐾 Cảm ơn chị đã trải nghiệm liệu trình chăm sóc da mặt mụn y khoa tại BitPaw Spa hôm qua. Da chị hôm nay có bị đỏ hay kích ứng gì không ạ? Nhớ bôi kem dưỡng ẩm đầy đủ nha chị yêu! 🌸"
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-cyan-400"></i> Mục tiêu: Khảo sát mức độ hài lòng về kỹ thuật viên
+                    </div>
+                </div>
+                
+                <!-- Message 2 -->
+                <div class="glass border border-pink-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="200">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-pink-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 7 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                        </div>
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-bell text-pink-500"></i> Nhắc lịch buổi tiếp theo</h4>
+                        
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
+                            "Kính chào chị Linh! 🍲 Đã đến chu kỳ 7 ngày cho buổi thứ 3 trong liệu trình hút chì thải độc da mặt của chị. AI BitPaw Spa đã tự động giữ chỗ cho chị vào 15:30 chiều mai với KTV Vy. Chị nhớ ghé đúng giờ nha! 🌸"
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-pink-400"></i> Mục tiêu: Kéo khách đi đúng liệu trình để đạt kết quả tốt nhất
+                    </div>
+                </div>
+                
+                <!-- Message 3 -->
+                <div class="glass border border-cyan-500/10 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between shadow-lg" data-aos="fade-up" data-aos-delay="300">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div>
+                        <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 30 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                        </div>
+                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-cyan-500"></i> Ưu đãi kéo khách sắp rời bỏ</h4>
+                        
+                        <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
+                            <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
+                            "Chào chị Mai thân yêu! 🐾 Đã 30 ngày kể từ lần cuối chị thư giãn chăm sóc sắc đẹp tại BitPaw. AI gửi tặng riêng chị voucher giảm 20% gói massage đá nóng xông hơi thảo dược hồi phục năng lượng tuần này. Đặt chỗ ngay nha chị! 🌸"
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <i class="fas fa-bullseye text-cyan-400"></i> Mục tiêu: Kích hoạt lại tệp khách hàng quen sắp mất kết nối
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 8. Section AI Marketing Assistant Logs -->
+    <section id="ai-marketing" class="py-24 relative overflow-hidden z-10 bg-[#08061a]/60 border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <!-- Left Content -->
+                <div class="lg:col-span-6" data-aos="fade-right">
+                    <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">AI Marketing Assistant</span>
+                    <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-6 leading-tight tracking-tight">
+                        Trợ lý AI tự lập chiến dịch, <br>
+                        <span class="text-gradient-cyan">viết kịch bản Reels & TikTok Spa.</span>
+                    </h2>
+                    <p class="text-[16px] lg:text-[20px] text-gray-300 mb-6 leading-relaxed font-medium">
+                        Không còn vắt óc nghĩ tiêu đề hay tìm kịch bản giới thiệu công nghệ làm đẹp của Spa lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất bài đăng hấp dẫn phù hợp xu hướng:
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+                            <i class="fas fa-magic text-cyan-400 text-xl mt-1 shrink-0"></i>
+                            <div>
+                                <h5 class="text-white font-extrabold text-[17px] mb-1">Tự tạo kịch bản video làm đẹp</h5>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium">AI đề xuất kịch bản quay cận cảnh quy trình chăm sóc da mịn màng, góc quay cận cảnh chuyên nghiệp tạo lòng tin tuyệt đối.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+                            <i class="fas fa-bullhorn text-pink-400 text-xl mt-1 shrink-0"></i>
+                            <div>
+                                <h5 class="text-white font-extrabold text-[17px] mb-1">Tư vấn ngân sách chạy quảng cáo</h5>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium">AI định vị tệp khách hàng quanh khu vực Spa, độ tuổi quan tâm sâu tới sắc đẹp và mức ngân sách tối ưu nhất.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Live AI System Terminal Mockup -->
+                <div class="lg:col-span-6" data-aos="fade-left">
+                    <div class="bg-black/90 border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative">
+                        <div class="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center text-xs text-gray-400">
+                            <span class="font-mono flex items-center gap-1.5"><i class="fas fa-robot text-cyan-400 animate-pulse"></i> bitpaw-ai-marketing-terminal v2.5.0</span>
+                            <div class="flex gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 font-mono text-xs sm:text-sm text-slate-300 space-y-4 max-h-[380px] overflow-y-auto">
+                            <p class="text-gray-500">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Spa...</p>
+                            <p class="text-gray-500">[DATA] Phát hiện liệu trình được quan tâm nhiều nhất: "Trị Mụn Y Khoa Sinh Học"</p>
+                            <p class="text-cyan-400 font-bold">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu quy trình Trị Mụn</p>
+                            
+                            <div class="bg-white/5 border border-white/10 p-4 rounded-xl text-slate-200 space-y-2">
+                                <p class="text-pink-400 font-bold">🎬 PHÁT THẢO KỊCH BẢN VIDEO:</p>
+                                <p><strong>- Góc quay 1:</strong> Phân tích cấu trúc da mặt soi chi tiết mụn bằng máy soi da công nghệ cao (3 giây).</p>
+                                <p><strong>- Góc quay 2:</strong> Kỹ thuật viên đeo găng tay tiến hành lấy nhân mụn chuẩn y khoa nhẹ nhàng (4 giây).</p>
+                                <p><strong>- Âm thanh đề xuất:</strong> Nhạc nền nhẹ nhàng, thư giãn sảng khoái.</p>
+                                <p class="text-cyan-400 font-bold mt-2">📝 CAPTION ĐỀ XUẤT:</p>
+                                <p class="italic">"Sạch mụn, mờ thâm, tự tin rạng rỡ đón nắng hè! ☀️ Quy trình Trị Mụn Y Khoa Sinh Học độc quyền tại BitPaw Spa nhẹ nhàng lấy sạch nhân mụn, sát khuẩn cao tần phòng tránh tái phát. Nhắn tin đặt chỗ hôm nay nhận ngay ưu đãi 20% nhé các chị yêu! 💆‍♀️✨ #SpaBeauty #TriMunYKhoa #ChamSocDa #BitPawSpa"</p>
+                            </div>
+                            
+                            <p class="text-emerald-400 font-bold">[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: Nữ giới, 18-35 tuổi, quan tâm chăm sóc sắc đẹp, bán kính 4km.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. Trust & Report Section -->
+    <section class="py-24 bg-transparent border-t border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-5xl mx-auto px-6 text-center">
+            <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-aos="fade-up">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
+            <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-16 leading-tight" data-aos="fade-up">Giải pháp chốt bill nhanh, <br>tăng tối đa tỷ lệ giữ chân khách cũ</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
+                <div class="p-6" data-aos="zoom-in" data-aos-delay="100">
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-3 font-mono drop-shadow-md">&gt; 95%</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Không còn trễ hay trùng lịch hẹn</p>
+                </div>
+                <div class="p-6" data-aos="zoom-in" data-aos-delay="200">
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3 font-mono drop-shadow-md">35%</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Tăng trưởng khách cũ quay lại</p>
+                </div>
+                <div class="p-6" data-aos="zoom-in" data-aos-delay="300">
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-3 font-mono drop-shadow-md">0 Giấy</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Số hóa 100% thẻ liệu trình</p>
+                </div>
+            </div>
+            
+            <div class="mt-20 glass p-8 rounded-3xl border border-cyan-500/20 max-w-3xl mx-auto" data-aos="fade-up">
+                <p class="text-base text-gray-300 mb-4 font-bold">Cần chuyên viên hỗ trợ cài đặt menu Spa và thiết lập sơ đồ giường phòng?</p>
+                <div class="flex justify-center">
+                    <a href="https://zalo.me/0794678904" target="_blank" class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md">
+                        <i class="fas fa-comment-medical text-base"></i> Chat Zalo Chuyên Viên BitPaw
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 10. FAQ Accordion Section -->
+    <section id="faq" class="py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-[32px] lg:text-[52px] font-black mt-3 mb-4 tracking-tight leading-tight">Hỏi đáp về <span class="text-gradient-cyan">BitPaw Spa OS</span></h2>
+            </div>
+ 
+            <div class="space-y-4">
+                <!-- FAQ 1 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">1. Tiệm nhỏ hay thẩm mỹ viện lớn nhiều chi nhánh có dùng được không?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Cực kỳ thích hợp. BitPaw Spa OS hỗ trợ phân tách quản lý đa chi nhánh chuyên nghiệp cho chuỗi thẩm mỹ lớn, đồng thời giao diện cực kỳ tối giản dễ dùng phù hợp cho cả các tiệm Spa/Massage nhỏ của gia đình.
+                    </div>
+                </div>
+ 
+                <!-- FAQ 2 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">2. Thẻ liệu trình số hoạt động như thế nào?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Khi khách mua gói liệu trình, hệ thống sinh ra một thẻ liệu trình số được mã hóa gắn chặt trên hồ sơ khách hàng. Mỗi lần khách đến làm dịch vụ, POS sẽ tự động khấu trừ một buổi và cập nhật số buổi còn lại, tránh thất lạc hay nhầm lẫn của thẻ giấy.
+                    </div>
+                </div>
+ 
+                <!-- FAQ 3 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">3. Hệ thống có tự động nhắc lịch hẹn cho khách không?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Có. Đây là tính năng tự động hóa tối ưu cho Spa. AI sẽ tự động lập lịch và gửi tin nhắn nhắc nhở cho khách qua SMS/Zalo trước ca trực để khách nhớ lịch ghé tiệm, giảm thiểu tỷ lệ rớt ca của kỹ thuật viên.
+                    </div>
+                </div>
+ 
+                <!-- FAQ 4 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">4. Có phân chia hoa hồng tự động theo từng Kỹ thuật viên được không?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Hoàn toàn được. Hệ thống cho phép sếp thiết lập tỷ lệ chia hoa hồng riêng biệt (%) cho từng gói liệu trình, từng kỹ thuật viên. Khi thanh toán bill, POS tự động ghi nhận và cộng dồn hoa hồng chi tiết cho nhân viên chuẩn xác tức thì.
+                    </div>
+                </div>
+ 
+                <!-- FAQ 5 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">5. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ Spa không?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của chủ Spa tức thời, an toàn tuyệt đối.
+                    </div>
+                </div>
+ 
+                <!-- FAQ 6 -->
+                <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
+                    <div class="faq-header">
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">6. Khi cần hướng dẫn hay cài đặt ban đầu tôi có được hỗ trợ miễn phí không?</h4>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
+                    </div>
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                        Đội ngũ kỹ thuật hỗ trợ sếp 24/7. Kỹ thuật viên của BitPaw hỗ trợ thiết lập danh sách dịch vụ Spa, cấu hình phòng giường và danh sách KTV hoàn toàn miễn phí trọn gói ban đầu cho sếp yên tâm vận hành.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+ 
+    <!-- 11. CTA Section -->
+    <section class="py-24 relative z-10 bg-transparent border-t border-white/5 text-center scroll-mt-28">
+        <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
+            <h2 class="text-[30px] sm:text-[36px] lg:text-[52px] font-black mb-6 leading-tight">Đừng để Spa của sếp tiếp tục mất thời gian vì ghi chép liệu trình giấy và trùng ca trực KTV!</h2>
+            <p class="text-[16px] lg:text-[18px] text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-medium">
+                Hãy để BitPaw Spa OS quản lý toàn diện: lập lịch booking online tự động, xoay ca trực KTV minh bạch, chốt liệu trình số chính xác và AI kéo khách quen quay lại.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                    <i class="fas fa-rocket"></i> Dùng thử hệ thống Spa ngay
+                </a>
+                <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
+                    <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo 24/7
+                </a>
+            </div>
+            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6">
+                Phù hợp cho Clinic thẩm mỹ, Spa chăm sóc da mặt, tiệm massage body thảo dược, tiệm phun xăm thẩm mỹ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.
+            </p>
+        </div>
+    </section>
+    </main>
+ 
+    <!-- Footer -->
+    <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-20 pb-8">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-10 border-b border-white/10 pb-12">
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Logo">
+                    </div>
+                    <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-cyan-400">Paw</span></h2>
+                </div>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+ 
+                <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-cyan-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
+                    <p class="flex items-center gap-3"><i class="fas fa-id-card text-cyan-500 w-4"></i> <span>MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM</span></p>
+                    <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-cyan-500 w-4"></i> <span>Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM</span></p>
+                </div>
+            </div>
+ 
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Sản Phẩm</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
+                    <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-cyan-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-cyan-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-cyan-400 transition flex items-center gap-2">E-Com Omni</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-cyan-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                </ul>
+            </div>
+ 
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                </ul>
+
+                <div class="flex flex-col gap-3">
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-cyan-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(6,182,212,0.15)] group hover:border-cyan-400 transition">
+                        <i class="fas fa-shield-check text-green-400 text-2xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">SSL Secured</strong><span class="text-[10px] block text-gray-500">256-bit Encryption</span></div>
+                    </div>
+                    <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-cyan-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(6,182,212,0.15)] group hover:border-cyan-400 transition">
+                        <i class="fab fa-aws text-orange-400 text-3xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">AWS Cloud</strong><span class="text-[10px] block text-gray-500">99.99% Uptime SLA</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <ul class="space-y-4 text-sm text-gray-300 mb-6">
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-cyan-500/10 flex justify-center items-center shrink-0 border border-cyan-500/30 group-hover:bg-cyan-500/30 transition">
+                            <i class="fas fa-phone-alt text-cyan-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Hotline 24/7</p>
+                            <a href="tel:0794678904" class="hover:text-cyan-400 transition font-black text-base lg:text-[17px] text-white">0794.678.904</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/10 flex justify-center items-center shrink-0 border border-rose-500/30 group-hover:bg-rose-500/30 transition">
+                            <i class="fas fa-envelope text-rose-400 text-lg"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/10 flex justify-center items-center shrink-0 border border-blue-500/30 group-hover:bg-blue-500/30 transition">
+                            <i class="fas fa-comment-dots text-blue-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Zalo Support</p>
+                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white">Zalo Kỹ Thuật (Sếp Sang)</a>
+                        </div>
+                    </li>
+                    <li class="flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-600/10 flex justify-center items-center shrink-0 border border-blue-600/30 group-hover:bg-blue-600/30 transition">
+                            <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
+                        </div>
+                    </li>
+                </ul>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-cyan-900 hover:to-pink-900 text-white border border-gray-700 hover:border-cyan-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
+            <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
+            <div class="flex items-center gap-2 mt-4 md:mt-0">
+                <span>Thiết kế & Lập trình bởi:</span>
+                <span class="bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded border border-cyan-500/30 font-bold">Hồ Đình Sang</span>
+                <span>&</span>
+                <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating contact widget -->
+    <div class="contact-widget z-[100]">
+        <div class="relative group cursor-pointer mb-2" onclick="toggleChat()">
+            <div class="absolute right-14 top-2 bg-[#08061a]/95 border border-cyan-500/40 text-cyan-400 text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
+                Sếp cần hỗ trợ?<br>Gọi em ngay!
+            </div>
+            <div class="w-14 h-14 bg-[#08061a] border-2 border-cyan-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow animate-pulse">
+                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Mascot">
+            </div>
+        </div>
+
+        <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 mb-2 text-sm" title="Lên đầu trang">
+            <i class="fas fa-chevron-up"></i>
+        </button>
+        <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" title="Gửi Email">
+            <i class="fas fa-envelope text-[20px]"></i>
+        </a>
+        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo">
+            <h1 class="font-black text-[12px] tracking-tighter">Zalo</h1>
+        </a>
+        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Chat Messenger">
+            <i class="fab fa-facebook-messenger"></i>
+        </a>
+        <a href="tel:0794678904" class="contact-btn btn-call" title="Gọi Hotline">
+            <i class="fas fa-phone-alt"></i>
+        </a>
+    </div>
+
+    <!-- Policy Modal -->
+    <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-[#0a0f25] border border-cyan-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(6,182,212,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
+            <div class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-[#06b6d4]/40 to-transparent rounded-t-2xl">
+                <h3 id="modalTitle" class="text-xl font-black text-cyan-400 tracking-wider uppercase">Tiêu đề</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent" class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
+            <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
+                <button onclick="closeModal()" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+            </div>
+        </div>
+    </div>
+ 
+    <!-- Reusable Premium CSKH Global Component -->
+    {% include 'components/cskh_global.html' %}
+
+    <!-- Script imports -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+
+    <!-- Background Animation & Interactive JS -->
+    <script>
+        // ========================================================
+        // 3D THREE.JS PARTICLE BACKGROUND (CYAN ACCENTS)
+        // ========================================================
+        (function initThreeJS() {
+            if (typeof THREE === 'undefined') return;
+            
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const particlesGeometry = new THREE.BufferGeometry();
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 350 : 1200;
+            const posArray = new Float32Array(particlesCount * 3);
+
+            for (let i = 0; i < particlesCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 110;
+            }
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: isMobile ? 0.18 : 0.16,
+                color: 0x06b6d4, // Cyan Accent
+                transparent: true,
+                opacity: 0.75,
+                blending: THREE.AdditiveBlending
+            });
+            const particlesMesh = new THREE.Points(particlesGeometry, material);
+            scene.add(particlesMesh);
+
+            let mouseX = 0, mouseY = 0;
+            if (!isMobile) {
+                document.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX - window.innerWidth/2) * 0.0005;
+                    mouseY = (e.clientY - window.innerHeight/2) * 0.0005;
+                });
+            }
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const elapsed = clock.getElapsedTime();
+                particlesMesh.rotation.y = elapsed * 0.04;
+                particlesMesh.rotation.x = elapsed * 0.015;
+                
+                if (!isMobile) {
+                    particlesMesh.rotation.y += 0.5 * (mouseX * 0.5 - particlesMesh.rotation.y);
+                    particlesMesh.rotation.x += 0.5 * (mouseY * 0.5 - particlesMesh.rotation.x);
+                }
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // Khởi tạo AOS & Vanilla Tilt
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof AOS !== 'undefined') {
+                AOS.init({ once: true, offset: 50, duration: 800 });
+            }
+
+            // FAQ Accordion
+            const faqItems = document.querySelectorAll('.faq-item');
+            faqItems.forEach(item => {
+                const header = item.querySelector('.faq-header');
+                if (header) {
+                    header.addEventListener('click', () => {
+                        const isActive = item.classList.contains('active');
+                        faqItems.forEach(el => el.classList.remove('active'));
+                        if (!isActive) {
+                            item.classList.add('active');
+                        }
+                    });
+                }
+            });
+
+            // Interactive POS Calculator
+            const selectService = document.getElementById('quick_service');
+            const inputTotal = document.getElementById('calc_total');
+            const inputSplit = document.getElementById('calc_split');
+            const inputSupply = document.getElementById('calc_supply');
+            const inputCcFee = document.getElementById('calc_cc_fee');
+            const inputTip = document.getElementById('calc_tip');
+            const inputSessions = document.getElementById('calc_prepaid_sessions');
+            
+            const rSubtotal = document.getElementById('rc_subtotal');
+            const rSupplyVal = document.getElementById('rc_supply_val');
+            const rNetCommission = document.getElementById('rc_net_commission');
+            const rSplitRate = document.getElementById('rc_split_rate');
+            const rWorkerCommission = document.getElementById('rc_worker_commission');
+            const rCcFeeRate = document.getElementById('rc_cc_fee_rate');
+            const rCcFeeVal = document.getElementById('rc_cc_fee_val');
+            const rTipVal = document.getElementById('rc_tip_val');
+            const rFinalWorker = document.getElementById('rc_final_worker');
+            const rFinalSalon = document.getElementById('rc_final_salon');
+
+            const servicesConfig = {
+                skin_treatment: { total: 500000, split: 15, supply: 20000 },
+                body_massage: { total: 400000, split: 20, supply: 30000 },
+                whitening: { total: 800000, split: 12, supply: 50000 }
+            };
+
+            function calculateRealtime() {
+                if (!inputTotal || !inputSplit || !inputSupply || !inputCcFee || !inputTip || !inputSessions) return;
+                
+                const total = Math.max(0, parseFloat(inputTotal.value) || 0);
+                const split = Math.max(0, parseFloat(inputSplit.value) || 0);
+                const supply = Math.max(0, parseFloat(inputSupply.value) || 0);
+                const ccFeePercent = Math.max(0, parseFloat(inputCcFee.value) || 0);
+                const tip = Math.max(0, parseFloat(inputTip.value) || 0);
+                const sessions = Math.max(1, parseInt(inputSessions.value) || 1);
+
+                // Doanh thu tính hoa hồng = Tổng tiền dịch vụ - Phí giường/mỹ phẩm
+                const netCommission = Math.max(0, total - supply);
+
+                // Tiền hoa hồng KTV nhận được = Doanh thu tính hoa hồng * (tỉ lệ chia / 100)
+                const workerCommission = netCommission * (split / 100);
+
+                // Khấu trừ phí cà thẻ của phần tip (nếu có thanh toán qua thẻ)
+                const ccFeeVal = tip * (ccFeePercent / 100);
+
+                // Tổng KTV thực nhận = Hoa hồng + Tip - Phí cà thẻ
+                const takeHomeWorker = workerCommission + tip - ccFeeVal;
+
+                // Doanh thu thực tế Spa giữ lại
+                const profitSalon = total - workerCommission;
+
+                // Cập nhật DOM
+                if (rSubtotal) rSubtotal.innerText = `${total.toLocaleString()} ₫`;
+                if (rSupplyVal) rSupplyVal.innerText = `-${supply.toLocaleString()} ₫`;
+                if (rNetCommission) rNetCommission.innerText = `${netCommission.toLocaleString()} ₫`;
+                if (rSplitRate) rSplitRate.innerText = split;
+                if (rWorkerCommission) rWorkerCommission.innerText = `${workerCommission.toLocaleString()} ₫`;
+                if (rCcFeeRate) rCcFeeRate.innerText = ccFeePercent;
+                if (rCcFeeVal) rCcFeeVal.innerText = `-${ccFeeVal.toLocaleString()} ₫`;
+                if (rTipVal) rTipVal.innerText = `+${tip.toLocaleString()} ₫`;
+                if (rFinalWorker) rFinalWorker.innerText = `${Math.ceil(takeHomeWorker).toLocaleString()} ₫`;
+                if (rFinalSalon) rFinalSalon.innerText = `${Math.floor(profitSalon).toLocaleString()} ₫`;
+            }
+
+            if (selectService) {
+                selectService.addEventListener('change', (e) => {
+                    const val = e.target.value;
+                    if (servicesConfig[val]) {
+                        const cfg = servicesConfig[val];
+                        if (inputTotal) inputTotal.value = cfg.total;
+                        if (inputSplit) inputSplit.value = cfg.split;
+                        if (inputSupply) inputSupply.value = cfg.supply;
+                        if (inputTip) inputTip.value = 50000;
+                        if (inputCcFee) inputCcFee.value = 2;
+                        if (inputSessions) inputSessions.value = 1;
+                        calculateRealtime();
+                    }
+                });
+            }
+
+            const inputs = [inputTotal, inputSplit, inputSupply, inputCcFee, inputTip, inputSessions];
+            inputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('input', () => {
+                        if(selectService && selectService.value !== 'custom') {
+                            const currentVal = selectService.value;
+                            const cfg = servicesConfig[currentVal];
+                            if (cfg && (parseFloat(inputTotal.value) !== cfg.total || parseFloat(inputSplit.value) !== cfg.split || parseFloat(inputSupply.value) !== cfg.supply)) {
+                                selectService.value = 'custom';
+                            }
+                        }
+                        calculateRealtime();
+                    });
+                }
+            });
+
+            calculateRealtime();
+        });
+
+        // Policies Modal
+        window.openModal = function(type) {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            
+            const titles = {
+                terms: 'Điều khoản sử dụng',
+                privacy: 'Chính sách bảo mật',
+                payment: 'Chính sách thanh toán'
+            };
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-cyan-400"></i> ' + (titles[type] || 'Chính sách');
+            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ Spa & Clinic...</p></div>';
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                if (modalInner) modalInner.classList.remove('scale-95'); 
+            }, 10);
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('policyModal');
+            if (!modal) return;
+            const modalInner = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            if (modalInner) modalInner.classList.add('scale-95');
+            setTimeout(() => { 
+                modal.classList.add('hidden'); 
+                document.body.style.overflow = ''; 
+            }, 300);
+        };
+        
+        const policyModalEl = document.getElementById('policyModal');
+        if (policyModalEl) {
+            policyModalEl.addEventListener('click', function (e) { 
+                if (e.target === this) closeModal(); 
+            });
+        }
+    </script>
+</body>
+</html>

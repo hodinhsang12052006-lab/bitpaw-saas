@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Cài đặt Thương hiệu - BitPaw OS</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 1rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--theme-color, #06b6d4), transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, var(--theme-color, #06b6d4), transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .absolute-blur {
+            position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+            width: 500px; height: 500px;
+            background: var(--theme-color-alpha, #06b6d425); 
+            border-radius: 50%; filter: blur(150px);
+            pointer-events: none; z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid var(--theme-color, #06b6d4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 20px var(--theme-shadow, #06b6d430);
+            border-radius: 2rem;
+        }
+        
+        .glass-input {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            transition: all 0.3s;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            outline: none;
+            width: 100%;
+            font-weight: 500;
+        }
+        .glass-input:focus {
+            border-color: var(--theme-color, #06b6d4);
+            box-shadow: 0 0 15px var(--theme-shadow-focus, #06b6d450);
+            background: rgba(0,0,0,0.8);
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; }
+
+        @keyframes float-hologram {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px var(--theme-shadow-light, #06b6d460)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px var(--theme-shadow-heavy, #06b6d480)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px var(--theme-shadow-light, #06b6d460)); }
+        }
+        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
+
+        .preview-card {
+            background: rgba(0,0,0,0.5);
+            border-radius: 1rem;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--theme-color, #06b6d4);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .loading-overlay.active { visibility: visible; opacity: 1; }
+        
+        /* CSKH Widget */
+        .cskh-widget {
+            background: rgba(0,0,0,0.4);
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .cskh-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .cskh-item:hover { background: rgba(6,182,212,0.15); }
+        .cskh-info { display: flex; flex-direction: column; }
+        .cskh-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+        .cskh-value { font-size: 0.85rem; font-weight: 500; color: white; }
+        .glass-input-sm {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 0.8rem;
+        }
+        .glass-input-sm:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 8px rgba(6,182,212,0.3);
+        }
+        
+        @media (max-width: 640px) {
+            .glass-panel { padding: 1.2rem; }
+            .preview-card { margin-top: 1rem; }
+        }
+    </style>
+</head>
+<body class="antialiased relative" style="--theme-color: #06b6d4; --theme-color-alpha: #06b6d425; --theme-shadow: #06b6d430; --theme-shadow-focus: #06b6d450; --theme-shadow-light: #06b6d460; --theme-shadow-heavy: #06b6d480; --theme-shadow-btn: #06b6d490;">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="w-full max-w-4xl mx-auto relative z-10 px-4 py-6">
+        <div class="glass-panel p-6 md:p-8">
+            <div class="flex flex-col md:flex-row gap-8">
+                <div class="flex-1">
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="relative w-20 h-20 logo-float mb-4">
+                            <div class="absolute w-full h-full border-t-2 rounded-full animate-spin" style="border-color: var(--theme-color); animation-duration: 3s;"></div>
+                            <div class="absolute w-[120%] h-[120%] border-b-2 rounded-full animate-spin" style="border-color: var(--theme-shadow-btn); animation-duration: 4s; animation-direction: reverse;"></div>
+                            <img src="" id="logoPreview" class="relative w-16 h-16 rounded-full object-cover bg-[#08061a] border border-white/20 p-1 z-10">
+                        </div>
+                        <h1 class="text-2xl font-black tracking-widest text-white">Bit<span id="brandNamePreview" style="color: var(--theme-color);">Paw</span></h1>
+                    </div>
+
+                    <form id="brandSettingsForm" enctype="multipart/form-data" class="space-y-5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Tên cửa hàng / Spa</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-store text-gray-500 text-sm"></i></div>
+                                <input type="text" name="brand_name" id="brandNameInput" required class="glass-input pl-11" placeholder="Nhập tên thương hiệu...">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Màu sắc chủ đạo</label>
+                            <div class="bg-black/50 border border-white/10 rounded-xl p-2 pl-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas fa-palette text-gray-500 text-sm"></i>
+                                    <span class="text-sm text-gray-300 font-medium">Mã màu: <span id="colorHexDisplay" class="font-mono font-bold tracking-wider" style="color: var(--theme-color);">#06b6d4</span></span>
+                                </div>
+                                <input type="color" id="brandColorInput" value="#06b6d4" class="shadow-[0_0_10px_currentColor]">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Logo thương hiệu (Tuỳ chọn)</label>
+                            <div class="glass-input p-2 flex items-center justify-between gap-3 border-dashed border-2 hover:border-cyan-400 transition">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-cloud-upload-alt text-gray-400"></i>
+                                    <span id="logoFileName" class="text-gray-400 text-sm">Chưa chọn ảnh</span>
+                                </div>
+                                <label class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 px-3 py-1 rounded-full text-xs cursor-pointer transition">Chọn ảnh
+                                    <input type="file" id="logoUpload" name="logo" accept="image/*" class="hidden">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ảnh bìa (Cho trang Spa)</label>
+                            <div class="glass-input p-2 flex items-center justify-between gap-3 border-dashed border-2 hover:border-cyan-400 transition">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-image text-gray-400"></i>
+                                    <span id="coverFileName" class="text-gray-400 text-sm">Chưa chọn ảnh</span>
+                                </div>
+                                <label class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 px-3 py-1 rounded-full text-xs cursor-pointer transition">Chọn ảnh
+                                    <input type="file" id="coverUpload" name="cover" accept="image/*" class="hidden">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Phông chữ</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-font text-gray-500 text-sm"></i></div>
+                                <select id="fontSelect" name="font_family" class="glass-input pl-11 appearance-none cursor-pointer">
+                                    <option value="Inter">Inter (Hiện đại)</option>
+                                    <option value="Montserrat">Montserrat (Sang trọng)</option>
+                                    <option value="Playfair Display">Playfair Display (Cổ điển)</option>
+                                    <option value="Roboto">Roboto (Dễ đọc)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 space-y-3">
+                            <button type="submit" id="saveBtn" class="w-full text-[#08061a] font-black py-3.5 rounded-xl transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-base uppercase tracking-wider" style="background-color: var(--theme-color); box-shadow: 0 5px 15px var(--theme-shadow-focus);">
+                                <i class="fas fa-save"></i> Lưu Cài Đặt
+                            </button>
+                            <a href="{{ url_for('spa') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                                <i class="fas fa-times"></i> Hủy Bỏ
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="flex-1 preview-card bg-black/30 p-4 rounded-2xl border border-white/10">
+                    <h3 class="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-3">✨ Xem trước</h3>
+                    <div class="space-y-3">
+                        <div class="bg-black/40 p-3 rounded-xl text-center" id="previewCard">
+                            <div class="flex items-center justify-center gap-2 mb-2">
+                                <img src="" id="previewLogo" class="w-8 h-8 rounded-full border-2 object-cover">
+                                <span class="font-bold text-lg" id="previewBrandName" style="color: var(--theme-color);">BitPaw</span>
+                            </div>
+                            <p class="text-xs text-gray-300" id="previewText">Khởi tạo dịch vụ - Chạm để thanh toán</p>
+                            <div class="mt-3 flex justify-center gap-2">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold text-white" id="previewDemoBtn" style="background-color: var(--theme-color);">Demo nút</span>
+                                <span class="px-2 py-1 rounded-full text-[10px] bg-white/10">Xem trước</span>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 h-20 rounded-xl flex items-center justify-center text-xs text-gray-400">
+                            <i class="fas fa-spa mr-1"></i> Giao diện Spa / Landing Page
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSKH Widget -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Thông báo</div>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
+            <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
+            <span class="text-sm font-medium">Đang xử lý...</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const STORAGE_BUCKET = 'brand_assets';
+
+        // DOM elements
+        const brandNameInput = document.getElementById('brandNameInput');
+        const brandColorInput = document.getElementById('brandColorInput');
+        const colorHexDisplay = document.getElementById('colorHexDisplay');
+        const brandNamePreview = document.getElementById('brandNamePreview');
+        const previewBrandName = document.getElementById('previewBrandName');
+        const previewCardDiv = document.getElementById('previewCard');
+        const saveBtn = document.getElementById('saveBtn');
+        const form = document.getElementById('brandSettingsForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const toast = document.getElementById('toast');
+        const logoUpload = document.getElementById('logoUpload');
+        const coverUpload = document.getElementById('coverUpload');
+        const logoFileNameSpan = document.getElementById('logoFileName');
+        const coverFileNameSpan = document.getElementById('coverFileName');
+        const previewLogoImg = document.getElementById('previewLogo');
+        const fontSelect = document.getElementById('fontSelect');
+        const previewDemoBtn = document.getElementById('previewDemoBtn');
+        
+        let currentLogoUrl = '';
+
+        function showToast(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Update CSS variables and preview
+        function updatePreview() {
+            const newName = brandNameInput.value.trim() || "BitPaw";
+            previewBrandName.innerText = newName;
+            brandNamePreview.innerText = newName;
+            const newColor = brandColorInput.value;
+            colorHexDisplay.innerText = newColor;
+            document.body.style.setProperty('--theme-color', newColor);
+            document.body.style.setProperty('--theme-color-alpha', newColor + '25');
+            document.body.style.setProperty('--theme-shadow', newColor + '30');
+            document.body.style.setProperty('--theme-shadow-focus', newColor + '50');
+            document.body.style.setProperty('--theme-shadow-light', newColor + '60');
+            document.body.style.setProperty('--theme-shadow-heavy', newColor + '80');
+            document.body.style.setProperty('--theme-shadow-btn', newColor + '90');
+        }
+
+        brandNameInput.addEventListener('input', updatePreview);
+        brandColorInput.addEventListener('input', updatePreview);
+        fontSelect.addEventListener('change', () => {
+            previewCardDiv.style.fontFamily = fontSelect.value;
+            previewBrandName.style.fontFamily = fontSelect.value;
+        });
+
+        // Upload ảnh lên Supabase Storage
+        async function uploadFile(file, folder) {
+            if (!file) return null;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const { data, error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, file, { cacheControl: '3600', upsert: true });
+            if (error) throw error;
+            const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+            return publicUrl.publicUrl;
+        }
+
+        // Lưu settings lên bảng system_settings
+        async function saveSettings(brandName, brandColor, fontFamily, logoUrl, coverUrl) {
+            const payload = {
+                brand_name: brandName,
+                brand_color: brandColor,
+                font_family: fontFamily,
+                logo_url: logoUrl,
+                cover_url: coverUrl
+            };
+            const { error } = await supabase.from('system_settings').upsert({ key: 'brand_settings', value: JSON.stringify(payload), updated_at: new Date() });
+            if (error) throw error;
+        }
+
+        // Tải settings hiện tại
+        async function loadSettings() {
+            const { data, error } = await supabase.from('system_settings').select('value').eq('key', 'brand_settings').single();
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) {
+                const settings = JSON.parse(data.value);
+                brandNameInput.value = settings.brand_name || 'BitPaw';
+                brandColorInput.value = settings.brand_color || '#06b6d4';
+                fontSelect.value = settings.font_family || 'Inter';
+                if (settings.logo_url) {
+                    currentLogoUrl = settings.logo_url;
+                    previewLogoImg.src = settings.logo_url;
+                    document.getElementById('logoPreview').src = settings.logo_url;
+                }
+                if (settings.cover_url) {
+                    // có thể hiển thị preview cover nếu cần
+                }
+                updatePreview();
+                previewCardDiv.style.fontFamily = fontSelect.value;
+                previewBrandName.style.fontFamily = fontSelect.value;
+            } else {
+                // giá trị mặc định
+                brandNameInput.value = 'BitPaw';
+                brandColorInput.value = '#06b6d4';
+                fontSelect.value = 'Inter';
+                updatePreview();
+            }
+        }
+
+        // Submit form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loadingOverlay.classList.add('active');
+            saveBtn.disabled = true;
+            try {
+                let logoUrl = currentLogoUrl;
+                if (logoUpload.files.length > 0) {
+                    logoUrl = await uploadFile(logoUpload.files[0], 'logos');
+                    previewLogoImg.src = logoUrl;
+                    document.getElementById('logoPreview').src = logoUrl;
+                }
+                let coverUrl = null;
+                if (coverUpload.files.length > 0) {
+                    coverUrl = await uploadFile(coverUpload.files[0], 'covers');
+                }
+                await saveSettings(brandNameInput.value.trim(), brandColorInput.value, fontSelect.value, logoUrl, coverUrl);
+                showToast('✅ Lưu cài đặt thành công!');
+                setTimeout(() => { window.location.href = "{{ url_for('spa') }}"; }, 1500);
+            } catch (err) {
+                console.error(err);
+                showToast('❌ Lỗi: ' + err.message, true);
+            } finally {
+                loadingOverlay.classList.remove('active');
+                saveBtn.disabled = false;
+            }
+        });
+
+        // Logo preview local khi chọn file
+        logoUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                logoFileNameSpan.innerText = file.name;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    previewLogoImg.src = ev.target.result;
+                    document.getElementById('logoPreview').src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                logoFileNameSpan.innerText = 'Chưa chọn ảnh';
+            }
+        });
+        coverUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            coverFileNameSpan.innerText = file ? file.name : 'Chưa chọn ảnh';
+        });
+
+        // CSKH: track click
+        async function trackCSKHClick(channel) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                }
+            } catch(e) { console.warn(e); }
+        }
+        document.querySelectorAll('[data-channel]').forEach(link => {
+            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+        });
+
+        // CSKH: gửi yêu cầu
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const phone = document.getElementById('supportPhone').value;
+            const message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) {
+                showToast('Lỗi: ' + err.message, true);
+            }
+        });
+
+        // Khởi tạo
+        loadSettings();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 500 : 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.16 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            
+            const starCount = 60;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.06, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffaa88, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            
+            scene.fog = new THREE.FogExp2(0x08061a, 0.01);
+            
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

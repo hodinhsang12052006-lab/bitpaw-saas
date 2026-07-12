@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chấm Công F&B | BitPaw OS</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
+        
+        /* 3D Background Canvas */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        
+        /* Hiệu ứng scanline và laser dọc */
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #f59e0b, #f97316, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, #f59e0b, #f97316, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        /* Tia sáng chéo */
+        .light-ray { position: absolute; background: linear-gradient(90deg, transparent, rgba(245,158,11,0.3), transparent); height: 2px; width: 150%; transform: rotate(-35deg); transform-origin: left; pointer-events: none; }
+        
+        /* Khối mờ */
+        .absolute-blur {
+            position: absolute;
+            top: -10%;
+            left: 20%;
+            width: 600px;
+            height: 600px;
+            background: rgba(245,158,11,0.1);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        ::-webkit-scrollbar { width: 6px; } 
+        ::-webkit-scrollbar-track { background: transparent; } 
+        ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.5); border-radius: 10px; }
+        
+        .glass-panel { background: rgba(15, 10, 10, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-sidebar { background: rgba(8, 6, 26, 0.6); backdrop-filter: blur(30px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .fnb-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; color: #fff; width: 100%; outline: none; transition: 0.3s; font-size: 1rem; font-weight: bold; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+        .fnb-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.2), inset 0 2px 5px rgba(0,0,0,0.5); background: rgba(255,255,255,0.05); }
+        
+        /* Screens transition */
+        .screen { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; position: relative; z-index: 10; }
+        .screen.active { display: flex; opacity: 1; animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; opacity: 0.6; transition: 0.3s; }
+        input[type="date"]:focus::-webkit-calendar-picker-indicator, input[type="time"]:focus::-webkit-calendar-picker-indicator { opacity: 1; filter: invert(0.7) sepia(1) saturate(5) hue-rotate(15deg); }
+
+        @keyframes slideUpCascade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .cascade-item { opacity: 0; animation: slideUpCascade 0.5s ease forwards; }
+
+        /* Hologram Logo (giống các trang) */
+        @keyframes float-hologram {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(245,158,11,0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(249,115,22,0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(245,158,11,0.4)); }
+        }
+        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
+        @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .scanner-line { position: absolute; width: 120%; height: 2px; background: #f59e0b; box-shadow: 0 0 10px #f59e0b; left: -10%; animation: scan-laser 2.5s linear infinite; z-index: 20; border-radius: 50%; pointer-events: none; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative">
+
+    <!-- Các lớp hiệu ứng nền -->
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="light-ray top-0 -left-[20%] z-0"></div>
+    <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
+    <div class="absolute-blur"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-orange-600/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar đồng bộ với dashboard (đã bổ sung đầy đủ menu) -->
+    <aside class="w-64 glass-sidebar flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.8)] z-20 shrink-0 overflow-y-auto h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
+                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute w-[120%] h-[120%] border-b-2 border-orange-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-orange-400">Paw</span></h1>
+            </div>
+            
+            <nav class="flex flex-col py-6 space-y-3 px-5">
+                <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Tổng quan</span>
+                </a>
+                <a href="nhanvien.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Quản lý Nhân sự</span>
+                </a>
+                <a href="chamcong.html" class="flex items-center space-x-4 bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-orange-300 group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                </a>
+                <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Bảng lương</span>
+                </a>
+                <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
+                    <i class="fas fa-comments w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Trạm Liên Lạc</span>
+                </a>
+                <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                </a>
+                <!-- === CÁC MỤC MỚI THÊM === -->
+                <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Quản lý Công nợ</span>
+                </a>
+                <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Quản lý Thu Chi</span>
+                </a>
+                <a href="baocaoloinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-orange-400 transition-colors"></i><span>Báo cáo lợi nhuận</span>
+                </a>
+            </nav>
+
+            <!-- Kết nối CSKH (đã bổ sung Facebook) -->
+            <div class="px-5 pb-4 mt-auto">
+                <div class="bg-gradient-to-br from-orange-900/30 to-amber-900/10 p-4 rounded-xl border border-orange-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:border-orange-500/50 transition-colors">
+                    <p class="text-[10px] text-orange-400 font-black uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
+                    </p>
+                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline: 0794.678.904</span></a>
+                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo: 0794.678.904</span></a>
+                        <!-- Thêm Facebook -->
+                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ Đình Sang</span></a>
+                    </div>
+                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')" class="w-full mt-4 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/50 text-orange-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
+                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 md:p-8 relative z-10 overflow-y-auto">
+        <div id="screen_list" class="screen active flex-col h-full">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 shrink-0 gap-4">
+                <div>
+                    <h2 class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-md flex items-center gap-3">
+                        <i class="fas fa-utensils text-orange-500 drop-shadow-[0_0_8px_currentColor]"></i> Trạm Quản Lý F&B
+                    </h2>
+                    <p class="text-gray-400 mt-2 text-sm font-medium">Theo dõi ca làm và chia Quỹ Tips tự động.</p>
+                </div>
+                <a href="chamcong.html" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-orange-400 flex items-center gap-2 shadow-lg active:scale-95">
+                    <i class="fas fa-arrow-left"></i> Trở về Menu
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 shrink-0">
+                <div class="lg:col-span-7 bg-gradient-to-br from-orange-900/40 to-black/40 border border-orange-500/30 rounded-[2rem] p-6 lg:p-8 shadow-[0_15px_40px_rgba(245,158,11,0.2)] relative overflow-hidden backdrop-blur-md">
+                    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+                    <i class="fas fa-coins absolute -bottom-8 -right-8 text-9xl text-orange-500/10 pointer-events-none"></i>
+                    
+                    <h3 class="font-black text-orange-400 mb-4 tracking-widest text-sm lg:text-base relative z-10"><i class="fas fa-piggy-bank mr-2"></i>BỂ BƠI QUỸ TIPS HÔM NAY</h3>
+                    <div class="flex flex-col sm:flex-row gap-4 items-end relative z-10">
+                        <div class="flex-1 w-full">
+                            <label class="block text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2">Nhập tổng Tiền Tips (VNĐ)</label>
+                            <div class="relative">
+                                <input type="number" id="tong_quy_tips" placeholder="VD: 500000" class="w-full bg-black/60 border border-orange-500/50 rounded-2xl p-4 pr-12 text-orange-400 font-black text-2xl outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.3)] shadow-inner transition-shadow">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-black">₫</span>
+                            </div>
+                        </div>
+                        <button onclick="chiaDeuTips()" class="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black px-8 py-4 rounded-2xl transition-transform hover:scale-[1.03] active:scale-95 whitespace-nowrap shadow-[0_10px_20px_rgba(245,158,11,0.4)] tracking-widest flex items-center justify-center gap-2">
+                            <i class="fas fa-magic text-xl"></i> CHIA ĐỀU TỰ ĐỘNG
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 glass-panel border border-cyan-500/20 rounded-[2rem] p-6 lg:p-8 relative shadow-lg">
+                    <h3 class="font-black text-cyan-400 mb-4 tracking-widest text-sm lg:text-base"><i class="fas fa-exchange-alt mr-2"></i>CHỢ ĐỔI CA NHANH</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2"><i class="fas fa-bed text-rose-400 mr-1"></i>Kẻ Nghỉ Mệt</label>
+                            <div class="relative">
+                                <select id="nv_nghi" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-xs font-bold outline-none cursor-pointer focus:border-cyan-400 transition-colors shadow-inner appearance-none"></select>
+                                <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2"><i class="fas fa-running text-emerald-400 mr-1"></i>Người Làm Thay</label>
+                            <div class="relative">
+                                <select id="nv_thay" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-xs font-bold outline-none cursor-pointer focus:border-cyan-400 transition-colors shadow-inner appearance-none"></select>
+                                <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="chotDoiCa()" class="w-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500 hover:text-black font-black py-3 rounded-xl transition-all text-xs uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
+                        <i class="fas fa-check-double"></i> Chốt Lệnh Đổi Ca
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
+                <i class="fas fa-users text-gray-400"></i>
+                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs">Danh Sách Nhân Sự</h3>
+            </div>
+
+            <div id="employeeGrid" class="flex flex-col gap-4 overflow-y-auto pb-10 custom-scrollbar pr-2">
+                <div class="animate-pulse flex items-center gap-4 bg-white/5 p-5 rounded-2xl border border-white/5">
+                    <div class="w-16 h-16 bg-gray-700 rounded-full shrink-0"></div>
+                    <div class="flex-1 space-y-3"><div class="h-4 bg-gray-700 rounded w-1/3"></div><div class="h-3 bg-gray-700 rounded w-1/4"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen_pos" class="screen flex-col h-full min-h-0">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 shrink-0 glass-panel p-4 lg:p-6 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] gap-4">
+                <div class="flex items-center gap-4">
+                    <button onclick="backToList()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-orange-500/20 border border-white/10 text-gray-400 hover:text-orange-400 transition-all flex items-center justify-center text-xl shadow-inner active:scale-95">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md">Phiếu Lên Ca: <span id="pos_worker_name" class="text-orange-400">---</span></h2>
+                        <p class="text-[10px] text-gray-400 mt-1 font-mono tracking-widest uppercase">Mã NV: <span id="pos_worker_id" class="font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">---</span></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-black/50 border border-white/10 px-5 py-3 rounded-2xl shadow-inner w-full md:w-auto">
+                    <i class="far fa-calendar-alt text-emerald-400 text-lg"></i>
+                    <div class="flex flex-col flex-1">
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Ngày Chấm Công</span>
+                        <input type="date" id="pos_date" class="bg-transparent border-none outline-none text-white text-sm font-bold cursor-pointer font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-0">
+                <div class="glass-panel rounded-[2rem] p-6 lg:p-8 shadow-2xl flex flex-col overflow-y-auto relative border border-orange-500/20">
+                    <h3 class="font-black text-amber-400 mb-6 border-b border-white/10 pb-4 tracking-widest uppercase text-sm"><i class="fas fa-clock mr-2"></i>Chi Tiết Ca Làm Việc</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Chọn Ca Làm</label>
+                            <div class="relative">
+                                <select id="ca_lam" class="fnb-input cursor-pointer text-white appearance-none">
+                                    <option value="Ca Sáng (6h - 14h)">☀️ Ca Sáng (6h - 14h)</option>
+                                    <option value="Ca Chiều (14h - 22h)">🌤️ Ca Chiều (14h - 22h)</option>
+                                    <option value="Ca Gãy (Split Shift)">✂️ Ca Gãy (Split Shift)</option>
+                                    <option value="Part-time">⏱️ Part-time (Giờ linh hoạt)</option>
+                                    <option value="Nghỉ Phép">❌ Nghỉ Phép</option>
+                                </select>
+                                <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Giờ In</label>
+                                <input type="time" id="gio_den" class="fnb-input text-cyan-400 font-mono" onchange="calcHours()">
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Giờ Out</label>
+                                <input type="time" id="gio_ve" class="fnb-input text-cyan-400 font-mono" onchange="calcHours()">
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Tổng Giờ</label>
+                                <div class="relative">
+                                    <input type="number" id="so_gio" class="fnb-input text-emerald-400 bg-emerald-900/10 border-emerald-500/30 pl-3 pr-10 font-mono" readonly placeholder="0">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">h</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-black/30 border border-white/5 p-5 rounded-2xl">
+                            <label class="block text-orange-400 text-xs font-black tracking-widest mb-4 uppercase"><i class="fas fa-coins mr-1"></i> Các Khoản Phát Sinh</label>
+                            <div class="grid grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-wider" title="Thưởng nóng, thưởng target">Thưởng Target</label>
+                                    <div class="relative">
+                                        <input type="number" id="tien_thuong" class="fnb-input text-emerald-400 font-mono pr-8 text-lg" value="0">
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-wider" title="Tiền Tip thu riêng">Tips / SVC Riêng</label>
+                                    <div class="relative">
+                                        <input type="number" id="tien_tips" class="fnb-input text-purple-400 font-mono pr-8 text-lg" value="0">
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Ghi chú (Tùy chọn)</label>
+                            <input type="text" id="ghi_chu" class="fnb-input font-normal text-sm" placeholder="VD: Bể ly đền 50k, Khách tips riêng bàn 5...">
+                        </div>
+                    </div>
+
+                    <div class="mt-auto pt-8">
+                        <button onclick="submitFnb()" id="btnSubmit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 font-black p-4 rounded-xl text-lg hover:shadow-[0_10px_30px_rgba(245,158,11,0.4)] hover:scale-[1.02] active:scale-95 transition-all tracking-widest text-black flex items-center justify-center gap-3">
+                            <i class="fas fa-save text-xl"></i> LƯU CHẤM CÔNG CA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-[2rem] p-6 flex flex-col min-h-0 relative">
+                    <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
+                        <h3 class="font-black text-white text-sm uppercase tracking-widest flex items-center"><i class="fas fa-history text-orange-400 text-lg mr-2"></i>Lịch Sử Ca Gần Đây</h3>
+                        <button onclick="loadHistory(currentWorkerId)" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/20 transition-colors flex items-center justify-center text-gray-400 hover:text-orange-400"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <div id="historyBox" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hiddenReceipt" style="display: none; position: absolute; top: -9999px; left: -9999px; width: 500px; background: white; color: black; padding: 30px; font-family: monospace; border: 1px solid #ddd; z-index: -1;">
+            <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <h1 style="margin:0; font-size: 28px; font-weight: 900;">BẢNG CÔNG F&B</h1>
+                <p style="margin: 5px 0 0 0; font-size: 16px;">Tên NV: <strong id="rcpt_name">---</strong> (<span id="rcpt_id">---</span>)</p>
+            </div>
+            <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 15px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #000;">
+                        <th style="padding-bottom: 8px;">Ngày</th>
+                        <th style="padding-bottom: 8px;">Ca Làm / Giờ</th>
+                        <th style="padding-bottom: 8px;">Thưởng</th>
+                        <th style="padding-bottom: 8px;">Tips</th>
+                    </tr>
+                </thead>
+                <tbody id="rcpt_tbody"></tbody>
+            </table>
+            <div style="margin-top: 20px; font-size: 14px; color: #666; text-align:center;">Hệ thống quản lý BitPaw OS</div>
+        </div>
+    </main>
+
+    <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // ========================================================
+        // THREE.JS BACKGROUND (giống chamcong_spa, màu cam)
+        // ========================================================
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0xfbbf24, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Shooting stars
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.04) % 1;
+                material.color.setHSL(hue, 0.9, 0.65);
+                
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // ========================================================
+        // TOAST & CONFETTI
+        // ========================================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colorClass = 'cyan'; let iconClass = 'fa-info-circle';
+            if(type === 'success') { colorClass = 'emerald'; iconClass = 'fa-check-circle'; }
+            if(type === 'error') { colorClass = 'rose'; iconClass = 'fa-exclamation-triangle'; }
+            if(type === 'warning') { colorClass = 'amber'; iconClass = 'fa-exclamation-circle'; }
+            toast.className = `bg-[#0f0a0a]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.5)] flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+            toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-xl shrink-0"></i> <span class="text-[13px] font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('-translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function triggerConfetti() {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                var particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#f59e0b', '#fbbf24', '#ffffff'] }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#f59e0b', '#fbbf24', '#ffffff'] }));
+            }, 250);
+        }
+
+        // ========================================================
+        // SUPABASE & LOGIC CHÍNH
+        // ========================================================
+        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        document.getElementById('pos_date').valueAsDate = new Date();
+        let currentWorkerId = "";
+        let globalEmployees = [];
+
+        function getFormattedDate() {
+            const rawDate = document.getElementById('pos_date').value || new Date().toISOString().split('T')[0];
+            const parts = rawDate.split('-');
+            if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            return rawDate;
+        }
+
+        window.onload = () => {
+            VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+            loadWorkers();
+        };
+
+        async function loadWorkers() {
+            try {
+                const { data, error } = await supabase.from('employees').select('*').order('ho_ten', { ascending: true });
+                if (error) throw error;
+                globalEmployees = data;
+
+                const grid = document.getElementById('employeeGrid');
+                grid.innerHTML = '';
+                
+                const selectOptions = '<option value="">-- Chọn NV --</option>' + data.map(e => `<option value="${e.ma_nv}">${e.ho_ten} (${e.ma_nv})</option>`).join('');
+                document.getElementById('nv_nghi').innerHTML = selectOptions;
+                document.getElementById('nv_thay').innerHTML = selectOptions;
+
+                if(data.length === 0) {
+                    grid.innerHTML = '<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Chưa có nhân sự.</div>';
+                    return;
+                }
+
+                data.forEach((emp, index) => {
+                    const delay = index * 50;
+                    const card = `
+                        <div class="cascade-item glass-panel hover:border-orange-500/50 hover:bg-orange-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1" style="animation-delay: ${delay}ms;" onclick="openPos('${emp.ma_nv}', '${emp.ho_ten}')">
+                            <div class="flex items-center gap-4 lg:gap-5 z-10 w-full md:w-auto">
+                                <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 p-[2px] shadow-lg group-hover:scale-105 transition-transform shrink-0">
+                                    <div class="w-full h-full bg-[#0f0a0a] rounded-full flex items-center justify-center text-2xl font-black text-white overflow-hidden border border-[#0f0a0a]">
+                                        ${emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0)}
+                                    </div>
+                                </div>
+                                <div class="text-left min-w-0">
+                                    <h3 class="font-black text-white text-lg lg:text-xl group-hover:text-orange-400 transition-colors truncate drop-shadow-md">${emp.ho_ten}</h3>
+                                    <p class="text-[11px] text-gray-400 font-mono mt-0.5 uppercase tracking-widest"><i class="fas fa-id-badge text-orange-500/50 mr-1"></i>${emp.ma_nv}</p>
+                                    <div class="mt-1.5">
+                                        <span class="text-[9px] bg-white/10 text-gray-300 px-2 py-0.5 rounded border border-white/10 font-bold uppercase tracking-widest">${emp.chuc_vu || 'Nhân viên F&B'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mt-4 md:mt-0 z-10 w-full md:w-auto">
+                                <button class="w-full md:w-auto bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] group-hover:shadow-[0_0_20px_rgba(245,158,11,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-clock text-lg"></i> Lên Ca</button>
+                                <button id="btn-export-${emp.ma_nv}" onclick="event.stopPropagation(); exportReport('${emp.ma_nv}', '${emp.ho_ten}')" class="bg-black/50 border border-white/10 hover:border-cyan-400 hover:text-cyan-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-print"></i></button>
+                            </div>
+                        </div>`;
+                    grid.innerHTML += card;
+                });
+                setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
+            } catch(e) { showToast("Lỗi tải danh sách nhân sự", "error"); }
+        }
+
+        async function chotDoiCa() {
+            const nv_nghi = document.getElementById('nv_nghi').value;
+            const nv_thay = document.getElementById('nv_thay').value;
+            const ngay_ca = getFormattedDate();
+
+            if(!nv_nghi || !nv_thay) return showToast("Vui lòng chọn đủ 2 nhân viên!", "warning");
+            if(nv_nghi === nv_thay) return showToast("Sếp đang cho người ta tự làm thay chính mình à?", "error");
+
+            const btn = document.querySelector('button[onclick="chotDoiCa()"]');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG GHI NHẬN...';
+
+            try {
+                await supabase.from('cho_doi_ca').insert([{ ma_nv_xin: nv_nghi, ma_nv_nhan: nv_thay, ngay_ca: ngay_ca, trang_thai: 'Đã chốt' }]);
+                await supabase.from('chamcong').insert([{ ma_nv: nv_nghi, ngay_cham: ngay_ca, trang_thai: 'Nghỉ đổi ca', ghi_chu: `Nhường ca cho KTV ${nv_thay}`, nganh_nghe: 'F&B' }]);
+
+                showToast("Đã chốt lệnh Đổi Ca thành công!", "success");
+                document.getElementById('nv_nghi').value = ''; document.getElementById('nv_thay').value = '';
+            } catch(e) { showToast("Lỗi hệ thống: " + e.message, "error"); }
+            btn.innerHTML = origHTML;
+        }
+
+        async function chiaDeuTips() {
+            const tongTips = parseFloat(document.getElementById('tong_quy_tips').value);
+            if(!tongTips || tongTips <= 0) return showToast("Vui lòng nhập số tiền Tips hợp lệ!", "warning");
+
+            const ngayHienTai = getFormattedDate();
+            const btn = document.querySelector('button[onclick="chiaDeuTips()"]');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ĐANG CHIA...';
+
+            try {
+                const { data: records, error } = await supabase.from('chamcong').select('*').eq('ngay_cham', ngayHienTai).eq('nganh_nghe', 'F&B');
+                if (error) throw error;
+
+                const nguoiDiLam = records.filter(r => !r.trang_thai.includes('Nghỉ'));
+                if (nguoiDiLam.length === 0) {
+                    btn.innerHTML = origHTML;
+                    return showToast("Hôm nay chưa có ai chấm công vào ca để chia Tips!", "warning");
+                }
+
+                const soNguoi = nguoiDiLam.length;
+                const tienMoiNguoi = Math.round(tongTips / soNguoi);
+
+                for (const r of nguoiDiLam) {
+                    const currentTips = Number(r.tien_tips || 0);
+                    await supabase.from('chamcong').update({ tien_tips: currentTips + tienMoiNguoi }).eq('id', r.id);
+                }
+
+                showToast(`CHIA TIPS THÀNH CÔNG! ${soNguoi} người, mỗi người nhận: +${tienMoiNguoi.toLocaleString()}đ`, "success");
+                triggerConfetti();
+                document.getElementById('tong_quy_tips').value = '';
+            } catch (e) {
+                showToast("Lỗi chia Tips: " + e.message, "error");
+            }
+            btn.innerHTML = origHTML;
+        }
+
+        function calcHours() {
+            const gioIn = document.getElementById('gio_den').value;
+            const gioOut = document.getElementById('gio_ve').value;
+            if(gioIn && gioOut) {
+                const [hIn, mIn] = gioIn.split(':').map(Number);
+                const [hOut, mOut] = gioOut.split(':').map(Number);
+                let diff = (hOut * 60 + mOut) - (hIn * 60 + mIn);
+                if (diff < 0) diff += 24 * 60; 
+                document.getElementById('so_gio').value = (diff / 60).toFixed(2);
+            }
+        }
+
+        function openPos(id, name) {
+            currentWorkerId = id;
+            document.getElementById('pos_worker_id').innerText = id;
+            document.getElementById('pos_worker_name').innerText = name;
+            document.getElementById('screen_list').classList.remove('active');
+            setTimeout(() => { document.getElementById('screen_pos').classList.add('active'); }, 50);
+            loadHistory(id); 
+        }
+
+        function backToList() {
+            document.getElementById('screen_pos').classList.remove('active');
+            setTimeout(() => { document.getElementById('screen_list').classList.add('active'); }, 50);
+        }
+
+        async function submitFnb() {
+            const ca_lam = document.getElementById('ca_lam').value;
+            if(!ca_lam) return showToast("Vui lòng chọn Ca Làm!", "warning");
+
+            const payload = {
+                ma_nv: currentWorkerId, ngay_cham: getFormattedDate(), trang_thai: ca_lam, 
+                gio_den: document.getElementById('gio_den').value || null, gio_ve: document.getElementById('gio_ve').value || null,
+                so_gio: parseFloat(document.getElementById('so_gio').value) || 0,
+                phu_cap: parseFloat(document.getElementById('tien_thuong').value) || 0, 
+                tien_tips: parseFloat(document.getElementById('tien_tips').value) || 0,
+                ghi_chu: document.getElementById('ghi_chu').value, nganh_nghe: 'F&B'
+            };
+
+            const btn = document.getElementById('btnSubmit');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ĐANG LƯU...'; btn.disabled = true;
+            
+            try {
+                const { error } = await supabase.from('chamcong').insert([payload]);
+                if (error) throw error;
+
+                loadHistory(currentWorkerId);
+                
+                document.getElementById('gio_den').value = ""; document.getElementById('gio_ve').value = "";
+                document.getElementById('so_gio').value = ""; document.getElementById('tien_thuong').value = "0";
+                document.getElementById('tien_tips').value = "0"; document.getElementById('ghi_chu').value = "";
+                
+                showToast("LƯU CHẤM CÔNG CA THÀNH CÔNG!", "success");
+                triggerConfetti();
+            } catch(e) { showToast("Lỗi lưu DB: " + e.message, "error"); }
+            
+            btn.innerHTML = origHTML; btn.disabled = false;
+        }
+
+        async function loadHistory(ma_nv) {
+            const box = document.getElementById('historyBox');
+            box.innerHTML = '<div class="animate-pulse text-gray-500 mt-4 text-center font-bold tracking-widest uppercase text-[10px]"><i class="fas fa-satellite fa-spin text-orange-500 text-lg mb-2"></i><br>Đang lấy dữ liệu vệ tinh...</div>';
+            try {
+                const { data, error } = await supabase.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30);
+                if (error) throw error;
+
+                box.innerHTML = '';
+                if(!data || data.length === 0) { box.innerHTML = '<p class="text-gray-500 text-[11px] font-bold uppercase tracking-widest text-center mt-8 border-2 border-dashed border-gray-700/50 p-4 rounded-xl">Chưa có lịch sử ca làm.</p>'; return; }
+                
+                data.forEach((r, index) => {
+                    let noteHTML = r.ghi_chu ? `<p class="text-[11px] text-gray-400 mt-2.5 bg-black/60 p-2.5 rounded-lg border border-white/5 shadow-inner"><i class="fas fa-comment-alt text-orange-500/70 mr-1.5"></i> ${r.ghi_chu}</p>` : '';
+                    let colorLeft = r.trang_thai.includes('Nghỉ') ? 'border-l-rose-500' : 'border-l-orange-500';
+                    let timeHTML = (r.gio_den || r.gio_ve) ? `<p class="text-xs text-cyan-400 font-mono mt-1 font-bold">In: ${r.gio_den||'--'} | Out: ${r.gio_ve||'--'} (${r.so_gio||0}h)</p>` : '';
+
+                    const delay = index * 50;
+                    box.innerHTML += `
+                        <div class="cascade-item glass-panel p-4 lg:p-5 rounded-2xl border-l-[6px] ${colorLeft} shadow-md relative overflow-hidden group hover:bg-white/5 transition-colors" style="animation-delay: ${delay}ms;">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-black text-white text-sm tracking-wide drop-shadow-md">${r.ngay_cham} <span class="text-[10px] text-orange-400 font-bold bg-orange-500/10 px-2 py-0.5 rounded ml-1 border border-orange-500/20">${r.trang_thai}</span></p>
+                                    ${timeHTML}
+                                </div>
+                                <div class="text-right text-[10px] font-mono font-bold space-y-1.5 bg-black/50 p-2.5 rounded-xl border border-white/5 shadow-inner">
+                                    <p class="text-emerald-400 tracking-wider">Thưởng: +${Number(r.phu_cap||0).toLocaleString()}đ</p>
+                                    <p class="text-purple-400 tracking-wider">Tips: +${Number(r.tien_tips||0).toLocaleString()}đ</p>
+                                </div>
+                            </div>
+                            ${noteHTML}
+                        </div>`;
+                });
+            } catch(e) { box.innerHTML = '<p class="text-rose-500 text-xs font-bold text-center mt-5">Lỗi tải dữ liệu!</p>'; }
+        }
+
+        async function exportReport(ma_nv, ho_ten) {
+            showToast("Đang kết xuất báo cáo...", "warning");
+            const btn = document.getElementById(`btn-export-${ma_nv}`);
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-cyan-400"></i>';
+            try {
+                const { data, error } = await supabase.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30);
+                if(error) throw error;
+                if(!data || data.length===0) { btn.innerHTML = orig; return showToast("Chưa có dữ liệu để in!", "error"); }
+
+                let rows = '';
+                data.forEach(r => {
+                    rows += `
+                        <tr style="border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 10px 0;">${r.ngay_cham}</td>
+                            <td style="padding: 10px 0;">${r.trang_thai}<br><span style="font-size:12px; color:#666">${r.gio_den||'--'} - ${r.gio_ve||'--'} (${r.so_gio||0}h)</span></td>
+                            <td style="padding: 10px 0;">${Number(r.phu_cap||0).toLocaleString()}</td>
+                            <td style="padding: 10px 0;">${Number(r.tien_tips||0).toLocaleString()}</td>
+                        </tr>`;
+                });
+
+                const receiptDiv = document.getElementById('hiddenReceipt');
+                document.getElementById('rcpt_name').innerText = ho_ten;
+                document.getElementById('rcpt_id').innerText = ma_nv;
+                document.getElementById('rcpt_tbody').innerHTML = rows;
+
+                receiptDiv.style.display = 'block';
+                html2canvas(receiptDiv, { scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL("image/png");
+                    link.download = `Cong_FnB_${ma_nv}.png`;
+                    link.click();
+                    receiptDiv.style.display = 'none';
+                    btn.innerHTML = '<i class="fas fa-check text-emerald-400"></i>';
+                    showToast("Tải báo cáo thành công!", "success");
+                    setTimeout(() => btn.innerHTML = orig, 2000);
+                });
+            } catch(e) { btn.innerHTML = orig; showToast("Lỗi xuất ảnh!", "error"); }
+        }
+    </script>
+</body>
+</html>

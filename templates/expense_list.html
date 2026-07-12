@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Danh Sách Chi Tiêu - BitPaw</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #f43f5e, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, #f43f5e, #a855f7, transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .absolute-blur {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
+            height: 500px;
+            background: rgba(244, 63, 94, 0.15);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-panel { 
+            background: rgba(10, 15, 37, 0.6); 
+            backdrop-filter: blur(24px); 
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(244, 63, 94, 0.1); 
+        }
+        
+        .glass-input { 
+            background: rgba(0,0,0,0.6); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            color: white; 
+            transition: all 0.3s; 
+            padding: 10px 14px; 
+            border-radius: 10px; 
+            outline: none; 
+            font-size: 0.85rem;
+        }
+        .glass-input:focus { 
+            border-color: #f43f5e; 
+            box-shadow: 0 0 10px rgba(244, 63, 94, 0.4); 
+            background: rgba(0,0,0,0.8); 
+        }
+
+        .logo-float {
+            animation: float-hologram 4s ease-in-out infinite;
+        }
+        @keyframes float-hologram {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(244, 63, 94, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(244, 63, 94, 0.4)); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(244, 63, 94, 0.5); border-radius: 10px; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(244, 63, 94, 0.5);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .custom-table th, .custom-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .custom-table th {
+            background: rgba(0,0,0,0.4);
+            color: #9ca3af;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .custom-table tr:hover {
+            background: rgba(244, 63, 94, 0.05);
+        }
+    </style>
+</head>
+<body class="antialiased relative">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="w-full max-w-4xl mx-auto relative z-10 px-4">
+        
+        <!-- Header logo -->
+        <div class="flex flex-col items-center justify-center mb-6">
+            <div class="relative w-16 h-16 flex items-center justify-center logo-float mb-3">
+                <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
+                <div class="absolute w-[120%] h-[120%] border-b-2 border-rose-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+            </div>
+            <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-rose-400">Paw</span></h1>
+            <p class="text-xs text-gray-400 mt-1">Lịch sử chi tiêu hệ thống</p>
+        </div>
+
+        <!-- Bảng danh sách chi tiêu -->
+        <div class="glass-panel rounded-3xl p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h2 class="text-xl font-bold text-rose-400 flex items-center gap-2">
+                    <i class="fas fa-list-ul"></i> Toàn Bộ Khoản Chi Tiêu
+                </h2>
+                
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <input type="text" id="searchBox" placeholder="Tìm lý do chi..." class="glass-input text-xs w-full md:w-48" oninput="filterExpenses()">
+                    <select id="categoryFilter" class="glass-input text-xs w-full md:w-36" onchange="filterExpenses()">
+                        <option value="">Tất cả danh mục</option>
+                        <option value="Nhân sự">🧑‍💼 Nhân sự</option>
+                        <option value="Vật tư">📦 Vật tư, nguyên liệu</option>
+                        <option value="Marketing">📢 Marketing</option>
+                        <option value="Vận hành">⚙️ Vận hành</option>
+                        <option value="Thuê mặt bằng">🏢 Thuê mặt bằng</option>
+                        <option value="Khác">🔄 Khác</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-white/10">
+                <table class="custom-table" id="expenseTable">
+                    <thead>
+                        <tr>
+                            <th>Ngày chi</th>
+                            <th>Danh mục</th>
+                            <th>Lý do chi</th>
+                            <th class="text-right">Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if expenses %}
+                            {% for e in expenses %}
+                                <tr class="expense-row" data-desc="{{ e.description|lower }}" data-cat="{{ e.category }}">
+                                    <td class="font-mono text-xs text-gray-400">{{ e.expense_date }}</td>
+                                    <td>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-rose-300">
+                                            {{ e.category }}
+                                        </span>
+                                    </td>
+                                    <td class="text-sm font-semibold text-white">{{ e.description }}</td>
+                                    <td class="text-right font-mono font-bold text-rose-400 text-sm">
+                                        {{ "{:,.0f}".format(e.amount or 0) }}₫
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-gray-500 py-8 text-sm">Chưa có khoản chi tiêu nào</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Actions row -->
+            <div class="flex flex-col sm:flex-row gap-3 mt-6 justify-between">
+                <a href="{{ url_for('index') }}" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-arrow-left"></i> Quay lại Dashboard
+                </a>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-print"></i> In danh sách
+                    </button>
+                    <a href="{{ url_for('add_expense') }}" class="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-plus"></i> Nhập Chi Tiêu Mới
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast thông báo -->
+    <div id="toast" class="toast">Thông báo</div>
+
+    <script>
+        const toast = document.getElementById('toast');
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function filterExpenses() {
+            const search = document.getElementById('searchBox').value.toLowerCase().trim();
+            const cat = document.getElementById('categoryFilter').value;
+            const rows = document.querySelectorAll('.expense-row');
+            
+            rows.forEach(row => {
+                const desc = row.getAttribute('data-desc');
+                const rowCat = row.getAttribute('data-cat');
+                
+                const matchesSearch = !search || desc.includes(search);
+                const matchesCat = !cat || rowCat === cat;
+                
+                if (matchesSearch && matchesCat) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // ========== 3D BACKGROUND GIỮ NGUYÊN ==========
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 500 : 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0xf43f5e, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                material.color.setHSL((t * 0.02) % 0.1 + 0.9, 0.8, 0.6);
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>
