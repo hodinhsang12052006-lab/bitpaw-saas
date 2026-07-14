@@ -30,7 +30,7 @@ import hmac
 from supabase_client import supabase, supabase_admin, SUPABASE_STATUS, NEED_RUN_SUPABASE_SCHEMA
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = "super_secret_key_for_flash_messages"
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_flash_messages')
 
 # Upload ảnh
 UPLOAD_FOLDER = 'static/uploads'
