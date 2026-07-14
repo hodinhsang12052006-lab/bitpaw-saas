@@ -221,26 +221,23 @@
                 <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/50 overflow-hidden shadow-[0_0_12px_#3b82f6]">
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
-                <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-blue-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-blue-500/20 rounded-md border border-blue-500/30 text-blue-300 font-normal">Hotel</span></h1>
+                <div class="flex flex-col leading-tight">
+                    <h1 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-blue-400">Paw</span></h1>
+                    <span class="mt-1 w-fit text-xs font-semibold tracking-wide text-blue-300 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 whitespace-nowrap">Hotel</span>
+                </div>
             </div>
             
-            <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300">
-                <a href="#problems" class="hover:text-blue-400 transition-colors">Nỗi Đau</a>
-                <a href="#promise" class="hover:text-blue-400 transition-colors">Giải Pháp</a>
-                <a href="#workflow" class="hover:text-blue-400 transition-colors">Quy Trình Vận Hành</a>
-                <a href="#features" class="hover:text-blue-400 transition-colors">Tính Năng Lõi</a>
-                <a href="#calculator" class="hover:text-blue-400 transition-colors">Bảng Tính Thử</a>
-                <a href="#ai-cskh" class="hover:text-blue-400 transition-colors">AI CSKH</a>
-                <a href="#faq" class="hover:text-blue-400 transition-colors">Hỏi Đáp</a>
+            <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
+                <a href="#promise" class="hover:text-blue-400 transition-colors whitespace-nowrap">Giải Pháp</a>
+                <a href="#features" class="hover:text-blue-400 transition-colors whitespace-nowrap">Tính Năng</a>
+                <a href="#ai-cskh" class="hover:text-blue-400 transition-colors whitespace-nowrap">AI CSKH</a>
+                <a href="#calculator" class="hover:text-blue-400 transition-colors whitespace-nowrap">Bảng Giá</a>
             </nav>
 
-            <div class="flex items-center gap-4">
-                <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-1">
-                    <i class="fas fa-arrow-left text-xs"></i> Trở về
-                </a>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
-                <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+            <div class="flex items-center gap-4 whitespace-nowrap">
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] whitespace-nowrap">
+                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
                 </a>
                 <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-blue-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
             </div>
@@ -253,17 +250,14 @@
             <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-blue-400" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
         </div>
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
-            <a href="#problems" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Nỗi Đau</a>
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Giải Pháp</a>
-            <a href="#workflow" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Quy Trình Vận Hành</a>
-            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Tính Năng Lõi</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Bảng Tính Thử</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">AI CSKH</a>
-            <a href="#faq" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Hỏi Đáp</a>
+            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Bảng Giá</a>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
                 </a>
             </div>
         </nav>
