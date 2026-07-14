@@ -50,4 +50,11 @@
         </ul>
     </div>
 </div>
+<script>
+    // Đa doanh nghiệp (multi-tenant): nếu người dùng đang đăng nhập vào 1 doanh nghiệp cụ thể
+    // (session có business_id), truyền cho widget để nó gọi API kèm đúng business_id đó — backend
+    // sẽ tự tư vấn đúng tên cửa hàng + bảng giá thật của tenant. Trang marketing công khai (chưa
+    // đăng nhập) sẽ có giá trị null, widget tự dùng persona chung theo ngành như cũ.
+    window.BITPAW_BUSINESS_ID = {{ session.get('business_id') | tojson }};
+</script>
 <script src="/static/js/cskh_widget.js"></script>

@@ -3,11 +3,16 @@ from supabase_client import supabase, SUPABASE_STATUS
 class AIContextEngine:
     @staticmethod
     def build_context_prompt(business_id, industry_code, customer_phone=None):
-        """Constructs an intelligent system prompt customized to the tenant's exact business DNA."""
-        base_prompt = "Bạn là trợ lý chỉ chỉ huy BitPaw AI Copilot cho doanh nghiệp."
+        """Constructs an intelligent, tenant-aware system prompt.
 
-        if not industry_code:
-            return base_prompt
+        Đa doanh nghiệp (multi-tenant): tra business_id ra ĐÚNG tên cửa hàng, danh mục
+        sản phẩm/dịch vụ và bảng giá thật của tenant đó, không fix cứng kịch bản cho
+        bất kỳ ngành nào. Nếu không có business_id (vd: bot tư vấn marketing chung của
+        BitPaw trên trang landing), trả về persona chung theo industry_code như cũ.
+
+        Returns: {"prompt": str, "business_name": str|None}
+        """
+        base_prompt = "Bạn là trợ lý AI CSKH của BitPaw OS."
 
         industry_prompts = {
             "retail": "Bạn là chuyên gia tư vấn bán lẻ tối ưu hóa dòng sản phẩm, chiến dịch quảng cáo và thanh lý hàng tồn kho.",
@@ -20,6 +25,20 @@ class AIContextEngine:
             "technical": "Bạn là điều phối viên kỹ thuật viên thực địa hiện trường qua định vị GPS.",
             "office": "Bạn là thư ký hành chính tối ưu hóa bảng chấm công và tính toán bảng lương."
         }
+
+        # Tra tên cửa hàng thật + industry_code chính thức của tenant (nếu có business_id thật)
+        business_name = None
+        if SUPABASE_STATUS == "CONNECTED" and business_id:
+            try:
+                biz = supabase.table('businesses').select('name, industry_code').eq('id', business_id).limit(1).execute()
+                if biz.data:
+                    business_name = biz.data[0].get('name') or None
+                    industry_code = industry_code or biz.data[0].get('industry_code')
+            except:
+                pass
+
+        if not industry_code:
+            return {"prompt": base_prompt, "business_name": business_name}
 
         custom_prompt = industry_prompts.get(industry_code.lower(), "Bạn là chuyên gia tư vấn tăng trưởng.")
 
@@ -38,18 +57,21 @@ class AIContextEngine:
         # Nhúng menu/sản phẩm thật của tenant để AI gợi ý upsell/cross-sell đúng mặt hàng đang bán,
         # không bịa ra sản phẩm không tồn tại.
         menu_snippet = ""
+        has_catalog = False
         if SUPABASE_STATUS == "CONNECTED" and business_id:
             try:
                 prods = supabase.table('products').select('name, price, category') \
                     .eq('business_id', business_id).eq('is_active', 1).limit(40).execute()
                 if prods.data:
+                    has_catalog = True
                     lines = [
                         f"- {p.get('name')} ({p.get('category') or 'khác'}): {int(p.get('price') or 0):,}đ".replace(',', '.')
                         for p in prods.data
                     ]
                     menu_snippet = (
-                        "\n\nTHỰC ĐƠN/DANH MỤC SẢN PHẨM ĐANG BÁN (chỉ được gợi ý đúng các món dưới đây, "
-                        "tuyệt đối không bịa thêm sản phẩm không có trong danh sách):\n" + "\n".join(lines)
+                        "\n\nBẢNG GIÁ & DANH MỤC SẢN PHẨM/DỊCH VỤ ĐANG BÁN THẬT (chỉ được tư vấn/gợi ý đúng các "
+                        "món và mức giá dưới đây, tuyệt đối không bịa thêm sản phẩm hoặc mức giá không có trong danh sách):\n"
+                        + "\n".join(lines)
                     )
             except:
                 pass
@@ -80,4 +102,16 @@ class AIContextEngine:
             "Luôn kết thúc bằng một câu hỏi mời khách xác nhận đặt hàng."
         )
 
-        return f"{base_prompt} {custom_prompt} {details}{menu_snippet}{customer_snippet}{upsell_directive}"
+        # Động hóa danh xưng: nếu xác định được tên cửa hàng thật (multi-tenant), AI phải tự
+        # xưng danh là nhân viên CSKH của ĐÚNG cửa hàng đó, chỉ tư vấn theo danh mục thật ở trên.
+        if business_name:
+            identity_line = (
+                f"\n\nBẠN LÀ AI CSKH CỦA: {business_name}. Luôn xưng danh là nhân viên tư vấn của {business_name} "
+                f"khi phù hợp. Chỉ được tư vấn dựa trên đúng danh mục/bảng giá thật ở trên"
+                + (", tuyệt đối không tự bịa thêm sản phẩm hoặc mức giá không có trong danh sách." if has_catalog else ".")
+            )
+        else:
+            identity_line = ""
+
+        full_prompt = f"{base_prompt} {custom_prompt}{identity_line}{details}{menu_snippet}{customer_snippet}{upsell_directive}"
+        return {"prompt": full_prompt, "business_name": business_name}

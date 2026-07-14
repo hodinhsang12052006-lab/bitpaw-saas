@@ -409,12 +409,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const safeIndustry = industryData[industryCode] ? industryCode : 'general';
     const dna = industryData[safeIndustry] || industryData.general;
 
+    // Đa doanh nghiệp (multi-tenant): nếu trang hiện tại là widget nhúng thật của 1 doanh
+    // nghiệp đã đăng nhập (session có business_id, xem templates/components/cskh_global.html),
+    // BUSINESS_ID sẽ có giá trị thật và backend sẽ tự động tư vấn đúng tên cửa hàng + bảng giá
+    // thật của tenant đó. Trên các trang landing marketing chung (không đăng nhập), giá trị này
+    // là null và backend tự dùng persona chung theo ngành như cũ.
+    const BUSINESS_ID = window.BITPAW_BUSINESS_ID || null;
+
     // 5. Initialize State Variables and DOM References
     const chatForm = document.getElementById("mascot-chat-form");
     const chatMsgInput = document.getElementById("chatMsg");
     const chatPhoneInput = document.getElementById("chatPhone");
     const msgContainer = document.getElementById("chat-messages-container");
-    const pageContext = document.title || "BitPaw OS";
 
     let isLeadSubmitted = false;
     let userPhone = "";
@@ -626,6 +632,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
+                                business_id: BUSINESS_ID,
+                                industry: industryCode,
+                                customer_phone: userPhone,
+                                history: chatHistory.slice(-12),
                                 systemPrompt: dna.prompt,
                                 userPrompt: `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
                                 max_tokens: 220,
@@ -634,23 +644,23 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
 
                         const resData = await response.json();
-                        if (resData.choices && resData.choices[0] && resData.choices[0].message && !resData.fallback) {
+                        if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
-                        aiReply = "Em đang hơi chậm chút, nhưng em vẫn ghi nhận nhu cầu của anh/chị. Mình đang ưu tiên setup phần nào trước ạ?";
+                        aiReply = `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }
 
                 // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
-                if (!aiReply.includes("0794") && !aiReply.includes("chậm chút")) {
+                if (!aiReply.includes("0794") && !aiReply.includes("tư vấn gói tối ưu")) {
                     aiReply += ` Sếp kết nối nhanh Hotline/Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
                 }
 
-                if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("chậm chút")) {
+                if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
                     aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${userPhone}</span>`;
                 }
 
@@ -672,52 +682,41 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
                     aiReply = "Dạ tiệm nail thì BitPaw hỗ trợ chia tua, ghi dịch vụ từng thợ và tính hoa hồng cuối ngày cho rõ ràng hơn. Tiệm mình đang có bao nhiêu thợ ạ?";
                 } else {
-                    // Build rich rolling chat history context (last 6 messages)
-                    const rollingContext = `Ngữ cảnh trang: ${pageContext}
-
-Thông tin khách:
-- SĐT/Zalo: ${userPhone || "Chưa cung cấp"}
-
-Lịch sử hội thoại gần nhất:
-${chatHistory.slice(-6).map(item => `${item.role === "user" ? "Khách" : "BitPaw AI"}: ${item.content}`).join("\n")}
-
-Tin nhắn mới nhất của khách:
-${msgVal}
-
-Hãy trả lời như một chuyên viên tư vấn BitPaw thật:
-- Không lặp lại một câu cố định.
-- Trả lời tiếng Việt vô cùng tự nhiên như người thật, ngắn gọn (2-5 câu, dưới 350 ký tự).
-- Kết thúc bằng một câu hỏi tiếp tự nhiên.
-- Chỉ chèn hotline 0794.678.904 khi thực sự cần thiết và chưa xuất hiện trong lịch sử chat.
-- Tuyệt đối không tự ý thêm câu "Đã ghi nhận SĐT/Zalo..." nếu khách chưa nhập SĐT hợp lệ.`;
-
+                    // Lịch sử hội thoại được gửi nguyên vẹn dưới dạng messages array thật (không
+                    // còn ghép chuỗi văn bản thủ công) — backend tự nối vào prompt gọi LLM, nên
+                    // AI luôn đọc được câu hỏi trước đó của chính nó, kể cả khi khách trả lời cụt
+                    // lủn (vd: "10" sau câu hỏi "Bên mình có mấy thợ?").
                     try {
                         const response = await fetch("/api/ai/studio/generate", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
+                                business_id: BUSINESS_ID,
+                                industry: industryCode,
+                                customer_phone: userPhone,
+                                history: chatHistory.slice(-12),
                                 systemPrompt: dna.prompt,
-                                userPrompt: rollingContext,
+                                userPrompt: msgVal,
                                 max_tokens: 220,
                                 temperature: 0.7
                             })
                         });
 
                         const resData = await response.json();
-                        if (resData.choices && resData.choices[0] && resData.choices[0].message && !resData.fallback) {
+                        if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
-                        aiReply = "Em đang hơi chậm chút, nhưng em vẫn ghi nhận nhu cầu của anh/chị. Mình đang ưu tiên setup phần nào trước ạ?";
+                        aiReply = `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }
 
                 // Chỉ append dòng "Đã ghi nhận..." nếu SĐT hợp lệ và chưa từng thông báo
                 const hasMentionedSuccess = chatHistory.some(h => h.content && h.content.includes("Đã ghi nhận SĐT"));
-                if (hasValidPhone && !hasMentionedSuccess && !aiReply.includes("chậm chút")) {
+                if (hasValidPhone && !hasMentionedSuccess && !aiReply.includes("tư vấn gói tối ưu")) {
                     aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${phoneVal}</span>`;
                 }
 

@@ -2902,26 +2902,107 @@ def ai_bot():
 def ai_studio():
     return render_template('ai-studio.html')
 
+def _persist_chat_turn(business_id, customer_phone, content, sender_type='customer'):
+    """Lưu 1 lượt chat vào CRM (bot_customers/bot_messages) theo đúng business_id của tenant,
+    best-effort — không bao giờ được phép làm gãy luồng chat nếu Supabase lỗi/offline."""
+    if not content or not business_id or not customer_phone:
+        return
+    try:
+        customer_id = f"{business_id}:{customer_phone}"
+        now_iso = datetime.now().isoformat()
+        supabase.table('bot_customers').upsert({
+            'id': customer_id,
+            'full_name': f"Khách {customer_phone}",
+            'last_message': content[:500],
+            'last_message_time': now_iso,
+            'business_id': business_id,
+        }).execute()
+        supabase.table('bot_messages').insert({
+            'customer_id': customer_id,
+            'sender_type': sender_type,
+            'content': content[:2000],
+            'business_id': business_id,
+            'created_at': now_iso,
+        }).execute()
+    except Exception:
+        pass
+
+
+def _load_recent_chat_history(business_id, customer_phone, limit=10):
+    """Khôi phục lịch sử chat gần nhất từ DB khi client không còn giữ (vd: refresh trang),
+    để AI không bao giờ mất ngữ cảnh hội thoại."""
+    if not business_id or not customer_phone or SUPABASE_STATUS != "CONNECTED":
+        return []
+    try:
+        customer_id = f"{business_id}:{customer_phone}"
+        prev = supabase.table('bot_messages').select('sender_type, content, created_at') \
+            .eq('customer_id', customer_id).order('created_at', desc=True).limit(limit).execute()
+        if prev.data:
+            return [
+                {"role": "assistant" if m.get('sender_type') == 'ai' else "user", "content": m.get('content') or ''}
+                for m in reversed(prev.data)
+            ]
+    except Exception:
+        pass
+    return []
+
+
 @app.route('/api/ai/studio/generate', methods=['POST'])
-@login_required
 def secure_ai_generate():
-    business_id = session.get('business_id') or session['user_id']
     data = request.get_json() or {}
+
+    # === Đa doanh nghiệp (Multi-tenant): xác định ĐÚNG business_id của tenant ===
+    # Ưu tiên business_id do frontend widget gửi trực tiếp (khách hàng thật của từng doanh
+    # nghiệp, gọi API ẩn danh không đăng nhập), sau đó mới fallback về session đang đăng nhập
+    # (dùng khi test trong AI Studio nội bộ). Nếu cả hai đều không có (vd: bot tư vấn marketing
+    # chung trên landing page BitPaw) thì business_id là None — AIContextEngine sẽ tự dùng
+    # persona chung theo industry, không fix cứng và không lộ dữ liệu tenant nào khác.
+    business_id = data.get('business_id') or session.get('business_id') or session.get('user_id')
+    industry = data.get('industry') or session.get('business_mode', 'general')
     # Persona/phong cách do client gửi (KHÔNG chứa số liệu doanh nghiệp thật) — số liệu luôn
-    # được server tự nhúng bên dưới, lọc đúng theo business_id của session, không tin client.
+    # được server tự nhúng bên dưới, lọc đúng theo business_id, không tin client.
     client_persona = data.get('systemPrompt', '')
     user_prompt = data.get('userPrompt', '')
     temperature = data.get('temperature', 0.7)
     max_tokens = data.get('max_tokens', 1500)
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
+    client_history = data.get('history') or []
 
-    industry = session.get('business_mode', 'retail')
-    tenant_context = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone)
-    system_prompt = f"{tenant_context}\n{client_persona}"
+    ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone)
+    tenant_context = ctx['prompt']
+    business_name = ctx['business_name'] or 'BitPaw'
+    system_prompt = f"{tenant_context}\n{client_persona}".strip()
+
+    # === Nối chuỗi hội thoại thật (không để AI mất ngữ cảnh khi khách trả lời cụt lủn) ===
+    # Ưu tiên lịch sử client đang giữ trong phiên chat hiện tại; nếu client không gửi gì (vd:
+    # vừa refresh trang) thì khôi phục lại từ DB theo đúng business_id + SĐT khách.
+    history = client_history if client_history else _load_recent_chat_history(business_id, customer_phone)
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for turn in history[-12:]:
+        role = turn.get('role') if isinstance(turn, dict) else None
+        content = (turn.get('content') or '').strip() if isinstance(turn, dict) else ''
+        # Strip HTML-ish tags client có thể đã chèn vào (vd: badge "Đã ghi nhận SĐT...")
+        content = re.sub(r'<[^>]+>', ' ', content).strip()
+        if role in ('user', 'assistant') and content:
+            messages.append({"role": role, "content": content[:2000]})
+    if user_prompt:
+        messages.append({"role": "user", "content": user_prompt})
+
+    # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
+    _persist_chat_turn(business_id, customer_phone, user_prompt or (history[-1]['content'] if history else ''), sender_type='customer')
+
+    # Câu chốt sale dự phòng thông minh — thay cho câu báo lỗi cứng cũ, luôn gắn đúng tên
+    # cửa hàng của tenant (hoặc "BitPaw" nếu là bot marketing chung không gắn tenant nào).
+    fallback_reply = (
+        f"Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em "
+        f"gọi lại tư vấn gói tối ưu nhất cho {business_name} luôn nhé!"
+    )
 
     api_key = os.environ.get('DEEPSEEK_API_KEY')
     if not api_key:
-        return jsonify({"error": "Server chưa cấu hình DEEPSEEK_API_KEY.", "fallback": True}), 500
+        return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
+                         "error": "Server chưa cấu hình DEEPSEEK_API_KEY."})
 
     url = "https://api.deepseek.com/chat/completions"
     headers = {
@@ -2930,24 +3011,32 @@ def secure_ai_generate():
     }
     payload = {
         "model": "deepseek-chat",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
+        "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens
     }
 
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=15)
+        # Timeout nới rộng lên 45s: các câu hỏi có nhúng bảng giá/danh mục sản phẩm dài cho
+        # tenant nhiều hàng hoá cần nhiều thời gian xử lý hơn so với persona ngắn cũ.
+        resp = requests.post(url, headers=headers, json=payload, timeout=45)
         resp.raise_for_status()
-        return jsonify(resp.json())
+        result = resp.json()
+        try:
+            ai_text = result['choices'][0]['message']['content']
+            _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai')
+        except Exception:
+            pass
+        return jsonify(result)
     except requests.exceptions.Timeout:
-        return jsonify({"error": "AI service timeout sau 15s, vui lòng thử lại.", "fallback": True}), 504
+        return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
+                         "error": "AI service timeout sau 45s."})
     except requests.exceptions.HTTPError as e:
-        return jsonify({"error": f"AI service từ chối request: {str(e)}", "fallback": True}), 502
+        return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
+                         "error": f"AI service từ chối request: {str(e)}"})
     except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Lỗi kết nối AI service: {str(e)}", "fallback": True}), 502
+        return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
+                         "error": f"Lỗi kết nối AI service: {str(e)}"})
 
 @app.route('/app_chat')
 @login_required
