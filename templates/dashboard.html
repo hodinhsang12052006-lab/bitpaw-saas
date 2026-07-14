@@ -23,6 +23,7 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -106,7 +107,7 @@
                         <div class="absolute w-full h-full border-t-2 border-purple-400/50 rounded-full animate-spin" style="animation-duration: 3s;"></div>
                         <div class="absolute w-[110%] h-[110%] border-b-2 border-cyan-400/50 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
                         <div class="relative animated-mini-3d w-14 h-14 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
-                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="Logo">
+                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="Logo">
                             <div class="scanner-line"></div>
                         </div>
                     </div>
@@ -203,24 +204,13 @@
                         <span>Báo cáo lợi nhuận</span>
                     </a>
                 {% endif %}
-            </nav>
 
-            <!-- KẾT NỐI CSKH (đã bổ sung Facebook) -->
-            <div class="px-5 pb-4 mt-auto">
-                <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] group hover:border-cyan-500/50 transition-colors">
-                    <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-3 flex items-center">
-                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
-                    </p>
-                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
-                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center shrink-0"></i> <span>Hotline: 0794.678.904</span></a>
-                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center shrink-0"></i> <span>Zalo: 0794.678.904</span></a>
-                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center shrink-0"></i> <span>Facebook: Hồ Đình Sang</span></a>
-                    </div>
-                    <button onclick="toggleCSKHChat()" class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
-                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
-                    </button>
-                </div>
-            </div>
+                <!-- MULTI-BRANCH -->
+                <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-sitemap w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                    <span>Báo cáo Tổng hợp toàn chuỗi</span>
+                </a>
+            </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
@@ -241,6 +231,15 @@
             </div>
             
             <div class="flex items-center gap-4 flex-wrap">
+                <!-- Chuyển đổi chi nhánh (multi-branch) -->
+                <div class="bg-purple-500/10 border border-purple-500/30 px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-inner backdrop-blur-md">
+                    <i class="fas fa-store text-purple-400"></i>
+                    <select id="branchSwitcher" class="bg-transparent text-white font-bold outline-none cursor-pointer text-sm max-w-[160px]">
+                        <option value="">Đang tải chi nhánh...</option>
+                    </select>
+                    <button id="addBranchBtn" class="text-purple-400 hover:text-purple-300 text-xs font-bold" title="Thêm chi nhánh mới"><i class="fas fa-plus-circle"></i></button>
+                </div>
+
                 <div class="bg-white/[0.05] border border-white/10 px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-inner backdrop-blur-md hover:border-cyan-500/30 transition-colors">
                     <i class="fas fa-calendar-alt text-cyan-400"></i>
                     <input type="month" id="monthFilter" class="bg-transparent text-white font-bold outline-none cursor-pointer text-sm [color-scheme:dark]" onchange="loadStats()">
@@ -255,6 +254,17 @@
                 </div>
             </div>
         </header>
+
+        <!-- Báo động đối soát thanh toán (đơn báo CK nhưng tiền chưa vào / thu thiếu-thừa) -->
+        <div id="reconciliationAlertsPanel" class="mb-6" style="display:none;">
+            <div class="bg-rose-500/10 border border-rose-500/40 rounded-2xl p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-black text-rose-400"><i class="fas fa-triangle-exclamation mr-2 animate-pulse"></i> Báo động đối soát thanh toán</h2>
+                    <div class="text-sm text-gray-400" id="reconciliationAlertCount"></div>
+                </div>
+                <div id="reconciliationAlertsList" class="space-y-2"></div>
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
@@ -373,33 +383,6 @@
                         </div>
                         <div id="calendarGrid" class="grid grid-cols-7 gap-y-3 gap-x-2 text-center text-xs text-gray-300 flex-1 content-start font-medium overflow-y-auto custom-scrollbar pr-1"></div>
                     </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Chat Widget CSKH (giữ nguyên) -->
-        <div id="cskhWidget" class="fixed bottom-24 right-6 z-[100] transition-all transform scale-0 origin-bottom-right">
-            <div class="bg-[#0b0d1c] w-80 rounded-2xl border border-cyan-500/30 shadow-[0_20px_50px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col">
-                <div class="bg-gradient-to-r from-cyan-600 to-blue-700 p-3 flex justify-between items-center shadow-md">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white border border-white/30 backdrop-blur-md shadow-inner"><i class="fas fa-headset"></i></div>
-                        <div>
-                            <p class="text-white text-xs font-black uppercase tracking-widest leading-tight">Phòng Tuyến Kỹ Thuật</p>
-                            <p class="text-cyan-200 text-[10px] font-bold mt-0.5"><i class="fas fa-circle text-emerald-400 text-[8px] mr-1 animate-pulse shadow-[0_0_5px_#34d399] rounded-full"></i>Trực tuyến - Sếp Hậu</p>
-                        </div>
-                    </div>
-                    <button onclick="toggleCSKHChat()" class="text-white/70 hover:text-white transition-colors text-lg"><i class="fas fa-times-circle"></i></button>
-                </div>
-                <div class="h-64 p-4 overflow-y-auto bg-black/60 text-xs space-y-3 relative" id="cskhChatBox">
-                    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
-                    <div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white shadow-[0_5px_15px_rgba(6,182,212,0.15)] relative z-10 leading-relaxed">
-                        Chào Sếp! Em là Hậu, kỹ sư trực trạm BitPaw. Hệ thống của Sếp đang cần hỗ trợ vấn đề gì ạ?
-                    </div>
-                </div>
-                <div class="p-3 bg-white/[0.03] border-t border-cyan-500/30 flex gap-2 relative z-10 backdrop-blur-md">
-                    <input type="text" id="cskhInput" placeholder="Nhập chỉ thị..." class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-2.5 text-xs outline-none focus:border-cyan-500 text-white transition-colors shadow-inner" onkeypress="if(event.key === 'Enter') sendCSKHMessage()">
-                    <button onclick="sendCSKHMessage()" class="bg-cyan-500 text-black px-4 rounded-lg hover:bg-cyan-400 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.4)]"><i class="fas fa-paper-plane text-sm"></i></button>
                 </div>
             </div>
         </div>
@@ -534,9 +517,11 @@
         // ========================================================
         // 3. SUPABASE & LOGIC DỮ LIỆU CHÍNH XÁC
         // ========================================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         let myChart = null;
 
@@ -767,11 +752,102 @@
         }
 
         // Realtime cho tasks
-        supabase.channel('dashboard_tasks_tracking')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadStats())
-            .subscribe();
+        supabaseReady.then(() => {
+            supabase.channel('dashboard_tasks_tracking')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadStats())
+                .subscribe();
 
-        loadStats();
+            loadStats();
+            loadReconciliationAlerts();
+        });
+
+        // ========================================================
+        // MULTI-BRANCH: chuyển đổi / thêm chi nhánh
+        // ========================================================
+        async function loadBranches() {
+            const sel = document.getElementById('branchSwitcher');
+            try {
+                const res = await fetch('/api/my_branches', { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) return;
+                sel.innerHTML = json.branches.map(b =>
+                    `<option value="${b.business_id}" ${b.business_id === json.active_business_id ? 'selected' : ''}>${b.branch_name || 'Chi nhánh'}</option>`
+                ).join('');
+            } catch (e) {
+                console.error('Lỗi tải danh sách chi nhánh:', e);
+            }
+        }
+        document.getElementById('branchSwitcher').addEventListener('change', async (e) => {
+            const businessId = e.target.value;
+            if (!businessId) return;
+            try {
+                const res = await fetch('/api/switch_branch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_id: businessId })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    window.location.reload();
+                } else {
+                    alert(json.message || 'Không chuyển được chi nhánh.');
+                }
+            } catch (err) {
+                alert('Lỗi chuyển chi nhánh: ' + err.message);
+            }
+        });
+        document.getElementById('addBranchBtn').addEventListener('click', async () => {
+            const branchName = prompt('Tên chi nhánh mới:');
+            if (!branchName || !branchName.trim()) return;
+            try {
+                const res = await fetch('/add_branch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ branch_name: branchName.trim() })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    await loadBranches();
+                } else {
+                    alert(json.message || 'Không tạo được chi nhánh.');
+                }
+            } catch (err) {
+                alert('Lỗi tạo chi nhánh: ' + err.message);
+            }
+        });
+        loadBranches();
+
+        // ========================================================
+        // ĐỐI SOÁT THANH TOÁN: hiển thị báo động do cron tạo ra
+        // ========================================================
+        async function loadReconciliationAlerts() {
+            const panel = document.getElementById('reconciliationAlertsPanel');
+            const list = document.getElementById('reconciliationAlertsList');
+            const countEl = document.getElementById('reconciliationAlertCount');
+            try {
+                const { data, error } = await supabase.from('reconciliation_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) { panel.style.display = 'none'; return; }
+                panel.style.display = 'block';
+                countEl.innerText = `${data.length} cảnh báo`;
+                const issueLabels = { missing_order: 'Thiếu đơn hàng', amount_mismatch: 'Lệch số tiền', stale_pending: 'Chờ thanh toán quá lâu' };
+                list.innerHTML = data.map(a => `
+                    <div class="bg-black/30 border border-rose-500/20 rounded-xl p-3 flex justify-between items-center gap-3">
+                        <div>
+                            <p class="font-bold text-rose-300 text-sm">${issueLabels[a.issue_type] || a.issue_type} — GD ${a.transaction_id || ''}</p>
+                            <p class="text-xs text-gray-400 mt-1">${a.details || ''}</p>
+                        </div>
+                        <button class="reconciliation-resolve-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" data-id="${a.id}">Đã xử lý</button>
+                    </div>
+                `).join('');
+                list.querySelectorAll('.reconciliation-resolve-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    await supabase.from('reconciliation_alerts').update({ status: 'resolved' }).eq('id', btn.dataset.id);
+                    loadReconciliationAlerts();
+                }));
+            } catch (err) {
+                console.error('Lỗi tải cảnh báo đối soát:', err);
+            }
+        }
 
         // ========================================================
         // CSKH CHAT (giữ nguyên)

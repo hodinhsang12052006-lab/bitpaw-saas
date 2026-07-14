@@ -174,7 +174,7 @@
             <div class="relative w-16 h-16 flex items-center justify-center logo-float mb-3">
                 <div class="absolute w-full h-full border-t-2 border-fuchsia-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
                 <div class="absolute w-[120%] h-[120%] border-b-2 border-pink-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
             </div>
             <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-fuchsia-400">Paw</span></h1>
             <p class="text-xs text-gray-400 mt-1">Quản lý liệu trình spa chuyên nghiệp</p>
@@ -254,40 +254,6 @@
             </form>
         </div>
 
-        <!-- CSKH Widget HIỂN THỊ ĐẦY ĐỦ THÔNG TIN (fix lỗi thiếu số điện thoại, tên) -->
-        <div class="mt-6 cskh-widget max-w-md mx-auto">
-            <h3 class="text-sm font-bold text-fuchsia-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
-            <div class="flex flex-col gap-2">
-                <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
-                    <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
-                    <div class="cskh-info">
-                        <span class="cskh-label">Hotline (24/7)</span>
-                        <span class="cskh-value">0794.678.904</span>
-                    </div>
-                </a>
-                <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
-                    <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
-                    <div class="cskh-info">
-                        <span class="cskh-label">Zalo Official</span>
-                        <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
-                    </div>
-                </a>
-                <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
-                    <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
-                    <div class="cskh-info">
-                        <span class="cskh-label">Messenger</span>
-                        <span class="cskh-value">fb.com/chuyhieuhong</span>
-                    </div>
-                </a>
-                <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
-                    <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
-                    <div class="cskh-info">
-                        <span class="cskh-label">Email hỗ trợ</span>
-                        <span class="cskh-value">hodinhsang30052003@gmail.com</span>
-                    </div>
-                </a>
-            </div>
-        </div>
     </div>
 
     <div id="toast" class="toast">Thông báo</div>
@@ -298,7 +264,19 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        let supabase = createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(json => {
+                if (json && json.success) {
+                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                } else {
+                    console.error('Không lấy được tenant token:', json && json.error);
+                }
+                return supabase;
+            })
+            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
         const STORAGE_BUCKET = 'product_images';
 
         // DOM elements

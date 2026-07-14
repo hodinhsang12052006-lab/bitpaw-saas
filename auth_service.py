@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, flash, request
+from flask import session, redirect, url_for, flash
 from supabase_client import supabase, SUPABASE_STATUS
 
 class AuthService:

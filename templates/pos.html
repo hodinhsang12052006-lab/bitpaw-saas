@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw POS | Sơ đồ bàn & Thực đơn</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -356,7 +356,7 @@
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10 logo-float shrink-0">
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-xs sm:text-lg font-medium">| POS Bán hàng</span></h1>
@@ -456,8 +456,6 @@
             </div>
         </div>
 
-        <!-- CSKH Component dùng chung -->
-        {% include 'components/cskh_global.html' %}
     </div>
 
     <!-- Modal chọn số lượng món -->
@@ -488,8 +486,20 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = '{{ supabase_url }}';
         const supabaseKey = '{{ supabase_key }}';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        let supabase = createClient(supabaseUrl, supabaseKey);
         const businessId = '{{ session.get("business_id", "") }}';
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(json => {
+                if (json && json.success) {
+                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                } else {
+                    console.error('Không lấy được tenant token:', json && json.error);
+                }
+                return supabase;
+            })
+            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
 
         // State
         let selectedTableId = null;
@@ -742,7 +752,7 @@
                 else if (ind === 'spa') paramName = 'bed';
                 else if (ind === 'karaoke' || ind === 'hotel') paramName = 'room';
                 
-                const qrUrl = `${window.location.origin}/table_order?table_id=${t.id}`;
+                const qrUrl = `${window.location.origin}/table_order?table_id=${token}`;
                 
                 return `
                 <div class="glass-card p-3 text-center cursor-pointer table-item transition-all hover:border-cyan-400 flex flex-col justify-between" data-table-id="${t.id}" data-table-name="${escapeHtml(t.name)}" data-status="${t.status || 'Còn trống'}">
@@ -995,7 +1005,7 @@
             // 2. Try Client-side Supabase client directly
             if (!supabaseSaved) {
                 try {
-                    const { error } = await supabase.from('dining_tables').insert([{ name: formattedName, status: 'Còn trống', qr_token: token }]);
+                    const { error } = await supabase.from('dining_tables').insert([{ name: formattedName, status: 'Còn trống', qr_token: token, business_id: businessId }]);
                     if (!error) {
                         supabaseSaved = true;
                         showToast(`Đã thêm thành công: "${formattedName}"`);
@@ -1301,42 +1311,6 @@
             newTableNameInput.value = '';
         });
 
-        // CSKH: track click & gửi yêu cầu
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-            } catch(e) { console.warn(e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-
-        const supportForm = document.getElementById('supportForm');
-        if (supportForm) {
-            supportForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const name = document.getElementById('supportName').value;
-                const phone = document.getElementById('supportPhone').value;
-                const message = document.getElementById('supportMessage').value;
-                if (!name || !phone || !message) {
-                    showToast('Vui lòng nhập đầy đủ thông tin', true);
-                    return;
-                }
-                showLoading(true);
-                try {
-                    const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                    if (error) throw error;
-                    showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
-                    supportForm.reset();
-                } catch(err) {
-                    showToast('Lỗi: ' + err.message, true);
-                } finally {
-                    showLoading(false);
-                }
-            });
-        }
-
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
@@ -1413,7 +1387,7 @@
 
         // Khởi tạo
         initializeIndustryUI();
-        loadAndRender();
+        supabaseReady.then(() => loadAndRender());
 
         // 3D Background (giữ nguyên)
         (function init3D() {

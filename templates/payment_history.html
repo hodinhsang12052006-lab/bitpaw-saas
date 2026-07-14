@@ -295,7 +295,7 @@
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
                     <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
                     <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Pay</span></h1>
@@ -346,6 +346,7 @@
                 <div class="text-sm text-gray-400" id="recordCount">Đang tải...</div>
             </div>
             <div class="table-wrapper">
+                <div class="overflow-x-auto">
                 <table class="custom-table" id="historyTable">
                     <thead>
                         <tr>
@@ -361,6 +362,7 @@
                         <tr><td colspan="6" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr>
                     </tbody>
                 </table>
+                </div>
             </div>
             
             <!-- Pagination -->
@@ -383,52 +385,6 @@
             </div>
         </div>
         
-        <!-- CSKH Widget đầy đủ (thay thế widget cũ) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
-                <div class="flex flex-col gap-2">
-                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
-                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Hotline (24/7)</span>
-                            <span class="cskh-value">0794.678.904</span>
-                        </div>
-                    </a>
-                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
-                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Zalo Official</span>
-                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
-                        </div>
-                    </a>
-                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
-                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Messenger</span>
-                            <span class="cskh-value">fb.com/chuyhieuhong</span>
-                        </div>
-                    </a>
-                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
-                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Email hỗ trợ</span>
-                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
-                <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
-                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
-                </form>
-                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal chi tiết giao dịch -->
@@ -655,42 +611,6 @@
         closeModalBtn.addEventListener('click', closeModal);
         closeModalFooterBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
-        // CSKH track click & gửi yêu cầu
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-                }
-            } catch(e) { console.warn('track click error', e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-
-        const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
-                return;
-            }
-            showLoading(true);
-            try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
-                supportForm.reset();
-            } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
-            } finally {
-                showLoading(false);
-            }
-        });
 
         // Initial load
         loadTransactions();

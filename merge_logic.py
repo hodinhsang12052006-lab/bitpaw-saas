@@ -1,5 +1,3 @@
-import os
-
 app_path = r"C:\Users\hodin\Desktop\PM_Ban_Hang\app.py"
 core_app_path = r"C:\Users\hodin\Desktop\PM_Ban_Hang\.vscode\phanmemquanlydoanhthu\app (2).py"
 

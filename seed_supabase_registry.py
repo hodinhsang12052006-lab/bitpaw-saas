@@ -1,6 +1,5 @@
 import sys
 import os
-import sqlite3
 
 # Bind workspace path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

@@ -1,4 +1,3 @@
-from flask import session
 from supabase_client import supabase, SUPABASE_STATUS
 
 class ModuleLoader:

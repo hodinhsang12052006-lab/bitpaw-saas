@@ -9,6 +9,7 @@
     
     <!-- 🚀 THÊM THƯ VIỆN SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
@@ -33,7 +34,7 @@
 
     <div class="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative z-10 flex flex-col items-center text-center">
         
-        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="BitPaw Logo" class="w-16 h-16 rounded-full mx-auto mb-2 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-black/20 p-1">
+        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="w-16 h-16 rounded-full mx-auto mb-2 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-black/20 p-1">
         <h2 class="text-sm font-bold text-gray-400 mb-1 uppercase tracking-wider">Xin chào,</h2>
         <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6" id="empName">Đang tải...</h1>
 
@@ -87,9 +88,11 @@
         // ==========================================
         // 🚀 1. CẤU HÌNH SUPABASE 
         // ==========================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         // Biến lưu thông tin nhân viên (Lấy từ LocalStorage đã đăng nhập ở App Nhân Viên)
         let currentUser = { code: 'NV-0000', name: 'Chưa đăng nhập' };
@@ -174,6 +177,7 @@
 
         // --- 4. BẤM "CHỤP & LƯU" -> ĐẨY THẲNG LÊN SUPABASE CLOUD ---
         async function captureAndSubmit() {
+            await supabaseReady;
             const btn = document.getElementById('captureBtn');
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Đang tải lên hệ thống...`;
             btn.disabled = true;

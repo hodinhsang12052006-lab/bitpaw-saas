@@ -85,7 +85,12 @@ def create_facebook_campaign(access_token, ad_account_id, name, objective, budge
     }
     if budget:
         params["daily_budget"] = int(budget * 100)  # USD -> cent (nếu budget là USD)
-    response = requests.post(url, params=params)
+    try:
+        response = requests.post(url, params=params, timeout=15)
+    except requests.exceptions.Timeout:
+        raise Exception("Facebook API timeout sau 15s, vui lòng thử lại.")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Lỗi kết nối Facebook API: {str(e)}")
     if response.status_code == 200:
         return response.json().get("id")
     else:

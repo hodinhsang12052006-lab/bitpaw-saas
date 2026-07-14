@@ -291,7 +291,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 glass-panel p-4 sm:px-6 sm:py-4 rounded-2xl">
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10 shrink-0">
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Pay</span> <span class="text-gray-400 text-xs sm:text-sm font-medium">| Cấu hình Cổng thanh toán</span></h1>
@@ -662,7 +662,19 @@
         // ========== SUPABASE CONFIG DYNAMIC ==========
         const supabaseUrl = '{{ supabase_url }}';
         const supabaseKey = '{{ supabase_key }}';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        let supabase = createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(json => {
+                if (json && json.success) {
+                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                } else {
+                    console.error('Không lấy được tenant token:', json && json.error);
+                }
+                return supabase;
+            })
+            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
 
         // DOM elements
         const bankSearch = document.getElementById('bankSearch');

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Đặt Lịch Dịch Vụ | BitPaw Services</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -143,7 +143,7 @@
                     <div class="absolute w-[120%] h-[120%] border-b-2 border-l-2 border-blue-500/50 rounded-2xl animate-spin" style="animation-duration: 8s; animation-direction: reverse;"></div>
                     
                     <div class="relative animated-logo-3d w-14 h-14 flex items-center justify-center overflow-hidden rounded-xl bg-[#0f172a]">
-                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="w-full h-full object-cover">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="w-full h-full object-cover">
                         <i id="altIcon" class="fas fa-gem text-cyan-400 text-2xl hidden drop-shadow-[0_0_5px_currentColor]"></i>
                     </div>
                 </div>
@@ -285,11 +285,17 @@
         // ========================================================
         // 🚀 LOGIC ĐẶT LỊCH & SUPABASE
         // ========================================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        // Token giới hạn phạm vi (chỉ đọc dịch vụ, tạo lịch hẹn của đúng tiệm này) do Flask ký sẵn khi render trang.
+        const tenantJwt = {{ (tenant_jwt or '') | tojson }};
+        const supabase = tenantJwt
+            ? window.supabase.createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${tenantJwt}` } } })
+            : window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let globalMenuData = []; 
+        let globalMenuData = [];
+        // business_id của tiệm (spa_id trong QR chính là business_id) — dùng để lọc/gắn đúng tenant, chặn lộ chéo dữ liệu
+        const bookingBusinessId = {{ (spa_id or '') | tojson }};
 
         window.onload = () => {
             init3DBackground();
@@ -306,7 +312,9 @@
         async function loadServices() {
             const selectEl = document.getElementById('cus_service');
             try {
-                const { data, error } = await supabase.from('dichvu').select('*').order('id', { ascending: false });
+                let svcQuery = supabase.from('dichvu').select('*').order('id', { ascending: false });
+                if (bookingBusinessId) svcQuery = svcQuery.eq('business_id', bookingBusinessId);
+                const { data, error } = await svcQuery;
                 if (error) throw error;
                 
                 if (data && data.length > 0) {
@@ -374,7 +382,8 @@
                     dia_chi: address,
                     noi_dung: finalContent,
                     trang_thai: 'Chờ Nhận',
-                    nguoi_nhan: ''
+                    nguoi_nhan: '',
+                    business_id: bookingBusinessId || null
                 }]).select();
 
                 if (error) throw error;

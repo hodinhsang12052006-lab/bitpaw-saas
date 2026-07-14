@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -80,7 +81,7 @@
                 <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
                     <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
                     <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
@@ -117,23 +118,6 @@
                 </a>
             </nav>
 
-            <!-- KẾT NỐI CSKH (đã bổ sung Facebook) -->
-            <div class="px-5 pb-4 mt-auto">
-                <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] group hover:border-cyan-500/50 transition-colors">
-                    <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-3 flex items-center">
-                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
-                    </p>
-                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
-                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline: 0794.678.904</span></a>
-                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo: 0794.678.904</span></a>
-                        <!-- Thêm Facebook -->
-                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ Đình Sang</span></a>
-                    </div>
-                    <button onclick="toggleCSKHChat()" class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
-                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
-                    </button>
-                </div>
-            </div>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
@@ -286,31 +270,6 @@
         </div>
     </div>
 
-    <!-- Chat widget CSKH (giống dashboard) -->
-    <div id="cskhWidget" class="fixed bottom-24 right-6 z-[100] transition-all transform scale-0 origin-bottom-right">
-        <div class="bg-[#0b0d1c] w-80 rounded-2xl border border-cyan-500/30 shadow-[0_20px_50px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col">
-            <div class="bg-gradient-to-r from-cyan-600 to-blue-700 p-3 flex justify-between items-center shadow-md">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white border border-white/30 backdrop-blur-md"><i class="fas fa-headset"></i></div>
-                    <div>
-                        <p class="text-white text-xs font-black uppercase tracking-widest">Phòng Tuyến Kỹ Thuật</p>
-                        <p class="text-cyan-200 text-[10px] font-bold mt-0.5"><i class="fas fa-circle text-emerald-400 text-[8px] mr-1 animate-pulse"></i>Trực tuyến - Sếp Hậu</p>
-                    </div>
-                </div>
-                <button onclick="toggleCSKHChat()" class="text-white/70 hover:text-white text-lg"><i class="fas fa-times-circle"></i></button>
-            </div>
-            <div class="h-64 p-4 overflow-y-auto bg-black/60 text-xs space-y-3 relative" id="cskhChatBox">
-                <div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white shadow-sm">
-                    Chào Sếp! Em là Hậu, kỹ sư trực trạm BitPaw. Hệ thống của Sếp đang cần hỗ trợ vấn đề gì ạ?
-                </div>
-            </div>
-            <div class="p-3 bg-white/[0.03] border-t border-cyan-500/30 flex gap-2">
-                <input type="text" id="cskhInput" placeholder="Nhập chỉ thị..." class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-2.5 text-xs outline-none focus:border-cyan-500 text-white">
-                <button onclick="sendCSKHMessage()" class="bg-cyan-500 text-black px-4 rounded-lg hover:bg-cyan-400 transition"><i class="fas fa-paper-plane text-sm"></i></button>
-            </div>
-        </div>
-    </div>
-
     <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3"></div>
 
     <script>
@@ -401,9 +360,12 @@
         // ==========================================
         // SUPABASE + LOGIC QUẢN LÝ NHÂN SỰ
         // ==========================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        // Client tạm (chỉ anon key) dùng trong lúc chờ nâng cấp lên tenant client bên dưới.
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         let currentDept = 'all';
         let searchTerm = '';
@@ -640,33 +602,14 @@
             document.getElementById(id).classList.remove('flex');
         }
 
-        // Chat widget CSKH đơn giản
-        let isChatOpen = false;
-        function toggleCSKHChat() {
-            const widget = document.getElementById('cskhWidget');
-            isChatOpen = !isChatOpen;
-            widget.style.transform = isChatOpen ? "scale(1)" : "scale(0)";
-        }
-        function sendCSKHMessage() {
-            const input = document.getElementById('cskhInput');
-            const msg = input.value.trim();
-            if (!msg) return;
-            const chatBox = document.getElementById('cskhChatBox');
-            chatBox.innerHTML += `<div class="flex justify-end"><div class="bg-white/10 p-3 rounded-xl rounded-tr-none border border-white/10 max-w-[85%] text-white text-xs">${msg}</div></div>`;
-            input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-            setTimeout(() => {
-                chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-2">Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!</div>`;
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, 1000);
-        }
+        supabaseReady.then(() => {
+            loadEmployees();
 
-        loadEmployees();
-
-        // Realtime subscription để tự động cập nhật khi có thay đổi từ database
-        supabase.channel('hr_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => loadEmployees())
-            .subscribe();
+            // Realtime subscription để tự động cập nhật khi có thay đổi từ database
+            supabase.channel('hr_realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => loadEmployees())
+                .subscribe();
+        });
     </script>
 </body>
 </html>

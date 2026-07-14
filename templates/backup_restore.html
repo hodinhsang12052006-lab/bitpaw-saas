@@ -81,7 +81,7 @@
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
                     <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
                     <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Sao lưu & Phục hồi</span></h1>
@@ -146,41 +146,7 @@
             <div><span class="font-bold">Khuyến cáo:</span> Sao lưu thường xuyên để tránh mất dữ liệu. Bản sao lưu được mã hóa. Dung lượng tối đa file restore: 50MB.</div>
         </div>
 
-        <!-- CSKH Widget (giống các file trước) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
-                <div class="flex flex-col gap-2">
-                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
-                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Hotline (24/7)</span>
-                            <span class="cskh-value">0794.678.904</span>
-                        </div>
-                    </a>
-                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
-                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Zalo Official</span>
-                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
-                        </div>
-                    </a>
-                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
-                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Messenger</span>
-                            <span class="cskh-value">fb.com/chuyhieuhong</span>
-                        </div>
-                    </a>
-                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
-                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
-                        <div class="cskh-info">
-                            <span class="cskh-label">Email hỗ trợ</span>
-                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
-                        </div>
-                    </a>
-                </div>
-            </div>
+        <div class="grid grid-cols-1 gap-4 mt-6">
             <div class="cskh-widget">
                 <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
                 <form id="supportForm" class="space-y-2">
@@ -216,7 +182,19 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        let supabase = createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(json => {
+                if (json && json.success) {
+                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                } else {
+                    console.error('Không lấy được tenant token:', json && json.error);
+                }
+                return supabase;
+            })
+            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
         const BACKUP_BUCKET = 'backups';
 
         // Helper
@@ -511,7 +489,7 @@
             }
             await loadCloudBackups();
         }
-        init();
+        supabaseReady.then(() => { init(); });
 
         // Nút backup
         document.getElementById('backupNowBtn').addEventListener('click', performBackup);

@@ -1,10 +1,8 @@
-import os
 import sys
 import time
 import socket
 import subprocess
 import sqlite3
-from datetime import datetime
 
 # Đảm bảo in ra tiếng Việt đúng chuẩn trên Windows Console
 sys.stdout.reconfigure(encoding='utf-8')
@@ -164,7 +162,7 @@ def main():
         time.sleep(5)
         print(f"{GREEN}[✓] Quá trình UI Test hoàn thành! Đã đăng ký thành công.{RESET}")
 
-    except Exception as e:
+    except Exception:
         import traceback
         print(f"\n{RED}[- ] Lỗi trong quá trình kiểm thử:{RESET}")
         traceback.print_exc()

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     
     <!-- PWA Meta Tags (Biến Web thành Native App) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,6 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -89,7 +90,7 @@
                         <div class="absolute w-[110%] h-[110%] border-b-4 border-cyan-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
                         
                         <div class="relative animated-logo-3d w-24 h-24 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
-                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover">
+                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover">
                             <div class="scanner-line"></div>
                         </div>
                     </div>
@@ -188,7 +189,7 @@
                     <div class="flex items-center gap-3 cursor-pointer group">
                         <!-- Mini Logo Nổi -->
                         <div class="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-xl flex items-center justify-center border border-cyan-500/50 group-hover:rotate-12 transition-transform overflow-hidden shadow-inner">
-                            <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover drop-shadow-[0_0_8px_#06b6d4]">
+                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover drop-shadow-[0_0_8px_#06b6d4]">
                         </div>
                         <h1 class="text-xl font-black tracking-widest text-white">Bit<span class="text-cyan-400">Paw</span></h1>
                     </div>
@@ -551,18 +552,21 @@
         // ========================================================
         // 🚀 1. CẤU HÌNH SUPABASE & BIẾN TOÀN CỤC
         // ========================================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         let currentUser = { name: null, code: null, linhVuc: null, avatar: null };
         let videoStream = null; let currentLat = null; let currentLng = null;
         let watchId = null; let db;
 
         window.onload = async () => {
+            await supabaseReady;
             init3DBackground();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
-            
+
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
             

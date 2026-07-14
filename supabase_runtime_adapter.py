@@ -1,5 +1,3 @@
-import os
-import sqlite3
 from supabase_client import supabase, SUPABASE_STATUS
 
 class SupabaseRuntimeAdapter:

@@ -2,12 +2,14 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý Menu & Chợ Dịch Vụ | BitPaw Enterprise</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -322,9 +324,11 @@
     </script>
 
     <script>
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         let globalMenuData = []; 
 
@@ -604,14 +608,16 @@
             // Future update: Can open a slide-over panel.
         }
 
-        // 🚀 REALTIME ENGINE
-        supabase.channel('tasks_tracking').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
-            fetchJobs(); 
-        }).subscribe();
+        supabaseReady.then(() => {
+            // 🚀 REALTIME ENGINE
+            supabase.channel('tasks_tracking').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+                fetchJobs();
+            }).subscribe();
 
-        // Khởi động
-        loadDichVu();
-        fetchJobs();
+            // Khởi động
+            loadDichVu();
+            fetchJobs();
+        });
     </script>
 </body>
 </html>

@@ -134,7 +134,7 @@
         <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10">
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full rounded-full border-2 border-yellow-400 object-cover">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-yellow-400 object-cover">
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-yellow-400">Pay</span></h1>
@@ -279,6 +279,14 @@
             </div>
             {% endif %}
 
+            <!-- Tích điểm khách hàng thân thiết (không bắt buộc) -->
+            <div class="max-w-md mx-auto mb-4">
+                <label class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1 block">
+                    <i class="fas fa-star text-yellow-400 mr-1"></i> SĐT khách hàng (không bắt buộc — để tự động tích điểm/lên hạng)
+                </label>
+                <input type="tel" id="loyaltyCustomerPhone" placeholder="VD: 0901234567" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-yellow-500/50">
+            </div>
+
             <!-- Cụm nút Cashier -->
             <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
                 <button id="confirmPaymentBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
@@ -361,7 +369,8 @@
                     body: JSON.stringify({
                         table_id: tableId,
                         txn_id: txnId,
-                        method: method
+                        method: method,
+                        customer_phone: (document.getElementById('loyaltyCustomerPhone').value || '').trim()
                     })
                 });
                 const result = await response.json();

@@ -1,6 +1,5 @@
 import os
-import sys
-from supabase import create_client, Client
+from supabase import create_client
 
 # Resilient dummy client to fallback gracefully if Supabase URL/Key is missing or connection fails
 class DummySupabaseClient:
@@ -33,7 +32,7 @@ class DummySupabaseClient:
 def load_env_file():
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     if os.path.exists(env_path):
-        print(f"[*] Reading environment parameters from local '.env' file...")
+        print("[*] Reading environment parameters from local '.env' file...")
         try:
             with open(env_path, 'r', encoding='utf-8') as f:
                 for line in f:
@@ -50,8 +49,8 @@ def load_env_file():
 # Initialize environment variables
 load_env_file()
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iftrdngahdjpninjmzhk.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iojtglaxgdwsxxalhubx.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
 supabase = None

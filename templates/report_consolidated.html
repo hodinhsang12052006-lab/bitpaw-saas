@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo cáo Tổng hợp Toàn chuỗi | BitPaw OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; }
+        .glass-panel { background: rgba(10, 15, 37, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    </style>
+</head>
+<body class="min-h-screen p-6 lg:p-10">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-black flex items-center gap-3"><i class="fas fa-sitemap text-purple-400"></i> Báo cáo Tổng hợp Toàn chuỗi</h1>
+                <p class="text-gray-400 mt-2 text-sm">Cộng gộp doanh thu &amp; chi phí của tất cả chi nhánh bạn đang quản lý.</p>
+            </div>
+            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2.5 rounded-xl text-sm font-bold transition"><i class="fas fa-arrow-left mr-2"></i> Về Dashboard</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <div class="glass-panel p-5 rounded-2xl">
+                <div class="text-gray-400 text-sm mb-1">Tổng doanh thu toàn chuỗi</div>
+                <div class="text-3xl font-black text-emerald-400">{{ "{:,.0f}".format(total_revenue_all).replace(",", ".") }}đ</div>
+            </div>
+            <div class="glass-panel p-5 rounded-2xl">
+                <div class="text-gray-400 text-sm mb-1">Tổng chi phí toàn chuỗi</div>
+                <div class="text-3xl font-black text-rose-400">{{ "{:,.0f}".format(total_expense_all).replace(",", ".") }}đ</div>
+            </div>
+            <div class="glass-panel p-5 rounded-2xl">
+                <div class="text-gray-400 text-sm mb-1">Lợi nhuận toàn chuỗi</div>
+                <div class="text-3xl font-black {% if total_profit_all >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ "{:,.0f}".format(total_profit_all).replace(",", ".") }}đ</div>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-5">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-store mr-2"></i> Chi tiết theo chi nhánh</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-400 border-b border-white/10">
+                            <th class="py-2 pr-4">Chi nhánh</th>
+                            <th class="py-2 pr-4 text-right">Doanh thu</th>
+                            <th class="py-2 pr-4 text-right">Chi phí</th>
+                            <th class="py-2 pr-4 text-right">Lợi nhuận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in branch_reports %}
+                        <tr class="border-b border-white/5">
+                            <td class="py-3 pr-4 font-bold">{{ b.branch_name }}</td>
+                            <td class="py-3 pr-4 text-right text-emerald-400">{{ "{:,.0f}".format(b.revenue).replace(",", ".") }}đ</td>
+                            <td class="py-3 pr-4 text-right text-rose-400">{{ "{:,.0f}".format(b.expense).replace(",", ".") }}đ</td>
+                            <td class="py-3 pr-4 text-right font-bold {% if b.profit >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ "{:,.0f}".format(b.profit).replace(",", ".") }}đ</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center py-8 text-gray-500">Chưa có chi nhánh nào.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

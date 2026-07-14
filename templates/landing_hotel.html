@@ -2,9 +2,21 @@
 <html lang="vi" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Hotel | Quản Lý Khách Sạn, Homestay, Check-in & Sơ Đồ Phòng Realtime</title>
     <meta name="description" content="BitPaw Hotel - Giải pháp quản trị tự động hóa chuyên sâu cho Khách sạn, Homestay & Nhà nghỉ: Lịch đặt phòng online thông minh, sơ đồ buồng phòng realtime Trống/Dơ/Bận, Smart POS tính tiền giờ/mini bar tự động và AI nhắc ưu đãi kéo khách mùa thấp điểm.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ request.url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="BitPaw Hotel | Quản Lý Khách Sạn, Homestay, Check-in & Sơ Đồ Phòng Realtime">
+    <meta property="og:description" content="BitPaw Hotel - Giải pháp quản trị tự động hóa chuyên sâu cho Khách sạn, Homestay & Nhà nghỉ: Lịch đặt phòng online thông minh, sơ đồ buồng phòng realtime Trống/Dơ/Bận, Smart POS tính tiền giờ/mini bar tự động và AI nhắc ưu đãi kéo khách mùa thấp điểm.">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+    <meta property="og:locale" content="vi_VN">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="BitPaw Hotel | Quản Lý Khách Sạn, Homestay, Check-in & Sơ Đồ Phòng Realtime">
+    <meta name="twitter:description" content="BitPaw Hotel - Giải pháp quản trị tự động hóa chuyên sâu cho Khách sạn, Homestay & Nhà nghỉ: Lịch đặt phòng online thông minh, sơ đồ buồng phòng realtime Trống/Dơ/Bận, Smart POS tính tiền giờ/mini bar tự động và AI nhắc ưu đãi kéo khách mùa thấp điểm.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -208,6 +220,14 @@
             border-color: #3b82f6;
             transition: all 0.3s;
         }
+    
+        #mobile-menu {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+        }
+        #mobile-menu.open {
+            transform: translateX(0);
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-blue-500 selection:text-black relative">
@@ -220,7 +240,7 @@
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
             <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
                 <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/50 overflow-hidden shadow-[0_0_12px_#3b82f6]">
-                    <img src="{{ url_for('static', filename='images/cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-blue-400">Paw</span> <span class="text-xs px-2.5 py-0.5 bg-blue-500/20 rounded-md border border-blue-500/30 text-blue-300 font-normal">Hotel</span></h1>
             </div>
@@ -243,9 +263,32 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                     <i class="fas fa-rocket"></i> Dùng thử miễn phí
                 </a>
+                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-blue-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
+
+    <div id="mobile-menu" class="fixed inset-y-0 right-0 w-72 bg-[#08061a]/95 backdrop-blur-3xl border-l border-white/10 z-[100] shadow-2xl flex flex-col p-6 overflow-y-auto lg:hidden">
+        <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+            <h2 class="text-xl font-black tracking-widest text-white">Menu</h2>
+            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-blue-400" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
+        </div>
+        <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
+            <a href="#problems" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Nỗi Đau</a>
+            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Giải Pháp</a>
+            <a href="#workflow" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Quy Trình Vận Hành</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Tính Năng Lõi</a>
+            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Bảng Tính Thử</a>
+            <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">AI CSKH</a>
+            <a href="#faq" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Hỏi Đáp</a>
+            <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                </a>
+            </div>
+        </nav>
+    </div>
 
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
@@ -295,7 +338,7 @@
                         <div class="absolute w-[110%] h-[110%] border-b-4 border-blue-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
      
                         <div class="relative animated-logo-3d w-40 h-40 lg:w-44 lg:h-44 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a] border border-blue-500/20">
-                            <img src="{{ url_for(\'static\', filename=\'images/cho1.jpg\') }}" alt="Hero Logo" class="w-full h-full rounded-full object-cover animate-spin-slow">
+                            <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Hero Logo" class="w-full h-full rounded-full object-cover animate-spin-slow">
                             <div class="scanner-line"></div>
                         </div>
                     </div>
@@ -1259,7 +1302,7 @@
             <div class="md:col-span-2">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                        <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" class="w-full h-full object-cover" alt="BitPaw Logo">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo">
                     </div>
                     <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-blue-400">Paw</span></h2>
                 </div>
@@ -1365,7 +1408,7 @@
                 Sếp cần hỗ trợ?<br>Gọi em ngay!
             </div>
             <div class="w-14 h-14 bg-[#08061a] border-2 border-blue-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow animate-pulse">
-                <img src="{{ url_for('static', filename='images/cho1.jpg') }}" alt="Support" class="h-12 w-12 rounded-full object-cover border-2 border-cyan-500 shadow-xl cursor-pointer hover:scale-110 transition-transform">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Support" class="h-12 w-12 rounded-full object-cover border-2 border-cyan-500 shadow-xl cursor-pointer hover:scale-110 transition-transform">
             </div>
         </div>
 
@@ -1627,6 +1670,10 @@
                 if (e.target === this) closeModal(); 
             });
         }
+    </script>
+
+    <script>
+        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
     </script>
 </body>
 </html>

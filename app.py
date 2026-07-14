@@ -19,15 +19,19 @@ sqlite3.connect = custom_sqlite3_connect
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from datetime import datetime, timedelta
 import os
+import time
 import math
 import uuid
 import json
 import random
+import re
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-import hashlib
-import hmac
-from supabase_client import supabase, supabase_admin, SUPABASE_STATUS, NEED_RUN_SUPABASE_SCHEMA
+import requests
+from supabase_client import supabase, supabase_admin, SUPABASE_STATUS
+from ai_context_engine import AIContextEngine
+import jwt as pyjwt
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_flash_messages')
@@ -393,16 +397,17 @@ def register():
                 session['business_mode'] = business_type
                 flash('Đăng ký tài khoản thành công (Thử nghiệm)! Vui lòng đăng nhập.', 'success')
                 return redirect(url_for('login'))
-                
+
             res = supabase.auth.sign_up({"email": email, "password": password})
             session['business_mode'] = business_type
-            # Lưu business type vào system_settings (bỏ qua nếu bảng chưa có sẵn ở phase này)
+            # Lưu business type vào system_settings, khóa riêng theo user_id để tránh đè chéo giữa các tài khoản
+            business_mode_key = f'business_mode_{res.user.id}'
             try:
-                res_check = supabase.table('system_settings').select('id').eq('key', 'business_mode').execute()
+                res_check = supabase.table('system_settings').select('id').eq('key', business_mode_key).execute()
                 if res_check.data:
-                    supabase.table('system_settings').update({'value': business_type}).eq('key', 'business_mode').execute()
+                    supabase.table('system_settings').update({'value': business_type}).eq('key', business_mode_key).execute()
                 else:
-                    supabase.table('system_settings').insert({'key': 'business_mode', 'value': business_type}).execute()
+                    supabase.table('system_settings').insert({'key': business_mode_key, 'value': business_type}).execute()
             except Exception as db_err:
                 print(f"Supabase upsert skipped: {str(db_err)}")
             flash('Đăng ký tài khoản thành công! Vui lòng đăng nhập.', 'success')
@@ -417,47 +422,16 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
-        # Chế độ thử nghiệm local bypass Supabase
-        if email.endswith('@test.com'):
-            session['user_id'] = 'mock-user-123'
-            session['user_email'] = email
-            # Thử tìm ngành nghề của user này từ kho_license
-            mode = 'retail'
-            try:
-                conn = sqlite3.connect('database.db')
-                c = conn.cursor()
-                # Xem key cuối cùng được kích hoạt có trùng ngành nghề gì không
-                c.execute("SELECT nganh_nghe FROM kho_license WHERE trang_thai='Đã kích hoạt' ORDER BY id DESC LIMIT 1")
-                row = c.fetchone()
-                if row and row[0]:
-                    mode = row[0]
-                conn.close()
-            except:
-                pass
-            
-            session['business_mode'] = mode
-            flash('Đăng nhập thành công (Thử nghiệm)', 'success')
-            if mode in INDUSTRY_CONFIG:
-                target_url = INDUSTRY_CONFIG[mode]['redirect_after_login']
-                if target_url == '/dashboard':
-                    return redirect(url_for('index'))
-                elif target_url.startswith('/chamcong/'):
-                    ind_code = target_url.split('/')[-1]
-                    return redirect(url_for('chamcong_industry', industry_code=ind_code))
-                else:
-                    endpoint = target_url.strip('/')
-                    try:
-                        return redirect(url_for(endpoint))
-                    except:
-                        return redirect(target_url)
-            return redirect(url_for('setup'))
 
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
             session['user_id'] = res.user.id
+            # Mỗi chủ tiệm (user Supabase Auth) chính là 1 tenant — dùng user_id làm business_id
+            # để kích hoạt toàn bộ các bộ lọc .eq('business_id', ...) đã có sẵn trong code/template.
+            session['business_id'] = res.user.id
             session['user_email'] = email
             session['access_token'] = res.session.access_token
+            _ensure_primary_membership(res.user.id, res.user.id)
             # Ghi log đăng nhập (bỏ qua nếu bảng chưa có sẵn ở phase này)
             try:
                 supabase.table('user_logs').insert({
@@ -469,16 +443,17 @@ def login():
                 }).execute()
             except Exception as db_err:
                 print(f"Supabase user_logs insert skipped: {str(db_err)}")
-            
-            # Đọc business type để redirect đúng ngành nghề
+
+            # Đọc business type để redirect đúng ngành nghề, khóa riêng theo user_id hiện tại
             mode = None
             try:
-                mode_res = supabase.table('system_settings').select('value').eq('key', 'business_mode').execute()
+                business_mode_key = f'business_mode_{res.user.id}'
+                mode_res = supabase.table('system_settings').select('value').eq('key', business_mode_key).execute()
                 mode = mode_res.data[0]['value'] if mode_res.data else 'none'
             except Exception as db_err:
                 print(f"Supabase system_settings select skipped: {str(db_err)}")
                 mode = 'none'
-            
+
             session['business_mode'] = mode
             
             flash('Đăng nhập thành công', 'success')
@@ -539,13 +514,13 @@ def get_cskh_config():
 def create_cskh_request():
     import time
     data = request.get_json() or {}
-    name = data.get('name')
-    phone = data.get('phone')
-    email = data.get('email', '')
-    message = data.get('message')
-    if not name or not phone or not message:
-        return jsonify({'error': 'Vui lòng nhập đầy đủ thông tin'}), 400
-        
+    name = (data.get('name') or '').strip()[:100]
+    phone = (data.get('phone') or '').strip()
+    email = (data.get('email') or '').strip()
+    message = (data.get('message') or '').strip()[:1000]
+    if not name or not re.match(r'^0\d{9,10}$', phone) or not message:
+        return jsonify({'error': 'Vui lòng nhập đầy đủ thông tin (số điện thoại phải hợp lệ)'}), 400
+
     supabase_success = False
     res = None
     last_err = None
@@ -572,19 +547,10 @@ def create_cskh_request():
                 break # Break immediately if it is a validation or hard RLS reject
                 
     if supabase_success:
-        try:
-            supabase.table('customers').insert({
-                'name': name,
-                'phone': phone,
-                'email': email,
-                'tier': 'Normal',
-                'loyalty_points': 0,
-                'total_spent': 0,
-                'join_date': datetime.now().strftime('%Y-%m-%d')
-            }).execute()
-        except Exception as crm_err:
-            print(f"Sync to CRM customers table skipped: {str(crm_err)}")
-            
+        # KHÔNG đồng bộ vào bảng `customers` (CRM riêng theo business_id của từng tiệm) — route này
+        # là form liên hệ CSKH chung của BitPaw, không gắn với 1 tenant cụ thể nào, tránh ghi dữ liệu
+        # "vô chủ" hoặc lẫn vào CRM của tiệm khác.
+
         return jsonify({'success': True, 'id': res.data[0]['id']})
     else:
         # Gracefully degrade by writing to local SQLite outbox queue on Supabase temporary failure
@@ -638,11 +604,15 @@ def submit_feedback():
     
     if order_id:
         try:
+            order_check = supabase.table('orders').select('business_id').eq('id', order_id).execute()
+            if not order_check.data:
+                return jsonify({'error': 'Order không tồn tại.'}), 404
             supabase.table('customer_feedback').insert({
                 'order_id': order_id,
                 'rating': rating,
                 'comment': comment,
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now().isoformat(),
+                'business_id': order_check.data[0].get('business_id')
             }).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -678,16 +648,16 @@ def home():
         mode = session.get('business_mode')
         if not mode:
             try:
-                mode_res = supabase.table('system_settings').select('value').eq('key', 'business_mode').execute()
+                mode_res = supabase.table('system_settings').select('value').eq('key', f"business_mode_{session['user_id']}").execute()
                 mode = mode_res.data[0]['value'] if mode_res.data else 'none'
                 session['business_mode'] = mode
             except Exception as db_err:
                 print(f"Supabase system_settings select skipped: {str(db_err)}")
                 mode = 'none'
-        
+
         if mode == 'none':
             return redirect(url_for('setup'))
-            
+
         if mode in INDUSTRY_CONFIG:
             target_url = INDUSTRY_CONFIG[mode]['redirect_after_login']
             if target_url == '/dashboard':
@@ -706,6 +676,7 @@ def home():
 
 
 @app.route('/dashboard')
+@login_required
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -713,29 +684,31 @@ def index():
     mode = session.get('business_mode')
     if not mode:
         try:
-            mode_res = supabase.table('system_settings').select('value').eq('key', 'business_mode').execute()
+            mode_res = supabase.table('system_settings').select('value').eq('key', f"business_mode_{session['user_id']}").execute()
             mode = mode_res.data[0]['value'] if mode_res.data else 'none'
             session['business_mode'] = mode
         except Exception as db_err:
             print(f"Supabase system_settings select skipped: {str(db_err)}")
             mode = 'none'
-    
+
     if mode == 'none':
         return redirect(url_for('setup'))
-        
+
+
+    business_id = session.get('business_id') or session['user_id']
     if mode in INDUSTRY_CONFIG:
         if mode == 'retail':
             try:
-                products = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').execute()
-                total_revenue = supabase.table('orders').select('total_amount').execute()
+                products = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').eq('business_id', business_id).execute()
+                total_revenue = supabase.table('orders').select('total_amount').eq('business_id', business_id).execute()
                 revenue = sum([o.get('total_amount') or 0 for o in total_revenue.data]) if total_revenue.data else 0
-                total_expense = supabase.table('expenses').select('amount').execute()
+                total_expense = supabase.table('expenses').select('amount').eq('business_id', business_id).execute()
                 expense = sum([e.get('amount') or 0 for e in total_expense.data]) if total_expense.data else 0
-                
+
                 # Lấy lịch sử 10 đơn hàng
                 history = []
-                orders = supabase.table('orders').select('id, created_at, total_amount').order('created_at', desc=True).limit(10).execute()
-                
+                orders = supabase.table('orders').select('id, created_at, total_amount').eq('business_id', business_id).order('created_at', desc=True).limit(10).execute()
+
                 if orders.data:
                     for o in orders.data:
                         order_items = supabase.table('order_items').select('product_id, quantity, total_price').eq('order_id', o['id']).execute()
@@ -756,8 +729,8 @@ def index():
                 last_7_days = [today_dt - timedelta(days=i) for i in range(6, -1, -1)]
                 last_7_days_str = [d.isoformat() for d in last_7_days]
                 start_date = last_7_days[0].isoformat()
-                
-                week_orders = supabase.table('orders').select('total_amount, created_at').gte('created_at', start_date).execute()
+
+                week_orders = supabase.table('orders').select('total_amount, created_at').eq('business_id', business_id).gte('created_at', start_date).execute()
                 revenue_map = {d: 0 for d in last_7_days_str}
                 if week_orders.data:
                     for o in week_orders.data:
@@ -828,16 +801,18 @@ def solutions_page(industry_code):
 
 
 @app.route('/setup', methods=['GET', 'POST'])
+@login_required
 def setup():
     if request.method == 'POST':
         mode = request.form['mode']
         session['business_mode'] = mode
         try:
-            res_check = supabase.table('system_settings').select('id').eq('key', 'business_mode').execute()
+            business_mode_key = f"business_mode_{session['user_id']}"
+            res_check = supabase.table('system_settings').select('id').eq('key', business_mode_key).execute()
             if res_check.data:
-                supabase.table('system_settings').update({'value': mode}).eq('key', 'business_mode').execute()
+                supabase.table('system_settings').update({'value': mode}).eq('key', business_mode_key).execute()
             else:
-                supabase.table('system_settings').insert({'key': 'business_mode', 'value': mode}).execute()
+                supabase.table('system_settings').insert({'key': business_mode_key, 'value': mode}).execute()
         except Exception as db_err:
             print(f"Supabase system_settings upsert skipped: {str(db_err)}")
         return redirect(url_for('index'))
@@ -846,9 +821,10 @@ def setup():
 
 # ========== QUẢN LÝ SẢN PHẨM ==========
 @app.route('/add', methods=['GET', 'POST'])
+@login_required
 def add_product():
     try:
-        mode_res = supabase.table('system_settings').select('value').eq('key', 'business_mode').execute()
+        mode_res = supabase.table('system_settings').select('value').eq('key', f"business_mode_{session['user_id']}").execute()
         current_mode = mode_res.data[0]['value'] if mode_res.data else 'none'
     except Exception as db_err:
         print(f"Supabase system_settings select failed: {str(db_err)}")
@@ -860,6 +836,7 @@ def add_product():
             filename = secure_filename(image_file.filename)
             image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         cat = request.form['category']
+        business_id = session.get('business_id') or session['user_id']
         try:
             supabase.table('products').insert({
                 'name': request.form['name'],
@@ -868,7 +845,8 @@ def add_product():
                 'stock': int(request.form['stock']),
                 'price': float(request.form['price']),
                 'image': filename,
-                'is_active': 1
+                'is_active': 1,
+                'business_id': business_id
             }).execute()
         except Exception as db_err:
             print(f"Supabase products insert failed: {str(db_err)}")
@@ -878,66 +856,85 @@ def add_product():
     return render_template('add_product.html', mode=current_mode)
 
 
+def _assert_owns_product(product_id, business_id):
+    """Trả về True nếu sản phẩm thuộc đúng business_id hiện tại, False nếu không (hoặc không tồn tại)."""
+    check = supabase.table('products').select('business_id').eq('id', product_id).execute()
+    return bool(check.data) and check.data[0].get('business_id') == business_id
+
+
 @app.route('/update_product/<int:id>', methods=['POST'])
+@login_required
 def update_product(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        if not _assert_owns_product(id, business_id):
+            return jsonify({'success': False, 'message': 'Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi xác thực quyền sở hữu sản phẩm: {str(e)}'}), 500
+
+    old_res = supabase.table('products').select('name, category, price, stock').eq('id', id).execute()
+    old_value = old_res.data[0] if old_res.data else None
+
     name = request.form['name']
     category = request.form['category']
     price = float(request.form['price'])
     stock = int(request.form['stock'])
-    supabase.table('products').update({
-        'name': name, 'category': category, 'price': price, 'stock': stock
-    }).eq('id', id).execute()
+    new_value = {'name': name, 'category': category, 'price': price, 'stock': stock}
+    supabase.table('products').update(new_value).eq('id', id).execute()
+    _log_audit(business_id, 'update_price', entity_type='product', entity_id=id, old_value=old_value, new_value=new_value)
     return jsonify({'success': True})
 
 
 @app.route('/delete_product/<int:id>')
+@login_required
 def delete_product(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        if not _assert_owns_product(id, business_id):
+            return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
+    except Exception as e:
+        return f"Lỗi xác thực quyền sở hữu sản phẩm: {str(e)}", 500
+
+    old_res = supabase.table('products').select('name, is_active').eq('id', id).execute()
+    old_value = old_res.data[0] if old_res.data else None
     supabase.table('products').update({'is_active': 0}).eq('id', id).execute()
+    _log_audit(business_id, 'delete_product', entity_type='product', entity_id=id, old_value=old_value, new_value={'is_active': 0})
     return redirect(request.referrer or url_for('pos'))
 
 
 # ========== QUẢN LÝ BÀN (POS) ==========
 @app.route('/pos')
+@login_required
 def pos():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        business_id = session.get('business_id')
-        query = supabase.table('dining_tables').select('*')
-        if business_id:
-            query = query.eq('business_id', business_id)
+        query = supabase.table('dining_tables').select('*').eq('business_id', business_id)
         tables = query.execute()
         tables_data = tables.data
         if len(tables_data) == 0:
             default_tables = [
-                ('Bàn 1', uuid.uuid4().hex[:8]), 
-                ('Bàn 2', uuid.uuid4().hex[:8]), 
-                ('Bàn 3', uuid.uuid4().hex[:8]), 
+                ('Bàn 1', uuid.uuid4().hex[:8]),
+                ('Bàn 2', uuid.uuid4().hex[:8]),
+                ('Bàn 3', uuid.uuid4().hex[:8]),
                 ('VIP 1', uuid.uuid4().hex[:8])
             ]
             for name, token in default_tables:
                 try:
-                    insert_data = {'name': name, 'qr_token': token}
-                    if business_id:
-                        insert_data['business_id'] = business_id
+                    insert_data = {'name': name, 'qr_token': token, 'business_id': business_id}
                     supabase.table('dining_tables').insert(insert_data).execute()
                 except Exception as e:
                     print(f"Supabase dining_tables insert failed: {str(e)}")
             try:
-                query = supabase.table('dining_tables').select('*')
-                if business_id:
-                    query = query.eq('business_id', business_id)
-                tables = query.execute()
+                tables = supabase.table('dining_tables').select('*').eq('business_id', business_id).execute()
                 tables_data = tables.data
             except Exception as e:
                 print(f"Supabase dining_tables secondary select failed: {str(e)}")
     except Exception as e:
         print(f"Supabase dining_tables select failed: {str(e)}")
-        tables_data = [
-            {'id': 1, 'name': 'Bàn 1', 'status': 'Còn trống', 'qr_token': 'b1'},
-            {'id': 2, 'name': 'Bàn 2', 'status': 'Còn trống', 'qr_token': 'b2'},
-            {'id': 3, 'name': 'Bàn 3', 'status': 'Còn trống', 'qr_token': 'b3'}
-        ]
+        # Không fallback về bàn demo dùng chung nữa — mỗi tenant chỉ thấy dữ liệu rỗng khi lỗi, tránh lộ/trộn dữ liệu.
+        tables_data = []
     try:
-        menu = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').execute()
+        menu = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').eq('business_id', business_id).execute()
         menu_data = menu.data
     except Exception as e:
         print(f"Supabase products select failed: {str(e)}")
@@ -946,26 +943,51 @@ def pos():
 
 
 @app.route('/add_table', methods=['POST'])
+@login_required
 def add_table():
-    table_name = request.form['table_name']
-    qr_token = uuid.uuid4().hex[:8]
-    business_id = session.get('business_id')
-    insert_payload = {'name': table_name, 'qr_token': qr_token}
-    if business_id:
-        insert_payload['business_id'] = business_id
-    supabase.table('dining_tables').insert(insert_payload).execute()
+    table_name = request.form.get('table_name', '').strip()
+    if not table_name:
+        return jsonify({"success": False, "message": "Vui lòng nhập tên bàn."}), 400
+
+    # Sinh qr_token và kiểm tra chống trùng lặp trong DB trước khi lưu
+    qr_token = None
+    for _ in range(10):
+        candidate = uuid.uuid4().hex[:8]
+        try:
+            existing = supabase.table('dining_tables').select('id').eq('qr_token', candidate).execute()
+            if not existing.data:
+                qr_token = candidate
+                break
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Lỗi kiểm tra mã QR: {str(e)}"}), 500
+    if not qr_token:
+        return jsonify({"success": False, "message": "Không thể sinh mã QR duy nhất, vui lòng thử lại."}), 500
+
+    business_id = session.get('business_id') or session['user_id']
+    insert_payload = {'name': table_name, 'qr_token': qr_token, 'business_id': business_id}
+    try:
+        result = supabase.table('dining_tables').insert(insert_payload).execute()
+        if not result.data:
+            return jsonify({"success": False, "message": "Thêm bàn thất bại, vui lòng thử lại."}), 500
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi khi thêm bàn: {str(e)}"}), 500
+
     return redirect(url_for('pos'))
 
 
 @app.route('/table/<int:table_id>')
+@login_required
 def view_table(table_id):
+    business_id = session.get('business_id') or session['user_id']
     table = supabase.table('dining_tables').select('*').eq('id', table_id).execute()
     if not table.data:
         return "Bàn không tồn tại", 404
     table = table.data[0]
+    if table.get('business_id') != business_id:
+        return "Bàn này không thuộc quyền quản lý của bạn.", 403
     orders_data = supabase.table('table_orders').select('*').eq('table_id', table_id).execute()
     current_orders = []
-    
+
     for o in orders_data.data:
         prod = supabase.table('products').select('name, price').eq('id', o['product_id']).execute()
         if prod.data:
@@ -976,15 +998,301 @@ def view_table(table_id):
                 'quantity': o['quantity'],
                 'product_id': o['product_id']
             })
-            
+
     total_bill = sum([item['price'] * item['quantity'] for item in current_orders])
-    menu = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').execute()
-    return render_template('table_order.html', table=table, orders=current_orders, total_bill=total_bill, menu=menu.data)
+    menu = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').eq('business_id', business_id).execute()
+    tenant_jwt = _mint_tenant_jwt(business_id)  # nhân viên xem bàn -> token đầy đủ quyền, không giới hạn scope
+    return render_template('table_order.html', table=table, orders=current_orders, total_bill=total_bill, menu=menu.data, tenant_jwt=tenant_jwt)
+
+
+def _assert_owns_table(table_id, business_id):
+    """Trả về (True, None) nếu bàn thuộc đúng business_id, ngược lại (False, thông báo lỗi)."""
+    check = supabase.table('dining_tables').select('business_id').eq('id', table_id).execute()
+    if not check.data:
+        return False, "Bàn không tồn tại."
+    if check.data[0].get('business_id') != business_id:
+        return False, "Bàn này không thuộc quyền quản lý của bạn."
+    return True, None
+
+
+# ========== LOYALTY TỰ ĐỘNG (tích điểm / lên hạng / thông báo) ==========
+LOYALTY_TIER_THRESHOLDS = [
+    (0, 'Normal'),
+    (2_000_000, 'Silver'),
+    (10_000_000, 'Gold'),
+    (30_000_000, 'Platinum'),
+]  # Ngưỡng tổng chi tiêu (VNĐ) để lên hạng — chỉnh lại tuỳ chiến lược kinh doanh
+LOYALTY_POINTS_PER_VND = 1 / 10000  # 1 điểm / 10.000đ chi tiêu
+
+
+def _tier_for_spend(total_spent):
+    tier = 'Normal'
+    for threshold, name in LOYALTY_TIER_THRESHOLDS:
+        if total_spent >= threshold:
+            tier = name
+    return tier
+
+
+def _queue_loyalty_notification(business_id, customer, event_type, message):
+    """Ghi lại thông báo loyalty (tích điểm/lên hạng/sinh nhật) vào bảng loyalty_events.
+    Nếu khách đã có zalo_user_id/fb_psid (từng tương tác qua OA/Messenger) VÀ server đã cấu hình
+    access token thật (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) thì gửi luôn; ngược lại chỉ
+    lưu trạng thái 'queued' để nhân viên tự liên hệ hoặc chờ khi nào cấu hình kênh gửi."""
+    channel = None
+    status = 'skipped_no_channel'
+    try:
+        if customer.get('zalo_user_id') and os.environ.get('ZALO_OA_ACCESS_TOKEN'):
+            channel = 'zalo'
+            resp = requests.post(
+                'https://openapi.zalo.me/v3.0/oa/message/cs',
+                headers={'access_token': os.environ.get('ZALO_OA_ACCESS_TOKEN'), 'Content-Type': 'application/json'},
+                json={'recipient': {'user_id': customer['zalo_user_id']}, 'message': {'text': message}},
+                timeout=10
+            )
+            status = 'sent' if resp.ok else 'failed'
+        elif customer.get('fb_psid') and os.environ.get('FB_PAGE_ACCESS_TOKEN'):
+            channel = 'facebook'
+            resp = requests.post(
+                f"https://graph.facebook.com/v18.0/me/messages?access_token={os.environ.get('FB_PAGE_ACCESS_TOKEN')}",
+                json={'recipient': {'id': customer['fb_psid']}, 'message': {'text': message}},
+                timeout=10
+            )
+            status = 'sent' if resp.ok else 'failed'
+    except Exception as e:
+        status = 'failed'
+        print(f"Loi gui loyalty notification: {e}")
+
+    try:
+        supabase.table('loyalty_events').insert({
+            'business_id': business_id,
+            'customer_id': customer.get('id'),
+            'event_type': event_type,
+            'channel': channel or 'none',
+            'message': message,
+            'status': status,
+        }).execute()
+    except Exception as e:
+        print(f"Loi ghi loyalty_events: {e}")
+
+
+def _award_loyalty_points(business_id, customer_phone, amount_spent):
+    """Tự động cộng điểm + xét lên hạng cho khách ngay sau khi thanh toán xong.
+    Nếu SĐT chưa có trong CRM thì tự tạo khách mới. Không chặn luồng thanh toán nếu lỗi."""
+    customer_phone = (customer_phone or '').strip()
+    if not customer_phone or not amount_spent or amount_spent <= 0:
+        return
+    try:
+        cust_res = supabase.table('customers').select('*').eq('business_id', business_id).eq('phone', customer_phone).execute()
+        points_earned = int(amount_spent * LOYALTY_POINTS_PER_VND)
+        if cust_res.data:
+            customer = cust_res.data[0]
+            old_tier = customer.get('tier') or 'Normal'
+            new_total_spent = (customer.get('total_spent') or 0) + amount_spent
+            new_points = (customer.get('loyalty_points') or 0) + points_earned
+            new_tier = _tier_for_spend(new_total_spent)
+            supabase.table('customers').update({
+                'total_spent': new_total_spent,
+                'loyalty_points': new_points,
+                'tier': new_tier,
+            }).eq('id', customer['id']).eq('business_id', business_id).execute()
+            customer['total_spent'] = new_total_spent
+            customer['loyalty_points'] = new_points
+            customer['tier'] = new_tier
+        else:
+            new_tier = _tier_for_spend(amount_spent)
+            new_cust = supabase.table('customers').insert({
+                'business_id': business_id,
+                'phone': customer_phone,
+                'name': f'Khách {customer_phone[-4:]}',
+                'tier': new_tier,
+                'loyalty_points': points_earned,
+                'total_spent': amount_spent,
+                'join_date': datetime.now().date().isoformat(),
+            }).execute()
+            customer = new_cust.data[0] if new_cust.data else {'id': None, 'tier': new_tier, 'loyalty_points': points_earned}
+            old_tier = None
+
+        _queue_loyalty_notification(
+            business_id, customer, 'points_awarded',
+            f"Cảm ơn bạn đã mua hàng! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {customer.get('loyalty_points', 0)} điểm."
+        )
+        if old_tier is not None and new_tier != old_tier:
+            _queue_loyalty_notification(
+                business_id, customer, 'tier_upgrade',
+                f"Chúc mừng! Bạn vừa được nâng hạng thành viên lên {new_tier}. Một ưu đãi đặc biệt đang chờ bạn ở lần ghé thăm tiếp theo!"
+            )
+    except Exception as e:
+        print(f"Loi award loyalty points: {e}")
+
+
+# ========== MULTI-BRANCH (CHUỖI CHI NHÁNH) ==========
+# Mô hình gốc: 1 user Supabase Auth = 1 business_id (session['business_id'] = user_id).
+# Để 1 chủ sở hữu quản lý NHIỀU chi nhánh mà không phải viết lại hàng trăm chỗ đang đọc
+# session.get('business_id'), ta chỉ cần: (1) 1 bảng business_memberships ghi nhận chủ sở
+# hữu nào được quyền truy cập business_id nào, (2) khi "chuyển chi nhánh" chỉ đổi giá trị
+# session['business_id'] sang business_id của chi nhánh đó (sau khi xác thực quyền sở hữu)
+# — mọi route/query .eq('business_id', session.get('business_id')) sẵn có tự động hoạt
+# động đúng, không cần sửa thêm.
+def _ensure_primary_membership(owner_user_id, business_id):
+    """Đảm bảo chi nhánh gốc (chính tài khoản đăng nhập) luôn có mặt trong business_memberships,
+    gọi mỗi lần đăng nhập (idempotent — bỏ qua nếu đã tồn tại)."""
+    try:
+        existing = supabase.table('business_memberships').select('id') \
+            .eq('owner_user_id', owner_user_id).eq('business_id', business_id).execute()
+        if not existing.data:
+            supabase.table('business_memberships').insert({
+                'owner_user_id': owner_user_id,
+                'business_id': business_id,
+                'branch_name': 'Chi nhánh chính',
+                'is_primary': True,
+            }).execute()
+    except Exception as e:
+        print(f"Loi ensure primary membership: {e}")
+
+
+def _get_owned_business_ids(owner_user_id):
+    """Trả về danh sách business_id mà owner_user_id được quyền quản lý (gồm cả chi nhánh chính)."""
+    try:
+        res = supabase.table('business_memberships').select('business_id, branch_name, is_primary') \
+            .eq('owner_user_id', owner_user_id).execute()
+        return res.data or []
+    except Exception as e:
+        print(f"Loi lay danh sach chi nhanh: {e}")
+        return []
+
+
+@app.route('/api/my_branches')
+@login_required
+def api_my_branches():
+    user_id = session['user_id']
+    branches = _get_owned_business_ids(user_id)
+    active_business_id = session.get('business_id') or user_id
+    return jsonify({
+        'success': True,
+        'branches': branches,
+        'active_business_id': active_business_id,
+    })
+
+
+@app.route('/api/switch_branch', methods=['POST'])
+@login_required
+def api_switch_branch():
+    user_id = session['user_id']
+    data = request.get_json() or {}
+    target_business_id = data.get('business_id')
+    if not target_business_id:
+        return jsonify({'success': False, 'message': 'Thiếu business_id.'}), 400
+
+    owned = _get_owned_business_ids(user_id)
+    owned_ids = {b['business_id'] for b in owned}
+    if target_business_id not in owned_ids:
+        return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
+
+    session['business_id'] = target_business_id
+    return jsonify({'success': True, 'business_id': target_business_id})
+
+
+@app.route('/add_branch', methods=['POST'])
+@login_required
+def add_branch():
+    user_id = session['user_id']
+    data = request.get_json() or request.form
+    branch_name = (data.get('branch_name') or '').strip()
+    if not branch_name:
+        return jsonify({'success': False, 'message': 'Vui lòng nhập tên chi nhánh.'}), 400
+
+    new_business_id = str(uuid.uuid4())
+    try:
+        supabase.table('business_memberships').insert({
+            'owner_user_id': user_id,
+            'business_id': new_business_id,
+            'branch_name': branch_name,
+            'is_primary': False,
+        }).execute()
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi tạo chi nhánh: {str(e)}'}), 500
+
+    return jsonify({'success': True, 'business_id': new_business_id, 'branch_name': branch_name})
+
+
+@app.route('/report_consolidated')
+@login_required
+def report_consolidated():
+    """Báo cáo tổng hợp doanh thu/chi phí toàn bộ chi nhánh mà chủ sở hữu đang quản lý."""
+    user_id = session['user_id']
+    branches = _get_owned_business_ids(user_id)
+    if not branches:
+        branches = [{'business_id': user_id, 'branch_name': 'Chi nhánh chính', 'is_primary': True}]
+
+    branch_reports = []
+    total_revenue_all = 0
+    total_expense_all = 0
+    for b in branches:
+        bid = b['business_id']
+        revenue = 0
+        expense = 0
+        try:
+            orders_res = supabase.table('orders').select('total_amount').eq('business_id', bid).execute()
+            revenue = sum([o.get('total_amount') or 0 for o in (orders_res.data or [])])
+        except Exception as e:
+            print(f"Loi lay doanh thu chi nhanh {bid}: {e}")
+        try:
+            expenses_res = supabase.table('expenses').select('amount').eq('business_id', bid).execute()
+            expense = sum([e.get('amount') or 0 for e in (expenses_res.data or [])])
+        except Exception as e:
+            print(f"Loi lay chi phi chi nhanh {bid}: {e}")
+
+        total_revenue_all += revenue
+        total_expense_all += expense
+        branch_reports.append({
+            'business_id': bid,
+            'branch_name': b.get('branch_name') or 'Chi nhánh',
+            'revenue': revenue,
+            'expense': expense,
+            'profit': revenue - expense,
+        })
+
+    return render_template(
+        'report_consolidated.html',
+        branch_reports=branch_reports,
+        total_revenue_all=total_revenue_all,
+        total_expense_all=total_expense_all,
+        total_profit_all=total_revenue_all - total_expense_all,
+    )
+
+
+# ========== AUDIT TRAIL (NHẬT KÝ HOẠT ĐỘNG) ==========
+def _log_audit(business_id, action, entity_type=None, entity_id=None, old_value=None, new_value=None):
+    """Ghi vết 1 thao tác nhạy cảm. Không chặn luồng chính nếu ghi log lỗi."""
+    try:
+        supabase.table('audit_logs').insert({
+            'business_id': business_id,
+            'user_id': session.get('user_id'),
+            'action': action,
+            'entity_type': entity_type,
+            'entity_id': str(entity_id) if entity_id is not None else None,
+            'old_value': old_value,
+            'new_value': new_value,
+        }).execute()
+    except Exception as e:
+        print(f"Loi ghi audit_logs: {e}")
 
 
 @app.route('/order_item/<int:table_id>', methods=['POST'])
+@login_required
 def order_item(table_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        owns, err = _assert_owns_table(table_id, business_id)
+        if not owns:
+            return err, 403
+    except Exception as e:
+        return f"Lỗi xác thực quyền sở hữu bàn: {str(e)}", 500
+
     product_id = request.form['product_id']
+    if not _assert_owns_product(product_id, business_id):
+        return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
+
     qty = int(request.form.get('quantity', 1))
     existing = supabase.table('table_orders').select('id, quantity').eq('table_id', table_id).eq('product_id', product_id).execute()
     if existing.data:
@@ -997,7 +1305,16 @@ def order_item(table_id):
 
 
 @app.route('/checkout/<int:table_id>')
+@login_required
 def checkout_table(table_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        owns, err = _assert_owns_table(table_id, business_id)
+        if not owns:
+            return err, 403
+    except Exception as e:
+        return f"Lỗi xác thực quyền sở hữu bàn: {str(e)}", 500
+
     orders = supabase.table('table_orders').select('*').eq('table_id', table_id).execute()
     if orders.data:
         order_code = f"FNB-{uuid.uuid4().hex[:8].upper()}"
@@ -1013,10 +1330,11 @@ def checkout_table(table_id):
         order_res = supabase.table('orders').insert({
             'order_code': order_code,
             'channel': 'fnb',
-            'total_amount': total_bill
+            'total_amount': total_bill,
+            'business_id': business_id
         }).execute()
         order_id = order_res.data[0]['id']
-        
+
         for item in orders.data:
             prod = supabase.table('products').select('price').eq('id', item['product_id']).execute()
             price = prod.data[0]['price']
@@ -1026,7 +1344,8 @@ def checkout_table(table_id):
                 'product_id': item['product_id'],
                 'quantity': item['quantity'],
                 'price': price,
-                'total_price': total_price
+                'total_price': total_price,
+                'business_id': business_id
             }).execute()
             
         supabase.table('table_orders').delete().eq('table_id', table_id).execute()
@@ -1036,7 +1355,9 @@ def checkout_table(table_id):
 
 # ========== QUẢN LÝ CHI TIÊU ==========
 @app.route('/add_expense', methods=['GET', 'POST'])
+@login_required
 def add_expense():
+    business_id = session.get('business_id') or session['user_id']
     if request.method == 'POST':
         description = request.form['description']
         amount = float(request.form['amount'])
@@ -1046,7 +1367,8 @@ def add_expense():
                 'description': description,
                 'amount': amount,
                 'expense_date': expense_date,
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now().isoformat(),
+                'business_id': business_id
             }).execute()
         except Exception as db_err:
             print(f"Supabase expenses insert with expense_date failed: {str(db_err)}")
@@ -1054,7 +1376,8 @@ def add_expense():
                 supabase.table('expenses').insert({
                     'description': description,
                     'amount': amount,
-                    'created_at': datetime.now().isoformat()
+                    'created_at': datetime.now().isoformat(),
+                    'business_id': business_id
                 }).execute()
             except Exception as db_err2:
                 print(f"Supabase expenses fallback insert failed: {str(db_err2)}")
@@ -1064,14 +1387,16 @@ def add_expense():
 
 
 @app.route('/expense_list')
+@login_required
 def expense_list():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        expenses = supabase.table('expenses').select('*').order('expense_date', desc=True).execute()
+        expenses = supabase.table('expenses').select('*').eq('business_id', business_id).order('expense_date', desc=True).execute()
         expenses_data = expenses.data
     except Exception as db_err:
         print(f"Supabase expenses order by expense_date failed: {str(db_err)}")
         try:
-            expenses = supabase.table('expenses').select('*').order('created_at', desc=True).execute()
+            expenses = supabase.table('expenses').select('*').eq('business_id', business_id).order('created_at', desc=True).execute()
             expenses_data = expenses.data
         except Exception as db_err2:
             print(f"Supabase expenses order by created_at failed: {str(db_err2)}")
@@ -1081,9 +1406,11 @@ def expense_list():
 
 # ========== QUẢN LÝ KHUYẾN MÃI ==========
 @app.route('/promotions')
+@login_required
 def promotions():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        promos = supabase.table('promotions').select('*').order('id', desc=True).execute()
+        promos = supabase.table('promotions').select('*').eq('business_id', business_id).order('id', desc=True).execute()
         promos_data = promos.data
     except Exception as db_err:
         print(f"Supabase promotions select failed: {str(db_err)}")
@@ -1092,7 +1419,9 @@ def promotions():
 
 
 @app.route('/add_promotion', methods=['POST'])
+@login_required
 def add_promotion():
+    business_id = session.get('business_id') or session['user_id']
     data = request.json
     supabase.table('promotions').insert({
         'code': data['code'],
@@ -1104,62 +1433,102 @@ def add_promotion():
         'usage_limit': data.get('usage_limit', 100),
         'product_ids': data.get('product_ids', []),
         'status': 'active',
-        'used_count': 0
+        'used_count': 0,
+        'business_id': business_id
     }).execute()
     return jsonify({'success': True})
 
 
 @app.route('/update_promotion/<int:id>', methods=['PUT'])
+@login_required
 def update_promotion(id):
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('promotions', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
     data = request.json
     supabase.table('promotions').update(data).eq('id', id).execute()
     return jsonify({'success': True})
 
 
 @app.route('/delete_promotion/<int:id>', methods=['DELETE'])
+@login_required
 def delete_promotion(id):
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('promotions', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
     supabase.table('promotions').delete().eq('id', id).execute()
     return jsonify({'success': True})
 
 
 # ========== QUẢN LÝ NHÂN VIÊN ==========
 @app.route('/staff')
+@login_required
 def staff_list():
-    staffs = supabase.table('staff').select('*').order('id', desc=False).execute()
+    business_id = session.get('business_id') or session['user_id']
+    staffs = supabase.table('staff').select('*').eq('business_id', business_id).order('id', desc=False).execute()
     return render_template('staff_management.html', staffs=staffs.data)
 
 
 @app.route('/add_staff', methods=['POST'])
+@login_required
 def add_staff():
+    business_id = session.get('business_id') or session['user_id']
     data = request.json
     supabase.table('staff').insert({
         'name': data['name'],
         'phone': data['phone'],
         'role': data['role'],
         'commission_rate': data['commission_rate'],
-        'is_active': data['is_active']
+        'is_active': data['is_active'],
+        'business_id': business_id
     }).execute()
     return jsonify({'success': True})
 
 
+def _assert_owns_row(table, row_id, business_id):
+    """Helper chung: trả về (True, None) nếu row thuộc đúng business_id, ngược lại (False, lỗi)."""
+    check = supabase.table(table).select('business_id').eq('id', row_id).execute()
+    if not check.data:
+        return False, "Không tìm thấy dữ liệu."
+    if check.data[0].get('business_id') != business_id:
+        return False, "Dữ liệu này không thuộc quyền quản lý của bạn."
+    return True, None
+
+
 @app.route('/update_staff/<int:id>', methods=['PUT'])
+@login_required
 def update_staff(id):
-    data = request.json
-    supabase.table('staff').update(data).eq('id', id).execute()
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('staff', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
+    data = dict(request.json or {})
+    data.pop('business_id', None)  # không cho phép request tự đổi chủ sở hữu (chiếm tenant khác)
+    data.pop('id', None)
+    supabase.table('staff').update(data).eq('id', id).eq('business_id', business_id).execute()
     return jsonify({'success': True})
 
 
 @app.route('/delete_staff/<int:id>', methods=['DELETE'])
+@login_required
 def delete_staff(id):
-    supabase.table('staff').delete().eq('id', id).execute()
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('staff', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
+    supabase.table('staff').delete().eq('id', id).eq('business_id', business_id).execute()
     return jsonify({'success': True})
 
 
 # ========== QUẢN LÝ KHÁCH HÀNG (CRM) ==========
 @app.route('/customers')
+@login_required
 def customers():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        custs = supabase.table('customers').select('*').order('id', desc=True).execute()
+        custs = supabase.table('customers').select('*').eq('business_id', business_id).order('id', desc=True).execute()
         customers_data = custs.data
         error_message = None
     except Exception as e:
@@ -1170,7 +1539,9 @@ def customers():
 
 
 @app.route('/add_customer', methods=['POST'])
+@login_required
 def add_customer():
+    business_id = session.get('business_id') or session['user_id']
     data = request.json
     supabase.table('customers').insert({
         'name': data['name'],
@@ -1181,26 +1552,38 @@ def add_customer():
         'tier': data.get('tier', 'Normal'),
         'loyalty_points': data.get('loyalty_points', 0),
         'total_spent': data.get('total_spent', 0),
-        'join_date': datetime.now().strftime('%Y-%m-%d')
+        'join_date': datetime.now().strftime('%Y-%m-%d'),
+        'business_id': business_id
     }).execute()
     return jsonify({'success': True})
 
 
 @app.route('/update_customer/<int:id>', methods=['PUT'])
+@login_required
 def update_customer(id):
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('customers', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
     data = request.json
     supabase.table('customers').update(data).eq('id', id).execute()
     return jsonify({'success': True})
 
 
 @app.route('/delete_customer/<int:id>', methods=['DELETE'])
+@login_required
 def delete_customer(id):
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('customers', id, business_id)
+    if not owns:
+        return jsonify({'success': False, 'message': err}), 403
     supabase.table('customers').delete().eq('id', id).execute()
     return jsonify({'success': True})
 
 
 # ========== QUẢN LÝ GIAO DỊCH THANH TOÁN ==========
 @app.route('/payment_transactions')
+@login_required
 def payment_transactions():
     try:
         txs = supabase.table('payment_transactions').select('*').order('created_at', desc=True).execute()
@@ -1214,6 +1597,7 @@ def payment_transactions():
 
 
 @app.route('/update_payment_status/<int:id>', methods=['POST'])
+@login_required
 def update_payment_status(id):
     new_status = request.json.get('status')
     supabase.table('payment_transactions').update({'status': new_status}).eq('id', id).execute()
@@ -1222,6 +1606,7 @@ def update_payment_status(id):
 
 # ========== SPA & KARAOKE ==========
 @app.route('/spa')
+@login_required
 def spa():
     try:
         brand_res = supabase.table('system_settings').select('value').eq('key', 'brand_name').execute()
@@ -1245,6 +1630,7 @@ def spa():
 
 
 @app.route('/add_spa', methods=['GET', 'POST'])
+@login_required
 def add_spa():
     if request.method == 'POST':
         image_file = request.files.get('image')
@@ -1266,14 +1652,23 @@ def add_spa():
 
 
 @app.route('/delete_spa/<int:id>')
+@login_required
 def delete_spa(id):
+    business_id = session.get('business_id') or session['user_id']
+    owns, err = _assert_owns_row('products', id, business_id)
+    if not owns:
+        return err, 403
     supabase.table('products').update({'is_active': 0}).eq('id', id).execute()
     return redirect(url_for('spa'))
 
 
 @app.route('/checkout_spa', methods=['POST'])
+@login_required
 def checkout_spa():
+    business_id = session.get('business_id') or session['user_id']
     product_id = request.form['product_id']
+    if not _assert_owns_product(product_id, business_id):
+        return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
     qty = int(request.form['quantity'])
     prod = supabase.table('products').select('price').eq('id', product_id).execute()
     if prod.data:
@@ -1283,7 +1678,8 @@ def checkout_spa():
         order = supabase.table('orders').insert({
             'order_code': order_code,
             'channel': 'spa',
-            'total_amount': total_price
+            'total_amount': total_price,
+            'business_id': business_id
         }).execute()
         order_id = order.data[0]['id']
         supabase.table('order_items').insert({
@@ -1291,7 +1687,8 @@ def checkout_spa():
             'product_id': product_id,
             'quantity': qty,
             'price': price,
-            'total_price': total_price
+            'total_price': total_price,
+            'business_id': business_id
         }).execute()
     return redirect(url_for('spa'))
 
@@ -1300,35 +1697,53 @@ def checkout_spa():
 @app.route('/booking/qr/<spa_id>')
 @app.route('/booking/service/<service_id>')
 def public_booking(spa_id=None, service_id=None):
-    services = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'spa').neq('name', 'Phí Dịch Vụ Spa').execute()
-    return render_template('booking.html', services=services.data, pre_selected_service_id=service_id, spa_id=spa_id)
+    query = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'spa').neq('name', 'Phí Dịch Vụ Spa')
+    # spa_id trong QR chính là business_id của tiệm — chỉ hiện đúng dịch vụ của tiệm đó, không trộn tiệm khác
+    if spa_id:
+        query = query.eq('business_id', spa_id)
+    services = query.execute()
+    # Khách đặt lịch qua QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc dịch vụ, tạo lịch hẹn của đúng tiệm này)
+    tenant_jwt = _mint_tenant_jwt(spa_id, scope='qr_public', ttl_seconds=1800) if spa_id else None
+    return render_template('booking.html', services=services.data, pre_selected_service_id=service_id, spa_id=spa_id, tenant_jwt=tenant_jwt)
 
 
 @app.route('/create_appointment', methods=['POST'])
 def create_appointment():
-    data = request.json
-    supabase.table('appointments').insert({
-        'customer_name': data['name'],
-        'customer_phone': data['phone'],
-        'service_id': data['service_id'],
-        'staff_id': data.get('staff_id'),
-        'book_time': data['book_time'],
-        'note': data.get('note'),
-        'status': 'pending'
-    }).execute()
+    data = request.json or {}
+    try:
+        # Route public (khách đặt lịch, không có session) — xác định business_id qua dịch vụ được chọn
+        svc = supabase.table('products').select('business_id').eq('id', data['service_id']).execute()
+        if not svc.data:
+            return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
+        supabase.table('appointments').insert({
+            'customer_name': data['name'],
+            'customer_phone': data['phone'],
+            'service_id': data['service_id'],
+            'staff_id': data.get('staff_id'),
+            'book_time': data['book_time'],
+            'note': data.get('note'),
+            'status': 'pending',
+            'business_id': svc.data[0]['business_id']
+        }).execute()
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
     return jsonify({'success': True})
 
 
 @app.route('/karaoke')
+@login_required
 def karaoke():
-    rooms = supabase.table('karaoke_rooms').select('*').execute()
+    business_id = session.get('business_id') or session['user_id']
+    rooms = supabase.table('karaoke_rooms').select('*').eq('business_id', business_id).execute()
     return render_template('karaoke.html', rooms=rooms.data)
 
 
 @app.route('/toggle_room/<int:room_id>')
+@login_required
 def toggle_room(room_id):
+    business_id = session.get('business_id') or session['user_id']
     room = supabase.table('karaoke_rooms').select('*').eq('id', room_id).execute()
-    if not room.data:
+    if not room.data or room.data[0].get('business_id') != business_id:
         return redirect(url_for('karaoke'))
     room = room.data[0]
     if room['status'] == 'Trống':
@@ -1344,14 +1759,15 @@ def toggle_room(room_id):
             duration_minutes = math.ceil(duration_minutes / 15.0) * 15
         duration_hours = duration_minutes / 60.0
         total_price = duration_hours * room['price_per_hour']
-        prod = supabase.table('products').select('id').eq('name', 'Phí Giờ Karaoke').execute()
+        prod = supabase.table('products').select('id').eq('name', 'Phí Giờ Karaoke').eq('business_id', business_id).execute()
         if prod.data:
             prod_id = prod.data[0]['id']
             order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
             order = supabase.table('orders').insert({
                 'order_code': order_code,
                 'channel': 'karaoke',
-                'total_amount': total_price
+                'total_amount': total_price,
+                'business_id': business_id
             }).execute()
             order_id = order.data[0]['id']
             supabase.table('order_items').insert({
@@ -1359,7 +1775,8 @@ def toggle_room(room_id):
                 'product_id': prod_id,
                 'quantity': 1,
                 'price': total_price,
-                'total_price': total_price
+                'total_price': total_price,
+                'business_id': business_id
             }).execute()
         supabase.table('karaoke_rooms').update({'status': 'Trống', 'start_time': None}).eq('id', room_id).execute()
     return redirect(url_for('karaoke'))
@@ -1367,22 +1784,29 @@ def toggle_room(room_id):
 
 # ========== BÁO CÁO ==========
 @app.route('/report')
+@login_required
 def report():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        orders = supabase.table('orders').select('total_amount').execute()
+        orders = supabase.table('orders').select('id, total_amount').eq('business_id', business_id).execute()
         revenue = sum([o.get('total_amount') or 0 for o in orders.data]) if orders.data else 0
-        expenses = supabase.table('expenses').select('amount').execute()
+        expenses = supabase.table('expenses').select('amount').eq('business_id', business_id).execute()
         expense = sum([e.get('amount') or 0 for e in expenses.data]) if expenses.data else 0
         profit = revenue - expense
-        
-        items = supabase.table('order_items').select('product_id, total_price').execute()
+
+        # order_items không có cột business_id riêng — lọc gián tiếp qua danh sách order_id đã thuộc đúng business_id
+        order_ids = [o['id'] for o in (orders.data or [])]
+        items_data = []
+        if order_ids:
+            items = supabase.table('order_items').select('product_id, total_price').in_('order_id', order_ids).execute()
+            items_data = items.data or []
         breakdown_map = {}
-        
+
         # Batch load products mapping in O(1) to avoid massive synchronous DB requests in loop
-        products = supabase.table('products').select('id, category').execute()
+        products = supabase.table('products').select('id, category').eq('business_id', business_id).execute()
         product_cat_map = {p['id']: p['category'] for p in products.data} if products.data else {}
         
-        for item in items.data:
+        for item in items_data:
             cat = product_cat_map.get(item['product_id'], 'Khác')
             breakdown_map[cat] = breakdown_map.get(cat, 0) + (item.get('total_price') or 0)
             
@@ -1394,13 +1818,19 @@ def report():
 
 
 @app.route('/profit_report')
+@login_required
 def profit_report():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        # Lấy tất cả products, tính số lượng bán từ order_items
-        products = supabase.table('products').select('id, name, category, price, cost_price').eq('is_active', 1).execute()
+        # Lấy tất cả products của đúng tenant, tính số lượng bán từ order_items
+        products = supabase.table('products').select('id, name, category, price, cost_price').eq('is_active', 1).eq('business_id', business_id).execute()
+        own_product_ids = {p['id'] for p in (products.data or [])}
         order_items = supabase.table('order_items').select('product_id, quantity').execute()
         sold_map = {}
         for oi in order_items.data:
+            # order_items chưa có cột business_id riêng — chỉ cộng dồn cho sản phẩm thuộc đúng tenant
+            if oi['product_id'] not in own_product_ids:
+                continue
             sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + oi['quantity']
         profit_data = []
         for p in products.data:
@@ -1429,6 +1859,7 @@ def profit_report():
 
 # ========== NHẬT KÝ HỆ THỐNG ==========
 @app.route('/user_logs')
+@login_required
 def user_logs():
     logs = supabase.table('user_logs').select('*').order('created_at', desc=True).execute()
     return render_template('user_logs.html', logs=logs.data)
@@ -1437,35 +1868,46 @@ def user_logs():
 # ========== SAO LƯU & PHỤC HỒI ==========
 BACKUP_BUCKET = 'backups'
 @app.route('/backup_restore')
+@login_required
 def backup_restore():
     return render_template('backup_restore.html')
 
 
+BACKUP_TABLES = ['products', 'orders', 'order_items', 'customers', 'staff', 'appointments',
+                  'dining_tables', 'promotions', 'expenses', 'payment_transactions']
+
+
 @app.route('/api/backup/create', methods=['POST'])
+@login_required
 def create_backup():
     if not supabase_admin:
         return jsonify({'success': False, 'error': 'Backup storage admin key is not configured.'}), 400
     try:
-        # Lấy tất cả dữ liệu từ các bảng quan trọng
-        tables = ['products', 'orders', 'order_items', 'customers', 'staff', 'appointments',
-                  'dining_tables', 'promotions', 'expenses', 'payment_transactions', 'system_settings']
+        business_id = session.get('business_id') or session['user_id']
+        # Chỉ backup dữ liệu CỦA ĐÚNG tenant đang đăng nhập — không export toàn hệ thống
         backup_data = {}
-        for table in tables:
-            res = supabase_admin.table(table).select('*').execute()
+        for table in BACKUP_TABLES:
+            res = supabase_admin.table(table).select('*').eq('business_id', business_id).execute()
             backup_data[table] = res.data
+        # system_settings dùng khóa riêng business_mode_{user_id}, không có cột business_id
+        settings_res = supabase_admin.table('system_settings').select('*').eq('key', f'business_mode_{business_id}').execute()
+        backup_data['system_settings'] = settings_res.data
+
         backup_data['_backup_metadata'] = {
             'version': '1.0',
+            'business_id': business_id,
             'timestamp': datetime.now().isoformat()
         }
         json_str = json.dumps(backup_data, indent=2, ensure_ascii=False)
         filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        # Upload lên Supabase Storage qua admin bypass RLS
-        res = supabase_admin.storage.from_(BACKUP_BUCKET).upload(f"backups/{filename}", json_str.encode('utf-8'), {'content-type': 'application/json'})
-        
-        # Lưu log qua admin bypass RLS
+        # Tách riêng thư mục theo business_id trên Storage — tenant khác không thể list/tải nhầm
+        storage_path = f"backups/{business_id}/{filename}"
+
+        supabase_admin.storage.from_(BACKUP_BUCKET).upload(storage_path, json_str.encode('utf-8'), {'content-type': 'application/json'})
+
         supabase_admin.table('backup_logs').insert({
             'filename': filename,
+            'business_id': business_id,
             'created_at': datetime.now().isoformat(),
             'user_email': session.get('user_email', 'system')
         }).execute()
@@ -1475,27 +1917,57 @@ def create_backup():
 
 
 @app.route('/api/backup/restore', methods=['POST'])
+@login_required
 def restore_backup():
     if not supabase_admin:
         return jsonify({'success': False, 'error': 'Backup storage admin key is not configured.'}), 400
     try:
+        business_id = session.get('business_id') or session['user_id']
         filename = request.json.get('filename')
-        # Tải file từ storage qua admin bypass RLS
-        res = supabase_admin.storage.from_(BACKUP_BUCKET).download(f"backups/{filename}")
-        data = json.loads(res)
-        # Khôi phục theo thứ tự bảng (xóa cũ, insert mới)
-        # Cần implement cẩn thận, ở đây tạm bỏ qua để tránh dài dòng
+        if not filename:
+            return jsonify({'success': False, 'error': 'Thiếu tên file backup.'}), 400
+        storage_path = f"backups/{business_id}/{filename}"
+
+        raw = supabase_admin.storage.from_(BACKUP_BUCKET).download(storage_path)
+        data = json.loads(raw)
+
+        # Double-check: metadata trong file (nếu có) phải khớp đúng tenant hiện tại
+        meta = data.get('_backup_metadata', {})
+        if meta.get('business_id') and meta.get('business_id') != business_id:
+            return jsonify({'success': False, 'error': 'Backup file không thuộc tenant hiện tại.'}), 403
+
+        # Khôi phục theo thứ tự bảng: xóa dữ liệu cũ CỦA ĐÚNG business_id này, rồi insert lại từ backup
+        for table in BACKUP_TABLES:
+            rows = data.get(table)
+            if rows is None:
+                continue
+            supabase_admin.table(table).delete().eq('business_id', business_id).execute()
+            if rows:
+                for row in rows:
+                    row['business_id'] = business_id  # ép đúng tenant hiện tại, không ghi nhầm chỗ khác
+                supabase_admin.table(table).insert(rows).execute()
+
+        settings_rows = data.get('system_settings')
+        if settings_rows:
+            settings_key = f'business_mode_{business_id}'
+            supabase_admin.table('system_settings').delete().eq('key', settings_key).execute()
+            for row in settings_rows:
+                row['key'] = settings_key
+                supabase_admin.table('system_settings').insert(row).execute()
+
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/backup/list', methods=['GET'])
+@login_required
 def list_backups():
     if not supabase_admin:
         return jsonify({'success': False, 'error': 'Backup storage admin key is not configured.'}), 400
     try:
-        res = supabase_admin.storage.from_(BACKUP_BUCKET).list('backups')
+        business_id = session.get('business_id') or session['user_id']
+        res = supabase_admin.storage.from_(BACKUP_BUCKET).list(f"backups/{business_id}")
         files = [{'name': f['name'], 'size': f['metadata']['size'], 'created_at': f['created_at']} for f in res]
         return jsonify(files)
     except Exception as e:
@@ -1511,24 +1983,28 @@ def qr_menu_base():
 @app.route('/qr_menu/<path:identifier>')
 def qr_menu(identifier):
     table_data = None
-    if identifier == 'demo':
-        table_data = {'id': 9999, 'name': 'Bàn Demo', 'status': 'Trống', 'qr_token': 'demo'}
-    else:
-        try:
-            if identifier.isdigit():
-                res = supabase.table('dining_tables').select('*').eq('id', int(identifier)).execute()
-            else:
-                res = supabase.table('dining_tables').select('*').eq('qr_token', identifier).execute()
-            if res.data:
-                table_data = res.data[0]
-        except Exception:
-            pass
-            
+    try:
+        if identifier.isdigit():
+            res = supabase.table('dining_tables').select('*').eq('id', int(identifier)).execute()
+        else:
+            res = supabase.table('dining_tables').select('*').eq('qr_token', identifier).execute()
+        if res.data:
+            table_data = res.data[0]
+    except Exception as e:
+        return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
+
     if not table_data:
-        return redirect(url_for('qr_menu', identifier='demo'))
-        
-    menu = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail').execute()
-    return render_template('qr_menu.html', table=table_data, menu=menu.data)
+        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+
+    # Chỉ load đúng thực đơn của tenant sở hữu bàn này — cấm lộ sản phẩm của tiệm khác
+    table_business_id = table_data.get('business_id')
+    menu_query = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'retail')
+    if table_business_id:
+        menu_query = menu_query.eq('business_id', table_business_id)
+    menu = menu_query.execute()
+    # Khách quét QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc menu/bàn, tạo đơn tại đúng bàn này)
+    tenant_jwt = _mint_tenant_jwt(table_business_id, scope='qr_public', ttl_seconds=1800)
+    return render_template('qr_menu.html', table=table_data, menu=menu.data, tenant_jwt=tenant_jwt)
 
 
 @app.route('/api/submit_qr_order', methods=['POST'])
@@ -1544,41 +2020,58 @@ def submit_qr_order():
         items = data.get('items', [])
         total = data.get('total', 0)
         note = data.get('customer_note', '')
-        
+
         if not table_id:
             return jsonify({"success": False, "message": "Missing table_id"}), 400
-            
-        # If it's a demo table
-        if str(table_id) == '9999':
-            return jsonify({"success": True, "message": "Đơn hàng demo đã ghi nhận thành công!"})
-            
+
+        # Xác thực bàn tồn tại thật trong DB trước khi ghi nhận đơn — không còn fallback bàn demo giả
+        try:
+            if str(table_id).isdigit():
+                table_check = supabase.table('dining_tables').select('id, business_id').eq('id', int(table_id)).execute()
+            else:
+                table_check = supabase.table('dining_tables').select('id, business_id').eq('qr_token', table_id).execute()
+            if not table_check.data:
+                return jsonify({"success": False, "message": "Bàn không tồn tại hoặc mã QR không hợp lệ."}), 404
+            # Luôn dùng id số thật của bàn cho các bảng liên quan, tránh lưu nhầm qr_token dạng chuỗi
+            resolved_table_id = table_check.data[0]['id']
+            table_business_id = table_check.data[0].get('business_id')
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Không thể xác thực bàn: {str(e)}"}), 500
+
+        def _product_belongs_to_table(pid):
+            """Chặn khách order sản phẩm của tiệm khác (khác business_id với bàn đang quét)."""
+            if not table_business_id:
+                return True
+            prod = supabase.table('products').select('business_id').eq('id', pid).execute()
+            return bool(prod.data) and prod.data[0].get('business_id') == table_business_id
+
         # Handle multiple items (JSON format)
         if isinstance(items, list) and len(items) > 0:
             for item in items:
                 product_id = item.get('id')
                 quantity = item.get('quantity', 1)
-                if not product_id:
+                if not product_id or not _product_belongs_to_table(product_id):
                     continue
-                existing = supabase.table('table_orders').select('id, quantity').eq('table_id', table_id).eq('product_id', product_id).execute()
+                existing = supabase.table('table_orders').select('id, quantity').eq('table_id', resolved_table_id).eq('product_id', product_id).execute()
                 if existing.data:
                     new_qty = existing.data[0]['quantity'] + quantity
                     supabase.table('table_orders').update({'quantity': new_qty}).eq('id', existing.data[0]['id']).execute()
                 else:
-                    supabase.table('table_orders').insert({'table_id': table_id, 'product_id': product_id, 'quantity': quantity}).execute()
+                    supabase.table('table_orders').insert({'table_id': resolved_table_id, 'product_id': product_id, 'quantity': quantity}).execute()
         else:
             # Fallback to single item form parameter compatibility
             product_id = data.get('product_id')
             qty = int(data.get('quantity', 1))
-            if product_id:
-                existing = supabase.table('table_orders').select('id, quantity').eq('table_id', table_id).eq('product_id', product_id).execute()
+            if product_id and _product_belongs_to_table(product_id):
+                existing = supabase.table('table_orders').select('id, quantity').eq('table_id', resolved_table_id).eq('product_id', product_id).execute()
                 if existing.data:
                     new_qty = existing.data[0]['quantity'] + qty
                     supabase.table('table_orders').update({'quantity': new_qty}).eq('id', existing.data[0]['id']).execute()
                 else:
-                    supabase.table('table_orders').insert({'table_id': table_id, 'product_id': product_id, 'quantity': qty}).execute()
+                    supabase.table('table_orders').insert({'table_id': resolved_table_id, 'product_id': product_id, 'quantity': qty}).execute()
 
         # Update dining_table status to 'Đang phục vụ'
-        supabase.table('dining_tables').update({'status': 'Đang phục vụ'}).eq('id', table_id).execute()
+        supabase.table('dining_tables').update({'status': 'Đang phục vụ'}).eq('id', resolved_table_id).execute()
         
         # Log to user_logs for merchant notification
         try:
@@ -1599,6 +2092,7 @@ def submit_qr_order():
 
 # ========== CÀI ĐẶT THƯƠNG HIỆU ==========
 @app.route('/brand_settings', methods=['GET', 'POST'])
+@login_required
 def brand_settings():
     if request.method == 'POST':
         # Update brand settings in system_settings securely
@@ -1637,18 +2131,22 @@ def brand_settings():
 
 # ========== MỚI: ROUTE CHO CÁC TEMPLATE CÒN THIẾU ==========
 @app.route('/inventory_alert')
+@login_required
 def inventory_alert():
     return render_template('inventory_alert.html')
 
 @app.route('/kitchen_display')
+@login_required
 def kitchen_display():
     return render_template('kitchen_display.html')
 
 @app.route('/ecommerce_sync')
+@login_required
 def ecommerce_sync():
     return render_template('ecommerce_sync.html')
 
 @app.route('/payment_gateway')
+@login_required
 def payment_gateway():
     business_id = session.get('business_id', 'mock-business-123')
     config = None
@@ -1663,6 +2161,7 @@ def payment_gateway():
 
 
 @app.route('/api/payment/save_config', methods=['POST'])
+@login_required
 def api_save_payment_config():
     try:
         business_id = session.get('business_id', 'mock-business-123')
@@ -1691,10 +2190,12 @@ def api_save_payment_config():
 
 
 @app.route('/payment_history')
+@login_required
 def payment_history():
     return render_template('payment_history.html')
 
 @app.route('/payment_pending')
+@login_required
 def payment_pending():
     table_id = request.args.get('table_id')
     business_id = session.get('business_id', 'mock-business-123')
@@ -1720,6 +2221,7 @@ def payment_pending():
 
 
 @app.route('/api/payment/start', methods=['POST'])
+@login_required
 def api_payment_start():
     try:
         data = request.get_json() or {}
@@ -1760,49 +2262,56 @@ def api_payment_start():
 
 
 @app.route('/api/payment/confirm', methods=['POST'])
+@login_required
 def api_payment_confirm():
     try:
         data = request.get_json() or {}
         table_id = data.get('table_id')
         txn_id = data.get('txn_id')
         method = data.get('method', 'POS')
-        
+
         if not table_id or not txn_id:
             return jsonify({'success': False, 'message': 'Missing table_id or txn_id'}), 400
-            
-        # 1. Đọc table_orders theo table_id
-        orders_res = supabase.table('table_orders').select('*').eq('table_id', table_id).execute()
+
+        business_id = session.get('business_id') or session['user_id']
+        owns, err = _assert_owns_table(table_id, business_id)
+        if not owns:
+            return jsonify({'success': False, 'message': err}), 403
+
+        # 1. Đọc table_orders theo table_id (đã xác nhận bàn thuộc đúng tenant ở trên)
+        orders_res = supabase.table('table_orders').select('*').eq('table_id', table_id).eq('business_id', business_id).execute()
         if not orders_res.data:
             return jsonify({'success': False, 'message': 'Không tìm thấy món ăn nào đang treo tại bàn này.'}), 400
-            
+
         # 2. Tính tổng tiền server-side và trừ tồn kho
         total_bill = 0
         for item in orders_res.data:
-            prod_res = supabase.table('products').select('price, stock').eq('id', item['product_id']).execute()
+            prod_res = supabase.table('products').select('price, stock').eq('id', item['product_id']).eq('business_id', business_id).execute()
             if prod_res.data:
                 price = prod_res.data[0]['price']
                 total_bill += item['quantity'] * price
                 new_stock = prod_res.data[0]['stock'] - item['quantity']
-                supabase.table('products').update({'stock': new_stock}).eq('id', item['product_id']).execute()
-                
+                supabase.table('products').update({'stock': new_stock}).eq('id', item['product_id']).eq('business_id', business_id).execute()
+
         # Lấy industry từ transaction hoặc mặc định fnb
         industry = 'fnb'
-        
+
         # 3. Tạo order mới trong orders
         order_res = supabase.table('orders').insert({
             'order_code': txn_id,
             'channel': industry,
-            'total_amount': total_bill
+            'total_amount': total_bill,
+            'business_id': business_id
         }).execute()
-        
+
         if not order_res.data:
             return jsonify({'success': False, 'message': 'Tạo hóa đơn thất bại.'}), 500
-            
+
         order_id = order_res.data[0]['id']
-        
+
         # 4. Tạo chi tiết trong order_items
         for item in orders_res.data:
-            prod_res = supabase.table('products').select('price').eq('id', item['product_id']).execute()
+            prod_res = supabase.table('products').select('price').eq('id', item['product_id']).eq('business_id', business_id).execute()
             if prod_res.data:
                 price = prod_res.data[0]['price']
                 supabase.table('order_items').insert({
@@ -1812,21 +2321,24 @@ def api_payment_confirm():
                     'price': price,
                     'total_price': item['quantity'] * price
                 }).execute()
-                
+
         # 5. Update payment_transactions status = completed
         supabase.table('payment_transactions').update({
             'status': 'completed',
             'amount': total_bill,
             'method': method,
             'updated_at': datetime.now().isoformat()
-        }).eq('transaction_id', txn_id).execute()
-        
+        }).eq('transaction_id', txn_id).eq('business_id', business_id).execute()
+
         # 6. Dọn table_orders
-        supabase.table('table_orders').delete().eq('table_id', table_id).execute()
-        
+        supabase.table('table_orders').delete().eq('table_id', table_id).eq('business_id', business_id).execute()
+
         # 7. Trả bàn về trạng thái 'Còn trống'
-        supabase.table('dining_tables').update({'status': 'Còn trống'}).eq('id', table_id).execute()
-        
+        supabase.table('dining_tables').update({'status': 'Còn trống'}).eq('id', table_id).eq('business_id', business_id).execute()
+
+        # 8. Loyalty tự động: nếu thu ngân có nhập SĐT khách -> tự cộng điểm/xét lên hạng (không chặn luồng nếu lỗi)
+        _award_loyalty_points(business_id, data.get('customer_phone'), total_bill)
+
         redirect_url = f"/payment_success?txn_id={txn_id}&method={method}&amount={total_bill}&currency=VND&industry={industry}"
         return jsonify({
             'success': True,
@@ -1837,21 +2349,273 @@ def api_payment_confirm():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+# ========== CRON HÀNG NGÀY: DỰ BÁO TỒN KHO (AI) + LOYALTY SINH NHẬT ==========
+# App chạy serverless trên Vercel nên không có tiến trình nền dài hạn — dùng
+# Vercel Cron Job (xem vercel.json) gọi HTTP vào route này theo lịch hàng ngày.
+# Bảo vệ bằng CRON_SECRET (header Authorization: Bearer <secret>) thay vì
+# @login_required vì Vercel Cron không mang session cookie.
+def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left):
+    """Dùng DeepSeek CHỈ để diễn giải cảnh báo bằng lời tự nhiên — số liệu (tồn kho,
+    tốc độ bán, số ngày còn lại) luôn được tính bằng Python trước, AI không tự bịa số."""
+    fallback = (
+        f"Sản phẩm '{product_name}' còn {stock} đơn vị, bán trung bình {avg_daily:.1f}/ngày "
+        f"-> dự kiến hết trong khoảng {days_left:.1f} ngày nữa. Đề xuất nhập thêm hàng sớm."
+    )
+    api_key = os.environ.get('DEEPSEEK_API_KEY')
+    if not api_key:
+        return fallback
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            json={
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "Bạn là trợ lý quản lý kho, viết đúng 1 câu cảnh báo ngắn gọn, "
+                     "thân thiện bằng Tiếng Việt cho chủ tiệm dựa ĐÚNG số liệu được cung cấp, không bịa thêm số liệu khác."},
+                    {"role": "user", "content": f"Sản phẩm: {product_name}. Tồn kho hiện tại: {stock}. "
+                     f"Tốc độ bán trung bình: {avg_daily:.1f}/ngày. Số ngày còn lại trước khi hết hàng: {days_left:.1f}."}
+                ],
+                "temperature": 0.5,
+                "max_tokens": 120
+            },
+            timeout=10
+        )
+        resp.raise_for_status()
+        content = resp.json()['choices'][0]['message']['content'].strip()
+        return content or fallback
+    except Exception:
+        return fallback
+
+
+def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
+    """Tính tốc độ bán mỗi sản phẩm trong lookback_days ngày gần nhất, cảnh báo sản phẩm
+    sắp hết hàng (còn <= 3 ngày bán theo tốc độ trung bình) và tạo phiếu đề xuất nhập hàng."""
+    products_res = supabase.table('products').select('id, name, stock').eq('business_id', business_id).eq('is_active', 1).execute()
+    products = products_res.data or []
+    if not products:
+        return 0
+    product_ids = [p['id'] for p in products]
+
+    items_res = supabase.table('order_items').select('product_id, quantity, created_at') \
+        .in_('product_id', product_ids).gte('created_at', since_iso).execute()
+    sold_qty = {}
+    for it in (items_res.data or []):
+        pid = it.get('product_id')
+        sold_qty[pid] = sold_qty.get(pid, 0) + (it.get('quantity') or 0)
+
+    created = 0
+    for p in products:
+        total_sold = sold_qty.get(p['id'], 0)
+        if total_sold <= 0:
+            continue
+        avg_daily = total_sold / lookback_days
+        stock = p.get('stock') or 0
+        days_left = stock / avg_daily if avg_daily > 0 else 999
+        if days_left > 3:
+            continue
+
+        existing = supabase.table('restock_proposals').select('id') \
+            .eq('business_id', business_id).eq('product_id', p['id']).eq('status', 'pending').execute()
+        if existing.data:
+            continue  # đã có đề xuất đang chờ xử lý cho sản phẩm này, không tạo trùng
+
+        suggested_qty = max(int(avg_daily * 7 - stock), int(avg_daily * 3) + 1)
+        reason = _generate_restock_reason_with_ai(p['name'], stock, avg_daily, days_left)
+        supabase.table('restock_proposals').insert({
+            'business_id': business_id,
+            'product_id': p['id'],
+            'product_name': p['name'],
+            'current_stock': stock,
+            'avg_daily_sales': round(avg_daily, 2),
+            'suggested_qty': suggested_qty,
+            'reason': reason,
+            'status': 'pending',
+        }).execute()
+        created += 1
+    return created
+
+
+def _run_birthday_check_for_business(business_id):
+    """Quét khách hàng có sinh nhật hôm nay, xếp hàng gửi lời chúc + ưu đãi qua loyalty_events."""
+    today_md = datetime.now().strftime('%m-%d')
+    customers_res = supabase.table('customers').select('*').eq('business_id', business_id).execute()
+    sent = 0
+    for c in (customers_res.data or []):
+        dob = c.get('dob')
+        if not dob or len(str(dob)) < 10:
+            continue
+        if str(dob)[5:10] != today_md:
+            continue
+        message = (
+            f"🎉 Chúc mừng sinh nhật {c.get('name') or 'bạn'}! Nhân dịp đặc biệt này, tiệm xin tặng bạn "
+            f"1 ưu đãi dành riêng cho hạng {c.get('tier') or 'Normal'} — ghé tiệm trong tuần này để nhận quà nhé!"
+        )
+        _queue_loyalty_notification(business_id, c, 'birthday', message)
+        sent += 1
+    return sent
+
+
+def _get_all_active_business_ids():
+    """Liệt kê toàn bộ business_id đang thực sự hoạt động. LƯU Ý: bảng 'businesses' KHÔNG
+    được populate ở luồng đăng ký (session['business_id'] = user_id trực tiếp, không tạo
+    row trong 'businesses') nên không dùng được để liệt kê tenant — suy ra từ dữ liệu thật
+    (distinct business_id trên 'products' và 'business_memberships')."""
+    ids = set()
+    try:
+        res = supabase.table('products').select('business_id').execute()
+        for row in (res.data or []):
+            bid = row.get('business_id')
+            if bid:
+                ids.add(bid)
+    except Exception as e:
+        print(f"Loi lay business_id tu products: {e}")
+    try:
+        res2 = supabase.table('business_memberships').select('business_id').execute()
+        for row in (res2.data or []):
+            bid = row.get('business_id')
+            if bid:
+                ids.add(bid)
+    except Exception as e:
+        print(f"Loi lay business_id tu business_memberships: {e}")
+    return list(ids)
+
+
+def _run_payment_reconciliation_for_business(business_id, lookback_days):
+    """Đối soát chéo payment_transactions <-> orders, phát hiện: (a) giao dịch báo đã
+    hoàn tất ('completed') nhưng không có order tương ứng, (b) số tiền giao dịch lệch với
+    tổng đơn hàng (thu thiếu/thừa), (c) giao dịch treo 'pending' quá lâu (nghi ngờ tiền
+    chưa vào). Ghi báo động vào reconciliation_alerts, không tạo trùng cảnh báo đang chờ xử lý."""
+    since_iso = (datetime.now() - timedelta(days=lookback_days)).isoformat()
+    alerts_created = 0
+    try:
+        txns_res = supabase.table('payment_transactions').select('*') \
+            .eq('business_id', business_id).gte('created_at', since_iso).execute()
+        txns = txns_res.data or []
+    except Exception as e:
+        print(f"Loi lay payment_transactions cho {business_id}: {e}")
+        return 0
+
+    orders_res = supabase.table('orders').select('order_code, total_amount') \
+        .eq('business_id', business_id).gte('created_at', since_iso).execute()
+    orders_by_code = {o['order_code']: o for o in (orders_res.data or []) if o.get('order_code')}
+
+    stale_pending_hours = 2  # giao dịch pending quá 2 tiếng coi như nghi ngờ tiền chưa vào
+
+    for txn in txns:
+        txn_id = txn.get('transaction_id')
+        status = txn.get('status')
+        amount = txn.get('amount') or 0
+        issue_type = None
+        details = None
+        expected_amount = None
+
+        if status == 'completed':
+            order = orders_by_code.get(txn_id)
+            if not order:
+                issue_type = 'missing_order'
+                details = f"Giao dịch {txn_id} báo hoàn tất nhưng không tìm thấy đơn hàng tương ứng."
+            else:
+                order_amount = order.get('total_amount') or 0
+                if abs(order_amount - amount) >= 1000:  # sai lệch từ 1.000đ trở lên mới báo động
+                    issue_type = 'amount_mismatch'
+                    expected_amount = order_amount
+                    details = (
+                        f"Giao dịch {txn_id}: số tiền ghi nhận {amount:,.0f}đ nhưng đơn hàng thực tế "
+                        f"{order_amount:,.0f}đ (chênh lệch {order_amount - amount:,.0f}đ)."
+                    ).replace(',', '.')
+        elif status == 'pending':
+            created_at_str = txn.get('created_at')
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    age_hours = (datetime.now(created_at.tzinfo) - created_at).total_seconds() / 3600
+                    if age_hours >= stale_pending_hours:
+                        issue_type = 'stale_pending'
+                        details = f"Giao dịch {txn_id} vẫn ở trạng thái chờ sau {age_hours:.1f} giờ — nghi ngờ tiền chưa vào tài khoản."
+                except Exception:
+                    pass
+
+        if not issue_type:
+            continue
+
+        existing = supabase.table('reconciliation_alerts').select('id') \
+            .eq('business_id', business_id).eq('transaction_id', txn_id).eq('issue_type', issue_type).eq('status', 'pending').execute()
+        if existing.data:
+            continue
+
+        supabase.table('reconciliation_alerts').insert({
+            'business_id': business_id,
+            'transaction_id': txn_id,
+            'order_code': txn_id,
+            'issue_type': issue_type,
+            'expected_amount': expected_amount,
+            'actual_amount': amount,
+            'details': details,
+            'status': 'pending',
+        }).execute()
+        alerts_created += 1
+
+    return alerts_created
+
+
+@app.route('/api/cron/daily_tasks', methods=['GET', 'POST'])
+def cron_daily_tasks():
+    cron_secret = os.environ.get('CRON_SECRET')
+    auth_header = request.headers.get('Authorization', '')
+    if not cron_secret or auth_header != f'Bearer {cron_secret}':
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    lookback_days = 14
+    since_iso = (datetime.now() - timedelta(days=lookback_days)).isoformat()
+    results = {"businesses_scanned": 0, "restock_proposals_created": 0, "birthday_events_queued": 0,
+               "reconciliation_alerts_created": 0, "errors": []}
+
+    business_ids = _get_all_active_business_ids()
+
+    for business_id in business_ids:
+        results["businesses_scanned"] += 1
+        try:
+            results["restock_proposals_created"] += _run_inventory_forecast_for_business(business_id, lookback_days, since_iso)
+        except Exception as e:
+            results["errors"].append(f"forecast[{business_id}]: {str(e)}")
+        try:
+            results["birthday_events_queued"] += _run_birthday_check_for_business(business_id)
+        except Exception as e:
+            results["errors"].append(f"birthday[{business_id}]: {str(e)}")
+        try:
+            results["reconciliation_alerts_created"] += _run_payment_reconciliation_for_business(business_id, lookback_days)
+        except Exception as e:
+            results["errors"].append(f"reconciliation[{business_id}]: {str(e)}")
+
+    return jsonify({"success": True, **results})
+
+
 @app.route('/api/payment/cancel', methods=['POST'])
+@login_required
 def api_payment_cancel():
     try:
         data = request.get_json() or {}
         txn_id = data.get('txn_id')
-        
+
         if not txn_id:
             return jsonify({'success': False, 'message': 'Missing txn_id'}), 400
-            
+
+        business_id = session.get('business_id') or session['user_id']
+        # Xác nhận giao dịch thuộc đúng tenant trước khi cho hủy (trước đây thiếu bộ lọc này)
+        txn_check = supabase.table('payment_transactions').select('id, status, business_id').eq('transaction_id', txn_id).execute()
+        if not txn_check.data or txn_check.data[0].get('business_id') != business_id:
+            return jsonify({'success': False, 'message': 'Giao dịch không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
+        old_status = txn_check.data[0].get('status')
+
         # Update transaction status = failed
         supabase.table('payment_transactions').update({
             'status': 'failed',
             'updated_at': datetime.now().isoformat()
-        }).eq('transaction_id', txn_id).execute()
-        
+        }).eq('transaction_id', txn_id).eq('business_id', business_id).execute()
+        _log_audit(business_id, 'cancel_order', entity_type='payment_transaction', entity_id=txn_id,
+                   old_value={'status': old_status}, new_value={'status': 'failed'})
+
         return jsonify({'success': True, 'message': 'Transaction cancelled successfully'})
     except Exception as e:
         print(f"Error in api_payment_cancel: {str(e)}")
@@ -1859,63 +2623,107 @@ def api_payment_cancel():
 
 
 @app.route('/payment_success')
+@login_required
 def payment_success():
     return render_template('payment_success.html')
 
 @app.route('/sell')
+@login_required
 def sell():
     return render_template('sell.html')
 
+# ========== TENANT SESSION TOKEN (cho các trang gọi Supabase trực tiếp từ trình duyệt) ==========
+# Các trang nhanvien/bangluong/app_nhanvien/diemdanh/chamcong_* gọi thẳng Supabase bằng anon key,
+# nên RLS không có cách nào phân biệt tenant nếu không có claim business_id trong JWT của request.
+# Hàm này ký 1 JWT ngắn hạn chứa business_id (và tuỳ chọn "scope" giới hạn phạm vi cho khách
+# vãng lai quét QR/đặt lịch — không có scope = token đầy đủ quyền của nhân viên/chủ tiệm).
+def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
+    secret = os.environ.get('SUPABASE_JWT_SECRET')
+    if not secret or not business_id:
+        return None
+    now = int(time.time())
+    payload = {
+        "role": "authenticated",
+        "business_id": business_id,
+        "iat": now,
+        "exp": now + ttl_seconds,
+    }
+    if scope:
+        payload["scope"] = scope
+    return pyjwt.encode(payload, secret, algorithm="HS256")
+
+
+@app.route('/api/session/supabase_token')
+@login_required
+def get_supabase_tenant_token():
+    business_id = session.get('business_id') or session['user_id']
+    token = _mint_tenant_jwt(business_id)
+    if not token:
+        return jsonify({"success": False, "error": "Server chưa cấu hình SUPABASE_JWT_SECRET."}), 500
+    return jsonify({"success": True, "token": token, "business_id": business_id})
+
+
 # ========== MỚI: ROUTE CHO CƠ SỞ DỮ LIỆU NHÂN SỰ VÀ SUPER ADMIN ==========
 @app.route('/nhanvien')
+@login_required
 def nhanvien():
     return render_template('nhanvien.html')
 
 @app.route('/bangluong')
+@login_required
 def bangluong():
     return render_template('bangluong.html')
 
 @app.route('/chamcong')
+@login_required
 def chamcong():
     return render_template('chamcong.html')
 
 @app.route('/chamcong/congnhan')
 @app.route('/chamcong_congnhan')
+@login_required
 def chamcong_congnhan():
     return render_template('chamcong_congnhan.html')
 
 @app.route('/chamcong/fnb')
 @app.route('/chamcong_fnb')
+@login_required
 def chamcong_fnb():
     return render_template('chamcong_fnb.html')
 
 @app.route('/chamcong/khachsan')
 @app.route('/chamcong_khachsan')
+@login_required
 def chamcong_khachsan():
     return render_template('chamcong_khachsan.html')
 
 @app.route('/chamcong/kythuat')
 @app.route('/chamcong_kythuat')
+@login_required
 def chamcong_kythuat():
     return render_template('chamcong_kythuat.html')
 
 @app.route('/chamcong/nail')
 @app.route('/chamcong_nail')
+@login_required
 def chamcong_nail():
     return render_template('chamcong_nail.html')
 
 @app.route('/chamcong/spa')
 @app.route('/chamcong_spa')
+@login_required
 def chamcong_spa():
     return render_template('chamcong_spa.html')
 
 @app.route('/chamcong/vanphong')
 @app.route('/chamcong_vanphong')
+@login_required
 def chamcong_vanphong():
     return render_template('chamcong_vanphong.html')
 
 @app.route('/chamcong/<industry_code>')
 @app.route('/chamcong_<industry_code>')
+@login_required
 def chamcong_industry(industry_code):
     template_name = f"chamcong_{industry_code}.html"
     if os.path.exists(os.path.join(app.template_folder, template_name)):
@@ -1926,41 +2734,43 @@ def chamcong_industry(industry_code):
 @app.route('/table_order')
 def table_order():
     table_id = request.args.get('table_id')
+    if not table_id:
+        return "Thiếu mã bàn (table_id) trong đường dẫn QR.", 400
+
     table_data = None
-    if table_id:
-        try:
-            # support alphanumeric token or numeric table_id
-            if str(table_id).isdigit():
-                res = supabase.table('dining_tables').select('*').eq('id', int(table_id)).execute()
-            else:
-                res = supabase.table('dining_tables').select('*').eq('qr_token', table_id).execute()
-            if res.data:
-                table_data = res.data[0]
-        except Exception as e:
-            print(f"Error querying table from Supabase: {e}")
-            
-    # Fallback to demo table safely if table_id is missing or not in DB
+    try:
+        # support alphanumeric token or numeric table_id
+        if str(table_id).isdigit():
+            res = supabase.table('dining_tables').select('*').eq('id', int(table_id)).execute()
+        else:
+            res = supabase.table('dining_tables').select('*').eq('qr_token', table_id).execute()
+        if res.data:
+            table_data = res.data[0]
+    except Exception as e:
+        print(f"Error querying table from Supabase: {e}")
+        return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
+
     if not table_data:
-        table_data = {
-            'id': int(table_id) if table_id and str(table_id).isdigit() else 9999,
-            'name': f'Bàn {table_id}' if table_id else 'Bàn Demo',
-            'status': 'Trống',
-            'qr_token': table_id or 'demo'
-        }
-        
-    return render_template('table_order.html', table=table_data)
+        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+
+    # Khách quét QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc menu/bàn, tạo đơn tại đúng bàn này)
+    tenant_jwt = _mint_tenant_jwt(table_data.get('business_id'), scope='qr_public', ttl_seconds=1800)
+    return render_template('table_order.html', table=table_data, tenant_jwt=tenant_jwt)
 
 @app.route('/baocao_loinhuan')
+@login_required
 def baocao_loinhuan():
     return render_template('baocao_loinhuan.html')
 
 @app.route('/cauhinh_luong')
+@login_required
 def cauhinh_luong():
+    business_id = session.get('business_id') or session['user_id']
     staff_id = request.args.get('staff_id')
     emp = None
     if staff_id:
         try:
-            res = supabase.table('staff').select('*').eq('id', staff_id).execute()
+            res = supabase.table('staff').select('*').eq('id', staff_id).eq('business_id', business_id).execute()
             if res.data:
                 s = res.data[0]
                 emp = [str(s.get('id', '')), s.get('name', ''), s.get('role', 'retail')]
@@ -1971,30 +2781,37 @@ def cauhinh_luong():
     return render_template('cauhinh_luong.html', emp=emp)
 
 @app.route('/diemdanh')
+@login_required
 def diemdanh():
     return render_template('diemdanh.html')
 
 @app.route('/fnb_dashboard')
+@login_required
 def fnb_dashboard():
     return render_template('fnb_dashboard.html')
 
 @app.route('/portal')
+@login_required
 def portal():
     return render_template('portal.html')
 
 @app.route('/quanly_congno')
+@login_required
 def quanly_congno():
     return render_template('quanly_congno.html')
 
 @app.route('/quanly_dichvu')
+@login_required
 def quanly_dichvu():
     return render_template('quanly_dichvu.html')
 
 @app.route('/quanly_kho')
+@login_required
 def quanly_kho():
     return render_template('quanly_kho.html')
 
 @app.route('/quanly_thuchi')
+@login_required
 def quanly_thuchi():
     return render_template('quanly_thuchi.html')
 
@@ -2004,6 +2821,7 @@ def super_admin():
     return render_template('super_admin.html')
 
 @app.route('/ai_bot')
+@login_required
 def ai_bot():
     business_id = session.get('business_id', 'mock-business-123')
     user_email = session.get('user_email', 'Chưa có dữ liệu doanh nghiệp')
@@ -2080,23 +2898,31 @@ def ai_bot():
 
 @app.route('/ai-studio')
 @app.route('/ai_studio')
+@login_required
 def ai_studio():
     return render_template('ai-studio.html')
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
+@login_required
 def secure_ai_generate():
+    business_id = session.get('business_id') or session['user_id']
     data = request.get_json() or {}
-    system_prompt = data.get('systemPrompt', '')
+    # Persona/phong cách do client gửi (KHÔNG chứa số liệu doanh nghiệp thật) — số liệu luôn
+    # được server tự nhúng bên dưới, lọc đúng theo business_id của session, không tin client.
+    client_persona = data.get('systemPrompt', '')
     user_prompt = data.get('userPrompt', '')
     temperature = data.get('temperature', 0.7)
     max_tokens = data.get('max_tokens', 1500)
-    
-    api_key = os.environ.get('DEEPSEEK_API_KEY', 'sk-4d9f9232e03247408c2ee4ff519dbf4d')
-    
-    import urllib.request
-    import urllib.error
-    import json
-    
+    customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
+
+    industry = session.get('business_mode', 'retail')
+    tenant_context = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone)
+    system_prompt = f"{tenant_context}\n{client_persona}"
+
+    api_key = os.environ.get('DEEPSEEK_API_KEY')
+    if not api_key:
+        return jsonify({"error": "Server chưa cấu hình DEEPSEEK_API_KEY.", "fallback": True}), 500
+
     url = "https://api.deepseek.com/chat/completions"
     headers = {
         "Content-Type": "application/json",
@@ -2111,38 +2937,45 @@ def secure_ai_generate():
         "temperature": temperature,
         "max_tokens": max_tokens
     }
-    
+
     try:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
-        with urllib.request.urlopen(req, timeout=12) as response:
-            res_data = response.read().decode('utf-8')
-            return jsonify(json.loads(res_data))
-    except urllib.error.URLError as e:
-        return jsonify({"error": f"API Connection error: {str(e)}", "fallback": True}), 200
-    except Exception as ex:
-        return jsonify({"error": f"Internal proxy error: {str(ex)}", "fallback": True}), 200
+        resp = requests.post(url, headers=headers, json=payload, timeout=15)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.Timeout:
+        return jsonify({"error": "AI service timeout sau 15s, vui lòng thử lại.", "fallback": True}), 504
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"error": f"AI service từ chối request: {str(e)}", "fallback": True}), 502
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Lỗi kết nối AI service: {str(e)}", "fallback": True}), 502
 
 @app.route('/app_chat')
+@login_required
 def app_chat():
     return render_template('app_chat.html')
 
 @app.route('/chat')
+@login_required
 def chat():
     return render_template('chat.html')
 
 @app.route('/crm_automation')
+@login_required
 def crm_automation():
     return render_template('crm_automation.html')
 
 @app.route('/map_dashboard')
+@login_required
 def map_dashboard():
     return render_template('map_dashboard.html')
 
 @app.route('/app_nhanvien')
+@login_required
 def app_nhanvien():
     return render_template('app_nhanvien.html')
 
 @app.route('/api/superadmin/duc_ma', methods=['POST'])
+@login_required
 def duc_ma():
     data = request.json
     ma_key = data.get('license_key')
@@ -2158,6 +2991,7 @@ def duc_ma():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/superadmin/get_keys', methods=['GET'])
+@login_required
 def get_keys():
     try:
         conn = sqlite3.connect('database.db')
@@ -2177,20 +3011,24 @@ def get_keys():
 
 @app.route('/ai/connect-platforms')
 @app.route('/omnichannel_connect')
+@login_required
 def connect_platforms():
     return render_template('omnichannel_connect.html')
 
 @app.route('/ai/customer-nurturing')
 @app.route('/customer_nurturing')
+@login_required
 def customer_nurturing():
     return render_template('customer_nurturing.html')
 
 @app.route('/ai/campaign-builder')
 @app.route('/campaign_builder')
+@login_required
 def campaign_builder():
     return render_template('campaign_builder.html')
 
 @app.route('/api/ai/nurture/connect-status', methods=['GET'])
+@login_required
 def nurture_connect_status():
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2261,6 +3099,7 @@ def nurture_connect_status():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/toggle-connection', methods=['POST'])
+@login_required
 def nurture_toggle_connection():
     data = request.json or {}
     platform = data.get('platform')
@@ -2333,6 +3172,7 @@ def nurture_toggle_connection():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/test-connection', methods=['POST'])
+@login_required
 def nurture_test_connection():
     data = request.json or {}
     platform = data.get('platform')
@@ -2367,10 +3207,12 @@ CHANNEL_MAP = {
 }
 
 @app.route('/omnichannel/status', methods=['GET'])
+@login_required
 def omnichannel_status_all():
     return nurture_connect_status()
 
 @app.route('/omnichannel/status/<channel>', methods=['GET'])
+@login_required
 def omnichannel_status_single(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
@@ -2383,6 +3225,7 @@ def omnichannel_status_single(channel):
     return jsonify({"success": True, "channel": channel, "mapped_platform": target, "data": channel_data})
 
 @app.route('/omnichannel/connect/<channel>', methods=['GET'])
+@login_required
 def omnichannel_connect_portal(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
@@ -2390,6 +3233,7 @@ def omnichannel_connect_portal(channel):
     return render_template('omnichannel_connect_placeholder.html', channel=channel, platform=target)
 
 @app.route('/omnichannel/callback/<channel>', methods=['GET'])
+@login_required
 def omnichannel_callback(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
@@ -2436,6 +3280,7 @@ def omnichannel_callback(channel):
     """
 
 @app.route('/omnichannel/disconnect/<channel>', methods=['POST'])
+@login_required
 def omnichannel_disconnect_api(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
@@ -2453,6 +3298,7 @@ def omnichannel_disconnect_api(channel):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/omnichannel/test/<channel>', methods=['POST'])
+@login_required
 def omnichannel_test_api(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
@@ -2479,16 +3325,19 @@ def omnichannel_test_api(channel):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/cskh/lead-submit', methods=['POST'])
+@login_required
 def cskh_lead_submit():
     data = request.json or {}
     phone = data.get('phone', '').strip()
     message = data.get('message', '').strip()
-    
-    if not phone or not message:
-        return jsonify({"success": False, "message": "Vui lòng cung cấp đầy đủ thông tin!"}), 400
-        
-    business_id = session.get('business_id', 'mock-business-123')
-    
+
+    if not re.match(r'^0\d{9,10}$', phone) or not message:
+        return jsonify({"success": False, "message": "Vui lòng cung cấp đầy đủ thông tin (SĐT hợp lệ)!"}), 400
+
+    # Trước đây default 'mock-business-123' khi thiếu session khiến lead của MỌI tiệm bị trộn chung.
+    # Bắt buộc đăng nhập để luôn có business_id thật của đúng tiệm.
+    business_id = session.get('business_id') or session['user_id']
+
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -2503,6 +3352,7 @@ def cskh_lead_submit():
 
 
 @app.route('/api/ai/nurture/customers', methods=['GET'])
+@login_required
 def nurture_customers():
     business_id = session.get('business_id', 'mock-business-123')
     industry = session.get('business_mode', 'retail')
@@ -2549,6 +3399,7 @@ def nurture_customers():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/import-data', methods=['POST'])
+@login_required
 def nurture_import_data():
     business_id = session.get('business_id', 'mock-business-123')
     industry = session.get('business_mode', 'retail')
@@ -2573,6 +3424,7 @@ def nurture_import_data():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/generate-campaign', methods=['POST'])
+@login_required
 def nurture_generate_campaign():
     data = request.json or {}
     segment = data.get('segment') # 'ALL', 'VIP', 'CHURN', etc.
@@ -2639,6 +3491,7 @@ def nurture_generate_campaign():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/approval-queue', methods=['GET'])
+@login_required
 def nurture_approval_queue():
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2671,6 +3524,7 @@ def nurture_approval_queue():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/approve-message', methods=['POST'])
+@login_required
 def nurture_approve_message():
     data = request.json or {}
     message_id = data.get('message_id')
@@ -2692,6 +3546,7 @@ def nurture_approve_message():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/ai/nurture/recommendations', methods=['GET'])
+@login_required
 def nurture_recommendations():
     industry = session.get('business_mode', 'retail')
     try:
@@ -2705,6 +3560,7 @@ def nurture_recommendations():
 # ========== AI BOT SCENARIO BUILDER API ENDPOINTS ==========
 
 @app.route('/api/bot/scenarios', methods=['GET'])
+@login_required
 def get_bot_scenarios():
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2785,6 +3641,7 @@ def get_bot_scenarios():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios', methods=['POST'])
+@login_required
 def create_bot_scenario():
     business_id = session.get('business_id', 'mock-business-123')
     data = request.json or {}
@@ -2817,6 +3674,7 @@ def create_bot_scenario():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['GET'])
+@login_required
 def get_single_bot_scenario(scenario_id):
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2851,6 +3709,7 @@ def get_single_bot_scenario(scenario_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['PUT'])
+@login_required
 def update_bot_scenario(scenario_id):
     business_id = session.get('business_id', 'mock-business-123')
     data = request.json or {}
@@ -2883,6 +3742,7 @@ def update_bot_scenario(scenario_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['DELETE'])
+@login_required
 def delete_bot_scenario(scenario_id):
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2896,6 +3756,7 @@ def delete_bot_scenario(scenario_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios/<scenario_id>/toggle', methods=['POST'])
+@login_required
 def toggle_bot_scenario(scenario_id):
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -2918,6 +3779,7 @@ def toggle_bot_scenario(scenario_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/scenarios/<scenario_id>/test', methods=['POST'])
+@login_required
 def test_bot_scenario(scenario_id):
     business_id = session.get('business_id', 'mock-business-123')
     data = request.json or {}
@@ -3005,6 +3867,7 @@ def test_bot_scenario(scenario_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/bot/logs', methods=['GET'])
+@login_required
 def get_bot_logs():
     business_id = session.get('business_id', 'mock-business-123')
     try:
@@ -3055,13 +3918,26 @@ except Exception as bp_err:
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========
 
 @app.route('/api/chamcong/checkin', methods=['POST'])
+@login_required
 def api_checkin():
     data = request.json or {}
     staff_id = data.get('staff_id') or data.get('employee_id') or 1
     lat = data.get('latitude')
     lng = data.get('longitude')
     note = data.get('note')
-    
+
+    business_id = session.get('business_id') or session['user_id']
+    if not (isinstance(staff_id, (int, float)) or (isinstance(staff_id, str) and staff_id.isdigit())):
+        return jsonify({"success": False, "error": "staff_id không hợp lệ."}), 400
+    try:
+        staff_check = supabase.table('staff').select('id, is_active, business_id').eq('id', int(staff_id)).execute()
+        if not staff_check.data or not staff_check.data[0].get('is_active', True):
+            return jsonify({"success": False, "error": "Nhân viên không tồn tại hoặc đã bị khóa."}), 403
+        if staff_check.data[0].get('business_id') != business_id:
+            return jsonify({"success": False, "error": "Nhân viên không thuộc quyền quản lý của bạn."}), 403
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
+
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -3085,14 +3961,15 @@ def api_checkin():
         conn.commit()
         row_id = c.lastrowid
         conn.close()
-        
+
         try:
             supabase.table('attendance').insert({
                 'staff_id': int(staff_id) if isinstance(staff_id, (int, float)) or (isinstance(staff_id, str) and staff_id.isdigit()) else None,
                 'clock_in': clock_in_time,
                 'latitude_in': lat,
                 'longitude_in': lng,
-                'status': 'Present'
+                'status': 'Present',
+                'business_id': business_id
             }).execute()
         except Exception:
             pass
@@ -3108,12 +3985,25 @@ def api_checkin():
 
 
 @app.route('/api/chamcong/checkout', methods=['POST'])
+@login_required
 def api_checkout():
     data = request.json or {}
     staff_id = data.get('staff_id') or data.get('employee_id') or 1
     lat = data.get('latitude')
     lng = data.get('longitude')
-    
+
+    business_id = session.get('business_id') or session['user_id']
+    if not (isinstance(staff_id, (int, float)) or (isinstance(staff_id, str) and staff_id.isdigit())):
+        return jsonify({"success": False, "error": "staff_id không hợp lệ."}), 400
+    try:
+        staff_check = supabase.table('staff').select('id, is_active, business_id').eq('id', int(staff_id)).execute()
+        if not staff_check.data or not staff_check.data[0].get('is_active', True):
+            return jsonify({"success": False, "error": "Nhân viên không tồn tại hoặc đã bị khóa."}), 403
+        if staff_check.data[0].get('business_id') != business_id:
+            return jsonify({"success": False, "error": "Nhân viên không thuộc quyền quản lý của bạn."}), 403
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
+
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -3131,15 +4021,15 @@ def api_checkout():
         ''')
         clock_out_time = datetime.now().isoformat()
         c.execute('''
-            UPDATE local_attendance 
-            SET clock_out = ? 
+            UPDATE local_attendance
+            SET clock_out = ?
             WHERE staff_id = ? AND clock_out IS NULL
         ''', (clock_out_time, str(staff_id)))
         conn.commit()
         conn.close()
-        
+
         try:
-            res = supabase.table('attendance').select('id').eq('staff_id', staff_id).is_('clock_out', 'null').order('created_at', desc=True).limit(1).execute()
+            res = supabase.table('attendance').select('id').eq('staff_id', staff_id).eq('business_id', business_id).is_('clock_out', 'null').order('created_at', desc=True).limit(1).execute()
             if res.data:
                 supabase.table('attendance').update({
                     'clock_out': clock_out_time,
@@ -3159,8 +4049,21 @@ def api_checkout():
 
 
 @app.route('/api/chamcong/status', methods=['GET'])
+@login_required
 def api_attendance_status():
     staff_id = request.args.get('staff_id') or '1'
+    business_id = session.get('business_id') or session['user_id']
+    if not (isinstance(staff_id, (int, float)) or (isinstance(staff_id, str) and staff_id.isdigit())):
+        return jsonify({"success": False, "error": "staff_id không hợp lệ."}), 400
+    try:
+        staff_check = supabase.table('staff').select('id, business_id').eq('id', int(staff_id)).execute()
+        if not staff_check.data:
+            return jsonify({"success": False, "error": "Nhân viên không tồn tại."}), 404
+        if staff_check.data[0].get('business_id') != business_id:
+            return jsonify({"success": False, "error": "Nhân viên không thuộc quyền quản lý của bạn."}), 403
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
+
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -3203,29 +4106,115 @@ def api_attendance_status():
 
 
 @app.route('/api/payroll/calculate', methods=['POST'])
+@login_required
 def api_calculate_payroll():
+    """Tính lương thật từ dữ liệu chấm công (bảng `chamcong`) + hồ sơ nhân viên (bảng `employees`),
+    theo đúng công thức đang dùng ở templates/bangluong.html (đồng bộ, không phải hàm giả)."""
     data = request.json or {}
     month_year = data.get('month_year') or datetime.now().strftime('%m/%Y')
-    
     try:
-        staff_count = 0
-        try:
-            res = supabase.table('staff').select('id', count='exact').execute()
-            staff_count = len(res.data) if res.data else 0
-        except Exception:
-            staff_count = 1
-            
+        month, year = month_year.split('/')
+    except ValueError:
+        return jsonify({"success": False, "error": "month_year phải theo định dạng MM/YYYY"}), 400
+
+    industry = (data.get('industry') or 'Spa').strip()
+    business_id = session.get('business_id') or session['user_id']
+
+    try:
+        emps_res = supabase.table('employees').select('*').eq('business_id', business_id).execute()
+        all_employees = emps_res.data or []
+        employees = [
+            e for e in all_employees
+            if industry.lower() in (e.get('linh_vuc') or '').lower() or (e.get('linh_vuc') or '') == 'Chưa phân bổ'
+        ]
+
+        records_res = supabase.table('chamcong').select('*').eq('business_id', business_id).execute()
+        all_records = records_res.data or []
+
+        def matches_month(r):
+            ngay = r.get('ngay_cham')
+            if not ngay:
+                return False
+            parts = ngay.split('/')
+            return len(parts) == 3 and parts[1] == month and parts[2] == year
+
+        month_records = [r for r in all_records if matches_month(r)]
+
+        payroll = []
+        total_fund = 0
+        for emp in employees:
+            ma_nv = emp.get('ma_nv')
+            my_records = [r for r in month_records if r.get('ma_nv') == ma_nv]
+
+            luong_co_ban = float(emp.get('luong_cb') or 0)
+            luong_theo_gio = float(emp.get('luong_gio') or 0)
+            phu_cap_co_dinh = float(emp.get('phu_cap') or 0)
+
+            total_gio_lam = 0.0
+            total_tang_ca = 0.0
+            total_hoa_hong = 0.0
+            total_tips = 0.0
+            phu_cap_phat_sinh = 0.0
+            so_ngay_lam = 0
+            for r in my_records:
+                so_gio = float(r.get('so_gio') or 0)
+                gio_lam_hop_le = so_gio if so_gio > 0 else 8  # Chặn giờ âm do lỗi tính ca đêm
+                total_gio_lam += gio_lam_hop_le
+                total_tang_ca += float(r.get('tang_ca') or 0)
+                total_hoa_hong += float(r.get('tien_tua') or 0)
+                total_tips += float(r.get('tien_tips') or 0)
+                phu_cap_phat_sinh += float(r.get('phu_cap') or 0)
+                if r.get('trang_thai') in ('Có mặt', 'Trọn Ngày'):
+                    so_ngay_lam += 1
+
+            if 'Spa' in industry or 'Nails' in industry:
+                luong_chinh = luong_co_ban
+                cot2 = total_hoa_hong
+                cot3 = total_tips + phu_cap_phat_sinh + phu_cap_co_dinh
+            elif 'Văn Phòng' in industry:
+                luong_ngay = luong_co_ban / 26
+                luong_chinh = round(luong_ngay * so_ngay_lam)
+                cot2 = total_hoa_hong
+                cot3 = phu_cap_co_dinh + phu_cap_phat_sinh + (total_tang_ca * luong_ngay / 8 * 1.5)
+            elif 'F&B' in industry or 'Khách sạn' in industry:
+                luong_chinh = luong_co_ban if luong_co_ban > 0 else total_gio_lam * luong_theo_gio
+                cot2 = total_hoa_hong + phu_cap_phat_sinh
+                cot3 = total_tips + phu_cap_co_dinh + (total_tang_ca * luong_theo_gio * 1.5)
+            else:
+                luong_chinh = luong_co_ban
+                cot2 = total_hoa_hong
+                cot3 = total_tips + phu_cap_co_dinh + phu_cap_phat_sinh
+
+            thuc_lanh = luong_chinh + cot2 + cot3
+            if thuc_lanh > 0 or luong_co_ban > 0 or my_records:
+                total_fund += thuc_lanh
+                payroll.append({
+                    "ma_nv": ma_nv,
+                    "ho_ten": emp.get('ho_ten'),
+                    "luong_chinh": round(luong_chinh, 2),
+                    "hoa_hong": round(cot2, 2),
+                    "phu_cap_tips": round(cot3, 2),
+                    "thuc_lanh": round(thuc_lanh, 2),
+                    "so_ngay_lam": so_ngay_lam,
+                    "tong_gio_lam": round(total_gio_lam, 2)
+                })
+
+        payroll.sort(key=lambda x: x['thuc_lanh'], reverse=True)
+
         return jsonify({
             "success": True,
-            "message": f"Calculated payroll for {month_year} successfully.",
             "month": month_year,
-            "staff_count": staff_count if staff_count > 0 else 1
+            "industry": industry,
+            "staff_count": len(payroll),
+            "total_fund": round(total_fund, 2),
+            "payroll": payroll
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/expense')
+@login_required
 def expense_alias():
     return redirect(url_for('quanly_thuchi'))
 
@@ -3366,20 +4355,44 @@ def network_home():
         communities=MOCK_COMMUNITIES[:3]
     )
 
+def _ensure_network_users_table(cursor):
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS network_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            fullname TEXT,
+            phone TEXT,
+            role TEXT,
+            location TEXT
+        )
+    """)
+
+
 @app.route('/network/login', methods=['GET', 'POST'])
 def network_login():
     if request.method == 'POST':
-        email = request.form.get('email', '')
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        role = request.form.get('role', 'job_seeker')
-        
+
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        _ensure_network_users_table(c)
+        c.execute("SELECT password_hash, fullname, phone, role, location FROM network_users WHERE email=?", (email,))
+        row = c.fetchone()
+        conn.close()
+
+        if not row or not check_password_hash(row[0], password):
+            flash('Sai email hoặc mật khẩu!', 'danger')
+            return render_template('network_login.html')
+
         session['network_user'] = {
-            'fullname': email.split('@')[0].capitalize(),
+            'fullname': row[1],
             'email': email,
-            'phone': '0794.678.904',
-            'role': role,
-            'location': 'Quận 1, TP. HCM',
-            'is_onboarded': False
+            'phone': row[2],
+            'role': row[3],
+            'location': row[4],
+            'is_onboarded': True
         }
         flash('Đăng nhập vào BitPaw Network thành công!', 'success')
         return redirect(url_for('network_onboarding'))
@@ -3389,11 +4402,32 @@ def network_login():
 def network_register():
     if request.method == 'POST':
         fullname = request.form.get('fullname', '')
-        email = request.form.get('email', '')
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
         phone = request.form.get('phone', '')
         role = request.form.get('role', 'job_seeker')
         location = request.form.get('location', 'Quận 1, TP. HCM')
-        
+
+        if not email or not password:
+            flash('Vui lòng nhập đầy đủ email và mật khẩu!', 'danger')
+            return render_template('network_register.html')
+
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        _ensure_network_users_table(c)
+        c.execute("SELECT id FROM network_users WHERE email=?", (email,))
+        if c.fetchone():
+            conn.close()
+            flash('Email này đã được đăng ký!', 'danger')
+            return render_template('network_register.html')
+
+        c.execute(
+            "INSERT INTO network_users (email, password_hash, fullname, phone, role, location) VALUES (?, ?, ?, ?, ?, ?)",
+            (email, generate_password_hash(password), fullname, phone, role, location)
+        )
+        conn.commit()
+        conn.close()
+
         session['network_user'] = {
             'fullname': fullname,
             'email': email,

@@ -4,8 +4,6 @@
 # Chức năng: Nhận thông tin sản phẩm, trả về gợi ý nội dung quảng cáo (tiêu đề, mô tả, từ khóa, đối tượng, ngân sách)
 
 from flask import Blueprint, request, jsonify
-from datetime import datetime
-import random
 
 # Nếu bạn muốn tích hợp với Supabase để log, hãy thêm import bên dưới
 # from supabase import create_client, Client

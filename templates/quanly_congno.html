@@ -8,6 +8,7 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
@@ -91,7 +92,7 @@
                 <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
                     <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
                     <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="https://placehold.co/400x150/1a1a2e/00d2ff?text=BitPaw+OS" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
@@ -127,23 +128,6 @@
                 </a>
             </nav>
 
-            <!-- Kết nối CSKH (đã bổ sung Facebook) -->
-            <div class="px-5 pb-4 mt-auto">
-                <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:border-cyan-500/50 transition-colors">
-                    <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center">
-                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
-                    </p>
-                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
-                        <a href="tel:0794678904" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline: 0794.678.904</span></a>
-                        <a href="https://zalo.me/0794678904" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo: 0794.678.904</span></a>
-                        <!-- Thêm Facebook -->
-                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ Đình Sang</span></a>
-                    </div>
-                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')" class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
-                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
-                    </button>
-                </div>
-            </div>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
@@ -401,9 +385,11 @@
         // ========================================================
         // SUPABASE
         // ========================================================
-        const supabaseUrl = 'https://iftrdngahdjpninjmzhk.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         // Dữ liệu mẫu cho đối tượng (khách hàng & nhà cung cấp) - có thể mở rộng từ bảng riêng
         let partners = {
@@ -633,6 +619,7 @@
 
         // Khởi tạo
         window.onload = async () => {
+            await supabaseReady;
             await loadPartners();
             loadDebtList();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));

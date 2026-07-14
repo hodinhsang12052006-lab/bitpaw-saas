@@ -1,4 +1,3 @@
-import os
 import sys
 import sqlite3
 import json
@@ -101,7 +100,7 @@ def main():
         clock_in_time = res_data.get('clock_in', datetime.now().isoformat())
         print(f"{GREEN}[✓] Nhân viên {staff_id} đã chấm công vào ca lúc {clock_in_time}!{RESET}")
         print(f"  -> GPS xác thực: Vĩ độ {checkin_payload['latitude']}, Kinh độ {checkin_payload['longitude']}")
-        print(f"  -> Trạng thái check-in lưu SQLite thành công.")
+        print("  -> Trạng thái check-in lưu SQLite thành công.")
     else:
         print(f"{RED}[- ] Chấm công thất bại với HTTP status {checkin_response.status_code}{RESET}")
         sys.exit(1)
