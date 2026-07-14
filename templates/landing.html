@@ -280,7 +280,8 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
-        .lang-wrapper:hover .lang-dropdown {
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
             display: block;
         }
 
@@ -683,7 +684,7 @@
 
             <div class="flex items-center gap-4 relative">
                 <div class="relative lang-wrapper hidden md:block z-50 py-2">
-                    <button
+                    <button type="button" onclick="toggleLangDropdown(event)"
                         class="flex items-center gap-2 text-sm font-bold text-gray-300 hover:text-white transition bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
                         <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i
                             class="fas fa-chevron-down text-[10px]"></i>
@@ -3145,7 +3146,22 @@
                 }
             });
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"), { max: 10, speed: 400, glare: true, "max-glare": 0.3 });
+
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
         }
+
+        // Bấm nút cờ để bật/tắt dropdown ngôn ngữ (không chỉ dựa vào :hover — bấm chuột/chạm
+        // tay trên trackpad hoặc di chuyển chuột nhanh không kích hoạt được :hover đáng tin cậy).
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
 
         function togglePricing() {
             const toggle = document.getElementById('pricingToggle');
@@ -3206,7 +3222,15 @@
         }
         document.getElementById('policyModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
 
-        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const willOpen = !menu.classList.contains('open');
+            menu.classList.toggle('open', willOpen);
+            // Set transform inline directly (không chỉ dựa vào CSS class .open) để đảm bảo
+            // menu luôn trượt vào đúng, tránh trường hợp cascade CSS bị ghi đè bởi rule khác.
+            menu.style.transform = willOpen ? 'translateX(0)' : 'translateX(100%)';
+            document.body.style.overflow = willOpen ? 'hidden' : '';
+        }
 
         window.addEventListener('scroll', () => {
             const header = document.getElementById('main-header');
