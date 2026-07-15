@@ -1460,6 +1460,58 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '🛠️ BitPaw OS: Bản Đồ Định Vị GPS Vệ Tinh & Chợ Điều Phối Kanban Kỹ Thuật Viên',
+                hero_title: 'Điều phối thợ GPS, <br class="hidden sm:inline"> <span class="text-gradient-red drop-shadow-[0_4px_25px_rgba(239,68,68,0.65)]">khách ký số nghiệm thu tức thì.</span> <br class="hidden sm:inline">',
+                hero_subtitle: 'Hệ thống tự động theo dõi vị trí kỹ thuật viên trên bản đồ vệ tinh, giao việc kéo thả thông minh qua chợ Kanban, quản lý hao hụt vật tư sửa chữa và chốt hoa hồng thợ nhanh gọn.',
+                hero_cta1: 'Số hóa đội ngũ kỹ thuật',
+                hero_cta2: 'Nhận tư vấn điều phối',
+                hero_pill1: 'Bản đồ định vị GPS thợ',
+                hero_pill2: 'Ký nghiệm thu không giấy',
+                hero_pill3: 'Trừ kho phụ tùng real-time',
+                hero_pill4: 'Chia hoa hồng thợ tự động'
+            },
+            en: {
+                hero_badge: '🛠️ BitPaw OS: Satellite GPS Map & Technician Kanban Dispatch Marketplace',
+                hero_title: 'GPS technician dispatch, <br class="hidden sm:inline"> <span class="text-gradient-red drop-shadow-[0_4px_25px_rgba(239,68,68,0.65)]">instant digital sign-off from customers.</span> <br class="hidden sm:inline">',
+                hero_subtitle: 'The system automatically tracks technician locations on a satellite map, assigns jobs via a smart drag-and-drop Kanban board, manages repair parts usage, and settles technician commissions in seconds.',
+                hero_cta1: 'Digitize Your Technical Team',
+                hero_cta2: 'Get Dispatch Consulting',
+                hero_pill1: 'GPS Technician Location Map',
+                hero_pill2: 'Paperless Digital Sign-off',
+                hero_pill3: 'Real-time Parts Stock Deduction',
+                hero_pill4: 'Automatic Technician Commission Split'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

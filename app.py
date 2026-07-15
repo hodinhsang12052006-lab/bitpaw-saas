@@ -1618,6 +1618,7 @@ def update_payment_status(id):
 @app.route('/spa')
 @login_required
 def spa():
+    business_id = session.get('business_id') or session['user_id']
     try:
         brand_res = supabase.table('system_settings').select('value').eq('key', 'brand_name').execute()
         brand_name = brand_res.data[0]['value'] if brand_res.data else 'BitPaw'
@@ -1631,7 +1632,8 @@ def spa():
         print(f"Supabase brand_color select failed: {str(db_err)}")
         brand_color = '#06b6d4'
     try:
-        services = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'spa').neq('name', 'Phí Dịch Vụ Spa').order('name').execute()
+        services = supabase.table('products').select('*').eq('is_active', 1).eq('channel_type', 'spa') \
+            .eq('business_id', business_id).neq('name', 'Phí Dịch Vụ Spa').order('name').execute()
         services_data = services.data
     except Exception as db_err:
         print(f"Supabase services select failed: {str(db_err)}")
@@ -1744,8 +1746,13 @@ def create_appointment():
 @login_required
 def karaoke():
     business_id = session.get('business_id') or session['user_id']
-    rooms = supabase.table('karaoke_rooms').select('*').eq('business_id', business_id).execute()
-    return render_template('karaoke.html', rooms=rooms.data)
+    try:
+        rooms = supabase.table('karaoke_rooms').select('*').eq('business_id', business_id).execute()
+        rooms_data = rooms.data
+    except Exception as db_err:
+        print(f"Supabase karaoke_rooms select failed: {str(db_err)}")
+        rooms_data = []
+    return render_template('karaoke.html', rooms=rooms_data)
 
 
 @app.route('/toggle_room/<int:room_id>')
@@ -3496,6 +3503,43 @@ def nurture_customers():
         return jsonify({"success": True, "data": customers})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/customers/service-photos', methods=['GET', 'POST'])
+@login_required
+def customer_service_photos():
+    """Trí nhớ dài hạn cho AI Omni-CSKH: lưu/tra ảnh mẫu dịch vụ cũ (vd: mẫu nail đã
+    làm tháng trước) theo SĐT khách, để AIContextEngine nhúng vào prompt chat lần sau."""
+    business_id = session.get('business_id') or session['user_id']
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or request.form
+        customer_phone = (data.get('customer_phone') or '').strip()
+        image_url = (data.get('image_url') or '').strip()
+        note = (data.get('note') or '').strip() or None
+        if not customer_phone or not image_url:
+            return jsonify({"success": False, "message": "Thiếu customer_phone hoặc image_url."}), 400
+        try:
+            res = supabase.table('service_photos').insert({
+                'business_id': business_id,
+                'customer_phone': customer_phone,
+                'image_url': image_url,
+                'note': note,
+            }).execute()
+            return jsonify({"success": True, "data": res.data})
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)}), 500
+
+    customer_phone = request.args.get('customer_phone')
+    if not customer_phone:
+        return jsonify({"success": False, "message": "Thiếu customer_phone."}), 400
+    try:
+        res = supabase.table('service_photos').select('id, image_url, note, created_at') \
+            .eq('business_id', business_id).eq('customer_phone', customer_phone) \
+            .order('created_at', desc=True).limit(20).execute()
+        return jsonify({"success": True, "data": res.data or []})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/api/ai/nurture/import-data', methods=['POST'])
 @login_required

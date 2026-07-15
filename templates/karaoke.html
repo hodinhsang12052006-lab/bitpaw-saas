@@ -313,6 +313,10 @@
                 <p class="text-sm text-gray-400 mt-2">Thành tiền</p>
                 <p id="modalAmount" class="text-3xl font-black text-white">0₫</p>
             </div>
+            <div class="mb-4 text-left">
+                <label class="block text-xs font-bold text-gray-400 mb-1">Số điện thoại khách hàng (Tùy chọn)</label>
+                <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
+            </div>
             <div class="flex gap-3">
                 <button id="confirmCheckoutBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 py-2 rounded-full font-bold">Xác nhận</button>
                 <button id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold">Hủy</button>
@@ -353,6 +357,7 @@
         let currentRoomName = '';
         let currentRoomPrice = 0;
         let currentStartTime = null;
+        let currentTotalAmount = 0;
 
         function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
@@ -442,6 +447,7 @@
                     let roundedMinutes = minutes < 15 ? 15 : Math.ceil(minutes / 15) * 15;
                     const hours = roundedMinutes / 60;
                     const totalAmount = hours * currentRoomPrice;
+                    currentTotalAmount = totalAmount;
                     const hoursShow = Math.floor(roundedMinutes / 60);
                     const minsShow = roundedMinutes % 60;
                     document.getElementById('modalRoomName').innerText = `Phòng: ${currentRoomName}`;
@@ -468,8 +474,39 @@
             showLoading(false);
         }
 
-        async function endRoom(roomId) {
+        async function endRoom(roomId, totalAmount, customerPhone) {
             showLoading(true);
+
+            // Ghi nhận doanh thu vào orders/order_items (best-effort, không chặn luồng trả phòng
+            // nếu lỗi ghi log) kèm customer_phone để đồng bộ với trí nhớ khách hàng của AI CSKH.
+            try {
+                const { data: orderData, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([{
+                        total_amount: totalAmount,
+                        payment_method: 'cash',
+                        status: 'completed',
+                        created_at: new Date().toISOString(),
+                        customer_phone: customerPhone
+                    }])
+                    .select('id')
+                    .single();
+                if (orderError) throw orderError;
+
+                const { error: itemError } = await supabase
+                    .from('order_items')
+                    .insert([{
+                        order_id: orderData.id,
+                        quantity: 1,
+                        price: totalAmount,
+                        total_price: totalAmount,
+                        customer_phone: customerPhone
+                    }]);
+                if (itemError) throw itemError;
+            } catch (logErr) {
+                console.error('Lỗi ghi nhận đơn hàng karaoke:', logErr);
+            }
+
             const { error } = await supabase
                 .from('dining_tables')
                 .update({ status: 'Trống', start_time: null })
@@ -508,13 +545,16 @@
 
         document.getElementById('confirmCheckoutBtn').addEventListener('click', async () => {
             if (currentRoomId) {
+                const custPhone = document.getElementById('custPhone').value.trim() || null;
                 document.getElementById('checkoutModal').classList.remove('active');
-                await endRoom(currentRoomId);
+                await endRoom(currentRoomId, currentTotalAmount, custPhone);
+                document.getElementById('custPhone').value = '';
                 currentRoomId = null;
             }
         });
         document.getElementById('cancelModalBtn').addEventListener('click', () => {
             document.getElementById('checkoutModal').classList.remove('active');
+            document.getElementById('custPhone').value = '';
             currentRoomId = null;
         });
         document.getElementById('checkoutModal').addEventListener('click', (e) => {

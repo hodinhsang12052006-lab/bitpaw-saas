@@ -1453,6 +1453,160 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '⚡ BitPaw OS: Chấm Công GPS FaceID Chống Fake 100% & Quản Trị HRM',
+                hero_h1: 'Chấm công FaceID, <br class="hidden sm:inline"> <span class="text-gradient-sky drop-shadow-[0_4px_25px_rgba(14,165,233,0.65)]">định vị GPS chống fake.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Ngăn chặn triệt để tình trạng chấm công hộ và gian lận định vị. Xác thực sinh trắc học FaceID khớp tọa độ vệ tinh thực địa, tự động quản lý phép năm và kết chuyển bảng lương chớp mắt.',
+                hero_cta1: 'Số hóa chấm công & HRM',
+                hero_cta2: 'Nhận demo định vị GPS',
+                hero_pill1: 'Định vị GPS chống fake 100%',
+                hero_pill2: 'FaceID nhận dạng sinh trắc',
+                hero_pill3: 'Quản lý ca kíp, ca gãy',
+                hero_pill4: 'AI chốt phép năm online',
+                hero_card1_title: 'Check-in Hiện Trường',
+                hero_card1_name: 'Hùng (Sales) - Đã chụp mặt',
+                hero_card1_coord: 'Toạ độ: 10.776, 106.701 • Đúng vị trí',
+                hero_card2_title: 'Ca kíp tháng này',
+                hero_card2_name: 'Đạt (KTV) - Đã nhận ca gãy',
+                hero_card2_bonus: 'Công chuyên cần: +500k',
+                problems_eyebrow: 'Thực tế vận hành',
+                problems_title: 'Doanh nghiệp đang <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đau đầu vì gian lận chấm công chéo?</span>',
+                problems_desc: 'Nhân viên ngoài thị trường, kỹ thuật viên công trình hoặc nhân sự chuỗi dễ dàng lách luật chấm công nếu hệ thống không có chốt định vị và FaceID sinh trắc.',
+                pain1_badge: 'Fake GPS',
+                pain1_title: 'Gian lận chấm công bằng app Fake GPS ảo',
+                pain1_desc: 'Nhân sự thị trường sử dụng các ứng dụng giả lập vị trí GPS để chấm công khống tại điểm hẹn khi thực tế vẫn ở nhà ngủ nướng, gây tổn thất tiền lương vô lý.',
+                pain2_badge: 'Chấm Hộ',
+                pain2_title: 'Nhờ đồng nghiệp quét vân tay chấm công hộ',
+                pain2_desc: 'Nhân sự đi trễ dễ dàng nhờ vả đồng nghiệp tại cơ sở quét vân tay hoặc quẹt thẻ từ chấm công hộ đầu ngày, làm mất đi tính minh bạch chuyên cần.',
+                pain3_badge: 'Loạn Ca',
+                pain3_title: 'Xếp lịch làm việc ca gãy, ca kíp phức tạp bừa bãi',
+                pain3_desc: 'Chuỗi chi nhánh hoặc xưởng sản xuất có nhiều ca trực gãy chồng chéo, quản lý bằng Excel dễ gây nhầm lẫn ca gác trực của nhân sự.',
+                pain4_badge: 'Rối Phép Năm',
+                pain4_title: 'Khó theo dõi lịch nghỉ phép năm chính xác',
+                pain4_desc: 'Nhân sự xin nghỉ phép chế độ, phép năm rải rác. Đến cuối năm không rõ thợ đã nghỉ hết bao nhiêu ngày phép, gây bất bình đẳng khi đối soát.',
+                pain5_badge: 'Lưu Trữ Rời Rạc',
+                pain5_title: 'Hồ sơ nhân sự cất giữ tủ giấy tờ lộn xộn',
+                pain5_desc: 'Hợp đồng lao động, bằng cấp và dải thông tin lý lịch nhân sự bị lưu giữ vụn vặt, tốn nhiều thời gian hành chính tìm kiếm lục lại khi cần chốt.',
+                pain6_badge: 'Mệt Chốt Lương',
+                pain6_title: 'Tốn nhiều ngày chốt công tính lương thủ công',
+                pain6_desc: 'Cuối tháng HR và Kế toán phải chắp vá bảng công giấy, file Excel, trừ phạt chuyên cần vô cùng mệt mỏi, dễ sai số làm nảy sinh khiếu nại nhân sự.',
+                promise_eyebrow: 'SỰ KHÁC BIỆT CỦA BITPAW OS',
+                promise_title: 'Đưa quy trình quản trị nhân sự HRM lên đám mây <br> <span class="text-gradient-sky">chấm công chính xác tuyệt đối, tự động hóa 100%.</span>',
+                promise_desc: 'BitPaw số hóa triệt để khâu chốt công hiện trường, kết xuất bảng lương và số hóa hồ sơ hợp đồng lao động bảo mật tối đa.',
+                promise1_title: 'GPS Chống Fake Tuyệt Đối',
+                promise1_desc: 'Bắt buộc check-in đúng tọa độ thực tế ngoài hiện trường, ngăn chặn hoàn toàn ứng dụng Fake vị trí.',
+                promise2_title: 'FaceID Nhận Diện Chéo',
+                promise2_desc: 'Xác thực sinh trắc học khuôn mặt chụp thực địa chớp mắt, triệt tiêu 100% cơ hội chấm công hộ.',
+                promise3_title: 'Quản Lý Phân Ca Linh Hoạt',
+                promise3_desc: 'Tự động cấu hình ca kíp, ca gãy, tăng ca Overtime và tự động gán lịch làm việc cho thợ/nhân sự.',
+                promise4_title: 'Số Hóa Hồ Sơ Nhân Sự',
+                promise4_desc: 'Toàn bộ hợp đồng lao động, bằng cấp và dải lịch sử phép năm được số hóa lưu cloud an toàn.',
+                wf_eyebrow: 'LUỒNG VẬN HÀNH THỰC TẾ',
+                wf_title: 'Hành trình chấm công GPS FaceID <br> <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đồng bộ kết chuyển lương tự động khép kín.</span>',
+                wf_desc: 'Bản đồ quy trình số hóa từ lúc nhân viên check-in sinh trắc học hiện trường đến khi chốt bảng lương cuối tháng:',
+                wf1_title: 'Khai báo hồ sơ mới',
+                wf1_desc: 'Nhân sự mới được khai báo thông tin lý lịch, đăng ký FaceID ban đầu lên cloud.',
+                wf2_title: 'Gán lịch ca trực',
+                wf2_desc: 'Quản lý phân chia ca trực gãy, ca kíp xoay tua linh hoạt cho từng thợ/nhân sự.',
+                wf3_title: 'Check-in FaceID & GPS',
+                wf3_desc: 'Nhân viên chốt tọa độ vệ tinh GPS ngoài hiện trường, chụp ảnh xác minh FaceID sinh trắc.',
+                wf4_title: 'Đồng bộ công real-time',
+                wf4_desc: 'Giờ công, số phút đi trễ, ca trực lập tức đồng bộ real-time lên hệ thống bảng công đám mây.',
+                wf5_title: 'Xin nghỉ phép online',
+                wf5_desc: 'Nhân viên xin nghỉ phép hoặc báo tăng ca ngay trên điện thoại di động tiện lợi nhanh chóng.'
+            },
+            en: {
+                hero_badge: '⚡ BitPaw OS: GPS + FaceID Attendance With 100% Anti-Fake & HRM Management',
+                hero_h1: 'FaceID check-in, <br class="hidden sm:inline"> <span class="text-gradient-sky drop-shadow-[0_4px_25px_rgba(14,165,233,0.65)]">anti-fake GPS location.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Completely prevents buddy-punching and location fraud. FaceID biometric verification matched to real field GPS coordinates, automatic annual leave management, and payroll processing in the blink of an eye.',
+                hero_cta1: 'Digitize Attendance & HRM',
+                hero_cta2: 'Get A GPS Demo',
+                hero_pill1: '100% Anti-Fake GPS Location',
+                hero_pill2: 'FaceID Biometric Recognition',
+                hero_pill3: 'Shift & Split-Shift Management',
+                hero_pill4: 'AI Online Leave Approval',
+                hero_card1_title: 'Field Check-in',
+                hero_card1_name: 'Hung (Sales) - Face Captured',
+                hero_card1_coord: 'Coordinates: 10.776, 106.701 • Correct Location',
+                hero_card2_title: 'This Month\'s Shifts',
+                hero_card2_name: 'Dat (Technician) - Took Split Shift',
+                hero_card2_bonus: 'Attendance Bonus: +500k',
+                problems_eyebrow: 'Real-World Operations',
+                problems_title: 'Is your business <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">struggling with cross-checked attendance fraud?</span>',
+                problems_desc: 'Field staff, on-site technicians, or chain personnel easily bend the rules on attendance if the system lacks location verification and biometric FaceID.',
+                pain1_badge: 'Fake GPS',
+                pain1_title: 'Attendance fraud via fake GPS location apps',
+                pain1_desc: 'Field staff use GPS-spoofing apps to fake-check-in at a client site while actually still sleeping at home, causing unreasonable payroll losses.',
+                pain2_badge: 'Buddy Punching',
+                pain2_title: 'Asking coworkers to fingerprint-scan a check-in for them',
+                pain2_desc: 'Late staff easily ask an on-site coworker to fingerprint or card-swipe a check-in for them at the start of the day, eliminating attendance transparency.',
+                pain3_badge: 'Shift Chaos',
+                pain3_title: 'Messy, complex split-shift scheduling',
+                pain3_desc: 'Branch chains or factories with many overlapping split shifts, managed via Excel, easily cause confusion over who is on duty.',
+                pain4_badge: 'Leave Confusion',
+                pain4_title: 'Hard to accurately track annual leave',
+                pain4_desc: 'Staff take scattered sick/annual leave. By year-end it\'s unclear how many days each worker has used, causing disputes during reconciliation.',
+                pain5_badge: 'Scattered Files',
+                pain5_title: 'Staff records kept in messy paper cabinets',
+                pain5_desc: 'Labor contracts, certificates, and personnel history are stored piecemeal, wasting significant admin time searching when needed.',
+                pain6_badge: 'Payroll Fatigue',
+                pain6_title: 'Days spent manually closing attendance for payroll',
+                pain6_desc: 'At month-end, HR and Accounting must piece together paper timesheets and Excel files, deducting attendance penalties exhaustingly, prone to errors that spark staff complaints.',
+                promise_eyebrow: 'THE BITPAW OS DIFFERENCE',
+                promise_title: 'Move HRM management to the cloud <br> <span class="text-gradient-sky">absolutely accurate attendance, 100% automated.</span>',
+                promise_desc: 'BitPaw thoroughly digitizes field attendance closing, payroll generation, and secure digitization of labor contract records.',
+                promise1_title: 'Absolute Anti-Fake GPS',
+                promise1_desc: 'Mandatory check-in at the real on-site coordinates, completely blocking location-spoofing apps.',
+                promise2_title: 'Cross-Verified FaceID',
+                promise2_desc: 'Instant on-site facial biometric verification, eliminating 100% of buddy-punching opportunities.',
+                promise3_title: 'Flexible Shift Management',
+                promise3_desc: 'Automatically configure shifts, split shifts, overtime, and automatically assign work schedules to staff/technicians.',
+                promise4_title: 'Digitized Staff Records',
+                promise4_desc: 'All labor contracts, certificates, and leave history are digitized and stored securely in the cloud.',
+                wf_eyebrow: 'REAL OPERATING WORKFLOW',
+                wf_title: 'The GPS + FaceID attendance journey <br> <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">synced to a fully closed-loop automatic payroll.</span>',
+                wf_desc: 'A digitized process map from the moment staff check in on-site biometrically to the final month-end payroll closing:',
+                wf1_title: 'New Profile Declaration',
+                wf1_desc: 'New staff declare their personal information and register their initial FaceID to the cloud.',
+                wf2_title: 'Shift Schedule Assignment',
+                wf2_desc: 'Management flexibly divides split shifts and rotating shifts for each staff/technician.',
+                wf3_title: 'FaceID & GPS Check-in',
+                wf3_desc: 'Staff confirm their satellite GPS coordinates on-site and take a photo for FaceID biometric verification.',
+                wf4_title: 'Real-Time Attendance Sync',
+                wf4_desc: 'Work hours, late minutes, and shifts instantly sync in real time to the cloud attendance system.',
+                wf5_title: 'Online Leave Requests',
+                wf5_desc: 'Staff request leave or report overtime directly on their mobile phone, quickly and conveniently.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

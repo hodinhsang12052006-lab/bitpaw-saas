@@ -867,6 +867,11 @@
                                 </div>
                             </div>
 
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Số điện thoại khách hàng (Tùy chọn)</label>
+                                <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
+                            </div>
+
                             <div id="cardDetailsBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4">
                                 <h3 class="text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-credit-card"></i> Thông tin thẻ tín dụng</h3>
                                 <div class="space-y-4">
@@ -1255,7 +1260,8 @@
             // Validate form
             const custName = document.getElementById('custName').value.trim();
             const custEmail = document.getElementById('custEmail').value.trim();
-            
+            const custPhone = document.getElementById('custPhone').value.trim() || null;
+
             if(paymentType === 'card') {
                 const cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
                 if (cardNum.length < 15) { 
@@ -1277,17 +1283,18 @@
                     .from('orders')
                     .insert([{
                         total_amount: baseVND,
-                        payment_method: selectedMethod, 
-                        status: paymentType === 'cash' ? 'pending' : 'completed', 
-                        created_at: new Date().toISOString()
+                        payment_method: selectedMethod,
+                        status: paymentType === 'cash' ? 'pending' : 'completed',
+                        created_at: new Date().toISOString(),
+                        customer_phone: custPhone
                     }])
                     .select('id')
                     .single();
-                    
+
                 if (orderError) throw orderError;
-                
+
                 const orderId = orderData.id;
-                
+
                 for (let item of cart) {
                     const { error: itemError } = await supabase
                         .from('order_items')
@@ -1296,7 +1303,8 @@
                             product_id: item.id,
                             quantity: item.qty,
                             price: item.price,
-                            total_price: item.price * item.qty
+                            total_price: item.price * item.qty,
+                            customer_phone: custPhone
                         }]);
                     if (itemError) throw itemError;
                 }

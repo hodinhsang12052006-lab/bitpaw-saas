@@ -1675,6 +1675,168 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện',
+                hero_title: 'Quản lý Spa & Beauty <br class="hidden sm:inline"> <span class="text-gradient-cyan drop-shadow-[0_4px_25px_rgba(6,182,212,0.65)]">không còn trùng lịch, sót khách.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Một màn hình gom lịch hẹn từ nhiều kênh, tự động phân phòng/giường/KTV, quản lý thẻ liệu trình số chi tiết, POS tính hoa hồng thợ và AI CSKH tự nhắc tái chăm sóc.',
+                hero_cta1: 'Dùng thử cho Spa của sếp',
+                hero_cta2: 'Nhận tư vấn qua Zalo',
+                hero_tag1: 'Booking thông minh',
+                hero_tag2: 'Quản lý liệu trình',
+                hero_tag3: 'Xoay ca trực KTV',
+                hero_tag4: 'Hoa hồng tự động',
+                hero_card1_label: 'Lịch Trị Liệu Hôm Nay',
+                hero_card1_name: 'Chị Thảo - Chăm Sóc Da',
+                hero_card1_status: 'KTV Vy • 14:00 • Đang làm',
+                hero_card2_label: 'Liệu Trình Số',
+                hero_card2_name: 'Trị Mụn Y Khoa 5 Buổi',
+                hero_card2_status: 'Buổi còn lại: 3 Buổi',
+                problems_label: 'Thực tế vận hành',
+                problems_title: 'Chủ Spa & Viện thẩm mỹ <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">đau đầu vì nỗi lo nào?</span>',
+                problems_desc: 'Quản lý cơ sở làm đẹp với kỹ thuật viên và gói dịch vụ dài hạn cực kỳ phức tạp. Đây là những khó khăn sếp phải đối mặt hàng ngày:',
+                pain1_tag: 'Lệch lịch',
+                pain1_title: 'Lịch hẹn chồng chéo, bỏ sót đặt lịch',
+                pain1_desc: 'Lịch hẹn đặt rải rác từ Facebook, Zalo, gọi điện. Ghi chép sổ tay dễ bị quên hoặc trùng ca của Kỹ thuật viên làm khách đến phải chờ đợi lâu rồi bỏ về.',
+                pain2_tag: 'Thất lạc',
+                pain2_title: 'Gói liệu trình nhiều buổi khó kiểm soát',
+                pain2_desc: 'Khách mua liệu trình 5-10 buổi nhưng quản lý thẻ giấy dễ bị rách, mất hoặc nhầm lẫn số buổi đã làm, dễ gây ra tranh cãi lúc đối soát.',
+                pain3_tag: 'Tị nạnh',
+                pain3_title: 'Kỹ thuật viên tị nạnh vì chia ca trực không đều',
+                pain3_desc: 'Quy trình xếp tua thợ làm mặt, làm body thiếu công bằng dẫn đến Kỹ thuật viên nghi ngờ chủ thiên vị, gây mất đoàn kết nội bộ và dễ xin nghỉ việc.',
+                pain4_tag: 'Quên nhắc lịch',
+                pain4_title: 'Khách dùng xong liệu trình không được nhắc lịch',
+                pain4_desc: 'Khách làm đẹp xong ra về là Spa quên mất. Không ai nhớ chu kỳ 7-14 ngày để chủ động nhắc nhở làm giảm hiệu quả phục hồi của da.',
+                pain5_tag: 'Sai hoa hồng',
+                pain5_title: 'Tính hoa hồng thợ & KTV thủ công mệt mỏi',
+                pain5_desc: 'Mỗi dịch vụ chăm sóc da, massage có mức hoa hồng khác nhau cho kỹ thuật viên. Cuối ngày sếp mò mẫm tính hoa hồng thủ công rất dễ xảy ra sai số.',
+                pain6_tag: 'Lãng phí giường',
+                pain6_title: 'Lãng phí công suất phòng & giường dịch vụ',
+                pain6_desc: 'Chủ Spa khó biết phòng nào đang bận, giường nào trống realtime để linh hoạt điều phối khách, gây lãng phí tài nguyên vận hành của Spa.',
+                promise_label: 'SỰ KHÁC BIỆT CỦA BITPAW OS',
+                promise_title: 'Biến Spa & Thẩm mỹ viện thành cỗ máy <br> <span class="text-gradient-cyan">giữ khách trung thành và kiểm soát doanh thu ròng.</span>',
+                promise_desc: 'BitPaw số hóa và khép kín quy trình vận hành Spa: tự động gom lịch đặt hẹn từ xa, phân chia Kỹ thuật viên công bằng, chốt buổi liệu trình số và nhắc nhở khách tự động.',
+                promise1_title: 'Booking online tự động',
+                promise1_desc: 'Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.',
+                promise2_title: 'Thẻ liệu trình số',
+                promise2_desc: 'Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.',
+                promise3_title: 'Xoay ca KTV minh bạch',
+                promise3_desc: 'Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.',
+                promise4_title: 'Hoa hồng tự động',
+                promise4_desc: 'POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.',
+                workflow_label: 'LUỒNG VẬN HÀNH THỰC TẾ',
+                workflow_title: 'Hành trình trải nghiệm dịch vụ Spa <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">số hóa khép kín 4.0</span>',
+                workflow_desc: 'Bản đồ quy trình số hóa toàn diện tối ưu hóa công suất kỹ thuật viên và chăm sóc khách hàng tự động:',
+                wf1_title: 'Khách đặt lịch online',
+                wf1_desc: 'Khách tự chọn gói dịch vụ, kỹ thuật viên yêu thích và giờ trống từ xa.',
+                wf2_title: 'AI xác nhận lịch hẹn',
+                wf2_desc: 'Hệ thống chốt lịch và tự động gửi tin nhắn xác nhận lịch hẹn tức thời qua Zalo.',
+                wf3_title: 'Điều phối phòng KTV',
+                wf3_desc: 'Lễ tân điều phối phòng dịch vụ trống và Kỹ thuật viên thực hiện ca làm.',
+                wf4_title: 'KTV thực hiện liệu trình',
+                wf4_desc: 'Nhân viên tiến hành liệu trình chăm sóc sắc đẹp, massage chuyên nghiệp cho khách.',
+                wf5_title: 'POS chốt hóa đơn',
+                wf5_desc: 'POS tính bill nhanh gọn, tự động khấu trừ số buổi liệu trình hoặc chia hoa hồng KTV.',
+                wf6_title: 'QR Code thanh toán động',
+                wf6_desc: 'Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.',
+                wf7_title: 'CRM lưu hồ sơ da',
+                wf7_desc: 'Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.'
+            },
+            en: {
+                hero_badge: '💅 BitPaw OS: Complete Digital System For Spa & Beauty Clinics',
+                hero_title: 'Manage Spa & Beauty <br class="hidden sm:inline"> <span class="text-gradient-cyan drop-shadow-[0_4px_25px_rgba(6,182,212,0.65)]">no more double-booking, no more missed clients.</span> <br class="hidden sm:inline">',
+                hero_desc: 'One screen that gathers appointments from every channel, automatically assigns rooms/beds/technicians, manages detailed digital treatment cards, a POS that calculates staff commissions, and AI CSKH that auto-reminds clients to return.',
+                hero_cta1: 'Try It For Your Spa',
+                hero_cta2: 'Get Zalo Consulting',
+                hero_tag1: 'Smart Booking',
+                hero_tag2: 'Treatment Management',
+                hero_tag3: 'Technician Shift Rotation',
+                hero_tag4: 'Automatic Commissions',
+                hero_card1_label: 'Today\'s Treatment Schedule',
+                hero_card1_name: 'Ms. Thao - Facial Care',
+                hero_card1_status: 'Tech. Vy • 2:00 PM • In Progress',
+                hero_card2_label: 'Digital Treatment Card',
+                hero_card2_name: 'Medical Acne Treatment, 5 Sessions',
+                hero_card2_status: 'Sessions Left: 3',
+                problems_label: 'Real-World Operations',
+                problems_title: 'What headaches keep <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">Spa & clinic owners up at night?</span>',
+                problems_desc: 'Running a beauty facility with technicians and long-term treatment packages is extremely complex. Here are the challenges owners face every day:',
+                pain1_tag: 'Schedule Clashes',
+                pain1_title: 'Overlapping appointments, missed bookings',
+                pain1_desc: 'Appointments scattered across Facebook, Zalo, and phone calls. Handwritten notes are easily forgotten or double-booked with a technician, making customers wait and walk away.',
+                pain2_tag: 'Lost Records',
+                pain2_title: 'Multi-session treatment packages hard to track',
+                pain2_desc: 'Customers buy 5-10 session packages, but paper cards easily get torn, lost, or miscounted for sessions used, sparking disputes at reconciliation.',
+                pain3_tag: 'Favoritism Disputes',
+                pain3_title: 'Technicians resent unfair shift distribution',
+                pain3_desc: 'An unfair rotation process for facial/body treatments leads technicians to suspect favoritism, causing internal discord and turnover.',
+                pain4_tag: 'Missed Reminders',
+                pain4_title: 'No follow-up reminders after treatment sessions',
+                pain4_desc: 'Once customers finish a treatment and leave, the Spa forgets about them. No one tracks the 7-14 day cycle to proactively remind them, reducing skin recovery results.',
+                pain5_tag: 'Commission Errors',
+                pain5_title: 'Exhausting manual staff & technician commission math',
+                pain5_desc: 'Every skincare or massage service has a different commission rate per technician. At day\'s end, owners fumble through manual math prone to errors.',
+                pain6_tag: 'Wasted Capacity',
+                pain6_title: 'Wasted room & treatment-bed capacity',
+                pain6_desc: 'Spa owners struggle to know which rooms are busy and which beds are free in real time to flexibly route customers, wasting operational resources.',
+                promise_label: 'THE BITPAW OS DIFFERENCE',
+                promise_title: 'Turn your Spa & beauty clinic into a machine <br> <span class="text-gradient-cyan">that keeps loyal customers and controls net revenue.</span>',
+                promise_desc: 'BitPaw digitizes and closes the loop on Spa operations: automatically gathering remote bookings, fairly assigning technicians, closing digital treatment sessions, and automatically reminding customers.',
+                promise1_title: 'Automatic Online Booking',
+                promise1_desc: 'Customers self-book online via Zalo/Web. The schedule auto-locks when a technician or bed is busy.',
+                promise2_title: 'Digital Treatment Cards',
+                promise2_desc: 'Systemizes beauty history, automatically deducting acne/pigmentation treatment sessions with 100% accuracy.',
+                promise3_title: 'Transparent Technician Rotation',
+                promise3_desc: 'Technicians self check-in via GPS at the salon to rotate shifts fairly, with no favoritism disputes.',
+                promise4_title: 'Automatic Commissions',
+                promise4_desc: 'POS closes the bill, breaking down service commissions and card tips for staff in just 3 seconds.',
+                workflow_label: 'REAL OPERATING WORKFLOW',
+                workflow_title: 'The Spa service experience journey, <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">fully digitized 4.0 closed-loop.</span>',
+                workflow_desc: 'A complete digitized process map optimizing technician capacity and automatic customer care:',
+                wf1_title: 'Customer Books Online',
+                wf1_desc: 'Customers remotely choose their service package, favorite technician, and an open time slot.',
+                wf2_title: 'AI Confirms The Appointment',
+                wf2_desc: 'The system locks the booking and instantly sends a confirmation message via Zalo.',
+                wf3_title: 'Room & Technician Dispatch',
+                wf3_desc: 'The receptionist assigns an available service room and the technician begins the shift.',
+                wf4_title: 'Technician Performs Treatment',
+                wf4_desc: 'Staff carry out professional beauty care and massage treatments for the customer.',
+                wf5_title: 'POS Closes The Bill',
+                wf5_desc: 'POS calculates the bill quickly, automatically deducting a treatment session or splitting technician commission.',
+                wf6_title: 'Dynamic QR Payment',
+                wf6_desc: 'A dynamic bank QR code matched to the invoice lets customers transfer payment in a blink.',
+                wf7_title: 'CRM Saves Skin Records',
+                wf7_desc: 'Customer profiles clearly record habits, preferred technicians, and before/after treatment photos.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

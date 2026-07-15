@@ -1672,6 +1672,112 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '🍔 BitPaw OS: Số Hóa Vận Hành Nhà Hàng, Cafe Chuyên Nghiệp',
+                hero_title: 'Nhà hàng & Cafe <br class="hidden sm:inline"> <span class="text-gradient-orange drop-shadow-[0_4px_25px_rgba(249,115,22,0.65)]">không còn sót món, lệch bill.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Một màn hình đồng bộ gọi món QR tại bàn, điều phối màn hình bếp KDS, Smart POS thu ngân siêu tốc, tự động trừ kho nguyên liệu và trợ lý AI gợi ý marketing.',
+                hero_cta1: 'Dùng thử cho quán F&B',
+                hero_cta2: 'Nhận tư vấn qua Zalo',
+                hero_pill1: 'Self-Order QR tại bàn',
+                hero_pill2: 'Bếp KDS Realtime',
+                hero_pill3: 'Định lượng kho tự động',
+                hero_pill4: 'AI CSKH & Marketing',
+                hero_card1_title: 'Bàn Đặt Hôm Nay',
+                hero_card1_detail: 'Bàn VIP 04 - 6 Khách',
+                hero_card1_meta: 'Chị Linh • 19:00 • Đã đến',
+                hero_card2_title: 'Bếp KDS',
+                hero_card2_item: 'Sườn Nướng BBQ x1',
+                hero_card2_status: 'Trạng thái: Đang làm',
+                problems_eyebrow: 'Thực tế vận hành',
+                problems_title: 'Quán ăn, Cafe đang <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">đau đầu vì nỗi lo nào?</span>',
+                problems_desc: 'Kinh doanh F&B đòi hỏi tốc độ ra món nhanh và kiểm soát nguyên vật liệu chặt chẽ. Dưới đây là những nỗi lo canh cánh mỗi ngày của các chủ quán:',
+                pain1_tag: 'Chậm trễ',
+                pain1_title: 'Trễ món & sót món trong giờ cao điểm',
+                pain1_desc: 'Nhân viên phục vụ chạy giấy tay chậm trễ, dễ ghi sai món, nhầm bàn trong giờ cao điểm làm khách hàng bực bội chờ lâu, đánh giá kém chất lượng quán.',
+                pain2_tag: 'Thất thoát',
+                pain2_title: 'Hao hụt, thất thoát kho nguyên vật liệu',
+                pain2_desc: 'Không định lượng được chi tiết nguyên liệu pha chế/chế biến (bán 1 cốc cafe hay 1 phần lẩu hao hụt bao nhiêu) khiến kho bãi thất thoát nghiêm trọng.',
+                pain3_tag: 'Tắc nghẽn',
+                pain3_title: 'Thu ngân chốt bill chậm, ùn ứ giờ cao điểm',
+                pain3_desc: 'Khách xếp hàng chờ thanh toán, thu ngân lúng túng nhập hóa đơn thủ công, tính nhầm tiền thừa, áp dụng sai voucher khuyến mãi gây ùn ứ.',
+                pain4_tag: 'Gian lận',
+                pain4_title: 'Nhân viên gian lận bill, sửa món bỏ túi riêng',
+                pain4_desc: 'Thiếu phần mềm tự động chốt bill bảo mật, thu ngân tự ý hủy món, in hóa đơn tạm ngoài hoặc bỏ túi tiền mặt của khách mà chủ quán không phát hiện.',
+                pain5_tag: 'Lỗi đồng bộ',
+                pain5_title: 'Bếp và phục vụ lệch thông tin, làm sai món',
+                pain5_desc: 'Nhân viên phục vụ gọi món không đồng bộ tức thời với bếp, đầu bếp không sắp xếp đúng thứ tự order làm bếp bar hỗn loạn, nhầm lẫn yêu cầu.',
+                pain6_tag: 'Mất khách',
+                pain6_title: 'Khách ăn một lần rồi không quay lại',
+                pain6_desc: 'Ăn uống xong thanh toán ra về là tiệm mất kết nối với khách. Không có CRM lưu trữ để tự động gửi ưu đãi, nhắc nhở khách quay lại thưởng thức.'
+            },
+            en: {
+                hero_badge: '🍔 BitPaw OS: Professional Digital Operations For Restaurants & Cafes',
+                hero_title: 'Restaurants & Cafes <br class="hidden sm:inline"> <span class="text-gradient-orange drop-shadow-[0_4px_25px_rgba(249,115,22,0.65)]">no more missed orders, no more billing errors.</span> <br class="hidden sm:inline">',
+                hero_desc: 'One screen that syncs table-side QR ordering, a Kitchen Display System (KDS), a lightning-fast Smart POS checkout, automatic ingredient stock deduction, and an AI assistant for marketing suggestions.',
+                hero_cta1: 'Try It For Your F&B Venue',
+                hero_cta2: 'Get Zalo Consulting',
+                hero_pill1: 'Table-side Self-Order QR',
+                hero_pill2: 'Realtime Kitchen Display (KDS)',
+                hero_pill3: 'Automatic Stock Quantification',
+                hero_pill4: 'AI CSKH & Marketing',
+                hero_card1_title: 'Today\'s Reservations',
+                hero_card1_detail: 'VIP Table 04 - 6 Guests',
+                hero_card1_meta: 'Ms. Linh • 7:00 PM • Arrived',
+                hero_card2_title: 'Kitchen KDS',
+                hero_card2_item: 'BBQ Grilled Ribs x1',
+                hero_card2_status: 'Status: In Progress',
+                problems_eyebrow: 'Real-World Operations',
+                problems_title: 'What headaches are <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">restaurant & cafe owners facing?</span>',
+                problems_desc: 'F&B businesses demand fast order turnaround and tight ingredient control. Here are the daily worries that keep owners up at night:',
+                pain1_tag: 'Delays',
+                pain1_title: 'Late and missed orders during rush hours',
+                pain1_desc: 'Servers running paper tickets are slow, easily writing wrong orders or mixing up tables during peak hours, frustrating customers with long waits and hurting reviews.',
+                pain2_tag: 'Losses',
+                pain2_title: 'Ingredient shrinkage and stock losses',
+                pain2_desc: 'Without precise quantification of ingredients used per drink or dish, stockrooms suffer serious, unexplained losses.',
+                pain3_tag: 'Bottleneck',
+                pain3_title: 'Slow checkout, cashier bottlenecks at peak hours',
+                pain3_desc: 'Customers line up waiting to pay while cashiers fumble with manual invoices, miscalculate change, or misapply promo vouchers, causing backups.',
+                pain4_tag: 'Fraud',
+                pain4_title: 'Staff bill fraud, pocketing money on edited orders',
+                pain4_desc: 'Without secure automatic bill-closing software, cashiers can freely void items, print unofficial receipts, or pocket customer cash undetected.',
+                pain5_tag: 'Sync Errors',
+                pain5_title: 'Kitchen and servers out of sync, wrong dishes made',
+                pain5_desc: 'Servers\' orders aren\'t instantly synced with the kitchen, so chefs can\'t sequence orders correctly, causing chaos and mix-ups at the kitchen/bar.',
+                pain6_tag: 'Lost Customers',
+                pain6_title: 'Customers eat once and never come back',
+                pain6_desc: 'Once customers pay and leave, the venue loses all connection with them — no CRM to automatically send offers or reminders to bring them back.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

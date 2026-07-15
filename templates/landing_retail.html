@@ -1432,6 +1432,88 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '🛍️ BitPaw OS: Số Hóa Bán Hàng Siêu Tốc & Đồng Bộ Kho Đa Sàn',
+                hero_h1: 'Bán lẻ quét mã vạch, <br class="hidden sm:inline"> <span class="text-gradient-amber drop-shadow-[0_4px_25px_rgba(245,158,11,0.65)] break-words">không còn sai sót, lệch kho.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Màn hình POS quét mã vạch Barcode cực nhanh chốt bill 2 giây, tự động khấu trừ tồn kho thực tế, đồng bộ dữ liệu đa sàn Shopee, TikTok Shop và trợ lý AI gợi ý marketing kích cầu.',
+                hero_btn1: 'Dùng thử cho shop bán lẻ',
+                hero_btn2: 'Nhận tư vấn qua Zalo',
+                hero_pill1: 'Quét Barcode chốt bill 2 giây',
+                hero_pill2: 'Đồng bộ tồn kho đa sàn',
+                hero_pill3: 'Tích điểm loyalty tự động',
+                hero_pill4: 'AI CSKH gợi ý tin nhắn',
+                hero_card1_title: 'Đơn hàng mới nhận',
+                hero_card1_name: 'Đầm xoè - Chị Hạnh',
+                hero_card1_status: 'Đồng bộ: Shopee • 16:30 • Chờ giao',
+                hero_card2_title: 'Kiểm Kho Động',
+                hero_card2_name: 'Son môi Velvet - Sắp hết',
+                hero_card2_status: 'Tồn kho thực tế: 5 thỏi',
+                problems_eyebrow: 'Thực tế vận hành',
+                problems_title: 'Cửa hàng bán lẻ đang <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">gặp những rắc rối nghiêm trọng nào?</span>',
+                problems_desc: 'Kinh doanh bán lẻ yêu cầu quầy thu ngân hoạt động với tốc độ cực nhanh và quản lý đồng bộ dữ liệu tồn kho đa sàn chính xác để tránh overselling.',
+                pain1_tag: 'Ùn Tắc',
+                pain1_title: 'Ùn tắc quầy thu ngân giờ cao điểm',
+                pain1_desc: 'Nhân viên phải tra cứu giá thủ công, tính tiền chậm chạp gây ùn ứ dài tại quầy thanh toán vào giờ cao điểm, làm khách hàng mệt mỏi và bỏ về.',
+                pain2_tag: 'Thất Thoát Kho',
+                pain2_title: 'Hao hụt hàng hóa, lệch tồn kho nghiêm trọng',
+                pain2_desc: 'Hàng bán ra không tự động trừ kho, kiểm kho thủ công tốn nhiều ngày trời dễ sai lệch số liệu thực tế làm phát sinh hao hụt chi phí vô lý.'
+            },
+            en: {
+                hero_badge: '🛍️ BitPaw OS: Lightning-Fast Checkout & Multi-Platform Stock Sync',
+                hero_h1: 'Barcode-scan retail, <br class="hidden sm:inline"> <span class="text-gradient-amber drop-shadow-[0_4px_25px_rgba(245,158,11,0.65)] break-words">no more errors, no more stock mismatches.</span> <br class="hidden sm:inline">',
+                hero_desc: 'A lightning-fast barcode-scan POS that closes a bill in 2 seconds, auto-deducts real stock, syncs data across Shopee and TikTok Shop, and an AI assistant that suggests demand-boosting marketing.',
+                hero_btn1: 'Try It For Your Retail Shop',
+                hero_btn2: 'Get Zalo Consulting',
+                hero_pill1: '2-Second Barcode Checkout',
+                hero_pill2: 'Multi-Platform Stock Sync',
+                hero_pill3: 'Automatic Loyalty Points',
+                hero_pill4: 'AI CSKH Message Suggestions',
+                hero_card1_title: 'New Order Received',
+                hero_card1_name: 'Flared Dress - Ms. Hanh',
+                hero_card1_status: 'Synced: Shopee • 4:30 PM • Awaiting shipment',
+                hero_card2_title: 'Live Stock Check',
+                hero_card2_name: 'Velvet Lipstick - Low Stock',
+                hero_card2_status: 'Actual stock: 5 units',
+                problems_eyebrow: 'Real-World Operations',
+                problems_title: 'What serious headaches are <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">retail shop owners facing?</span>',
+                problems_desc: 'Retail requires the checkout counter to run at top speed and accurate multi-platform stock sync to avoid overselling.',
+                pain1_tag: 'Checkout Jam',
+                pain1_title: 'Checkout counter jams during peak hours',
+                pain1_desc: 'Staff have to look up prices manually, calculating slowly and creating long lines at checkout during peak hours, tiring customers out until they walk away.',
+                pain2_tag: 'Stock Loss',
+                pain2_title: 'Serious goods shrinkage and stock mismatches',
+                pain2_desc: 'Sold items aren\'t auto-deducted from stock, and manual stocktaking takes days and is prone to errors, creating unreasonable cost losses.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

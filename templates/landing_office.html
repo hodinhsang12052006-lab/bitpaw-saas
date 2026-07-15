@@ -1440,6 +1440,100 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '🏢 BitPaw OS: Số Hóa Quy Trình & Tính Lương Tự Động Khối Văn Phòng',
+                hero_title: 'Chốt lương tự động, <br class="hidden sm:inline"> <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">không còn giấy tờ, sai số.</span> <br class="hidden sm:inline">',
+                hero_desc: 'Hệ thống chấm công Wifi/GPS thông minh chống gian lận, tự động tính toán KPI hiệu suất phức tạp, quy trình duyệt đề xuất không giấy tờ và tự tổng hợp báo cáo lợi nhuận ròng P&L tức thời.',
+                hero_cta1: 'Chuyển đổi văn phòng số',
+                hero_cta2: 'Nhận demo chốt lương',
+                hero_tag1: 'Lương KPI tự động 1-Click',
+                hero_tag2: 'Chấm công bảo mật Wifi',
+                hero_tag3: 'Quản lý thu chi dòng tiền',
+                hero_tag4: 'AI gợi ý tối ưu nhân lực',
+                hero_card1_title: 'Bảng Lương Tháng 5',
+                hero_card1_line1: 'Đã chốt: 45 nhân sự',
+                hero_card1_line2: 'Trạng thái: 100% Chính xác',
+                hero_card2_title: 'Quỹ Tiền Mặt',
+                hero_card2_line1: 'Số dư: 996,100,000 ₫',
+                hero_card2_line2: 'Lợi nhuận ròng: +15%',
+                problems_label: 'Thực tế vận hành',
+                problems_title: 'Khối văn phòng hành chính đang <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">mệt mỏi vì nỗi lo nào?</span>',
+                problems_desc: 'Vận hành thủ công bằng Excel và phê duyệt giấy tờ truyền thống làm tiêu tốn vô cùng nhiều thời gian hành chính của kế toán và giám đốc.',
+                pain1_tag: 'Cộng Lương Tay',
+                pain1_title: 'Mất nhiều ngày trời làm bảng lương cuối tháng',
+                pain1_desc: 'Kế toán mò mẫm cộng trừ công đi trễ, phép năm, phụ cấp, hoa hồng doanh số, bảo hiểm thủ công trên file Excel cực kỳ phức tạp và dễ sai lệch số liệu.',
+                pain2_tag: 'Thu Chi Mập Mờ',
+                pain2_title: 'Dòng tiền thu chi văn phòng mập mờ, thất thoát',
+                pain2_desc: 'Chi phí văn phòng phẩm, chi tạm ứng dự án phát sinh vụn vặt không được số hóa kiểm soát tức thời, làm chủ doanh nghiệp khó xác định thực tế lợi nhuận ròng.',
+                pain3_tag: 'Gian Lận Công',
+                pain3_title: 'Chấm công lách giờ qua máy vân tay cũ',
+                pain3_desc: 'Máy vân tay hỏng hóc gây trễ nải đầu ngày, hoặc nhân viên lách luật nhờ đồng nghiệp chấm công ảo hộ khi có việc đột xuất, khó nắm bắt công thực tế.',
+                pain4_tag: 'Rối Hồ Sơ',
+                pain4_title: 'Hồ sơ nhân sự lộn xộn, dễ thất lạc hợp đồng',
+                pain4_desc: 'Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tủ hồ sơ giấy hoặc rải rác trên Drive cá nhân, mất nhiều thời gian tra cứu khi có thanh kiểm tra.'
+            },
+            en: {
+                hero_badge: '🏢 BitPaw OS: Digitize Office Workflows & Automatic Payroll',
+                hero_title: 'Automatic payroll closing, <br class="hidden sm:inline"> <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">no more paperwork, no more errors.</span> <br class="hidden sm:inline">',
+                hero_desc: 'A smart Wifi/GPS attendance system that prevents fraud, automatically calculates complex performance KPIs, a paperless approval workflow, and instant P&L profit reporting.',
+                hero_cta1: 'Digitize Your Office',
+                hero_cta2: 'Get A Payroll Demo',
+                hero_tag1: '1-Click Automatic KPI Payroll',
+                hero_tag2: 'Secure Wifi Attendance',
+                hero_tag3: 'Cash Flow Management',
+                hero_tag4: 'AI Workforce Optimization Tips',
+                hero_card1_title: 'May Payroll',
+                hero_card1_line1: 'Closed: 45 staff',
+                hero_card1_line2: 'Status: 100% Accurate',
+                hero_card2_title: 'Cash Fund',
+                hero_card2_line1: 'Balance: 996,100,000 ₫',
+                hero_card2_line2: 'Net Profit: +15%',
+                problems_label: 'Real-World Operations',
+                problems_title: 'What headaches are <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">office administrators tired of?</span>',
+                problems_desc: 'Manual operations with Excel and traditional paper approvals eat up an enormous amount of admin time for accountants and directors.',
+                pain1_tag: 'Manual Payroll',
+                pain1_title: 'Days spent building the monthly payroll',
+                pain1_desc: 'Accountants manually add and subtract late arrivals, annual leave, allowances, sales commissions, and insurance in an extremely complex Excel file prone to errors.',
+                pain2_tag: 'Unclear Cash Flow',
+                pain2_title: 'Unclear, leaky office cash flow',
+                pain2_desc: 'Office supply costs and project advances aren\'t digitized or tracked instantly, making it hard for owners to determine actual net profit.',
+                pain3_tag: 'Time Fraud',
+                pain3_title: 'Attendance loopholes via old fingerprint scanners',
+                pain3_desc: 'Broken fingerprint scanners cause delays each morning, or staff ask coworkers to fake-check-in for them during sudden absences, making real attendance hard to track.',
+                pain4_tag: 'Messy Records',
+                pain4_title: 'Disorganized staff records, easily lost contracts',
+                pain4_desc: 'All insurance records and labor contracts are stored in paper filing cabinets or scattered across personal drives, wasting time during audits.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

@@ -2,6 +2,36 @@ from supabase_client import supabase, SUPABASE_STATUS
 
 class AIContextEngine:
     @staticmethod
+    def _load_purchase_history(business_id, customer_phone, limit=5):
+        """Trí nhớ dài hạn: các lần mua hàng/dùng dịch vụ gần nhất của ĐÚNG khách này
+        (không phải tổng doanh thu chung), để AI biết khách từng mua gì, khi nào."""
+        if SUPABASE_STATUS != "CONNECTED" or not business_id or not customer_phone:
+            return []
+        try:
+            res = supabase.table('order_items') \
+                .select('quantity, total_price, created_at, products(name, category)') \
+                .eq('business_id', business_id).eq('customer_phone', customer_phone) \
+                .order('created_at', desc=True).limit(limit).execute()
+            return res.data or []
+        except Exception:
+            return []
+
+    @staticmethod
+    def _load_recent_service_photos(business_id, customer_phone, limit=3):
+        """Ảnh mẫu dịch vụ cũ (vd: mẫu nail đã làm tháng trước) của ĐÚNG khách này,
+        để AI có thể nhắc lại/gợi ý làm lại khi khách quay lại chat."""
+        if SUPABASE_STATUS != "CONNECTED" or not business_id or not customer_phone:
+            return []
+        try:
+            res = supabase.table('service_photos') \
+                .select('image_url, note, created_at') \
+                .eq('business_id', business_id).eq('customer_phone', customer_phone) \
+                .order('created_at', desc=True).limit(limit).execute()
+            return res.data or []
+        except Exception:
+            return []
+
+    @staticmethod
     def build_context_prompt(business_id, industry_code, customer_phone=None):
         """Constructs an intelligent, tenant-aware system prompt.
 
@@ -94,6 +124,34 @@ class AIContextEngine:
                     )
             except:
                 pass
+
+            # Trí nhớ dài hạn: lần mua gần nhất + ảnh mẫu dịch vụ cũ, để AI tư vấn/chốt sale
+            # cá nhân hoá đúng gu khách thay vì tư vấn chung chung.
+            history = AIContextEngine._load_purchase_history(business_id, customer_phone)
+            if history:
+                lines = []
+                for h in history:
+                    prod = h.get('products') or {}
+                    name = prod.get('name') or 'dịch vụ/sản phẩm'
+                    when = (h.get('created_at') or '')[:10]
+                    lines.append(f"- {name} x{h.get('quantity') or 1}, ngày {when}")
+                customer_snippet += (
+                    "\n\nLỊCH SỬ MUA HÀNG/DỊCH VỤ GẦN NHẤT CỦA KHÁCH NÀY (dùng để nhắc lại, gợi ý "
+                    "làm lại hoặc tư vấn nâng cấp đúng gu, không bịa thêm lần mua nào ngoài danh sách):\n"
+                    + "\n".join(lines)
+                )
+
+            photos = AIContextEngine._load_recent_service_photos(business_id, customer_phone)
+            if photos:
+                lines = [
+                    f"- {p.get('note') or 'Mẫu đã thực hiện'} (ngày {(p.get('created_at') or '')[:10]}): {p.get('image_url')}"
+                    for p in photos
+                ]
+                customer_snippet += (
+                    "\n\nẢNH MẪU DỊCH VỤ CŨ CỦA KHÁCH NÀY (có thể nhắc lại hoặc gợi ý làm lại mẫu tương tự "
+                    "khi phù hợp với câu hỏi của khách):\n"
+                    + "\n".join(lines)
+                )
 
         upsell_directive = (
             "\n\nNHIỆM VỤ BÁN HÀNG: Khi khách hỏi hoặc đặt món/dịch vụ, hãy chủ động phân tích nhu cầu và "
