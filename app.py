@@ -794,6 +794,11 @@ def legacy_landing_nail():
     return render_template('landing_nail.html')
 
 
+@app.route('/solutions/nail')
+def solutions_nail():
+    return render_template('landing_nail.html')
+
+
 @app.route('/solutions/<industry_code>')
 def solutions_page(industry_code):
     if industry_code == 'nails':
