@@ -201,7 +201,24 @@
             border-color: #a855f7;
             transition: all 0.3s;
         }
-    
+
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
+
         #mobile-menu {
             transition: transform 0.3s ease-in-out;
             transform: translateX(100%);
@@ -237,6 +254,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-purple-500/20 hover:text-purple-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-purple-500/20 hover:text-purple-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-purple bg-purple-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -256,6 +283,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-purple-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -1440,6 +1472,266 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {
+                hero_badge: '🎤 BitPaw OS: Số Hóa Quản Trị Karaoke, Bida & Game Center Chuyên Nghiệp',
+                hero_title: 'Tính tiền giờ tự động, <br class="hidden sm:inline"><span class="text-gradient-purple drop-shadow-[0_4px_25px_rgba(168,85,247,0.65)]">không lo thất thoát, lệch ca.</span> <br class="hidden sm:inline"><span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight break-words">AI tự động lấp phòng giờ trống.</span>',
+                hero_desc: 'Hệ thống tự động tính giờ chuẩn xác đến từng giây block lẻ, sơ đồ bàn/phòng 3D realtime, gọi đồ uống/dịch vụ tại phòng qua tablet/mobile, in hóa đơn tích hợp QR ngân hàng động.',
+                hero_btn1: 'Dùng thử cho quán giải trí',
+                hero_btn2: 'Nhận tư vấn qua Zalo',
+                hero_tag1: 'Tính giờ chuẩn block lẻ',
+                hero_tag2: 'Sơ đồ phòng/bàn Realtime',
+                hero_tag3: 'Gọi món bếp nhận tức thời',
+                hero_tag4: 'AI CSKH gửi ưu đãi tự động',
+                hero_card1_status: 'Phòng VIP 202 - Đang Hát',
+                hero_card1_time: 'Thời gian: 1g 45p',
+                hero_card1_drinks: 'Đồ uống: 12 lon bia • 1 đĩa quả',
+                hero_card2_title: 'Bàn Bida Signature',
+                hero_card2_status: 'Bàn 05 - Đang chơi lẻ',
+                hero_card2_usage: 'Sử dụng: 45 phút',
+
+                problems_eyebrow: 'Thực tế vận hành',
+                problems_title: 'Karaoke & Bida đang <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">gặp những cơn đau đầu nào?</span>',
+                problems_desc: 'Kinh doanh dịch vụ tính giờ yêu cầu độ chính xác tuyệt đối và kiểm soát chặt chẽ nguyên liệu, đồ ăn thức uống mang ra phòng hát.',
+                pain1_tag: 'Lệch Giờ', pain1_title: 'Tính sai tiền giờ của khách', pain1_desc: 'Nhân viên ghi chép thủ công giờ vào phòng hát, tính sai theo khung giờ thường, giờ vàng VIP, ngày lễ hoặc cộng nhầm phút lẻ, gây tranh cãi ức chế cho khách hàng.',
+                pain2_tag: 'Hao Hụt Kho', pain2_title: 'Thất thoát đồ ăn, bia bọt, trái cây lớn', pain2_desc: 'Đồ ăn uống mang vào phòng hát bị thất thoát do nhân viên phục vụ quên nhập vào hóa đơn của phòng chơi, hoặc tự ý đem tặng làm hao hụt doanh thu kho.',
+                pain3_tag: 'Rối Sơ Đồ', pain3_title: 'Quản lý sơ đồ phòng/bàn bừa bãi', pain3_desc: 'Lễ tân và thu ngân không rõ phòng nào đang hát, phòng nào dọn dẹp sạch, phòng nào đã bẩn chờ dọn, làm trễ nải thời gian sắp phòng đón đợt khách mới.',
+                pain4_tag: 'Gian Lận Giờ', pain4_title: 'Gian lận mở phòng chui, giấu bill', pain4_desc: 'Nhân viên lễ tân tự ý mở phòng hát cho khách chơi không thông qua hệ thống POS, rồi tự thu tiền giờ bằng tiền mặt đút túi riêng, làm chủ tiệm thất thoát nặng.',
+                pain5_tag: 'Khách Vãng Lai', pain5_title: 'Hát một lần rồi không bao giờ quay lại', pain5_desc: 'Không có hệ thống lưu vết thông tin và số điện thoại của khách hàng để gửi lời cảm ơn, tặng voucher sinh nhật hay rủ rê khách ghé hát vào khung giờ vắng.',
+                pain6_tag: 'Mệt Ca Đêm', pain6_title: 'Mất hàng giờ đối soát sổ sách lúc nửa đêm', pain6_desc: 'Nửa đêm muộn đóng cửa quán là cực hình đối với thu ngân và chủ tiệm khi phải gom bill giấy, kiểm tiền lẻ, chia tiền tips, hoa hồng nhân viên thủ công.',
+
+                promise_eyebrow: 'SỰ KHÁC BIỆT CỦA BITPAW OS',
+                promise_title: 'Biến Karaoke & Bida thành cỗ máy vận hành <br><span class="text-gradient-purple">chính xác tuyệt đối, bùng nổ doanh thu giờ rảnh.</span>',
+                promise_desc: 'BitPaw số hóa triệt để và đồng bộ liền mạch giữa Lễ Tân - Phòng Hát - Thu Ngân - Kho bãi, đảm bảo chống thất thoát dòng tiền 100%.',
+                promise1_title: 'Tính Giờ Chuẩn Xác', promise1_desc: 'Hệ thống tự động ghi nhận giờ, tính theo block lẻ 15 phút, tự chuyển đổi giá theo khung giờ vàng.',
+                promise2_title: 'POS & Order Di Động', promise2_desc: 'Nhân viên phục vụ gọi đồ uống trực tiếp trên điện thoại ngay tại phòng hát, tránh quên order.',
+                promise3_title: 'Sơ Đồ 3D Realtime', promise3_desc: 'Sơ đồ phòng hát và bàn bida cập nhật tức thời trạng thái dọn dẹp buồng phòng Trống/Dơ/Bận.',
+                promise4_title: 'AI CSKH Tự Động', promise4_desc: 'Tự động gửi tin nhắn chúc mừng, tặng voucher lấp đầy các phòng trống vào giờ thấp điểm rảnh rỗi.',
+
+                workflow_eyebrow: 'LUỒNG VẬN HÀNH THỰC TẾ',
+                workflow_title: 'Hành trình vận hành Karaoke & Bida <br><span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">số hóa đồng bộ, mượt mà khép kín.</span>',
+                workflow_desc: 'Bản đồ quy trình số hóa từ lúc đặt phòng trực tuyến đến phục vụ dịch vụ và chốt bill in QR động:',
+                wf1_title: 'Khách đặt phòng/bàn', wf1_desc: 'Khách tự xem trạng thái phòng hát, bàn bida trống và đặt chỗ online từ xa tiện lợi.',
+                wf2_title: 'Xếp phòng siêu tốc', wf2_desc: 'Lễ tân check trạng thái buồng phòng trống realtime, xác nhận khách đặt trong 1 giây.',
+                wf3_title: 'Kích hoạt mở phòng', wf3_desc: 'Bấm mở phòng/bàn trên POS, hệ thống tự động ghi nhận giờ vào và bắt đầu tính tiền giờ.',
+                wf4_title: 'Gọi đồ ăn thức uống', wf4_desc: 'Nhân viên phục vụ gọi nước, bia, khăn lạnh trực tiếp trên mobile đổ thẳng vào hóa đơn phòng.',
+                wf5_title: 'Bar / Bếp chế biến', wf5_desc: 'Quầy bar/bếp nhận lệnh in tức thì, chuẩn bị trái cây đĩa, pha chế đồ uống siêu tốc.',
+                wf6_title: 'Chốt phòng thu ngân', wf6_desc: 'Thu ngân bấm chốt phòng hát trên POS, hệ thống tự động tính phút lẻ và in hóa đơn tạm tính.',
+                wf7_title: 'QR thanh toán động', wf7_desc: 'POS tự tạo mã QR Code ngân hàng khớp số tiền lẻ, khách hàng quét thanh toán an toàn, chốt doanh thu tức thời.',
+                wf8_title: 'Dọn phòng xoay vòng', wf8_desc: 'Trạng thái phòng chuyển sang "Bẩn chờ dọn" trên sơ đồ của nhân viên phục vụ, dọn dẹp sạch đón đợt khách mới.',
+
+                features_eyebrow: 'HỆ THỐNG THỰC TẾ',
+                features_title: 'Tính Năng Lõi Số Hóa <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">Chuyên Sâu Karaoke & Bida</span>',
+                features_desc: 'Hệ thống bám sát logic nghiệp vụ thực tế, tự động hóa toàn bộ công việc chân tay mệt mỏi của chủ quán.',
+                feat1_title: 'Sơ Đồ Phòng/Bàn 3D Realtime', feat1_desc: 'Theo dõi toàn bộ quán trực quan: Trống/Đang chơi/Chờ dọn dẹp bẩn, thay đổi bàn/phòng trong 1 giây bằng thao tác kéo thả tại',
+                feat2_title: 'Bảng Giá Giờ Linh Hoạt', feat2_desc: 'Cấu hình giá giờ hát đa dạng: Phòng Thường, VIP, Super VIP, tự động áp dụng surcharge phụ thu khung giờ vàng VIP hoặc ngày lễ.',
+                feat3_title: 'Order Đồ Uống Mobile Tại Phòng', feat3_desc: 'Nhân viên dùng máy tính bảng hoặc di động gọi đồ, gọi bia Heineken, đĩa quả lớn trực quan tại phòng đổ thẳng về quầy bar/bếp.',
+                feat4_title: 'In Bill Tích Hợp QR Ngân Hàng', feat4_desc: 'In hóa đơn có sẵn mã VietQR động tự điền số tiền và nội dung chuyển khoản, tránh nhầm lẫn thất thoát tại',
+                feat5_title: 'Định Lượng Kho Nguyên Liệu', feat5_desc: 'Quản lý tồn kho bia lon, nước ngọt, trái cây, nguyên liệu pha chế. Tự động trừ kho ngay khi xuất đồ ăn phục vụ phòng hát tránh gian lận.',
+                feat6_title: 'AI Smart CSKH & Marketing', feat6_desc: 'AI tự bám đuổi hành vi, chúc mừng sinh nhật, gửi tặng voucher giảm giá nhóm để lấp đầy các phòng trống giờ thấp điểm vắng khách.',
+                feat7_title: 'Phân Ca & Chấm Công GPS', feat7_desc: 'Quản lý chia ca nhân viên lễ tân, phục vụ, thu ngân, chấm công bằng định vị GPS chặt chẽ tại',
+                feat8_title: 'Báo Cáo Lời Lỗ Thực Tế', feat8_desc: 'Giúp chủ tiệm kiểm tra doanh số bán hàng, doanh thu tiền giờ lẻ thực tế, chi phí kho bãi trực quan 24/7 từ xa trên smartphone tại',
+
+                calc_eyebrow: 'CÔNG CỤ ĐỐI SOÁT',
+                calc_title: 'Bảng Tính Thử <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">Tiền Giờ & Dịch Vụ Karaoke</span>',
+                calc_desc: 'Hãy thử tính toán hóa đơn phòng hát thực tế để xem BitPaw OS tính toán chi tiết, minh bạch tiền giờ lẻ và dịch vụ như thế nào:',
+                calc_label1: '1. Chọn Loại Phòng Hát / Bàn Bida', calc_label2: '2. Khung Giờ Hoạt Động',
+                calc_radio1: 'Giờ Thường (Giá gốc)', calc_radio2: 'Giờ Vàng (Phụ thu +25%)',
+                calc_label3: '3. Thời gian hát / chơi bida',
+                calc_tick1: '30 phút', calc_tick2: '2 giờ', calc_tick3: '4 giờ', calc_tick4: '6 giờ',
+                calc_label4: '4. Dịch vụ đồ uống & ăn nhẹ kèm theo',
+                calc_beer_caption: 'Tháp Bia Heineken (350k/tháp)', calc_fruit_caption: 'Đĩa Trái Cây Lớn (150k/đĩa)',
+                calc_result_title: 'Hóa Đơn Tạm Tính',
+                calc_bill_label1: 'Đơn giá tiền giờ:', calc_bill_label2: 'Thời gian chơi:', calc_bill_label3: 'Tiền giờ tạm tính:',
+                calc_bill_label4: 'Phụ thu khung giờ:', calc_bill_label5: 'Bia Heineken:', calc_bill_label6: 'Đĩa trái cây lớn:',
+                calc_bill_total_label: 'TỔNG BILL:',
+                calc_safety_title: 'Chống thất thoát thông minh',
+                calc_safety_pre: 'BitPaw OS giúp tiết kiệm khoảng',
+                calc_safety_post: '(12%) tiền thất thoát giờ lẻ và đồ uống quên ghi chép của nhân viên trên bill này.',
+
+                ai_eyebrow: 'AI AUTOMATION & MARKETING',
+                ai_title: 'AI Nurturing Engine <span class="text-gradient-purple">Bám Đuổi Giữ Chân Khách Quen</span>',
+                ai_desc: 'Hệ thống tự động kích hoạt kịch bản tin nhắn cá nhân hóa gửi qua Zalo/SMS dựa trên chu kỳ đi hát của khách hàng.',
+                ai_card1_title: 'Kích hoạt lấp đầy phòng trống', ai_card1_desc: 'Khi công suất phòng hát dưới 40% vào buổi chiều, AI tự lọc danh sách khách quen hay hát nhóm và gửi mã ưu đãi giảm 20% tiền giờ hát tức thời.',
+                ai_card2_title: 'Tri ân sinh nhật cá nhân hóa', ai_card2_desc: 'Trước sinh nhật khách 3 ngày, Zalo tự động gửi thư mời kèm voucher miễn phí trang trí phòng hát và tặng 1 đĩa trái cây lớn đặc biệt.',
+                ai_chat1: 'Phát hiện công suất phòng chiều thứ 3 chỉ đạt 25%. Kích hoạt chiến dịch lấp phòng trống.',
+                ai_chat2: 'Gửi ưu đãi Zalo cho nhóm khách quen hay hát giờ rảnh?',
+                ai_chat3_label: 'Đã gửi Zalo thành công:',
+                ai_chat3_quote: '"Chào anh Tuấn, BitPaw Karaoke gửi tặng anh mã [VIPFREE] giảm 25% tiền giờ hát phòng VIP chiều nay. Đặt phòng ngay để tụ tập cùng bạn bè nhé!"',
+
+                faq_eyebrow: 'GIẢI ĐÁP THẮC MẮC',
+                faq_title: 'Hỏi Đáp <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">Về Phần Mềm BitPaw Karaoke</span>',
+                faq_desc: 'Những thắc mắc thường gặp của các chủ quán bida, phòng hát karaoke khi số hóa vận hành:',
+                faq_q1: 'Hệ thống tính tiền giờ lẻ block phút như thế nào?',
+                faq_a1: 'Bạn hoàn toàn có thể tự cấu hình block tính giờ lẻ (ví dụ: block 15 phút). Nếu khách hát quá 5 phút so với block, hệ thống tự làm tròn sang block tiếp theo hoặc tính lẻ theo tỷ lệ phút chính xác 100%, tự chuyển giá VIP vào tối muộn cực kỳ tiện lợi.',
+                faq_q2: 'Làm sao để nhân viên không mở phòng chui đút túi riêng tiền giờ lẻ?',
+                faq_a2: 'Mỗi thao tác "Mở phòng" hay "Chốt phòng" đều được ghi vết lịch sử chi tiết đến từng mili-giây trên hệ thống đám mây. Bạn ở xa có thể đối chiếu công suất phòng thực tế và doanh số bill thu về tức thời, triệt tiêu hoàn toàn cơ hội mở phòng chui của nhân viên.',
+                faq_q3: 'Có hỗ trợ liên kết máy in hóa đơn nhiệt tại quầy thu ngân không?',
+                faq_a3: 'Có. Phần mềm tương thích tuyệt đối với 99% dòng máy in hóa đơn nhiệt thông dụng trên thị trường (máy in cổng LAN, USB, Wifi). Hóa đơn in ra có sẵn mã QR động giúp khách hàng chỉ cần quét điện thoại là chuyển khoản chính xác số tiền lẻ mà không cần nhập thủ công.',
+
+                cta_title: 'Đã Đến Lúc Số Hóa Quán Karaoke / Bida Chuyên Nghiệp!',
+                cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng số hóa, lấp đầy phòng trống và ngăn chặn thất thoát dòng tiền ngay hôm nay.',
+                cta_btn1: 'Đăng ký dùng thử miễn phí', cta_btn2: 'Nhận tư vấn qua Zalo',
+
+                footer_desc: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_company: 'Công ty TNHH Công Nghệ BitPaw',
+                footer_mst: 'MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM',
+                footer_address: 'Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM',
+                footer_col1_title: 'Sản Phẩm',
+                footer_link2: 'Smart POS Đa ngành', footer_link4: 'Dịch vụ AI Agency', footer_link5: 'Bảng giá đầu tư',
+                footer_col2_title: 'Pháp Lý & Bảo Mật',
+                footer_legal1: 'Điều khoản sử dụng', footer_legal2: 'Chính sách bảo mật', footer_legal3: 'Chính sách thanh toán',
+                footer_col3_title: 'Liên Hệ Với Sếp',
+                footer_hotline_label: 'Hotline 24/7', footer_email_label: 'Email Công việc',
+                footer_zalo_name: 'Zalo Kỹ Thuật (Sếp Sang)', footer_fanpage_label: 'Fanpage Chính Thức',
+                footer_login_btn: 'Đăng Nhập Quản Trị',
+                footer_credit_label: 'Thiết kế & Lập trình bởi:',
+                modal_close_btn: 'Đã hiểu & Đóng'
+            },
+            en: {
+                hero_badge: '🎤 BitPaw OS: Professional Digital Management For Karaoke, Billiards & Game Centers',
+                hero_title: 'Automatic time billing, <br class="hidden sm:inline"><span class="text-gradient-purple drop-shadow-[0_4px_25px_rgba(168,85,247,0.65)]">zero losses, zero shift errors.</span> <br class="hidden sm:inline"><span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight break-words">AI automatically fills your empty rooms.</span>',
+                hero_desc: 'A system that bills room time down to the exact odd second, a realtime 3D room/table floor plan, in-room drink and service ordering via tablet or mobile, and receipts with an integrated dynamic bank QR code.',
+                hero_btn1: 'Try It Free For Your Venue',
+                hero_btn2: 'Get Advice Via Zalo',
+                hero_tag1: 'Accurate odd-minute time billing',
+                hero_tag2: 'Realtime room/table floor plan',
+                hero_tag3: 'Instant kitchen order notifications',
+                hero_tag4: 'AI CSKH sends offers automatically',
+                hero_card1_status: 'VIP Room 202 - Now Singing',
+                hero_card1_time: 'Duration: 1h 45m',
+                hero_card1_drinks: 'Drinks: 12 cans of beer • 1 fruit platter',
+                hero_card2_title: 'Signature Billiard Table',
+                hero_card2_status: 'Table 05 - In A Single Session',
+                hero_card2_usage: 'Usage: 45 minutes',
+
+                problems_eyebrow: 'Reality On The Ground',
+                problems_title: 'Karaoke & Billiards venues are <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">facing which headaches?</span>',
+                problems_desc: 'Running a time-based venue demands absolute billing accuracy and tight control over every snack and drink sent to the room.',
+                pain1_tag: 'Time Errors', pain1_title: 'Incorrect room-time charges', pain1_desc: 'Staff manually log check-in times and miscalculate regular hours, VIP golden hours, holiday rates, or odd minutes, sparking frustrating disputes with guests.',
+                pain2_tag: 'Stock Shrinkage', pain2_title: 'Lost food, drinks and large fruit platters', pain2_desc: 'Snacks and drinks sent to rooms go unrecorded when staff forget to log them on the bill, or hand them out for free, quietly draining inventory revenue.',
+                pain3_tag: 'Floor Plan Chaos', pain3_title: 'Messy room/table status management', pain3_desc: 'Receptionists and cashiers lose track of which rooms are occupied, cleaned, or still dirty, delaying room turnover for the next group of guests.',
+                pain4_tag: 'Time Fraud', pain4_title: 'Off-the-books rooms with hidden bills', pain4_desc: 'Front-desk staff open rooms outside the POS system and pocket the cash themselves, causing serious losses for the owner.',
+                pain5_tag: 'One-Time Guests', pain5_title: 'Guests sing once and never return', pain5_desc: 'With no system to capture guest contact details, there is no way to send thank-you messages, birthday vouchers, or invites for quiet off-peak hours.',
+                pain6_tag: 'Exhausting Night Shifts', pain6_title: 'Hours lost reconciling books at midnight', pain6_desc: 'Closing late at night is grueling for cashiers and owners who must manually gather paper bills, count cash, and split tips and staff commissions.',
+
+                promise_eyebrow: 'WHAT SETS BITPAW OS APART',
+                promise_title: 'Turn Karaoke & Billiards into an operating machine that is <br><span class="text-gradient-purple">perfectly accurate and turns idle hours into revenue.</span>',
+                promise_desc: 'BitPaw fully digitizes and seamlessly synchronizes Front Desk - Rooms - Cashier - Inventory, guaranteeing 100% protection against cash-flow leaks.',
+                promise1_title: 'Precise Time Billing', promise1_desc: 'The system automatically logs time, bills in 15-minute blocks, and auto-switches pricing during golden hours.',
+                promise2_title: 'POS & Mobile Ordering', promise2_desc: 'Staff take drink orders directly from their phone right inside the room, so nothing is ever forgotten.',
+                promise3_title: 'Realtime 3D Floor Plan', promise3_desc: 'The room and billiard-table floor plan updates instantly with Available/Dirty/Occupied status.',
+                promise4_title: 'Automatic AI CSKH', promise4_desc: 'Automatically sends greetings and vouchers to fill empty rooms during quiet off-peak hours.',
+
+                workflow_eyebrow: 'THE REAL OPERATING FLOW',
+                workflow_title: 'The Karaoke & Billiards operating journey <br><span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">fully digitized, seamless and closed-loop.</span>',
+                workflow_desc: 'A digitized process map from the moment a room is booked online through service delivery and closing the bill with a dynamic QR code:',
+                wf1_title: 'Guest books a room/table', wf1_desc: 'Guests check room and billiard-table availability themselves and book online remotely with ease.',
+                wf2_title: 'Lightning-fast seating', wf2_desc: 'Reception checks realtime room availability and confirms the booking in one second.',
+                wf3_title: 'Room activation', wf3_desc: 'Tap to open the room/table on the POS and the system automatically logs the start time and begins billing.',
+                wf4_title: 'Ordering food and drinks', wf4_desc: 'Staff order drinks, beer, and cold towels directly from mobile, posting straight to the room bill.',
+                wf5_title: 'Bar / kitchen prep', wf5_desc: 'The bar/kitchen receives the order instantly and prepares fruit platters and drinks in record time.',
+                wf6_title: 'Closing at the cashier', wf6_desc: 'The cashier closes the room on the POS and the system automatically calculates odd minutes and prints a provisional bill.',
+                wf7_title: 'Dynamic QR payment', wf7_desc: 'The POS generates a bank QR code matching the exact amount, the guest scans to pay securely, and revenue is closed instantly.',
+                wf8_title: 'Room turnover', wf8_desc: 'The room status switches to "Dirty - Awaiting Cleaning" on the staff floor plan, ready to be cleaned for the next guests.',
+
+                features_eyebrow: 'BUILT FOR REAL OPERATIONS',
+                features_title: 'Core Digital Features <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">Built Deeply For Karaoke & Billiards</span>',
+                features_desc: 'A system built around real operational logic, automating all the tedious manual work of running a venue.',
+                feat1_title: 'Realtime 3D Room/Table Floor Plan', feat1_desc: 'Track your whole venue visually: Available/Occupied/Awaiting cleaning, and switch tables/rooms in one second with drag-and-drop at',
+                feat2_title: 'Flexible Hourly Pricing', feat2_desc: 'Configure diverse room rates: Standard, VIP, Super VIP, with automatic surcharges for golden hours or holidays.',
+                feat3_title: 'Mobile In-Room Drink Ordering', feat3_desc: 'Staff use a tablet or phone to order drinks, Heineken beer, or a large fruit platter right in the room, sent straight to the bar/kitchen.',
+                feat4_title: 'Receipts With Integrated Bank QR', feat4_desc: 'Print receipts with a built-in dynamic VietQR code that auto-fills the amount and transfer note, avoiding mistakes and losses at',
+                feat5_title: 'Ingredient Inventory Tracking', feat5_desc: 'Manage stock of canned beer, soft drinks, fruit, and mixing ingredients. Automatically deducts stock the moment items are served to a room, preventing fraud.',
+                feat6_title: 'AI Smart CSKH & Marketing', feat6_desc: 'AI automatically tracks behavior, sends birthday greetings, and issues group discount vouchers to fill empty rooms during quiet hours.',
+                feat7_title: 'Shift Scheduling & GPS Time Tracking', feat7_desc: 'Manage shifts for reception, service, and cashier staff, with strict GPS-based time tracking at',
+                feat8_title: 'Real Profit & Loss Reports', feat8_desc: 'Lets owners check sales, real room-time revenue, and inventory costs visually 24/7 from a smartphone, anywhere, at',
+
+                calc_eyebrow: 'RECONCILIATION TOOL',
+                calc_title: 'Try The Calculator For <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">Room Time & Karaoke Services</span>',
+                calc_desc: 'Try calculating a real room bill to see exactly how BitPaw OS breaks down and clarifies room time and service charges:',
+                calc_label1: '1. Choose Room / Billiard Table Type', calc_label2: '2. Operating Time Slot',
+                calc_radio1: 'Regular Hours (Base Rate)', calc_radio2: 'Golden Hours (+25% Surcharge)',
+                calc_label3: '3. Singing / Playing Duration',
+                calc_tick1: '30 min', calc_tick2: '2 hours', calc_tick3: '4 hours', calc_tick4: '6 hours',
+                calc_label4: '4. Drinks & Snack Services Included',
+                calc_beer_caption: 'Heineken Beer Tower (350k/tower)', calc_fruit_caption: 'Large Fruit Platter (150k/platter)',
+                calc_result_title: 'Provisional Bill',
+                calc_bill_label1: 'Hourly rate:', calc_bill_label2: 'Playing time:', calc_bill_label3: 'Provisional time cost:',
+                calc_bill_label4: 'Time-slot surcharge:', calc_bill_label5: 'Heineken beer:', calc_bill_label6: 'Large fruit platter:',
+                calc_bill_total_label: 'TOTAL BILL:',
+                calc_safety_title: 'Smart Loss Prevention',
+                calc_safety_pre: 'BitPaw OS helps you save around',
+                calc_safety_post: '(12%) in losses from odd-minute billing and unlogged staff drink orders on this bill.',
+
+                ai_eyebrow: 'AI AUTOMATION & MARKETING',
+                ai_title: 'AI Nurturing Engine <span class="text-gradient-purple">That Keeps Regulars Coming Back</span>',
+                ai_desc: 'The system automatically triggers personalized message scripts sent via Zalo/SMS based on each customer\'s visit cycle.',
+                ai_card1_title: 'Trigger empty-room fill campaigns', ai_card1_desc: 'When afternoon room occupancy drops below 40%, AI automatically filters regular group singers and instantly sends a 20% room-time discount code.',
+                ai_card2_title: 'Personalized birthday appreciation', ai_card2_desc: '3 days before a guest''s birthday, Zalo automatically sends an invitation with a free room decoration voucher and a complimentary large fruit platter.',
+                ai_chat1: 'Detected only 25% room occupancy on Tuesday afternoon. Activating empty-room fill campaign.',
+                ai_chat2: 'Send a Zalo offer to the regular group of guests who sing during off-peak hours?',
+                ai_chat3_label: 'Zalo message sent successfully:',
+                ai_chat3_quote: '"Hi Tuan, BitPaw Karaoke is sending you code [VIPFREE] for 25% off VIP room time this afternoon. Book now to hang out with friends!"',
+
+                faq_eyebrow: 'FREQUENTLY ASKED QUESTIONS',
+                faq_title: 'Frequently Asked Questions <span class="text-gradient-purple drop-shadow-[0_2px_10px_rgba(168,85,247,0.3)]">About BitPaw Karaoke Software</span>',
+                faq_desc: 'Common questions from billiards and karaoke owners as they digitize their operations:',
+                faq_q1: 'How does the system bill odd-minute time blocks?',
+                faq_a1: 'You can fully configure the odd-minute billing block (e.g. 15-minute blocks). If a guest sings past the block by more than 5 minutes, the system automatically rounds up to the next block or bills the exact proportional minutes at 100% accuracy, and auto-switches to VIP pricing late at night for total convenience.',
+                faq_q2: 'How do we stop staff from opening off-the-books rooms and pocketing the cash?',
+                faq_a2: 'Every "Open Room" and "Close Room" action is logged in detail down to the millisecond on the cloud system. From anywhere, you can cross-check actual room occupancy against incoming bill revenue in real time, completely eliminating the chance of staff running off-the-books rooms.',
+                faq_q3: 'Do you support connecting a thermal receipt printer at the cashier counter?',
+                faq_a3: 'Yes. The software is fully compatible with 99% of common thermal receipt printers on the market (LAN, USB, and Wifi printers). Printed receipts include a built-in dynamic QR code so guests just scan with their phone to transfer the exact amount without manual entry.',
+
+                cta_title: 'Time To Digitize Your Karaoke / Billiards Venue Professionally!',
+                cta_desc: 'Sign up for a free 14-day trial with every digital feature included, fill your empty rooms, and stop cash-flow leaks starting today.',
+                cta_btn1: 'Sign Up For A Free Trial', cta_btn2: 'Get Advice Via Zalo',
+
+                footer_desc: 'A pioneering ALL-IN-ONE SaaS software empire applying AI Radar, multi-industry Smart POS, Omni-channel sales management, and AI Agency Marketing services in Vietnam.',
+                footer_company: 'BitPaw Technology Co., Ltd.',
+                footer_mst: 'Tax ID: 0312345678 - Issued by the HCMC Department of Planning & Investment',
+                footer_address: 'Floor 8, BitPaw Tower, District 1, Ho Chi Minh City',
+                footer_col1_title: 'Products',
+                footer_link2: 'Multi-Industry Smart POS', footer_link4: 'AI Agency Services', footer_link5: 'Pricing Plans',
+                footer_col2_title: 'Legal & Security',
+                footer_legal1: 'Terms of Use', footer_legal2: 'Privacy Policy', footer_legal3: 'Payment Policy',
+                footer_col3_title: 'Contact The Boss',
+                footer_hotline_label: '24/7 Hotline', footer_email_label: 'Work Email',
+                footer_zalo_name: 'Zalo Technical Support (Boss Sang)', footer_fanpage_label: 'Official Fanpage',
+                footer_login_btn: 'Admin Login',
+                footer_credit_label: 'Designed & Developed by:',
+                modal_close_btn: 'Got It & Close'
+            }
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

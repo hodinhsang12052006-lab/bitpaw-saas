@@ -16,7 +16,7 @@ def custom_sqlite3_connect(database, *args, **kwargs):
     return _original_sqlite3_connect(database, *args, **kwargs)
 sqlite3.connect = custom_sqlite3_connect
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 from datetime import datetime, timedelta
 import os
 import time
@@ -777,6 +777,11 @@ def index():
 @app.route('/landing')
 def landingpage():
     return render_template('landing.html')
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'sitemap.xml', mimetype='application/xml')
 
 
 @app.route('/checkout')

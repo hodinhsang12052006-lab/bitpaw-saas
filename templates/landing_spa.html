@@ -207,6 +207,23 @@
         #mobile-menu.open {
             transform: translateX(0);
         }
+
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-cyan-500 selection:text-black relative">
@@ -235,6 +252,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-cyan-500/20 hover:text-cyan-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-cyan-500/20 hover:text-cyan-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -254,6 +281,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -272,29 +304,29 @@
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
-                    💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện
+                    <span data-i18n="hero_badge">💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện</span>
                 </div>
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_title">
                     Quản lý Spa & Beauty <br class="hidden sm:inline">
                     <span class="text-gradient-cyan drop-shadow-[0_4px_25px_rgba(6,182,212,0.65)]">không còn trùng lịch, sót khách.</span> <br class="hidden sm:inline">
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight break-words">AI bám đuổi liệu trình tự động.</span>
                 </h1>
-                <p class="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words">
+                <p class="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Một màn hình gom lịch hẹn từ nhiều kênh, tự động phân phòng/giường/KTV, quản lý thẻ liệu trình số chi tiết, POS tính hoa hồng thợ và AI CSKH tự nhắc tái chăm sóc.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
-                        <i class="fas fa-magic"></i> Dùng thử cho Spa của sếp
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Dùng thử cho Spa của sếp</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
-                        <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo
+                        <i class="fas fa-comments text-cyan-400 animate-pulse"></i> <span data-i18n="hero_cta2">Nhận tư vấn qua Zalo</span>
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="far fa-calendar-alt text-cyan-400"></i> Booking thông minh</span>
-                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-magic text-cyan-400"></i> Quản lý liệu trình</span>
-                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-users-cog text-cyan-400"></i> Xoay ca trực KTV</span>
-                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-calculator text-cyan-400"></i> Hoa hồng tự động</span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="far fa-calendar-alt text-cyan-400"></i> <span data-i18n="hero_tag1">Booking thông minh</span></span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-magic text-cyan-400"></i> <span data-i18n="hero_tag2">Quản lý liệu trình</span></span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-users-cog text-cyan-400"></i> <span data-i18n="hero_tag3">Xoay ca trực KTV</span></span>
+                    <span class="flex items-center gap-2 bg-cyan-500/15 px-3 py-2 rounded-full border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)]"><i class="fas fa-calculator text-cyan-400"></i> <span data-i18n="hero_tag4">Hoa hồng tự động</span></span>
                 </div>
             </div>
             
@@ -321,20 +353,20 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl hover:border-cyan-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Lịch Trị Liệu Hôm Nay</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_label">Lịch Trị Liệu Hôm Nay</h4>
                         </div>
-                        <p class="text-sm text-white font-extrabold truncate">Chị Thảo - Chăm Sóc Da</p>
-                        <p class="text-xs text-cyan-300 font-bold mt-1">KTV Vy • 14:00 • Đang làm</p>
+                        <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_name">Chị Thảo - Chăm Sóc Da</p>
+                        <p class="text-xs text-cyan-300 font-bold mt-1" data-i18n="hero_card1_status">KTV Vy • 14:00 • Đang làm</p>
                     </div>
-     
+
                     <!-- 2. Thợ Rảnh card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-pink-500/30 p-4 rounded-2xl shadow-2xl hover:border-pink-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-magic text-pink-400"></i> Liệu Trình Số</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-magic text-pink-400"></i> <span data-i18n="hero_card2_label">Liệu Trình Số</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold">Trị Mụn Y Khoa 5 Buổi</p>
-                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Buổi còn lại: 3 Buổi</span>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_name">Trị Mụn Y Khoa 5 Buổi</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_status">Buổi còn lại: 3 Buổi</span>
                     </div>
                 </div>
             </div>
@@ -345,11 +377,11 @@
     <section id="problems" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">Thực tế vận hành</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-i18n="problems_label">Thực tế vận hành</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="problems_title">
                     Chủ Spa & Viện thẩm mỹ <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">đau đầu vì nỗi lo nào?</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="problems_desc">
                     Quản lý cơ sở làm đẹp với kỹ thuật viên và gói dịch vụ dài hạn cực kỳ phức tạp. Đây là những khó khăn sếp phải đối mặt hàng ngày:
                 </p>
             </div>
@@ -364,10 +396,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="far fa-calendar-times"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lệch lịch</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_tag">Lệch lịch</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Lịch hẹn chồng chéo, bỏ sót đặt lịch</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain1_title">Lịch hẹn chồng chéo, bỏ sót đặt lịch</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">
                                 Lịch hẹn đặt rải rác từ Facebook, Zalo, gọi điện. Ghi chép sổ tay dễ bị quên hoặc trùng ca của Kỹ thuật viên làm khách đến phải chờ đợi lâu rồi bỏ về.
                             </p>
                         </div>
@@ -383,10 +415,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-file-signature"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Thất lạc</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain2_tag">Thất lạc</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Gói liệu trình nhiều buổi khó kiểm soát</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain2_title">Gói liệu trình nhiều buổi khó kiểm soát</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain2_desc">
                                 Khách mua liệu trình 5-10 buổi nhưng quản lý thẻ giấy dễ bị rách, mất hoặc nhầm lẫn số buổi đã làm, dễ gây ra tranh cãi lúc đối soát.
                             </p>
                         </div>
@@ -402,10 +434,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-users-cog"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Tị nạnh</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain3_tag">Tị nạnh</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Kỹ thuật viên tị nạnh vì chia ca trực không đều</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain3_title">Kỹ thuật viên tị nạnh vì chia ca trực không đều</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain3_desc">
                                 Quy trình xếp tua thợ làm mặt, làm body thiếu công bằng dẫn đến Kỹ thuật viên nghi ngờ chủ thiên vị, gây mất đoàn kết nội bộ và dễ xin nghỉ việc.
                             </p>
                         </div>
@@ -421,10 +453,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-bell-slash"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Quên nhắc lịch</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain4_tag">Quên nhắc lịch</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Khách dùng xong liệu trình không được nhắc lịch</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain4_title">Khách dùng xong liệu trình không được nhắc lịch</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain4_desc">
                                 Khách làm đẹp xong ra về là Spa quên mất. Không ai nhớ chu kỳ 7-14 ngày để chủ động nhắc nhở làm giảm hiệu quả phục hồi của da.
                             </p>
                         </div>
@@ -440,10 +472,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-calculator"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Sai hoa hồng</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_tag">Sai hoa hồng</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Tính hoa hồng thợ & KTV thủ công mệt mỏi</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain5_title">Tính hoa hồng thợ & KTV thủ công mệt mỏi</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">
                                 Mỗi dịch vụ chăm sóc da, massage có mức hoa hồng khác nhau cho kỹ thuật viên. Cuối ngày sếp mò mẫm tính hoa hồng thủ công rất dễ xảy ra sai số.
                             </p>
                         </div>
@@ -459,10 +491,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-bed"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lãng phí giường</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain6_tag">Lãng phí giường</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Lãng phí công suất phòng & giường dịch vụ</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain6_title">Lãng phí công suất phòng & giường dịch vụ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain6_desc">
                                 Chủ Spa khó biết phòng nào đang bận, giường nào trống realtime để linh hoạt điều phối khách, gây lãng phí tài nguyên vận hành của Spa.
                             </p>
                         </div>
@@ -477,36 +509,36 @@
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div data-aos="zoom-in">
-                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase" data-i18n="promise_label">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words" data-i18n="promise_title">
                     Biến Spa & Thẩm mỹ viện thành cỗ máy <br>
                     <span class="text-gradient-cyan">giữ khách trung thành và kiểm soát doanh thu ròng.</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed break-words" data-i18n="promise_desc">
                     BitPaw số hóa và khép kín quy trình vận hành Spa: tự động gom lịch đặt hẹn từ xa, phân chia Kỹ thuật viên công bằng, chốt buổi liệu trình số và nhắc nhở khách tự động.
                 </p>
             </div>
-            
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-500 text-5xl mb-5"><i class="far fa-calendar-check"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words">Booking online tự động</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise1_title">Booking online tự động</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise1_desc">Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
                     <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-magic"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words">Thẻ liệu trình số</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise2_title">Thẻ liệu trình số</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise2_desc">Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-user-check"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words">Xoay ca KTV minh bạch</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise3_title">Xoay ca KTV minh bạch</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise3_desc">Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
                     <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-calculator"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words">Hoa hồng tự động</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise4_title">Hoa hồng tự động</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise4_desc">POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.</p>
                 </div>
             </div>
         </div>
@@ -516,11 +548,11 @@
     <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-i18n="workflow_label">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="workflow_title">
                     Hành trình trải nghiệm dịch vụ Spa <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">số hóa khép kín 4.0</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="workflow_desc">
                     Bản đồ quy trình số hóa toàn diện tối ưu hóa công suất kỹ thuật viên và chăm sóc khách hàng tự động:
                 </p>
             </div>
@@ -535,8 +567,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">01</div>
                                 <div class="text-cyan-400 text-2xl"><i class="far fa-calendar-alt"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">Khách đặt lịch online</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf1_title">Khách đặt lịch online</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf1_desc">
                                 Khách tự chọn gói dịch vụ, kỹ thuật viên yêu thích và giờ trống từ xa.
                             </p>
                         </div>
@@ -555,8 +587,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">02</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-robot"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">AI xác nhận lịch hẹn</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf2_title">AI xác nhận lịch hẹn</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf2_desc">
                                 Hệ thống chốt lịch và tự động gửi tin nhắn xác nhận lịch hẹn tức thời qua Zalo.
                             </p>
                         </div>
@@ -575,8 +607,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">03</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-bed"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">Điều phối phòng KTV</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf3_title">Điều phối phòng KTV</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf3_desc">
                                 Lễ tân điều phối phòng dịch vụ trống và Kỹ thuật viên thực hiện ca làm.
                             </p>
                         </div>
@@ -595,8 +627,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">04</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">KTV thực hiện liệu trình</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf4_title">KTV thực hiện liệu trình</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf4_desc">
                                 Nhân viên tiến hành liệu trình chăm sóc sắc đẹp, massage chuyên nghiệp cho khách.
                             </p>
                         </div>
@@ -615,8 +647,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">05</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-calculator"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">POS chốt hóa đơn</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf5_title">POS chốt hóa đơn</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf5_desc">
                                 POS tính bill nhanh gọn, tự động khấu trừ số buổi liệu trình hoặc chia hoa hồng KTV.
                             </p>
                         </div>
@@ -635,8 +667,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">06</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-qrcode"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">QR Code thanh toán động</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf6_title">QR Code thanh toán động</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf6_desc">
                                 Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.
                             </p>
                         </div>
@@ -655,8 +687,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">07</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-user-tag"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">CRM lưu hồ sơ da</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf7_title">CRM lưu hồ sơ da</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf7_desc">
                                 Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.
                             </p>
                         </div>

@@ -207,6 +207,23 @@
         #mobile-menu.open {
             transform: translateX(0);
         }
+
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-orange-500 selection:text-black relative">
@@ -235,6 +252,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-orange-500/20 hover:text-orange-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-orange-500/20 hover:text-orange-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -254,6 +281,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -271,30 +303,30 @@
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
-                <div class="inline-block bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                <div class="inline-block bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🍔 BitPaw OS: Số Hóa Vận Hành Nhà Hàng, Cafe Chuyên Nghiệp
                 </div>
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_title">
                     Nhà hàng & Cafe <br class="hidden sm:inline">
                     <span class="text-gradient-orange drop-shadow-[0_4px_25px_rgba(249,115,22,0.65)]">không còn sót món, lệch bill.</span> <br class="hidden sm:inline">
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI kéo khách quay lại.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words" data-i18n="hero_desc">
                     Một màn hình đồng bộ gọi món QR tại bàn, điều phối màn hình bếp KDS, Smart POS thu ngân siêu tốc, tự động trừ kho nguyên liệu và trợ lý AI gợi ý marketing.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(249,115,22,0.4)]">
-                        <i class="fas fa-magic"></i> Dùng thử cho quán F&B
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Dùng thử cho quán F&B</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
-                        <i class="fas fa-comments text-yellow-400 animate-pulse"></i> Nhận tư vấn qua Zalo
+                        <i class="fas fa-comments text-yellow-400 animate-pulse"></i> <span data-i18n="hero_cta2">Nhận tư vấn qua Zalo</span>
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-qrcode text-orange-400"></i> Self-Order QR tại bàn</span>
-                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-desktop text-orange-400"></i> Bếp KDS Realtime</span>
-                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-boxes text-orange-400"></i> Định lượng kho tự động</span>
-                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-robot text-orange-400"></i> AI CSKH & Marketing</span>
+                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-qrcode text-orange-400"></i> <span data-i18n="hero_pill1">Self-Order QR tại bàn</span></span>
+                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-desktop text-orange-400"></i> <span data-i18n="hero_pill2">Bếp KDS Realtime</span></span>
+                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-boxes text-orange-400"></i> <span data-i18n="hero_pill3">Định lượng kho tự động</span></span>
+                    <span class="flex items-center gap-2 bg-orange-500/15 px-3 py-2 rounded-full border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]"><i class="fas fa-robot text-orange-400"></i> <span data-i18n="hero_pill4">AI CSKH & Marketing</span></span>
                 </div>
             </div>
             
@@ -321,20 +353,20 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-orange-500/30 p-4 rounded-2xl shadow-2xl hover:border-orange-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-orange 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Bàn Đặt Hôm Nay</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Bàn Đặt Hôm Nay</h4>
                         </div>
-                        <p class="text-sm text-white font-extrabold truncate">Bàn VIP 04 - 6 Khách</p>
-                        <p class="text-xs text-orange-300 font-bold mt-1">Chị Linh • 19:00 • Đã đến</p>
+                        <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_detail">Bàn VIP 04 - 6 Khách</p>
+                        <p class="text-xs text-orange-300 font-bold mt-1" data-i18n="hero_card1_meta">Chị Linh • 19:00 • Đã đến</p>
                     </div>
      
                     <!-- 2. Bếp KDS card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-yellow-500/30 p-4 rounded-2xl shadow-2xl hover:border-yellow-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-orange 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-desktop text-yellow-400"></i> Bếp KDS</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-desktop text-yellow-400"></i> <span data-i18n="hero_card2_title">Bếp KDS</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold">Sườn Nướng BBQ x1</p>
-                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Trạng thái: Đang làm</span>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_item">Sườn Nướng BBQ x1</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_status">Trạng thái: Đang làm</span>
                     </div>
                 </div>
             </div>
@@ -345,11 +377,11 @@
     <section id="problems" class="py-16 md:py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-orange-500 uppercase">Thực tế vận hành</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-i18n="problems_eyebrow">Thực tế vận hành</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="problems_title">
                     Quán ăn, Cafe đang <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">đau đầu vì nỗi lo nào?</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="problems_desc">
                     Kinh doanh F&B đòi hỏi tốc độ ra món nhanh và kiểm soát nguyên vật liệu chặt chẽ. Dưới đây là những nỗi lo canh cánh mỗi ngày của các chủ quán:
                 </p>
             </div>
@@ -364,10 +396,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-history"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Chậm trễ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_tag">Chậm trễ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Trễ món & sót món trong giờ cao điểm</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain1_title">Trễ món & sót món trong giờ cao điểm</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain1_desc">
                                 Nhân viên phục vụ chạy giấy tay chậm trễ, dễ ghi sai món, nhầm bàn trong giờ cao điểm làm khách hàng bực bội chờ lâu, đánh giá kém chất lượng quán.
                             </p>
                         </div>
@@ -383,10 +415,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-boxes"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Thất thoát</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain2_tag">Thất thoát</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Hao hụt, thất thoát kho nguyên vật liệu</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain2_title">Hao hụt, thất thoát kho nguyên vật liệu</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain2_desc">
                                 Không định lượng được chi tiết nguyên liệu pha chế/chế biến (bán 1 cốc cafe hay 1 phần lẩu hao hụt bao nhiêu) khiến kho bãi thất thoát nghiêm trọng.
                             </p>
                         </div>
@@ -402,10 +434,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-cash-register"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Tắc nghẽn</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain3_tag">Tắc nghẽn</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Thu ngân chốt bill chậm, ùn ứ giờ cao điểm</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain3_title">Thu ngân chốt bill chậm, ùn ứ giờ cao điểm</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain3_desc">
                                 Khách xếp hàng chờ thanh toán, thu ngân lúng túng nhập hóa đơn thủ công, tính nhầm tiền thừa, áp dụng sai voucher khuyến mãi gây ùn ứ.
                             </p>
                         </div>
@@ -421,10 +453,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-user-ninja"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Gian lận</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain4_tag">Gian lận</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Nhân viên gian lận bill, sửa món bỏ túi riêng</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain4_title">Nhân viên gian lận bill, sửa món bỏ túi riêng</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain4_desc">
                                 Thiếu phần mềm tự động chốt bill bảo mật, thu ngân tự ý hủy món, in hóa đơn tạm ngoài hoặc bỏ túi tiền mặt của khách mà chủ quán không phát hiện.
                             </p>
                         </div>
@@ -440,10 +472,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-desktop"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lỗi đồng bộ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_tag">Lỗi đồng bộ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Bếp và phục vụ lệch thông tin, làm sai món</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain5_title">Bếp và phục vụ lệch thông tin, làm sai món</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain5_desc">
                                 Nhân viên phục vụ gọi món không đồng bộ tức thời với bếp, đầu bếp không sắp xếp đúng thứ tự order làm bếp bar hỗn loạn, nhầm lẫn yêu cầu.
                             </p>
                         </div>
@@ -459,10 +491,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-ghost"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất khách</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain6_tag">Mất khách</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Khách ăn một lần rồi không quay lại</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain6_title">Khách ăn một lần rồi không quay lại</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain6_desc">
                                 Ăn uống xong thanh toán ra về là tiệm mất kết nối với khách. Không có CRM lưu trữ để tự động gửi ưu đãi, nhắc nhở khách quay lại thưởng thức.
                             </p>
                         </div>

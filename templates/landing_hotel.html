@@ -207,6 +207,24 @@
         #mobile-menu.open {
             transform: translateX(0);
         }
+
+        /* MULTI-LANGUAGE DROPDOWN */
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-blue-500 selection:text-black relative">
@@ -235,6 +253,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-blue-500/20 hover:text-blue-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-blue-500/20 hover:text-blue-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -254,6 +282,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -271,30 +304,30 @@
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
-                <div class="inline-block bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                <div class="inline-block bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🏨 BitPaw OS: Quản Trị Vận Hành Khách Sạn & Homestay Chuyên Nghiệp
                 </div>
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_h1">
                     Quản lý khách sạn <br class="hidden sm:inline">
                     <span class="text-gradient-blue drop-shadow-[0_4px_25px_rgba(59,130,246,0.65)]">không còn lệch ca, trùng phòng.</span> <br class="hidden sm:inline">
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI tự bám đuổi ưu đãi mùa thấp điểm.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Một màn hình gom lịch đặt phòng, sơ đồ buồng phòng realtime, check-in di động nhanh gọn, POS chốt bill mini bar/tiền giờ chuẩn xác và AI tự động kéo khách quen.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
-                        <i class="fas fa-magic"></i> Dùng thử cho khách sạn
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_btn1">Dùng thử cho khách sạn</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
-                        <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận demo quản lý phòng
+                        <i class="fas fa-comments text-cyan-400 animate-pulse"></i> <span data-i18n="hero_btn2">Nhận demo quản lý phòng</span>
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-bed text-blue-400"></i> Sơ đồ phòng realtime</span>
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-calculator text-blue-400"></i> POS tính tiền giờ/mini bar</span>
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-users text-blue-400"></i> CRM quản lý khách lưu trú</span>
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-robot text-blue-400"></i> AI kéo khách mùa thấp điểm</span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-bed text-blue-400"></i> <span data-i18n="hero_tag1">Sơ đồ phòng realtime</span></span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-calculator text-blue-400"></i> <span data-i18n="hero_tag2">POS tính tiền giờ/mini bar</span></span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-users text-blue-400"></i> <span data-i18n="hero_tag3">CRM quản lý khách lưu trú</span></span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-robot text-blue-400"></i> <span data-i18n="hero_tag4">AI kéo khách mùa thấp điểm</span></span>
                 </div>
             </div>
             
@@ -321,20 +354,20 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-blue-500/30 p-4 rounded-2xl shadow-2xl hover:border-blue-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-blue 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Đặt Phòng Hôm Nay</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_label">Đặt Phòng Hôm Nay</h4>
                         </div>
-                        <p class="text-sm text-white font-extrabold truncate">Phòng VIP 302 - Chị Hương</p>
-                        <p class="text-xs text-blue-300 font-bold mt-1">Lễ tân check-in • 14:00 • Đã nhận</p>
+                        <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_line1">Phòng VIP 302 - Chị Hương</p>
+                        <p class="text-xs text-blue-300 font-bold mt-1" data-i18n="hero_card1_sub">Lễ tân check-in • 14:00 • Đã nhận</p>
                     </div>
-     
+
                     <!-- 2. Sơ đồ buồng phòng card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-indigo-500/30 p-4 rounded-2xl shadow-2xl hover:border-indigo-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-blue 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-bed text-indigo-400"></i> Buồng Phòng</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-bed text-indigo-400"></i> <span data-i18n="hero_card2_label">Buồng Phòng</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold">Phòng 201 - Đang dọn dẹp</p>
-                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Công suất hôm nay: 85%</span>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_line1">Phòng 201 - Đang dọn dẹp</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_sub">Công suất hôm nay: 85%</span>
                     </div>
                 </div>
             </div>
@@ -345,11 +378,11 @@
     <section id="problems" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-blue-500 uppercase">Thực tế vận hành</span>
-                <h2 class="mt-3 tracking-tight text-3xl md:text-4xl font-bold mb-8 break-words">
+                <span class="text-sm font-black tracking-widest text-blue-500 uppercase" data-i18n="pain_eyebrow">Thực tế vận hành</span>
+                <h2 class="mt-3 tracking-tight text-3xl md:text-4xl font-bold mb-8 break-words" data-i18n="pain_title">
                     Khách sạn & Homestay đang <span class="text-gradient-blue drop-shadow-[0_2px_10px_rgba(59,130,246,0.3)]">đau đầu vì nỗi lo nào?</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="pain_desc">
                     Vận hành khách sạn đòi hỏi sự phối hợp mượt mà giữa lễ tân, buồng phòng và bộ phận tài chính. Dưới đây là những nỗi lo canh cánh mỗi ngày:
                 </p>
             </div>
@@ -364,10 +397,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="far fa-calendar-times"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Trùng phòng</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_badge">Trùng phòng</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Lịch đặt phòng dễ trùng lặp chéo kênh</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain1_title">Lịch đặt phòng dễ trùng lặp chéo kênh</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">
                                 Khách đặt phòng từ các kênh OTA, Fanpage, Zalo chồng chéo. Lễ tân ghi sổ tay dễ bị sót hoặc trùng phòng làm khách đến không có phòng nhận gây ức chế cực lớn.
                             </p>
                         </div>
@@ -383,10 +416,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-beer"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Hao hụt</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain2_badge">Hao hụt</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Thất thoát chi phí dịch vụ phụ và mini bar</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain2_title">Thất thoát chi phí dịch vụ phụ và mini bar</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain2_desc">
                                 Nước ngọt, bia, đồ ăn nhẹ mini bar khách dùng hoặc các chi phí giặt ủi, thuê xe bị lễ tân quên ghi nhận vào bill, gây thất thoát doanh thu đáng tiếc.
                             </p>
                         </div>
@@ -402,10 +435,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-bed"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất đồng bộ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain3_badge">Mất đồng bộ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Lễ tân không rõ trạng thái buồng phòng</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain3_title">Lễ tân không rõ trạng thái buồng phòng</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain3_desc">
                                 Bộ phận buồng phòng dọn dẹp xong nhưng không báo kịp thời cho lễ tân. Khách đến sớm phải chờ lâu trong khi thực tế đã có phòng sạch sẵn sàng.
                             </p>
                         </div>
@@ -421,10 +454,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-user-ninja"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Gian lận</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain4_badge">Gian lận</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Gian lận check-in trễ, giấu bill giờ lẻ</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain4_title">Gian lận check-in trễ, giấu bill giờ lẻ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain4_desc">
                                 Lễ tân cho khách thuê phòng giờ lẻ hoặc phụ thu check-out trễ bằng tiền mặt nhưng không khai báo hệ thống để đút túi riêng, làm chủ thất thoát nặng.
                             </p>
                         </div>
@@ -440,10 +473,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-ghost"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất khách</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_badge">Mất khách</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Khách đi du lịch một lần rồi không quay lại</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain5_title">Khách đi du lịch một lần rồi không quay lại</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">
                                 Khách check-out xong ra về là khách sạn mất kết nối. Không ai gửi ưu đãi đặc biệt hay nhắc nhở voucher giảm giá để kích thích họ quay lại vào mùa thấp điểm.
                             </p>
                         </div>
@@ -459,10 +492,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-chart-line"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mất kiểm soát</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain6_badge">Mất kiểm soát</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Chủ ở xa mù mờ công suất phòng thực tế</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain6_title">Chủ ở xa mù mờ công suất phòng thực tế</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain6_desc">
                                 Không có radar giám sát hoạt động buồng phòng realtime. Sếp ở xa luôn trong tình trạng bất an vì không biết hôm nay thu về bao nhiêu tiền mặt, bao nhiêu chuyển khoản.
                             </p>
                         </div>
@@ -1621,6 +1654,38 @@
 
     <script>
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+        function toggleLangDropdown(e) {
+            e.stopPropagation();
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.toggle('open');
+        }
+        document.addEventListener('click', function (e) {
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+        });
+
+        const translations = {
+            vi: {},
+            en: {}
+        };
+
+        function changeLanguage(lang) {
+            const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
+            const text = lang === 'vi' ? 'VN' : 'EN';
+            const elIcon = document.getElementById('current-lang-icon');
+            const elText = document.getElementById('current-lang-text');
+            if (elIcon) elIcon.innerText = icon;
+            if (elText) elText.innerText = text;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            const wrapper = document.querySelector('.lang-wrapper');
+            if (wrapper) wrapper.classList.remove('open');
+        }
     </script>
 </body>
 </html>

@@ -209,6 +209,24 @@
         #mobile-menu.open {
             transform: translateX(0);
         }
+
+        /* MULTI-LANGUAGE DROPDOWN */
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-indigo-500 selection:text-black relative">
@@ -237,6 +255,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-indigo-500/20 hover:text-indigo-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-indigo-500/20 hover:text-indigo-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-indigo bg-indigo-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -256,6 +284,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-indigo-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-indigo-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-indigo-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-indigo-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -273,30 +306,30 @@
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
-                <div class="inline-block bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                <div class="inline-block bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🏢 BitPaw OS: Số Hóa Quy Trình & Tính Lương Tự Động Khối Văn Phòng
                 </div>
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_title">
                     Chốt lương tự động, <br class="hidden sm:inline">
                     <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">không còn giấy tờ, sai số.</span> <br class="hidden sm:inline">
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI chốt công, lương chỉ 1 click.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words" data-i18n="hero_desc">
                     Hệ thống chấm công Wifi/GPS thông minh chống gian lận, tự động tính toán KPI hiệu suất phức tạp, quy trình duyệt đề xuất không giấy tờ và tự tổng hợp báo cáo lợi nhuận ròng P&L tức thời.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="btn-neon-indigo bg-indigo-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)]">
-                        <i class="fas fa-magic"></i> Chuyển đổi văn phòng số
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Chuyển đổi văn phòng số</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
-                        <i class="fas fa-comments text-emerald-400 animate-pulse"></i> Nhận demo chốt lương
+                        <i class="fas fa-comments text-emerald-400 animate-pulse"></i> <span data-i18n="hero_cta2">Nhận demo chốt lương</span>
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-calculator text-indigo-400"></i> Lương KPI tự động 1-Click</span>
-                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-wifi text-indigo-400"></i> Chấm công bảo mật Wifi</span>
-                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-file-invoice-dollar text-indigo-400"></i> Quản lý thu chi dòng tiền</span>
-                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-robot text-indigo-400"></i> AI gợi ý tối ưu nhân lực</span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-calculator text-indigo-400"></i> <span data-i18n="hero_tag1">Lương KPI tự động 1-Click</span></span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-wifi text-indigo-400"></i> <span data-i18n="hero_tag2">Chấm công bảo mật Wifi</span></span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-file-invoice-dollar text-indigo-400"></i> <span data-i18n="hero_tag3">Quản lý thu chi dòng tiền</span></span>
+                    <span class="flex items-center gap-2 bg-indigo-500/15 px-3 py-2 rounded-full border border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]"><i class="fas fa-robot text-indigo-400"></i> <span data-i18n="hero_tag4">AI gợi ý tối ưu nhân lực</span></span>
                 </div>
             </div>
             
@@ -323,20 +356,20 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-indigo-500/30 p-4 rounded-2xl shadow-2xl hover:border-indigo-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-indigo 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Bảng Lương Tháng 5</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Bảng Lương Tháng 5</h4>
                         </div>
-                        <p class="text-sm text-white font-extrabold truncate">Đã chốt: 45 nhân sự</p>
-                        <p class="text-xs text-indigo-300 font-bold mt-1">Trạng thái: 100% Chính xác</p>
+                        <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_line1">Đã chốt: 45 nhân sự</p>
+                        <p class="text-xs text-indigo-300 font-bold mt-1" data-i18n="hero_card1_line2">Trạng thái: 100% Chính xác</p>
                     </div>
-     
+
                     <!-- 2. Quỹ tiền mặt card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl hover:border-emerald-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-indigo 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-wallet text-emerald-400"></i> Quỹ Tiền Mặt</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-wallet text-emerald-400"></i> <span data-i18n="hero_card2_title">Quỹ Tiền Mặt</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold">Số dư: 996,100,000 ₫</p>
-                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Lợi nhuận ròng: +15%</span>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_line1">Số dư: 996,100,000 ₫</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_line2">Lợi nhuận ròng: +15%</span>
                     </div>
                 </div>
             </div>
@@ -347,11 +380,11 @@
     <section id="problems" class="py-16 md:py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase">Thực tế vận hành</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-indigo-500 uppercase" data-i18n="problems_label">Thực tế vận hành</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="problems_title">
                     Khối văn phòng hành chính đang <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">mệt mỏi vì nỗi lo nào?</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="problems_desc">
                     Vận hành thủ công bằng Excel và phê duyệt giấy tờ truyền thống làm tiêu tốn vô cùng nhiều thời gian hành chính của kế toán và giám đốc.
                 </p>
             </div>
@@ -366,10 +399,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-calculator"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Cộng Lương Tay</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_tag">Cộng Lương Tay</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Mất nhiều ngày trời làm bảng lương cuối tháng</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain1_title">Mất nhiều ngày trời làm bảng lương cuối tháng</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain1_desc">
                                 Kế toán mò mẫm cộng trừ công đi trễ, phép năm, phụ cấp, hoa hồng doanh số, bảo hiểm thủ công trên file Excel cực kỳ phức tạp và dễ sai lệch số liệu.
                             </p>
                         </div>
@@ -385,10 +418,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-chart-line-down"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Thu Chi Mập Mờ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain2_tag">Thu Chi Mập Mờ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Dòng tiền thu chi văn phòng mập mờ, thất thoát</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain2_title">Dòng tiền thu chi văn phòng mập mờ, thất thoát</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain2_desc">
                                 Chi phí văn phòng phẩm, chi tạm ứng dự án phát sinh vụn vặt không được số hóa kiểm soát tức thời, làm chủ doanh nghiệp khó xác định thực tế lợi nhuận ròng.
                             </p>
                         </div>
@@ -404,10 +437,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-fingerprint"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Gian Lận Công</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain3_tag">Gian Lận Công</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Chấm công lách giờ qua máy vân tay cũ</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain3_title">Chấm công lách giờ qua máy vân tay cũ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain3_desc">
                                 Máy vân tay hỏng hóc gây trễ nải đầu ngày, hoặc nhân viên lách luật nhờ đồng nghiệp chấm công ảo hộ khi có việc đột xuất, khó nắm bắt công thực tế.
                             </p>
                         </div>
@@ -423,10 +456,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-file-contract"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Rối Hồ Sơ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain4_tag">Rối Hồ Sơ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words">Hồ sơ nhân sự lộn xộn, dễ thất lạc hợp đồng</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain4_title">Hồ sơ nhân sự lộn xộn, dễ thất lạc hợp đồng</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain4_desc">
                                 Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tủ hồ sơ giấy hoặc rải rác trên Drive cá nhân, mất nhiều thời gian tra cứu khi có thanh kiểm tra.
                             </p>
                         </div>

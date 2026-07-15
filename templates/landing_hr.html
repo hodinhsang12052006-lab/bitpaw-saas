@@ -198,7 +198,24 @@
             border-color: #0ea5e9;
             transition: all 0.3s;
         }
-    
+
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #08061a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .lang-wrapper:hover .lang-dropdown,
+        .lang-wrapper.open .lang-dropdown {
+            display: block;
+        }
+
         #mobile-menu {
             transition: transform 0.3s ease-in-out;
             transform: translateX(100%);
@@ -234,6 +251,16 @@
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
+                <div class="relative lang-wrapper hidden md:block">
+                    <button type="button" onclick="toggleLangDropdown(event)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white transition bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap">
+                        <span id="current-lang-icon">🇻🇳</span> <span id="current-lang-text">VN</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                    </button>
+                    <div class="lang-dropdown">
+                        <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-sky-500/20 hover:text-sky-400 transition"><span class="text-lg">🇻🇳</span> Tiếng Việt</a>
+                        <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-sky-500/20 hover:text-sky-400 transition"><span class="text-lg">🇬🇧</span> English</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-sky bg-sky-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(14,165,233,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
@@ -253,6 +280,11 @@
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-sky-400 transition-colors">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-sky-400 transition-colors">AI CSKH</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-sky-400 transition-colors">Bảng Giá</a>
+            <div class="flex items-center gap-4 border-y border-white/10 py-3">
+                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
+                <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
+            </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
                 <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-sky-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
@@ -270,30 +302,30 @@
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
-                <div class="inline-block bg-sky-500/10 border border-sky-500/30 text-sky-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
+                <div class="inline-block bg-sky-500/10 border border-sky-500/30 text-sky-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     ⚡ BitPaw OS: Chấm Công GPS FaceID Chống Fake 100% & Quản Trị HRM
                 </div>
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_h1">
                     Chấm công FaceID, <br class="hidden sm:inline">
                     <span class="text-gradient-sky drop-shadow-[0_4px_25px_rgba(14,165,233,0.65)]">định vị GPS chống fake.</span> <br class="hidden sm:inline">
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight break-words">AI tự động xếp ca kíp thông minh.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words" data-i18n="hero_desc">
                     Ngăn chặn triệt để tình trạng chấm công hộ và gian lận định vị. Xác thực sinh trắc học FaceID khớp tọa độ vệ tinh thực địa, tự động quản lý phép năm và kết chuyển bảng lương chớp mắt.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="btn-neon-sky bg-sky-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(14,165,233,0.4)]">
-                        <i class="fas fa-magic"></i> Số hóa chấm công & HRM
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Số hóa chấm công & HRM</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
-                        <i class="fas fa-comments text-sky-400 animate-pulse"></i> Nhận demo định vị GPS
+                        <i class="fas fa-comments text-sky-400 animate-pulse"></i> <span data-i18n="hero_cta2">Nhận demo định vị GPS</span>
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-satellite text-sky-400"></i> Định vị GPS chống fake 100%</span>
-                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-camera text-sky-400"></i> FaceID nhận dạng sinh trắc</span>
-                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-calendar-check text-sky-400"></i> Quản lý ca kíp, ca gãy</span>
-                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-robot text-sky-400"></i> AI chốt phép năm online</span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-satellite text-sky-400"></i> <span data-i18n="hero_pill1">Định vị GPS chống fake 100%</span></span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-camera text-sky-400"></i> <span data-i18n="hero_pill2">FaceID nhận dạng sinh trắc</span></span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-calendar-check text-sky-400"></i> <span data-i18n="hero_pill3">Quản lý ca kíp, ca gãy</span></span>
+                    <span class="flex items-center gap-2 bg-sky-500/15 px-3 py-2 rounded-full border border-sky-500/30 shadow-[0_0_10px_rgba(14,165,233,0.1)]"><i class="fas fa-robot text-sky-400"></i> <span data-i18n="hero_pill4">AI chốt phép năm online</span></span>
                 </div>
             </div>
             
@@ -320,20 +352,20 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-sky-500/30 p-4 rounded-2xl shadow-2xl hover:border-sky-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-sky 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest">Check-in Hiện Trường</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Check-in Hiện Trường</h4>
                         </div>
-                        <p class="text-sm text-white font-extrabold truncate">Hùng (Sales) - Đã chụp mặt</p>
-                        <p class="text-xs text-sky-300 font-bold mt-1">Toạ độ: 10.776, 106.701 • Đúng vị trí</p>
+                        <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_name">Hùng (Sales) - Đã chụp mặt</p>
+                        <p class="text-xs text-sky-300 font-bold mt-1" data-i18n="hero_card1_coord">Toạ độ: 10.776, 106.701 • Đúng vị trí</p>
                     </div>
      
                     <!-- 2. Quản lý ca kíp card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-indigo-500/30 p-4 rounded-2xl shadow-2xl hover:border-indigo-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-sky 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-calendar-alt text-indigo-400"></i> Ca kíp tháng này</h4>
+                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-calendar-alt text-indigo-400"></i> <span data-i18n="hero_card2_title">Ca kíp tháng này</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold">Đạt (KTV) - Đã nhận ca gãy</p>
-                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1">Công chuyên cần: +500k</span>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_name">Đạt (KTV) - Đã nhận ca gãy</p>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_bonus">Công chuyên cần: +500k</span>
                     </div>
                 </div>
             </div>
@@ -344,11 +376,11 @@
     <section id="problems" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">Thực tế vận hành</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase" data-i18n="problems_eyebrow">Thực tế vận hành</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="problems_title">
                     Doanh nghiệp đang <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đau đầu vì gian lận chấm công chéo?</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="problems_desc">
                     Nhân viên ngoài thị trường, kỹ thuật viên công trình hoặc nhân sự chuỗi dễ dàng lách luật chấm công nếu hệ thống không có chốt định vị và FaceID sinh trắc.
                 </p>
             </div>
@@ -363,10 +395,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-satellite"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Fake GPS</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_badge">Fake GPS</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Gian lận chấm công bằng app Fake GPS ảo</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain1_title">Gian lận chấm công bằng app Fake GPS ảo</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain1_desc">
                                 Nhân sự thị trường sử dụng các ứng dụng giả lập vị trí GPS để chấm công khống tại điểm hẹn khi thực tế vẫn ở nhà ngủ nướng, gây tổn thất tiền lương vô lý.
                             </p>
                         </div>
@@ -382,10 +414,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-user-friends"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Chấm Hộ</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain2_badge">Chấm Hộ</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Nhờ đồng nghiệp quét vân tay chấm công hộ</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain2_title">Nhờ đồng nghiệp quét vân tay chấm công hộ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain2_desc">
                                 Nhân sự đi trễ dễ dàng nhờ vả đồng nghiệp tại cơ sở quét vân tay hoặc quẹt thẻ từ chấm công hộ đầu ngày, làm mất đi tính minh bạch chuyên cần.
                             </p>
                         </div>
@@ -401,10 +433,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-calendar-times"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Loạn Ca</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain3_badge">Loạn Ca</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Xếp lịch làm việc ca gãy, ca kíp phức tạp bừa bãi</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain3_title">Xếp lịch làm việc ca gãy, ca kíp phức tạp bừa bãi</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain3_desc">
                                 Chuỗi chi nhánh hoặc xưởng sản xuất có nhiều ca trực gãy chồng chéo, quản lý bằng Excel dễ gây nhầm lẫn ca gác trực của nhân sự.
                             </p>
                         </div>
@@ -420,10 +452,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-file-contract"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Rối Phép Năm</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain4_badge">Rối Phép Năm</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Khó theo dõi lịch nghỉ phép năm chính xác</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain4_title">Khó theo dõi lịch nghỉ phép năm chính xác</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain4_desc">
                                 Nhân sự xin nghỉ phép chế độ, phép năm rải rác. Đến cuối năm không rõ thợ đã nghỉ hết bao nhiêu ngày phép, gây bất bình đẳng khi đối soát.
                             </p>
                         </div>
@@ -439,10 +471,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-folder-open"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Lưu Trữ Rời Rạc</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_badge">Lưu Trữ Rời Rạc</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Hồ sơ nhân sự cất giữ tủ giấy tờ lộn xộn</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain5_title">Hồ sơ nhân sự cất giữ tủ giấy tờ lộn xộn</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain5_desc">
                                 Hợp đồng lao động, bằng cấp và dải thông tin lý lịch nhân sự bị lưu giữ vụn vặt, tốn nhiều thời gian hành chính tìm kiếm lục lại khi cần chốt.
                             </p>
                         </div>
@@ -458,10 +490,10 @@
                                 <div class="w-14 h-14 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-2xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] group-hover:scale-110 group-hover:text-red-300 transition-all duration-300">
                                     <i class="fas fa-file-signature"></i>
                                 </div>
-                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm">Mệt Chốt Lương</span>
+                                <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain6_badge">Mệt Chốt Lương</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug">Tốn nhiều ngày chốt công tính lương thủ công</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain6_title">Tốn nhiều ngày chốt công tính lương thủ công</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="pain6_desc">
                                 Cuối tháng HR và Kế toán phải chắp vá bảng công giấy, file Excel, trừ phạt chuyên cần vô cùng mệt mỏi, dễ sai số làm nảy sinh khiếu nại nhân sự.
                             </p>
                         </div>
@@ -476,12 +508,12 @@
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sky-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div data-aos="zoom-in">
-                <span class="text-sm font-black tracking-widest text-indigo-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-indigo-400 uppercase" data-i18n="promise_eyebrow">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="promise_title">
                     Đưa quy trình quản trị nhân sự HRM lên đám mây <br>
                     <span class="text-gradient-sky">chấm công chính xác tuyệt đối, tự động hóa 100%.</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium break-words" data-i18n="promise_desc">
                     BitPaw số hóa triệt để khâu chốt công hiện trường, kết xuất bảng lương và số hóa hồ sơ hợp đồng lao động bảo mật tối đa.
                 </p>
             </div>
@@ -489,23 +521,23 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-sky-500/20 transition-all duration-300">
                     <div class="text-sky-500 text-5xl mb-5"><i class="fas fa-satellite-dish"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">GPS Chống Fake Tuyệt Đối</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Bắt buộc check-in đúng tọa độ thực tế ngoài hiện trường, ngăn chặn hoàn toàn ứng dụng Fake vị trí.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise1_title">GPS Chống Fake Tuyệt Đối</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise1_desc">Bắt buộc check-in đúng tọa độ thực tế ngoài hiện trường, ngăn chặn hoàn toàn ứng dụng Fake vị trí.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
                     <div class="text-indigo-400 text-5xl mb-5"><i class="fas fa-camera"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">FaceID Nhận Diện Chéo</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Xác thực sinh trắc học khuôn mặt chụp thực địa chớp mắt, triệt tiêu 100% cơ hội chấm công hộ.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise2_title">FaceID Nhận Diện Chéo</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise2_desc">Xác thực sinh trắc học khuôn mặt chụp thực địa chớp mắt, triệt tiêu 100% cơ hội chấm công hộ.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-sky-500/20 transition-all duration-300">
                     <div class="text-sky-400 text-5xl mb-5"><i class="fas fa-calendar-check"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Quản Lý Phân Ca Linh Hoạt</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Tự động cấu hình ca kíp, ca gãy, tăng ca Overtime và tự động gán lịch làm việc cho thợ/nhân sự.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise3_title">Quản Lý Phân Ca Linh Hoạt</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise3_desc">Tự động cấu hình ca kíp, ca gãy, tăng ca Overtime và tự động gán lịch làm việc cho thợ/nhân sự.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-indigo-500/20 transition-all duration-300">
                     <div class="text-indigo-400 text-5xl mb-5"><i class="fas fa-folder-open"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Số Hóa Hồ Sơ Nhân Sự</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Toàn bộ hợp đồng lao động, bằng cấp và dải lịch sử phép năm được số hóa lưu cloud an toàn.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise4_title">Số Hóa Hồ Sơ Nhân Sự</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise4_desc">Toàn bộ hợp đồng lao động, bằng cấp và dải lịch sử phép năm được số hóa lưu cloud an toàn.</p>
                 </div>
             </div>
         </div>
@@ -515,12 +547,12 @@
     <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-sky-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-sky-500 uppercase" data-i18n="wf_eyebrow">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="wf_title">
                     Hành trình chấm công GPS FaceID <br>
                     <span class="text-gradient-sky drop-shadow-[0_2px_10px_rgba(14,165,233,0.3)]">đồng bộ kết chuyển lương tự động khép kín.</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="wf_desc">
                     Bản đồ quy trình số hóa từ lúc nhân viên check-in sinh trắc học hiện trường đến khi chốt bảng lương cuối tháng:
                 </p>
             </div>
@@ -535,8 +567,8 @@
                                 <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">01</div>
                                 <div class="text-sky-400 text-2xl"><i class="fas fa-user-plus"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khai báo hồ sơ mới</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf1_title">Khai báo hồ sơ mới</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="wf1_desc">
                                 Nhân sự mới được khai báo thông tin lý lịch, đăng ký FaceID ban đầu lên cloud.
                             </p>
                         </div>
@@ -555,8 +587,8 @@
                                 <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">02</div>
                                 <div class="text-sky-400 text-2xl"><i class="fas fa-calendar-alt"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Gán lịch ca trực</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf2_title">Gán lịch ca trực</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="wf2_desc">
                                 Quản lý phân chia ca trực gãy, ca kíp xoay tua linh hoạt cho từng thợ/nhân sự.
                             </p>
                         </div>
@@ -575,8 +607,8 @@
                                 <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">03</div>
                                 <div class="text-sky-400 text-2xl"><i class="fas fa-map-marker-alt"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Check-in FaceID & GPS</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf3_title">Check-in FaceID & GPS</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="wf3_desc">
                                 Nhân viên chốt tọa độ vệ tinh GPS ngoài hiện trường, chụp ảnh xác minh FaceID sinh trắc.
                             </p>
                         </div>
@@ -595,8 +627,8 @@
                                 <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">04</div>
                                 <div class="text-sky-400 text-2xl"><i class="fas fa-wifi"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Đồng bộ công real-time</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf4_title">Đồng bộ công real-time</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="wf4_desc">
                                 Giờ công, số phút đi trễ, ca trực lập tức đồng bộ real-time lên hệ thống bảng công đám mây.
                             </p>
                         </div>
@@ -615,8 +647,8 @@
                                 <div class="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(14,165,233,0.3)]">05</div>
                                 <div class="text-sky-400 text-2xl"><i class="fas fa-paper-plane"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Xin nghỉ phép online</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf5_title">Xin nghỉ phép online</h4>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="wf5_desc">
                                 Nhân viên xin nghỉ phép hoặc báo tăng ca ngay trên điện thoại di động tiện lợi nhanh chóng.
                             </p>
                         </div>
