@@ -321,6 +321,12 @@
         let tableName = null;
         // business_id của tiệm sở hữu bàn đang được quét — dùng để chặn lộ menu/đơn hàng chéo giữa các tiệm khác nhau
         const tableBusinessId = {{ (table.business_id or '') | tojson }};
+        // AI CSKH widget đọc window.BITPAW_BUSINESS_ID để cá nhân hoá đúng tenant — trang
+        // này không có session đăng nhập (khách quét QR ẩn danh) nên phải set thủ công.
+        // Gán ngay trong module này (không phải ở <script> thường phía cuối file) vì
+        // module có scope riêng biệt — biến const ở đây KHÔNG nhìn thấy được từ script
+        // thường khác; gán vào window.* thì luôn là global thật, bất kể module hay không.
+        window.BITPAW_BUSINESS_ID = tableBusinessId || null;
 
         // Load table parameters from DOM data attributes
         const tableDisplayEl = document.getElementById('tableNameDisplay');

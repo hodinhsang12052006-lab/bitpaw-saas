@@ -418,11 +418,11 @@
                 <input type="hidden" id="staffId" value="">
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 mb-1">Họ và tên</label>
-                    <input type="text" id="staffName" required class="glass-input" placeholder="VD: Nguyễn Văn A">
+                    <input type="text" id="staffName" required class="glass-input" placeholder="Họ và tên nhân viên">
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 mb-1">Số điện thoại</label>
-                    <input type="tel" id="staffPhone" required class="glass-input" placeholder="0901234567">
+                    <input type="tel" id="staffPhone" required class="glass-input" placeholder="090xxxxxxx">
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 mb-1">Vai trò</label>
@@ -590,6 +590,7 @@
                     <td class="font-mono">${s.commission_rate}%</td>
                     <td>${getStatusBadge(s.is_active ? 'active' : 'inactive')}</td>
                     <td class="flex gap-2">
+                        <a href="/cauhinh_luong?staff_id=${s.id}" class="btn-outline text-xs px-3 py-1"><i class="fas fa-hand-holding-usd"></i> Lương</a>
                         <button class="edit-staff btn-outline text-xs px-3 py-1" data-id="${s.id}"><i class="fas fa-edit"></i> Sửa</button>
                         <button class="delete-staff btn-danger text-xs px-3 py-1" data-id="${s.id}" data-name="${escapeHtml(s.name)}"><i class="fas fa-trash-alt"></i> Xóa</button>
                     </td>

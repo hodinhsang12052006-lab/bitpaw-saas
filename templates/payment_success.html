@@ -296,10 +296,10 @@
                     <i class="fas fa-receipt"></i> Chi tiết giao dịch (Transaction details)
                 </h3>
                 <div class="space-y-3 text-sm">
-                    <div class="flex justify-between"><span class="text-gray-400">Mã giao dịch / Transaction ID:</span><span class="font-mono text-cyan-300" id="txnId">TXN20250525123456</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Phương thức / Payment Method:</span><span class="font-medium" id="paymentMethod">STRIPE (Credit Card)</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Số tiền / Amount:</span><span class="text-emerald-400 font-bold text-xl" id="amount">$16.00 USD</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Thời gian / Date & Time:</span><span class="" id="dateTime">2025-05-25 14:30:45</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Mã giao dịch / Transaction ID:</span><span class="font-mono text-cyan-300" id="txnId">—</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Phương thức / Payment Method:</span><span class="font-medium" id="paymentMethod">—</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Số tiền / Amount:</span><span class="text-emerald-400 font-bold text-xl" id="amount">—</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Thời gian / Date & Time:</span><span class="" id="dateTime">—</span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Trạng thái / Status:</span><span class="text-emerald-400"><i class="fas fa-circle text-[6px] mr-1"></i> Thành công / Completed</span></div>
                 </div>
             </div>
@@ -311,8 +311,8 @@
                 <div class="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                         <p class="text-gray-400 text-xs mb-1">Người nhận / Billed to:</p>
-                        <p class="font-medium" id="customerName">Nguyễn Văn A</p>
-                        <p class="text-gray-400 text-xs" id="customerEmail">customer@example.com</p>
+                        <p class="font-medium" id="customerName">—</p>
+                        <p class="text-gray-400 text-xs" id="customerEmail">—</p>
                     </div>
                     <div>
                         <p class="text-gray-400 text-xs mb-1">Ngày xuất hóa đơn / Invoice Date:</p>
@@ -436,12 +436,12 @@
         const storedAmount = localStorage.getItem('lastPaymentAmount');
         const storedCurrency = localStorage.getItem('lastPaymentCurrency') || 'USD';
         const storedCustomer = localStorage.getItem('customerName') || 'Khách vãng lai';
-        const storedEmail = localStorage.getItem('customerEmail') || 'customer@example.com';
-        const storedAddress = localStorage.getItem('customerAddress') || 'Bàn Demo 1';
-        
+        const storedEmail = localStorage.getItem('customerEmail') || '';
+        const storedAddress = localStorage.getItem('customerAddress') || '';
+
         const txnId = urlParams.get('txn_id') || storedTxn || 'TXN' + Date.now();
         const method = urlParams.get('method') || storedMethod || 'Stripe (Credit Card)';
-        let amountRaw = urlParams.get('amount') || storedAmount || '16.00';
+        let amountRaw = urlParams.get('amount') || storedAmount || '0.00';
         let currency = urlParams.get('currency') || storedCurrency || 'USD';
         let amountDisplay = (currency === 'USD' ? '$' : (currency === 'EUR' ? '€' : '₫')) + amountRaw;
         if (currency === 'VND') amountDisplay = parseInt(amountRaw).toLocaleString('vi-VN') + '₫';

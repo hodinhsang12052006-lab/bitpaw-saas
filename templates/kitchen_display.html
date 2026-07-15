@@ -296,12 +296,7 @@
             })
             .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
 
-        // Dữ liệu mẫu (demo fallback)
-        let orders = [
-            { id: 1, table_name: 'Bàn 1', items: [{ name: 'Cơm rang dương châu', qty: 2 }, { name: 'Gà chiên mắm', qty: 1 }], created_at: new Date().toISOString(), status: 'pending' },
-            { id: 2, table_name: 'Bàn 3', items: [{ name: 'Mì xào hải sản', qty: 1 }, { name: 'Trà đá', qty: 2 }], created_at: new Date(Date.now() - 10*60000).toISOString(), status: 'pending' }
-        ];
-        let orderIdCounter = 3;
+        let orders = [];
         let realtimeChannel = null;
 
         const ordersContainer = document.getElementById('ordersContainer');
@@ -325,21 +320,34 @@
             return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         }
 
+        const STATUS_LABEL = { pending: 'Đang chờ', cooking: 'Đang nấu', completed: 'Đã xong' };
+        const STATUS_BADGE_CLASS = {
+            pending: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+            cooking: 'bg-orange-500/20 text-orange-300 border-orange-500/30 animate-pulse',
+            completed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+        };
+
         function renderOrders() {
             if (!orders.length) {
                 ordersContainer.innerHTML = '<div class="col-span-full text-center text-gray-500 py-20"><i class="fas fa-check-circle text-4xl mb-2 opacity-30"></i><br>Không có đơn hàng chờ xử lý</div>';
                 return;
             }
-            ordersContainer.innerHTML = orders.map(order => `
+            ordersContainer.innerHTML = orders.map(order => {
+                const status = order.status || 'pending';
+                const actionBtn = status === 'cooking'
+                    ? `<button class="btn-complete text-sm px-3 py-1.5" onclick="completeOrder(${order.id})"><i class="fas fa-check mr-1"></i> Hoàn thành</button>`
+                    : `<button class="btn-complete text-sm px-3 py-1.5" onclick="startCooking(${order.id})"><i class="fas fa-fire mr-1"></i> Bắt đầu nấu</button>`;
+                return `
                 <div class="order-card p-4 flex flex-col gap-3" data-order-id="${order.id}">
                     <div class="flex justify-between items-start">
                         <div>
-                            <h3 class="font-bold text-white text-lg">${order.table_name || 'Bàn ' + order.table_id}</h3>
+                            <h3 class="font-bold text-white text-lg">${escapeHtml(order.table_name || ('Bàn ' + order.table_id))}</h3>
                             <p class="text-[10px] text-gray-400"><i class="far fa-clock"></i> ${formatTime(order.created_at)}</p>
                         </div>
-                        <button class="btn-complete text-sm px-3 py-1.5" onclick="completeOrder(${order.id})">
-                            <i class="fas fa-check mr-1"></i> Hoàn thành
-                        </button>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_BADGE_CLASS[status] || STATUS_BADGE_CLASS.pending}">${STATUS_LABEL[status] || status}</span>
+                            ${actionBtn}
+                        </div>
                     </div>
                     <div class="space-y-2">
                         ${order.items.map(item => `
@@ -350,7 +358,8 @@
                         `).join('')}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         let lastOrderIds = new Set();
@@ -369,15 +378,31 @@
             lastOrderIds = newIds;
         }
 
+        window.startCooking = async (orderId) => {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('kitchen_orders').update({ status: 'cooking' }).eq('id', orderId);
+                if (error) throw error;
+                order.status = 'cooking';
+                renderOrders();
+                showToast(`🔥 Đang nấu đơn ${order.table_name}`, false);
+            } catch (err) {
+                console.warn(err);
+                showToast('Lỗi cập nhật đơn hàng', true);
+            } finally {
+                showLoading(false);
+            }
+        };
+
         window.completeOrder = async (orderId) => {
             const order = orders.find(o => o.id === orderId);
             if (!order) return;
             showLoading(true);
             try {
-                // Nếu đang dùng Supabase thật và có bảng kitchen_orders, cập nhật status
-                if (realtimeChannel && (await supabase.from('kitchen_orders').select('id').limit(1)).data) {
-                    await supabase.from('kitchen_orders').update({ status: 'completed' }).eq('id', orderId);
-                }
+                const { error } = await supabase.from('kitchen_orders').update({ status: 'completed' }).eq('id', orderId);
+                if (error) throw error;
                 orders = orders.filter(o => o.id !== orderId);
                 renderOrders();
                 checkNewOrders(orders);
@@ -390,44 +415,25 @@
             }
         };
 
-        // Demo thêm đơn hàng mới (fallback khi không có realtime)
-        function demoAddOrder() {
-            const newOrder = {
-                id: orderIdCounter++,
-                table_name: `Bàn ${Math.floor(Math.random() * 10) + 1}`,
-                items: [
-                    { name: 'Món mới ' + Math.floor(Math.random() * 100), qty: Math.floor(Math.random() * 3) + 1 }
-                ],
-                created_at: new Date().toISOString(),
-                status: 'pending'
-            };
-            orders.unshift(newOrder);
-            renderOrders();
-            checkNewOrders(orders);
-        }
-
         // Kết nối Supabase realtime (nếu bảng kitchen_orders tồn tại)
         async function connectRealtime() {
             try {
                 // Kiểm tra bảng có tồn tại không
                 const { error } = await supabase.from('kitchen_orders').select('id', { count: 'exact', head: true });
                 if (error) {
-                    console.log('Chưa có bảng kitchen_orders, dùng dữ liệu mẫu + mô phỏng realtime');
-                    // Mô phỏng realtime
-                    setInterval(() => {
-                        if (Math.random() < 0.3) demoAddOrder();
-                    }, 15000);
+                    console.log('Chưa có bảng kitchen_orders — màn hình bếp sẽ trống cho tới khi có đơn thật.');
                     return;
                 }
-                // Lấy dữ liệu ban đầu
+                // Lấy dữ liệu ban đầu — cả đơn đang chờ và đang nấu đều phải hiện trên màn hình bếp
                 const { data, error: fetchError } = await supabase
                     .from('kitchen_orders')
                     .select('*')
-                    .eq('status', 'pending')
+                    .in('status', ['pending', 'cooking'])
                     .order('created_at', { ascending: true });
                 if (!fetchError && data && data.length) {
                     orders = data.map(o => ({
                         id: o.id,
+                        table_id: o.table_id,
                         table_name: o.table_name,
                         items: o.items,
                         created_at: o.created_at,
@@ -444,6 +450,7 @@
                         if (newOrder.status === 'pending') {
                             orders.unshift({
                                 id: newOrder.id,
+                                table_id: newOrder.table_id,
                                 table_name: newOrder.table_name,
                                 items: newOrder.items,
                                 created_at: newOrder.created_at,
@@ -453,18 +460,32 @@
                             checkNewOrders(orders);
                         }
                     })
-                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kitchen_orders', filter: 'status=eq.completed' }, (payload) => {
-                        const completedId = payload.new.id;
-                        orders = orders.filter(o => o.id !== completedId);
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kitchen_orders' }, (payload) => {
+                        const updated = payload.new;
+                        if (updated.status === 'completed') {
+                            // Đơn xong ở nơi khác (vd: bếp dùng 2 màn hình) -> gỡ khỏi danh sách ở đây luôn
+                            orders = orders.filter(o => o.id !== updated.id);
+                        } else {
+                            const existing = orders.find(o => o.id === updated.id);
+                            if (existing) {
+                                existing.status = updated.status;
+                            } else if (updated.status === 'pending' || updated.status === 'cooking') {
+                                orders.push({
+                                    id: updated.id,
+                                    table_id: updated.table_id,
+                                    table_name: updated.table_name,
+                                    items: updated.items,
+                                    created_at: updated.created_at,
+                                    status: updated.status
+                                });
+                            }
+                        }
                         renderOrders();
                         checkNewOrders(orders);
                     })
                     .subscribe();
             } catch (err) {
-                console.warn('Không thể kết nối Supabase realtime, dùng demo mode', err);
-                setInterval(() => {
-                    if (Math.random() < 0.3) demoAddOrder();
-                }, 15000);
+                console.warn('Không thể kết nối Supabase realtime, màn hình bếp sẽ không tự cập nhật.', err);
             }
         }
 

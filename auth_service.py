@@ -33,10 +33,6 @@ class AuthService:
         """Verifies license code validity in Supabase or SQLite."""
         if not license_key:
             return False, "Vui lòng nhập mã kích hoạt!"
-        
-        # Test bypass
-        if license_key.endswith("-TEST"):
-            return True, "Mã kích hoạt hợp lệ (Test)."
 
         if SUPABASE_STATUS == "CONNECTED":
             try:

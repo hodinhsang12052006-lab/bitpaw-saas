@@ -6,10 +6,6 @@ class ModuleLoader:
         """Verifies if the tenant has access to a specific SaaS module."""
         if not business_id or not module_code:
             return False
-            
-        # Test bypass
-        if business_id.startswith("mock-"):
-            return True
 
         if SUPABASE_STATUS == "CONNECTED":
             try:

@@ -998,13 +998,10 @@
                         <option value="${c.id}">${c.name} (${c.phone || 'Không có SĐT'}) - Phân khúc: ${c.status}</option>
                     `).join('');
                 } else {
-                    select.innerHTML = `
-                        <option value="">Sếp Hồ Đình Sang (0794678904) - VIP</option>
-                        <option value="">Nguyễn Thị Ngọc (0912345678) - Lead Nóng</option>
-                    `;
+                    select.innerHTML = '<option value="">Chưa có khách hàng nào</option>';
                 }
             } catch (err) {
-                select.innerHTML = '<option value="">Sếp Hồ Đình Sang (0794678904) - VIP</option>';
+                select.innerHTML = '<option value="">Không tải được danh sách khách hàng</option>';
             }
         }
 

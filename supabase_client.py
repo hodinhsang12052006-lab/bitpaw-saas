@@ -49,8 +49,8 @@ def load_env_file():
 # Initialize environment variables
 load_env_file()
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iojtglaxgdwsxxalhubx.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
 supabase = None

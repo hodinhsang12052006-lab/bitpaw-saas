@@ -528,27 +528,29 @@
         });
 
         const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) {
-                showToastMessage('Vui lòng nhập đầy đủ thông tin', true);
-                return;
-            }
-            showLoading(true);
-            try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToastMessage('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
-                supportForm.reset();
-            } catch(err) {
-                showToastMessage('Lỗi: ' + err.message, true);
-            } finally {
-                showLoading(false);
-            }
-        });
+        if (supportForm) {
+            supportForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('supportName').value;
+                const phone = document.getElementById('supportPhone').value;
+                const message = document.getElementById('supportMessage').value;
+                if (!name || !phone || !message) {
+                    showToastMessage('Vui lòng nhập đầy đủ thông tin', true);
+                    return;
+                }
+                showLoading(true);
+                try {
+                    const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                    if (error) throw error;
+                    showToastMessage('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                    supportForm.reset();
+                } catch(err) {
+                    showToastMessage('Lỗi: ' + err.message, true);
+                } finally {
+                    showLoading(false);
+                }
+            });
+        }
 
         // Khởi tạo
         supabaseReady.then(() => { loadProduct(); });

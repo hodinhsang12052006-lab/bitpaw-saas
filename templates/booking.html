@@ -296,6 +296,12 @@
         let globalMenuData = [];
         // business_id của tiệm (spa_id trong QR chính là business_id) — dùng để lọc/gắn đúng tenant, chặn lộ chéo dữ liệu
         const bookingBusinessId = {{ (spa_id or '') | tojson }};
+        // AI CSKH widget đọc window.BITPAW_BUSINESS_ID để cá nhân hoá đúng tenant — trang
+        // này không có session đăng nhập (khách quét QR ẩn danh) nên phải set thủ công.
+        // Gán ngay tại đây (không phải ở <script> khác phía cuối file) — biến const khai
+        // báo trong 1 thẻ <script> không chắc lúc nào cũng thấy được từ thẻ <script> khác;
+        // gán vào window.* thì luôn là global thật.
+        window.BITPAW_BUSINESS_ID = bookingBusinessId || null;
 
         window.onload = () => {
             init3DBackground();
