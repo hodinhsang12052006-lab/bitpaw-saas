@@ -268,16 +268,16 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <h1 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-pink-400">Paw</span></h1>
+                    <h2 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-pink-400">Paw</span></h2>
                     <span class="mt-1 w-fit text-xs font-semibold tracking-wide text-pink-300 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 whitespace-nowrap">Nails</span>
                 </div>
             </div>
-            
+
             <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
-                <a href="#promise" class="hover:text-pink-400 transition-colors whitespace-nowrap">Giải Pháp</a>
-                <a href="#features" class="hover:text-pink-400 transition-colors whitespace-nowrap">Tính Năng</a>
+                <a href="#promise" class="hover:text-pink-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
+                <a href="#features" class="hover:text-pink-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-pink-400 transition-colors whitespace-nowrap">AI CSKH</a>
-                <a href="#calculator" class="hover:text-pink-400 transition-colors whitespace-nowrap">Bảng Giá</a>
+                <a href="#calculator" class="hover:text-pink-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -291,11 +291,11 @@
                         <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-pink-500/20 hover:text-pink-400 transition"><span class="text-lg">🇬🇧</span> English</a>
                     </div>
                 </div>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] whitespace-nowrap">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_register">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-pink-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-pink-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -303,22 +303,22 @@
     <div id="mobile-menu" class="fixed inset-y-0 right-0 w-72 bg-[#08061a]/95 backdrop-blur-3xl border-l border-white/10 z-[100] shadow-2xl flex flex-col p-6 overflow-y-auto lg:hidden">
         <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
             <h2 class="text-xl font-black tracking-widest text-white">Menu</h2>
-            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-pink-400" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
+            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-pink-400" aria-label="Close menu"><i class="fas fa-times"></i></button>
         </div>
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
-            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors">Giải Pháp</a>
-            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors">Tính Năng</a>
+            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors">AI CSKH</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors">Bảng Giá</a>
+            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-pink-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
-                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <span class="text-sm text-gray-400" data-i18n="nav_lang_label">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
                 <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
             </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-pink-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_register">Dùng Thử Miễn Phí</span>
                 </a>
             </div>
         </nav>
@@ -719,8 +719,8 @@
                                 <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">06</div>
                                 <div class="text-pink-400 text-2xl"><i class="fas fa-file-invoice-dollar"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">POS tính bill</h4>
-                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf6_title">POS tính bill</h4>
+                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="wf6_desc">
                                 Tính dịch vụ, tips, supply, phí thẻ và tiền thợ rõ ràng.
                             </p>
                         </div>
@@ -741,8 +741,8 @@
                                 <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">07</div>
                                 <div class="text-pink-400 text-2xl"><i class="fas fa-user-tag"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">CRM lưu hồ sơ</h4>
-                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf7_title">CRM lưu hồ sơ</h4>
+                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="wf7_desc">
                                 Lưu lịch sử làm móng, thói quen và chu kỳ quay lại của từng khách.
                             </p>
                         </div>
@@ -763,8 +763,8 @@
                                 <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(236,72,153,0.3)]">08</div>
                                 <div class="text-pink-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">AI nhắc khách cũ</h4>
-                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf8_title">AI nhắc khách cũ</h4>
+                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="wf8_desc">
                                 Gợi ý tin nhắn chăm sóc để kéo khách quay lại đúng thời điểm.
                             </p>
                         </div>
@@ -778,11 +778,11 @@
     <section id="features" class="py-16 md:py-24 relative z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-pink-500 uppercase">HỆ THỐNG THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-pink-500 uppercase" data-i18n="features_eyebrow">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="features_title">
                     Các tính năng lõi <span class="text-gradient-pink drop-shadow-[0_2px_10px_rgba(236,72,153,0.3)]">chuyên sâu tiệm Nails</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="features_desc">
                     Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp bạn số hóa tiệm Nails trơn tru:
                 </p>
             </div>
@@ -801,13 +801,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Booking</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">Booking thông minh</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat1_title">Booking thông minh</h4>
                             <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
-                                Khách tự đặt lịch trực tuyến qua <a href="{{ url_for('public_booking') }}" class="text-pink-400 hover:underline font-bold">Cổng đặt lịch online</a>. Tự động khóa lịch khi thợ bận hoặc giường dịch vụ đã hết chỗ.
+                                <span data-i18n="feat1_desc_1">Khách tự đặt lịch trực tuyến qua</span> <a href="{{ url_for('public_booking') }}" class="text-pink-400 hover:underline font-bold" data-i18n="feat1_link">Cổng đặt lịch online</a>. <span data-i18n="feat1_desc_2">Tự động khóa lịch khi thợ bận hoặc giường dịch vụ đã hết chỗ.</span>
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat_cta_label">Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -823,15 +823,15 @@
                                 <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 text-2xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:scale-110 group-hover:text-cyan-300 transition-all duration-300">
                                     <i class="fas fa-users-cog"></i>
                                 </div>
-                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Tua thợ</span>
+                                <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm" data-i18n="feat2_tag">Tua thợ</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Chia tua thợ công bằng</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat2_title">Chia tua thợ công bằng</h4>
                             <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
-                                Chủ tiệm theo dõi trực quan trạng thái thợ rảnh/bận ngay tại <a href="{{ url_for('chamcong_industry', industry_code='nail') }}" class="text-pink-400 hover:underline font-bold">Bảng xoay tua & tính lương thợ</a> để phân việc xoay tua công bằng.
+                                <span data-i18n="feat2_desc_1">Chủ tiệm theo dõi trực quan trạng thái thợ rảnh/bận ngay tại</span> <a href="{{ url_for('chamcong_industry', industry_code='nail') }}" class="text-pink-400 hover:underline font-bold" data-i18n="feat2_link">Bảng xoay tua & tính lương thợ</a> <span data-i18n="feat2_desc_2">để phân việc xoay tua công bằng.</span>
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat_cta_label">Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -849,13 +849,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">POS</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">POS tính bill & tips</h4>
-                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat3_title">POS tính bill & tips</h4>
+                            <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="feat3_desc">
                                 Tính tiền móng, phụ phí đá/gel nhanh gọn. Bóc tách tiền tua thợ nhận, tiền tip mặt, tip thẻ trừ phí quẹt cà thẻ minh bạch.
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat_cta_label">Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -873,13 +873,13 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Supply</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Khấu trừ hoa hồng / supply</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat4_title">Khấu trừ hoa hồng / supply</h4>
                             <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words">
-                                Tự động trừ phí phụ liệu (Supply) thợ dùng ngay trên từng bill làm móng tại màn hình <a href="{{ url_for('staff_list') }}" class="text-pink-400 hover:underline font-bold">Quản lý thợ & hoa hồng</a>.
+                                <span data-i18n="feat4_desc_1">Tự động trừ phí phụ liệu (Supply) thợ dùng ngay trên từng bill làm móng tại màn hình</span> <a href="{{ url_for('staff_list') }}" class="text-pink-400 hover:underline font-bold" data-i18n="feat4_link">Quản lý thợ & hoa hồng</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat_cta_label">Dùng trong tiệm Nail</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -1816,7 +1816,37 @@
                 wf4_title: 'QR Menu / Check-in',
                 wf4_desc: 'Khách quét QR xem dịch vụ, chọn gói nâng cấp hoặc check-in.',
                 wf5_title: 'Chia tua thợ',
-                wf5_desc: 'Chủ tiệm thấy ai rảnh, ai đang làm, tua nào tới lượt.'
+                wf5_desc: 'Chủ tiệm thấy ai rảnh, ai đang làm, tua nào tới lượt.',
+                feat1_title: 'Booking thông minh',
+                feat1_desc_1: 'Khách tự đặt lịch trực tuyến qua',
+                feat1_desc_2: 'Tự động khóa lịch khi thợ bận hoặc giường dịch vụ đã hết chỗ.',
+                feat1_link: 'Cổng đặt lịch online',
+                feat2_title: 'Chia tua thợ công bằng',
+                feat2_tag: 'Tua thợ',
+                feat2_desc_1: 'Chủ tiệm theo dõi trực quan trạng thái thợ rảnh/bận ngay tại',
+                feat2_desc_2: 'để phân việc xoay tua công bằng.',
+                feat2_link: 'Bảng xoay tua & tính lương thợ',
+                feat3_title: 'POS tính bill & tips',
+                feat3_desc: 'Tính tiền móng, phụ phí đá/gel nhanh gọn. Bóc tách tiền tua thợ nhận, tiền tip mặt, tip thẻ trừ phí quẹt cà thẻ minh bạch.',
+                feat4_title: 'Khấu trừ hoa hồng / supply',
+                feat4_desc_1: 'Tự động trừ phí phụ liệu (Supply) thợ dùng ngay trên từng bill làm móng tại màn hình',
+                feat4_link: 'Quản lý thợ & hoa hồng',
+                feat_cta_label: 'Dùng trong tiệm Nail',
+                features_desc: 'Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp bạn số hóa tiệm Nails trơn tru:',
+                features_eyebrow: 'HỆ THỐNG THỰC TẾ',
+                features_title: 'Các tính năng lõi',
+                nav_features: 'Tính Năng',
+                nav_lang_label: 'Ngôn ngữ:',
+                nav_login: 'Đăng Nhập',
+                nav_pricing: 'Bảng Giá',
+                nav_register: 'Dùng Thử Miễn Phí',
+                nav_solutions: 'Giải Pháp',
+                wf6_title: 'POS tính bill',
+                wf6_desc: 'Tính dịch vụ, tips, supply, phí thẻ và tiền thợ rõ ràng.',
+                wf7_title: 'CRM lưu hồ sơ',
+                wf7_desc: 'Lưu lịch sử làm móng, thói quen và chu kỳ quay lại của từng khách.',
+                wf8_title: 'AI nhắc khách cũ',
+                wf8_desc: 'Gợi ý tin nhắn chăm sóc để kéo khách quay lại đúng thời điểm.',
             },
             en: {
                 hero_badge: '💅 BitPaw OS: Professional Nail Salon Operations Management',
@@ -1878,7 +1908,37 @@
                 wf4_title: 'QR Menu / Check-in',
                 wf4_desc: 'Customer scans a QR to view services, choose an upgrade package, or check in.',
                 wf5_title: 'Turn Rotation',
-                wf5_desc: 'The owner sees who\'s free, who\'s working, and whose turn is next.'
+                wf5_desc: 'The owner sees who\'s free, who\'s working, and whose turn is next.',
+                feat1_title: 'Smart Booking',
+                feat1_desc_1: 'Customers book appointments online themselves via the',
+                feat1_desc_2: 'Automatically locks the schedule when technicians are busy or treatment beds are fully booked.',
+                feat1_link: 'Online Booking Portal',
+                feat2_title: 'Fair Technician Rotation',
+                feat2_tag: 'Technician Rotation',
+                feat2_desc_1: 'Salon owners visually track which technicians are free or busy right on the',
+                feat2_desc_2: 'to assign work fairly in rotation.',
+                feat2_link: 'Rotation Board & Technician Payroll',
+                feat3_title: 'POS Billing & Tips',
+                feat3_desc: 'Quickly calculates nail service costs plus gel/rhinestone add-ons. Transparently breaks down technician rotation earnings, cash tips, and card tips minus card processing fees.',
+                feat4_title: 'Commission / Supply Deduction',
+                feat4_desc_1: 'Automatically deducts supply costs used by technicians directly from each nail service bill on the',
+                feat4_link: 'Staff & Commission Management',
+                feat_cta_label: 'Used in Nail Salons',
+                features_desc: 'All the features below are fully integrated into the system, helping you digitize your nail salon seamlessly:',
+                features_eyebrow: 'REAL-WORLD SYSTEM',
+                features_title: 'Core Features',
+                nav_features: 'Features',
+                nav_lang_label: 'Language:',
+                nav_login: 'Login',
+                nav_pricing: 'Pricing',
+                nav_register: 'Free Trial',
+                nav_solutions: 'Solutions',
+                wf6_title: 'POS Billing',
+                wf6_desc: 'Clearly calculates services, tips, supply costs, card fees, and technician pay.',
+                wf7_title: 'CRM Client Records',
+                wf7_desc: 'Stores each client\'s service history, preferences, and return visit cycle.',
+                wf8_title: 'AI Win-Back Reminders',
+                wf8_desc: 'Suggests personalized outreach messages to bring past clients back at the right time.',
             }
         };
 

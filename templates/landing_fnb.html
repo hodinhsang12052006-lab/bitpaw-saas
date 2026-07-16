@@ -242,16 +242,16 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <h1 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-orange-400">Paw</span></h1>
+                    <h2 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-orange-400">Paw</span></h2>
                     <span class="mt-1 w-fit text-xs font-semibold tracking-wide text-orange-300 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 whitespace-nowrap">F&B</span>
                 </div>
             </div>
             
             <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
-                <a href="#promise" class="hover:text-orange-400 transition-colors whitespace-nowrap">Giải Pháp</a>
-                <a href="#features" class="hover:text-orange-400 transition-colors whitespace-nowrap">Tính Năng</a>
+                <a href="#promise" class="hover:text-orange-400 transition-colors whitespace-nowrap" data-i18n="nav_solution">Giải Pháp</a>
+                <a href="#features" class="hover:text-orange-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-orange-400 transition-colors whitespace-nowrap">AI CSKH</a>
-                <a href="#calculator" class="hover:text-orange-400 transition-colors whitespace-nowrap">Bảng Giá</a>
+                <a href="#calculator" class="hover:text-orange-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -265,34 +265,34 @@
                         <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-orange-500/20 hover:text-orange-400 transition"><span class="text-lg">🇬🇧</span> English</a>
                     </div>
                 </div>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.3)] whitespace-nowrap">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-orange-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-orange-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
 
     <div id="mobile-menu" class="fixed inset-y-0 right-0 w-72 bg-[#08061a]/95 backdrop-blur-3xl border-l border-white/10 z-[100] shadow-2xl flex flex-col p-6 overflow-y-auto lg:hidden">
         <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-            <h2 class="text-xl font-black tracking-widest text-white">Menu</h2>
-            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-orange-400" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
+            <h2 class="text-xl font-black tracking-widest text-white" data-i18n="mobile_menu_title">Menu</h2>
+            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-orange-400" aria-label="Close menu"><i class="fas fa-times"></i></button>
         </div>
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
-            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">Giải Pháp</a>
-            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">Tính Năng</a>
+            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors" data-i18n="nav_solution">Giải Pháp</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">AI CSKH</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors">Bảng Giá</a>
+            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-orange-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
-                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <span class="text-sm text-gray-400" data-i18n="mobile_menu_lang">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
                 <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
             </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
             </div>
         </nav>
@@ -356,7 +356,7 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-orange-500/30 p-4 rounded-2xl shadow-2xl hover:border-orange-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-orange 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Bàn Đặt Hôm Nay</h4>
+                            <p class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Bàn Đặt Hôm Nay</p>
                         </div>
                         <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_detail">Bàn VIP 04 - 6 Khách</p>
                         <p class="text-xs text-orange-300 font-bold mt-1" data-i18n="hero_card1_meta">Chị Linh • 19:00 • Đã đến</p>
@@ -365,7 +365,7 @@
                     <!-- 2. Bếp KDS card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-yellow-500/30 p-4 rounded-2xl shadow-2xl hover:border-yellow-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-orange 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-desktop text-yellow-400"></i> <span data-i18n="hero_card2_title">Bếp KDS</span></h4>
+                            <p class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-desktop text-yellow-400"></i> <span data-i18n="hero_card2_title">Bếp KDS</span></p>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
                         <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_item">Sườn Nướng BBQ x1</p>
@@ -512,36 +512,36 @@
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-600/[0.04] rounded-full blur-[160px] pointer-events-none"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div data-aos="zoom-in">
-                <span class="text-sm font-black tracking-widest text-orange-400 uppercase">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words">
+                <span class="text-sm font-black tracking-widest text-orange-400 uppercase" data-i18n="promise_eyebrow">SỰ KHÁC BIỆT CỦA BITPAW OS</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words" data-i18n="promise_title">
                     Biến nhà hàng, cafe thành cỗ máy vận hành <br>
                     <span class="text-gradient-orange">siêu tốc, kiểm soát kho bãi chặt chẽ.</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed font-medium break-words" data-i18n="promise_desc">
                     BitPaw số hóa và đồng bộ toàn bộ luồng công việc từ lúc khách bước vào quán cho đến lúc thanh toán ra về, mang lại sự tối giản và chuẩn xác tuyệt đối.
                 </p>
             </div>
-            
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-orange-500/20 transition-all duration-300">
                     <div class="text-orange-500 text-5xl mb-5"><i class="fas fa-qrcode"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Gọi món QR tại bàn</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Khách tự chọn món trên điện thoại bằng QR Menu. Phục vụ không mất thời gian đứng chờ order.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise1_title">Gọi món QR tại bàn</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise1_desc">Khách tự chọn món trên điện thoại bằng QR Menu. Phục vụ không mất thời gian đứng chờ order.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-yellow-500/20 transition-all duration-300">
                     <div class="text-yellow-400 text-5xl mb-5"><i class="fas fa-desktop"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Bếp KDS Realtime</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Nhà bếp hiển thị danh sách order sinh động theo thời gian thực. Làm xong nhấn báo ra món.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise2_title">Bếp KDS Realtime</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise2_desc">Nhà bếp hiển thị danh sách order sinh động theo thời gian thực. Làm xong nhấn báo ra món.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-orange-500/20 transition-all duration-300">
                     <div class="text-orange-400 text-5xl mb-5"><i class="fas fa-boxes"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Trừ kho tự động</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Hệ thống tự động trừ kho nguyên liệu thô theo định lượng chốt trên từng bill bán hàng.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise3_title">Trừ kho tự động</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise3_desc">Hệ thống tự động trừ kho nguyên liệu thô theo định lượng chốt trên từng bill bán hàng.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-yellow-500/20 transition-all duration-300">
                     <div class="text-yellow-400 text-5xl mb-5"><i class="fas fa-chart-pie"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight">Báo cáo realtime</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">Báo cáo doanh số, tỷ trọng món ăn, lãi gộp tức thời giúp sếp tối ưu menu dễ dàng.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise4_title">Báo cáo realtime</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="promise4_desc">Báo cáo doanh số, tỷ trọng món ăn, lãi gộp tức thời giúp sếp tối ưu menu dễ dàng.</p>
                 </div>
             </div>
         </div>
@@ -551,11 +551,11 @@
     <section id="workflow" class="py-24 lg:py-32 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-orange-500 uppercase">LUỒNG VẬN HÀNH THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-i18n="workflow_eyebrow">LUỒNG VẬN HÀNH THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="workflow_title">
                     Hành trình gọi món & phục vụ <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">tự động khép kín</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="workflow_desc">
                     Bản đồ quy trình số hóa toàn bộ trải nghiệm ăn uống của khách và kiểm soát nhà bếp, tài chính của sếp:
                 </p>
             </div>
@@ -570,8 +570,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">01</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-chair"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Khách vào bàn</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step1_title">Khách vào bàn</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step1_desc">
                                 Khách ngồi vào bàn ăn và quét mã QR Code tĩnh đã đặt sẵn tại bàn.
                             </p>
                         </div>
@@ -590,8 +590,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">02</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-qrcode"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">QR Order gọi món</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step2_title">QR Order gọi món</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step2_desc">
                                 Khách tự duyệt menu điện tử, chọn món, chọn tùy chỉnh đá/đường và bấm gửi.
                             </p>
                         </div>
@@ -610,8 +610,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">03</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-desktop"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Bếp KDS nhận món</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step3_title">Bếp KDS nhận món</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step3_desc">
                                 Order được đẩy thẳng xuống màn hình bếp KDS theo thời gian thực để làm món.
                             </p>
                         </div>
@@ -630,8 +630,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">04</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-bell"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Bếp báo hoàn thành</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step4_title">Bếp báo hoàn thành</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step4_desc">
                                 Đầu bếp làm món xong nhấn xác nhận, hệ thống lập tức thông báo phục vụ mang ra.
                             </p>
                         </div>
@@ -650,8 +650,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">05</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-utensils"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Phục vụ ra món</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step5_title">Phục vụ ra món</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step5_desc">
                                 Nhân viên bưng bê đúng bàn, đúng số món được đồng bộ trên sơ đồ.
                             </p>
                         </div>
@@ -670,8 +670,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">06</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-file-invoice-dollar"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Smart POS in bill</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step6_title">Smart POS in bill</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step6_desc">
                                 POS tự động chốt bill, sinh mã QR chuyển khoản động ngân hàng của quán.
                             </p>
                         </div>
@@ -690,8 +690,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">07</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-cubes"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">Tự động trừ kho</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step7_title">Tự động trừ kho</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step7_desc">
                                 Hệ thống tự động trừ kho nguyên liệu thực tế theo tỷ lệ định lượng món ăn.
                             </p>
                         </div>
@@ -710,8 +710,8 @@
                                 <div class="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(249,115,22,0.3)]">08</div>
                                 <div class="text-orange-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight">AI kéo khách cũ</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="step8_title">AI kéo khách cũ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="step8_desc">
                                 AI phân tích tần suất, tự động gửi Zalo gợi ý món mới, combo kéo khách quay lại.
                             </p>
                         </div>
@@ -725,11 +725,11 @@
     <section id="features" class="py-16 md:py-24 relative z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-orange-500 uppercase">HỆ THỐNG THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-i18n="features_eyebrow">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="features_title">
                     Các tính năng lõi <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">chuyên sâu nhà hàng, cafe</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="features_desc">
                     Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp số hóa quán ăn trơn tru:
                 </p>
             </div>
@@ -747,13 +747,13 @@
                                 </div>
                                 <span class="text-xs font-black text-orange-400 bg-orange-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-orange-500/20 shadow-sm">QR Order</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight">QR Gọi Món Tại Bàn</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight" data-i18n="feature1_title">QR Gọi Món Tại Bàn</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature1_desc">
                                 Khách tự quét mã QR chọn món trực tiếp trên điện thoại tại <a href="{{ url_for('qr_menu_base') }}" class="text-orange-400 hover:underline font-bold">QR Menu dịch vụ</a>, tự gọi món và yêu cầu thanh toán dễ dàng.
                             </p>
                         </div>
                         <div class="text-sm font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong nhà hàng</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature1_cta">Dùng trong nhà hàng</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -770,13 +770,13 @@
                                 </div>
                                 <span class="text-xs font-black text-yellow-400 bg-yellow-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-yellow-500/20 shadow-sm">Bếp KDS</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight">Màn Hình Bếp KDS</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight" data-i18n="feature2_title">Màn Hình Bếp KDS</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature2_desc">
                                 Đầu bếp xem chi tiết món ăn cần làm, gộp số lượng món chế biến và chốt trạng thái realtime tại màn hình chuyên nghiệp <a href="{{ url_for('kitchen_display') }}" class="text-orange-400 hover:underline font-bold">Màn hình bếp KDS</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong nhà bếp</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature2_cta">Dùng trong nhà bếp</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -793,13 +793,13 @@
                                 </div>
                                 <span class="text-xs font-black text-orange-400 bg-orange-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-orange-500/20 shadow-sm">Tablet Order</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight">Gọi Món Di Động</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight" data-i18n="feature3_title">Gọi Món Di Động</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature3_desc">
                                 Nhân viên phục vụ đứng gọi món di động qua điện thoại/máy tính bảng cho khách cực kỳ tiện lợi ngay trên <a href="{{ url_for('table_order') }}" class="text-orange-400 hover:underline font-bold">Bảng gọi món di động</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng cho nhân viên</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature3_cta">Dùng cho nhân viên</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -816,13 +816,13 @@
                                 </div>
                                 <span class="text-xs font-black text-yellow-400 bg-yellow-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-yellow-500/20 shadow-sm">Thu ngân POS</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight">POS Thu Ngân Siêu Tốc</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight" data-i18n="feature4_title">POS Thu Ngân Siêu Tốc</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature4_desc">
                                 In bill nhiệt siêu tốc, treo bill theo bàn, áp mã giảm giá và tạo mã QR Code ngân hàng chuyển khoản động cực kỳ bảo mật ngay tại <a href="{{ url_for('pos') }}" class="text-orange-400 hover:underline font-bold">POS tính tiền</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng tại quầy thu ngân</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature4_cta">Dùng tại quầy thu ngân</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -839,13 +839,13 @@
                                 </div>
                                 <span class="text-xs font-black text-orange-400 bg-orange-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-orange-500/20 shadow-sm">Kho hàng</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight">Định Lượng Kho Vật Tư</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight" data-i18n="feature5_title">Định Lượng Kho Vật Tư</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature5_desc">
                                 Quản lý xuất nhập tồn kho nguyên vật liệu, định lượng tự động trừ kho bột làm bánh, hạt cafe, sữa tươi trên từng món bán ra ở <a href="{{ url_for('quanly_kho') }}" class="text-orange-400 hover:underline font-bold">Báo cáo kho tự động</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng quản lý kho bãi</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature5_cta">Dùng quản lý kho bãi</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -862,13 +862,13 @@
                                 </div>
                                 <span class="text-xs font-black text-yellow-400 bg-yellow-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-yellow-500/20 shadow-sm">Nhân sự</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight">Vận Hành Nhân Sự</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight" data-i18n="feature6_title">Vận Hành Nhân Sự</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature6_desc">
                                 Quản lý ca làm việc, chấm công GPS định vị bảo mật cao, theo dõi đi trễ về sớm của đội ngũ nhân viên phục vụ, thu ngân, nhà bếp tại <a href="{{ url_for('chamcong_fnb') }}" class="text-orange-400 hover:underline font-bold">Bảng vận hành nhân sự</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng quản lý nhân sự</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature6_cta">Dùng quản lý nhân sự</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -885,13 +885,13 @@
                                 </div>
                                 <span class="text-xs font-black text-orange-400 bg-orange-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-orange-500/20 shadow-sm">Doanh thu</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight">Báo Cáo Doanh Thu Realtime</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight" data-i18n="feature7_title">Báo Cáo Doanh Thu Realtime</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature7_desc">
                                 Biểu đồ doanh thu tổng, thống kê lợi nhuận ròng, tỷ trọng các nhóm món ăn bán chạy nhất hỗ trợ chốt kế hoạch kinh doanh trực quan tại <a href="{{ url_for('baocao_loinhuan') }}" class="text-orange-400 hover:underline font-bold">Báo cáo doanh thu realtime</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng cho sếp quản lý</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature7_cta">Dùng cho sếp quản lý</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -908,13 +908,13 @@
                                 </div>
                                 <span class="text-xs font-black text-yellow-400 bg-yellow-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-yellow-500/20 shadow-sm">AI CRM</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight">Hồ Sơ Khách Hàng CRM & AI</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-yellow-400 transition-colors tracking-tight" data-i18n="feature8_title">Hồ Sơ Khách Hàng CRM & AI</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature8_desc">
                                 Hệ thống tự động ghi nhớ thói quen, lịch sử món ăn của từng khách hàng, AI tự động thiết lập và gợi ý các kịch bản tin nhắn kéo khách tại <a href="{{ url_for('campaign_builder') }}" class="text-orange-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng chăm sóc khách quen</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feature8_cta">Dùng chăm sóc khách quen</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -927,10 +927,10 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
                 <span class="text-sm font-black tracking-widest text-orange-500 uppercase">Interactive Demo</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-8 tracking-tight leading-tight break-words">
+                <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-8 tracking-tight leading-tight break-words" data-i18n="calc_title">
                     Tính toán hóa đơn bàn ăn <span class="text-gradient-orange">siêu tốc trong 3 giây</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="calc_desc">
                     Cuối giờ không lo nhập thủ công, nhầm tiền thừa hay sai thuế/phí dịch vụ. Hãy điền thử hóa đơn mẫu của nhà hàng/cafe để trải nghiệm Smart POS:
                 </p>
             </div>
@@ -939,57 +939,57 @@
                 <!-- Calculator Inputs -->
                 <div class="lg:col-span-7 glass border border-white/10 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-xl" data-aos="fade-right">
                     <div>
-                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-orange-500"></i> Nhập giá trị bill mẫu</h3>
-                        
+                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-orange-500"></i> <span data-i18n="calc_form_title">Nhập giá trị bill mẫu</span></h3>
+
                         <div class="space-y-5">
                             <!-- Chọn món nhanh -->
                             <div>
-                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">Chọn Combo Món Ăn Nhanh</label>
+                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_combo">Chọn Combo Món Ăn Nhanh</label>
                                 <select id="quick_service" class="calc-input w-full p-4 font-semibold text-base bg-[#08061a] border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
-                                    <option value="combo_family">Combo Gia Đình VIP (Món chính, lẩu nướng, nước - 650.000 ₫)</option>
-                                    <option value="combo_lunch">Combo Trưa Văn Phòng (2 người ăn - 150.000 ₫)</option>
-                                    <option value="combo_cafe">Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - 120.000 ₫)</option>
-                                    <option value="custom">Tự nhập tay giá trị hóa đơn bên dưới...</option>
+                                    <option value="combo_family" data-i18n="calc_opt_family">Combo Gia Đình VIP (Món chính, lẩu nướng, nước - 650.000 ₫)</option>
+                                    <option value="combo_lunch" data-i18n="calc_opt_lunch">Combo Trưa Văn Phòng (2 người ăn - 150.000 ₫)</option>
+                                    <option value="combo_cafe" data-i18n="calc_opt_cafe">Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - 120.000 ₫)</option>
+                                    <option value="custom" data-i18n="calc_opt_custom">Tự nhập tay giá trị hóa đơn bên dưới...</option>
                                 </select>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">1. Tổng Tiền Món Ăn (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_total">1. Tổng Tiền Món Ăn (₫)</label>
                                     <input type="number" id="calc_total" value="650000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">2. Giảm Giá Khuyến Mãi (%)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_discount">2. Giảm Giá Khuyến Mãi (%)</label>
                                     <input type="number" id="calc_discount" value="10" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">3. Phí Dịch Vụ / Setup (%)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_service">3. Phí Dịch Vụ / Setup (%)</label>
                                     <input type="number" id="calc_service" value="5" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">4. Thuế VAT (%)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_vat">4. Thuế VAT (%)</label>
                                     <input type="number" id="calc_vat" value="8" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">5. Tiền Tip Phục Vụ (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_tip">5. Tiền Tip Phục Vụ (₫)</label>
                                     <input type="number" id="calc_tip" value="50000" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">6. Khách Đưa (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_cash">6. Khách Đưa (₫)</label>
                                     <input type="number" id="calc_cash_given" value="1000000" class="calc-input w-full p-4 font-mono text-base font-bold text-yellow-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mt-8 pt-4 border-t border-white/5 flex gap-2">
-                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-orange-500 text-base animate-pulse"></i> In hóa đơn nhiệt tích hợp QR Code ngân hàng động giúp khách chuyển khoản cực nhanh, hạn chế thất thoát.</span>
+                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-orange-500 text-base animate-pulse"></i> <span data-i18n="calc_note">In hóa đơn nhiệt tích hợp QR Code ngân hàng động giúp khách chuyển khoản cực nhanh, hạn chế thất thoát.</span></span>
                     </div>
                 </div>
                 
@@ -999,31 +999,31 @@
                         <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-orange-500 to-yellow-600"></div>
                         
                         <div>
-                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-orange-500"></i> Hóa đơn thanh toán bàn ăn</h3>
-                            
+                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-orange-500"></i> <span data-i18n="receipt_title">Hóa đơn thanh toán bàn ăn</span></h3>
+
                             <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base border-b border-dashed border-white/10 pb-6">
-                                <div class="flex justify-between"><span>Tiền Món Ăn:</span> <span class="text-white font-bold" id="rc_subtotal">650,000 ₫</span></div>
-                                <div class="flex justify-between text-rose-400"><span>- Khuyến Mãi Giảm (<span id="rc_discount_rate">10</span>%):</span> <span id="rc_discount_val">-65,000 ₫</span></div>
-                                <div class="flex justify-between"><span>+ Phí Dịch Vụ (<span id="rc_service_rate">5</span>%):</span> <span id="rc_service_val">+29,250 ₫</span></div>
-                                <div class="flex justify-between"><span>+ Thuế VAT (<span id="rc_vat_rate">8</span>%):</span> <span id="rc_vat_val">+49,140 ₫</span></div>
-                                <div class="flex justify-between text-emerald-400"><span>+ Tiền Tip Phục Vụ:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
+                                <div class="flex justify-between"><span data-i18n="receipt_label_subtotal">Tiền Món Ăn:</span> <span class="text-white font-bold" id="rc_subtotal">650,000 ₫</span></div>
+                                <div class="flex justify-between text-rose-400"><span><span data-i18n="receipt_label_discount">- Khuyến Mãi Giảm</span> (<span id="rc_discount_rate">10</span>%):</span> <span id="rc_discount_val">-65,000 ₫</span></div>
+                                <div class="flex justify-between"><span><span data-i18n="receipt_label_service">+ Phí Dịch Vụ</span> (<span id="rc_service_rate">5</span>%):</span> <span id="rc_service_val">+29,250 ₫</span></div>
+                                <div class="flex justify-between"><span><span data-i18n="receipt_label_vat">+ Thuế VAT</span> (<span id="rc_vat_rate">8</span>%):</span> <span id="rc_vat_val">+49,140 ₫</span></div>
+                                <div class="flex justify-between text-emerald-400"><span data-i18n="receipt_label_tip">+ Tiền Tip Phục Vụ:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
                             </div>
                         </div>
-                        
+
                         <div>
                             <div class="mt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Khách Phải Trả</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="receipt_label_total">Khách Phải Trả</span>
                                     <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_total_bill">713,390 ₫</span>
                                 </div>
                                 <div class="flex justify-between items-center border-t border-white/5 pt-3">
-                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Tiền Thối Lại</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="receipt_label_change">Tiền Thối Lại</span>
                                     <span class="text-lg lg:text-xl font-black text-yellow-400 font-mono" id="rc_cash_change">286,610 ₫</span>
                                 </div>
                             </div>
-                            
+
                             <a href="{{ url_for('register') }}" class="w-full mt-6 bg-gradient-to-r from-orange-500 to-yellow-600 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(249,115,22,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-black">
-                                <i class="fas fa-check-double text-xs"></i> Đăng ký dùng ngay F&B OS
+                                <i class="fas fa-check-double text-xs"></i> <span data-i18n="receipt_cta">Đăng ký dùng ngay F&B OS</span>
                             </a>
                         </div>
                     </div>
@@ -1036,11 +1036,11 @@
     <section id="ai-cskh" class="py-16 md:py-24 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-yellow-400 uppercase">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-yellow-400 uppercase" data-i18n="cskh_eyebrow">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="cskh_title">
                     Khách ăn uống luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-orange">tiệm có nhớ để nhắc hay không?</span>
                 </h2>
-                <p class="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed font-medium break-words">
+                <p class="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed font-medium break-words" data-i18n="cskh_desc">
                     AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo lịch sử ghé quán và thói quen ăn uống, giúp kéo khách quay lại cực nhanh:
                 </p>
             </div>
@@ -1051,18 +1051,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 1 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="msg1_badge">AI gợi ý • Sau 1 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="msg_status_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-orange-500"></i> Hỏi thăm chất lượng dịch vụ</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-orange-500"></i> <span data-i18n="msg1_title">Hỏi thăm chất lượng dịch vụ</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Chào anh Minh thương mến! 🐾 Cảm ơn anh đã ghé BitPaw Restaurant hôm qua. Món sườn nướng BBQ và set cocktail sếp dùng có vừa vị với anh không ạ? Nếu có điều gì chưa hài lòng, anh nhắn em liền nhé! 🍖"
+                            <span data-i18n="msg1_quote">"Chào anh Minh thương mến! 🐾 Cảm ơn anh đã ghé BitPaw Restaurant hôm qua. Món sườn nướng BBQ và set cocktail sếp dùng có vừa vị với anh không ạ? Nếu có điều gì chưa hài lòng, anh nhắn em liền nhé! 🍖"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-orange-400"></i> Mục tiêu: Đo lường chất lượng bếp làm & phục vụ
+                        <i class="fas fa-bullseye text-orange-400"></i> <span data-i18n="msg1_goal">Mục tiêu: Đo lường chất lượng bếp làm & phục vụ</span>
                     </div>
                 </div>
                 
@@ -1071,18 +1071,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-yellow-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 7 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="msg2_badge">AI gợi ý • Sau 7 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="msg_status_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-yellow-500"></i> Gợi ý combo cuối tuần</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-yellow-500"></i> <span data-i18n="msg2_title">Gợi ý combo cuối tuần</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Chào chị Vy! 🍲 Cuối tuần này BitPaw Restaurant ra mắt Combo lẩu thái cua tuyết đặc sắc cực kỳ phù hợp cho nhóm gia đình. AI BitPaw gửi tặng riêng chị voucher giảm 15% khi quét mã đặt bàn trước. Hẹn gặp chị nhé! 🐾"
+                            <span data-i18n="msg2_quote">"Chào chị Vy! 🍲 Cuối tuần này BitPaw Restaurant ra mắt Combo lẩu thái cua tuyết đặc sắc cực kỳ phù hợp cho nhóm gia đình. AI BitPaw gửi tặng riêng chị voucher giảm 15% khi quét mã đặt bàn trước. Hẹn gặp chị nhé! 🐾"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-yellow-400"></i> Mục tiêu: Kéo khách quen quay lại chi tiêu cuối tuần
+                        <i class="fas fa-bullseye text-yellow-400"></i> <span data-i18n="msg2_goal">Mục tiêu: Kéo khách quen quay lại chi tiêu cuối tuần</span>
                     </div>
                 </div>
                 
@@ -1091,18 +1091,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 30 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="msg3_badge">AI gợi ý • Sau 30 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="msg_status_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-redo-alt text-orange-500"></i> Bám đuổi khách sắp rời bỏ</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-redo-alt text-orange-500"></i> <span data-i18n="msg3_title">Bám đuổi khách sắp rời bỏ</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Chào anh Hoàng! 🐾 Đã 30 ngày sếp chưa ghé dùng bữa cùng gia đình tại BitPaw. AI BitPaw gửi tặng sếp voucher đặc biệt giảm ngay 100K kèm ly vang đỏ miễn phí cho bữa tối tuần này. Nhấn đặt lịch ngay sếp nha! 🍷"
+                            <span data-i18n="msg3_quote">"Chào anh Hoàng! 🐾 Đã 30 ngày sếp chưa ghé dùng bữa cùng gia đình tại BitPaw. AI BitPaw gửi tặng sếp voucher đặc biệt giảm ngay 100K kèm ly vang đỏ miễn phí cho bữa tối tuần này. Nhấn đặt lịch ngay sếp nha! 🍷"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-orange-400"></i> Mục tiêu: Kích hoạt tệp khách hàng sắp mất kết nối
+                        <i class="fas fa-bullseye text-orange-400"></i> <span data-i18n="msg3_goal">Mục tiêu: Kích hoạt tệp khách hàng sắp mất kết nối</span>
                     </div>
                 </div>
             </div>
@@ -1116,27 +1116,27 @@
                 <!-- Left Content -->
                 <div class="lg:col-span-6" data-aos="fade-right">
                     <span class="text-sm font-black tracking-widest text-orange-500 uppercase">AI Marketing Assistant</span>
-                    <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words">
+                    <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words" data-i18n="marketing_title">
                         Trợ lý AI tự lập chiến dịch, <br>
                         <span class="text-gradient-orange">viết caption Reels & TikTok.</span>
                     </h2>
-                    <p class="text-base md:text-lg text-gray-300 mb-6 leading-relaxed font-medium break-words">
+                    <p class="text-base md:text-lg text-gray-300 mb-6 leading-relaxed font-medium break-words" data-i18n="marketing_desc">
                         Không còn đau đầu vắt óc nghĩ tiêu đề hay kịch bản quay video món ăn lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất caption hấp dẫn phù hợp từng món ăn nhà hàng:
                     </p>
-                    
+
                     <div class="space-y-4">
                         <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
                             <i class="fas fa-magic text-orange-400 text-xl mt-1 shrink-0"></i>
                             <div>
-                                <h5 class="text-white font-extrabold text-[17px] mb-1">Tự tạo kịch bản video món ăn</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium">AI gợi ý kịch bản quay cận cảnh món thịt nướng xèo xèo, góc quay bắt mắt và caption tạo cảm giác thèm ăn cực độ.</p>
+                                <h3 class="text-white font-extrabold text-[17px] mb-1" data-i18n="marketing_feat1_title">Tự tạo kịch bản video món ăn</h3>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="marketing_feat1_desc">AI gợi ý kịch bản quay cận cảnh món thịt nướng xèo xèo, góc quay bắt mắt và caption tạo cảm giác thèm ăn cực độ.</p>
                             </div>
                         </div>
                         <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
                             <i class="fas fa-bullhorn text-yellow-400 text-xl mt-1 shrink-0"></i>
                             <div>
-                                <h5 class="text-white font-extrabold text-[17px] mb-1">Gợi ý tệp đối tượng chạy ads</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium">AI tư vấn cách thiết lập bán kính chạy quảng cáo quanh quán, độ tuổi thích ăn nhậu/ăn gia đình và mức ngân sách tối ưu nhất.</p>
+                                <h3 class="text-white font-extrabold text-[17px] mb-1" data-i18n="marketing_feat2_title">Gợi ý tệp đối tượng chạy ads</h3>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="marketing_feat2_desc">AI tư vấn cách thiết lập bán kính chạy quảng cáo quanh quán, độ tuổi thích ăn nhậu/ăn gia đình và mức ngân sách tối ưu nhất.</p>
                             </div>
                         </div>
                     </div>
@@ -1157,20 +1157,20 @@
                         
                         <!-- Terminal body -->
                         <div class="p-6 font-mono text-xs sm:text-sm text-slate-300 space-y-4 max-h-[380px] overflow-y-auto">
-                            <p class="text-gray-500">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu F&B...</p>
-                            <p class="text-gray-500">[DATA] Phát hiện món ăn bán chạy nhất tuần: "Mì Ý Sốt Bò Bằm Double Cheese"</p>
-                            <p class="text-orange-400 font-bold">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels kéo khách ăn tối món Mì Ý</p>
-                            
+                            <p class="text-gray-500" data-i18n="terminal_sys1">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu F&B...</p>
+                            <p class="text-gray-500" data-i18n="terminal_data1">[DATA] Phát hiện món ăn bán chạy nhất tuần: "Mì Ý Sốt Bò Bằm Double Cheese"</p>
+                            <p class="text-orange-400 font-bold" data-i18n="terminal_prompt1">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels kéo khách ăn tối món Mì Ý</p>
+
                             <div class="bg-white/5 border border-white/10 p-4 rounded-xl text-slate-200 space-y-2">
-                                <p class="text-yellow-400 font-bold">🎬 PHÁT THẢO KỊCH BẢN VIDEO:</p>
-                                <p><strong>- Góc quay 1:</strong> Cận cảnh phô mai chảy sợi từ đĩa mì Ý nóng hổi khói bay nghi ngút (3 giây).</p>
-                                <p><strong>- Góc quay 2:</strong> Khách hàng cuộn tròn sợi mì đưa lên miệng cười hạnh phúc (4 giây).</p>
-                                <p><strong>- Âm thanh đề xuất:</strong> Nhạc nền lofi rộn ràng sang chảnh ấm áp.</p>
-                                <p class="text-orange-400 font-bold mt-2">📝 CAPTION ĐỀ XUẤT:</p>
-                                <p class="italic">"Sợi mì dai giòn óng ả hòa quyện cùng sốt bò bằm đậm đà, phủ ngập tràn phô mai chảy béo ngậy. Ăn một miếng là say đắm, thử một lần là nhớ thương! Ghé BitPaw Restaurant tối nay để nhận ưu đãi nước uống miễn phí đi kèm nha cả nhà ơi! 🍝✨ #BitPawFood #ItalianFood #MonNgonSaiGon"</p>
+                                <p class="text-yellow-400 font-bold" data-i18n="terminal_script_header">🎬 PHÁT THẢO KỊCH BẢN VIDEO:</p>
+                                <p data-i18n="terminal_shot1"><strong>- Góc quay 1:</strong> Cận cảnh phô mai chảy sợi từ đĩa mì Ý nóng hổi khói bay nghi ngút (3 giây).</p>
+                                <p data-i18n="terminal_shot2"><strong>- Góc quay 2:</strong> Khách hàng cuộn tròn sợi mì đưa lên miệng cười hạnh phúc (4 giây).</p>
+                                <p data-i18n="terminal_audio"><strong>- Âm thanh đề xuất:</strong> Nhạc nền lofi rộn ràng sang chảnh ấm áp.</p>
+                                <p class="text-orange-400 font-bold mt-2" data-i18n="terminal_caption_header">📝 CAPTION ĐỀ XUẤT:</p>
+                                <p class="italic" data-i18n="terminal_caption_text">"Sợi mì dai giòn óng ả hòa quyện cùng sốt bò bằm đậm đà, phủ ngập tràn phô mai chảy béo ngậy. Ăn một miếng là say đắm, thử một lần là nhớ thương! Ghé BitPaw Restaurant tối nay để nhận ưu đãi nước uống miễn phí đi kèm nha cả nhà ơi! 🍝✨ #BitPawFood #ItalianFood #MonNgonSaiGon"</p>
                             </div>
-                            
-                            <p class="text-emerald-400 font-bold">[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: 18-35 tuổi, thích ẩm thực Ý, trong bán kính 3km.</p>
+
+                            <p class="text-emerald-400 font-bold" data-i18n="terminal_success">[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: 18-35 tuổi, thích ẩm thực Ý, trong bán kính 3km.</p>
                         </div>
                     </div>
                 </div>
@@ -1181,29 +1181,29 @@
     <!-- 9. Trust & Report Section -->
     <section class="py-16 md:py-24 bg-transparent border-t border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-5xl mx-auto px-6 text-center">
-            <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-aos="fade-up">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
-            <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight break-words" data-aos="fade-up">Giải pháp chốt bill nhanh, <br>giảm thiểu tối đa hao hụt thất thoát kho</h2>
-            
+            <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-aos="fade-up" data-i18n="trust_eyebrow">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight break-words" data-aos="fade-up" data-i18n="trust_title">Giải pháp chốt bill nhanh, <br>giảm thiểu tối đa hao hụt thất thoát kho</h2>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="100">
-                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 mb-3 font-mono drop-shadow-md">&gt; x3 Lần</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Tốc độ gọi món tại bàn</p>
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 mb-3 font-mono drop-shadow-md" data-i18n="stat1_value">&gt; x3 Lần</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="stat1_label">Tốc độ gọi món tại bàn</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="200">
                     <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3 font-mono drop-shadow-md">15%</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Tiết kiệm nguyên liệu hao hụt</p>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="stat2_label">Tiết kiệm nguyên liệu hao hụt</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="300">
-                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 mb-3 font-mono drop-shadow-md">0 Giấy</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Số hóa 100% quy trình bếp</p>
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400 mb-3 font-mono drop-shadow-md" data-i18n="stat3_value">0 Giấy</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="stat3_label">Số hóa 100% quy trình bếp</p>
                 </div>
             </div>
-            
+
             <div class="mt-20 glass p-8 rounded-3xl border border-orange-500/20 max-w-3xl mx-auto" data-aos="fade-up">
-                <p class="text-base text-gray-300 mb-4 font-bold">Cần chuyên viên hỗ trợ cài đặt menu nhà hàng và thiết lập sơ đồ bàn ăn?</p>
+                <p class="text-base text-gray-300 mb-4 font-bold" data-i18n="trust_note">Cần chuyên viên hỗ trợ cài đặt menu nhà hàng và thiết lập sơ đồ bàn ăn?</p>
                 <div class="flex justify-center">
                     <a href="https://zalo.me/0794678904" target="_blank" class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md">
-                        <i class="fas fa-comment-medical text-base"></i> Chat Zalo Chuyên Viên BitPaw
+                        <i class="fas fa-comment-medical text-base"></i> <span data-i18n="trust_cta">Chat Zalo Chuyên Viên BitPaw</span>
                     </a>
                 </div>
             </div>
@@ -1214,18 +1214,18 @@
     <section id="faq" class="py-16 md:py-24 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-orange-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">Hỏi đáp về <span class="text-gradient-orange">BitPaw F&B OS</span></h2>
+                <span class="text-sm font-black tracking-widest text-orange-500 uppercase" data-i18n="faq_eyebrow">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="faq_title">Hỏi đáp về <span class="text-gradient-orange">BitPaw F&B OS</span></h2>
             </div>
  
             <div class="space-y-4">
                 <!-- FAQ 1 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">1. Quán cafe nhỏ hay quán ăn gia đình có sử dụng được không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq1_q">1. Quán cafe nhỏ hay quán ăn gia đình có sử dụng được không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq1_a">
                         Cực kỳ thích hợp. BitPaw F&B OS được thiết kế linh hoạt cho mọi quy mô tiệm. Giúp quán nhỏ tự gọi món QR tại bàn nhằm cắt giảm tối đa chi phí thuê nhân viên chạy bàn mà vẫn ra món nhanh, phục vụ chu đáo chuyên nghiệp.
                     </div>
                 </div>
@@ -1233,10 +1233,10 @@
                 <!-- FAQ 2 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">2. Bếp có thể hiển thị chi tiết các yêu cầu đặc biệt của khách không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq2_q">2. Bếp có thể hiển thị chi tiết các yêu cầu đặc biệt của khách không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq2_a">
                         Có. Khi khách quét mã QR tự order món ăn trên điện thoại, hệ thống cho phép tùy chọn thêm/bớt đường đá, ghi chú cay nhiều/ít hành,... Thông tin ghi chú này được đồng bộ tức thời và hiển thị to rõ trên Màn hình bếp KDS để đầu bếp chuẩn bị chính xác.
                     </div>
                 </div>
@@ -1244,10 +1244,10 @@
                 <!-- FAQ 3 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">3. Hệ thống có cảnh báo khi nguyên vật liệu trong kho sắp hết không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq3_q">3. Hệ thống có cảnh báo khi nguyên vật liệu trong kho sắp hết không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq3_a">
                         Có. BitPaw tích hợp thuật toán định lượng kho tự động thông minh. Khi bill thanh toán được xuất ra, hệ thống tự động khấu trừ kho nguyên liệu. Nếu lượng tồn kho thực tế chạm ngưỡng tối thiểu thiết lập sẵn, hệ thống sẽ gửi thông báo cảnh báo tức thì cho chủ quán kịp thời nhập hàng.
                     </div>
                 </div>
@@ -1255,10 +1255,10 @@
                 <!-- FAQ 4 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">4. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ quán không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq4_q">4. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ quán không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq4_a">
                         Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của quán tức thời, an toàn tuyệt đối.
                     </div>
                 </div>
@@ -1266,10 +1266,10 @@
                 <!-- FAQ 5 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">5. Khi mua gói phần mềm tôi có được hỗ trợ phần cứng in bill không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq5_q">5. Khi mua gói phần mềm tôi có được hỗ trợ phần cứng in bill không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq5_a">
                         Có. BitPaw F&B tương thích hoàn hảo với hầu hết các thiết bị phần cứng POS cầm tay, máy in hóa đơn nhiệt LAN/Wifi hiện nay trên thị trường. Kỹ thuật viên của BitPaw sẽ hướng dẫn và hỗ trợ kết nối máy in hóa đơn từ xa hoàn toàn miễn phí.
                     </div>
                 </div>
@@ -1277,10 +1277,10 @@
                 <!-- FAQ 6 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white">6. Gói trợ lý AI đề xuất marketing có mất thêm phí vận hành hàng tháng không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq6_q">6. Gói trợ lý AI đề xuất marketing có mất thêm phí vận hành hàng tháng không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium" data-i18n="faq6_a">
                         Không. Trợ lý AI Marketing thông minh và các kịch bản CSKH tự động đã được tích hợp miễn phí trọn gói trong bản quyền BitPaw F&B OS, sếp không cần chi trả thêm bất kỳ chi phí phát sinh nào để sử dụng AI.
                     </div>
                 </div>
@@ -1291,19 +1291,19 @@
     <!-- 11. CTA Section -->
     <section class="py-16 md:py-24 relative z-10 bg-transparent border-t border-white/5 text-center scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
-            <h2 class="text-3xl md:text-4xl font-bold mb-8 leading-tight break-words">Đừng để nhà hàng, quán cafe mất thời gian vì ghi chép tay và tính tiền thủ công!</h2>
-            <p class="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-medium break-words">
+            <h2 class="text-3xl md:text-4xl font-bold mb-8 leading-tight break-words" data-i18n="cta_title">Đừng để nhà hàng, quán cafe mất thời gian vì ghi chép tay và tính tiền thủ công!</h2>
+            <p class="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="cta_desc">
                 Hãy để BitPaw F&B OS kiểm soát toàn diện: quét QR gọi món nhanh chóng, điều phối bếp KDS nhịp nhàng, POS chốt hóa đơn in bill chính xác và AI kéo khách quen quay lại.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(249,115,22,0.4)]">
-                    <i class="fas fa-rocket"></i> Dùng thử hệ thống F&B ngay
+                    <i class="fas fa-rocket"></i> <span data-i18n="cta_btn1">Dùng thử hệ thống F&B ngay</span>
                 </a>
                 <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
-                    <i class="fas fa-comments text-yellow-400 animate-pulse"></i> Nhận tư vấn qua Zalo 24/7
+                    <i class="fas fa-comments text-yellow-400 animate-pulse"></i> <span data-i18n="cta_btn2">Nhận tư vấn qua Zalo 24/7</span>
                 </a>
             </div>
-            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6">
+            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6" data-i18n="cta_note">
                 Phù hợp cho quán cafe nhỏ, quán trà sữa, nhà hàng hải sản, lẩu nướng BBQ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.
             </p>
         </div>
@@ -1316,11 +1316,11 @@
             <div class="md:col-span-2">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(249,115,22,0.5)]">
-                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo" loading="lazy">
                     </div>
                     <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-orange-400">Paw</span></h2>
                 </div>
-                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_company_desc">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
  
                 <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-orange-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
@@ -1330,22 +1330,22 @@
             </div>
  
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2">Sản Phẩm</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2" data-i18n="footer_products_header">Sản Phẩm</h3>
                 <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
                     <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-orange-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-orange-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-orange-400 transition flex items-center gap-2" data-i18n="footer_link_pos">Smart POS Đa ngành</a></li>
                     <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-orange-400 transition flex items-center gap-2">E-Com Omni</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-orange-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-orange-400 transition flex items-center gap-2" data-i18n="footer_link_agency">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2" data-i18n="footer_link_pricing">Bảng giá đầu tư</a></li>
                 </ul>
             </div>
- 
+
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2" data-i18n="footer_legal_header">Pháp Lý & Bảo Mật</h3>
                 <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
-                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
-                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
-                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span data-i18n="footer_legal_terms">Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span data-i18n="footer_legal_privacy">Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-orange-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span data-i18n="footer_legal_payment">Chính sách thanh toán</span></a></li>
                 </ul>
 
                 <div class="flex flex-col gap-3">
@@ -1361,7 +1361,7 @@
             </div>
 
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-orange-500/30 w-max pb-2" data-i18n="footer_contact_header">Liên Hệ Với Sếp</h3>
                 <ul class="space-y-4 text-sm text-gray-300 mb-6">
                     <li class="flex items-center gap-3 group">
                         <div class="w-10 h-10 rounded-full bg-orange-500/10 flex justify-center items-center shrink-0 border border-orange-500/30 group-hover:bg-orange-500/30 transition">
@@ -1377,7 +1377,7 @@
                             <i class="fas fa-envelope text-rose-400 text-lg"></i>
                         </div>
                         <div class="overflow-hidden">
-                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
                             <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
                         </div>
                     </li>
@@ -1395,19 +1395,19 @@
                             <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
                         </div>
                         <div>
-                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_fanpage_label">Fanpage Chính Thức</p>
                             <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
                         </div>
                     </li>
                 </ul>
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-orange-900 hover:to-amber-900 text-white border border-gray-700 hover:border-orange-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-orange-900 hover:to-amber-900 text-white border border-gray-700 hover:border-orange-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> <span data-i18n="footer_login_btn">Đăng Nhập Quản Trị</span></a>
             </div>
         </div>
 
         <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
             <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
             <div class="flex items-center gap-2 mt-4 md:mt-0">
-                <span>Thiết kế & Lập trình bởi:</span>
+                <span data-i18n="footer_credit">Thiết kế & Lập trình bởi:</span>
                 <span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded border border-orange-500/30 font-bold">Hồ Đình Sang</span>
                 <span>&</span>
                 <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
@@ -1421,12 +1421,12 @@
     <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-[#0a0f25] border border-orange-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(249,115,22,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
             <div class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-orange-900/40 to-transparent rounded-t-2xl">
-                <h3 id="modalTitle" class="text-xl font-black text-orange-400 tracking-wider uppercase">Tiêu đề</h3>
+                <h3 id="modalTitle" class="text-xl font-black text-orange-400 tracking-wider uppercase" data-i18n="modal_default_title">Tiêu đề</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i class="fas fa-times"></i></button>
             </div>
             <div id="modalContent" class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
             <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
-                <button onclick="closeModal()" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+                <button onclick="closeModal()" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition" data-i18n="modal_close_btn">Đã hiểu & Đóng</button>
             </div>
         </div>
     </div>
@@ -1723,7 +1723,171 @@
                 pain5_desc: 'Nhân viên phục vụ gọi món không đồng bộ tức thời với bếp, đầu bếp không sắp xếp đúng thứ tự order làm bếp bar hỗn loạn, nhầm lẫn yêu cầu.',
                 pain6_tag: 'Mất khách',
                 pain6_title: 'Khách ăn một lần rồi không quay lại',
-                pain6_desc: 'Ăn uống xong thanh toán ra về là tiệm mất kết nối với khách. Không có CRM lưu trữ để tự động gửi ưu đãi, nhắc nhở khách quay lại thưởng thức.'
+                pain6_desc: 'Ăn uống xong thanh toán ra về là tiệm mất kết nối với khách. Không có CRM lưu trữ để tự động gửi ưu đãi, nhắc nhở khách quay lại thưởng thức.',
+                nav_solution: 'Giải Pháp',
+                nav_features: 'Tính Năng',
+                nav_pricing: 'Bảng Giá',
+                nav_login: 'Đăng Nhập',
+                nav_trial: 'Dùng Thử Miễn Phí',
+                mobile_menu_title: 'Menu',
+                mobile_menu_lang: 'Ngôn ngữ:',
+                promise_eyebrow: 'SỰ KHÁC BIỆT CỦA BITPAW OS',
+                promise_title: 'Biến nhà hàng, cafe thành cỗ máy vận hành <br> <span class="text-gradient-orange">siêu tốc, kiểm soát kho bãi chặt chẽ.</span>',
+                promise_desc: 'BitPaw số hóa và đồng bộ toàn bộ luồng công việc từ lúc khách bước vào quán cho đến lúc thanh toán ra về, mang lại sự tối giản và chuẩn xác tuyệt đối.',
+                promise1_title: 'Gọi món QR tại bàn',
+                promise1_desc: 'Khách tự chọn món trên điện thoại bằng QR Menu. Phục vụ không mất thời gian đứng chờ order.',
+                promise2_title: 'Bếp KDS Realtime',
+                promise2_desc: 'Nhà bếp hiển thị danh sách order sinh động theo thời gian thực. Làm xong nhấn báo ra món.',
+                promise3_title: 'Trừ kho tự động',
+                promise3_desc: 'Hệ thống tự động trừ kho nguyên liệu thô theo định lượng chốt trên từng bill bán hàng.',
+                promise4_title: 'Báo cáo realtime',
+                promise4_desc: 'Báo cáo doanh số, tỷ trọng món ăn, lãi gộp tức thời giúp sếp tối ưu menu dễ dàng.',
+                workflow_eyebrow: 'LUỒNG VẬN HÀNH THỰC TẾ',
+                workflow_title: 'Hành trình gọi món & phục vụ <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">tự động khép kín</span>',
+                workflow_desc: 'Bản đồ quy trình số hóa toàn bộ trải nghiệm ăn uống của khách và kiểm soát nhà bếp, tài chính của sếp:',
+                step1_title: 'Khách vào bàn',
+                step1_desc: 'Khách ngồi vào bàn ăn và quét mã QR Code tĩnh đã đặt sẵn tại bàn.',
+                step2_title: 'QR Order gọi món',
+                step2_desc: 'Khách tự duyệt menu điện tử, chọn món, chọn tùy chỉnh đá/đường và bấm gửi.',
+                step3_title: 'Bếp KDS nhận món',
+                step3_desc: 'Order được đẩy thẳng xuống màn hình bếp KDS theo thời gian thực để làm món.',
+                step4_title: 'Bếp báo hoàn thành',
+                step4_desc: 'Đầu bếp làm món xong nhấn xác nhận, hệ thống lập tức thông báo phục vụ mang ra.',
+                step5_title: 'Phục vụ ra món',
+                step5_desc: 'Nhân viên bưng bê đúng bàn, đúng số món được đồng bộ trên sơ đồ.',
+                step6_title: 'Smart POS in bill',
+                step6_desc: 'POS tự động chốt bill, sinh mã QR chuyển khoản động ngân hàng của quán.',
+                step7_title: 'Tự động trừ kho',
+                step7_desc: 'Hệ thống tự động trừ kho nguyên liệu thực tế theo tỷ lệ định lượng món ăn.',
+                step8_title: 'AI kéo khách cũ',
+                step8_desc: 'AI phân tích tần suất, tự động gửi Zalo gợi ý món mới, combo kéo khách quay lại.',
+                features_eyebrow: 'HỆ THỐNG THỰC TẾ',
+                features_title: 'Các tính năng lõi <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">chuyên sâu nhà hàng, cafe</span>',
+                features_desc: 'Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp số hóa quán ăn trơn tru:',
+                feature1_title: 'QR Gọi Món Tại Bàn',
+                feature1_desc: 'Khách tự quét mã QR chọn món trực tiếp trên điện thoại tại <a href="{{ url_for(\'qr_menu_base\') }}" class="text-orange-400 hover:underline font-bold">QR Menu dịch vụ</a>, tự gọi món và yêu cầu thanh toán dễ dàng.',
+                feature1_cta: 'Dùng trong nhà hàng',
+                feature2_title: 'Màn Hình Bếp KDS',
+                feature2_desc: 'Đầu bếp xem chi tiết món ăn cần làm, gộp số lượng món chế biến và chốt trạng thái realtime tại màn hình chuyên nghiệp <a href="{{ url_for(\'kitchen_display\') }}" class="text-orange-400 hover:underline font-bold">Màn hình bếp KDS</a>.',
+                feature2_cta: 'Dùng trong nhà bếp',
+                feature3_title: 'Gọi Món Di Động',
+                feature3_desc: 'Nhân viên phục vụ đứng gọi món di động qua điện thoại/máy tính bảng cho khách cực kỳ tiện lợi ngay trên <a href="{{ url_for(\'table_order\') }}" class="text-orange-400 hover:underline font-bold">Bảng gọi món di động</a>.',
+                feature3_cta: 'Dùng cho nhân viên',
+                feature4_title: 'POS Thu Ngân Siêu Tốc',
+                feature4_desc: 'In bill nhiệt siêu tốc, treo bill theo bàn, áp mã giảm giá và tạo mã QR Code ngân hàng chuyển khoản động cực kỳ bảo mật ngay tại <a href="{{ url_for(\'pos\') }}" class="text-orange-400 hover:underline font-bold">POS tính tiền</a>.',
+                feature4_cta: 'Dùng tại quầy thu ngân',
+                feature5_title: 'Định Lượng Kho Vật Tư',
+                feature5_desc: 'Quản lý xuất nhập tồn kho nguyên vật liệu, định lượng tự động trừ kho bột làm bánh, hạt cafe, sữa tươi trên từng món bán ra ở <a href="{{ url_for(\'quanly_kho\') }}" class="text-orange-400 hover:underline font-bold">Báo cáo kho tự động</a>.',
+                feature5_cta: 'Dùng quản lý kho bãi',
+                feature6_title: 'Vận Hành Nhân Sự',
+                feature6_desc: 'Quản lý ca làm việc, chấm công GPS định vị bảo mật cao, theo dõi đi trễ về sớm của đội ngũ nhân viên phục vụ, thu ngân, nhà bếp tại <a href="{{ url_for(\'chamcong_fnb\') }}" class="text-orange-400 hover:underline font-bold">Bảng vận hành nhân sự</a>.',
+                feature6_cta: 'Dùng quản lý nhân sự',
+                feature7_title: 'Báo Cáo Doanh Thu Realtime',
+                feature7_desc: 'Biểu đồ doanh thu tổng, thống kê lợi nhuận ròng, tỷ trọng các nhóm món ăn bán chạy nhất hỗ trợ chốt kế hoạch kinh doanh trực quan tại <a href="{{ url_for(\'baocao_loinhuan\') }}" class="text-orange-400 hover:underline font-bold">Báo cáo doanh thu realtime</a>.',
+                feature7_cta: 'Dùng cho sếp quản lý',
+                feature8_title: 'Hồ Sơ Khách Hàng CRM & AI',
+                feature8_desc: 'Hệ thống tự động ghi nhớ thói quen, lịch sử món ăn của từng khách hàng, AI tự động thiết lập và gợi ý các kịch bản tin nhắn kéo khách tại <a href="{{ url_for(\'campaign_builder\') }}" class="text-orange-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.',
+                feature8_cta: 'Dùng chăm sóc khách quen',
+                calc_title: 'Tính toán hóa đơn bàn ăn <span class="text-gradient-orange">siêu tốc trong 3 giây</span>',
+                calc_desc: 'Cuối giờ không lo nhập thủ công, nhầm tiền thừa hay sai thuế/phí dịch vụ. Hãy điền thử hóa đơn mẫu của nhà hàng/cafe để trải nghiệm Smart POS:',
+                calc_form_title: 'Nhập giá trị bill mẫu',
+                calc_label_combo: 'Chọn Combo Món Ăn Nhanh',
+                calc_opt_family: 'Combo Gia Đình VIP (Món chính, lẩu nướng, nước - 650.000 ₫)',
+                calc_opt_lunch: 'Combo Trưa Văn Phòng (2 người ăn - 150.000 ₫)',
+                calc_opt_cafe: 'Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - 120.000 ₫)',
+                calc_opt_custom: 'Tự nhập tay giá trị hóa đơn bên dưới...',
+                calc_label_total: '1. Tổng Tiền Món Ăn (₫)',
+                calc_label_discount: '2. Giảm Giá Khuyến Mãi (%)',
+                calc_label_service: '3. Phí Dịch Vụ / Setup (%)',
+                calc_label_vat: '4. Thuế VAT (%)',
+                calc_label_tip: '5. Tiền Tip Phục Vụ (₫)',
+                calc_label_cash: '6. Khách Đưa (₫)',
+                calc_note: 'In hóa đơn nhiệt tích hợp QR Code ngân hàng động giúp khách chuyển khoản cực nhanh, hạn chế thất thoát.',
+                receipt_title: 'Hóa đơn thanh toán bàn ăn',
+                receipt_label_subtotal: 'Tiền Món Ăn:',
+                receipt_label_discount: '- Khuyến Mãi Giảm',
+                receipt_label_service: '+ Phí Dịch Vụ',
+                receipt_label_vat: '+ Thuế VAT',
+                receipt_label_tip: '+ Tiền Tip Phục Vụ:',
+                receipt_label_total: 'Khách Phải Trả',
+                receipt_label_change: 'Tiền Thối Lại',
+                receipt_cta: 'Đăng ký dùng ngay F&B OS',
+                cskh_eyebrow: 'CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG',
+                cskh_title: 'Khách ăn uống luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-orange">tiệm có nhớ để nhắc hay không?</span>',
+                cskh_desc: 'AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo lịch sử ghé quán và thói quen ăn uống, giúp kéo khách quay lại cực nhanh:',
+                msg1_badge: 'AI gợi ý • Sau 1 ngày',
+                msg1_title: 'Hỏi thăm chất lượng dịch vụ',
+                msg1_quote: '"Chào anh Minh thương mến! 🐾 Cảm ơn anh đã ghé BitPaw Restaurant hôm qua. Món sườn nướng BBQ và set cocktail sếp dùng có vừa vị với anh không ạ? Nếu có điều gì chưa hài lòng, anh nhắn em liền nhé! 🍖"',
+                msg1_goal: 'Mục tiêu: Đo lường chất lượng bếp làm & phục vụ',
+                msg2_badge: 'AI gợi ý • Sau 7 ngày',
+                msg2_title: 'Gợi ý combo cuối tuần',
+                msg2_quote: '"Chào chị Vy! 🍲 Cuối tuần này BitPaw Restaurant ra mắt Combo lẩu thái cua tuyết đặc sắc cực kỳ phù hợp cho nhóm gia đình. AI BitPaw gửi tặng riêng chị voucher giảm 15% khi quét mã đặt bàn trước. Hẹn gặp chị nhé! 🐾"',
+                msg2_goal: 'Mục tiêu: Kéo khách quen quay lại chi tiêu cuối tuần',
+                msg3_badge: 'AI gợi ý • Sau 30 ngày',
+                msg3_title: 'Bám đuổi khách sắp rời bỏ',
+                msg3_quote: '"Chào anh Hoàng! 🐾 Đã 30 ngày sếp chưa ghé dùng bữa cùng gia đình tại BitPaw. AI BitPaw gửi tặng sếp voucher đặc biệt giảm ngay 100K kèm ly vang đỏ miễn phí cho bữa tối tuần này. Nhấn đặt lịch ngay sếp nha! 🍷"',
+                msg3_goal: 'Mục tiêu: Kích hoạt tệp khách hàng sắp mất kết nối',
+                msg_status_approved: 'Đã duyệt',
+                marketing_title: 'Trợ lý AI tự lập chiến dịch, <br> <span class="text-gradient-orange">viết caption Reels & TikTok.</span>',
+                marketing_desc: 'Không còn đau đầu vắt óc nghĩ tiêu đề hay kịch bản quay video món ăn lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất caption hấp dẫn phù hợp từng món ăn nhà hàng:',
+                marketing_feat1_title: 'Tự tạo kịch bản video món ăn',
+                marketing_feat1_desc: 'AI gợi ý kịch bản quay cận cảnh món thịt nướng xèo xèo, góc quay bắt mắt và caption tạo cảm giác thèm ăn cực độ.',
+                marketing_feat2_title: 'Gợi ý tệp đối tượng chạy ads',
+                marketing_feat2_desc: 'AI tư vấn cách thiết lập bán kính chạy quảng cáo quanh quán, độ tuổi thích ăn nhậu/ăn gia đình và mức ngân sách tối ưu nhất.',
+                terminal_sys1: '[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu F&B...',
+                terminal_data1: '[DATA] Phát hiện món ăn bán chạy nhất tuần: "Mì Ý Sốt Bò Bằm Double Cheese"',
+                terminal_prompt1: '&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels kéo khách ăn tối món Mì Ý',
+                terminal_script_header: '🎬 PHÁT THẢO KỊCH BẢN VIDEO:',
+                terminal_shot1: '<strong>- Góc quay 1:</strong> Cận cảnh phô mai chảy sợi từ đĩa mì Ý nóng hổi khói bay nghi ngút (3 giây).',
+                terminal_shot2: '<strong>- Góc quay 2:</strong> Khách hàng cuộn tròn sợi mì đưa lên miệng cười hạnh phúc (4 giây).',
+                terminal_audio: '<strong>- Âm thanh đề xuất:</strong> Nhạc nền lofi rộn ràng sang chảnh ấm áp.',
+                terminal_caption_header: '📝 CAPTION ĐỀ XUẤT:',
+                terminal_caption_text: '"Sợi mì dai giòn óng ả hòa quyện cùng sốt bò bằm đậm đà, phủ ngập tràn phô mai chảy béo ngậy. Ăn một miếng là say đắm, thử một lần là nhớ thương! Ghé BitPaw Restaurant tối nay để nhận ưu đãi nước uống miễn phí đi kèm nha cả nhà ơi! 🍝✨ #BitPawFood #ItalianFood #MonNgonSaiGon"',
+                terminal_success: '[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: 18-35 tuổi, thích ẩm thực Ý, trong bán kính 3km.',
+                trust_eyebrow: 'ĐỘ TIN CẬY TUYỆT ĐỐI',
+                trust_title: 'Giải pháp chốt bill nhanh, <br>giảm thiểu tối đa hao hụt thất thoát kho',
+                stat1_value: '&gt; x3 Lần',
+                stat1_label: 'Tốc độ gọi món tại bàn',
+                stat2_label: 'Tiết kiệm nguyên liệu hao hụt',
+                stat3_value: '0 Giấy',
+                stat3_label: 'Số hóa 100% quy trình bếp',
+                trust_note: 'Cần chuyên viên hỗ trợ cài đặt menu nhà hàng và thiết lập sơ đồ bàn ăn?',
+                trust_cta: 'Chat Zalo Chuyên Viên BitPaw',
+                faq_eyebrow: 'GIẢI ĐÁP THẮC MẮC',
+                faq_title: 'Hỏi đáp về <span class="text-gradient-orange">BitPaw F&B OS</span>',
+                faq1_q: '1. Quán cafe nhỏ hay quán ăn gia đình có sử dụng được không?',
+                faq1_a: 'Cực kỳ thích hợp. BitPaw F&B OS được thiết kế linh hoạt cho mọi quy mô tiệm. Giúp quán nhỏ tự gọi món QR tại bàn nhằm cắt giảm tối đa chi phí thuê nhân viên chạy bàn mà vẫn ra món nhanh, phục vụ chu đáo chuyên nghiệp.',
+                faq2_q: '2. Bếp có thể hiển thị chi tiết các yêu cầu đặc biệt của khách không?',
+                faq2_a: 'Có. Khi khách quét mã QR tự order món ăn trên điện thoại, hệ thống cho phép tùy chọn thêm/bớt đường đá, ghi chú cay nhiều/ít hành,... Thông tin ghi chú này được đồng bộ tức thời và hiển thị to rõ trên Màn hình bếp KDS để đầu bếp chuẩn bị chính xác.',
+                faq3_q: '3. Hệ thống có cảnh báo khi nguyên vật liệu trong kho sắp hết không?',
+                faq3_a: 'Có. BitPaw tích hợp thuật toán định lượng kho tự động thông minh. Khi bill thanh toán được xuất ra, hệ thống tự động khấu trừ kho nguyên liệu. Nếu lượng tồn kho thực tế chạm ngưỡng tối thiểu thiết lập sẵn, hệ thống sẽ gửi thông báo cảnh báo tức thì cho chủ quán kịp thời nhập hàng.',
+                faq4_q: '4. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ quán không?',
+                faq4_a: 'Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của quán tức thời, an toàn tuyệt đối.',
+                faq5_q: '5. Khi mua gói phần mềm tôi có được hỗ trợ phần cứng in bill không?',
+                faq5_a: 'Có. BitPaw F&B tương thích hoàn hảo với hầu hết các thiết bị phần cứng POS cầm tay, máy in hóa đơn nhiệt LAN/Wifi hiện nay trên thị trường. Kỹ thuật viên của BitPaw sẽ hướng dẫn và hỗ trợ kết nối máy in hóa đơn từ xa hoàn toàn miễn phí.',
+                faq6_q: '6. Gói trợ lý AI đề xuất marketing có mất thêm phí vận hành hàng tháng không?',
+                faq6_a: 'Không. Trợ lý AI Marketing thông minh và các kịch bản CSKH tự động đã được tích hợp miễn phí trọn gói trong bản quyền BitPaw F&B OS, sếp không cần chi trả thêm bất kỳ chi phí phát sinh nào để sử dụng AI.',
+                cta_title: 'Đừng để nhà hàng, quán cafe mất thời gian vì ghi chép tay và tính tiền thủ công!',
+                cta_desc: 'Hãy để BitPaw F&B OS kiểm soát toàn diện: quét QR gọi món nhanh chóng, điều phối bếp KDS nhịp nhàng, POS chốt hóa đơn in bill chính xác và AI kéo khách quen quay lại.',
+                cta_btn1: 'Dùng thử hệ thống F&B ngay',
+                cta_btn2: 'Nhận tư vấn qua Zalo 24/7',
+                cta_note: 'Phù hợp cho quán cafe nhỏ, quán trà sữa, nhà hàng hải sản, lẩu nướng BBQ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.',
+                footer_company_desc: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_products_header: 'Sản Phẩm',
+                footer_link_pos: 'Smart POS Đa ngành',
+                footer_link_agency: 'Dịch vụ AI Agency',
+                footer_link_pricing: 'Bảng giá đầu tư',
+                footer_legal_header: 'Pháp Lý & Bảo Mật',
+                footer_legal_terms: 'Điều khoản sử dụng',
+                footer_legal_privacy: 'Chính sách bảo mật',
+                footer_legal_payment: 'Chính sách thanh toán',
+                footer_contact_header: 'Liên Hệ Với Sếp',
+                footer_email_label: 'Email Công việc',
+                footer_fanpage_label: 'Fanpage Chính Thức',
+                footer_login_btn: 'Đăng Nhập Quản Trị',
+                footer_credit: 'Thiết kế & Lập trình bởi:',
+                modal_default_title: 'Tiêu đề',
+                modal_close_btn: 'Đã hiểu & Đóng'
             },
             en: {
                 hero_badge: '🍔 BitPaw OS: Professional Digital Operations For Restaurants & Cafes',
@@ -1761,7 +1925,171 @@
                 pain5_desc: 'Servers\' orders aren\'t instantly synced with the kitchen, so chefs can\'t sequence orders correctly, causing chaos and mix-ups at the kitchen/bar.',
                 pain6_tag: 'Lost Customers',
                 pain6_title: 'Customers eat once and never come back',
-                pain6_desc: 'Once customers pay and leave, the venue loses all connection with them — no CRM to automatically send offers or reminders to bring them back.'
+                pain6_desc: 'Once customers pay and leave, the venue loses all connection with them — no CRM to automatically send offers or reminders to bring them back.',
+                nav_solution: 'Solutions',
+                nav_features: 'Features',
+                nav_pricing: 'Pricing',
+                nav_login: 'Log In',
+                nav_trial: 'Start Free Trial',
+                mobile_menu_title: 'Menu',
+                mobile_menu_lang: 'Language:',
+                promise_eyebrow: 'WHAT SETS BITPAW OS APART',
+                promise_title: 'Turn your restaurant or cafe into a <br> <span class="text-gradient-orange">lightning-fast, tightly-controlled operation.</span>',
+                promise_desc: 'BitPaw digitizes and synchronizes the entire workflow from the moment a guest sits down to the moment they pay and leave, delivering total simplicity and precision.',
+                promise1_title: 'Table-side QR Ordering',
+                promise1_desc: 'Guests order straight from their phone via the QR menu — no more servers standing around waiting to take orders.',
+                promise2_title: 'Realtime Kitchen KDS',
+                promise2_desc: 'The kitchen sees a live, dynamic order queue in real time. Tap once to mark a dish ready.',
+                promise3_title: 'Automatic Stock Deduction',
+                promise3_desc: 'The system automatically deducts raw ingredient stock based on the quantities set on every sale.',
+                promise4_title: 'Realtime Reports',
+                promise4_desc: 'Instant revenue reports, dish-mix ratios, and gross margin help owners optimize the menu with ease.',
+                workflow_eyebrow: 'REAL-WORLD OPERATIONS',
+                workflow_title: 'A fully automated <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">ordering & service journey</span>',
+                workflow_desc: 'A process map that digitizes the entire dining experience for guests while giving owners full control of the kitchen and finances:',
+                step1_title: 'Guest is seated',
+                step1_desc: 'The guest sits down at the table and scans the static QR code already placed there.',
+                step2_title: 'QR order placed',
+                step2_desc: 'The guest browses the digital menu, picks dishes, customizes ice/sugar levels, and submits the order.',
+                step3_title: 'Kitchen KDS receives it',
+                step3_desc: 'The order is pushed straight to the kitchen display screen in real time for preparation.',
+                step4_title: 'Kitchen marks it done',
+                step4_desc: 'Once the dish is ready, the chef taps confirm and the system instantly notifies the server to deliver it.',
+                step5_title: 'Server delivers the dish',
+                step5_desc: 'Staff deliver the right dish to the right table, synced precisely with the floor plan.',
+                step6_title: 'Smart POS prints the bill',
+                step6_desc: 'POS automatically closes the bill and generates the restaurant\'s dynamic bank QR transfer code.',
+                step7_title: 'Automatic stock deduction',
+                step7_desc: 'The system automatically deducts real ingredient stock based on each dish\'s quantity ratio.',
+                step8_title: 'AI wins back past guests',
+                step8_desc: 'AI analyzes visit frequency and automatically sends Zalo messages with new dishes and combos to bring guests back.',
+                features_eyebrow: 'REAL-WORLD SYSTEM',
+                features_title: 'Core features <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">built for restaurants & cafes</span>',
+                features_desc: 'Every feature below is fully integrated into the system, helping owners digitize their venue smoothly:',
+                feature1_title: 'Table-side QR Ordering',
+                feature1_desc: 'Guests scan a QR code to order directly from their phone on the <a href="{{ url_for(\'qr_menu_base\') }}" class="text-orange-400 hover:underline font-bold">QR Menu service</a>, ordering and requesting payment with ease.',
+                feature1_cta: 'Used in the dining room',
+                feature2_title: 'Kitchen Display Screen',
+                feature2_desc: 'Chefs view detailed dish requirements, batch quantities, and confirm status in real time on the professional <a href="{{ url_for(\'kitchen_display\') }}" class="text-orange-400 hover:underline font-bold">Kitchen Display (KDS)</a>.',
+                feature2_cta: 'Used in the kitchen',
+                feature3_title: 'Mobile Order Taking',
+                feature3_desc: 'Servers can take orders on the go via phone or tablet, extremely convenient right on the <a href="{{ url_for(\'table_order\') }}" class="text-orange-400 hover:underline font-bold">Mobile Order board</a>.',
+                feature3_cta: 'Used by staff',
+                feature4_title: 'Lightning-fast POS Checkout',
+                feature4_desc: 'Print thermal receipts instantly, hold bills by table, apply discount codes, and generate a secure dynamic bank QR code right in <a href="{{ url_for(\'pos\') }}" class="text-orange-400 hover:underline font-bold">POS checkout</a>.',
+                feature4_cta: 'Used at the checkout counter',
+                feature5_title: 'Ingredient Stock Quantification',
+                feature5_desc: 'Manage ingredient stock in/out and automatically deduct flour, coffee beans, and fresh milk per dish sold in <a href="{{ url_for(\'quanly_kho\') }}" class="text-orange-400 hover:underline font-bold">Automatic Stock Reports</a>.',
+                feature5_cta: 'Used for stock management',
+                feature6_title: 'Staff Operations',
+                feature6_desc: 'Manage shifts, GPS-secured attendance, and track late arrivals/early leaves for servers, cashiers, and kitchen staff in the <a href="{{ url_for(\'chamcong_fnb\') }}" class="text-orange-400 hover:underline font-bold">Staff operations board</a>.',
+                feature6_cta: 'Used for HR management',
+                feature7_title: 'Realtime Revenue Reports',
+                feature7_desc: 'Total revenue charts, net profit statistics, and best-selling dish-group ratios help finalize business plans visually in <a href="{{ url_for(\'baocao_loinhuan\') }}" class="text-orange-400 hover:underline font-bold">Realtime Revenue Reports</a>.',
+                feature7_cta: 'Used by management',
+                feature8_title: 'CRM & AI Customer Profiles',
+                feature8_desc: 'The system automatically remembers each customer\'s habits and order history; AI sets up and suggests messaging scripts to win them back in the <a href="{{ url_for(\'campaign_builder\') }}" class="text-orange-400 hover:underline font-bold">CRM Customer Profiles</a>.',
+                feature8_cta: 'Used for retaining regulars',
+                calc_title: 'Calculate a table bill <span class="text-gradient-orange">in 3 seconds flat</span>',
+                calc_desc: 'No more manual entry at closing time, no miscounted change or wrong tax/service fees. Try filling in a sample restaurant/cafe bill to experience Smart POS:',
+                calc_form_title: 'Enter sample bill values',
+                calc_label_combo: 'Choose a Quick Combo',
+                calc_opt_family: 'VIP Family Combo (Main course, hotpot BBQ, drinks - 650,000 VND)',
+                calc_opt_lunch: 'Office Lunch Combo (2 people - 150,000 VND)',
+                calc_opt_cafe: 'Afternoon Tea & Pastry Set (Flower tea, pastry - 120,000 VND)',
+                calc_opt_custom: 'Enter your own bill value below...',
+                calc_label_total: '1. Total Food Amount (VND)',
+                calc_label_discount: '2. Promotion Discount (%)',
+                calc_label_service: '3. Service Fee / Setup (%)',
+                calc_label_vat: '4. VAT Tax (%)',
+                calc_label_tip: '5. Service Tip (VND)',
+                calc_label_cash: '6. Cash Given (VND)',
+                calc_note: 'Thermal receipt printing with a dynamic bank QR code lets customers transfer payment instantly, minimizing losses.',
+                receipt_title: 'Table Payment Receipt',
+                receipt_label_subtotal: 'Food Total:',
+                receipt_label_discount: '- Promotion Discount',
+                receipt_label_service: '+ Service Fee',
+                receipt_label_vat: '+ VAT Tax',
+                receipt_label_tip: '+ Service Tip:',
+                receipt_label_total: 'Amount Due',
+                receipt_label_change: 'Change Due',
+                receipt_cta: 'Sign Up for F&B OS Now',
+                cskh_eyebrow: 'AUTOMATIC CUSTOMER RETENTION ENGINE',
+                cskh_title: 'Guests eat in cycles. <br>The question is <span class="text-gradient-orange">does your venue remember to remind them?</span>',
+                cskh_desc: 'AI automatically schedules and drafts customer care messages based on visit history and dining habits, bringing guests back fast:',
+                msg1_badge: 'AI suggestion • After 1 day',
+                msg1_title: 'Check in on service quality',
+                msg1_quote: '"Hi Minh! 🐾 Thanks for visiting BitPaw Restaurant yesterday. Did the BBQ grilled ribs and cocktail set suit your taste? If anything wasn\'t quite right, just message us! 🍖"',
+                msg1_goal: 'Goal: Measure kitchen & service quality',
+                msg2_badge: 'AI suggestion • After 7 days',
+                msg2_title: 'Weekend combo suggestion',
+                msg2_quote: '"Hi Vy! 🍲 This weekend BitPaw Restaurant is launching a special Thai snow crab hotpot combo, perfect for families. BitPaw AI is sending you a 15% off voucher when you scan to book a table in advance. See you soon! 🐾"',
+                msg2_goal: 'Goal: Bring regulars back for weekend spending',
+                msg3_badge: 'AI suggestion • After 30 days',
+                msg3_title: 'Re-engage guests about to churn',
+                msg3_quote: '"Hi Hoang! 🐾 It\'s been 30 days since you last dined with your family at BitPaw. BitPaw AI is sending you a special voucher for 100K off plus a free glass of red wine for dinner this week. Book now! 🍷"',
+                msg3_goal: 'Goal: Reactivate customers at risk of churning',
+                msg_status_approved: 'Approved',
+                marketing_title: 'An AI assistant that plans campaigns <br> <span class="text-gradient-orange">and writes Reels & TikTok captions.</span>',
+                marketing_desc: 'No more racking your brain for titles or video scripts to post on social media. BitPaw\'s AI assistant automatically suggests engaging captions tailored to each dish:',
+                marketing_feat1_title: 'Auto-generate dish video scripts',
+                marketing_feat1_desc: 'AI suggests close-up shots of sizzling grilled meat, eye-catching angles, and captions that make viewers crave the dish.',
+                marketing_feat2_title: 'Ad audience targeting suggestions',
+                marketing_feat2_desc: 'AI advises on ad radius around your venue, the age groups that prefer drinking out or family dining, and the optimal budget.',
+                terminal_sys1: '[SYSTEM] Activating the F&B AI Marketing module...',
+                terminal_data1: '[DATA] Detected this week\'s best-seller: "Double Cheese Beef Bolognese"',
+                terminal_prompt1: '&gt; AI-PROMPT: Suggest a TikTok Reels script to drive dinner traffic for the Bolognese dish',
+                terminal_script_header: '🎬 VIDEO SCRIPT DRAFT:',
+                terminal_shot1: '<strong>- Shot 1:</strong> Close-up of melted cheese stretching from a steaming hot plate of pasta (3 seconds).',
+                terminal_shot2: '<strong>- Shot 2:</strong> A customer twirls the pasta and takes a happy bite (4 seconds).',
+                terminal_audio: '<strong>- Suggested audio:</strong> Warm, upbeat lofi background music.',
+                terminal_caption_header: '📝 SUGGESTED CAPTION:',
+                terminal_caption_text: '"Chewy, silky noodles tossed in rich bolognese sauce, buried under gooey melted cheese. One bite and you\'re hooked, one visit and you\'ll be back for more! Stop by BitPaw Restaurant tonight for a free drink with your order! 🍝✨ #BitPawFood #ItalianFood #SaigonEats"',
+                terminal_success: '[SUCCESS] 3 scripts generated successfully. Target audience: ages 18-35, Italian food lovers, within a 3km radius.',
+                trust_eyebrow: 'ABSOLUTE RELIABILITY',
+                trust_title: 'A fast bill-closing solution <br>that minimizes ingredient shrinkage and stock loss',
+                stat1_value: '&gt; 3x Faster',
+                stat1_label: 'Table-side ordering speed',
+                stat2_label: 'Ingredient shrinkage saved',
+                stat3_value: '0 Paper',
+                stat3_label: '100% digitized kitchen workflow',
+                trust_note: 'Need an expert to help set up your restaurant menu and table floor plan?',
+                trust_cta: 'Chat with a BitPaw Specialist on Zalo',
+                faq_eyebrow: 'FREQUENTLY ASKED QUESTIONS',
+                faq_title: 'FAQs about <span class="text-gradient-orange">BitPaw F&B OS</span>',
+                faq1_q: '1. Can small cafes or family restaurants use this?',
+                faq1_a: 'Absolutely. BitPaw F&B OS is designed to flexibly fit any venue size. It helps small venues use table-side QR ordering to drastically cut server staffing costs while still delivering fast, professional service.',
+                faq2_q: '2. Can the kitchen see detailed special requests from guests?',
+                faq2_a: 'Yes. When a guest scans a QR code to self-order on their phone, the system lets them add/remove ice or sugar, note extra/less chili or onion, etc. This note syncs instantly and displays clearly on the Kitchen KDS so chefs prepare it accurately.',
+                faq3_q: '3. Does the system warn when ingredients are running low?',
+                faq3_a: 'Yes. BitPaw includes a smart automatic stock quantification algorithm. When a bill is closed, the system automatically deducts ingredient stock. If actual inventory hits the pre-set minimum threshold, the system instantly alerts the owner to restock in time.',
+                faq4_q: '4. When a guest pays via bank QR code, does the money go directly to the owner\'s account?',
+                faq4_a: 'Yes. The dynamic payment QR code is generated using the exact bank account details the owner set up initially. Funds transferred by scanning go directly and instantly to the venue\'s own bank account, with complete security.',
+                faq5_q: '5. If I buy a software package, do I get hardware support for printing bills?',
+                faq5_a: 'Yes. BitPaw F&B is fully compatible with most handheld POS hardware and LAN/Wifi thermal receipt printers on the market today. BitPaw technicians will guide and support remote printer setup completely free of charge.',
+                faq6_q: '6. Does the AI marketing assistant package cost extra monthly fees?',
+                faq6_a: 'No. The smart AI Marketing assistant and automated customer-care scripts are already bundled free with your BitPaw F&B OS license — no extra charges to use AI.',
+                cta_title: 'Don\'t let your restaurant or cafe waste time on handwritten notes and manual billing!',
+                cta_desc: 'Let BitPaw F&B OS take full control: fast QR ordering, smooth kitchen KDS coordination, precise POS bill closing and printing, and AI that brings regulars back.',
+                cta_btn1: 'Try the F&B System Now',
+                cta_btn2: 'Get 24/7 Zalo Consulting',
+                cta_note: 'Suited for small cafes, bubble tea shops, seafood restaurants, hotpot & BBQ venues, and multi-branch chains in Vietnam and abroad.',
+                footer_company_desc: 'A pioneering ALL-IN-ONE SaaS software empire applying Radar AI, multi-industry Smart POS, Omni-channel sales management, and Marketing Agency services in Vietnam.',
+                footer_products_header: 'Products',
+                footer_link_pos: 'Multi-Industry Smart POS',
+                footer_link_agency: 'AI Agency Services',
+                footer_link_pricing: 'Investment Pricing',
+                footer_legal_header: 'Legal & Security',
+                footer_legal_terms: 'Terms of Use',
+                footer_legal_privacy: 'Privacy Policy',
+                footer_legal_payment: 'Payment Policy',
+                footer_contact_header: 'Contact The Team',
+                footer_email_label: 'Work Email',
+                footer_fanpage_label: 'Official Fanpage',
+                footer_login_btn: 'Admin Login',
+                footer_credit: 'Designed & Developed by:',
+                modal_default_title: 'Title',
+                modal_close_btn: 'Got It & Close'
             }
         };
 

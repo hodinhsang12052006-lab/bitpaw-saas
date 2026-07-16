@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV</title>
-    <meta name="description" content="BitPaw Spa - Giải pháp quản trị tự động hóa chuyên sâu cho Spa, Viện thẩm mỹ, Massage & Clinic: Cổng đặt lịch trực tuyến thông minh, quản lý gói liệu trình nhiều buổi, Smart POS tính tiền, tự động chia ca trực và tính hoa hồng kỹ thuật viên rõ ràng.">
+    <meta name="description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
+    <meta name="keywords" content="spa management software, salon booking system, wellness business management, appointment scheduling software, spa POS system, technician commission software, beauty clinic management, spa scheduling app">
     <meta name="robots" content="index, follow">
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
     <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
@@ -12,13 +13,13 @@
     <link rel="canonical" href="{{ request.url }}">
     <meta property="og:type" content="website">
     <meta property="og:title" content="BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV">
-    <meta property="og:description" content="BitPaw Spa - Giải pháp quản trị tự động hóa chuyên sâu cho Spa, Viện thẩm mỹ, Massage & Clinic: Cổng đặt lịch trực tuyến thông minh, quản lý gói liệu trình nhiều buổi, Smart POS tính tiền, tự động chia ca trực và tính hoa hồng kỹ thuật viên rõ ràng.">
+    <meta property="og:description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
     <meta property="og:locale" content="vi_VN">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV">
-    <meta name="twitter:description" content="BitPaw Spa - Giải pháp quản trị tự động hóa chuyên sâu cho Spa, Viện thẩm mỹ, Massage & Clinic: Cổng đặt lịch trực tuyến thông minh, quản lý gói liệu trình nhiều buổi, Smart POS tính tiền, tự động chia ca trực và tính hoa hồng kỹ thuật viên rõ ràng.">
+    <meta name="twitter:description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
     <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -242,16 +243,16 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <h1 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-cyan-400">Paw</span></h1>
+                    <div class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-cyan-400">Paw</span></div>
                     <span class="mt-1 w-fit text-xs font-semibold tracking-wide text-cyan-300 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 whitespace-nowrap">Spa</span>
                 </div>
             </div>
-            
+
             <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
-                <a href="#promise" class="hover:text-cyan-400 transition-colors whitespace-nowrap">Giải Pháp</a>
-                <a href="#features" class="hover:text-cyan-400 transition-colors whitespace-nowrap">Tính Năng</a>
+                <a href="#promise" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
+                <a href="#features" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-cyan-400 transition-colors whitespace-nowrap">AI CSKH</a>
-                <a href="#calculator" class="hover:text-cyan-400 transition-colors whitespace-nowrap">Bảng Giá</a>
+                <a href="#calculator" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -265,11 +266,11 @@
                         <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-cyan-500/20 hover:text-cyan-400 transition"><span class="text-lg">🇬🇧</span> English</a>
                     </div>
                 </div>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] whitespace-nowrap">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -277,22 +278,22 @@
     <div id="mobile-menu" class="fixed inset-y-0 right-0 w-72 bg-[#08061a]/95 backdrop-blur-3xl border-l border-white/10 z-[100] shadow-2xl flex flex-col p-6 overflow-y-auto lg:hidden">
         <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
             <h2 class="text-xl font-black tracking-widest text-white">Menu</h2>
-            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-cyan-400" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
+            <button onclick="toggleMobileMenu()" class="text-2xl text-gray-400 hover:text-cyan-400" aria-label="Close menu"><i class="fas fa-times"></i></button>
         </div>
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
-            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">Giải Pháp</a>
-            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">Tính Năng</a>
+            <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">AI CSKH</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors">Bảng Giá</a>
+            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
-                <span class="text-sm text-gray-400">Ngôn ngữ:</span>
+                <span class="text-sm text-gray-400" data-i18n="nav_language_label">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
                 <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
             </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200">Đăng Nhập</a>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200" data-i18n="nav_login">Đăng Nhập</a>
                 <a href="{{ url_for('register') }}" class="bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-rocket"></i> Dùng Thử Miễn Phí
+                    <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
             </div>
         </nav>
@@ -356,7 +357,7 @@
                     <div class="absolute top-[8%] -left-12 lg:-left-20 bg-black/90 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl hover:border-cyan-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 5s infinite ease-in-out;">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_label">Lịch Trị Liệu Hôm Nay</h4>
+                            <h2 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_label">Lịch Trị Liệu Hôm Nay</h2>
                         </div>
                         <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_name">Chị Thảo - Chăm Sóc Da</p>
                         <p class="text-xs text-cyan-300 font-bold mt-1" data-i18n="hero_card1_status">KTV Vy • 14:00 • Đang làm</p>
@@ -365,7 +366,7 @@
                     <!-- 2. Thợ Rảnh card -->
                     <div class="absolute bottom-[12%] -right-12 lg:-right-20 bg-black/90 backdrop-blur-xl border border-pink-500/30 p-4 rounded-2xl shadow-2xl hover:border-pink-400 transition-all duration-300 z-20 w-56 hidden lg:block" style="animation: float-3d-cyan 6s infinite ease-in-out reverse;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-magic text-pink-400"></i> <span data-i18n="hero_card2_label">Liệu Trình Số</span></h4>
+                            <h2 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-magic text-pink-400"></i> <span data-i18n="hero_card2_label">Liệu Trình Số</span></h2>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
                         <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_name">Trị Mụn Y Khoa 5 Buổi</p>
@@ -525,22 +526,22 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-500 text-5xl mb-5"><i class="far fa-calendar-check"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise1_title">Booking online tự động</h4>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise1_title">Booking online tự động</h3>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise1_desc">Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
                     <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-magic"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise2_title">Thẻ liệu trình số</h4>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise2_title">Thẻ liệu trình số</h3>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise2_desc">Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-user-check"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise3_title">Xoay ca KTV minh bạch</h4>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise3_title">Xoay ca KTV minh bạch</h3>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise3_desc">Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-pink-500/20 transition-all duration-300">
                     <div class="text-pink-400 text-5xl mb-5"><i class="fas fa-calculator"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise4_title">Hoa hồng tự động</h4>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise4_title">Hoa hồng tự động</h3>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise4_desc">POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.</p>
                 </div>
             </div>
@@ -570,7 +571,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">01</div>
                                 <div class="text-cyan-400 text-2xl"><i class="far fa-calendar-alt"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf1_title">Khách đặt lịch online</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf1_title">Khách đặt lịch online</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf1_desc">
                                 Khách tự chọn gói dịch vụ, kỹ thuật viên yêu thích và giờ trống từ xa.
                             </p>
@@ -590,7 +591,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">02</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-robot"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf2_title">AI xác nhận lịch hẹn</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf2_title">AI xác nhận lịch hẹn</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf2_desc">
                                 Hệ thống chốt lịch và tự động gửi tin nhắn xác nhận lịch hẹn tức thời qua Zalo.
                             </p>
@@ -610,7 +611,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">03</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-bed"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf3_title">Điều phối phòng KTV</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf3_title">Điều phối phòng KTV</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf3_desc">
                                 Lễ tân điều phối phòng dịch vụ trống và Kỹ thuật viên thực hiện ca làm.
                             </p>
@@ -630,7 +631,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">04</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf4_title">KTV thực hiện liệu trình</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf4_title">KTV thực hiện liệu trình</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf4_desc">
                                 Nhân viên tiến hành liệu trình chăm sóc sắc đẹp, massage chuyên nghiệp cho khách.
                             </p>
@@ -650,7 +651,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">05</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-calculator"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf5_title">POS chốt hóa đơn</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf5_title">POS chốt hóa đơn</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf5_desc">
                                 POS tính bill nhanh gọn, tự động khấu trừ số buổi liệu trình hoặc chia hoa hồng KTV.
                             </p>
@@ -670,7 +671,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">06</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-qrcode"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf6_title">QR Code thanh toán động</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf6_title">QR Code thanh toán động</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf6_desc">
                                 Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.
                             </p>
@@ -690,7 +691,7 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">07</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-user-tag"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf7_title">CRM lưu hồ sơ da</h4>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf7_title">CRM lưu hồ sơ da</h3>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf7_desc">
                                 Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.
                             </p>
@@ -710,8 +711,8 @@
                                 <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(6,182,212,0.3)]">08</div>
                                 <div class="text-cyan-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words">AI nhắc lịch tái liệu trình</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="wf8_title">AI nhắc lịch tái liệu trình</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="wf8_desc">
                                 AI tự động nhắc nhở khách đến buổi hẹn tiếp theo theo chu kỳ liệu trình da.
                             </p>
                         </div>
@@ -725,15 +726,15 @@
     <section id="features" class="py-10 md:py-20 relative z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">HỆ THỐNG THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-i18n="features_label">HỆ THỐNG THỰC TẾ</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="features_title">
                     Các tính năng lõi <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">chuyên sâu Spa & Thẩm mỹ viện</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="features_desc">
                     Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp vận hành Spa trơn tru:
                 </p>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
                 <!-- Feature 1: Booking -->
                 <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-cyan-500/40" data-aos="fade-up" data-aos-delay="100">
@@ -747,13 +748,13 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Booking</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Booking Online Tự Động</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat1_title">Booking Online Tự Động</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat1_desc">
                                 Khách tự đặt lịch trực tuyến, tự chọn Kỹ thuật viên qua <a href="{{ url_for('public_booking') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>. Tự động kiểm tra khóa ca thông minh.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng trong vận hành Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat1_link">Dùng trong vận hành Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -770,13 +771,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Xoay ca trực</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">Xoay Ca Trực KTV</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat2_title">Xoay Ca Trực KTV</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat2_desc">
                                 Theo dõi trạng thái rảnh/bận để phân chia tua trực, ca phục vụ cho kỹ thuật viên công bằng ngay tại <a href="{{ url_for('chamcong_spa') }}" class="text-cyan-400 hover:underline font-bold">Bảng xoay tua & tính lương thợ</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng quản lý nhân viên</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat2_link">Dùng quản lý nhân viên</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -793,13 +794,13 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Giường dịch vụ</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Quản Lý Phòng & Giường</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat3_title">Quản Lý Phòng & Giường</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat3_desc">
                                 Theo dõi sơ đồ phòng, giường dịch vụ trống/dơ/sạch theo thời gian thực để phân bổ khách hàng hiệu quả cao ở màn hình <a href="{{ url_for('quanly_dichvu') }}" class="text-cyan-400 hover:underline font-bold">QR Menu dịch vụ</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng điều phối tài nguyên</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat3_link">Dùng điều phối tài nguyên</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -816,13 +817,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">CRM Liệu trình</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">Thẻ Liệu Trình Số</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat4_title">Thẻ Liệu Trình Số</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat4_desc">
                                 Hệ thống hóa lịch sử làm đẹp, số buổi liệu trình còn lại của từng khách hàng, AI tự động nhắc tái chăm sóc thông minh trên <a href="{{ url_for('crm_automation') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng quản lý khách hàng</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat4_link">Dùng quản lý khách hàng</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -839,13 +840,13 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Thu ngân POS</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Smart POS Thu Ngân</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat5_title">Smart POS Thu Ngân</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat5_desc">
                                 In bill nhiệt siêu tốc, bóc tách hoa hồng KTV theo %, quản lý tiền tip thẻ, tip mặt, CC fee cà thẻ rõ ràng, minh bạch 100% tại <a href="{{ url_for('pos') }}" class="text-cyan-400 hover:underline font-bold">POS tính tiền</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng tại quầy thu ngân</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat5_link">Dùng tại quầy thu ngân</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -862,13 +863,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">Tạo dịch vụ</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">Thêm Mới Liệu Trình</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat6_title">Thêm Mới Liệu Trình</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat6_desc">
                                 Thêm mới menu dịch vụ Spa, thiết lập đơn giá, tải ảnh liệu trình làm đẹp trực quan và nhanh chóng tại <a href="{{ url_for('add_spa') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng cập nhật menu</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat6_link">Dùng cập nhật menu</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -885,13 +886,13 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">Báo cáo</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words">Báo Cáo Doanh Thu Realtime</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight break-words" data-i18n="feat7_title">Báo Cáo Doanh Thu Realtime</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat7_desc">
                                 Biểu đồ thống kê doanh số, theo dõi hiệu suất phòng ban, hoa hồng kỹ thuật viên chi tiết phục vụ sếp quản trị từ xa tại <a href="{{ url_for('baocao_loinhuan') }}" class="text-cyan-400 hover:underline font-bold">Báo cáo doanh thu realtime</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng cho sếp quản lý</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat7_link">Dùng cho sếp quản lý</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -908,13 +909,13 @@
                                 </div>
                                 <span class="text-xs font-black text-pink-400 bg-pink-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-pink-500/20 shadow-sm">AI Marketing</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words">AI Content Assistant</h4>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-pink-400 transition-colors tracking-tight break-words" data-i18n="feat8_title">AI Content Assistant</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat8_desc">
                                 Trợ lý AI đắc lực hỗ trợ lên ý tưởng bài viết quảng cáo dịch vụ làm đẹp, đề xuất kịch bản video ngắn Reels/TikTok cực hút khách quen ở <a href="{{ url_for('campaign_builder') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
-                            <span>Dùng làm marketing Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            <span data-i18n="feat8_link">Dùng làm marketing Spa</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -927,10 +928,10 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
                 <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">Interactive Demo</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-8 tracking-tight leading-tight break-words">
+                <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-8 tracking-tight leading-tight break-words" data-i18n="calc_title">
                     Tính hoa hồng & tiền thợ <span class="text-gradient-cyan">minh bạch trong 3 giây</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="calc_desc">
                     Cuối ngày không lo đối soát thủ công bằng sổ sách. Tránh các tranh cãi không đáng có với nhân viên, kỹ thuật viên:
                 </p>
             </div>
@@ -939,57 +940,57 @@
                 <!-- Calculator Inputs -->
                 <div class="lg:col-span-7 glass border border-white/10 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-xl" data-aos="fade-right">
                     <div>
-                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-cyan-500"></i> Nhập giá trị liệu trình mẫu</h3>
-                        
+                        <h3 class="text-[22px] lg:text-[24px] font-black text-white mb-6 flex items-center gap-2 border-b border-white/5 pb-4"><i class="fas fa-calculator text-cyan-500"></i> <span data-i18n="calc_form_title">Nhập giá trị liệu trình mẫu</span></h3>
+
                         <div class="space-y-5">
                             <!-- Chọn dịch vụ mẫu -->
                             <div>
-                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">Chọn Liệu Trình Mẫu</label>
+                                <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_service">Chọn Liệu Trình Mẫu</label>
                                 <select id="quick_service" class="calc-input w-full p-4 font-semibold text-base bg-[#08061a] border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
-                                    <option value="skin_treatment">Liệu Trình Mụn Y Khoa (Thu khách 500.000 ₫ - Tua KTV 15% - Phụ thu 20.000 ₫)</option>
-                                    <option value="body_massage">Massage Body Đá Nóng (Thu khách 400.000 ₫ - Tua KTV 20% - Phụ thu 30.000 ₫)</option>
-                                    <option value="whitening">Cấy Collagen Dưỡng Trắng (Thu khách 800.000 ₫ - Tua KTV 12% - Phụ thu 50.000 ₫)</option>
-                                    <option value="custom">Tự nhập thông số thủ công bên dưới...</option>
+                                    <option value="skin_treatment" data-i18n="calc_option_skin">Liệu Trình Mụn Y Khoa (Thu khách 500.000 ₫ - Tua KTV 15% - Phụ thu 20.000 ₫)</option>
+                                    <option value="body_massage" data-i18n="calc_option_massage">Massage Body Đá Nóng (Thu khách 400.000 ₫ - Tua KTV 20% - Phụ thu 30.000 ₫)</option>
+                                    <option value="whitening" data-i18n="calc_option_whitening">Cấy Collagen Dưỡng Trắng (Thu khách 800.000 ₫ - Tua KTV 12% - Phụ thu 50.000 ₫)</option>
+                                    <option value="custom" data-i18n="calc_option_custom">Tự nhập thông số thủ công bên dưới...</option>
                                 </select>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">1. Đơn Giá Dịch Vụ (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_total">1. Đơn Giá Dịch Vụ (₫)</label>
                                     <input type="number" id="calc_total" value="500000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">2. Hoa Hồng KTV (%)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_split">2. Hoa Hồng KTV (%)</label>
                                     <input type="number" id="calc_split" value="15" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">3. Phụ Thu Giường / Mỹ Phẩm (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_supply">3. Phụ Thu Giường / Mỹ Phẩm (₫)</label>
                                     <input type="number" id="calc_supply" value="20000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">4. Phí Cà Thẻ / Cổng CC (%)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_ccfee">4. Phí Cà Thẻ / Cổng CC (%)</label>
                                     <input type="number" id="calc_cc_fee" value="2" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">5. Tiền Tip Khách Cho KTV (₫)</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_tip">5. Tiền Tip Khách Cho KTV (₫)</label>
                                     <input type="number" id="calc_tip" value="50000" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1">6. Số Buổi Đã Thanh Toán Trước</label>
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_sessions">6. Số Buổi Đã Thanh Toán Trước</label>
                                     <input type="number" id="calc_prepaid_sessions" value="1" class="calc-input w-full p-4 font-mono text-base font-bold text-yellow-400 bg-black/40 border border-white/10 rounded-xl focus:border-cyan-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mt-8 pt-4 border-t border-white/5 flex gap-2">
-                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-cyan-500 text-base animate-pulse"></i> In phiếu tính lương hoa hồng tức thời giúp tăng tính minh bạch, kỹ thuật viên tin tưởng đồng hành cùng Spa.</span>
+                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-cyan-500 text-base animate-pulse"></i> <span data-i18n="calc_note">In phiếu tính lương hoa hồng tức thời giúp tăng tính minh bạch, kỹ thuật viên tin tưởng đồng hành cùng Spa.</span></span>
                     </div>
                 </div>
                 
@@ -999,35 +1000,35 @@
                         <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-cyan-500 to-pink-500"></div>
                         
                         <div>
-                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-cyan-500"></i> Phiếu chốt hoa hồng ca làm</h3>
-                            
+                            <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-cyan-500"></i> <span data-i18n="calc_receipt_title">Phiếu chốt hoa hồng ca làm</span></h3>
+
                             <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base border-b border-dashed border-white/10 pb-6">
-                                <div class="flex justify-between"><span>Đơn Giá Dịch Vụ:</span> <span class="text-white font-bold" id="rc_subtotal">500,000 ₫</span></div>
-                                <div class="flex justify-between text-rose-400"><span>- Phụ Thu Giường/Mỹ phẩm:</span> <span id="rc_supply_val">-20,000 ₫</span></div>
-                                <div class="flex justify-between pt-2 border-t border-white/5"><span>Doanh thu tính hoa hồng:</span> <span class="text-cyan-400 font-bold" id="rc_net_commission">480,000 ₫</span></div>
+                                <div class="flex justify-between"><span data-i18n="calc_r_subtotal_label">Đơn Giá Dịch Vụ:</span> <span class="text-white font-bold" id="rc_subtotal">500,000 ₫</span></div>
+                                <div class="flex justify-between text-rose-400"><span data-i18n="calc_r_supply_label">- Phụ Thu Giường/Mỹ phẩm:</span> <span id="rc_supply_val">-20,000 ₫</span></div>
+                                <div class="flex justify-between pt-2 border-t border-white/5"><span data-i18n="calc_r_net_label">Doanh thu tính hoa hồng:</span> <span class="text-cyan-400 font-bold" id="rc_net_commission">480,000 ₫</span></div>
                             </div>
-                            
+
                             <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base">
-                                <div class="flex justify-between"><span>Hoa Hồng KTV Nhận (<span id="rc_split_rate" class="text-pink-400">15</span>%):</span> <span class="text-white font-bold" id="rc_worker_commission">72,000 ₫</span></div>
-                                <div class="flex justify-between text-emerald-400"><span>+ Tiền Tip Khách Cho:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
-                                <div class="flex justify-between text-rose-400"><span>- Phí Cà Thẻ (Nợ thẻ <span id="rc_cc_fee_rate">2</span>%):</span> <span id="rc_cc_fee_val">-1,000 ₫</span></div>
+                                <div class="flex justify-between"><span><span data-i18n="calc_r_split_label1">Hoa Hồng KTV Nhận (</span><span id="rc_split_rate" class="text-pink-400">15</span><span data-i18n="calc_r_split_label2">%):</span></span> <span class="text-white font-bold" id="rc_worker_commission">72,000 ₫</span></div>
+                                <div class="flex justify-between text-emerald-400"><span data-i18n="calc_r_tip_label">+ Tiền Tip Khách Cho:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
+                                <div class="flex justify-between text-rose-400"><span><span data-i18n="calc_r_ccfee_label1">- Phí Cà Thẻ (Nợ thẻ </span><span id="rc_cc_fee_rate">2</span><span data-i18n="calc_r_ccfee_label2">%):</span></span> <span id="rc_cc_fee_val">-1,000 ₫</span></div>
                             </div>
                         </div>
-                        
+
                         <div>
                             <div class="mt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">KTV Thực Nhận</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="calc_r_worker_final">KTV Thực Nhận</span>
                                     <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_final_worker">121,000 ₫</span>
                                 </div>
                                 <div class="flex justify-between items-center border-t border-white/5 pt-3">
-                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider">Spa Giữ Lại</span>
+                                    <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="calc_r_salon_final">Spa Giữ Lại</span>
                                     <span class="text-lg lg:text-xl font-black text-rose-400 font-mono" id="rc_final_salon">428,000 ₫</span>
                                 </div>
                             </div>
-                            
+
                             <a href="{{ url_for('register') }}" class="w-full mt-6 bg-gradient-to-r from-cyan-500 to-pink-500 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(6,182,212,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white animate-pulse">
-                                <i class="fas fa-check-double text-xs"></i> Đăng ký dùng ngay Spa OS
+                                <i class="fas fa-check-double text-xs"></i> <span data-i18n="calc_cta">Đăng ký dùng ngay Spa OS</span>
                             </a>
                         </div>
                     </div>
@@ -1040,11 +1041,11 @@
     <section id="ai-cskh" class="py-10 md:py-20 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase" data-i18n="cskh_label">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="cskh_title">
                     Khách làm đẹp luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-cyan">tiệm có nhớ để nhắc hay không?</span>
                 </h2>
-                <p class="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed break-words">
+                <p class="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed break-words" data-i18n="cskh_desc">
                     AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo chu kỳ liệu trình da mặt hay massage cơ thể của Spa, nâng cao cơ hội giữ chân khách hàng cũ:
                 </p>
             </div>
@@ -1055,18 +1056,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 1 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh1_time">AI gợi ý • Sau 1 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-comment-medical text-cyan-500"></i> Hỏi thăm chất lượng da</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-comment-medical text-cyan-500"></i> <span data-i18n="cskh1_title">Hỏi thăm chất lượng da</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Chào chị Vy! 🐾 Cảm ơn chị đã trải nghiệm liệu trình chăm sóc da mặt mụn y khoa tại BitPaw Spa hôm qua. Da chị hôm nay có bị đỏ hay kích ứng gì không ạ? Nhớ bôi kem dưỡng ẩm đầy đủ nha chị yêu! 🌸"
+                            <span data-i18n="cskh1_msg">"Chào chị Vy! 🐾 Cảm ơn chị đã trải nghiệm liệu trình chăm sóc da mặt mụn y khoa tại BitPaw Spa hôm qua. Da chị hôm nay có bị đỏ hay kích ứng gì không ạ? Nhớ bôi kem dưỡng ẩm đầy đủ nha chị yêu! 🌸"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-cyan-400"></i> Mục tiêu: Khảo sát mức độ hài lòng về kỹ thuật viên
+                        <i class="fas fa-bullseye text-cyan-400"></i> <span data-i18n="cskh1_goal">Mục tiêu: Khảo sát mức độ hài lòng về kỹ thuật viên</span>
                     </div>
                 </div>
                 
@@ -1075,18 +1076,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-pink-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 7 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh2_time">AI gợi ý • Sau 7 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-bell text-pink-500"></i> Nhắc lịch buổi tiếp theo</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-bell text-pink-500"></i> <span data-i18n="cskh2_title">Nhắc lịch buổi tiếp theo</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Kính chào chị Linh! 🍲 Đã đến chu kỳ 7 ngày cho buổi thứ 3 trong liệu trình hút chì thải độc da mặt của chị. AI BitPaw Spa đã tự động giữ chỗ cho chị vào 15:30 chiều mai với KTV Vy. Chị nhớ ghé đúng giờ nha! 🌸"
+                            <span data-i18n="cskh2_msg">"Kính chào chị Linh! 🍲 Đã đến chu kỳ 7 ngày cho buổi thứ 3 trong liệu trình hút chì thải độc da mặt của chị. AI BitPaw Spa đã tự động giữ chỗ cho chị vào 15:30 chiều mai với KTV Vy. Chị nhớ ghé đúng giờ nha! 🌸"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-pink-400"></i> Mục tiêu: Kéo khách đi đúng liệu trình để đạt kết quả tốt nhất
+                        <i class="fas fa-bullseye text-pink-400"></i> <span data-i18n="cskh2_goal">Mục tiêu: Kéo khách đi đúng liệu trình để đạt kết quả tốt nhất</span>
                     </div>
                 </div>
                 
@@ -1095,18 +1096,18 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">AI gợi ý • Sau 30 ngày</span>
-                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh3_time">AI gợi ý • Sau 30 ngày</span>
+                            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
-                        <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-gift text-cyan-500"></i> Ưu đãi kéo khách sắp rời bỏ</h4>
-                        
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5 break-words"><i class="fas fa-gift text-cyan-500"></i> <span data-i18n="cskh3_title">Ưu đãi kéo khách sắp rời bỏ</span></h3>
+
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            "Chào chị Mai thân yêu! 🐾 Đã 30 ngày kể từ lần cuối chị thư giãn chăm sóc sắc đẹp tại BitPaw. AI gửi tặng riêng chị voucher giảm 20% gói massage đá nóng xông hơi thảo dược hồi phục năng lượng tuần này. Đặt chỗ ngay nha chị! 🌸"
+                            <span data-i18n="cskh3_msg">"Chào chị Mai thân yêu! 🐾 Đã 30 ngày kể từ lần cuối chị thư giãn chăm sóc sắc đẹp tại BitPaw. AI gửi tặng riêng chị voucher giảm 20% gói massage đá nóng xông hơi thảo dược hồi phục năng lượng tuần này. Đặt chỗ ngay nha chị! 🌸"</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <i class="fas fa-bullseye text-cyan-400"></i> Mục tiêu: Kích hoạt lại tệp khách hàng quen sắp mất kết nối
+                        <i class="fas fa-bullseye text-cyan-400"></i> <span data-i18n="cskh3_goal">Mục tiêu: Kích hoạt lại tệp khách hàng quen sắp mất kết nối</span>
                     </div>
                 </div>
             </div>
@@ -1120,27 +1121,27 @@
                 <!-- Left Content -->
                 <div class="lg:col-span-6" data-aos="fade-right">
                     <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">AI Marketing Assistant</span>
-                    <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words">
+                    <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight tracking-tight break-words" data-i18n="mkt_title">
                         Trợ lý AI tự lập chiến dịch, <br>
                         <span class="text-gradient-cyan">viết kịch bản Reels & TikTok Spa.</span>
                     </h2>
-                    <p class="text-base md:text-lg text-gray-300 mb-6 leading-relaxed break-words">
+                    <p class="text-base md:text-lg text-gray-300 mb-6 leading-relaxed break-words" data-i18n="mkt_desc">
                         Không còn vắt óc nghĩ tiêu đề hay tìm kịch bản giới thiệu công nghệ làm đẹp của Spa lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất bài đăng hấp dẫn phù hợp xu hướng:
                     </p>
-                    
+
                     <div class="space-y-4">
                         <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
                             <i class="fas fa-magic text-cyan-400 text-xl mt-1 shrink-0"></i>
                             <div>
-                                <h5 class="text-white font-extrabold text-[17px] mb-1 break-words">Tự tạo kịch bản video làm đẹp</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium break-words">AI đề xuất kịch bản quay cận cảnh quy trình chăm sóc da mịn màng, góc quay cận cảnh chuyên nghiệp tạo lòng tin tuyệt đối.</p>
+                                <h3 class="text-white font-extrabold text-[17px] mb-1 break-words" data-i18n="mkt_item1_title">Tự tạo kịch bản video làm đẹp</h3>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium break-words" data-i18n="mkt_item1_desc">AI đề xuất kịch bản quay cận cảnh quy trình chăm sóc da mịn màng, góc quay cận cảnh chuyên nghiệp tạo lòng tin tuyệt đối.</p>
                             </div>
                         </div>
                         <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
                             <i class="fas fa-bullhorn text-pink-400 text-xl mt-1 shrink-0"></i>
                             <div>
-                                <h5 class="text-white font-extrabold text-[17px] mb-1 break-words">Tư vấn ngân sách chạy quảng cáo</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium break-words">AI định vị tệp khách hàng quanh khu vực Spa, độ tuổi quan tâm sâu tới sắc đẹp và mức ngân sách tối ưu nhất.</p>
+                                <h3 class="text-white font-extrabold text-[17px] mb-1 break-words" data-i18n="mkt_item2_title">Tư vấn ngân sách chạy quảng cáo</h3>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium break-words" data-i18n="mkt_item2_desc">AI định vị tệp khách hàng quanh khu vực Spa, độ tuổi quan tâm sâu tới sắc đẹp và mức ngân sách tối ưu nhất.</p>
                             </div>
                         </div>
                     </div>
@@ -1159,20 +1160,20 @@
                         </div>
                         
                         <div class="p-6 font-mono text-xs sm:text-sm text-slate-300 space-y-4 max-h-[380px] overflow-y-auto">
-                            <p class="text-gray-500">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Spa...</p>
-                            <p class="text-gray-500">[DATA] Phát hiện liệu trình được quan tâm nhiều nhất: "Trị Mụn Y Khoa Sinh Học"</p>
-                            <p class="text-cyan-400 font-bold">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu quy trình Trị Mụn</p>
-                            
+                            <p class="text-gray-500" data-i18n="mkt_term_1">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Spa...</p>
+                            <p class="text-gray-500" data-i18n="mkt_term_2">[DATA] Phát hiện liệu trình được quan tâm nhiều nhất: "Trị Mụn Y Khoa Sinh Học"</p>
+                            <p class="text-cyan-400 font-bold" data-i18n="mkt_term_3">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu quy trình Trị Mụn</p>
+
                             <div class="bg-white/5 border border-white/10 p-4 rounded-xl text-slate-200 space-y-2">
-                                <p class="text-pink-400 font-bold">🎬 PHÁT THẢO KỊCH BẢN VIDEO:</p>
-                                <p><strong>- Góc quay 1:</strong> Phân tích cấu trúc da mặt soi chi tiết mụn bằng máy soi da công nghệ cao (3 giây).</p>
-                                <p><strong>- Góc quay 2:</strong> Kỹ thuật viên đeo găng tay tiến hành lấy nhân mụn chuẩn y khoa nhẹ nhàng (4 giây).</p>
-                                <p><strong>- Âm thanh đề xuất:</strong> Nhạc nền nhẹ nhàng, thư giãn sảng khoái.</p>
-                                <p class="text-cyan-400 font-bold mt-2">📝 CAPTION ĐỀ XUẤT:</p>
-                                <p class="italic">"Sạch mụn, mờ thâm, tự tin rạng rỡ đón nắng hè! ☀️ Quy trình Trị Mụn Y Khoa Sinh Học độc quyền tại BitPaw Spa nhẹ nhàng lấy sạch nhân mụn, sát khuẩn cao tần phòng tránh tái phát. Nhắn tin đặt chỗ hôm nay nhận ngay ưu đãi 20% nhé các chị yêu! 💆‍♀️✨ #SpaBeauty #TriMunYKhoa #ChamSocDa #BitPawSpa"</p>
+                                <p class="text-pink-400 font-bold" data-i18n="mkt_term_4">🎬 PHÁT THẢO KỊCH BẢN VIDEO:</p>
+                                <p data-i18n="mkt_term_5"><strong>- Góc quay 1:</strong> Phân tích cấu trúc da mặt soi chi tiết mụn bằng máy soi da công nghệ cao (3 giây).</p>
+                                <p data-i18n="mkt_term_6"><strong>- Góc quay 2:</strong> Kỹ thuật viên đeo găng tay tiến hành lấy nhân mụn chuẩn y khoa nhẹ nhàng (4 giây).</p>
+                                <p data-i18n="mkt_term_7"><strong>- Âm thanh đề xuất:</strong> Nhạc nền nhẹ nhàng, thư giãn sảng khoái.</p>
+                                <p class="text-cyan-400 font-bold mt-2" data-i18n="mkt_term_8">📝 CAPTION ĐỀ XUẤT:</p>
+                                <p class="italic" data-i18n="mkt_term_9">"Sạch mụn, mờ thâm, tự tin rạng rỡ đón nắng hè! ☀️ Quy trình Trị Mụn Y Khoa Sinh Học độc quyền tại BitPaw Spa nhẹ nhàng lấy sạch nhân mụn, sát khuẩn cao tần phòng tránh tái phát. Nhắn tin đặt chỗ hôm nay nhận ngay ưu đãi 20% nhé các chị yêu! 💆‍♀️✨ #SpaBeauty #TriMunYKhoa #ChamSocDa #BitPawSpa"</p>
                             </div>
-                            
-                            <p class="text-emerald-400 font-bold">[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: Nữ giới, 18-35 tuổi, quan tâm chăm sóc sắc đẹp, bán kính 4km.</p>
+
+                            <p class="text-emerald-400 font-bold" data-i18n="mkt_term_10">[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: Nữ giới, 18-35 tuổi, quan tâm chăm sóc sắc đẹp, bán kính 4km.</p>
                         </div>
                     </div>
                 </div>
@@ -1183,29 +1184,29 @@
     <!-- 9. Trust & Report Section -->
     <section class="py-10 md:py-20 bg-transparent border-t border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-5xl mx-auto px-6 text-center">
-            <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-aos="fade-up">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
-            <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight break-words" data-aos="fade-up">Giải pháp chốt bill nhanh, <br>tăng tối đa tỷ lệ giữ chân khách cũ</h2>
-            
+            <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-aos="fade-up" data-i18n="trust_label">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 leading-tight break-words" data-aos="fade-up" data-i18n="trust_title">Giải pháp chốt bill nhanh, <br>tăng tối đa tỷ lệ giữ chân khách cũ</h2>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="100">
                     <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-3 font-mono drop-shadow-md">&gt; 95%</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Không còn trễ hay trùng lịch hẹn</p>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="trust_stat1">Không còn trễ hay trùng lịch hẹn</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="200">
                     <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3 font-mono drop-shadow-md">35%</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Tăng trưởng khách cũ quay lại</p>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="trust_stat2">Tăng trưởng khách cũ quay lại</p>
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="300">
-                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-3 font-mono drop-shadow-md">0 Giấy</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold">Số hóa 100% thẻ liệu trình</p>
+                    <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-3 font-mono drop-shadow-md" data-i18n="trust_stat3_num">0 Giấy</h3>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="trust_stat3">Số hóa 100% thẻ liệu trình</p>
                 </div>
             </div>
-            
+
             <div class="mt-20 glass p-8 rounded-3xl border border-cyan-500/20 max-w-3xl mx-auto" data-aos="fade-up">
-                <p class="text-base text-gray-300 mb-4 font-bold">Cần chuyên viên hỗ trợ cài đặt menu Spa và thiết lập sơ đồ giường phòng?</p>
+                <p class="text-base text-gray-300 mb-4 font-bold" data-i18n="trust_cta_text">Cần chuyên viên hỗ trợ cài đặt menu Spa và thiết lập sơ đồ giường phòng?</p>
                 <div class="flex justify-center">
                     <a href="https://zalo.me/0794678904" target="_blank" class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md">
-                        <i class="fas fa-comment-medical text-base"></i> Chat Zalo Chuyên Viên BitPaw
+                        <i class="fas fa-comment-medical text-base"></i> <span data-i18n="trust_cta_btn">Chat Zalo Chuyên Viên BitPaw</span>
                     </a>
                 </div>
             </div>
@@ -1216,18 +1217,18 @@
     <section id="faq" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase">GIẢI ĐÁP THẮC MẮC</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words">Hỏi đáp về <span class="text-gradient-cyan">BitPaw Spa OS</span></h2>
+                <span class="text-sm font-black tracking-widest text-cyan-500 uppercase" data-i18n="faq_label">GIẢI ĐÁP THẮC MẮC</span>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight leading-tight break-words" data-i18n="faq_title">Hỏi đáp về <span class="text-gradient-cyan">BitPaw Spa OS</span></h2>
             </div>
  
             <div class="space-y-4">
                 <!-- FAQ 1 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">1. Tiệm nhỏ hay thẩm mỹ viện lớn nhiều chi nhánh có dùng được không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq1_q">1. Tiệm nhỏ hay thẩm mỹ viện lớn nhiều chi nhánh có dùng được không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq1_a">
                         Cực kỳ thích hợp. BitPaw Spa OS hỗ trợ phân tách quản lý đa chi nhánh chuyên nghiệp cho chuỗi thẩm mỹ lớn, đồng thời giao diện cực kỳ tối giản dễ dùng phù hợp cho cả các tiệm Spa/Massage nhỏ của gia đình.
                     </div>
                 </div>
@@ -1235,10 +1236,10 @@
                 <!-- FAQ 2 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">2. Thẻ liệu trình số hoạt động như thế nào?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq2_q">2. Thẻ liệu trình số hoạt động như thế nào?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq2_a">
                         Khi khách mua gói liệu trình, hệ thống sinh ra một thẻ liệu trình số được mã hóa gắn chặt trên hồ sơ khách hàng. Mỗi lần khách đến làm dịch vụ, POS sẽ tự động khấu trừ một buổi và cập nhật số buổi còn lại, tránh thất lạc hay nhầm lẫn của thẻ giấy.
                     </div>
                 </div>
@@ -1246,10 +1247,10 @@
                 <!-- FAQ 3 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">3. Hệ thống có tự động nhắc lịch hẹn cho khách không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq3_q">3. Hệ thống có tự động nhắc lịch hẹn cho khách không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq3_a">
                         Có. Đây là tính năng tự động hóa tối ưu cho Spa. AI sẽ tự động lập lịch và gửi tin nhắn nhắc nhở cho khách qua SMS/Zalo trước ca trực để khách nhớ lịch ghé tiệm, giảm thiểu tỷ lệ rớt ca của kỹ thuật viên.
                     </div>
                 </div>
@@ -1257,10 +1258,10 @@
                 <!-- FAQ 4 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">4. Có phân chia hoa hồng tự động theo từng Kỹ thuật viên được không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq4_q">4. Có phân chia hoa hồng tự động theo từng Kỹ thuật viên được không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq4_a">
                         Hoàn toàn được. Hệ thống cho phép sếp thiết lập tỷ lệ chia hoa hồng riêng biệt (%) cho từng gói liệu trình, từng kỹ thuật viên. Khi thanh toán bill, POS tự động ghi nhận và cộng dồn hoa hồng chi tiết cho nhân viên chuẩn xác tức thì.
                     </div>
                 </div>
@@ -1268,10 +1269,10 @@
                 <!-- FAQ 5 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">5. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ Spa không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq5_q">5. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ Spa không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq5_a">
                         Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của chủ Spa tức thời, an toàn tuyệt đối.
                     </div>
                 </div>
@@ -1279,10 +1280,10 @@
                 <!-- FAQ 6 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white break-words">6. Khi cần hướng dẫn hay cài đặt ban đầu tôi có được hỗ trợ miễn phí không?</h4>
+                        <h3 class="text-base sm:text-[20px] font-extrabold text-white break-words" data-i18n="faq6_q">6. Khi cần hướng dẫn hay cài đặt ban đầu tôi có được hỗ trợ miễn phí không?</h3>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words">
+                    <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium break-words" data-i18n="faq6_a">
                         Đội ngũ kỹ thuật hỗ trợ sếp 24/7. Kỹ thuật viên của BitPaw hỗ trợ thiết lập danh sách dịch vụ Spa, cấu hình phòng giường và danh sách KTV hoàn toàn miễn phí trọn gói ban đầu cho sếp yên tâm vận hành.
                     </div>
                 </div>
@@ -1293,19 +1294,19 @@
     <!-- 11. CTA Section -->
     <section class="py-10 md:py-20 relative z-10 bg-transparent border-t border-white/5 text-center scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
-            <h2 class="text-3xl md:text-4xl font-bold mb-8 leading-tight break-words">Đừng để Spa của sếp tiếp tục mất thời gian vì ghi chép liệu trình giấy và trùng ca trực KTV!</h2>
-            <p class="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed break-words">
+            <h2 class="text-3xl md:text-4xl font-bold mb-8 leading-tight break-words" data-i18n="cta_title">Đừng để Spa của sếp tiếp tục mất thời gian vì ghi chép liệu trình giấy và trùng ca trực KTV!</h2>
+            <p class="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="cta_desc">
                 Hãy để BitPaw Spa OS quản lý toàn diện: lập lịch booking online tự động, xoay ca trực KTV minh bạch, chốt liệu trình số chính xác và AI kéo khách quen quay lại.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
-                    <i class="fas fa-rocket"></i> Dùng thử hệ thống Spa ngay
+                    <i class="fas fa-rocket"></i> <span data-i18n="cta_btn1">Dùng thử hệ thống Spa ngay</span>
                 </a>
                 <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
-                    <i class="fas fa-comments text-cyan-400 animate-pulse"></i> Nhận tư vấn qua Zalo 24/7
+                    <i class="fas fa-comments text-cyan-400 animate-pulse"></i> <span data-i18n="cta_btn2">Nhận tư vấn qua Zalo 24/7</span>
                 </a>
             </div>
-            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6">
+            <p class="text-xs lg:text-sm text-slate-400 font-bold uppercase tracking-wider mt-6" data-i18n="cta_footnote">
                 Phù hợp cho Clinic thẩm mỹ, Spa chăm sóc da mặt, tiệm massage body thảo dược, tiệm phun xăm thẩm mỹ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.
             </p>
         </div>
@@ -1318,36 +1319,36 @@
             <div class="md:col-span-2">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="overflow-hidden rounded-full border border-white/10 w-12 h-12 shadow-[0_0_10px_rgba(6,182,212,0.5)]">
-                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo" loading="lazy">
                     </div>
                     <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-cyan-400">Paw</span></h2>
                 </div>
-                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
- 
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_tagline">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+
                 <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-cyan-500 w-4"></i> <strong>Công ty TNHH Công Nghệ BitPaw</strong></p>
                     <p class="flex items-center gap-3"><i class="fas fa-id-card text-cyan-500 w-4"></i> <span>MST: 0312345678 - Cấp bởi SKH&ĐT TP.HCM</span></p>
                     <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-cyan-500 w-4"></i> <span>Tầng 8, Tòa nhà BitPaw Tower, Quận 1, TP.HCM</span></p>
                 </div>
             </div>
- 
+
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Sản Phẩm</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2" data-i18n="footer_products_title">Sản Phẩm</h3>
                 <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium">
                     <li><a href="{{ url_for('landingpage') }}#hrm" class="hover:text-cyan-400 transition flex items-center gap-2">HRM & Radar Field</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-cyan-400 transition flex items-center gap-2">Smart POS Đa ngành</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#pos" class="hover:text-cyan-400 transition flex items-center gap-2" data-i18n="footer_link_pos">Smart POS Đa ngành</a></li>
                     <li><a href="{{ url_for('landingpage') }}#ecom" class="hover:text-cyan-400 transition flex items-center gap-2">E-Com Omni</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-cyan-400 transition flex items-center gap-2">Dịch vụ AI Agency</a></li>
-                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2">Bảng giá đầu tư</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#media" class="hover:text-cyan-400 transition flex items-center gap-2" data-i18n="footer_link_agency">Dịch vụ AI Agency</a></li>
+                    <li><a href="{{ url_for('landingpage') }}#bang-gia" class="hover:text-emerald-400 transition flex items-center gap-2 text-emerald-500 font-bold mt-2" data-i18n="footer_link_pricing">Bảng giá đầu tư</a></li>
                 </ul>
             </div>
- 
+
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Pháp Lý & Bảo Mật</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2" data-i18n="footer_legal_title">Pháp Lý & Bảo Mật</h3>
                 <ul class="space-y-4 text-sm lg:text-[15px] text-slate-300 font-medium mb-8">
-                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span>Điều khoản sử dụng</span></a></li>
-                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span>Chính sách bảo mật</span></a></li>
-                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span>Chính sách thanh toán</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('terms')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-shield-alt text-xs text-gray-500"></i> <span data-i18n="footer_terms">Điều khoản sử dụng</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('privacy')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-user-shield text-xs text-gray-500"></i> <span data-i18n="footer_privacy">Chính sách bảo mật</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="openModal('payment')" class="hover:text-cyan-400 transition flex items-center gap-2"><i class="fas fa-credit-card text-xs text-gray-500"></i> <span data-i18n="footer_payment">Chính sách thanh toán</span></a></li>
                 </ul>
 
                 <div class="flex flex-col gap-3">
@@ -1363,14 +1364,14 @@
             </div>
 
             <div>
-                <h4 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2">Liên Hệ Với Sếp</h4>
+                <h3 class="text-white font-black mb-6 uppercase tracking-widest text-sm lg:text-base border-b-2 border-cyan-500/30 w-max pb-2" data-i18n="footer_contact_title">Liên Hệ Với Sếp</h3>
                 <ul class="space-y-4 text-sm text-gray-300 mb-6">
                     <li class="flex items-center gap-3 group">
                         <div class="w-10 h-10 rounded-full bg-cyan-500/10 flex justify-center items-center shrink-0 border border-cyan-500/30 group-hover:bg-cyan-500/30 transition">
                             <i class="fas fa-phone-alt text-cyan-400 text-lg"></i>
                         </div>
                         <div>
-                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Hotline 24/7</p>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_hotline_label">Hotline 24/7</p>
                             <a href="tel:0794678904" class="hover:text-cyan-400 transition font-black text-base lg:text-[17px] text-white">0794.678.904</a>
                         </div>
                     </li>
@@ -1379,7 +1380,7 @@
                             <i class="fas fa-envelope text-rose-400 text-lg"></i>
                         </div>
                         <div class="overflow-hidden">
-                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Email Công việc</p>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
                             <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="hodinhsang30052003@gmail.com">hodinhsang30052003@gmail.com</a>
                         </div>
                     </li>
@@ -1389,7 +1390,7 @@
                         </div>
                         <div>
                             <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Zalo Support</p>
-                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white">Zalo Kỹ Thuật (Sếp Sang)</a>
+                            <a href="https://zalo.me/0794678904" target="_blank" class="hover:text-blue-400 transition font-bold text-base lg:text-[17px] text-white" data-i18n="footer_zalo_name">Zalo Kỹ Thuật (Sếp Sang)</a>
                         </div>
                     </li>
                     <li class="flex items-center gap-3 group">
@@ -1397,19 +1398,19 @@
                             <i class="fab fa-facebook-f text-blue-500 text-lg"></i>
                         </div>
                         <div>
-                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase">Fanpage Chính Thức</p>
+                            <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_fanpage_label">Fanpage Chính Thức</p>
                             <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-blue-500 transition font-bold text-base lg:text-[17px] text-white">Hồ Đình Sang (CEO)</a>
                         </div>
                     </li>
                 </ul>
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-cyan-900 hover:to-pink-900 text-white border border-gray-700 hover:border-cyan-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> Đăng Nhập Quản Trị</a>
+                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-cyan-900 hover:to-pink-900 text-white border border-gray-700 hover:border-cyan-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> <span data-i18n="footer_admin_login">Đăng Nhập Quản Trị</span></a>
             </div>
         </div>
 
         <div class="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium border-t border-white/5">
             <p>&copy; 2026 BitPaw Technology Enterprise. All rights reserved.</p>
             <div class="flex items-center gap-2 mt-4 md:mt-0">
-                <span>Thiết kế & Lập trình bởi:</span>
+                <span data-i18n="footer_designed_by">Thiết kế & Lập trình bởi:</span>
                 <span class="bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded border border-cyan-500/30 font-bold">Hồ Đình Sang</span>
                 <span>&</span>
                 <span class="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30 font-bold"><i class="fas fa-robot mr-1"></i> AI DKS</span>
@@ -1425,12 +1426,12 @@
     <div id="policyModal" class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-[#0a0f25] border border-cyan-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-[0_0_40px_rgba(6,182,212,0.2)] transform scale-95 transition-transform duration-300 relative flex flex-col">
             <div class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-[#06b6d4]/40 to-transparent rounded-t-2xl">
-                <h3 id="modalTitle" class="text-xl font-black text-cyan-400 tracking-wider uppercase">Tiêu đề</h3>
+                <h3 id="modalTitle" class="text-xl font-black text-cyan-400 tracking-wider uppercase" data-i18n="modal_default_title">Tiêu đề</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i class="fas fa-times"></i></button>
             </div>
             <div id="modalContent" class="p-6 text-gray-300 text-sm space-y-4 leading-relaxed overflow-y-auto modal-scroll"></div>
             <div class="px-6 py-4 border-t border-white/10 bg-black/20 rounded-b-2xl flex justify-end">
-                <button onclick="closeModal()" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+                <button onclick="closeModal()" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition" data-i18n="modal_close_btn">Đã hiểu & Đóng</button>
             </div>
         </div>
     </div>
@@ -1638,16 +1639,438 @@
             const modal = document.getElementById('policyModal');
             if (!modal) return;
             const modalInner = modal.querySelector('div');
-            
+
+            const lang = (typeof currentLang !== 'undefined' && currentLang === 'en') ? 'en' : 'vi';
             const titles = {
-                terms: 'Điều khoản sử dụng',
-                privacy: 'Chính sách bảo mật',
-                payment: 'Chính sách thanh toán'
+                vi: {
+                    terms: 'Điều khoản sử dụng',
+                    privacy: 'Chính sách bảo mật',
+                    payment: 'Chính sách thanh toán',
+                    default: 'Chính sách'
+                ,
+                calc_cta: 'Đăng ký dùng ngay Spa OS',
+                calc_desc: 'Cuối ngày không lo đối soát thủ công bằng sổ sách. Tránh các tranh cãi không đáng có với nhân viên, kỹ thuật viên:',
+                calc_form_title: 'Nhập giá trị liệu trình mẫu',
+                calc_label_ccfee: '4. Phí Cà Thẻ / Cổng CC (%)',
+                calc_label_service: 'Chọn Liệu Trình Mẫu',
+                calc_label_sessions: '6. Số Buổi Đã Thanh Toán Trước',
+                calc_label_split: '2. Hoa Hồng KTV (%)',
+                calc_label_supply: '3. Phụ Thu Giường / Mỹ Phẩm (₫)',
+                calc_label_tip: '5. Tiền Tip Khách Cho KTV (₫)',
+                calc_label_total: '1. Đơn Giá Dịch Vụ (₫)',
+                calc_note: 'In phiếu tính lương hoa hồng tức thời giúp tăng tính minh bạch, kỹ thuật viên tin tưởng đồng hành cùng Spa.',
+                calc_option_custom: 'Tự nhập thông số thủ công bên dưới...',
+                calc_option_massage: 'Massage Body Đá Nóng (Thu khách 400.000 ₫ - Tua KTV 20% - Phụ thu 30.000 ₫)',
+                calc_option_skin: 'Liệu Trình Mụn Y Khoa (Thu khách 500.000 ₫ - Tua KTV 15% - Phụ thu 20.000 ₫)',
+                calc_option_whitening: 'Cấy Collagen Dưỡng Trắng (Thu khách 800.000 ₫ - Tua KTV 12% - Phụ thu 50.000 ₫)',
+                calc_r_ccfee_label1: '- Phí Cà Thẻ (Nợ thẻ',
+                calc_r_ccfee_label2: '%):',
+                calc_r_net_label: 'Doanh thu tính hoa hồng:',
+                calc_r_salon_final: 'Spa Giữ Lại',
+                calc_r_split_label1: 'Hoa Hồng KTV Nhận (',
+                calc_r_split_label2: '%):',
+                calc_r_subtotal_label: 'Đơn Giá Dịch Vụ:',
+                calc_r_supply_label: '- Phụ Thu Giường/Mỹ phẩm:',
+                calc_r_tip_label: '+ Tiền Tip Khách Cho:',
+                calc_r_worker_final: 'KTV Thực Nhận',
+                calc_receipt_title: 'Phiếu chốt hoa hồng ca làm',
+                calc_title: 'Tính hoa hồng & tiền thợ',
+                cskh1_goal: 'Mục tiêu: Khảo sát mức độ hài lòng về kỹ thuật viên',
+                cskh1_msg: '"Chào chị Vy! 🐾 Cảm ơn chị đã trải nghiệm liệu trình chăm sóc da mặt mụn y khoa tại BitPaw Spa hôm qua. Da chị hôm nay có bị đỏ hay kích ứng gì không ạ? Nhớ bôi kem dưỡng ẩm đầy đủ nha chị yêu! 🌸',
+                cskh1_time: 'AI gợi ý • Sau 1 ngày',
+                cskh1_title: 'Hỏi thăm chất lượng da',
+                cskh2_goal: 'Mục tiêu: Kéo khách đi đúng liệu trình để đạt kết quả tốt nhất',
+                cskh2_msg: '"Kính chào chị Linh! 🍲 Đã đến chu kỳ 7 ngày cho buổi thứ 3 trong liệu trình hút chì thải độc da mặt của chị. AI BitPaw Spa đã tự động giữ chỗ cho chị vào 15:30 chiều mai với KTV Vy. Chị nhớ ghé đúng giờ nha! 🌸',
+                cskh2_time: 'AI gợi ý • Sau 7 ngày',
+                cskh2_title: 'Nhắc lịch buổi tiếp theo',
+                cskh3_goal: 'Mục tiêu: Kích hoạt lại tệp khách hàng quen sắp mất kết nối',
+                cskh3_msg: '"Chào chị Mai thân yêu! 🐾 Đã 30 ngày kể từ lần cuối chị thư giãn chăm sóc sắc đẹp tại BitPaw. AI gửi tặng riêng chị voucher giảm 20% gói massage đá nóng xông hơi thảo dược hồi phục năng lượng tuần này. Đặt chỗ ngay nha chị! 🌸',
+                cskh3_time: 'AI gợi ý • Sau 30 ngày',
+                cskh3_title: 'Ưu đãi kéo khách sắp rời bỏ',
+                cskh_approved: 'Đã duyệt',
+                cskh_desc: 'AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo chu kỳ liệu trình da mặt hay massage cơ thể của Spa, nâng cao cơ hội giữ chân khách hàng cũ:',
+                cskh_label: 'CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG',
+                cskh_title: 'Khách làm đẹp luôn có chu kỳ.',
+                cta_btn1: 'Dùng thử hệ thống Spa ngay',
+                cta_btn2: 'Nhận tư vấn qua Zalo 24/7',
+                cta_desc: 'Hãy để BitPaw Spa OS quản lý toàn diện: lập lịch booking online tự động, xoay ca trực KTV minh bạch, chốt liệu trình số chính xác và AI kéo khách quen quay lại.',
+                cta_footnote: 'Phù hợp cho Clinic thẩm mỹ, Spa chăm sóc da mặt, tiệm massage body thảo dược, tiệm phun xăm thẩm mỹ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.',
+                cta_title: 'Đừng để Spa của sếp tiếp tục mất thời gian vì ghi chép liệu trình giấy và trùng ca trực KTV!',
+                faq1_q: '1. Tiệm nhỏ hay thẩm mỹ viện lớn nhiều chi nhánh có dùng được không?',
+                faq1_a: 'Cực kỳ thích hợp. BitPaw Spa OS hỗ trợ phân tách quản lý đa chi nhánh chuyên nghiệp cho chuỗi thẩm mỹ lớn, đồng thời giao diện cực kỳ tối giản dễ dùng phù hợp cho cả các tiệm Spa/Massage nhỏ của gia đình.',
+                faq2_q: '2. Thẻ liệu trình số hoạt động như thế nào?',
+                faq2_a: 'Khi khách mua gói liệu trình, hệ thống sinh ra một thẻ liệu trình số được mã hóa gắn chặt trên hồ sơ khách hàng. Mỗi lần khách đến làm dịch vụ, POS sẽ tự động khấu trừ một buổi và cập nhật số buổi còn lại, tránh thất lạc hay nhầm lẫn của thẻ giấy.',
+                faq3_q: '3. Hệ thống có tự động nhắc lịch hẹn cho khách không?',
+                faq3_a: 'Có. Đây là tính năng tự động hóa tối ưu cho Spa. AI sẽ tự động lập lịch và gửi tin nhắn nhắc nhở cho khách qua SMS/Zalo trước ca trực để khách nhớ lịch ghé tiệm, giảm thiểu tỷ lệ rớt ca của kỹ thuật viên.',
+                faq4_q: '4. Có phân chia hoa hồng tự động theo từng Kỹ thuật viên được không?',
+                faq4_a: 'Hoàn toàn được. Hệ thống cho phép sếp thiết lập tỷ lệ chia hoa hồng riêng biệt (%) cho từng gói liệu trình, từng kỹ thuật viên. Khi thanh toán bill, POS tự động ghi nhận và cộng dồn hoa hồng chi tiết cho nhân viên chuẩn xác tức thì.',
+                faq5_q: '5. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ Spa không?',
+                faq5_a: 'Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của chủ Spa tức thời, an toàn tuyệt đối.',
+                faq6_q: '6. Khi cần hướng dẫn hay cài đặt ban đầu tôi có được hỗ trợ miễn phí không?',
+                faq6_a: 'Đội ngũ kỹ thuật hỗ trợ sếp 24/7. Kỹ thuật viên của BitPaw hỗ trợ thiết lập danh sách dịch vụ Spa, cấu hình phòng giường và danh sách KTV hoàn toàn miễn phí trọn gói ban đầu cho sếp yên tâm vận hành.',
+                faq_label: 'GIẢI ĐÁP THẮC MẮC',
+                faq_title: 'Hỏi đáp về',
+                feat1_title: 'Booking Online Tự Động',
+                feat1_desc: 'Khách tự đặt lịch trực tuyến, tự chọn Kỹ thuật viên qua',
+                feat1_link: 'Dùng trong vận hành Spa',
+                feat2_title: 'Xoay Ca Trực KTV',
+                feat2_desc: 'Theo dõi trạng thái rảnh/bận để phân chia tua trực, ca phục vụ cho kỹ thuật viên công bằng ngay tại',
+                feat2_link: 'Dùng quản lý nhân viên',
+                feat3_title: 'Quản Lý Phòng & Giường',
+                feat3_desc: 'Theo dõi sơ đồ phòng, giường dịch vụ trống/dơ/sạch theo thời gian thực để phân bổ khách hàng hiệu quả cao ở màn hình',
+                feat3_link: 'Dùng điều phối tài nguyên',
+                feat4_title: 'Thẻ Liệu Trình Số',
+                feat4_desc: 'Hệ thống hóa lịch sử làm đẹp, số buổi liệu trình còn lại của từng khách hàng, AI tự động nhắc tái chăm sóc thông minh trên',
+                feat4_link: 'Dùng quản lý khách hàng',
+                feat5_title: 'Smart POS Thu Ngân',
+                feat5_desc: 'In bill nhiệt siêu tốc, bóc tách hoa hồng KTV theo %, quản lý tiền tip thẻ, tip mặt, CC fee cà thẻ rõ ràng, minh bạch 100% tại',
+                feat5_link: 'Dùng tại quầy thu ngân',
+                feat6_title: 'Thêm Mới Liệu Trình',
+                feat6_desc: 'Thêm mới menu dịch vụ Spa, thiết lập đơn giá, tải ảnh liệu trình làm đẹp trực quan và nhanh chóng tại',
+                feat6_link: 'Dùng cập nhật menu',
+                feat7_title: 'Báo Cáo Doanh Thu Realtime',
+                feat7_desc: 'Biểu đồ thống kê doanh số, theo dõi hiệu suất phòng ban, hoa hồng kỹ thuật viên chi tiết phục vụ sếp quản trị từ xa tại',
+                feat7_link: 'Dùng cho sếp quản lý',
+                feat8_title: 'AI Content Assistant',
+                feat8_desc: 'Trợ lý AI đắc lực hỗ trợ lên ý tưởng bài viết quảng cáo dịch vụ làm đẹp, đề xuất kịch bản video ngắn Reels/TikTok cực hút khách quen ở',
+                feat8_link: 'Dùng làm marketing Spa',
+                features_desc: 'Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp vận hành Spa trơn tru:',
+                features_label: 'HỆ THỐNG THỰC TẾ',
+                features_title: 'Các tính năng lõi',
+                footer_admin_login: 'Đăng Nhập Quản Trị',
+                footer_contact_title: 'Liên Hệ Với Sếp',
+                footer_designed_by: 'Thiết kế & Lập trình bởi:',
+                footer_email_label: 'Email Công việc',
+                footer_fanpage_label: 'Fanpage Chính Thức',
+                footer_hotline_label: 'Hotline 24/7',
+                footer_legal_title: 'Pháp Lý & Bảo Mật',
+                footer_link_agency: 'Dịch vụ AI Agency',
+                footer_link_pos: 'Smart POS Đa ngành',
+                footer_link_pricing: 'Bảng giá đầu tư',
+                footer_payment: 'Chính sách thanh toán',
+                footer_privacy: 'Chính sách bảo mật',
+                footer_products_title: 'Sản Phẩm',
+                footer_tagline: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_terms: 'Điều khoản sử dụng',
+                footer_zalo_name: 'Zalo Kỹ Thuật (Sếp Sang)',
+                hero_badge: '💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện',
+                hero_card1_label: 'Lịch Trị Liệu Hôm Nay',
+                hero_card1_name: 'Chị Thảo - Chăm Sóc Da',
+                hero_card1_status: 'KTV Vy • 14:00 • Đang làm',
+                hero_card2_label: 'Liệu Trình Số',
+                hero_card2_name: 'Trị Mụn Y Khoa 5 Buổi',
+                hero_card2_status: 'Buổi còn lại: 3 Buổi',
+                hero_cta1: 'Dùng thử cho Spa của sếp',
+                hero_cta2: 'Nhận tư vấn qua Zalo',
+                hero_desc: 'Một màn hình gom lịch hẹn từ nhiều kênh, tự động phân phòng/giường/KTV, quản lý thẻ liệu trình số chi tiết, POS tính hoa hồng thợ và AI CSKH tự nhắc tái chăm sóc.',
+                hero_tag1: 'Booking thông minh',
+                hero_tag2: 'Quản lý liệu trình',
+                hero_tag3: 'Xoay ca trực KTV',
+                hero_tag4: 'Hoa hồng tự động',
+                hero_title: 'Quản lý Spa & Beauty',
+                mkt_desc: 'Không còn vắt óc nghĩ tiêu đề hay tìm kịch bản giới thiệu công nghệ làm đẹp của Spa lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất bài đăng hấp dẫn phù hợp xu hướng:',
+                mkt_item1_title: 'Tự tạo kịch bản video làm đẹp',
+                mkt_item1_desc: 'AI đề xuất kịch bản quay cận cảnh quy trình chăm sóc da mịn màng, góc quay cận cảnh chuyên nghiệp tạo lòng tin tuyệt đối.',
+                mkt_item2_title: 'Tư vấn ngân sách chạy quảng cáo',
+                mkt_item2_desc: 'AI định vị tệp khách hàng quanh khu vực Spa, độ tuổi quan tâm sâu tới sắc đẹp và mức ngân sách tối ưu nhất.',
+                mkt_term_1: '[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Spa...',
+                mkt_term_2: '[DATA] Phát hiện liệu trình được quan tâm nhiều nhất: "Trị Mụn Y Khoa Sinh Học"',
+                mkt_term_3: '&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu quy trình Trị Mụn',
+                mkt_term_4: '🎬 PHÁT THẢO KỊCH BẢN VIDEO:',
+                mkt_term_5: '',
+                mkt_term_6: '',
+                mkt_term_7: '',
+                mkt_term_8: '📝 CAPTION ĐỀ XUẤT:',
+                mkt_term_9: '"Sạch mụn, mờ thâm, tự tin rạng rỡ đón nắng hè! ☀️ Quy trình Trị Mụn Y Khoa Sinh Học độc quyền tại BitPaw Spa nhẹ nhàng lấy sạch nhân mụn, sát khuẩn cao tần phòng tránh tái phát. Nhắn tin đặt chỗ hôm nay nhận ngay ưu đãi 20% nhé các chị yêu! 💆‍♀️✨ #SpaBeauty #TriMunYKhoa #ChamSocDa #BitPawSpa',
+                mkt_term_10: '[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: Nữ giới, 18-35 tuổi, quan tâm chăm sóc sắc đẹp, bán kính 4km.',
+                mkt_title: 'Trợ lý AI tự lập chiến dịch,',
+                modal_close_btn: 'Đã hiểu & Đóng',
+                modal_default_title: 'Tiêu đề',
+                nav_features: 'Tính Năng',
+                nav_language_label: 'Ngôn ngữ:',
+                nav_login: 'Đăng Nhập',
+                nav_pricing: 'Bảng Giá',
+                nav_solutions: 'Giải Pháp',
+                nav_trial: 'Dùng Thử Miễn Phí',
+                pain1_tag: 'Lệch lịch',
+                pain1_title: 'Lịch hẹn chồng chéo, bỏ sót đặt lịch',
+                pain1_desc: 'Lịch hẹn đặt rải rác từ Facebook, Zalo, gọi điện. Ghi chép sổ tay dễ bị quên hoặc trùng ca của Kỹ thuật viên làm khách đến phải chờ đợi lâu rồi bỏ về.',
+                pain2_tag: 'Thất lạc',
+                pain2_title: 'Gói liệu trình nhiều buổi khó kiểm soát',
+                pain2_desc: 'Khách mua liệu trình 5-10 buổi nhưng quản lý thẻ giấy dễ bị rách, mất hoặc nhầm lẫn số buổi đã làm, dễ gây ra tranh cãi lúc đối soát.',
+                pain3_tag: 'Tị nạnh',
+                pain3_title: 'Kỹ thuật viên tị nạnh vì chia ca trực không đều',
+                pain3_desc: 'Quy trình xếp tua thợ làm mặt, làm body thiếu công bằng dẫn đến Kỹ thuật viên nghi ngờ chủ thiên vị, gây mất đoàn kết nội bộ và dễ xin nghỉ việc.',
+                pain4_tag: 'Quên nhắc lịch',
+                pain4_title: 'Khách dùng xong liệu trình không được nhắc lịch',
+                pain4_desc: 'Khách làm đẹp xong ra về là Spa quên mất. Không ai nhớ chu kỳ 7-14 ngày để chủ động nhắc nhở làm giảm hiệu quả phục hồi của da.',
+                pain5_tag: 'Sai hoa hồng',
+                pain5_title: 'Tính hoa hồng thợ & KTV thủ công mệt mỏi',
+                pain5_desc: 'Mỗi dịch vụ chăm sóc da, massage có mức hoa hồng khác nhau cho kỹ thuật viên. Cuối ngày sếp mò mẫm tính hoa hồng thủ công rất dễ xảy ra sai số.',
+                pain6_tag: 'Lãng phí giường',
+                pain6_title: 'Lãng phí công suất phòng & giường dịch vụ',
+                pain6_desc: 'Chủ Spa khó biết phòng nào đang bận, giường nào trống realtime để linh hoạt điều phối khách, gây lãng phí tài nguyên vận hành của Spa.',
+                problems_desc: 'Quản lý cơ sở làm đẹp với kỹ thuật viên và gói dịch vụ dài hạn cực kỳ phức tạp. Đây là những khó khăn sếp phải đối mặt hàng ngày:',
+                problems_label: 'Thực tế vận hành',
+                problems_title: 'Chủ Spa & Viện thẩm mỹ',
+                promise1_title: 'Booking online tự động',
+                promise1_desc: 'Khách tự đặt lịch online qua Zalo/Web. Tự động khóa lịch khi Kỹ thuật viên hoặc giường bận.',
+                promise2_title: 'Thẻ liệu trình số',
+                promise2_desc: 'Hệ thống hóa lịch sử làm đẹp, tự động trừ số buổi điều trị mụn/nám chính xác 100%.',
+                promise3_title: 'Xoay ca KTV minh bạch',
+                promise3_desc: 'Kỹ thuật viên tự check-in GPS tại tiệm để xoay tua làm việc công bằng, không tị nạnh.',
+                promise4_title: 'Hoa hồng tự động',
+                promise4_desc: 'POS chốt hóa đơn bóc tách hoa hồng dịch vụ, tip thẻ cho nhân viên nhanh gọn trong 3 giây.',
+                promise_desc: 'BitPaw số hóa và khép kín quy trình vận hành Spa: tự động gom lịch đặt hẹn từ xa, phân chia Kỹ thuật viên công bằng, chốt buổi liệu trình số và nhắc nhở khách tự động.',
+                promise_label: 'SỰ KHÁC BIỆT CỦA BITPAW OS',
+                promise_title: 'Biến Spa & Thẩm mỹ viện thành cỗ máy',
+                trust_cta_btn: 'Chat Zalo Chuyên Viên BitPaw',
+                trust_cta_text: 'Cần chuyên viên hỗ trợ cài đặt menu Spa và thiết lập sơ đồ giường phòng?',
+                trust_label: 'ĐỘ TIN CẬY TUYỆT ĐỐI',
+                trust_stat1: 'Không còn trễ hay trùng lịch hẹn',
+                trust_stat2: 'Tăng trưởng khách cũ quay lại',
+                trust_stat3: 'Số hóa 100% thẻ liệu trình',
+                trust_stat3_num: '0 Giấy',
+                trust_title: 'Giải pháp chốt bill nhanh,',
+                wf1_title: 'Khách đặt lịch online',
+                wf1_desc: 'Khách tự chọn gói dịch vụ, kỹ thuật viên yêu thích và giờ trống từ xa.',
+                wf2_title: 'AI xác nhận lịch hẹn',
+                wf2_desc: 'Hệ thống chốt lịch và tự động gửi tin nhắn xác nhận lịch hẹn tức thời qua Zalo.',
+                wf3_title: 'Điều phối phòng KTV',
+                wf3_desc: 'Lễ tân điều phối phòng dịch vụ trống và Kỹ thuật viên thực hiện ca làm.',
+                wf4_title: 'KTV thực hiện liệu trình',
+                wf4_desc: 'Nhân viên tiến hành liệu trình chăm sóc sắc đẹp, massage chuyên nghiệp cho khách.',
+                wf5_title: 'POS chốt hóa đơn',
+                wf5_desc: 'POS tính bill nhanh gọn, tự động khấu trừ số buổi liệu trình hoặc chia hoa hồng KTV.',
+                wf6_title: 'QR Code thanh toán động',
+                wf6_desc: 'Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.',
+                wf7_title: 'CRM lưu hồ sơ da',
+                wf7_desc: 'Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.',
+                wf8_title: 'AI nhắc lịch tái liệu trình',
+                wf8_desc: 'AI tự động nhắc nhở khách đến buổi hẹn tiếp theo theo chu kỳ liệu trình da.',
+                workflow_desc: 'Bản đồ quy trình số hóa toàn diện tối ưu hóa công suất kỹ thuật viên và chăm sóc khách hàng tự động:',
+                workflow_label: 'LUỒNG VẬN HÀNH THỰC TẾ',
+                workflow_title: 'Hành trình trải nghiệm dịch vụ Spa',
+            },
+                en: {
+                    terms: 'Terms of Use',
+                    privacy: 'Privacy Policy',
+                    payment: 'Payment Policy',
+                    default: 'Policy'
+                ,
+                calc_cta: 'Sign Up for Spa OS Now',
+                calc_desc: 'No more manual end-of-day reconciliation with paper ledgers. Avoid unnecessary disputes with staff and technicians:',
+                calc_form_title: 'Enter Sample Treatment Values',
+                calc_label_ccfee: '4. Card Swipe / Payment Gateway Fee (%)',
+                calc_label_service: 'Choose a Sample Treatment',
+                calc_label_sessions: '6. Number of Prepaid Sessions',
+                calc_label_split: '2. Technician Commission (%)',
+                calc_label_supply: '3. Room / Product Surcharge (₫)',
+                calc_label_tip: '5. Customer Tip to Technician (₫)',
+                calc_label_total: '1. Service Price (₫)',
+                calc_note: 'Printing an instant commission slip builds transparency and trust, keeping technicians loyal to your spa.',
+                calc_option_custom: 'Enter custom values manually below...',
+                calc_option_massage: 'Hot Stone Body Massage (Charge 400,000₫ - Technician commission 20% - Surcharge 30,000₫)',
+                calc_option_skin: 'Medical Acne Treatment (Charge 500,000₫ - Technician commission 15% - Surcharge 20,000₫)',
+                calc_option_whitening: 'Collagen Whitening Treatment (Charge 800,000₫ - Technician commission 12% - Surcharge 50,000₫)',
+                calc_r_ccfee_label1: '- Card Fee (Card charge',
+                calc_r_ccfee_label2: '%):',
+                calc_r_net_label: 'Commission-eligible revenue:',
+                calc_r_salon_final: 'Spa Keeps',
+                calc_r_split_label1: 'Technician Commission (',
+                calc_r_split_label2: '%):',
+                calc_r_subtotal_label: 'Service Price:',
+                calc_r_supply_label: '- Room/Product Surcharge:',
+                calc_r_tip_label: '+ Customer Tip:',
+                calc_r_worker_final: 'Technician Take-Home',
+                calc_receipt_title: 'Shift Commission Receipt',
+                calc_title: 'Commission & Technician Pay Calculator',
+                cskh1_goal: 'Goal: Survey satisfaction with the technician',
+                cskh1_msg: '"Hi! 🐾 Thank you for trying our medical acne facial treatment at BitPaw Spa yesterday. Is your skin feeling any redness or irritation today? Don\'t forget to moisturize well! 🌸',
+                cskh1_time: 'AI Suggested • 1 day later',
+                cskh1_title: 'Skin Check-In Follow-Up',
+                cskh2_goal: 'Goal: Keep customers on schedule for the best treatment results',
+                cskh2_msg: '"Hello! 🍲 It\'s been 7 days — time for session 3 of your facial detox treatment. BitPaw Spa\'s AI has already reserved your slot for 3:30 PM tomorrow with your technician. See you then! 🌸',
+                cskh2_time: 'AI Suggested • 7 days later',
+                cskh2_title: 'Next Session Reminder',
+                cskh3_goal: 'Goal: Win back regular customers at risk of churning',
+                cskh3_msg: '"Hi there! 🐾 It\'s been 30 days since your last visit to BitPaw. We\'d love to offer you an exclusive 20% off voucher for our hot stone herbal steam massage this week. Book your spot now! 🌸',
+                cskh3_time: 'AI Suggested • 30 days later',
+                cskh3_title: 'Win-Back Offer for At-Risk Customers',
+                cskh_approved: 'Approved',
+                cskh_desc: 'AI automatically schedules and drafts customer care messages based on your spa\'s facial or massage treatment cycles, boosting customer retention:',
+                cskh_label: 'AUTOMATED CUSTOMER RETENTION ENGINE',
+                cskh_title: 'Beauty customers always follow a cycle.',
+                cta_btn1: 'Try the Spa System Now',
+                cta_btn2: 'Get 24/7 Zalo Consultation',
+                cta_desc: 'Let BitPaw Spa OS handle it all: automated online booking, transparent technician rotation, accurate digital treatment tracking, and AI-driven customer win-back.',
+                cta_footnote: 'Ideal for beauty clinics, facial spas, herbal body massage parlors, cosmetic tattoo studios, and multi-branch chains in Vietnam and abroad.',
+                cta_title: 'Don\'t let your spa keep losing time to paper treatment records and scheduling conflicts!',
+                faq1_q: '1. Does it work for small salons as well as large multi-branch clinics?',
+                faq1_a: 'Absolutely. BitPaw Spa OS supports professional multi-branch management for large chains, while its simple, intuitive interface is just as easy to use for small family-run spas and massage parlors.',
+                faq2_q: '2. How does the digital treatment card work?',
+                faq2_a: 'When a customer buys a treatment package, the system generates an encrypted digital treatment card linked to their profile. Each visit, the POS automatically deducts one session and updates the remaining count — no more lost or mixed-up paper cards.',
+                faq3_q: '3. Does the system automatically remind customers of their appointments?',
+                faq3_a: 'Yes. This is a core automation feature. AI automatically schedules and sends SMS/Zalo reminders before each appointment, reducing no-shows and keeping technicians\' schedules on track.',
+                faq4_q: '4. Can commission be automatically split per technician?',
+                faq4_a: 'Absolutely. You can set a distinct commission rate (%) for each treatment package and each technician. At checkout, the POS automatically records and tallies each technician\'s commission instantly and accurately.',
+                faq5_q: '5. When customers scan the bank QR code to pay, does the money go directly to the spa owner\'s account?',
+                faq5_a: 'Yes. The dynamic payment QR code is generated using the bank account details you configure. Funds transferred by scanning go directly and instantly to the spa owner\'s own bank account — completely secure.',
+                faq6_q: '6. Is free support available for initial setup and guidance?',
+                faq6_a: 'Our technical team supports you 24/7. BitPaw\'s specialists help set up your service menu, room/bed configuration, and technician list completely free of charge, so you can operate with confidence from day one.',
+                faq_label: 'FREQUENTLY ASKED QUESTIONS',
+                faq_title: 'Questions About',
+                feat1_title: 'Automated Online Booking',
+                feat1_desc: 'Customers book online and choose their preferred technician via the',
+                feat1_link: 'Used in Spa Operations',
+                feat2_title: 'Technician Shift Rotation',
+                feat2_desc: 'Track free/busy status to fairly assign shifts and service turns to technicians on the',
+                feat2_link: 'Used in Staff Management',
+                feat3_title: 'Room & Bed Management',
+                feat3_desc: 'Track room and treatment bed status (free/in-use/cleaning) in real time for efficient customer allocation on the',
+                feat3_link: 'Used in Resource Dispatch',
+                feat4_title: 'Digital Treatment Card',
+                feat4_desc: 'Digitizes each customer\'s beauty treatment history and remaining sessions, with AI-powered smart care reminders on the',
+                feat4_link: 'Used in Customer Management',
+                feat5_title: 'Smart POS Checkout',
+                feat5_desc: 'Instant thermal receipt printing, technician commission breakdown by %, and transparent management of card tips, cash tips, and card processing fees on the',
+                feat5_link: 'Used at the Checkout Counter',
+                feat6_title: 'Add New Treatments',
+                feat6_desc: 'Quickly add new spa service menu items, set prices, and upload treatment photos on the',
+                feat6_link: 'Used to Update the Menu',
+                feat7_title: 'Real-Time Revenue Reports',
+                feat7_desc: 'Revenue charts, department performance tracking, and detailed technician commission reports for remote management on the',
+                feat7_link: 'Used by Owners for Management',
+                feat8_title: 'AI Content Assistant',
+                feat8_desc: 'A powerful AI assistant that generates beauty service ad copy ideas and suggests engaging Reels/TikTok video scripts to attract customers on the',
+                feat8_link: 'Used for Spa Marketing',
+                features_desc: 'All the features below are fully integrated into the system, helping you run your spa seamlessly:',
+                features_label: 'REAL-WORLD SYSTEM',
+                features_title: 'Core Features',
+                footer_admin_login: 'Admin Login',
+                footer_contact_title: 'Contact Us',
+                footer_designed_by: 'Designed & developed by:',
+                footer_email_label: 'Business Email',
+                footer_fanpage_label: 'Official Fanpage',
+                footer_hotline_label: '24/7 Hotline',
+                footer_legal_title: 'Legal & Security',
+                footer_link_agency: 'AI Agency Services',
+                footer_link_pos: 'Multi-Industry Smart POS',
+                footer_link_pricing: 'Pricing Plans',
+                footer_payment: 'Payment Policy',
+                footer_privacy: 'Privacy Policy',
+                footer_products_title: 'Products',
+                footer_tagline: 'A pioneering ALL-IN-ONE SaaS platform in Vietnam, applying AI Radar, multi-industry Smart POS, omnichannel sales management, and marketing agency services.',
+                footer_terms: 'Terms of Service',
+                footer_zalo_name: 'Technical Zalo Support',
+                hero_badge: '💅 BitPaw OS: Complete Digital System for Spas & Beauty Clinics',
+                hero_card1_label: 'Today\'s Treatment Schedule',
+                hero_card1_name: 'Customer - Skin Care',
+                hero_card1_status: 'Technician • 2:00 PM • In Progress',
+                hero_card2_label: 'Digital Treatment',
+                hero_card2_name: '5-Session Medical Acne Treatment',
+                hero_card2_status: 'Sessions Remaining: 3',
+                hero_cta1: 'Try It for Your Spa',
+                hero_cta2: 'Get Zalo Consultation',
+                hero_desc: 'One screen to consolidate bookings from every channel, auto-assign rooms/beds/technicians, manage digital treatment cards, calculate technician commissions via POS, and let AI handle customer care reminders.',
+                hero_tag1: 'Smart Booking',
+                hero_tag2: 'Treatment Management',
+                hero_tag3: 'Technician Rotation',
+                hero_tag4: 'Automatic Commission',
+                hero_title: 'Spa & Beauty Management',
+                mkt_desc: 'No more racking your brain for captions or scripts to promote your spa\'s treatments on social media. BitPaw\'s AI assistant automatically suggests trending, engaging posts:',
+                mkt_item1_title: 'Auto-Generate Beauty Video Scripts',
+                mkt_item1_desc: 'AI suggests close-up shot scripts of the skincare process, with professional framing that builds absolute trust.',
+                mkt_item2_title: 'Ad Budget Consultation',
+                mkt_item2_desc: 'AI identifies your target audience around the spa\'s location, the age group most interested in beauty, and the optimal ad budget.',
+                mkt_term_1: '[SYSTEM] Activating specialized Spa AI Marketing module...',
+                mkt_term_2: '[DATA] Most popular treatment detected: "Bio Medical Acne Treatment"',
+                mkt_term_3: '&gt; AI-PROMPT: Suggest a TikTok Reels script showcasing the acne treatment process',
+                mkt_term_4: '🎬 VIDEO SCRIPT DRAFT:',
+                mkt_term_5: '',
+                mkt_term_6: '',
+                mkt_term_7: '',
+                mkt_term_8: '📝 SUGGESTED CAPTION:',
+                mkt_term_9: '"Clear skin, faded marks, radiant confidence for summer! ☀️ Our exclusive Bio Medical Acne Treatment at BitPaw Spa gently clears blemishes with high-frequency sterilization to prevent recurrence. Message us today to book and get 20% off! 💆‍♀️✨ #SpaBeauty #AcneTreatment #SkinCare #BitPawSpa',
+                mkt_term_10: '[SUCCESS] 3 scripts successfully generated. Target audience: Women, 18-35 years old, interested in beauty care, within a 4km radius.',
+                mkt_title: 'AI Assistant Builds Your Campaigns,',
+                modal_close_btn: 'Got it & Close',
+                modal_default_title: 'Title',
+                nav_features: 'Features',
+                nav_language_label: 'Language:',
+                nav_login: 'Login',
+                nav_pricing: 'Pricing',
+                nav_solutions: 'Solutions',
+                nav_trial: 'Free Trial',
+                pain1_tag: 'Scheduling Conflicts',
+                pain1_title: 'Overlapping and missed appointments',
+                pain1_desc: 'Bookings scattered across Facebook, Zalo, and phone calls. Handwritten notes get forgotten or double-booked, leaving customers waiting and walking out.',
+                pain2_tag: 'Lost Records',
+                pain2_title: 'Multi-session packages are hard to track',
+                pain2_desc: 'Customers buy 5-10 session packages, but paper cards get torn, lost, or miscounted — leading to disputes during reconciliation.',
+                pain3_tag: 'Staff Resentment',
+                pain3_title: 'Technicians resent unfair shift distribution',
+                pain3_desc: 'Unfair rotation for facial/body treatment technicians breeds suspicion of favoritism, damaging team morale and increasing staff turnover.',
+                pain4_tag: 'Forgotten Follow-Ups',
+                pain4_title: 'Customers aren\'t reminded after treatment',
+                pain4_desc: 'Once a customer leaves, the spa forgets about them. No one tracks the 7-14 day cycle to proactively remind them, reducing treatment effectiveness.',
+                pain5_tag: 'Commission Errors',
+                pain5_title: 'Exhausting manual technician commission calculations',
+                pain5_desc: 'Each skincare or massage service has a different technician commission rate. Calculating it manually at day\'s end is error-prone and time-consuming.',
+                pain6_tag: 'Wasted Capacity',
+                pain6_title: 'Wasted room & bed capacity',
+                pain6_desc: 'Spa owners can\'t tell which rooms are busy or free in real time, making it hard to allocate customers efficiently and wasting operational resources.',
+                problems_desc: 'Managing a beauty business with technicians and long-term treatment packages is incredibly complex. Here are the daily challenges you face:',
+                problems_label: 'Operational Reality',
+                problems_title: 'Spa & Beauty Clinic Owners',
+                promise1_title: 'Automated Online Booking',
+                promise1_desc: 'Customers book online via Zalo/Web themselves. The schedule automatically locks when a technician or bed is unavailable.',
+                promise2_title: 'Digital Treatment Card',
+                promise2_desc: 'Digitizes each customer\'s beauty history and automatically deducts acne/pigmentation treatment sessions with 100% accuracy.',
+                promise3_title: 'Transparent Technician Rotation',
+                promise3_desc: 'Technicians self-check-in via GPS at the salon for fair, transparent rotation — no more resentment.',
+                promise4_title: 'Automatic Commission',
+                promise4_desc: 'The POS closes out invoices and breaks down service commission and card tips for staff in just 3 seconds.',
+                promise_desc: 'BitPaw digitizes and closes the loop on spa operations: consolidating remote bookings, fairly assigning technicians, tracking digital treatment sessions, and automatically reminding customers.',
+                promise_label: 'THE BITPAW OS DIFFERENCE',
+                promise_title: 'Turn Your Spa & Beauty Clinic Into a Machine',
+                trust_cta_btn: 'Chat with a BitPaw Specialist on Zalo',
+                trust_cta_text: 'Need a specialist to help set up your service menu and room/bed layout?',
+                trust_label: 'ABSOLUTE RELIABILITY',
+                trust_stat1: 'No more late or double-booked appointments',
+                trust_stat2: 'Growth in returning customers',
+                trust_stat3: '100% digitized treatment cards',
+                trust_stat3_num: '0 Paper',
+                trust_title: 'Fast Checkout Solution,',
+                wf1_title: 'Customer books online',
+                wf1_desc: 'Customers remotely choose their service package, preferred technician, and available time slot.',
+                wf2_title: 'AI confirms the appointment',
+                wf2_desc: 'The system locks in the schedule and instantly sends an appointment confirmation via Zalo.',
+                wf3_title: 'Room & technician dispatch',
+                wf3_desc: 'The receptionist assigns an available treatment room and the technician for the shift.',
+                wf4_title: 'Technician performs the treatment',
+                wf4_desc: 'The technician carries out the professional beauty or massage treatment for the customer.',
+                wf5_title: 'POS closes the invoice',
+                wf5_desc: 'The POS quickly calculates the bill, automatically deducting treatment sessions or splitting technician commission.',
+                wf6_title: 'Dynamic QR Code Payment',
+                wf6_desc: 'Displays a dynamic bank QR code matched to the invoice, letting customers transfer payment instantly.',
+                wf7_title: 'CRM Skin Profile Records',
+                wf7_desc: 'Customer profiles record preferences, favorite technician, and clear before/after treatment photos.',
+                wf8_title: 'AI Rebooking Reminders',
+                wf8_desc: 'AI automatically reminds customers of their next appointment based on their skin treatment cycle.',
+                workflow_desc: 'A fully digitized process map that optimizes technician capacity and automates customer care:',
+                workflow_label: 'REAL-WORLD OPERATING FLOW',
+                workflow_title: 'The Spa Service Experience Journey',
+            }
             };
-            
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-cyan-400"></i> ' + (titles[type] || 'Chính sách');
-            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ Spa & Clinic...</p></div>';
-            
+            const contents = {
+                vi: '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội dung chính sách đang được cập nhật chi tiết cho phân hệ Spa & Clinic...</p></div>',
+                en: '<div class="space-y-4 text-gray-300"><p>BitPaw\'s policy terms are applied consistently across the entire system. Detailed policy content for the Spa & Clinic module is being updated...</p></div>'
+            };
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-cyan-400"></i> ' + (titles[lang][type] || titles[lang].default);
+            document.getElementById('modalContent').innerHTML = contents[lang];
+
             modal.classList.remove('hidden');
             setTimeout(() => { 
                 modal.classList.remove('opacity-0'); 
@@ -1677,6 +2100,8 @@
     </script>
 
     <script>
+        let currentLang = 'vi';
+
         function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('open'); }
 
         function toggleLangDropdown(e) {
@@ -1754,7 +2179,146 @@
                 wf6_title: 'QR Code thanh toán động',
                 wf6_desc: 'Hiển thị mã QR ngân hàng động theo hóa đơn giúp khách chuyển khoản chớp mắt.',
                 wf7_title: 'CRM lưu hồ sơ da',
-                wf7_desc: 'Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.'
+                wf7_desc: 'Hồ sơ khách lưu lại thói quen, KTV ưa thích, ảnh da trước/sau điều trị rõ ràng.',
+                nav_solutions: 'Giải Pháp',
+                nav_features: 'Tính Năng',
+                nav_pricing: 'Bảng Giá',
+                nav_login: 'Đăng Nhập',
+                nav_trial: 'Dùng Thử Miễn Phí',
+                nav_language_label: 'Ngôn ngữ:',
+                wf8_title: 'AI nhắc lịch tái liệu trình',
+                wf8_desc: 'AI tự động nhắc nhở khách đến buổi hẹn tiếp theo theo chu kỳ liệu trình da.',
+                features_label: 'HỆ THỐNG THỰC TẾ',
+                features_title: 'Các tính năng lõi <span class="text-gradient-cyan drop-shadow-[0_2px_10px_rgba(6,182,212,0.3)]">chuyên sâu Spa & Thẩm mỹ viện</span>',
+                features_desc: 'Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp vận hành Spa trơn tru:',
+                feat1_title: 'Booking Online Tự Động',
+                feat1_desc: 'Khách tự đặt lịch trực tuyến, tự chọn Kỹ thuật viên qua <a href="{{ url_for(\'public_booking\') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>. Tự động kiểm tra khóa ca thông minh.',
+                feat1_link: 'Dùng trong vận hành Spa',
+                feat2_title: 'Xoay Ca Trực KTV',
+                feat2_desc: 'Theo dõi trạng thái rảnh/bận để phân chia tua trực, ca phục vụ cho kỹ thuật viên công bằng ngay tại <a href="{{ url_for(\'chamcong_spa\') }}" class="text-cyan-400 hover:underline font-bold">Bảng xoay tua & tính lương thợ</a>.',
+                feat2_link: 'Dùng quản lý nhân viên',
+                feat3_title: 'Quản Lý Phòng & Giường',
+                feat3_desc: 'Theo dõi sơ đồ phòng, giường dịch vụ trống/dơ/sạch theo thời gian thực để phân bổ khách hàng hiệu quả cao ở màn hình <a href="{{ url_for(\'quanly_dichvu\') }}" class="text-cyan-400 hover:underline font-bold">QR Menu dịch vụ</a>.',
+                feat3_link: 'Dùng điều phối tài nguyên',
+                feat4_title: 'Thẻ Liệu Trình Số',
+                feat4_desc: 'Hệ thống hóa lịch sử làm đẹp, số buổi liệu trình còn lại của từng khách hàng, AI tự động nhắc tái chăm sóc thông minh trên <a href="{{ url_for(\'crm_automation\') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.',
+                feat4_link: 'Dùng quản lý khách hàng',
+                feat5_title: 'Smart POS Thu Ngân',
+                feat5_desc: 'In bill nhiệt siêu tốc, bóc tách hoa hồng KTV theo %, quản lý tiền tip thẻ, tip mặt, CC fee cà thẻ rõ ràng, minh bạch 100% tại <a href="{{ url_for(\'pos\') }}" class="text-cyan-400 hover:underline font-bold">POS tính tiền</a>.',
+                feat5_link: 'Dùng tại quầy thu ngân',
+                feat6_title: 'Thêm Mới Liệu Trình',
+                feat6_desc: 'Thêm mới menu dịch vụ Spa, thiết lập đơn giá, tải ảnh liệu trình làm đẹp trực quan và nhanh chóng tại <a href="{{ url_for(\'add_spa\') }}" class="text-cyan-400 hover:underline font-bold">Cổng đặt lịch online</a>.',
+                feat6_link: 'Dùng cập nhật menu',
+                feat7_title: 'Báo Cáo Doanh Thu Realtime',
+                feat7_desc: 'Biểu đồ thống kê doanh số, theo dõi hiệu suất phòng ban, hoa hồng kỹ thuật viên chi tiết phục vụ sếp quản trị từ xa tại <a href="{{ url_for(\'baocao_loinhuan\') }}" class="text-cyan-400 hover:underline font-bold">Báo cáo doanh thu realtime</a>.',
+                feat7_link: 'Dùng cho sếp quản lý',
+                feat8_title: 'AI Content Assistant',
+                feat8_desc: 'Trợ lý AI đắc lực hỗ trợ lên ý tưởng bài viết quảng cáo dịch vụ làm đẹp, đề xuất kịch bản video ngắn Reels/TikTok cực hút khách quen ở <a href="{{ url_for(\'campaign_builder\') }}" class="text-cyan-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.',
+                feat8_link: 'Dùng làm marketing Spa',
+                calc_title: 'Tính hoa hồng & tiền thợ <span class="text-gradient-cyan">minh bạch trong 3 giây</span>',
+                calc_desc: 'Cuối ngày không lo đối soát thủ công bằng sổ sách. Tránh các tranh cãi không đáng có với nhân viên, kỹ thuật viên:',
+                calc_form_title: 'Nhập giá trị liệu trình mẫu',
+                calc_label_service: 'Chọn Liệu Trình Mẫu',
+                calc_option_skin: 'Liệu Trình Mụn Y Khoa (Thu khách 500.000 ₫ - Tua KTV 15% - Phụ thu 20.000 ₫)',
+                calc_option_massage: 'Massage Body Đá Nóng (Thu khách 400.000 ₫ - Tua KTV 20% - Phụ thu 30.000 ₫)',
+                calc_option_whitening: 'Cấy Collagen Dưỡng Trắng (Thu khách 800.000 ₫ - Tua KTV 12% - Phụ thu 50.000 ₫)',
+                calc_option_custom: 'Tự nhập thông số thủ công bên dưới...',
+                calc_label_total: '1. Đơn Giá Dịch Vụ (₫)',
+                calc_label_split: '2. Hoa Hồng KTV (%)',
+                calc_label_supply: '3. Phụ Thu Giường / Mỹ Phẩm (₫)',
+                calc_label_ccfee: '4. Phí Cà Thẻ / Cổng CC (%)',
+                calc_label_tip: '5. Tiền Tip Khách Cho KTV (₫)',
+                calc_label_sessions: '6. Số Buổi Đã Thanh Toán Trước',
+                calc_note: 'In phiếu tính lương hoa hồng tức thời giúp tăng tính minh bạch, kỹ thuật viên tin tưởng đồng hành cùng Spa.',
+                calc_receipt_title: 'Phiếu chốt hoa hồng ca làm',
+                calc_r_subtotal_label: 'Đơn Giá Dịch Vụ:',
+                calc_r_supply_label: '- Phụ Thu Giường/Mỹ phẩm:',
+                calc_r_net_label: 'Doanh thu tính hoa hồng:',
+                calc_r_split_label1: 'Hoa Hồng KTV Nhận (',
+                calc_r_split_label2: '%):',
+                calc_r_tip_label: '+ Tiền Tip Khách Cho:',
+                calc_r_ccfee_label1: '- Phí Cà Thẻ (Nợ thẻ ',
+                calc_r_ccfee_label2: '%):',
+                calc_r_worker_final: 'KTV Thực Nhận',
+                calc_r_salon_final: 'Spa Giữ Lại',
+                calc_cta: 'Đăng ký dùng ngay Spa OS',
+                cskh_label: 'CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG',
+                cskh_title: 'Khách làm đẹp luôn có chu kỳ. <br>Vấn đề là <span class="text-gradient-cyan">tiệm có nhớ để nhắc hay không?</span>',
+                cskh_desc: 'AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng theo chu kỳ liệu trình da mặt hay massage cơ thể của Spa, nâng cao cơ hội giữ chân khách hàng cũ:',
+                cskh1_time: 'AI gợi ý • Sau 1 ngày',
+                cskh_approved: 'Đã duyệt',
+                cskh1_title: 'Hỏi thăm chất lượng da',
+                cskh1_msg: '"Chào chị Vy! 🐾 Cảm ơn chị đã trải nghiệm liệu trình chăm sóc da mặt mụn y khoa tại BitPaw Spa hôm qua. Da chị hôm nay có bị đỏ hay kích ứng gì không ạ? Nhớ bôi kem dưỡng ẩm đầy đủ nha chị yêu! 🌸"',
+                cskh1_goal: 'Mục tiêu: Khảo sát mức độ hài lòng về kỹ thuật viên',
+                cskh2_time: 'AI gợi ý • Sau 7 ngày',
+                cskh2_title: 'Nhắc lịch buổi tiếp theo',
+                cskh2_msg: '"Kính chào chị Linh! 🍲 Đã đến chu kỳ 7 ngày cho buổi thứ 3 trong liệu trình hút chì thải độc da mặt của chị. AI BitPaw Spa đã tự động giữ chỗ cho chị vào 15:30 chiều mai với KTV Vy. Chị nhớ ghé đúng giờ nha! 🌸"',
+                cskh2_goal: 'Mục tiêu: Kéo khách đi đúng liệu trình để đạt kết quả tốt nhất',
+                cskh3_time: 'AI gợi ý • Sau 30 ngày',
+                cskh3_title: 'Ưu đãi kéo khách sắp rời bỏ',
+                cskh3_msg: '"Chào chị Mai thân yêu! 🐾 Đã 30 ngày kể từ lần cuối chị thư giãn chăm sóc sắc đẹp tại BitPaw. AI gửi tặng riêng chị voucher giảm 20% gói massage đá nóng xông hơi thảo dược hồi phục năng lượng tuần này. Đặt chỗ ngay nha chị! 🌸"',
+                cskh3_goal: 'Mục tiêu: Kích hoạt lại tệp khách hàng quen sắp mất kết nối',
+                mkt_title: 'Trợ lý AI tự lập chiến dịch, <br> <span class="text-gradient-cyan">viết kịch bản Reels & TikTok Spa.</span>',
+                mkt_desc: 'Không còn vắt óc nghĩ tiêu đề hay tìm kịch bản giới thiệu công nghệ làm đẹp của Spa lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất bài đăng hấp dẫn phù hợp xu hướng:',
+                mkt_item1_title: 'Tự tạo kịch bản video làm đẹp',
+                mkt_item1_desc: 'AI đề xuất kịch bản quay cận cảnh quy trình chăm sóc da mịn màng, góc quay cận cảnh chuyên nghiệp tạo lòng tin tuyệt đối.',
+                mkt_item2_title: 'Tư vấn ngân sách chạy quảng cáo',
+                mkt_item2_desc: 'AI định vị tệp khách hàng quanh khu vực Spa, độ tuổi quan tâm sâu tới sắc đẹp và mức ngân sách tối ưu nhất.',
+                mkt_term_1: '[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Spa...',
+                mkt_term_2: '[DATA] Phát hiện liệu trình được quan tâm nhiều nhất: "Trị Mụn Y Khoa Sinh Học"',
+                mkt_term_3: '&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu quy trình Trị Mụn',
+                mkt_term_4: '🎬 PHÁT THẢO KỊCH BẢN VIDEO:',
+                mkt_term_5: '<strong>- Góc quay 1:</strong> Phân tích cấu trúc da mặt soi chi tiết mụn bằng máy soi da công nghệ cao (3 giây).',
+                mkt_term_6: '<strong>- Góc quay 2:</strong> Kỹ thuật viên đeo găng tay tiến hành lấy nhân mụn chuẩn y khoa nhẹ nhàng (4 giây).',
+                mkt_term_7: '<strong>- Âm thanh đề xuất:</strong> Nhạc nền nhẹ nhàng, thư giãn sảng khoái.',
+                mkt_term_8: '📝 CAPTION ĐỀ XUẤT:',
+                mkt_term_9: '"Sạch mụn, mờ thâm, tự tin rạng rỡ đón nắng hè! ☀️ Quy trình Trị Mụn Y Khoa Sinh Học độc quyền tại BitPaw Spa nhẹ nhàng lấy sạch nhân mụn, sát khuẩn cao tần phòng tránh tái phát. Nhắn tin đặt chỗ hôm nay nhận ngay ưu đãi 20% nhé các chị yêu! 💆‍♀️✨ #SpaBeauty #TriMunYKhoa #ChamSocDa #BitPawSpa"',
+                mkt_term_10: '[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: Nữ giới, 18-35 tuổi, quan tâm chăm sóc sắc đẹp, bán kính 4km.',
+                trust_label: 'ĐỘ TIN CẬY TUYỆT ĐỐI',
+                trust_title: 'Giải pháp chốt bill nhanh, <br>tăng tối đa tỷ lệ giữ chân khách cũ',
+                trust_stat1: 'Không còn trễ hay trùng lịch hẹn',
+                trust_stat2: 'Tăng trưởng khách cũ quay lại',
+                trust_stat3_num: '0 Giấy',
+                trust_stat3: 'Số hóa 100% thẻ liệu trình',
+                trust_cta_text: 'Cần chuyên viên hỗ trợ cài đặt menu Spa và thiết lập sơ đồ giường phòng?',
+                trust_cta_btn: 'Chat Zalo Chuyên Viên BitPaw',
+                faq_label: 'GIẢI ĐÁP THẮC MẮC',
+                faq_title: 'Hỏi đáp về <span class="text-gradient-cyan">BitPaw Spa OS</span>',
+                faq1_q: '1. Tiệm nhỏ hay thẩm mỹ viện lớn nhiều chi nhánh có dùng được không?',
+                faq1_a: 'Cực kỳ thích hợp. BitPaw Spa OS hỗ trợ phân tách quản lý đa chi nhánh chuyên nghiệp cho chuỗi thẩm mỹ lớn, đồng thời giao diện cực kỳ tối giản dễ dùng phù hợp cho cả các tiệm Spa/Massage nhỏ của gia đình.',
+                faq2_q: '2. Thẻ liệu trình số hoạt động như thế nào?',
+                faq2_a: 'Khi khách mua gói liệu trình, hệ thống sinh ra một thẻ liệu trình số được mã hóa gắn chặt trên hồ sơ khách hàng. Mỗi lần khách đến làm dịch vụ, POS sẽ tự động khấu trừ một buổi và cập nhật số buổi còn lại, tránh thất lạc hay nhầm lẫn của thẻ giấy.',
+                faq3_q: '3. Hệ thống có tự động nhắc lịch hẹn cho khách không?',
+                faq3_a: 'Có. Đây là tính năng tự động hóa tối ưu cho Spa. AI sẽ tự động lập lịch và gửi tin nhắn nhắc nhở cho khách qua SMS/Zalo trước ca trực để khách nhớ lịch ghé tiệm, giảm thiểu tỷ lệ rớt ca của kỹ thuật viên.',
+                faq4_q: '4. Có phân chia hoa hồng tự động theo từng Kỹ thuật viên được không?',
+                faq4_a: 'Hoàn toàn được. Hệ thống cho phép sếp thiết lập tỷ lệ chia hoa hồng riêng biệt (%) cho từng gói liệu trình, từng kỹ thuật viên. Khi thanh toán bill, POS tự động ghi nhận và cộng dồn hoa hồng chi tiết cho nhân viên chuẩn xác tức thì.',
+                faq5_q: '5. Khách quét mã QR ngân hàng thanh toán thì tiền có về trực tiếp tài khoản chủ Spa không?',
+                faq5_a: 'Có. Mã QR thanh toán động được tạo theo đúng thông tin số tài khoản và ngân hàng mà sếp thiết lập ban đầu. Tiền khách quét chuyển khoản được chuyển thẳng về tài khoản ngân hàng chính chủ của chủ Spa tức thời, an toàn tuyệt đối.',
+                faq6_q: '6. Khi cần hướng dẫn hay cài đặt ban đầu tôi có được hỗ trợ miễn phí không?',
+                faq6_a: 'Đội ngũ kỹ thuật hỗ trợ sếp 24/7. Kỹ thuật viên của BitPaw hỗ trợ thiết lập danh sách dịch vụ Spa, cấu hình phòng giường và danh sách KTV hoàn toàn miễn phí trọn gói ban đầu cho sếp yên tâm vận hành.',
+                cta_title: 'Đừng để Spa của sếp tiếp tục mất thời gian vì ghi chép liệu trình giấy và trùng ca trực KTV!',
+                cta_desc: 'Hãy để BitPaw Spa OS quản lý toàn diện: lập lịch booking online tự động, xoay ca trực KTV minh bạch, chốt liệu trình số chính xác và AI kéo khách quen quay lại.',
+                cta_btn1: 'Dùng thử hệ thống Spa ngay',
+                cta_btn2: 'Nhận tư vấn qua Zalo 24/7',
+                cta_footnote: 'Phù hợp cho Clinic thẩm mỹ, Spa chăm sóc da mặt, tiệm massage body thảo dược, tiệm phun xăm thẩm mỹ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.',
+                footer_tagline: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_products_title: 'Sản Phẩm',
+                footer_link_pos: 'Smart POS Đa ngành',
+                footer_link_agency: 'Dịch vụ AI Agency',
+                footer_link_pricing: 'Bảng giá đầu tư',
+                footer_legal_title: 'Pháp Lý & Bảo Mật',
+                footer_terms: 'Điều khoản sử dụng',
+                footer_privacy: 'Chính sách bảo mật',
+                footer_payment: 'Chính sách thanh toán',
+                footer_contact_title: 'Liên Hệ Với Sếp',
+                footer_hotline_label: 'Hotline 24/7',
+                footer_email_label: 'Email Công việc',
+                footer_fanpage_label: 'Fanpage Chính Thức',
+                footer_zalo_name: 'Zalo Kỹ Thuật (Sếp Sang)',
+                footer_admin_login: 'Đăng Nhập Quản Trị',
+                footer_designed_by: 'Thiết kế & Lập trình bởi:',
+                modal_default_title: 'Tiêu đề',
+                modal_close_btn: 'Đã hiểu & Đóng'
             },
             en: {
                 hero_badge: '💅 BitPaw OS: Complete Digital System For Spa & Beauty Clinics',
@@ -1825,6 +2389,7 @@
         };
 
         function changeLanguage(lang) {
+            currentLang = lang;
             const icon = lang === 'vi' ? '🇻🇳' : '🇬🇧';
             const text = lang === 'vi' ? 'VN' : 'EN';
             const elIcon = document.getElementById('current-lang-icon');
