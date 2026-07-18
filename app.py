@@ -85,6 +85,22 @@ if not _flask_secret_key:
     )
 app.secret_key = _flask_secret_key
 
+
+@app.after_request
+def _disable_html_caching(response):
+    """Chặn cache trình duyệt/CDN cho các trang HTML/JSON render động (Jinja) — chỉ những
+    trang này mới nhúng trực tiếp SUPABASE_URL/SUPABASE_KEY vào JS lúc render, nên nếu bị
+    cache lại (browser hoặc edge CDN của Vercel) sau khi đổi biến môi trường, người dùng vẫn
+    thấy giá trị CŨ dù server & source code đã đúng — đây chính là nguyên nhân gây lỗi
+    DNS_PROBE_FINISHED_NXDOMAIN khi đổi project Supabase (URL cũ vẫn bị cache lại ở trình
+    duyệt/CDN dù đã sửa env + code). Không áp dụng cho /static/ vì file tĩnh (css/js/ảnh)
+    cache bình thường là an toàn và cần thiết cho hiệu năng.
+    """
+    if not request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-store, must-revalidate'
+    return response
+
+
 # Upload ảnh
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
