@@ -947,12 +947,10 @@ def pos():
         tables = query.execute()
         tables_data = tables.data
         if len(tables_data) == 0:
-            default_tables = [
-                ('Bàn 1', uuid.uuid4().hex[:8]),
-                ('Bàn 2', uuid.uuid4().hex[:8]),
-                ('Bàn 3', uuid.uuid4().hex[:8]),
-                ('VIP 1', uuid.uuid4().hex[:8])
-            ]
+            # Cố định mặc định 200 bàn (đặt tên tiếng Anh "Table N") thay vì phụ thuộc vào
+            # tính năng "Thêm Bàn" động — mỗi tenant F&B mới sẽ luôn có sẵn 200 bàn thật
+            # (có id Supabase thật, dùng được ngay cho gọi món/thanh toán) ngay từ lần đầu vào POS.
+            default_tables = [(f'Table {i}', uuid.uuid4().hex[:8]) for i in range(1, 201)]
             for name, token in default_tables:
                 try:
                     insert_data = {'name': name, 'qr_token': token, 'business_id': business_id}

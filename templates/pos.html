@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPaw POS | Sơ đồ bàn & Thực đơn</title>
+    <title>{{ 'BitPaw POS | Floor Plan & Menu' if default_lang == 'en' else 'BitPaw POS | Sơ đồ bàn & Thực đơn' }}</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -359,16 +359,17 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-xs sm:text-lg font-medium">| POS Bán hàng</span></h1>
-                    <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider">Sơ đồ bàn & Thực đơn quán</p>
+                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-xs sm:text-lg font-medium" data-i18n="pos_header_title">| POS Bán hàng</span></h1>
+                    <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider" id="posHeaderSubtitle" data-i18n="pos_header_subtitle">Sơ đồ bàn & Thực đơn quán</p>
                 </div>
             </div>
-            <div class="flex gap-2 self-stretch sm:self-auto justify-end">
+            <div class="flex gap-2 self-stretch sm:self-auto justify-end items-center">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
                 <a href="{{ url_for('add_product') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1 flex-1 sm:flex-none">
-                    <i class="fas fa-plus-circle"></i> Thêm món
+                    <i class="fas fa-plus-circle"></i> <span data-i18n="pos_add_item_btn">Thêm món</span>
                 </a>
                 <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1 flex-1 sm:flex-none">
-                    <i class="fas fa-home"></i> Dashboard
+                    <i class="fas fa-home"></i> <span data-i18n="pos_dashboard_btn">Dashboard</span>
                 </a>
             </div>
         </div>
@@ -379,32 +380,32 @@
             <div class="glass-panel p-5 menu-section">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2" id="menuTitleSection"><i class="fas fa-utensils"></i> Thực đơn</h2>
-                        <p class="text-xs text-gray-400" id="menuSubtitleSection">Chọn một bàn bên phải trước khi gọi món</p>
+                        <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2" id="menuTitleSection"><i class="fas fa-utensils"></i> <span data-i18n="pos_menu_title">Thực đơn</span></h2>
+                        <p class="text-xs text-gray-400" id="menuSubtitleSection" data-i18n="pos_menu_subtitle_fnb">Chọn một bàn bên phải trước khi gọi món</p>
                     </div>
                     <div id="selectedTableBadge" class="text-xs bg-cyan-500/20 px-3 py-1 rounded-full text-cyan-300 hidden">
-                        <i class="fas fa-check-circle"></i> Đã chọn: <span id="selectedTableName">---</span>
+                        <i class="fas fa-check-circle"></i> <span data-i18n="pos_selected_prefix">Đã chọn:</span> <span id="selectedTableName">---</span>
                     </div>
                 </div>
                 <div class="menu-grid" id="menuGrid">
                     <!-- Sẽ load từ Supabase -->
-                    <div class="col-span-full text-center py-10 text-gray-500">Đang tải thực đơn...</div>
+                    <div class="col-span-full text-center py-10 text-gray-500" data-i18n="pos_loading_menu">Đang tải thực đơn...</div>
                 </div>
             </div>
 
             <!-- Cột BÀN -->
             <div class="glass-panel p-5 table-section">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2" id="tableTitleSection"><i class="fas fa-chair"></i> Sơ đồ bàn</h2>
-                    <span class="text-xs text-gray-400" id="tableCount">0 bàn</span>
+                    <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2" id="tableTitleSection"><i class="fas fa-chair"></i> <span data-i18n="pos_table_title_fnb">Sơ đồ bàn</span></h2>
+                    <span class="text-xs text-gray-400" id="tableCount">0 {{ 'table' if default_lang == 'en' else 'bàn' }}</span>
                 </div>
                 <form id="addTableForm" class="flex gap-2 mb-4">
-                    <input type="text" id="newTableName" placeholder="Tên bàn mới..." class="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400">
-                    <button type="submit" id="addTableBtn" class="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition">+ Thêm</button>
+                    <input type="text" id="newTableName" placeholder="Tên bàn mới..." data-i18n-placeholder="pos_new_table_placeholder_fnb" class="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400">
+                    <button type="submit" id="addTableBtn" data-i18n="pos_add_table_btn_fnb" class="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition">+ Thêm</button>
                 </form>
                 <div class="table-grid" id="tableGrid">
                     <!-- Sẽ load từ Supabase -->
-                    <div class="col-span-full text-center py-5 text-gray-500">Đang tải danh sách bàn...</div>
+                    <div class="col-span-full text-center py-5 text-gray-500" data-i18n="pos_loading_tables">Đang tải danh sách bàn...</div>
                 </div>
             </div>
 
@@ -413,42 +414,48 @@
                 <div class="flex flex-col h-full justify-between">
                     <div>
                         <h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2 mb-3">
-                            <i class="fas fa-file-invoice-dollar"></i> Đơn hiện tại
+                            <i class="fas fa-file-invoice-dollar"></i> <span data-i18n="pos_current_order_title">Đơn hiện tại</span>
                         </h2>
-                        <div id="activeOrderTableInfo" class="text-xs font-semibold mb-4 bg-cyan-950/20 border border-cyan-500/20 p-3 rounded-xl text-cyan-300">
+                        <div id="activeOrderTableInfo" class="text-xs font-semibold mb-4 bg-cyan-950/20 border border-cyan-500/20 p-3 rounded-xl text-cyan-300" data-i18n="pos_select_table_prompt">
                             Vui lòng chọn bàn/ghế/phòng...
                         </div>
                         <div id="activeOrderList" class="space-y-3 overflow-y-auto max-h-[300px] pr-2 mb-4">
-                            <div class="text-center py-10 text-gray-500 text-xs">Chưa chọn bàn hoặc bàn trống</div>
+                            <div class="text-center py-10 text-gray-500 text-xs" data-i18n="pos_no_table_selected">Chưa chọn bàn hoặc bàn trống</div>
                         </div>
                     </div>
-                    
+
                     <div class="border-t border-white/10 pt-4 mt-auto" id="orderCheckoutSection" style="display: none;">
                         <div class="space-y-2 mb-4">
                             <div class="flex justify-between text-xs text-gray-400">
-                                <span>Tạm tính:</span>
+                                <span data-i18n="pos_subtotal_label">Tạm tính:</span>
                                 <span id="orderSubtotal" class="font-mono text-white">0₫</span>
                             </div>
                             <div class="flex justify-between text-xs text-gray-400 items-center">
-                                <span>Giảm giá (%):</span>
+                                <span data-i18n="pos_discount_label">Giảm giá (%):</span>
                                 <input type="number" id="orderDiscount" value="0" min="0" max="100" class="w-14 bg-black/50 border border-white/10 rounded px-1.5 py-0.5 text-right text-xs text-white outline-none focus:border-cyan-400 font-mono">
                             </div>
                             <div class="flex justify-between text-xs text-gray-400">
-                                <span>Thuế VAT (10%):</span>
+                                <span data-i18n="pos_vat_label">Thuế VAT (10%):</span>
                                 <span id="orderTax" class="font-mono text-white">0₫</span>
                             </div>
                             <div class="flex justify-between font-bold text-white text-sm border-t border-white/5 pt-2 mt-2">
-                                <span>Tổng cộng:</span>
+                                <span data-i18n="pos_total_label">Tổng cộng:</span>
                                 <span id="orderTotal" class="text-cyan-400 font-mono text-base">0₫</span>
                             </div>
                         </div>
-                        
+
                         <div class="grid grid-cols-2 gap-3">
-                            <button id="posCheckoutBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                                <i class="fas fa-check-circle"></i> Thanh toán
+                            {% if tenant_country == 'US' %}
+                            <button id="squareCheckoutBtn" class="col-span-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                                <i class="fab fa-square"></i> <span data-i18n="pos_square_checkout_btn">Pay with Square / Credit Card</span>
                             </button>
+                            {% else %}
+                            <button id="posCheckoutBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                                <i class="fas fa-check-circle"></i> <span data-i18n="pos_checkout_btn">Thanh toán</span>
+                            </button>
+                            {% endif %}
                             <button id="posClearBtn" class="bg-white/5 hover:bg-white/10 border border-white/10 text-rose-400 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-1">
-                                <i class="fas fa-trash-alt"></i> Hủy đơn
+                                <i class="fas fa-trash-alt"></i> <span data-i18n="pos_clear_order_btn">Hủy đơn</span>
                             </button>
                         </div>
                     </div>
@@ -462,23 +469,23 @@
     <div id="orderModal" class="modal-overlay">
         <div class="modal-container">
             <i class="fas fa-shopping-cart text-4xl text-cyan-400 mb-3 block"></i>
-            <h3 class="text-xl font-bold mb-2" id="modalProductName">Tên món</h3>
+            <h3 class="text-xl font-bold mb-2" id="modalProductName" data-i18n="pos_modal_product_name_placeholder">Tên món</h3>
             <p class="text-gray-400 text-sm mb-2" id="modalProductPrice">0₫</p>
             <div class="quantity-selector">
                 <button class="quantity-btn" id="decreaseQty">-</button>
                 <span id="modalQuantity" class="text-2xl font-bold w-12 text-center">1</span>
                 <button class="quantity-btn" id="increaseQty">+</button>
             </div>
-            <p class="text-xs text-gray-500 mb-4">Đang chọn bàn: <span id="selectedTableDisplay" class="text-cyan-400">---</span></p>
+            <p class="text-xs text-gray-500 mb-4"><span data-i18n="pos_selecting_table_prefix">Đang chọn bàn:</span> <span id="selectedTableDisplay" class="text-cyan-400">---</span></p>
             <div class="flex gap-3">
-                <button id="confirmOrderBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Xác nhận</button>
-                <button id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold">Hủy</button>
+                <button id="confirmOrderBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold" data-i18n="pos_confirm_btn">Xác nhận</button>
+                <button id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold" data-i18n="pos_cancel_btn">Hủy</button>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
-    <div id="toast" class="toast">Thông báo</div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" id="loadingOverlayText" data-i18n="pos_processing">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast" data-i18n="pos_toast_default">Thông báo</div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -542,6 +549,236 @@
         const orderTotal = document.getElementById('orderTotal');
         const posCheckoutBtn = document.getElementById('posCheckoutBtn');
         const posClearBtn = document.getElementById('posClearBtn');
+        const squareCheckoutBtn = document.getElementById('squareCheckoutBtn');
+
+        // ========== MULTI-REGION: CURRENCY & LANGUAGE ==========
+        // Mỗi tenant tự có currency/country riêng (US: USD, VN: VND) — không có FX convert ở
+        // đây, chỉ format lại đúng theo currency của tenant hiện tại.
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        const TENANT_COUNTRY = "{{ tenant_country }}";
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+
+        function formatMoney(amount) {
+            const value = Number(amount) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(value).toLocaleString('vi-VN') + '₫';
+        }
+
+        const translations = {
+            vi: {
+                pos_header_title: '| POS Bán hàng',
+                pos_header_subtitle: 'Sơ đồ bàn & Thực đơn quán',
+                pos_add_item_btn: 'Thêm món',
+                pos_dashboard_btn: 'Dashboard',
+                pos_menu_title: 'Thực đơn',
+                pos_menu_subtitle_fnb: 'Chọn một bàn bên phải trước khi gọi món',
+                pos_menu_subtitle_nail: 'Chọn một ghế bên phải trước khi chọn dịch vụ',
+                pos_menu_subtitle_spa: 'Chọn một giường bên phải trước khi trị liệu',
+                pos_selected_prefix: 'Đã chọn:',
+                pos_loading_menu: 'Đang tải thực đơn...',
+                pos_table_title_fnb: 'Sơ đồ bàn',
+                pos_table_title_nail: 'Sơ đồ Ghế Nails',
+                pos_table_title_spa: 'Sơ đồ Giường Spa',
+                pos_new_table_placeholder_fnb: 'Tên bàn mới...',
+                pos_new_table_placeholder_nail: 'Tên ghế mới...',
+                pos_new_table_placeholder_spa: 'Tên giường/phòng mới...',
+                pos_add_table_btn_fnb: '+ Thêm Bàn',
+                pos_add_table_btn_nail: '+ Thêm Ghế',
+                pos_add_table_btn_spa: '+ Thêm Giường',
+                pos_loading_tables: 'Đang tải danh sách bàn...',
+                pos_current_order_title: 'Đơn hiện tại',
+                pos_select_table_prompt: 'Vui lòng chọn bàn/ghế/phòng...',
+                pos_no_table_selected: 'Chưa chọn bàn hoặc bàn trống',
+                pos_subtotal_label: 'Tạm tính:',
+                pos_discount_label: 'Giảm giá (%):',
+                pos_vat_label: 'Thuế VAT (10%):',
+                pos_total_label: 'Tổng cộng:',
+                pos_checkout_btn: 'Thanh toán',
+                pos_clear_order_btn: 'Hủy đơn',
+                pos_square_checkout_btn: 'Thanh toán Square / Thẻ tín dụng',
+                pos_selecting_table_prefix: 'Đang chọn bàn:',
+                pos_confirm_btn: 'Xác nhận',
+                pos_cancel_btn: 'Hủy',
+                pos_processing: 'Đang xử lý...',
+                pos_status_empty: 'Còn trống',
+                pos_status_occupied: 'Đang phục vụ',
+                pos_stock_label: 'Tồn:',
+                pos_status_prefix: 'Trạng thái:',
+                pos_status_selecting: 'Đang chọn',
+                pos_select_table_first: 'Vui lòng chọn bàn/ghế/giường trước khi gọi món!',
+                pos_no_items_yet: 'Chưa có món nào.',
+                pos_add_now: 'Thêm ngay',
+                pos_noun_table: 'bàn',
+                pos_noun_chair: 'ghế',
+                pos_noun_bed: 'giường',
+                pos_noun_room: 'phòng',
+                pos_no_tables_yet: 'Chưa có {noun} nào. Thêm bên trên.',
+                pos_enter_new_name: 'Vui lòng nhập tên {noun} mới!',
+                pos_qr_view: 'Xem mã QR',
+                pos_qr_copy: 'Sao chép Link',
+                pos_qr_print: 'In mã QR',
+                pos_qr_view_menu: 'Xem Thực đơn Khách',
+                pos_modal_product_name_placeholder: 'Tên món',
+                pos_toast_default: 'Thông báo',
+                pos_toast_menu_load_error: 'Lỗi tải thực đơn: ',
+                pos_toast_delete_error: 'Lỗi xóa: ',
+                pos_toast_deleted: 'Đã xóa {name}',
+                pos_toast_cancelled_item: 'Đã hủy món {name}',
+                pos_toast_cancel_item_error: 'Lỗi hủy món: ',
+                pos_toast_selected: 'Đã chọn: {name}',
+                pos_toast_added_success: 'Đã thêm thành công: "{name}"',
+                pos_toast_saved_draft: 'Đã lưu tạm bàn: "{name}"',
+                pos_toast_item_added: '✅ Đã thêm {qty} món vào {table}',
+                pos_toast_item_added_local: '✅ Đã thêm {qty} món (Local) vào {table}',
+                pos_toast_local_cleared: '✅ Đã dọn bàn nháp (offline).',
+                pos_toast_redirecting_payment: '✅ Đang chuyển sang màn hình chờ thanh toán...',
+                pos_toast_payment_init_error: 'Lỗi khởi tạo thanh toán: ',
+                pos_toast_server_conn_error: 'Lỗi kết nối server: ',
+                pos_toast_cleared_all: 'Đã hủy toàn bộ đơn của {table}',
+                pos_toast_clear_table_error: 'Lỗi hủy bàn: ',
+                pos_confirm_delete_product: 'Xóa món "{name}" khỏi thực đơn?',
+                pos_confirm_cancel_item: 'Hủy món "{name}" khỏi bàn?',
+                pos_confirm_checkout: 'Xác nhận thanh toán cho {table}?',
+                pos_confirm_clear_all: 'Hủy toàn bộ đơn của {table}?',
+                pos_confirm_square_checkout: 'Xác nhận thanh toán Square cho {table}?',
+                pos_product_not_found: 'Sản phẩm không tìm thấy',
+                pos_walkin_customer: 'Khách vãng lai',
+                pos_copy_link_success: 'Đã sao chép đường dẫn thực đơn thành công!',
+                pos_qr_label: 'Mã QR:',
+                pos_qr_print_instruction: 'Quét mã để đặt món & thanh toán tự động'
+            },
+            en: {
+                pos_header_title: '| POS Checkout',
+                pos_header_subtitle: 'Floor Plan & Menu',
+                pos_add_item_btn: 'Add Item',
+                pos_dashboard_btn: 'Dashboard',
+                pos_menu_title: 'Menu',
+                pos_menu_subtitle_fnb: 'Select a table on the right before ordering',
+                pos_menu_subtitle_nail: 'Select a chair on the right before choosing a service',
+                pos_menu_subtitle_spa: 'Select a bed on the right before treatment',
+                pos_selected_prefix: 'Selected:',
+                pos_loading_menu: 'Loading menu...',
+                pos_table_title_fnb: 'Floor Plan',
+                pos_table_title_nail: 'Nail Chair Layout',
+                pos_table_title_spa: 'Spa Bed Layout',
+                pos_new_table_placeholder_fnb: 'New table name...',
+                pos_new_table_placeholder_nail: 'New chair name...',
+                pos_new_table_placeholder_spa: 'New bed/room name...',
+                pos_add_table_btn_fnb: '+ Add Table',
+                pos_add_table_btn_nail: '+ Add Chair',
+                pos_add_table_btn_spa: '+ Add Bed',
+                pos_loading_tables: 'Loading tables...',
+                pos_current_order_title: 'Current Order',
+                pos_select_table_prompt: 'Please select a table/chair/room...',
+                pos_no_table_selected: 'No table selected or table is empty',
+                pos_subtotal_label: 'Subtotal:',
+                pos_discount_label: 'Discount (%):',
+                pos_vat_label: 'VAT (10%):',
+                pos_total_label: 'Total:',
+                pos_checkout_btn: 'Checkout',
+                pos_clear_order_btn: 'Clear Order',
+                pos_square_checkout_btn: 'Pay with Square / Credit Card',
+                pos_selecting_table_prefix: 'Selected table:',
+                pos_confirm_btn: 'Confirm',
+                pos_cancel_btn: 'Cancel',
+                pos_processing: 'Processing...',
+                pos_status_empty: 'Available',
+                pos_status_occupied: 'Occupied',
+                pos_stock_label: 'Stock:',
+                pos_status_prefix: 'Status:',
+                pos_status_selecting: 'Selected',
+                pos_select_table_first: 'Please select a table/chair/bed before ordering!',
+                pos_no_items_yet: 'No items yet.',
+                pos_add_now: 'Add now',
+                pos_noun_table: 'table',
+                pos_noun_chair: 'chair',
+                pos_noun_bed: 'bed',
+                pos_noun_room: 'room',
+                pos_no_tables_yet: 'No {noun} yet. Add one above.',
+                pos_enter_new_name: 'Please enter a new {noun} name!',
+                pos_qr_view: 'View QR Code',
+                pos_qr_copy: 'Copy Link',
+                pos_qr_print: 'Print QR',
+                pos_qr_view_menu: 'View Customer Menu',
+                pos_modal_product_name_placeholder: 'Item name',
+                pos_toast_default: 'Notification',
+                pos_toast_menu_load_error: 'Error loading menu: ',
+                pos_toast_delete_error: 'Delete error: ',
+                pos_toast_deleted: 'Deleted {name}',
+                pos_toast_cancelled_item: 'Cancelled item {name}',
+                pos_toast_cancel_item_error: 'Error cancelling item: ',
+                pos_toast_selected: 'Selected: {name}',
+                pos_toast_added_success: 'Successfully added: "{name}"',
+                pos_toast_saved_draft: 'Saved as draft: "{name}"',
+                pos_toast_item_added: '✅ Added {qty} item(s) to {table}',
+                pos_toast_item_added_local: '✅ Added {qty} item(s) (Local) to {table}',
+                pos_toast_local_cleared: '✅ Draft table cleared (offline).',
+                pos_toast_redirecting_payment: '✅ Redirecting to payment screen...',
+                pos_toast_payment_init_error: 'Payment initialization error: ',
+                pos_toast_server_conn_error: 'Server connection error: ',
+                pos_toast_cleared_all: 'Cleared all orders for {table}',
+                pos_toast_clear_table_error: 'Error clearing table: ',
+                pos_confirm_delete_product: 'Delete item "{name}" from the menu?',
+                pos_confirm_cancel_item: 'Cancel item "{name}" from the table?',
+                pos_confirm_checkout: 'Confirm checkout for {table}?',
+                pos_confirm_clear_all: 'Clear all orders for {table}?',
+                pos_confirm_square_checkout: 'Confirm Square checkout for {table}?',
+                pos_product_not_found: 'Product not found',
+                pos_walkin_customer: 'Walk-in Customer',
+                pos_copy_link_success: 'Menu link copied successfully!',
+                pos_qr_label: 'QR Code:',
+                pos_qr_print_instruction: 'Scan to order & pay automatically'
+            }
+        };
+
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+
+        // t() với nội suy tham số dạng {name}/{qty}/{table}... cho các câu thông báo động.
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+
+        // Danh từ "bàn/ghế/giường/phòng" dịch theo ngôn ngữ hiện tại — CHỈ dùng cho text hiển
+        // thị (đếm số lượng, thông báo trống, validation), KHÔNG đổi tên thật của bàn đã seed
+        // sẵn (vd "Bàn 1") vì các tên đó được so khớp bằng substring tiếng Việt ở loadTables().
+        function nounForIndustry(ind) {
+            if (ind === 'nail') return t('pos_noun_chair');
+            if (ind === 'spa') return t('pos_noun_bed');
+            if (ind === 'karaoke' || ind === 'hotel') return t('pos_noun_room');
+            return t('pos_noun_table');
+        }
+
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.innerHTML = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+            });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            initializeIndustryUI();
+            renderMenu(products);
+            renderTables(tables);
+            renderActiveOrders();
+        }
+
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         // Helper functions
         function showToast(msg, isError = false) {
@@ -568,26 +805,26 @@
             const titleEl = document.querySelector('title');
 
             if (ind === 'nail') {
-                if (titleEl) titleEl.innerText = "BitPaw POS | Sơ đồ ghế & Dịch vụ Nails";
-                if (menuTitle) menuTitle.innerHTML = '<i class="fas fa-hand-sparkles mr-2 text-cyan-400"></i> Dịch vụ Nails';
-                if (menuSubtitle) menuSubtitle.innerText = "Chọn một ghế bên phải trước khi chọn dịch vụ";
-                if (tableTitle) tableTitle.innerHTML = '<i class="fas fa-chair mr-2 text-cyan-400"></i> Sơ đồ Ghế Nails';
-                if (newTableInput) newTableInput.placeholder = "Tên ghế mới...";
-                if (addBtn) addBtn.innerText = "+ Thêm Ghế";
+                if (titleEl) titleEl.innerText = currentLang === 'en' ? "BitPaw POS | Nail Chair Layout & Services" : "BitPaw POS | Sơ đồ ghế & Dịch vụ Nails";
+                if (menuTitle) menuTitle.innerHTML = `<i class="fas fa-hand-sparkles mr-2 text-cyan-400"></i> ${currentLang === 'en' ? 'Nail Services' : 'Dịch vụ Nails'}`;
+                if (menuSubtitle) menuSubtitle.innerText = t('pos_menu_subtitle_nail');
+                if (tableTitle) tableTitle.innerHTML = `<i class="fas fa-chair mr-2 text-cyan-400"></i> ${t('pos_table_title_nail')}`;
+                if (newTableInput) newTableInput.placeholder = t('pos_new_table_placeholder_nail');
+                if (addBtn) addBtn.innerText = t('pos_add_table_btn_nail');
             } else if (ind === 'spa') {
-                if (titleEl) titleEl.innerText = "BitPaw Spa POS | Sơ đồ giường & Trị liệu";
-                if (menuTitle) menuTitle.innerHTML = '<i class="fas fa-spa mr-2 text-cyan-400"></i> Thực đơn Spa & Trị liệu';
-                if (menuSubtitle) menuSubtitle.innerText = "Chọn một giường bên phải trước khi trị liệu";
-                if (tableTitle) tableTitle.innerHTML = '<i class="fas fa-bed mr-2 text-cyan-400"></i> Sơ đồ Giường Spa';
-                if (newTableInput) newTableInput.placeholder = "Tên giường/phòng mới...";
-                if (addBtn) addBtn.innerText = "+ Thêm Giường";
+                if (titleEl) titleEl.innerText = currentLang === 'en' ? "BitPaw Spa POS | Bed Layout & Treatments" : "BitPaw Spa POS | Sơ đồ giường & Trị liệu";
+                if (menuTitle) menuTitle.innerHTML = `<i class="fas fa-spa mr-2 text-cyan-400"></i> ${currentLang === 'en' ? 'Spa & Treatment Menu' : 'Thực đơn Spa & Trị liệu'}`;
+                if (menuSubtitle) menuSubtitle.innerText = t('pos_menu_subtitle_spa');
+                if (tableTitle) tableTitle.innerHTML = `<i class="fas fa-bed mr-2 text-cyan-400"></i> ${t('pos_table_title_spa')}`;
+                if (newTableInput) newTableInput.placeholder = t('pos_new_table_placeholder_spa');
+                if (addBtn) addBtn.innerText = t('pos_add_table_btn_spa');
             } else {
-                if (titleEl) titleEl.innerText = "BitPaw F&B | Sơ đồ bàn & Thực đơn";
-                if (menuTitle) menuTitle.innerHTML = '<i class="fas fa-utensils mr-2 text-cyan-400"></i> Thực đơn F&B';
-                if (menuSubtitle) menuSubtitle.innerText = "Chọn một bàn bên phải trước khi gọi món";
-                if (tableTitle) tableTitle.innerHTML = '<i class="fas fa-chair mr-2 text-cyan-400"></i> Sơ đồ Bàn ăn';
-                if (newTableInput) newTableInput.placeholder = "Tên bàn mới...";
-                if (addBtn) addBtn.innerText = "+ Thêm Bàn";
+                if (titleEl) titleEl.innerText = currentLang === 'en' ? "BitPaw F&B | Floor Plan & Menu" : "BitPaw F&B | Sơ đồ bàn & Thực đơn";
+                if (menuTitle) menuTitle.innerHTML = `<i class="fas fa-utensils mr-2 text-cyan-400"></i> ${currentLang === 'en' ? 'F&B Menu' : 'Thực đơn F&B'}`;
+                if (menuSubtitle) menuSubtitle.innerText = t('pos_menu_subtitle_fnb');
+                if (tableTitle) tableTitle.innerHTML = `<i class="fas fa-chair mr-2 text-cyan-400"></i> ${t('pos_table_title_fnb')}`;
+                if (newTableInput) newTableInput.placeholder = t('pos_new_table_placeholder_fnb');
+                if (addBtn) addBtn.innerText = t('pos_add_table_btn_fnb');
             }
         }
 
@@ -599,31 +836,34 @@
             if (ind === 'nail') channelType = 'nail';
             else if (ind === 'spa') channelType = 'spa';
 
-            let query = supabase
-                .from('products')
-                .select('id, name, price, stock, image, channel_type')
-                .eq('is_active', true)
-                .eq('channel_type', channelType);
-            if (businessId) {
-                query = query.eq('business_id', businessId);
-            }
-            const { data, error } = await query.order('name');
-            if (error) {
-                showToast('Lỗi tải thực đơn: ' + error.message, true);
+            try {
+                let query = supabase
+                    .from('products')
+                    .select('id, name, price, stock, image, channel_type')
+                    .eq('is_active', true)
+                    .eq('channel_type', channelType);
+                if (businessId) {
+                    query = query.eq('business_id', businessId);
+                }
+                const { data, error } = await query.order('name');
+                if (error) {
+                    showToast(t('pos_toast_menu_load_error') + error.message, true);
+                    return [];
+                }
+                return data || [];
+            } catch (err) {
+                console.error('loadProducts fetch failed:', err);
+                showToast(t('pos_toast_menu_load_error') + err.message, true);
                 return [];
             }
-            return data || [];
         }
 
         // Load tables (dining_tables, client-side filtered by industry name prefix)
         async function loadTables() {
             const urlParams = new URLSearchParams(window.location.search);
             const ind = urlParams.get('industry') || 'fnb';
-            let label = 'Bàn';
-            if (ind === 'nail') label = 'Ghế';
-            else if (ind === 'spa') label = 'Giường';
-            else if (ind === 'karaoke') label = 'Phòng';
-            else if (ind === 'hotel') label = 'Phòng';
+            const noun = nounForIndustry(ind);
+            let label = noun.charAt(0).toUpperCase() + noun.slice(1);
 
             let dbTables = [];
             try {
@@ -645,22 +885,26 @@
 
             // Filter tables based on industry prefix
             if (ind === 'nail') {
-                combined = combined.filter(t => t.name.toLowerCase().includes('ghê') || t.name.toLowerCase().includes('ghe') || t.name.toLowerCase().includes('nail'));
+                combined = combined.filter(t => t.name.toLowerCase().includes('ghê') || t.name.toLowerCase().includes('ghe') || t.name.toLowerCase().includes('nail') || t.name.toLowerCase().includes('chair'));
             } else if (ind === 'spa') {
-                combined = combined.filter(t => t.name.toLowerCase().includes('giươ') || t.name.toLowerCase().includes('giuong') || t.name.toLowerCase().includes('spa'));
+                combined = combined.filter(t => t.name.toLowerCase().includes('giươ') || t.name.toLowerCase().includes('giuong') || t.name.toLowerCase().includes('spa') || t.name.toLowerCase().includes('bed'));
             } else if (ind === 'karaoke' || ind === 'hotel') {
                 combined = combined.filter(t => t.name.toLowerCase().includes('phòn') || t.name.toLowerCase().includes('phong') || t.name.toLowerCase().includes('room') || t.name.toLowerCase().includes('karaoke') || t.name.toLowerCase().includes('hotel'));
             } else {
-                combined = combined.filter(t => t.name.toLowerCase().includes('ba') || t.name.toLowerCase().includes('ban') || t.name.toLowerCase().includes('f&b'));
+                combined = combined.filter(t => t.name.toLowerCase().includes('ba') || t.name.toLowerCase().includes('ban') || t.name.toLowerCase().includes('f&b') || t.name.toLowerCase().includes('table'));
             }
 
-            // Seed default 10 items if empty
+            // Seed default items if empty. F&B luôn cố định 200 bàn (đặt tên "Table N" bằng
+            // tiếng Anh, không dịch theo ngôn ngữ hiện tại) — bỏ qua tính năng "Thêm Bàn" động,
+            // các ngành khác (ghế nail/giường spa/phòng karaoke) vẫn giữ mặc định 10 như cũ.
             if (combined.length === 0) {
+                const isFnb = (ind !== 'nail' && ind !== 'spa' && ind !== 'karaoke' && ind !== 'hotel');
+                const seedCount = isFnb ? 200 : 10;
                 let seeded = [];
-                for (let i = 1; i <= 10; i++) {
+                for (let i = 1; i <= seedCount; i++) {
                     seeded.push({
                         id: 'seeded-' + ind + '-' + i,
-                        name: `${label} ${i}`,
+                        name: isFnb ? `Table ${i}` : `${label} ${i}`,
                         status: 'Còn trống',
                         qr_token: 'seeded-token-' + ind + '-' + i,
                         is_seeded: true
@@ -676,7 +920,7 @@
         // Render menu
         function renderMenu(products) {
             if (!products.length) {
-                menuGrid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">Chưa có món nào. <a href="{{ url_for('add_product') }}" class="text-cyan-400">Thêm ngay</a></div>`;
+                menuGrid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">${t('pos_no_items_yet')} <a href="{{ url_for('add_product') }}" class="text-cyan-400">${t('pos_add_now')}</a></div>`;
                 return;
             }
             menuGrid.innerHTML = products.map(p => `
@@ -687,8 +931,8 @@
                     ${p.image ? `<img src="${p.image}" class="w-full h-28 object-cover rounded-xl mb-2 bg-black/30">` : `<div class="w-full h-28 rounded-xl mb-2 bg-black/30 flex items-center justify-center text-4xl">🍽️</div>`}
                     <div class="text-center">
                         <h3 class="font-bold text-white text-sm">${escapeHtml(p.name)}</h3>
-                        <p class="text-cyan-400 font-mono text-sm">${p.price.toLocaleString('vi-VN')}₫</p>
-                        <p class="text-[10px] text-gray-500">Tồn: ${p.stock}</p>
+                        <p class="text-cyan-400 font-mono text-sm">${formatMoney(p.price)}</p>
+                        <p class="text-[10px] text-gray-500">${t('pos_stock_label')} ${p.stock}</p>
                     </div>
                 </div>
             `).join('');
@@ -698,12 +942,12 @@
                     e.stopPropagation();
                     const productId = btn.getAttribute('data-id');
                     const productName = btn.getAttribute('data-name');
-                    if (!confirm(`Xóa món "${productName}" khỏi thực đơn?`)) return;
+                    if (!confirm(tf('pos_confirm_delete_product', {name: productName}))) return;
                     showLoading(true);
                     const { error } = await supabase.from('products').update({ is_active: false }).eq('id', productId);
-                    if (error) showToast('Lỗi xóa: ' + error.message, true);
+                    if (error) showToast(t('pos_toast_delete_error') + error.message, true);
                     else {
-                        showToast(`Đã xóa ${productName}`);
+                        showToast(tf('pos_toast_deleted', {name: productName}));
                         await loadAndRender();
                     }
                     showLoading(false);
@@ -715,7 +959,7 @@
                 el.addEventListener('click', (e) => {
                     if (e.target.closest('.btn-delete-product')) return;
                     if (!selectedTableId) {
-                        showToast('Vui lòng chọn bàn/ghế/giường trước khi gọi món!', true);
+                        showToast(t('pos_select_table_first'), true);
                         return;
                     }
                     currentProductId = el.getAttribute('data-product-id');
@@ -723,7 +967,7 @@
                     currentProductPrice = parseInt(el.getAttribute('data-product-price')) || 0;
                     currentQty = 1;
                     modalProductName.innerText = currentProductName;
-                    modalProductPrice.innerText = currentProductPrice.toLocaleString('vi-VN') + '₫';
+                    modalProductPrice.innerText = formatMoney(currentProductPrice);
                     modalQuantitySpan.innerText = currentQty;
                     selectedTableDisplay.innerText = selectedTableName;
                     orderModal.classList.add('active');
@@ -735,54 +979,51 @@
         function renderTables(tables) {
             const urlParams = new URLSearchParams(window.location.search);
             const ind = urlParams.get('industry') || 'fnb';
-            let label = 'bàn';
-            if (ind === 'nail') label = 'ghế';
-            else if (ind === 'spa') label = 'giường';
-            else if (ind === 'karaoke' || ind === 'hotel') label = 'phòng';
+            const noun = nounForIndustry(ind);
 
             if (!tables.length) {
-                tableGrid.innerHTML = `<div class="col-span-full text-center py-5 text-gray-500">Chưa có ${label} nào. Thêm bên trên.</div>`;
-                tableCountSpan.innerText = `0 ${label}`;
+                tableGrid.innerHTML = `<div class="col-span-full text-center py-5 text-gray-500">${t('pos_no_tables_yet').replace('{noun}', noun)}</div>`;
+                tableCountSpan.innerText = `0 ${noun}`;
                 return;
             }
-            tableGrid.innerHTML = tables.map(t => {
-                let token = t.qr_token || 'demo-token-' + t.id;
+            tableGrid.innerHTML = tables.map(tbl => {
+                let token = tbl.qr_token || 'demo-token-' + tbl.id;
                 let paramName = 'table';
                 if (ind === 'nail') paramName = 'chair';
                 else if (ind === 'spa') paramName = 'bed';
                 else if (ind === 'karaoke' || ind === 'hotel') paramName = 'room';
-                
+
                 const qrUrl = `${window.location.origin}/table_order?table_id=${token}`;
-                
+
                 return `
-                <div class="glass-card p-3 text-center cursor-pointer table-item transition-all hover:border-cyan-400 flex flex-col justify-between" data-table-id="${t.id}" data-table-name="${escapeHtml(t.name)}" data-status="${t.status || 'Còn trống'}">
+                <div class="glass-card p-3 text-center cursor-pointer table-item transition-all hover:border-cyan-400 flex flex-col justify-between" data-table-id="${tbl.id}" data-table-name="${escapeHtml(tbl.name)}" data-status="${tbl.status || 'Còn trống'}">
                     <div>
-                        <div class="font-bold text-white text-sm">${escapeHtml(t.name)}</div>
+                        <div class="font-bold text-white text-sm">${escapeHtml(tbl.name)}</div>
                         <div class="text-[10px] mt-1 mb-3">
-                            ${t.status === 'Còn trống' ? '<span class="table-badge badge-empty"><i class="fas fa-door-open mr-1"></i>Còn trống</span>' : '<span class="table-badge badge-occupied"><i class="fas fa-circle text-[6px] mr-1 align-middle"></i>Đang phục vụ</span>'}
+                            ${tbl.status === 'Còn trống' ? `<span class="table-badge badge-empty"><i class="fas fa-door-open mr-1"></i>${t('pos_status_empty')}</span>` : `<span class="table-badge badge-occupied"><i class="fas fa-circle text-[6px] mr-1 align-middle"></i>${t('pos_status_occupied')}</span>`}
                         </div>
                     </div>
-                    
+
                     <!-- Actions grid -->
                     <div class="grid grid-cols-4 gap-1 border-t border-white/10 pt-2 text-[10px] mt-2">
-                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="Xem mã QR" onclick="event.stopPropagation(); window.viewQR('${escapeHtml(t.name)}', '${qrUrl}')">
+                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_view')}" onclick="event.stopPropagation(); window.viewQR('${escapeHtml(tbl.name)}', '${qrUrl}')">
                             <i class="fas fa-qrcode"></i>
                         </button>
-                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="Sao chép Link" onclick="event.stopPropagation(); window.copyLink('${qrUrl}')">
+                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_copy')}" onclick="event.stopPropagation(); window.copyLink('${qrUrl}')">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="In mã QR" onclick="event.stopPropagation(); window.printQR('${escapeHtml(t.name)}', '${qrUrl}')">
+                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_print')}" onclick="event.stopPropagation(); window.printQR('${escapeHtml(tbl.name)}', '${qrUrl}')">
                             <i class="fas fa-print"></i>
                         </button>
-                        <a href="${qrUrl}" target="_blank" class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="Xem Thực đơn Khách" onclick="event.stopPropagation();">
+                        <a href="${qrUrl}" target="_blank" class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_view_menu')}" onclick="event.stopPropagation();">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
                 </div>
                 `;
             }).join('');
-            
-            tableCountSpan.innerText = `${tables.length} ${label}`;
+
+            tableCountSpan.innerText = `${tables.length} ${noun}`;
             
             // Gắn sự kiện chọn bàn
             document.querySelectorAll('.table-item').forEach(el => {
@@ -832,28 +1073,28 @@
 
         function renderActiveOrders() {
             if (!selectedTableId) {
-                activeOrderTableInfo.innerText = "Vui lòng chọn bàn/ghế/phòng...";
-                activeOrderList.innerHTML = '<div class="text-center py-10 text-gray-500 text-xs">Chưa chọn bàn hoặc bàn trống</div>';
+                activeOrderTableInfo.innerText = t('pos_select_table_prompt');
+                activeOrderList.innerHTML = `<div class="text-center py-10 text-gray-500 text-xs">${t('pos_no_table_selected')}</div>`;
                 orderCheckoutSection.style.display = 'none';
                 return;
             }
-            
-            activeOrderTableInfo.innerHTML = `<i class="fas fa-tag text-cyan-400"></i> ${selectedTableName} | Trạng thái: <span class="text-emerald-400 font-bold">Đang chọn</span>`;
-            
+
+            activeOrderTableInfo.innerHTML = `<i class="fas fa-tag text-cyan-400"></i> ${selectedTableName} | ${t('pos_status_prefix')} <span class="text-emerald-400 font-bold">${t('pos_status_selecting')}</span>`;
+
             if (activeOrders.length === 0) {
-                activeOrderList.innerHTML = '<div class="text-center py-10 text-gray-500 text-xs">Bàn đang trống / Chưa có món</div>';
+                activeOrderList.innerHTML = `<div class="text-center py-10 text-gray-500 text-xs">${t('pos_no_table_selected')}</div>`;
                 orderCheckoutSection.style.display = 'none';
                 return;
             }
-            
+
             activeOrderList.innerHTML = activeOrders.map(item => `
                 <div class="flex justify-between items-center bg-black/40 border border-white/5 p-2.5 rounded-xl text-xs">
                     <div class="flex-1 pr-2">
                         <span class="font-bold text-white block">${escapeHtml(item.name)}</span>
-                        <span class="text-[10px] text-gray-400">${item.quantity} x ${item.price.toLocaleString('vi-VN')}₫</span>
+                        <span class="text-[10px] text-gray-400">${item.quantity} x ${formatMoney(item.price)}</span>
                     </div>
                     <div class="font-mono text-cyan-300 font-bold pr-3">
-                        ${(item.price * item.quantity).toLocaleString('vi-VN')}₫
+                        ${formatMoney(item.price * item.quantity)}
                     </div>
                     <button class="btn-delete-order-item text-rose-400 hover:text-rose-600 transition" data-order-item-id="${item.id}" data-name="${escapeHtml(item.name)}">
                         <i class="fas fa-minus-circle text-base"></i>
@@ -866,7 +1107,7 @@
                 btn.addEventListener('click', async (e) => {
                     const orderItemId = btn.getAttribute('data-order-item-id');
                     const orderItemName = btn.getAttribute('data-name');
-                    if (!confirm(`Hủy món "${orderItemName}" khỏi bàn?`)) return;
+                    if (!confirm(tf('pos_confirm_cancel_item', {name: orderItemName}))) return;
                     showLoading(true);
                     
                     const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
@@ -876,7 +1117,7 @@
                         localOrders = localOrders.filter(i => i.id !== orderItemId);
                         localStorage.setItem('pos_orders_' + selectedTableId, JSON.stringify(localOrders));
                         
-                        showToast(`Đã hủy món ${orderItemName}`);
+                        showToast(tf('pos_toast_cancelled_item', {name: orderItemName}));
                         activeOrders = await loadActiveTableOrders(selectedTableId);
                         if (activeOrders.length === 0) {
                             let localTables = JSON.parse(localStorage.getItem('pos_local_tables') || '[]');
@@ -892,9 +1133,9 @@
                     } else {
                         const { error } = await supabase.from('table_orders').delete().eq('id', orderItemId);
                         if (error) {
-                            showToast('Lỗi hủy món: ' + error.message, true);
+                            showToast(t('pos_toast_cancel_item_error') + error.message, true);
                         } else {
-                            showToast(`Đã hủy món ${orderItemName}`);
+                            showToast(tf('pos_toast_cancelled_item', {name: orderItemName}));
                             activeOrders = await loadActiveTableOrders(selectedTableId);
                             if (activeOrders.length === 0) {
                                 await supabase.from('dining_tables').update({ status: 'Còn trống' }).eq('id', selectedTableId);
@@ -925,9 +1166,9 @@
             const vatVal = (subtotal - discountVal) * 0.1;
             const grandTotal = (subtotal - discountVal) + vatVal;
             
-            orderSubtotal.innerText = subtotal.toLocaleString('vi-VN') + '₫';
-            orderTax.innerText = Math.round(vatVal).toLocaleString('vi-VN') + '₫';
-            orderTotal.innerText = Math.round(grandTotal).toLocaleString('vi-VN') + '₫';
+            orderSubtotal.innerText = formatMoney(subtotal);
+            orderTax.innerText = formatMoney(Math.round(vatVal));
+            orderTotal.innerText = formatMoney(Math.round(grandTotal));
         }
 
         // Listen to discount changes
@@ -945,7 +1186,7 @@
                     el.classList.remove('border-cyan-400', 'bg-cyan-500/10');
                 }
             });
-            showToast(`Đã chọn: ${tableName}`, false);
+            showToast(tf('pos_toast_selected', {name: tableName}), false);
             
             showLoading(true);
             activeOrders = await loadActiveTableOrders(tableId);
@@ -957,20 +1198,18 @@
         async function addTable(tableName) {
             const urlParams = new URLSearchParams(window.location.search);
             const ind = urlParams.get('industry') || 'fnb';
-            let label = 'Bàn';
-            if (ind === 'nail') label = 'Ghế';
-            else if (ind === 'spa') label = 'Giường';
-            else if (ind === 'karaoke' || ind === 'hotel') label = 'Phòng';
-            
+            const noun = nounForIndustry(ind);
+            const label = noun.charAt(0).toUpperCase() + noun.slice(1);
+
             let formattedName = tableName;
-            if (ind === 'nail' && !tableName.toLowerCase().includes('ghê') && !tableName.toLowerCase().includes('ghe')) {
-                formattedName = "Ghế Nails " + tableName;
-            } else if (ind === 'spa' && !tableName.toLowerCase().includes('giươ') && !tableName.toLowerCase().includes('giuong')) {
-                formattedName = "Giường Spa " + tableName;
-            } else if (ind === 'fnb' && !tableName.toLowerCase().includes('ba') && !tableName.toLowerCase().includes('ban')) {
-                formattedName = "Bàn F&B " + tableName;
-            } else if ((ind === 'karaoke' || ind === 'hotel') && !tableName.toLowerCase().includes('phòn') && !tableName.toLowerCase().includes('phong')) {
-                formattedName = "Phòng " + tableName;
+            if (ind === 'nail' && !tableName.toLowerCase().includes('ghê') && !tableName.toLowerCase().includes('ghe') && !tableName.toLowerCase().includes('chair')) {
+                formattedName = `${label} Nails ` + tableName;
+            } else if (ind === 'spa' && !tableName.toLowerCase().includes('giươ') && !tableName.toLowerCase().includes('giuong') && !tableName.toLowerCase().includes('bed')) {
+                formattedName = `${label} Spa ` + tableName;
+            } else if (ind === 'fnb' && !tableName.toLowerCase().includes('ba') && !tableName.toLowerCase().includes('ban') && !tableName.toLowerCase().includes('table')) {
+                formattedName = `${label} F&B ` + tableName;
+            } else if ((ind === 'karaoke' || ind === 'hotel') && !tableName.toLowerCase().includes('phòn') && !tableName.toLowerCase().includes('phong') && !tableName.toLowerCase().includes('room')) {
+                formattedName = `${label} ` + tableName;
             }
 
             const newId = 'local-' + Date.now();
@@ -996,7 +1235,7 @@
                 });
                 if (response.ok) {
                     supabaseSaved = true;
-                    showToast(`Đã thêm thành công: "${formattedName}"`);
+                    showToast(tf('pos_toast_added_success', {name: formattedName}));
                 }
             } catch (e) {
                 console.warn("Backend add_table failed, trying client-side Supabase...", e);
@@ -1008,7 +1247,7 @@
                     const { error } = await supabase.from('dining_tables').insert([{ name: formattedName, status: 'Còn trống', qr_token: token, business_id: businessId }]);
                     if (!error) {
                         supabaseSaved = true;
-                        showToast(`Đã thêm thành công: "${formattedName}"`);
+                        showToast(tf('pos_toast_added_success', {name: formattedName}));
                     }
                 } catch (e) {
                     console.warn("Client-side Supabase insert failed...", e);
@@ -1020,7 +1259,7 @@
                 let drafts = JSON.parse(localStorage.getItem('pos_local_tables') || '[]');
                 drafts.push(newTableObj);
                 localStorage.setItem('pos_local_tables', JSON.stringify(drafts));
-                showToast(`Đã lưu tạm bàn: "${formattedName}"`, false);
+                showToast(tf('pos_toast_saved_draft', {name: formattedName}), false);
             }
 
             await loadAndRender();
@@ -1033,7 +1272,7 @@
             
             const prod = products.find(p => p.id == productId);
             if (!prod) {
-                showToast("Sản phẩm không tìm thấy", true);
+                showToast(t('pos_product_not_found'), true);
                 showLoading(false);
                 return false;
             }
@@ -1064,7 +1303,7 @@
                     localStorage.setItem('pos_local_tables', JSON.stringify(localTables));
                 }
                 
-                showToast(`✅ Đã thêm ${quantity} món vào ${selectedTableName}`);
+                showToast(tf('pos_toast_item_added', {qty: quantity, table: selectedTableName}));
                 activeOrders = await loadActiveTableOrders(tableId);
                 renderActiveOrders();
                 await loadAndRender();
@@ -1094,7 +1333,7 @@
                 }
                 
                 await supabase.from('dining_tables').update({ status: 'Đang phục vụ' }).eq('id', tableId);
-                showToast(`✅ Đã thêm ${quantity} món vào ${selectedTableName}`);
+                showToast(tf('pos_toast_item_added', {qty: quantity, table: selectedTableName}));
                 
                 activeOrders = await loadActiveTableOrders(tableId);
                 renderActiveOrders();
@@ -1115,7 +1354,7 @@
                     });
                 }
                 localStorage.setItem('pos_orders_' + tableId, JSON.stringify(localOrders));
-                showToast(`✅ Đã thêm ${quantity} món (Local) vào ${selectedTableName}`);
+                showToast(tf('pos_toast_item_added_local', {qty: quantity, table: selectedTableName}));
                 
                 activeOrders = await loadActiveTableOrders(tableId);
                 renderActiveOrders();
@@ -1151,25 +1390,26 @@
             showLoading(false);
         }
 
+        if (posCheckoutBtn) {
         posCheckoutBtn.addEventListener('click', async () => {
             if (!selectedTableId || activeOrders.length === 0) return;
-            if (!confirm(`Xác nhận thanh toán cho ${selectedTableName}?`)) return;
-            
+            if (!confirm(tf('pos_confirm_checkout', {table: selectedTableName}))) return;
+
             showLoading(true);
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const ind = urlParams.get('industry') || 'fnb';
-                
+
                 let subtotal = 0;
                 activeOrders.forEach(item => {
                     subtotal += item.price * item.quantity;
                 });
-                
+
                 const discPercent = parseFloat(orderDiscount.value) || 0;
                 const discountVal = subtotal * (discPercent / 100);
                 const vatVal = (subtotal - discountVal) * 0.1;
                 const grandTotal = (subtotal - discountVal) + vatVal;
-                
+
                 const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
 
                 if (isLocal) {
@@ -1181,12 +1421,12 @@
                         localTbl.status = 'Còn trống';
                         localStorage.setItem('pos_local_tables', JSON.stringify(localTables));
                     }
-                    showToast('✅ Đã dọn bàn nháp (offline).');
+                    showToast(t('pos_toast_local_cleared'));
                     await loadAndRender();
                     showLoading(false);
                     return;
                 }
-                
+
                 // Gọi API backend /api/payment/start để tạo pending transaction
                 const response = await fetch('/api/payment/start', {
                     method: 'POST',
@@ -1200,19 +1440,19 @@
                         industry: ind
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     // Lưu các metadata tạm thời hỗ trợ in hóa đơn ở client
-                    localStorage.setItem('customerName', 'Khách vãng lai');
+                    localStorage.setItem('customerName', t('pos_walkin_customer'));
                     localStorage.setItem('customerEmail', 'pos_walkin@bitpaw.com');
                     localStorage.setItem('customerAddress', selectedTableName);
                     localStorage.setItem('lastTransactionId', result.txn_id);
                     localStorage.setItem('lastPaymentMethod', 'POS');
                     localStorage.setItem('lastPaymentAmount', Math.round(grandTotal).toString());
                     localStorage.setItem('lastPaymentCurrency', 'VND');
-                    
+
                     const invoiceItems = activeOrders.map(i => ({
                         name: i.name,
                         quantity: i.quantity,
@@ -1223,26 +1463,75 @@
                     localStorage.setItem('lastDiscountValue', Math.round(discountVal).toString());
                     localStorage.setItem('lastDiscountPercent', discPercent.toString());
                     localStorage.setItem('lastVatValue', Math.round(vatVal).toString());
-                    
-                    showToast('✅ Đang chuyển sang màn hình chờ thanh toán...');
+
+                    showToast(t('pos_toast_redirecting_payment'));
                     setTimeout(() => {
                         window.location.href = result.redirect_url;
                     }, 1000);
                 } else {
-                    showToast('Lỗi khởi tạo thanh toán: ' + result.message, true);
+                    showToast(t('pos_toast_payment_init_error') + result.message, true);
                 }
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi kết nối server: ' + err.message, true);
+                showToast(t('pos_toast_server_conn_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
         });
+        }
+
+        // ========== US MARKET: SQUARE SANDBOX CHECKOUT ==========
+        if (squareCheckoutBtn) {
+        squareCheckoutBtn.addEventListener('click', async () => {
+            if (!selectedTableId || activeOrders.length === 0) return;
+            if (!confirm(tf('pos_confirm_square_checkout', {table: selectedTableName}))) return;
+
+            showLoading(true);
+            try {
+                let subtotal = 0;
+                activeOrders.forEach(item => {
+                    subtotal += item.price * item.quantity;
+                });
+                const discPercent = parseFloat(orderDiscount.value) || 0;
+                const discountVal = subtotal * (discPercent / 100);
+                const vatVal = (subtotal - discountVal) * 0.1;
+                const grandTotal = (subtotal - discountVal) + vatVal;
+
+                const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
+
+                const response = await fetch('/api/us-payment/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table_id: isLocal ? null : selectedTableId,
+                        amount: Math.round(grandTotal * 100) / 100
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('✅ Redirecting to Square checkout...');
+                    if (result.checkout_url) {
+                        setTimeout(() => { window.location.href = result.checkout_url; }, 800);
+                    } else if (result.terminal_status) {
+                        showToast(`Square Terminal checkout sent (status: ${result.terminal_status})`);
+                    }
+                } else {
+                    showToast('Square checkout error: ' + result.message, true);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Server connection error: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+        }
 
         // Clear active orders
         posClearBtn.addEventListener('click', async () => {
             if (!selectedTableId) return;
-            if (!confirm(`Hủy toàn bộ đơn của ${selectedTableName}?`)) return;
+            if (!confirm(tf('pos_confirm_clear_all', {table: selectedTableName}))) return;
             
             showLoading(true);
             try {
@@ -1260,10 +1549,10 @@
                     await supabase.from('dining_tables').update({ status: 'Còn trống' }).eq('id', selectedTableId);
                 }
                 
-                showToast(`Đã hủy toàn bộ đơn của ${selectedTableName}`);
+                showToast(tf('pos_toast_cleared_all', {table: selectedTableName}));
                 await loadAndRender();
             } catch (err) {
-                showToast('Lỗi hủy bàn: ' + err.message, true);
+                showToast(t('pos_toast_clear_table_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -1300,11 +1589,7 @@
             if (!tableName) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const ind = urlParams.get('industry') || 'fnb';
-                let label = 'bàn';
-                if (ind === 'nail') label = 'ghế';
-                else if (ind === 'spa') label = 'giường';
-                else if (ind === 'karaoke' || ind === 'hotel') label = 'phòng';
-                showToast(`Vui lòng nhập tên ${label} mới!`, true);
+                showToast(t('pos_enter_new_name').replace('{noun}', nounForIndustry(ind)), true);
                 return;
             }
             await addTable(tableName);
@@ -1329,14 +1614,14 @@
             modal.innerHTML = `
                 <div class="modal-container relative">
                     <button onclick="document.getElementById('qrViewModal').classList.remove('active')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg"><i class="fas fa-times"></i></button>
-                    <h3 class="text-lg font-bold text-cyan-400 mb-3"><i class="fas fa-qrcode mr-2"></i>Mã QR: ${escapeHtml(tableName)}</h3>
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3"><i class="fas fa-qrcode mr-2"></i>${t('pos_qr_label')} ${escapeHtml(tableName)}</h3>
                     <div class="bg-white p-4 rounded-2xl inline-block mb-3 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
                         <img src="${qrImgUrl}" class="w-48 h-48">
                     </div>
                     <p class="text-xs text-gray-400 mb-4 break-all px-4 font-mono select-all bg-black/40 py-2 rounded-xl border border-white/5">${escapeHtml(qrUrl)}</p>
                     <div class="flex gap-3">
-                        <button onclick="window.copyLink('${qrUrl}')" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black py-2 rounded-full font-bold text-xs"><i class="fas fa-copy mr-1"></i>Sao chép Link</button>
-                        <button onclick="window.printQR('${escapeHtml(tableName)}', '${qrUrl}')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold text-xs"><i class="fas fa-print mr-1"></i>In QR</button>
+                        <button onclick="window.copyLink('${qrUrl}')" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black py-2 rounded-full font-bold text-xs"><i class="fas fa-copy mr-1"></i>${t('pos_qr_copy')}</button>
+                        <button onclick="window.printQR('${escapeHtml(tableName)}', '${qrUrl}')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold text-xs"><i class="fas fa-print mr-1"></i>${t('pos_qr_print')}</button>
                     </div>
                 </div>
             `;
@@ -1345,7 +1630,7 @@
 
         window.copyLink = function(url) {
             navigator.clipboard.writeText(url).then(() => {
-                showToast("Đã sao chép đường dẫn thực đơn thành công!");
+                showToast(t('pos_copy_link_success'));
             }).catch(() => {
                 const el = document.createElement('textarea');
                 el.value = url;
@@ -1353,7 +1638,7 @@
                 el.select();
                 document.execCommand('copy');
                 document.body.removeChild(el);
-                showToast("Đã sao chép đường dẫn thực đơn thành công!");
+                showToast(t('pos_copy_link_success'));
             });
         };
 
@@ -1363,7 +1648,7 @@
             printWindow.document.write(`
                 <html>
                 <head>
-                    <title>In mã QR - ${tableName}</title>
+                    <title>${t('pos_qr_print')} - ${tableName}</title>
                     <style>
                         body { font-family: 'Inter', sans-serif; text-align: center; padding: 40px; color: #333; }
                         .qr-box { border: 2px solid #000; padding: 20px; display: inline-block; border-radius: 15px; margin-top: 50px; }
@@ -1377,7 +1662,7 @@
                         <h1>BITPAW OS</h1>
                         <h2>${tableName}</h2>
                         <img src="${qrImgUrl}" width="200" height="200">
-                        <p>Quét mã để đặt món & thanh toán tự động</p>
+                        <p>${t('pos_qr_print_instruction')}</p>
                     </div>
                 </body>
                 </html>
@@ -1386,6 +1671,7 @@
         };
 
         // Khởi tạo
+        applyStaticTranslations();
         initializeIndustryUI();
         supabaseReady.then(() => loadAndRender());
 
