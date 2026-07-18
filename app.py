@@ -516,8 +516,15 @@ def login():
                 mode = 'none'
 
             session['business_mode'] = mode
-            
+
             flash('Đăng nhập thành công', 'success')
+
+            # Tài khoản Admin/Super Admin (email nằm trong SUPERADMIN_EMAILS) luôn vào thẳng
+            # trang Super Admin, bất kể đã cấu hình business_mode hay chưa — không đẩy qua
+            # /setup như user thường. Check này đặt trước mọi logic redirect theo ngành nghề.
+            if _is_superadmin():
+                return redirect(url_for('super_admin'))
+
             if mode in INDUSTRY_CONFIG:
                 target_url = INDUSTRY_CONFIG[mode]['redirect_after_login']
                 if target_url == '/dashboard':

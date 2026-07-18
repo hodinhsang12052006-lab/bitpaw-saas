@@ -145,29 +145,25 @@
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-usd-circle"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_today">Doanh Thu Hôm Nay</span>
-                    <span class="text-2xl font-black text-emerald-400 block tracking-tight">12,450,000 ₫</span>
-                    <span class="text-[9px] text-emerald-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-caret-up"></i> +14.5% <span data-i18n="super_admin_stat_vs_yesterday">so với hôm qua</span></span>
+                    <span class="text-2xl font-black text-emerald-400 block tracking-tight" id="statRevenueToday">--</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-calendar-alt"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_month">Doanh Thu Tháng Này</span>
-                    <span class="text-2xl font-black text-cyan-400 block tracking-tight">342,890,000 ₫</span>
-                    <span class="text-[9px] text-cyan-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-analytics"></i> 85% <span data-i18n="super_admin_stat_target_reached">Đạt mục tiêu</span></span>
+                    <span class="text-2xl font-black text-cyan-400 block tracking-tight" id="statRevenueMonth">--</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-robot"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_ai_conversations">Hội Thoại AI Hôm Nay</span>
-                    <span class="text-2xl font-black text-purple-400 block tracking-tight">1,842 <span data-i18n="super_admin_unit_sessions">cuộc</span></span>
-                    <span class="text-[9px] text-purple-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-comments text-[10px]"></i> <span data-i18n="super_admin_ai_auto_close_desc">AI tự động đàm thoại chốt đơn</span></span>
+                    <span class="text-2xl font-black text-purple-400 block tracking-tight" id="statAiConversations">--</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-funnel-dollar"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Leads Landing Page</span>
-                    <span class="text-2xl font-black text-orange-400 block tracking-tight">847 leads</span>
-                    <span class="text-[9px] text-orange-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-bolt"></i> Leads <span data-i18n="super_admin_leads_pipeline_desc">pipeline chốt khách</span></span>
+                    <span class="text-2xl font-black text-orange-400 block tracking-tight" id="statLeadsLanding">--</span>
                 </div>
             </div>
 
@@ -193,10 +189,7 @@
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                         </div>
                         <div id="liveTerminalLogs" class="bg-black/40 border border-white/5 p-3 rounded-xl font-mono text-[9px] text-emerald-400 overflow-y-auto space-y-1.5 flex-1 min-h-[140px] max-h-[220px]">
-                            <div>[INFO] BitPaw SaaS Operating System v2.8 online.</div>
-                            <div>[INFO] Probing Central Supabase Cluster... SUCCESS.</div>
-                            <div>[SYNC] QR dynamic tokens validated.</div>
-                            <div>[AI] Nurturing engine initialized.</div>
+                            <div class="text-gray-500">Chưa có log hệ thống nào.</div>
                         </div>
                     </div>
                 </div>
@@ -218,19 +211,19 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                             <div class="bg-black/30 border border-white/5 p-3.5 rounded-xl hover:border-cyan-400/40 transition">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider block font-bold">Facebook Msg</span>
-                                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1"><i class="fas fa-link"></i> CONNECTED</span>
+                                <span class="text-xs font-bold text-gray-400 flex items-center gap-1.5 mt-1"><i class="fas fa-unlink text-[10px]"></i> NOT CONNECTED</span>
                             </div>
                             <div class="bg-black/30 border border-white/5 p-3.5 rounded-xl hover:border-cyan-400/40 transition">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider block font-bold">Zalo OA Connect</span>
-                                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1"><i class="fas fa-link"></i> CONNECTED</span>
+                                <span class="text-xs font-bold text-gray-400 flex items-center gap-1.5 mt-1"><i class="fas fa-unlink text-[10px]"></i> NOT CONNECTED</span>
                             </div>
                             <div class="bg-black/30 border border-white/5 p-3.5 rounded-xl hover:border-cyan-400/40 transition">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider block font-bold">WhatsApp Channel</span>
-                                <span class="text-xs font-bold text-gray-400 flex items-center gap-1.5 mt-1"><i class="fas fa-unlink text-[10px]"></i> DISCONNECT</span>
+                                <span class="text-xs font-bold text-gray-400 flex items-center gap-1.5 mt-1"><i class="fas fa-unlink text-[10px]"></i> NOT CONNECTED</span>
                             </div>
                             <div class="bg-black/30 border border-white/5 p-3.5 rounded-xl hover:border-cyan-400/40 transition">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider block font-bold">Web Mascot Form</span>
-                                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1"><i class="fas fa-link"></i> CONNECTED</span>
+                                <span class="text-xs font-bold text-gray-400 flex items-center gap-1.5 mt-1"><i class="fas fa-unlink text-[10px]"></i> NOT CONNECTED</span>
                             </div>
                         </div>
 
@@ -252,11 +245,11 @@
                                 <div class="bg-black/30 p-4 rounded-xl space-y-2.5 text-xs">
                                     <div class="flex justify-between">
                                         <span class="text-gray-400" data-i18n="super_admin_label_pos_conversion">Tỉ lệ chốt đơn POS:</span>
-                                        <span class="font-bold text-cyan-400">24.5%</span>
+                                        <span class="font-bold text-cyan-400">--</span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-gray-400" data-i18n="super_admin_label_returning_customer">Khách cũ quay lại:</span>
-                                        <span class="font-bold text-purple-400">32.8%</span>
+                                        <span class="font-bold text-purple-400">--</span>
                                     </div>
                                 </div>
                             </div>
@@ -492,45 +485,6 @@
             setTimeout(() => { toast.classList.remove('show'); }, 3000);
         }
 
-        // ==========================================
-        // DYNAMIC REAL-TIME OPERATIONAL LOGS SIMULATION (NEW!)
-        // ==========================================
-        (function initLiveLogsSimulator() {
-            const term = document.getElementById('liveTerminalLogs');
-            if(!term) return;
-
-            const simulatedEvents = [
-                "[SYNC] E-commerce synchronization queue successfully checked.",
-                "[AI] Retention scan completed: 3 dormant customers flagged.",
-                "[AI] Dispatched SMS coupon campaign reactivation successfully.",
-                "[POS] New cash transaction completed: F&B Table 04 checkout - 320,000 VND.",
-                "[GPS] technical worker GPS clock-in coordinate matched within bounds.",
-                "[PAY] VietQR dynamic QR-session created successfully on Supabase.",
-                "[CRM] Captured new lead form submission: Nails/Spa inquiry."
-            ];
-
-            function addLogLine() {
-                const now = new Date().toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-                const randomEvent = simulatedEvents[Math.floor(Math.random() * simulatedEvents.length)];
-                
-                const line = document.createElement('div');
-                line.className = 'text-emerald-400 font-mono text-[9px] animate-fade-in';
-                line.textContent = `[${now}] ${randomEvent}`;
-                
-                term.appendChild(line);
-                term.scrollTop = term.scrollHeight;
-                
-                // Limit to 20 lines to prevent browser memory leak
-                if(term.children.length > 20) {
-                    term.removeChild(term.firstChild);
-                }
-
-                // Random delay between dispatches (4s - 8s)
-                setTimeout(addLogLine, 4000 + Math.random() * 4000);
-            }
-            setTimeout(addLogLine, 2000);
-        })();
-
         // ========== THREE.JS NÂNG CẤP (MƯA SAO BĂNG, FOG, PARTICLES MÀU) ==========
         (function initEnhancedThree() {
             const canvas = document.getElementById('bg-canvas');
@@ -698,9 +652,11 @@
             });
         })();
 
-        // === SUPABASE DATABASE CONNECT (ORIGINAL) ===
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        // === SUPABASE DATABASE CONNECT ===
+        // Dùng đúng URL/anon key cấu hình qua biến môi trường (giống mọi template khác),
+        // không hardcode project/key demo cũ nữa.
+        const supabaseUrl = '{{ supabase_url }}';
+        const supabaseKey = '{{ supabase_key }}';
         window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // ==========================================
