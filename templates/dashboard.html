@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -114,12 +114,16 @@
                 </div>
                 <h1 class="text-2xl font-black tracking-widest drop-shadow-md">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-2 space-y-1.5 px-5 overflow-y-auto max-h-[60vh] custom-scrollbar">
                 <!-- CORE NAVIGATION -->
                 <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
                     <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Tổng quan</span>
+                    <span data-i18n="dashboard_nav_overview">Tổng quan</span>
                 </a>
 
                 <!-- DYNAMIC CORE MODULES PER INDUSTRY -->
@@ -139,11 +143,11 @@
                 {% if 'spa_services' in active_industry_cfg.modules or 'nail_services' in active_industry_cfg.modules %}
                     <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                         <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>POS Dịch vụ</span>
+                        <span data-i18n="dashboard_nav_pos_service">POS Dịch vụ</span>
                     </a>
                     <a href="/booking" class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                         <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Đặt lịch hẹn</span>
+                        <span data-i18n="dashboard_nav_booking">Đặt lịch hẹn</span>
                     </a>
                 {% endif %}
 
@@ -151,7 +155,7 @@
                 {% if 'sales' in active_industry_cfg.modules and 'ordering' not in active_industry_cfg.modules and 'spa_services' not in active_industry_cfg.modules %}
                     <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Bán hàng</span>
+                        <span data-i18n="dashboard_nav_sales">Bán hàng</span>
                     </a>
                 {% endif %}
 
@@ -169,15 +173,15 @@
                 {% if 'attendance' in active_industry_cfg.modules or 'payroll' in active_industry_cfg.modules %}
                     <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Quản lý Nhân sự</span>
+                        <span data-i18n="dashboard_nav_hr">Quản lý Nhân sự</span>
                     </a>
                     <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Chấm công</span>
+                        <span data-i18n="dashboard_nav_attendance">Chấm công</span>
                     </a>
                     <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Bảng lương</span>
+                        <span data-i18n="dashboard_nav_payroll">Bảng lương</span>
                     </a>
                 {% endif %}
 
@@ -185,7 +189,7 @@
                 {% if 'dispatch_gps' in active_industry_cfg.modules %}
                     <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
                         <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                        <span>Radar GPS Thợ</span>
+                        <span data-i18n="dashboard_nav_gps">Radar GPS Thợ</span>
                     </a>
                 {% endif %}
 
@@ -193,29 +197,29 @@
                 {% if 'expenses' in active_industry_cfg.modules or 'inventory' in active_industry_cfg.modules %}
                     <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Quản lý Công nợ</span>
+                        <span data-i18n="dashboard_nav_debt">Quản lý Công nợ</span>
                     </a>
                     <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Quản lý Thu Chi</span>
+                        <span data-i18n="dashboard_nav_revenue">Quản lý Thu Chi</span>
                     </a>
                     <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Báo cáo lợi nhuận</span>
+                        <span data-i18n="dashboard_nav_profit">Báo cáo lợi nhuận</span>
                     </a>
                 {% endif %}
 
                 <!-- MULTI-BRANCH -->
                 <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <i class="fas fa-sitemap w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
-                    <span>Báo cáo Tổng hợp toàn chuỗi</span>
+                    <span data-i18n="dashboard_nav_consolidated">Báo cáo Tổng hợp toàn chuỗi</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
                 <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i>
-                <span>Đăng xuất</span>
+                <span data-i18n="dashboard_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -225,9 +229,9 @@
         <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 shrink-0 gap-4">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
-                    Xin chào, Sếp! <span class="text-2xl animate-[bounce_2s_infinite]">👋</span>
+                    <span data-i18n="dashboard_greeting">Xin chào, Sếp!</span> <span class="text-2xl animate-[bounce_2s_infinite]">👋</span>
                 </h2>
-                <p class="text-gray-400 mt-2 text-sm lg:text-base">Không gian chỉ huy lõi của hệ thống <span class="text-cyan-400 font-bold drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">BitPaw OS</span>.</p>
+                <p class="text-gray-400 mt-2 text-sm lg:text-base"><span data-i18n="dashboard_subtitle_prefix">Không gian chỉ huy lõi của hệ thống</span> <span class="text-cyan-400 font-bold drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">BitPaw OS</span>.</p>
             </div>
             
             <div class="flex items-center gap-4 flex-wrap">
@@ -235,9 +239,9 @@
                 <div class="bg-purple-500/10 border border-purple-500/30 px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-inner backdrop-blur-md">
                     <i class="fas fa-store text-purple-400"></i>
                     <select id="branchSwitcher" class="bg-transparent text-white font-bold outline-none cursor-pointer text-sm max-w-[160px]">
-                        <option value="">Đang tải chi nhánh...</option>
+                        <option value="" data-i18n="dashboard_branch_loading">Đang tải chi nhánh...</option>
                     </select>
-                    <button id="addBranchBtn" class="text-purple-400 hover:text-purple-300 text-xs font-bold" title="Thêm chi nhánh mới"><i class="fas fa-plus-circle"></i></button>
+                    <button id="addBranchBtn" class="text-purple-400 hover:text-purple-300 text-xs font-bold" title="Thêm chi nhánh mới" data-i18n-title="dashboard_branch_add_title"><i class="fas fa-plus-circle"></i></button>
                 </div>
 
                 <div class="bg-white/[0.05] border border-white/10 px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-inner backdrop-blur-md hover:border-cyan-500/30 transition-colors">
@@ -259,7 +263,7 @@
         <div id="reconciliationAlertsPanel" class="mb-6" style="display:none;">
             <div class="bg-rose-500/10 border border-rose-500/40 rounded-2xl p-5">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-lg font-black text-rose-400"><i class="fas fa-triangle-exclamation mr-2 animate-pulse"></i> Báo động đối soát thanh toán</h2>
+                    <h2 class="text-lg font-black text-rose-400"><i class="fas fa-triangle-exclamation mr-2 animate-pulse"></i> <span data-i18n="dashboard_reconciliation_title">Báo động đối soát thanh toán</span></h2>
                     <div class="text-sm text-gray-400" id="reconciliationAlertCount"></div>
                 </div>
                 <div id="reconciliationAlertsList" class="space-y-2"></div>
@@ -278,7 +282,7 @@
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shadow-inner"><i class="fas fa-id-card"></i></div>
-                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs">Tổng nhân sự</h3>
+                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_stat_total_staff">Tổng nhân sự</h3>
                             </div>
                             <p id="stat_tong_nv" class="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(6,182,212,0.4)] count-up">0</p>
                         </div>
@@ -289,11 +293,11 @@
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-inner"><i class="fas fa-calendar-check"></i></div>
-                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs">Nhân viên đi làm</h3>
+                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_stat_staff_working">Nhân viên đi làm</h3>
                             </div>
                             <div class="flex items-baseline gap-2">
                                 <p id="stat_di_lam" class="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] count-up">0</p>
-                                <span class="text-emerald-400/80 text-xs font-bold uppercase tracking-widest">Tháng này</span>
+                                <span class="text-emerald-400/80 text-xs font-bold uppercase tracking-widest" data-i18n="dashboard_stat_this_month">Tháng này</span>
                             </div>
                         </div>
                     </div>
@@ -303,7 +307,7 @@
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="w-8 h-8 rounded-lg bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shadow-inner"><i class="fas fa-coins"></i></div>
-                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs">Tổng quỹ lương</h3>
+                                <h3 class="text-gray-400 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_stat_total_payroll">Tổng quỹ lương</h3>
                             </div>
                             <p id="stat_tong_quy" class="text-3xl xl:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-cyan-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.3)] whitespace-nowrap overflow-hidden text-ellipsis count-up">0 ₫</p>
                         </div>
@@ -313,7 +317,7 @@
                 <!-- Biểu đồ -->
                 <div class="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative w-full h-[320px] group hover:border-cyan-500/30 transition-colors" data-tilt data-tilt-max="2" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.1">
                     <div class="flex justify-between items-center mb-2 pointer-events-none">
-                        <h3 class="text-lg font-black text-white flex items-center gap-3 tracking-wide"><i class="fas fa-chart-line text-cyan-400"></i> Dòng Chảy Nhân Sự & Lợi Nhuận <span class="text-[10px] text-gray-500 font-normal uppercase tracking-widest">(10 Ngày Gần Nhất)</span></h3>
+                        <h3 class="text-lg font-black text-white flex items-center gap-3 tracking-wide"><i class="fas fa-chart-line text-cyan-400"></i> <span data-i18n="dashboard_chart_title">Dòng Chảy Nhân Sự & Lợi Nhuận</span> <span class="text-[10px] text-gray-500 font-normal uppercase tracking-widest" data-i18n="dashboard_chart_subtitle">(10 Ngày Gần Nhất)</span></h3>
                     </div>
                     <div class="relative h-[240px] w-full stat-card-inner">
                         <canvas id="payrollChart"></canvas>
@@ -322,14 +326,14 @@
 
                 <!-- Tình trạng điều phối -->
                 <h3 class="text-xl font-black mt-2 text-white flex items-center gap-3 tracking-wide">
-                    <i class="fas fa-satellite-dish text-amber-400 animate-pulse"></i> Trạm Trung Chuyển (Jobs) <span class="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(245,158,11,0.2)]">Realtime Sync</span>
+                    <i class="fas fa-satellite-dish text-amber-400 animate-pulse"></i> <span data-i18n="dashboard_jobs_station_title">Trạm Trung Chuyển (Jobs)</span> <span class="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(245,158,11,0.2)]">Realtime Sync</span>
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-amber-500/10 border border-amber-500/30 p-6 rounded-2xl shadow-xl relative overflow-hidden group flex flex-col justify-between h-36 transition-colors hover:bg-amber-500/20 hover:border-amber-400">
                         <div class="absolute -right-2 -bottom-2 text-amber-500/20 text-7xl group-hover:scale-110 transition-transform"><i class="fas fa-exclamation-circle"></i></div>
                         <div class="relative z-10 flex items-center gap-3 mb-2">
                             <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center"><i class="fas fa-clock"></i></div>
-                            <h3 class="text-amber-200 font-bold uppercase tracking-wider text-xs">Việc Đang Ế (Chờ)</h3>
+                            <h3 class="text-amber-200 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_job_pending">Việc Đang Ế (Chờ)</h3>
                         </div>
                         <p id="stat_pending" class="text-5xl font-black text-amber-400 relative z-10 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)] count-up">0</p>
                     </div>
@@ -338,7 +342,7 @@
                         <div class="absolute -right-2 -bottom-2 text-cyan-500/20 text-7xl group-hover:scale-110 transition-transform"><i class="fas fa-tools"></i></div>
                         <div class="relative z-10 flex items-center gap-3 mb-2">
                             <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center"><i class="fas fa-hard-hat"></i></div>
-                            <h3 class="text-cyan-200 font-bold uppercase tracking-wider text-xs">Thợ Đang Làm</h3>
+                            <h3 class="text-cyan-200 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_job_doing">Thợ Đang Làm</h3>
                         </div>
                         <p id="stat_doing" class="text-5xl font-black text-cyan-400 relative z-10 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] count-up">0</p>
                     </div>
@@ -347,7 +351,7 @@
                         <div class="absolute -right-2 -bottom-2 text-emerald-500/20 text-7xl group-hover:scale-110 transition-transform"><i class="fas fa-check-double"></i></div>
                         <div class="relative z-10 flex items-center gap-3 mb-2">
                             <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center"><i class="fas fa-clipboard-check"></i></div>
-                            <h3 class="text-emerald-200 font-bold uppercase tracking-wider text-xs">Việc Đã Xong</h3>
+                            <h3 class="text-emerald-200 font-bold uppercase tracking-wider text-xs" data-i18n="dashboard_job_done">Việc Đã Xong</h3>
                         </div>
                         <p id="stat_done" class="text-5xl font-black text-emerald-400 relative z-10 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)] count-up">0</p>
                     </div>
@@ -361,25 +365,25 @@
                 <div class="bg-gradient-to-b from-[#1a1200] to-transparent backdrop-blur-md border border-yellow-500/30 rounded-3xl p-6 shadow-[0_0_30px_rgba(234,179,8,0.15)] relative overflow-hidden shrink-0 group">
                     <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-500"><i class="fas fa-trophy text-8xl text-yellow-500"></i></div>
                     <div class="flex justify-between items-center mb-5 relative z-10">
-                        <h4 class="text-yellow-400 font-black tracking-widest uppercase text-sm drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]"><i class="fas fa-star mr-2 animate-pulse"></i> Bảng Vinh Danh Kudo</h4>
+                        <h4 class="text-yellow-400 font-black tracking-widest uppercase text-sm drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]"><i class="fas fa-star mr-2 animate-pulse"></i> <span data-i18n="dashboard_kudo_title">Bảng Vinh Danh Kudo</span></h4>
                     </div>
                     <div id="kudoBoard" class="space-y-3 relative z-10">
-                        <div class="text-center text-xs text-yellow-500/50 py-4"><i class="fas fa-circle-notch fa-spin"></i> Lấy dữ liệu vinh danh...</div>
+                        <div class="text-center text-xs text-yellow-500/50 py-4"><i class="fas fa-circle-notch fa-spin"></i> <span data-i18n="dashboard_kudo_loading">Lấy dữ liệu vinh danh...</span></div>
                     </div>
                 </div>
 
                 <!-- Calendar -->
                 <div class="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col flex-1 min-h-[350px]">
                     <div class="flex justify-between items-center mb-4 shrink-0">
-                        <h4 class="text-white font-bold tracking-wide text-sm"><i class="far fa-calendar-alt text-cyan-400 mr-2"></i> Trục Lịch Sự Kiện: <span id="calMonthYear" class="text-cyan-400 font-black">...</span></h4>
+                        <h4 class="text-white font-bold tracking-wide text-sm"><i class="far fa-calendar-alt text-cyan-400 mr-2"></i> <span data-i18n="dashboard_cal_title">Trục Lịch Sự Kiện:</span> <span id="calMonthYear" class="text-cyan-400 font-black">...</span></h4>
                         <div class="flex items-center gap-2 text-[9px] text-gray-400 uppercase font-bold border border-white/10 px-2 py-1 rounded-lg bg-black/40">
-                            <span class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_5px_#f43f5e]"></span> Nghỉ phép
+                            <span class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_5px_#f43f5e]"></span> <span data-i18n="dashboard_cal_leave_legend">Nghỉ phép</span>
                         </div>
                     </div>
-                    
+
                     <div class="bg-black/40 border border-white/5 rounded-2xl p-4 flex-1 flex flex-col min-h-0 shadow-inner">
                         <div class="grid grid-cols-7 gap-1 text-center text-[10px] xl:text-xs text-cyan-400/80 mb-3 font-black uppercase tracking-wider shrink-0 border-b border-white/5 pb-2">
-                            <div>CN</div><div>Hai</div><div>Ba</div><div>Tư</div><div>Năm</div><div>Sáu</div><div>Bảy</div>
+                            <div data-i18n="dashboard_cal_sun">CN</div><div data-i18n="dashboard_cal_mon">Hai</div><div data-i18n="dashboard_cal_tue">Ba</div><div data-i18n="dashboard_cal_wed">Tư</div><div data-i18n="dashboard_cal_thu">Năm</div><div data-i18n="dashboard_cal_fri">Sáu</div><div data-i18n="dashboard_cal_sat">Bảy</div>
                         </div>
                         <div id="calendarGrid" class="grid grid-cols-7 gap-y-3 gap-x-2 text-center text-xs text-gray-300 flex-1 content-start font-medium overflow-y-auto custom-scrollbar pr-1"></div>
                     </div>
@@ -390,16 +394,18 @@
 
     <!-- Multi Language -->
     <div class="fixed bottom-6 right-6 z-[9999] bg-white/5 backdrop-blur-xl rounded-full border border-white/10 p-1.5 flex gap-2 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-        <button onclick="changeLanguage('vi')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="Tiếng Việt">🇻🇳</button>
-        <button onclick="changeLanguage('en')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="English">🇺🇸</button>
-        <button onclick="changeLanguage('zh-CN')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="中文">🇨🇳</button>
+        <button onclick="switchGoogleTranslate('vi')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="Tiếng Việt">🇻🇳</button>
+        <button onclick="switchGoogleTranslate('en')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="English">🇺🇸</button>
+        <button onclick="switchGoogleTranslate('zh-CN')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="中文">🇨🇳</button>
     </div>
     <div id="google_translate_element" style="display:none;"></div>
     <script type="text/javascript">
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'vi', autoDisplay: false}, 'google_translate_element'); }
-        function changeLanguage(langCode) {
+        // Đổi tên từ changeLanguage -> switchGoogleTranslate để không xung đột với hàm
+        // changeLanguage(lang) của hệ thống i18n bitpaw_lang mới (data-i18n/t()) bên dưới.
+        function switchGoogleTranslate(langCode) {
             document.cookie = `googtrans=/vi/${langCode}; path=/; domain=${window.location.hostname}`;
-            document.cookie = `googtrans=/vi/${langCode}; path=/`; window.location.reload(); 
+            document.cookie = `googtrans=/vi/${langCode}; path=/`; window.location.reload();
         }
     </script>
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
@@ -519,14 +525,169 @@
         // ========================================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
         let myChart = null;
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                dashboard_nav_overview: 'Tổng quan',
+                dashboard_nav_pos_service: 'POS Dịch vụ',
+                dashboard_nav_booking: 'Đặt lịch hẹn',
+                dashboard_nav_sales: 'Bán hàng',
+                dashboard_nav_hr: 'Quản lý Nhân sự',
+                dashboard_nav_attendance: 'Chấm công',
+                dashboard_nav_payroll: 'Bảng lương',
+                dashboard_nav_gps: 'Radar GPS Thợ',
+                dashboard_nav_debt: 'Quản lý Công nợ',
+                dashboard_nav_revenue: 'Quản lý Thu Chi',
+                dashboard_nav_profit: 'Báo cáo lợi nhuận',
+                dashboard_nav_consolidated: 'Báo cáo Tổng hợp toàn chuỗi',
+                dashboard_logout: 'Đăng xuất',
+                dashboard_greeting: 'Xin chào, Sếp!',
+                dashboard_subtitle_prefix: 'Không gian chỉ huy lõi của hệ thống',
+                dashboard_branch_loading: 'Đang tải chi nhánh...',
+                dashboard_branch_add_title: 'Thêm chi nhánh mới',
+                dashboard_reconciliation_title: 'Báo động đối soát thanh toán',
+                dashboard_stat_total_staff: 'Tổng nhân sự',
+                dashboard_stat_staff_working: 'Nhân viên đi làm',
+                dashboard_stat_this_month: 'Tháng này',
+                dashboard_stat_total_payroll: 'Tổng quỹ lương',
+                dashboard_chart_title: 'Dòng Chảy Nhân Sự & Lợi Nhuận',
+                dashboard_chart_subtitle: '(10 Ngày Gần Nhất)',
+                dashboard_jobs_station_title: 'Trạm Trung Chuyển (Jobs)',
+                dashboard_job_pending: 'Việc Đang Ế (Chờ)',
+                dashboard_job_doing: 'Thợ Đang Làm',
+                dashboard_job_done: 'Việc Đã Xong',
+                dashboard_kudo_title: 'Bảng Vinh Danh Kudo',
+                dashboard_kudo_loading: 'Lấy dữ liệu vinh danh...',
+                dashboard_cal_title: 'Trục Lịch Sự Kiện:',
+                dashboard_cal_leave_legend: 'Nghỉ phép',
+                dashboard_cal_sun: 'CN', dashboard_cal_mon: 'Hai', dashboard_cal_tue: 'Ba', dashboard_cal_wed: 'Tư', dashboard_cal_thu: 'Năm', dashboard_cal_fri: 'Sáu', dashboard_cal_sat: 'Bảy',
+                dashboard_months: ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"],
+                dashboard_no_kudo_yet: 'Chưa có ai được phong thần tháng này.',
+                dashboard_chart_label_shifts: 'Số Lượt Làm Việc',
+                dashboard_chart_label_profit: 'Lợi Nhuận/Tua',
+                dashboard_axis_count: 'SỐ LƯỢT',
+                dashboard_axis_cash: 'TIỀN MẶT',
+                dashboard_leave_default_note: 'Xin nghỉ',
+                dashboard_leave_tooltip_prefix: 'Nghỉ:',
+                dashboard_branch_default_name: 'Chi nhánh',
+                dashboard_branch_switch_failed: 'Không chuyển được chi nhánh.',
+                dashboard_branch_switch_error_prefix: 'Lỗi chuyển chi nhánh: ',
+                dashboard_branch_new_prompt: 'Tên chi nhánh mới:',
+                dashboard_branch_create_failed: 'Không tạo được chi nhánh.',
+                dashboard_branch_create_error_prefix: 'Lỗi tạo chi nhánh: ',
+                dashboard_reconciliation_count: '{count} cảnh báo',
+                dashboard_issue_missing_order: 'Thiếu đơn hàng',
+                dashboard_issue_amount_mismatch: 'Lệch số tiền',
+                dashboard_issue_stale_pending: 'Chờ thanh toán quá lâu',
+                dashboard_resolved_btn: 'Đã xử lý',
+                dashboard_cskh_autoreply: 'Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!'
+            },
+            en: {
+                dashboard_nav_overview: 'Overview',
+                dashboard_nav_pos_service: 'Service POS',
+                dashboard_nav_booking: 'Book Appointment',
+                dashboard_nav_sales: 'Sales',
+                dashboard_nav_hr: 'Staff Management',
+                dashboard_nav_attendance: 'Attendance',
+                dashboard_nav_payroll: 'Payroll',
+                dashboard_nav_gps: 'Staff GPS Radar',
+                dashboard_nav_debt: 'Debt Management',
+                dashboard_nav_revenue: 'Revenue & Expenses',
+                dashboard_nav_profit: 'Profit Report',
+                dashboard_nav_consolidated: 'Consolidated Chain Report',
+                dashboard_logout: 'Log Out',
+                dashboard_greeting: 'Hello, Boss!',
+                dashboard_subtitle_prefix: 'The core command center of',
+                dashboard_branch_loading: 'Loading branches...',
+                dashboard_branch_add_title: 'Add new branch',
+                dashboard_reconciliation_title: 'Payment Reconciliation Alerts',
+                dashboard_stat_total_staff: 'Total Staff',
+                dashboard_stat_staff_working: 'Staff Attendance',
+                dashboard_stat_this_month: 'This Month',
+                dashboard_stat_total_payroll: 'Total Payroll Fund',
+                dashboard_chart_title: 'Staff & Profit Flow',
+                dashboard_chart_subtitle: '(Last 10 Days)',
+                dashboard_jobs_station_title: 'Dispatch Station (Jobs)',
+                dashboard_job_pending: 'Pending Jobs',
+                dashboard_job_doing: 'Workers In Progress',
+                dashboard_job_done: 'Completed Jobs',
+                dashboard_kudo_title: 'Kudo Leaderboard',
+                dashboard_kudo_loading: 'Loading leaderboard...',
+                dashboard_cal_title: 'Event Calendar:',
+                dashboard_cal_leave_legend: 'On Leave',
+                dashboard_cal_sun: 'Su', dashboard_cal_mon: 'Mo', dashboard_cal_tue: 'Tu', dashboard_cal_wed: 'We', dashboard_cal_thu: 'Th', dashboard_cal_fri: 'Fr', dashboard_cal_sat: 'Sa',
+                dashboard_months: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+                dashboard_no_kudo_yet: 'No one has been crowned this month yet.',
+                dashboard_chart_label_shifts: 'Number of Shifts',
+                dashboard_chart_label_profit: 'Profit/Shift',
+                dashboard_axis_count: 'COUNT',
+                dashboard_axis_cash: 'CASH',
+                dashboard_leave_default_note: 'On leave',
+                dashboard_leave_tooltip_prefix: 'Leave:',
+                dashboard_branch_default_name: 'Branch',
+                dashboard_branch_switch_failed: 'Could not switch branch.',
+                dashboard_branch_switch_error_prefix: 'Error switching branch: ',
+                dashboard_branch_new_prompt: 'New branch name:',
+                dashboard_branch_create_failed: 'Could not create branch.',
+                dashboard_branch_create_error_prefix: 'Error creating branch: ',
+                dashboard_reconciliation_count: '{count} alerts',
+                dashboard_issue_missing_order: 'Missing order',
+                dashboard_issue_amount_mismatch: 'Amount mismatch',
+                dashboard_issue_stale_pending: 'Payment pending too long',
+                dashboard_resolved_btn: 'Resolved',
+                dashboard_cskh_autoreply: "Got it! If it's urgent, just call the Hotline or message us on Zalo!"
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render các phần do JS tạo ra (chart, lịch, kudo, cảnh báo đối soát, danh sách chi nhánh)
+            // để chúng cập nhật theo ngôn ngữ mới thay vì giữ nguyên text cũ đã render.
+            if (typeof loadStats === 'function') loadStats();
+            if (typeof loadReconciliationAlerts === 'function') loadReconciliationAlerts();
+            if (typeof loadBranches === 'function') loadBranches();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
+        // Đa tiền tệ: tenant US hiển thị USD, tenant VN giữ nguyên VNĐ.
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatMoney(value) {
+            const num = Number(value) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(num).toLocaleString('vi-VN') + '₫';
+        }
+
         // Helper: count-up animation
-        function animateValue(element, start, end, suffix = '') {
+        function animateValue(element, start, end, suffix = '', formatter = null) {
             if (!element) return;
             const duration = 800;
             const stepTime = 20;
@@ -535,11 +696,13 @@
             let current = start;
             const timer = setInterval(() => {
                 current += increment;
-                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
-                    clearInterval(timer);
-                    element.innerText = (typeof end === 'number' ? Math.round(end).toLocaleString('vi-VN') : end) + suffix;
+                const reached = (increment > 0 && current >= end) || (increment < 0 && current <= end) || increment === 0;
+                const displayVal = reached ? end : current;
+                if (reached) clearInterval(timer);
+                if (formatter) {
+                    element.innerText = formatter(displayVal);
                 } else {
-                    element.innerText = Math.round(current).toLocaleString('vi-VN') + suffix;
+                    element.innerText = (typeof displayVal === 'number' ? Math.round(displayVal).toLocaleString('vi-VN') : displayVal) + suffix;
                 }
             }, stepTime);
         }
@@ -595,7 +758,7 @@
 
                             // Nghỉ phép
                             if (rec.trang_thai && (rec.trang_thai.includes('Nghỉ') || rec.trang_thai.includes('ốm') || rec.trang_thai.includes('Chờ duyệt'))) {
-                                leaveDataThisMonth.push({ day: parseInt(parts[0]), note: rec.ghi_chu || "Xin nghỉ" });
+                                leaveDataThisMonth.push({ day: parseInt(parts[0]), note: rec.ghi_chu || t('dashboard_leave_default_note') });
                             }
 
                             const shortDate = `${parts[0]}/${parts[1]}`;
@@ -610,7 +773,7 @@
 
                 const employeeCount = uniqueEmployees.size;
                 animateValue(document.getElementById('stat_di_lam'), 0, employeeCount, '');
-                animateValue(document.getElementById('stat_tong_quy'), 0, totalPayroll, ' ₫');
+                animateValue(document.getElementById('stat_tong_quy'), 0, totalPayroll, '', formatMoney);
 
                 drawChart(chartLabels, chartDataCong, chartDataTien);
                 generateCalendar(year, month, leaveDataThisMonth);
@@ -619,10 +782,10 @@
                 const { data: tasks } = await supabase.from('tasks').select('trang_thai');
                 let pending = 0, doing = 0, done = 0;
                 if (tasks) {
-                    tasks.forEach(t => {
-                        if (t.trang_thai === 'Chờ Nhận') pending++;
-                        else if (t.trang_thai === 'Đã Nhận') doing++;
-                        else if (t.trang_thai === 'Hoàn Thành') done++;
+                    tasks.forEach(task => {
+                        if (task.trang_thai === 'Chờ Nhận') pending++;
+                        else if (task.trang_thai === 'Đã Nhận') doing++;
+                        else if (task.trang_thai === 'Hoàn Thành') done++;
                     });
                 }
                 animateValue(document.getElementById('stat_pending'), 0, pending, '');
@@ -644,7 +807,7 @@
                 if (error) throw error;
                 const board = document.getElementById('kudoBoard');
                 if (!topEmps || topEmps.length === 0 || !topEmps[0].diem_kudo) {
-                    board.innerHTML = '<div class="text-center text-xs text-yellow-500/50 py-4 border border-dashed border-yellow-500/20 rounded-xl">Chưa có ai được phong thần tháng này.</div>';
+                    board.innerHTML = `<div class="text-center text-xs text-yellow-500/50 py-4 border border-dashed border-yellow-500/20 rounded-xl">${t('dashboard_no_kudo_yet')}</div>`;
                     return;
                 }
                 const medals = [
@@ -694,8 +857,8 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Số Lượt Làm Việc', data: dataCong, backgroundColor: gradientBar, borderRadius: 6, yAxisID: 'y', order: 2, barPercentage: 0.6 },
-                        { label: 'Lợi Nhuận/Tua (₫)', data: dataTien, type: 'line', borderColor: '#d946ef', backgroundColor: gradientLine, borderWidth: 3, pointBackgroundColor: '#08061a', pointBorderColor: '#d946ef', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: true, yAxisID: 'y1', order: 1 }
+                        { label: t('dashboard_chart_label_shifts'), data: dataCong, backgroundColor: gradientBar, borderRadius: 6, yAxisID: 'y', order: 2, barPercentage: 0.6 },
+                        { label: `${t('dashboard_chart_label_profit')} (${TENANT_CURRENCY === 'USD' ? '$' : '₫'})`, data: dataTien, type: 'line', borderColor: '#d946ef', backgroundColor: gradientLine, borderWidth: 3, pointBackgroundColor: '#08061a', pointBorderColor: '#d946ef', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: true, yAxisID: 'y1', order: 1 }
                     ]
                 },
                 options: {
@@ -707,8 +870,8 @@
                     },
                     scales: {
                         x: { grid: { display: false }, ticks: { color: '#6b7280' } },
-                        y: { grid: { color: 'rgba(6,182,212,0.1)', borderDash: [5,5] }, ticks: { color: '#06b6d4', stepSize: 1 }, title: { display: true, text: 'SỐ LƯỢT', color: '#06b6d4', font: { size: 10 } } },
-                        y1: { grid: { drawOnChartArea: false }, ticks: { color: '#d946ef', callback: v => v.toLocaleString('vi-VN') }, title: { display: true, text: 'TIỀN MẶT (VNĐ)', color: '#d946ef', font: { size: 10 } } }
+                        y: { grid: { color: 'rgba(6,182,212,0.1)', borderDash: [5,5] }, ticks: { color: '#06b6d4', stepSize: 1 }, title: { display: true, text: t('dashboard_axis_count'), color: '#06b6d4', font: { size: 10 } } },
+                        y1: { grid: { drawOnChartArea: false }, ticks: { color: '#d946ef', callback: v => v.toLocaleString(TENANT_CURRENCY === 'USD' ? 'en-US' : 'vi-VN') }, title: { display: true, text: `${t('dashboard_axis_cash')} (${TENANT_CURRENCY === 'USD' ? 'USD' : 'VNĐ'})`, color: '#d946ef', font: { size: 10 } } }
                     }
                 }
             });
@@ -721,7 +884,7 @@
             const currentYear = parseInt(year);
             const today = new Date().getDate();
             const isCurrentMonth = (new Date().getMonth() === currentMonth && new Date().getFullYear() === currentYear);
-            const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+            const monthNames = t('dashboard_months');
             monthText.innerText = `${monthNames[currentMonth]} / ${currentYear}`;
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             let startDay = firstDay - 1; if (startDay === -1) startDay = 6;
@@ -732,7 +895,7 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const leaves = leaveData.filter(l => l.day === i);
                 const warningDot = leaves.length ? '<div class="w-1.5 h-1.5 bg-rose-500 rounded-full absolute top-1 right-1 shadow-[0_0_8px_#f43f5e] animate-pulse"></div>' : '';
-                const titleAttr = leaves.length ? `title="Nghỉ: ${leaves.map(l=>l.note).join(', ')}"` : '';
+                const titleAttr = leaves.length ? `title="${t('dashboard_leave_tooltip_prefix')} ${leaves.map(l=>l.note).join(', ')}"` : '';
                 if (isCurrentMonth && i === today) {
                     html += `<div class="relative py-1.5 cursor-help group flex justify-center items-center" ${titleAttr}>
                                 ${warningDot}
@@ -771,7 +934,7 @@
                 const json = await res.json();
                 if (!json.success) return;
                 sel.innerHTML = json.branches.map(b =>
-                    `<option value="${b.business_id}" ${b.business_id === json.active_business_id ? 'selected' : ''}>${b.branch_name || 'Chi nhánh'}</option>`
+                    `<option value="${b.business_id}" ${b.business_id === json.active_business_id ? 'selected' : ''}>${b.branch_name || t('dashboard_branch_default_name')}</option>`
                 ).join('');
             } catch (e) {
                 console.error('Lỗi tải danh sách chi nhánh:', e);
@@ -790,14 +953,14 @@
                 if (json.success) {
                     window.location.reload();
                 } else {
-                    alert(json.message || 'Không chuyển được chi nhánh.');
+                    alert(json.message || t('dashboard_branch_switch_failed'));
                 }
             } catch (err) {
-                alert('Lỗi chuyển chi nhánh: ' + err.message);
+                alert(t('dashboard_branch_switch_error_prefix') + err.message);
             }
         });
         document.getElementById('addBranchBtn').addEventListener('click', async () => {
-            const branchName = prompt('Tên chi nhánh mới:');
+            const branchName = prompt(t('dashboard_branch_new_prompt'));
             if (!branchName || !branchName.trim()) return;
             try {
                 const res = await fetch('/add_branch', {
@@ -809,10 +972,10 @@
                 if (json.success) {
                     await loadBranches();
                 } else {
-                    alert(json.message || 'Không tạo được chi nhánh.');
+                    alert(json.message || t('dashboard_branch_create_failed'));
                 }
             } catch (err) {
-                alert('Lỗi tạo chi nhánh: ' + err.message);
+                alert(t('dashboard_branch_create_error_prefix') + err.message);
             }
         });
         loadBranches();
@@ -829,15 +992,15 @@
                 if (error) throw error;
                 if (!data || data.length === 0) { panel.style.display = 'none'; return; }
                 panel.style.display = 'block';
-                countEl.innerText = `${data.length} cảnh báo`;
-                const issueLabels = { missing_order: 'Thiếu đơn hàng', amount_mismatch: 'Lệch số tiền', stale_pending: 'Chờ thanh toán quá lâu' };
+                countEl.innerText = tf('dashboard_reconciliation_count', { count: data.length });
+                const issueLabels = { missing_order: t('dashboard_issue_missing_order'), amount_mismatch: t('dashboard_issue_amount_mismatch'), stale_pending: t('dashboard_issue_stale_pending') };
                 list.innerHTML = data.map(a => `
                     <div class="bg-black/30 border border-rose-500/20 rounded-xl p-3 flex justify-between items-center gap-3">
                         <div>
                             <p class="font-bold text-rose-300 text-sm">${issueLabels[a.issue_type] || a.issue_type} — GD ${a.transaction_id || ''}</p>
                             <p class="text-xs text-gray-400 mt-1">${a.details || ''}</p>
                         </div>
-                        <button class="reconciliation-resolve-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" data-id="${a.id}">Đã xử lý</button>
+                        <button class="reconciliation-resolve-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" data-id="${a.id}">${t('dashboard_resolved_btn')}</button>
                     </div>
                 `).join('');
                 list.querySelectorAll('.reconciliation-resolve-btn').forEach(btn => btn.addEventListener('click', async () => {
@@ -867,7 +1030,7 @@
             input.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
             setTimeout(() => {
-                chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-3 shadow-[0_5px_15px_rgba(6,182,212,0.15)] relative z-10 leading-relaxed">Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!</div>`;
+                chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-3 shadow-[0_5px_15px_rgba(6,182,212,0.15)] relative z-10 leading-relaxed">${t('dashboard_cskh_autoreply')}</div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }, 1000);
         }
