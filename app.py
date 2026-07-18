@@ -478,6 +478,26 @@ def register():
     return render_template('index.html', active_tab='register')
 
 
+def get_user_data_by_email(email):
+    """Tra cứu thông tin user (bảng `profiles`: id, email, role, business_id, created_at)
+    theo email. Trả về dict nếu tìm thấy, hoặc None nếu không tìm thấy / lỗi kết nối —
+    luôn log rõ nguyên nhân cụ thể (không tìm thấy khác với lỗi kết nối DB) thay vì nuốt
+    lỗi âm thầm như một số chỗ khác trong code base."""
+    if not email:
+        print("[get_user_data_by_email] Gọi hàm với email rỗng/None.")
+        return None
+    email = email.strip().lower()
+    try:
+        res = supabase.table('profiles').select('id, email, role, business_id, created_at').eq('email', email).limit(1).execute()
+    except Exception as e:
+        print(f"[get_user_data_by_email] Lỗi kết nối/truy vấn Supabase cho email={email}: {str(e)}")
+        return None
+    if not res.data:
+        print(f"[get_user_data_by_email] Không tìm thấy user nào với email: {email}")
+        return None
+    return res.data[0]
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -3495,6 +3515,65 @@ def delete_key(key_id):
         conn.close()
         return jsonify({"success": True, "message": "Đã xóa license key thành công!"})
     except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ==================================================
+# SUPER ADMIN: TRUNG TÂM ĐIỀU KHIỂN CHAT (cross-tenant)
+# Đọc trực tiếp bot_customers/bot_messages đã có sẵn — đây chính là dữ liệu chat thật được
+# ghi bởi _persist_chat_turn() mỗi khi khách chat qua AI widget trên Landing Page của từng
+# tenant. KHÔNG dùng bảng messages mới nào cả, tránh phân mảnh dữ liệu.
+# ==================================================
+
+@app.route('/api/superadmin/chat/conversations', methods=['GET'])
+@login_required
+def superadmin_chat_conversations():
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+    try:
+        res = supabase.table('bot_customers').select('*, businesses(name)') \
+            .order('last_message_time', desc=True).execute()
+        conversations = res.data or []
+        for conv in conversations:
+            # Đếm tin nhắn CHƯA đọc gửi TỪ khách (best-effort — 1 conversation lỗi đếm
+            # không được phép làm gãy cả danh sách).
+            try:
+                unread = supabase.table('bot_messages').select('id', count='exact') \
+                    .eq('customer_id', conv['id']).eq('sender_type', 'customer') \
+                    .eq('is_read', False).execute()
+                conv['unread_count'] = unread.count or 0
+            except Exception as count_err:
+                print(f"[superadmin_chat_conversations] Đếm tin chưa đọc lỗi cho customer_id={conv.get('id')}: {str(count_err)}")
+                conv['unread_count'] = 0
+        return jsonify({"success": True, "data": conversations})
+    except Exception as e:
+        print(f"[superadmin_chat_conversations] Lỗi tải danh sách hội thoại: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/chat/messages/<path:customer_id>', methods=['GET'])
+@login_required
+def superadmin_chat_messages(customer_id):
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+    try:
+        msgs = supabase.table('bot_messages').select('*') \
+            .eq('customer_id', customer_id).order('created_at', desc=False).execute()
+        cust = supabase.table('bot_customers').select('*, businesses(name)') \
+            .eq('id', customer_id).limit(1).execute()
+        # Đánh dấu đã đọc toàn bộ tin nhắn từ khách trong hội thoại này ngay khi admin mở xem
+        try:
+            supabase.table('bot_messages').update({'is_read': True}) \
+                .eq('customer_id', customer_id).eq('sender_type', 'customer').eq('is_read', False).execute()
+        except Exception as mark_err:
+            print(f"[superadmin_chat_messages] Đánh dấu đã đọc thất bại cho customer_id={customer_id}: {str(mark_err)}")
+        return jsonify({
+            "success": True,
+            "messages": msgs.data or [],
+            "customer": (cust.data[0] if cust.data else None)
+        })
+    except Exception as e:
+        print(f"[superadmin_chat_messages] Lỗi tải hội thoại customer_id={customer_id}: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
