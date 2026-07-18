@@ -32,6 +32,9 @@ from functools import wraps
 import requests
 from supabase_client import supabase, supabase_admin, SUPABASE_STATUS
 from ai_context_engine import AIContextEngine
+from tenant_engine import TenantEngine
+from currency_utils import format_money
+import payment_us_engine
 import jwt as pyjwt
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -160,13 +163,28 @@ def inject_industry_config():
     else:
         active_cfg = INDUSTRY_CONFIG[business_mode]
     from supabase_client import SUPABASE_URL, SUPABASE_KEY
+
+    # Multi-region (US market pivot): mỗi tenant tự có country/currency riêng (mặc định
+    # VN/VND, không đổi hành vi cho tenant hiện tại nào). default_lang chỉ set gợi ý ngôn
+    # ngữ ban đầu theo quốc gia tenant — người dùng vẫn bấm nút toggle đổi ngôn ngữ được.
+    region = TenantEngine.get_region_config(session.get('business_id'))
+    tenant_country = region['country']
+    tenant_currency = region['currency']
+    default_lang = 'en' if tenant_country == 'US' else 'vi'
+
     return dict(
         industry_config=INDUSTRY_CONFIG,
         active_industry_code=business_mode,
         active_industry_cfg=active_cfg,
         supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY
+        supabase_key=SUPABASE_KEY,
+        tenant_country=tenant_country,
+        tenant_currency=tenant_currency,
+        default_lang=default_lang
     )
+
+
+app.jinja_env.filters['money'] = format_money
 
 
 def allowed_file(filename):
@@ -1476,8 +1494,10 @@ def update_promotion(id):
         owns, err = _assert_owns_row('promotions', id, business_id)
         if not owns:
             return jsonify({'success': False, 'message': err}), 403
-        data = request.json
-        supabase.table('promotions').update(data).eq('id', id).execute()
+        data = dict(request.json or {})
+        data.pop('business_id', None)  # không cho phép request tự đổi chủ sở hữu (chiếm tenant khác)
+        data.pop('id', None)
+        supabase.table('promotions').update(data).eq('id', id).eq('business_id', business_id).execute()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi cập nhật khuyến mãi: {str(e)}'}), 500
@@ -1618,8 +1638,10 @@ def update_customer(id):
         owns, err = _assert_owns_row('customers', id, business_id)
         if not owns:
             return jsonify({'success': False, 'message': err}), 403
-        data = request.json
-        supabase.table('customers').update(data).eq('id', id).execute()
+        data = dict(request.json or {})
+        data.pop('business_id', None)  # không cho phép request tự đổi chủ sở hữu (chiếm tenant khác)
+        data.pop('id', None)
+        supabase.table('customers').update(data).eq('id', id).eq('business_id', business_id).execute()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi cập nhật khách hàng: {str(e)}'}), 500
@@ -1643,8 +1665,9 @@ def delete_customer(id):
 @app.route('/payment_transactions')
 @login_required
 def payment_transactions():
+    business_id = session.get('business_id') or session['user_id']
     try:
-        txs = supabase.table('payment_transactions').select('*').order('created_at', desc=True).execute()
+        txs = supabase.table('payment_transactions').select('*').eq('business_id', business_id).order('created_at', desc=True).execute()
         transactions_data = txs.data
         error_message = None
     except Exception as e:
@@ -1657,9 +1680,13 @@ def payment_transactions():
 @app.route('/update_payment_status/<int:id>', methods=['POST'])
 @login_required
 def update_payment_status(id):
+    business_id = session.get('business_id') or session['user_id']
     new_status = request.json.get('status')
     try:
-        supabase.table('payment_transactions').update({'status': new_status}).eq('id', id).execute()
+        owns, err = _assert_owns_row('payment_transactions', id, business_id)
+        if not owns:
+            return jsonify({'success': False, 'message': err}), 403
+        supabase.table('payment_transactions').update({'status': new_status}).eq('id', id).eq('business_id', business_id).execute()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi cập nhật trạng thái thanh toán: {str(e)}'}), 500
@@ -2022,6 +2049,11 @@ def restore_backup():
         filename = request.json.get('filename')
         if not filename:
             return jsonify({'success': False, 'error': 'Thiếu tên file backup.'}), 400
+        # Chặn path traversal: filename do client gửi lên không được phép chứa '/', '..'
+        # hay bất kỳ ký tự nào để thoát khỏi thư mục backups/{business_id}/ của chính tenant.
+        filename = secure_filename(filename)
+        if not filename or filename != request.json.get('filename'):
+            return jsonify({'success': False, 'error': 'Tên file backup không hợp lệ.'}), 400
         storage_path = f"backups/{business_id}/{filename}"
 
         raw = supabase_admin.storage.from_(BACKUP_BUCKET).download(storage_path)
@@ -2359,12 +2391,17 @@ def api_payment_start():
         amount = data.get('amount')
         method = data.get('method', 'POS')
         industry = data.get('industry', 'fnb')
-        
+
         if not table_id:
             return jsonify({'success': False, 'message': 'Missing table_id'}), 400
-            
+
+        business_id = session.get('business_id') or session['user_id']
+        owns, err = _assert_owns_table(table_id, business_id)
+        if not owns:
+            return jsonify({'success': False, 'message': err}), 403
+
         txn_id = f"{industry.upper()}-{uuid.uuid4().hex[:8].upper()}"
-        
+
         # Insert payment_transactions with status = pending
         try:
             supabase.table('payment_transactions').insert({
@@ -2375,6 +2412,7 @@ def api_payment_start():
                 'currency': 'VND',
                 'method': method,
                 'status': 'pending',
+                'business_id': business_id,
                 'created_at': datetime.now().isoformat()
             }).execute()
         except Exception as db_err:
@@ -2388,6 +2426,76 @@ def api_payment_start():
         })
     except Exception as e:
         print(f"Error in api_payment_start: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ========== US MARKET: SQUARE SANDBOX PAYMENT ==========
+@app.route('/api/us-payment/start', methods=['POST'])
+@login_required
+def api_us_payment_start():
+    try:
+        data = request.get_json() or {}
+        amount = data.get('amount')
+        table_id = data.get('table_id')  # tuỳ chọn: pos.html có bàn, sell.html thì không
+
+        # business_id BẮT BUỘC lấy từ session (không tin business_id client tự gửi) — cùng
+        # nguyên tắc chống IDOR đã áp dụng cho /api/payment/start.
+        business_id = session.get('business_id') or session['user_id']
+
+        region = TenantEngine.get_region_config(business_id)
+        if region['country'] != 'US' or region['currency'] != 'USD':
+            return jsonify({'success': False, 'message': 'Tenant này không thuộc thị trường US (Square chỉ áp dụng cho country=US).'}), 403
+
+        if amount is None:
+            return jsonify({'success': False, 'message': 'Missing amount'}), 400
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid amount'}), 400
+        if amount <= 0:
+            return jsonify({'success': False, 'message': 'Amount must be greater than 0'}), 400
+
+        # Nếu có table_id (bối cảnh POS), xác nhận bàn đó thuộc đúng tenant hiện tại trước khi khởi tạo.
+        if table_id:
+            owns, err = _assert_owns_table(table_id, business_id)
+            if not owns:
+                return jsonify({'success': False, 'message': err}), 403
+
+        txn_id = f"US-{uuid.uuid4().hex[:8].upper()}"
+
+        square_result = payment_us_engine.start_us_payment(amount, txn_id, description='BitPaw POS Order')
+
+        # Insert payment_transactions with status = pending (best-effort, giống luồng VN)
+        try:
+            supabase.table('payment_transactions').insert({
+                'transaction_id': txn_id,
+                'customer_name': 'US Walk-in Customer',
+                'customer_email': 'pos_walkin@bitpaw.com',
+                'amount': amount,
+                'currency': 'USD',
+                'method': 'square',
+                'status': 'pending',
+                'business_id': business_id,
+                'created_at': datetime.now().isoformat()
+            }).execute()
+        except Exception as db_err:
+            print(f"Database insert pending US txn failed: {str(db_err)}")
+
+        if not square_result.get('configured'):
+            # Square chưa cấu hình sandbox key — trả lỗi rõ ràng, không giả vờ thành công.
+            return jsonify({'success': False, 'message': square_result.get('message'), 'txn_id': txn_id}), 503
+        if not square_result.get('success'):
+            return jsonify({'success': False, 'message': square_result.get('message'), 'txn_id': txn_id}), 502
+
+        return jsonify({
+            'success': True,
+            'txn_id': txn_id,
+            'checkout_url': square_result.get('checkout_url'),
+            'checkout_id': square_result.get('checkout_id'),
+            'terminal_status': square_result.get('terminal_status')
+        })
+    except Exception as e:
+        print(f"Error in api_us_payment_start: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -2773,6 +2881,7 @@ def sell():
 # vãng lai quét QR/đặt lịch — không có scope = token đầy đủ quyền của nhân viên/chủ tiệm).
 def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
     secret = os.environ.get('SUPABASE_JWT_SECRET')
+    print(f"[DEBUG] _mint_tenant_jwt: secret={repr(secret)}, business_id={business_id}")
     if not secret or not business_id:
         return None
     now = int(time.time())
@@ -2790,9 +2899,11 @@ def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
 @app.route('/api/session/supabase_token')
 @login_required
 def get_supabase_tenant_token():
-    business_id = session.get('business_id') or session['user_id']
+    business_id = session.get('business_id') or session.get('user_id')
+    print(f"[DEBUG] get_supabase_tenant_token: business_id={business_id}, session_keys={list(session.keys())}")
     token = _mint_tenant_jwt(business_id)
     if not token:
+        print("[DEBUG] get_supabase_tenant_token: token is None!")
         return jsonify({"success": False, "error": "Server chưa cấu hình SUPABASE_JWT_SECRET."}), 500
     return jsonify({"success": True, "token": token, "business_id": business_id})
 
@@ -3162,12 +3273,17 @@ def secure_ai_generate():
     data = request.get_json() or {}
 
     # === Đa doanh nghiệp (Multi-tenant): xác định ĐÚNG business_id của tenant ===
-    # Ưu tiên business_id do frontend widget gửi trực tiếp (khách hàng thật của từng doanh
-    # nghiệp, gọi API ẩn danh không đăng nhập), sau đó mới fallback về session đang đăng nhập
-    # (dùng khi test trong AI Studio nội bộ). Nếu cả hai đều không có (vd: bot tư vấn marketing
-    # chung trên landing page BitPaw) thì business_id là None — AIContextEngine sẽ tự dùng
-    # persona chung theo industry, không fix cứng và không lộ dữ liệu tenant nào khác.
-    business_id = data.get('business_id') or session.get('business_id') or session.get('user_id')
+    # Nếu request có session đăng nhập (dùng khi test trong AI Studio nội bộ), business_id
+    # BẮT BUỘC lấy từ session, tuyệt đối không tin business_id client tự gửi lên (chặn IDOR
+    # user nội bộ mạo danh tenant khác). Nếu KHÔNG có session (khách hàng thật của từng doanh
+    # nghiệp gọi API ẩn danh qua widget công khai trên landing page của tenant đó), mới cho
+    # phép dùng business_id do widget tự khai để biết đang chat hộ tenant nào — nhưng khi đó
+    # include_private_data=False bên dưới đảm bảo KHÔNG lộ doanh thu/PII khách hàng của tenant.
+    is_authenticated = 'user_id' in session
+    if is_authenticated:
+        business_id = session.get('business_id') or session['user_id']
+    else:
+        business_id = data.get('business_id')
     industry = data.get('industry') or session.get('business_mode', 'general')
     # Persona/phong cách do client gửi (KHÔNG chứa số liệu doanh nghiệp thật) — số liệu luôn
     # được server tự nhúng bên dưới, lọc đúng theo business_id, không tin client.
@@ -3178,7 +3294,8 @@ def secure_ai_generate():
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
     client_history = data.get('history') or []
 
-    ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone)
+    ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone,
+                                                include_private_data=is_authenticated)
     tenant_context = ctx['prompt']
     business_name = ctx['business_name'] or 'BitPaw'
     system_prompt = f"{tenant_context}\n{client_persona}".strip()
@@ -4249,6 +4366,12 @@ try:
     app.register_blueprint(ad_suggest_bp)
 except Exception as bp_err:
     print(f"Error registering ad_suggest_bp: {str(bp_err)}")
+
+try:
+    from email_test_api import email_test_bp
+    app.register_blueprint(email_test_bp)
+except Exception as bp_err:
+    print(f"Error registering email_test_bp: {str(bp_err)}")
 
 
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========

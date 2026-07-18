@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -91,51 +91,55 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span class="tracking-wide">Tổng quan</span>
+                    <span class="tracking-wide" data-i18n="chamcong_nav_overview">Tổng quan</span>
                 </a>
                 <a href="nhanvien.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Quản lý Nhân sự</span>
+                    <span data-i18n="chamcong_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="chamcong.html" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
                     <i class="fas fa-calendar-check w-5 text-xl animate-pulse text-cyan-400"></i>
-                    <span>Chấm công</span>
+                    <span data-i18n="chamcong_nav_attendance">Chấm công</span>
                 </a>
                 <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Bảng lương</span>
+                    <span data-i18n="chamcong_nav_payroll">Bảng lương</span>
                 </a>
                 <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
                     <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Trạm Liên Lạc</span>
+                    <span data-i18n="chamcong_nav_comm">Trạm Liên Lạc</span>
                 </a>
                 <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.1)]">
                     <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform drop-shadow-md"></i>
-                    <span>Radar GPS Thợ</span>
+                    <span data-i18n="chamcong_nav_gps">Radar GPS Thợ</span>
                 </a>
                 <!-- Các mục quản lý tài chính -->
                 <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                    <span>Quản lý Công nợ</span>
+                    <span data-i18n="chamcong_nav_debt">Quản lý Công nợ</span>
                 </a>
                 <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                    <span>Quản lý Thu Chi</span>
+                    <span data-i18n="chamcong_nav_revenue">Quản lý Thu Chi</span>
                 </a>
                 <a href="baocaoloinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
                     <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                    <span>Báo cáo lợi nhuận</span>
+                    <span data-i18n="chamcong_nav_profit">Báo cáo lợi nhuận</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
                 <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i>
-                <span>Đăng xuất</span>
+                <span data-i18n="chamcong_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -143,60 +147,60 @@
     <main class="flex-1 p-8 lg:p-10 overflow-y-auto relative z-10">
         <div class="mb-10">
             <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
-                Module <span class="text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Chấm Công</span> <i class="fas fa-fingerprint text-cyan-400 text-3xl"></i>
+                <span data-i18n="chamcong_module_prefix">Module</span> <span class="text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" data-i18n="chamcong_module_name">Chấm Công</span> <i class="fas fa-fingerprint text-cyan-400 text-3xl"></i>
             </h2>
-            <p class="text-gray-400 mt-2 font-medium">Lựa chọn phân hệ tương ứng với nghiệp vụ của doanh nghiệp.</p>
+            <p class="text-gray-400 mt-2 font-medium" data-i18n="chamcong_module_desc">Lựa chọn phân hệ tương ứng với nghiệp vụ của doanh nghiệp.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div onclick="location.href='/chamcong_vanphong'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-blue-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 100ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-laptop text-blue-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Văn Phòng</h3>
-                <p class="text-gray-400 text-sm relative z-10">Chấm công giờ hành chính, đi trễ, về sớm.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_office_title">Văn Phòng</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_office_desc">Chấm công giờ hành chính, đi trễ, về sớm.</p>
             </div>
             
             <div onclick="location.href='/chamcong_spa'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-pink-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 200ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-pink-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-pink-500/10 border border-pink-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-spa text-pink-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Spa & Beauty</h3>
-                <p class="text-gray-400 text-sm relative z-10">Tính tua, hoa hồng và tiền tips dịch vụ.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_spa_title">Spa & Beauty</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_spa_desc">Tính tua, hoa hồng và tiền tips dịch vụ.</p>
             </div>
 
             <!-- 🚀 THÊM CARD Nails & Salon MỚI -->
             <div onclick="location.href='/chamcong_nail'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-rose-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 250ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-hand-peace text-rose-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Nails & Salon</h3>
-                <p class="text-gray-400 text-sm relative z-10">Chia % Tua, Supply, Tips, phí CC tự động.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_nail_title">Nails & Salon</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_nail_desc">Chia % Tua, Supply, Tips, phí CC tự động.</p>
             </div>
             
             <div onclick="location.href='/chamcong_fnb'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-orange-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 300ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-utensils text-orange-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Cafe & Nhà Hàng</h3>
-                <p class="text-gray-400 text-sm relative z-10">Quản lý ca gãy, nhân sự part-time theo giờ.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_fnb_title">Cafe & Nhà Hàng</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_fnb_desc">Quản lý ca gãy, nhân sự part-time theo giờ.</p>
             </div>
             
             <div onclick="location.href='/chamcong_kythuat'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-gray-400/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 400ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-gray-400/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-gray-500/10 border border-gray-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-tools text-gray-300 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Kỹ Thuật & Xưởng</h3>
-                <p class="text-gray-400 text-sm relative z-10">Tính công nhật, tăng ca đêm, phụ cấp độc hại.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_tech_title">Kỹ Thuật & Xưởng</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_tech_desc">Tính công nhật, tăng ca đêm, phụ cấp độc hại.</p>
             </div>
             
             <div onclick="location.href='/chamcong_congnhan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-emerald-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 500ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-industry text-emerald-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Sản Xuất</h3>
-                <p class="text-gray-400 text-sm relative z-10">Chấm theo sản lượng sản phẩm, tăng ca kíp.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_prod_title">Sản Xuất</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_prod_desc">Chấm theo sản lượng sản phẩm, tăng ca kíp.</p>
             </div>
             
             <div onclick="location.href='/chamcong_khachsan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-purple-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 600ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-purple-500/10 border border-purple-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-hotel text-purple-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
-                <h3 class="text-xl font-black mb-2 text-white relative z-10">Khách Sạn</h3>
-                <p class="text-gray-400 text-sm relative z-10">Phí phục vụ (Service charge), trực đêm.</p>
+                <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_hotel_title">Khách Sạn</h3>
+                <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_hotel_desc">Phí phục vụ (Service charge), trực đêm.</p>
             </div>
         </div>
     </main>
@@ -208,19 +212,19 @@
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white border border-white/30"><i class="fas fa-headset"></i></div>
                     <div>
-                        <p class="text-white text-xs font-black uppercase tracking-widest">Phòng Tuyến Kỹ Thuật</p>
-                        <p class="text-cyan-200 text-[10px] font-bold mt-0.5"><i class="fas fa-circle text-emerald-400 text-[8px] mr-1 animate-pulse"></i>Trực tuyến - Sếp Hậu</p>
+                        <p class="text-white text-xs font-black uppercase tracking-widest" data-i18n="chamcong_cskh_title">Phòng Tuyến Kỹ Thuật</p>
+                        <p class="text-cyan-200 text-[10px] font-bold mt-0.5"><i class="fas fa-circle text-emerald-400 text-[8px] mr-1 animate-pulse"></i><span data-i18n="chamcong_cskh_online">Trực tuyến - Sếp Hậu</span></p>
                     </div>
                 </div>
                 <button onclick="toggleCSKHChat()" class="text-white/70 hover:text-white text-lg"><i class="fas fa-times-circle"></i></button>
             </div>
             <div class="h-64 p-4 overflow-y-auto bg-black/60 text-xs space-y-3 relative" id="cskhChatBox">
-                <div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white shadow-sm">
+                <div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white shadow-sm" data-i18n="chamcong_cskh_greeting">
                     Chào Sếp! Em là Hậu, kỹ sư trực trạm BitPaw. Hệ thống của Sếp đang cần hỗ trợ vấn đề gì ạ?
                 </div>
             </div>
             <div class="p-3 bg-white/[0.03] border-t border-cyan-500/30 flex gap-2">
-                <input type="text" id="cskhInput" placeholder="Nhập chỉ thị..." class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-2.5 text-xs outline-none focus:border-cyan-500 text-white">
+                <input type="text" id="cskhInput" placeholder="Nhập chỉ thị..." data-i18n-placeholder="chamcong_cskh_input_placeholder" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-2.5 text-xs outline-none focus:border-cyan-500 text-white">
                 <button onclick="sendCSKHMessage()" class="bg-cyan-500 text-black px-4 rounded-lg hover:bg-cyan-400 transition"><i class="fas fa-paper-plane text-sm"></i></button>
             </div>
         </div>
@@ -319,13 +323,14 @@
         // ==========================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) window.location.replace('index.html');
-        }
-        checkAuth();
+        // Comment out redundant client-side auth filter to prevent breaking active Flask session auth
+        // async function checkAuth() {
+        //     const { data: { session } } = await supabase.auth.getSession();
+        //     if (!session) window.location.replace('index.html');
+        // }
+        // checkAuth();
 
         // ==========================================
         // TOAST & CHAT
@@ -358,13 +363,105 @@
             input.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
             setTimeout(() => {
-                chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-2">Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!</div>`;
+                chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-2">${t('chamcong_cskh_autoreply')}</div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }, 1000);
         }
 
         if (typeof VanillaTilt !== 'undefined') {
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+        }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                chamcong_nav_overview: 'Tổng quan',
+                chamcong_nav_hr: 'Quản lý Nhân sự',
+                chamcong_nav_attendance: 'Chấm công',
+                chamcong_nav_payroll: 'Bảng lương',
+                chamcong_nav_comm: 'Trạm Liên Lạc',
+                chamcong_nav_gps: 'Radar GPS Thợ',
+                chamcong_nav_debt: 'Quản lý Công nợ',
+                chamcong_nav_revenue: 'Quản lý Thu Chi',
+                chamcong_nav_profit: 'Báo cáo lợi nhuận',
+                chamcong_logout: 'Đăng xuất',
+                chamcong_module_prefix: 'Module',
+                chamcong_module_name: 'Chấm Công',
+                chamcong_module_desc: 'Lựa chọn phân hệ tương ứng với nghiệp vụ của doanh nghiệp.',
+                chamcong_card_office_title: 'Văn Phòng',
+                chamcong_card_office_desc: 'Chấm công giờ hành chính, đi trễ, về sớm.',
+                chamcong_card_spa_title: 'Spa & Beauty',
+                chamcong_card_spa_desc: 'Tính tua, hoa hồng và tiền tips dịch vụ.',
+                chamcong_card_nail_title: 'Nails & Salon',
+                chamcong_card_nail_desc: 'Chia % Tua, Supply, Tips, phí CC tự động.',
+                chamcong_card_fnb_title: 'Cafe & Nhà Hàng',
+                chamcong_card_fnb_desc: 'Quản lý ca gãy, nhân sự part-time theo giờ.',
+                chamcong_card_tech_title: 'Kỹ Thuật & Xưởng',
+                chamcong_card_tech_desc: 'Tính công nhật, tăng ca đêm, phụ cấp độc hại.',
+                chamcong_card_prod_title: 'Sản Xuất',
+                chamcong_card_prod_desc: 'Chấm theo sản lượng sản phẩm, tăng ca kíp.',
+                chamcong_card_hotel_title: 'Khách Sạn',
+                chamcong_card_hotel_desc: 'Phí phục vụ (Service charge), trực đêm.',
+                chamcong_cskh_title: 'Phòng Tuyến Kỹ Thuật',
+                chamcong_cskh_online: 'Trực tuyến - Sếp Hậu',
+                chamcong_cskh_greeting: 'Chào Sếp! Em là Hậu, kỹ sư trực trạm BitPaw. Hệ thống của Sếp đang cần hỗ trợ vấn đề gì ạ?',
+                chamcong_cskh_input_placeholder: 'Nhập chỉ thị...',
+                chamcong_cskh_autoreply: 'Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!'
+            },
+            en: {
+                chamcong_nav_overview: 'Overview',
+                chamcong_nav_hr: 'Staff Management',
+                chamcong_nav_attendance: 'Attendance',
+                chamcong_nav_payroll: 'Payroll',
+                chamcong_nav_comm: 'Communication Hub',
+                chamcong_nav_gps: 'Staff GPS Radar',
+                chamcong_nav_debt: 'Debt Management',
+                chamcong_nav_revenue: 'Revenue & Expenses',
+                chamcong_nav_profit: 'Profit Report',
+                chamcong_logout: 'Log Out',
+                chamcong_module_prefix: 'Module',
+                chamcong_module_name: 'Attendance',
+                chamcong_module_desc: 'Select the module matching your business operations.',
+                chamcong_card_office_title: 'Office',
+                chamcong_card_office_desc: 'Office hours attendance, late arrivals, early leaves.',
+                chamcong_card_spa_title: 'Spa & Beauty',
+                chamcong_card_spa_desc: 'Track shifts, commissions and service tips.',
+                chamcong_card_nail_title: 'Nails & Salon',
+                chamcong_card_nail_desc: 'Auto-split shift %, supply fees, tips, card fees.',
+                chamcong_card_fnb_title: 'Cafe & Restaurant',
+                chamcong_card_fnb_desc: 'Manage split shifts and hourly part-time staff.',
+                chamcong_card_tech_title: 'Technical & Workshop',
+                chamcong_card_tech_desc: 'Daily wages, night overtime, hazard allowances.',
+                chamcong_card_prod_title: 'Production',
+                chamcong_card_prod_desc: 'Track by output volume, shift overtime.',
+                chamcong_card_hotel_title: 'Hotel',
+                chamcong_card_hotel_desc: 'Service charge, night shift duty.',
+                chamcong_cskh_title: 'Technical Support Desk',
+                chamcong_cskh_online: 'Online - Agent Hau',
+                chamcong_cskh_greeting: "Hi Boss! I'm Hau, BitPaw's on-duty engineer. What issue does your system need help with?",
+                chamcong_cskh_input_placeholder: 'Type your request...',
+                chamcong_cskh_autoreply: "Got it! If it's urgent, just call the Hotline or Zalo us directly!"
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
     </script>
 </body>

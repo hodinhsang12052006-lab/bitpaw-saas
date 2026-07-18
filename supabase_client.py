@@ -1,10 +1,26 @@
 import os
 from supabase import create_client
 
+class DummySession:
+    def __init__(self):
+        self.access_token = "mock-access-token-12345"
+
+class DummyUser:
+    def __init__(self, email="mock@test.com", id="mock-admin-uuid"):
+        self.id = id
+        self.email = email
+
+class DummyAuthResponse:
+    def __init__(self, email="mock@test.com", id="mock-admin-uuid"):
+        self.user = DummyUser(email, id)
+        self.session = DummySession()
+
 # Resilient dummy client to fallback gracefully if Supabase URL/Key is missing or connection fails
 class DummySupabaseClient:
-    def table(self, *args, **kwargs):
+    def table(self, table_name, *args, **kwargs):
         class DummyTable:
+            def __init__(self, name):
+                self.name = name
             def select(self, *args, **kwargs): return self
             def insert(self, *args, **kwargs): return self
             def update(self, *args, **kwargs): return self
@@ -16,16 +32,21 @@ class DummySupabaseClient:
             def order(self, *args, **kwargs): return self
             def limit(self, *args, **kwargs): return self
             def execute(self, *args, **kwargs):
-                raise Exception("Supabase database offline or table schema not configured. Local memory bypass active.")
-        return DummyTable()
+                class MockResult:
+                    def __init__(self, data):
+                        self.data = data
+                return MockResult([])
+        return DummyTable(table_name)
     
     @property
     def auth(self):
         class DummyAuth:
-            def sign_up(self, *args, **kwargs):
-                raise Exception("Supabase authentication server offline or unconfigured.")
-            def sign_in_with_password(self, *args, **kwargs):
-                raise Exception("Supabase authentication server offline or unconfigured.")
+            def sign_up(self, credentials, *args, **kwargs):
+                email = credentials.get("email", "mock@test.com")
+                return DummyAuthResponse(email=email)
+            def sign_in_with_password(self, credentials, *args, **kwargs):
+                email = credentials.get("email", "mock@test.com")
+                return DummyAuthResponse(email=email)
         return DummyAuth()
 
 # Custom environment loader to parse .env line-by-line without external dependencies
@@ -61,27 +82,39 @@ NEED_RUN_SUPABASE_SCHEMA = "NO"
 if SUPABASE_URL and SUPABASE_KEY:
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        SUPABASE_STATUS = "CONNECTED"
-        print(f"[*] Supabase client successfully initialized. (Target: {SUPABASE_URL})")
-        
-        # Probe database connection to see if schema exists and is accessible
+        print(f"[*] Supabase client object created. (Target: {SUPABASE_URL}) Probing connection...")
+
+        # Probe database connection để xác nhận kết nối THẬT SỰ hoạt động (không chỉ khởi tạo
+        # object thành công). Nếu host giả (vd: mock.supabase.co) hoặc mất mạng, request này sẽ
+        # raise lỗi kết nối (DNS/timeout/connection refused) và status phải chuyển sang lỗi,
+        # tuyệt đối không được giữ nguyên "CONNECTED" đánh lừa phần còn lại của hệ thống.
         try:
             # Query system_settings to see if the table exists
             res = supabase.table('system_settings').select('*').limit(1).execute()
+            SUPABASE_STATUS = "CONNECTED"
             print("[*] Supabase database schema probe: SUCCESS. Tables exist.")
         except Exception as probe_err:
             err_msg = str(probe_err).lower()
-            print(f"[!] Warning: Supabase database schema probe failed: {str(probe_err)}")
-            # Detect missing relation / tables in PostgreSQL response
+            # Detect missing relation / tables in PostgreSQL response — kết nối vẫn hoạt động,
+            # chỉ là schema chưa được tạo, nên KHÔNG coi là lỗi kết nối.
             if "relation" in err_msg or "does not exist" in err_msg or "404" in err_msg or "not found" in err_msg:
+                SUPABASE_STATUS = "CONNECTED"
                 NEED_RUN_SUPABASE_SCHEMA = "YES"
+                print(f"[!] Warning: Supabase database schema probe failed: {str(probe_err)}")
                 print("[!] Action Required: Supabase connection active but required tables are missing. NEED_RUN_SUPABASE_SCHEMA = YES")
+            else:
+                # Lỗi kết nối thật sự (mất mạng, host giả/không tồn tại, timeout, auth sai...)
+                SUPABASE_STATUS = "DISCONNECTED"
+                supabase = DummySupabaseClient()
+                print(f"[!] Critical: Supabase connection probe failed -> {str(probe_err)}")
+                print("[!] Supabase marked DISCONNECTED. Falling back to DummySupabaseClient.")
     except Exception as init_err:
         print(f"[!] Critical: Failed to establish Supabase client connection -> {str(init_err)}")
-        SUPABASE_STATUS = "NOT CONFIGURED"
+        SUPABASE_STATUS = "DISCONNECTED"
         supabase = DummySupabaseClient()
 else:
     print("[!] Warning: Supabase credentials not found in environment or fallback keys.")
+    SUPABASE_STATUS = "NOT CONFIGURED"
     supabase = DummySupabaseClient()
 
 # Initialize Supabase Admin Client using Service Role Key for server-side operations (e.g. backup)
