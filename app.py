@@ -2881,7 +2881,6 @@ def sell():
 # vãng lai quét QR/đặt lịch — không có scope = token đầy đủ quyền của nhân viên/chủ tiệm).
 def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
     secret = os.environ.get('SUPABASE_JWT_SECRET')
-    print(f"[DEBUG] _mint_tenant_jwt: secret={repr(secret)}, business_id={business_id}")
     if not secret or not business_id:
         return None
     now = int(time.time())
@@ -2900,10 +2899,8 @@ def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
 @login_required
 def get_supabase_tenant_token():
     business_id = session.get('business_id') or session.get('user_id')
-    print(f"[DEBUG] get_supabase_tenant_token: business_id={business_id}, session_keys={list(session.keys())}")
     token = _mint_tenant_jwt(business_id)
     if not token:
-        print("[DEBUG] get_supabase_tenant_token: token is None!")
         return jsonify({"success": False, "error": "Server chưa cấu hình SUPABASE_JWT_SECRET."}), 500
     return jsonify({"success": True, "token": token, "business_id": business_id})
 
@@ -3416,11 +3413,32 @@ def get_keys():
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        c.execute("SELECT license_key, nganh_nghe, trang_thai FROM kho_license ORDER BY id DESC")
+        c.execute("SELECT id, license_key, nganh_nghe, trang_thai FROM kho_license ORDER BY id DESC")
         keys = c.fetchall()
         conn.close()
-        keys_list = [{"key": k[0], "nganh": k[1], "trang_thai": k[2]} for k in keys]
+        keys_list = [{
+            "id": k[0],
+            "key_code": k[1],
+            "industry": k[2],
+            "status": 'Chưa sử dụng' if k[3] == 'Sẵn sàng' else k[3]
+        } for k in keys]
         return jsonify({"success": True, "data": keys_list})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/delete_key/<int:key_id>', methods=['DELETE'])
+@login_required
+def delete_key(key_id):
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+    try:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM kho_license WHERE id=?", (key_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Đã xóa license key thành công!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 

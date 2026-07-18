@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Karaoke & Bida - BitPaw OS</title>
+    <title>Karaoke & Billiards - BitPaw OS</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -282,21 +282,22 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-                        Bit<span class="text-emerald-400">Paw</span> <span class="text-gray-400 text-lg font-medium">| Karaoke & Bida</span>
+                        Bit<span class="text-emerald-400">Paw</span> <span class="text-gray-400 text-lg font-medium" data-i18n="karaoke_title_suffix">| Karaoke & Bida</span>
                     </h1>
-                    <p class="text-sm text-gray-400">Quản lý phòng hát & bida thông minh</p>
+                    <p class="text-sm text-gray-400" data-i18n="karaoke_subtitle">Quản lý phòng hát & bida thông minh</p>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
                 <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-sm font-semibold transition">
-                    <i class="fas fa-home"></i> Dashboard
+                    <i class="fas fa-home"></i> <span data-i18n="karaoke_nav_dashboard">Dashboard</span>
                 </a>
             </div>
         </div>
 
         <!-- Grid danh sách phòng (sẽ load từ Supabase) -->
         <div class="room-grid" id="roomGrid">
-            <div class="text-center col-span-full text-gray-500 py-10">Đang tải danh sách phòng...</div>
+            <div class="text-center col-span-full text-gray-500 py-10" data-i18n="karaoke_loading_rooms">Đang tải danh sách phòng...</div>
         </div>
 
     </div>
@@ -305,21 +306,21 @@
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal-container">
             <i class="fas fa-receipt text-4xl text-emerald-400 mb-3 block"></i>
-            <h3 class="text-xl font-bold mb-2">Xác nhận thanh toán</h3>
+            <h3 class="text-xl font-bold mb-2" data-i18n="karaoke_modal_confirm_title">Xác nhận thanh toán</h3>
             <p id="modalRoomName" class="text-gray-300 mb-4"></p>
             <div class="bg-black/40 rounded-xl p-3 mb-4">
-                <p class="text-sm text-gray-400">Thời gian đã sử dụng</p>
+                <p class="text-sm text-gray-400" data-i18n="karaoke_time_used">Thời gian đã sử dụng</p>
                 <p id="modalDuration" class="text-2xl font-bold text-emerald-400">0 giờ 0 phút</p>
-                <p class="text-sm text-gray-400 mt-2">Thành tiền</p>
+                <p class="text-sm text-gray-400 mt-2" data-i18n="karaoke_total_amount">Thành tiền</p>
                 <p id="modalAmount" class="text-3xl font-black text-white">0₫</p>
             </div>
             <div class="mb-4 text-left">
-                <label class="block text-xs font-bold text-gray-400 mb-1">Số điện thoại khách hàng (Tùy chọn)</label>
+                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="karaoke_cust_phone_label">Số điện thoại khách hàng (Tùy chọn)</label>
                 <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
             </div>
             <div class="flex gap-3">
-                <button id="confirmCheckoutBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 py-2 rounded-full font-bold">Xác nhận</button>
-                <button id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold">Hủy</button>
+                <button id="confirmCheckoutBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 py-2 rounded-full font-bold" data-i18n="karaoke_btn_confirm">Xác nhận</button>
+                <button id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold" data-i18n="karaoke_btn_cancel">Hủy</button>
             </div>
         </div>
     </div>
@@ -328,7 +329,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-emerald-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-emerald-400"></i>
-            <span class="text-sm font-medium text-gray-200">Đang xử lý...</span>
+            <span class="text-sm font-medium text-gray-200" data-i18n="karaoke_processing">Đang xử lý...</span>
         </div>
     </div>
 
@@ -380,13 +381,13 @@
                 .select('*')
                 .order('id', { ascending: true });
             if (error) {
-                showToast('Lỗi tải phòng: ' + error.message, true);
-                document.getElementById('roomGrid').innerHTML = '<div class="text-center col-span-full text-rose-400 py-10">Không thể tải danh sách phòng</div>';
+                showToast(tf('karaoke_toast_error_loading_rooms', { msg: error.message }), true);
+                document.getElementById('roomGrid').innerHTML = `<div class="text-center col-span-full text-rose-400 py-10">${t('karaoke_unable_load_rooms')}</div>`;
                 showLoading(false);
                 return;
             }
             if (!data || data.length === 0) {
-                document.getElementById('roomGrid').innerHTML = '<div class="text-center col-span-full text-gray-500 py-10">Chưa có phòng nào. Hãy thêm phòng trong database.</div>';
+                document.getElementById('roomGrid').innerHTML = `<div class="text-center col-span-full text-gray-500 py-10">${t('karaoke_no_rooms_yet')}</div>`;
                 showLoading(false);
                 return;
             }
@@ -400,21 +401,21 @@
                 <div class="glass-card p-5 ${room.status === 'Đang chơi' ? 'room-card-active' : ''}" data-room-id="${room.id}" data-status="${room.status}" data-start="${room.start_time || ''}" data-price="${room.price_per_hour || 0}">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-white mb-2">${escapeHtml(room.name)}</div>
-                        <div class="text-emerald-400 font-mono text-sm mb-3">${(room.price_per_hour || 0).toLocaleString('vi-VN')} đ / Giờ</div>
+                        <div class="text-emerald-400 font-mono text-sm mb-3">${(room.price_per_hour || 0).toLocaleString('vi-VN')} đ / ${t('karaoke_unit_hr_long')}</div>
                         ${room.status === 'Trống' ? `
-                            <div class="text-gray-400 text-xs mb-3"><i class="fas fa-door-open"></i> Trống</div>
+                            <div class="text-gray-400 text-xs mb-3"><i class="fas fa-door-open"></i> ${t('karaoke_available')}</div>
                             <button class="btn-start start-room" data-id="${room.id}">
-                                <i class="fas fa-play mr-1"></i> Bắt đầu
+                                <i class="fas fa-play mr-1"></i> ${t('karaoke_btn_start')}
                             </button>
                         ` : `
                             <div class="text-gray-300 text-xs mb-2">
-                                <i class="fas fa-hourglass-half"></i> Bắt đầu: ${room.start_time ? new Date(room.start_time).toLocaleTimeString() : '--:--'}
+                                <i class="fas fa-hourglass-half"></i> ${t('karaoke_started_label')} ${room.start_time ? new Date(room.start_time).toLocaleTimeString() : '--:--'}
                             </div>
                             <div class="text-rose-400 font-mono text-sm mb-3" id="timer-${room.id}">
-                                <i class="fas fa-clock"></i> Đã chơi: <span class="timer-value">0 phút</span>
+                                <i class="fas fa-clock"></i> ${t('karaoke_playing_label')} <span class="timer-value">0 ${t('karaoke_unit_min')}</span>
                             </div>
                             <button class="btn-stop checkout-room" data-id="${room.id}" data-name="${escapeHtml(room.name)}">
-                                <i class="fas fa-money-bill-wave mr-1"></i> Thanh toán
+                                <i class="fas fa-money-bill-wave mr-1"></i> ${t('karaoke_btn_payment')}
                             </button>
                         `}
                     </div>
@@ -438,11 +439,11 @@
                     currentRoomName = btn.getAttribute('data-name');
                     currentRoomPrice = parseInt(card.getAttribute('data-price')) || 0;
                     const startTimeStr = card.getAttribute('data-start');
-                    if (!startTimeStr) { showToast('Không tìm thấy thời gian bắt đầu!', true); return; }
+                    if (!startTimeStr) { showToast(t('karaoke_toast_no_start_time'), true); return; }
                     currentStartTime = new Date(startTimeStr);
                     const now = new Date();
                     const diffMs = now - currentStartTime;
-                    if (diffMs <= 0) { showToast('Lỗi thời gian, vui lòng thử lại.', true); return; }
+                    if (diffMs <= 0) { showToast(t('karaoke_toast_time_error'), true); return; }
                     const minutes = Math.floor(diffMs / 60000);
                     let roundedMinutes = minutes < 15 ? 15 : Math.ceil(minutes / 15) * 15;
                     const hours = roundedMinutes / 60;
@@ -450,8 +451,8 @@
                     currentTotalAmount = totalAmount;
                     const hoursShow = Math.floor(roundedMinutes / 60);
                     const minsShow = roundedMinutes % 60;
-                    document.getElementById('modalRoomName').innerText = `Phòng: ${currentRoomName}`;
-                    document.getElementById('modalDuration').innerText = `${hoursShow > 0 ? hoursShow + ' giờ ' : ''}${minsShow} phút`;
+                    document.getElementById('modalRoomName').innerText = tf('karaoke_modal_room_label', { name: currentRoomName });
+                    document.getElementById('modalDuration').innerText = `${hoursShow > 0 ? hoursShow + ' ' + t('karaoke_unit_hr') + ' ' : ''}${minsShow} ${t('karaoke_unit_min')}`;
                     document.getElementById('modalAmount').innerText = totalAmount.toLocaleString('vi-VN') + '₫';
                     document.getElementById('checkoutModal').classList.add('active');
                 });
@@ -466,9 +467,9 @@
                 .update({ status: 'Đang chơi', start_time: startTime })
                 .eq('id', roomId);
             if (error) {
-                showToast('Lỗi bắt đầu phòng: ' + error.message, true);
+                showToast(tf('karaoke_toast_error_starting_room', { msg: error.message }), true);
             } else {
-                showToast('✅ Đã kích hoạt phòng! Bắt đầu tính giờ.');
+                showToast(t('karaoke_toast_room_activated'));
                 await loadRooms();
             }
             showLoading(false);
@@ -512,9 +513,9 @@
                 .update({ status: 'Trống', start_time: null })
                 .eq('id', roomId);
             if (error) {
-                showToast('Lỗi thanh toán: ' + error.message, true);
+                showToast(tf('karaoke_toast_payment_error', { msg: error.message }), true);
             } else {
-                showToast('💸 Thanh toán thành công! Cảm ơn quý khách.');
+                showToast(t('karaoke_toast_payment_success'));
                 await loadRooms();
             }
             showLoading(false);
@@ -534,8 +535,8 @@
                             const mins = minutes % 60;
                             const timerSpan = card.querySelector('.timer-value');
                             if (timerSpan) {
-                                if (hours > 0) timerSpan.innerText = `${hours} giờ ${mins} phút`;
-                                else timerSpan.innerText = `${minutes} phút`;
+                                if (hours > 0) timerSpan.innerText = `${hours} ${t('karaoke_unit_hr')} ${mins} ${t('karaoke_unit_min')}`;
+                                else timerSpan.innerText = `${minutes} ${t('karaoke_unit_min')}`;
                             }
                         }
                     }
@@ -576,23 +577,122 @@
         });
 
         const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
+        supportForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('supportName').value;
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            if (!name || !phone || !message) { showToast(t('karaoke_toast_fill_fields'), true); return; }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('karaoke_toast_request_sent'));
                 supportForm.reset();
-            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            } catch(err) { showToast(tf('karaoke_toast_generic_error', { msg: err.message }), true); }
             finally { showLoading(false); }
         });
 
         function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                karaoke_title_suffix: '| Karaoke & Bida',
+                karaoke_subtitle: 'Quản lý phòng hát & bida thông minh',
+                karaoke_nav_dashboard: 'Dashboard',
+                karaoke_loading_rooms: 'Đang tải danh sách phòng...',
+                karaoke_modal_confirm_title: 'Xác nhận thanh toán',
+                karaoke_time_used: 'Thời gian đã sử dụng',
+                karaoke_total_amount: 'Thành tiền',
+                karaoke_cust_phone_label: 'Số điện thoại khách hàng (Tùy chọn)',
+                karaoke_btn_confirm: 'Xác nhận',
+                karaoke_btn_cancel: 'Hủy',
+                karaoke_processing: 'Đang xử lý...',
+                karaoke_toast_error_loading_rooms: 'Lỗi tải phòng: {msg}',
+                karaoke_unable_load_rooms: 'Không thể tải danh sách phòng',
+                karaoke_no_rooms_yet: 'Chưa có phòng nào. Hãy thêm phòng trong database.',
+                karaoke_unit_hr_long: 'Giờ',
+                karaoke_unit_hr: 'giờ',
+                karaoke_unit_min: 'phút',
+                karaoke_available: 'Trống',
+                karaoke_btn_start: 'Bắt đầu',
+                karaoke_started_label: 'Bắt đầu:',
+                karaoke_playing_label: 'Đã chơi:',
+                karaoke_btn_payment: 'Thanh toán',
+                karaoke_toast_no_start_time: 'Không tìm thấy thời gian bắt đầu!',
+                karaoke_toast_time_error: 'Lỗi thời gian, vui lòng thử lại.',
+                karaoke_modal_room_label: 'Phòng: {name}',
+                karaoke_toast_error_starting_room: 'Lỗi bắt đầu phòng: {msg}',
+                karaoke_toast_room_activated: '✅ Đã kích hoạt phòng! Bắt đầu tính giờ.',
+                karaoke_toast_payment_error: 'Lỗi thanh toán: {msg}',
+                karaoke_toast_payment_success: '💸 Thanh toán thành công! Cảm ơn quý khách.',
+                karaoke_toast_fill_fields: 'Vui lòng nhập đầy đủ',
+                karaoke_toast_request_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                karaoke_toast_generic_error: 'Lỗi: {msg}'
+            },
+            en: {
+                karaoke_title_suffix: '| Karaoke & Billiards',
+                karaoke_subtitle: 'Smart karaoke & billiards room management',
+                karaoke_nav_dashboard: 'Dashboard',
+                karaoke_loading_rooms: 'Loading room list...',
+                karaoke_modal_confirm_title: 'Confirm Payment',
+                karaoke_time_used: 'Time used',
+                karaoke_total_amount: 'Total amount',
+                karaoke_cust_phone_label: 'Customer phone number (optional)',
+                karaoke_btn_confirm: 'Confirm',
+                karaoke_btn_cancel: 'Cancel',
+                karaoke_processing: 'Processing...',
+                karaoke_toast_error_loading_rooms: 'Error loading rooms: {msg}',
+                karaoke_unable_load_rooms: 'Unable to load room list',
+                karaoke_no_rooms_yet: 'No rooms yet. Please add rooms in the database.',
+                karaoke_unit_hr_long: 'hour',
+                karaoke_unit_hr: 'hr',
+                karaoke_unit_min: 'min',
+                karaoke_available: 'Available',
+                karaoke_btn_start: 'Start',
+                karaoke_started_label: 'Started:',
+                karaoke_playing_label: 'Playing:',
+                karaoke_btn_payment: 'Payment',
+                karaoke_toast_no_start_time: 'Start time not found!',
+                karaoke_toast_time_error: 'Time error, please try again.',
+                karaoke_modal_room_label: 'Room: {name}',
+                karaoke_toast_error_starting_room: 'Error starting room: {msg}',
+                karaoke_toast_room_activated: '✅ Room activated! Timer started.',
+                karaoke_toast_payment_error: 'Payment error: {msg}',
+                karaoke_toast_payment_success: '💸 Payment successful! Thank you.',
+                karaoke_toast_fill_fields: 'Please fill in all fields',
+                karaoke_toast_request_sent: '✅ Request sent! We will contact you within 15 minutes.',
+                karaoke_toast_generic_error: 'Error: {msg}'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render dynamic room cards & timers so they re-localize too
+            loadRooms();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         supabaseReady.then(() => { loadRooms(); });
 
@@ -650,11 +750,11 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.03) % 1;
+                const elapsed = clock.getElapsedTime();
+                const hue = (elapsed * 0.03) % 1;
                 material.color.setHSL(hue, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

@@ -15,26 +15,79 @@ class DummyAuthResponse:
         self.user = DummyUser(email, id)
         self.session = DummySession()
 
+MOCK_DB = {}
+
 # Resilient dummy client to fallback gracefully if Supabase URL/Key is missing or connection fails
 class DummySupabaseClient:
     def table(self, table_name, *args, **kwargs):
         class DummyTable:
             def __init__(self, name):
                 self.name = name
-            def select(self, *args, **kwargs): return self
-            def insert(self, *args, **kwargs): return self
-            def update(self, *args, **kwargs): return self
-            def upsert(self, *args, **kwargs): return self
-            def delete(self, *args, **kwargs): return self
-            def eq(self, *args, **kwargs): return self
+                self.filters = {}
+                self.insert_data = None
+                self.update_data = None
+
+            def select(self, *args, **kwargs):
+                return self
+
+            def insert(self, data, *args, **kwargs):
+                self.insert_data = data
+                return self
+
+            def update(self, data, *args, **kwargs):
+                self.update_data = data
+                return self
+
+            def upsert(self, data, *args, **kwargs):
+                self.insert_data = data
+                return self
+
+            def delete(self, *args, **kwargs):
+                return self
+
+            def eq(self, column, value, *args, **kwargs):
+                self.filters[column] = value
+                return self
+
             def gte(self, *args, **kwargs): return self
             def lte(self, *args, **kwargs): return self
             def order(self, *args, **kwargs): return self
             def limit(self, *args, **kwargs): return self
+
             def execute(self, *args, **kwargs):
                 class MockResult:
                     def __init__(self, data):
                         self.data = data
+
+                # Debug logging to workspace file
+                try:
+                    with open('mock_supabase_debug.txt', 'a', encoding='utf-8') as debug_f:
+                        debug_f.write(f"[DEBUG] Execute table={self.name} filters={self.filters} insert={self.insert_data} update={self.update_data} DB={MOCK_DB}\n")
+                except Exception:
+                    pass
+
+                # Handle system_settings queries
+                if self.name == 'system_settings':
+                    key_val = self.filters.get('key')
+                    
+                    # If this is a select query
+                    if self.insert_data is None and self.update_data is None:
+                        if key_val in MOCK_DB:
+                            return MockResult([{'id': 1, 'value': MOCK_DB[key_val], 'key': key_val}])
+                        return MockResult([])
+                    
+                    # If this is an insert query
+                    if self.insert_data:
+                        d = self.insert_data[0] if isinstance(self.insert_data, list) else self.insert_data
+                        MOCK_DB[d['key']] = d['value']
+                        return MockResult([d])
+                        
+                    # If this is an update query
+                    if self.update_data:
+                        if key_val:
+                            MOCK_DB[key_val] = self.update_data['value']
+                            return MockResult([{'key': key_val, 'value': self.update_data['value']}])
+                            
                 return MockResult([])
         return DummyTable(table_name)
     
@@ -43,10 +96,14 @@ class DummySupabaseClient:
         class DummyAuth:
             def sign_up(self, credentials, *args, **kwargs):
                 email = credentials.get("email", "mock@test.com")
-                return DummyAuthResponse(email=email)
+                import hashlib
+                uid = str(hashlib.md5(email.encode('utf-8')).hexdigest())
+                return DummyAuthResponse(email=email, id=uid)
             def sign_in_with_password(self, credentials, *args, **kwargs):
                 email = credentials.get("email", "mock@test.com")
-                return DummyAuthResponse(email=email)
+                import hashlib
+                uid = str(hashlib.md5(email.encode('utf-8')).hexdigest())
+                return DummyAuthResponse(email=email, id=uid)
         return DummyAuth()
 
 # Custom environment loader to parse .env line-by-line without external dependencies

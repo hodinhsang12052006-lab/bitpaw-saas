@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -112,11 +112,12 @@
             
             <div class="flex flex-wrap items-center gap-4">
                 <div class="text-right hidden md:block border-r border-white/10 pr-4">
-                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold">Hệ Thống Trực Tuyến</span>
+                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold" data-i18n="super_admin_system_online">Hệ Thống Trực Tuyến</span>
                     <span id="runtimeClock" class="font-mono text-cyan-400 font-bold text-lg">00:00:00</span>
                 </div>
+                <button id="langToggleBtn" type="button" class="bg-white/5 border border-white/10 hover:border-cyan-400/40 hover:bg-cyan-500/10 px-4 py-2.5 rounded-xl transition text-xs font-bold uppercase tracking-wider">EN</button>
                 <a href="/" class="bg-white/5 border border-white/10 hover:border-cyan-400/40 hover:bg-cyan-500/10 px-4 py-2.5 rounded-xl transition text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-home"></i> Cổng Điều Hành
+                    <i class="fas fa-home"></i> <span data-i18n="super_admin_btn_home">Cổng Điều Hành</span>
                 </a>
             </div>
         </div>
@@ -124,13 +125,13 @@
         <!-- TAB NAVIGATION -->
         <div class="flex gap-2 p-1.5 bg-black/40 border border-white/5 rounded-2xl w-fit">
             <button onclick="switchTab('ops')" id="tabBtn-ops" class="tab-btn active px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-transparent">
-                <i class="fas fa-chart-network mr-1.5"></i> Vận Hành Command Center
+                <i class="fas fa-chart-network mr-1.5"></i> <span data-i18n="super_admin_tab_ops">Vận Hành Command Center</span>
             </button>
             <button onclick="switchTab('license')" id="tabBtn-license" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-transparent">
-                <i class="fas fa-key mr-1.5"></i> Cấp Phép Bản Quyền
+                <i class="fas fa-key mr-1.5"></i> <span data-i18n="super_admin_tab_license">Cấp Phép Bản Quyền</span>
             </button>
             <button onclick="switchTab('payment')" id="tabBtn-payment" class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-transparent">
-                <i class="fas fa-wallet mr-1.5"></i> Cài Đặt Ví Nhận Tiền
+                <i class="fas fa-wallet mr-1.5"></i> <span data-i18n="super_admin_tab_payment">Cài Đặt Ví Nhận Tiền</span>
             </button>
         </div>
 
@@ -143,30 +144,30 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-usd-circle"></i></div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Doanh Thu Hôm Nay</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_today">Doanh Thu Hôm Nay</span>
                     <span class="text-2xl font-black text-emerald-400 block tracking-tight">12,450,000 ₫</span>
-                    <span class="text-[9px] text-emerald-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-caret-up"></i> +14.5% so với hôm qua</span>
+                    <span class="text-[9px] text-emerald-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-caret-up"></i> +14.5% <span data-i18n="super_admin_stat_vs_yesterday">so với hôm qua</span></span>
                 </div>
-                
+
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-calendar-alt"></i></div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Doanh Thu Tháng Này</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_month">Doanh Thu Tháng Này</span>
                     <span class="text-2xl font-black text-cyan-400 block tracking-tight">342,890,000 ₫</span>
-                    <span class="text-[9px] text-cyan-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-analytics"></i> 85% Đạt mục tiêu</span>
+                    <span class="text-[9px] text-cyan-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-analytics"></i> 85% <span data-i18n="super_admin_stat_target_reached">Đạt mục tiêu</span></span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-robot"></i></div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Hội Thoại AI Hôm Nay</span>
-                    <span class="text-2xl font-black text-purple-400 block tracking-tight">1,842 cuộc</span>
-                    <span class="text-[9px] text-purple-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-comments text-[10px]"></i> AI tự động đàm thoại chốt đơn</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_ai_conversations">Hội Thoại AI Hôm Nay</span>
+                    <span class="text-2xl font-black text-purple-400 block tracking-tight">1,842 <span data-i18n="super_admin_unit_sessions">cuộc</span></span>
+                    <span class="text-[9px] text-purple-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-comments text-[10px]"></i> <span data-i18n="super_admin_ai_auto_close_desc">AI tự động đàm thoại chốt đơn</span></span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-funnel-dollar"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Leads Landing Page</span>
                     <span class="text-2xl font-black text-orange-400 block tracking-tight">847 leads</span>
-                    <span class="text-[9px] text-orange-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-bolt"></i> Leads pipeline chốt khách</span>
+                    <span class="text-[9px] text-orange-500/80 mt-1 font-semibold flex items-center gap-1"><i class="fas fa-bolt"></i> Leads <span data-i18n="super_admin_leads_pipeline_desc">pipeline chốt khách</span></span>
                 </div>
             </div>
 
@@ -238,29 +239,29 @@
                             <div class="space-y-2">
                                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Running AI Scenarios</span>
                                 <div class="grid grid-cols-2 gap-2 text-xs">
-                                    <div class="bg-black/30 p-2.5 rounded-xl">📢 Báo giá tự động</div>
-                                    <div class="bg-black/30 p-2.5 rounded-xl">⏰ Nhắc nhở lịch hẹn</div>
-                                    <div class="bg-black/30 p-2.5 rounded-xl">🔄 Chăm sóc sau mua</div>
-                                    <div class="bg-black/30 p-2.5 rounded-xl">💰 Upsell dịch vụ</div>
+                                    <div class="bg-black/30 p-2.5 rounded-xl" data-i18n="super_admin_scenario_auto_quote">📢 Báo giá tự động</div>
+                                    <div class="bg-black/30 p-2.5 rounded-xl" data-i18n="super_admin_scenario_appointment_reminder">⏰ Nhắc nhở lịch hẹn</div>
+                                    <div class="bg-black/30 p-2.5 rounded-xl" data-i18n="super_admin_scenario_post_purchase_care">🔄 Chăm sóc sau mua</div>
+                                    <div class="bg-black/30 p-2.5 rounded-xl" data-i18n="super_admin_scenario_upsell">💰 Upsell dịch vụ</div>
                                 </div>
                             </div>
-                            
+
                             <!-- AI Stats -->
                             <div class="space-y-2">
                                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">AI Conversion rates</span>
                                 <div class="bg-black/30 p-4 rounded-xl space-y-2.5 text-xs">
                                     <div class="flex justify-between">
-                                        <span class="text-gray-400">Tỉ lệ chốt đơn POS:</span>
+                                        <span class="text-gray-400" data-i18n="super_admin_label_pos_conversion">Tỉ lệ chốt đơn POS:</span>
                                         <span class="font-bold text-cyan-400">24.5%</span>
                                     </div>
                                     <div class="flex justify-between">
-                                        <span class="text-gray-400">Khách cũ quay lại:</span>
+                                        <span class="text-gray-400" data-i18n="super_admin_label_returning_customer">Khách cũ quay lại:</span>
                                         <span class="font-bold text-purple-400">32.8%</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <a href="/ai_bot" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black tracking-widest py-3.5 rounded-xl text-center block transition uppercase mt-5 shadow-lg"><i class="fas fa-cogs mr-1"></i> Kích hoạt AI Bot Center</a>
+                        <a href="/ai_bot" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black tracking-widest py-3.5 rounded-xl text-center block transition uppercase mt-5 shadow-lg"><i class="fas fa-cogs mr-1"></i> <span data-i18n="super_admin_btn_activate_ai_bot">Kích hoạt AI Bot Center</span></a>
                     </div>
 
                     <!-- REVENUE HUB & INBOX SHORTCUTS -->
@@ -274,7 +275,7 @@
                                     <span class="text-[9px] text-gray-500 font-mono">Live Logs</span>
                                 </div>
                                 <div class="space-y-2 text-xs">
-                                    <div class="bg-black/30 p-2.5 rounded-xl text-center text-gray-500">
+                                    <div class="bg-black/30 p-2.5 rounded-xl text-center text-gray-500" data-i18n="super_admin_no_new_leads">
                                         Chưa có lead mới từ landing page.
                                     </div>
                                 </div>
@@ -283,16 +284,16 @@
                             <!-- Revenue modules and inbox shortcuts -->
                             <div class="space-y-3 flex flex-col justify-between">
                                 <div>
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-300 pb-2 border-b border-white/5">Doanh Thu & Ominichannel Inbox</h4>
-                                    <p class="text-gray-400 text-xs mt-2 leading-relaxed">Truy cập trực tiếp hệ thống doanh thu, đối soát công nợ, quản lý dòng tiền hoặc mở cổng đàm thoại nuôi khách hàng.</p>
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-300 pb-2 border-b border-white/5" data-i18n="super_admin_revenue_inbox_title">Doanh Thu & Ominichannel Inbox</h4>
+                                    <p class="text-gray-400 text-xs mt-2 leading-relaxed" data-i18n="super_admin_revenue_inbox_desc">Truy cập trực tiếp hệ thống doanh thu, đối soát công nợ, quản lý dòng tiền hoặc mở cổng đàm thoại nuôi khách hàng.</p>
                                 </div>
-                                
+
                                 <div class="grid grid-cols-2 gap-2 mt-4">
                                     <a href="/customer_nurturing" class="bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-black tracking-wider py-3 rounded-xl text-center transition uppercase flex items-center justify-center gap-1">
-                                        <i class="fas fa-inbox"></i> Hộp Thư AI
+                                        <i class="fas fa-inbox"></i> <span data-i18n="super_admin_btn_ai_inbox">Hộp Thư AI</span>
                                     </a>
                                     <a href="/dashboard" class="bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-black tracking-wider py-3 rounded-xl text-center transition uppercase flex items-center justify-center gap-1">
-                                        <i class="fas fa-chart-line text-cyan-400"></i> Báo Cáo POS
+                                        <i class="fas fa-chart-line text-cyan-400"></i> <span data-i18n="super_admin_btn_pos_report">Báo Cáo POS</span>
                                     </a>
                                 </div>
                             </div>
@@ -301,16 +302,16 @@
                         <!-- Routing shortcuts grid -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 border-t border-white/5 pt-5 mt-5">
                             <a href="/profit_report" class="bg-white/5 border border-white/5 hover:border-cyan-400/40 p-2.5 rounded-xl text-center text-[9px] uppercase font-bold tracking-wider text-gray-300 transition">
-                                <i class="fas fa-box-open text-purple-400 block mb-1 text-sm"></i> Lợi Nhuận
+                                <i class="fas fa-box-open text-purple-400 block mb-1 text-sm"></i> <span data-i18n="super_admin_shortcut_profit">Lợi Nhuận</span>
                             </a>
                             <a href="/expense_list" class="bg-white/5 border border-white/5 hover:border-cyan-400/40 p-2.5 rounded-xl text-center text-[9px] uppercase font-bold tracking-wider text-gray-300 transition">
-                                <i class="fas fa-file-invoice-dollar text-orange-400 block mb-1 text-sm"></i> Nhật Ký Chi
+                                <i class="fas fa-file-invoice-dollar text-orange-400 block mb-1 text-sm"></i> <span data-i18n="super_admin_shortcut_expense_log">Nhật Ký Chi</span>
                             </a>
                             <a href="/payment_history" class="bg-white/5 border border-white/5 hover:border-cyan-400/40 p-2.5 rounded-xl text-center text-[9px] uppercase font-bold tracking-wider text-gray-300 transition">
-                                <i class="fas fa-history text-emerald-400 block mb-1 text-sm"></i> Lịch Sử Pay
+                                <i class="fas fa-history text-emerald-400 block mb-1 text-sm"></i> <span data-i18n="super_admin_shortcut_payment_history">Lịch Sử Pay</span>
                             </a>
                             <a href="/campaign_builder" class="bg-white/5 border border-white/5 hover:border-cyan-400/40 p-2.5 rounded-xl text-center text-[9px] uppercase font-bold tracking-wider text-gray-300 transition">
-                                <i class="fas fa-paper-plane text-pink-400 block mb-1 text-sm"></i> Chiến Dịch
+                                <i class="fas fa-paper-plane text-pink-400 block mb-1 text-sm"></i> <span data-i18n="super_admin_shortcut_campaign">Chiến Dịch</span>
                             </a>
                         </div>
                     </div>
@@ -324,27 +325,27 @@
         <div id="tabContent-license" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             <div class="lg:col-span-4 bg-gradient-to-b from-white/5 to-transparent border border-white/10 p-6 rounded-3xl h-fit">
                 <h3 class="text-sm font-black text-cyan-400 uppercase tracking-widest mb-6 pb-2 border-b border-cyan-400/20 flex items-center gap-2">
-                    <i class="fas fa-hammer"></i> Máy Đúc Bản Quyền Mới
+                    <i class="fas fa-hammer"></i> <span data-i18n="super_admin_license_generator_title">Máy Đúc Bản Quyền Mới</span>
                 </h3>
-                
+
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Chọn Ngành Nghề Gói Cấp Phép</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2" data-i18n="super_admin_label_select_industry">Chọn Ngành Nghề Gói Cấp Phép</label>
                         <select id="industrySelect" class="w-full bg-black/50 border border-white/10 p-3.5 rounded-xl text-white text-sm outline-none focus:border-cyan-400 cursor-pointer">
-                            <option value="retail">Cửa Hàng Bán Lẻ (Retail)</option>
-                            <option value="fnb">F&B (Nhà Hàng & Cafe)</option>
+                            <option value="retail" data-i18n="super_admin_industry_retail">Cửa Hàng Bán Lẻ (Retail)</option>
+                            <option value="fnb" data-i18n="super_admin_industry_fnb">F&B (Nhà Hàng & Cafe)</option>
                             <option value="spa">Spa & Beauty (Wellness)</option>
                             <option value="nail">Nails & Salon</option>
-                            <option value="karaoke">Karaoke & Bida</option>
-                            <option value="hotel">Khách Sạn (Hotel)</option>
-                            <option value="production">Xưởng Sản Xuất</option>
-                            <option value="technical">Kỹ Thuật & Bảo Trì</option>
-                            <option value="office">Khối Văn Phòng</option>
+                            <option value="karaoke" data-i18n="super_admin_industry_karaoke">Karaoke & Bida</option>
+                            <option value="hotel" data-i18n="super_admin_industry_hotel">Khách Sạn (Hotel)</option>
+                            <option value="production" data-i18n="super_admin_industry_production">Xưởng Sản Xuất</option>
+                            <option value="technical" data-i18n="super_admin_industry_technical">Kỹ Thuật & Bảo Trì</option>
+                            <option value="office" data-i18n="super_admin_industry_office">Khối Văn Phòng</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Mã Khách Hàng (Tự tạo hoặc Random)</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2" data-i18n="super_admin_label_key_code">Mã Khách Hàng (Tự tạo hoặc Random)</label>
                         <div class="flex gap-2">
                             <input type="text" id="keyCodeInput" placeholder="VD: BITPAW-X8T7S8" class="w-full bg-black/50 border border-white/10 p-3.5 rounded-xl text-white text-sm outline-none focus:border-cyan-400 uppercase font-mono tracking-widest">
                             <button type="button" onclick="randomKey()" class="bg-white/5 border border-white/10 px-4 rounded-xl hover:bg-cyan-500 hover:text-black transition" title="Tạo mã ngẫu nhiên">
@@ -354,16 +355,16 @@
                     </div>
 
                     <button type="button" onclick="luuMaLenCloud(event)" class="w-full bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-white font-black tracking-widest p-4 rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:scale-[1.02] active:scale-95 transition flex items-center justify-center gap-2">
-                        <i class="fas fa-bolt"></i> ĐÚC BẢN QUYỀN MỚI
+                        <i class="fas fa-bolt"></i> <span data-i18n="super_admin_btn_mint_license">ĐÚC BẢN QUYỀN MỚI</span>
                     </button>
                 </div>
             </div>
 
             <div class="lg:col-span-8 glass-panel p-6">
                 <div class="flex justify-between items-center mb-6 pb-3 border-b border-white/5">
-                    <h3 class="text-sm font-black text-cyan-400 uppercase tracking-widest"><i class="fas fa-key"></i> Danh Sách License Đã Đúc</h3>
+                    <h3 class="text-sm font-black text-cyan-400 uppercase tracking-widest"><i class="fas fa-key"></i> <span data-i18n="super_admin_license_list_title">Danh Sách License Đã Đúc</span></h3>
                     <button type="button" onclick="loadKeys()" class="text-xs font-bold bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl hover:bg-cyan-500/10 hover:text-cyan-400 transition flex items-center gap-2">
-                        <i class="fas fa-sync-alt"></i> Đồng bộ đám mây
+                        <i class="fas fa-sync-alt"></i> <span data-i18n="super_admin_btn_sync_cloud">Đồng bộ đám mây</span>
                     </button>
                 </div>
 
@@ -371,10 +372,10 @@
                     <table class="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                             <tr class="border-b border-white/10 text-[10px] text-gray-500 uppercase tracking-wider">
-                                <th class="p-3">Mã Đăng Ký (Key Code)</th>
-                                <th class="p-3">Ngành Đăng Ký</th>
-                                <th class="p-3">Trạng Thái Cloud</th>
-                                <th class="p-3 text-right">Thao Tác Điều Khiển</th>
+                                <th class="p-3" data-i18n="super_admin_th_key_code">Mã Đăng Ký (Key Code)</th>
+                                <th class="p-3" data-i18n="super_admin_th_industry">Ngành Đăng Ký</th>
+                                <th class="p-3" data-i18n="super_admin_th_cloud_status">Trạng Thái Cloud</th>
+                                <th class="p-3 text-right" data-i18n="super_admin_th_control_actions">Thao Tác Điều Khiển</th>
                             </tr>
                         </thead>
                         <tbody id="keysTableBody" class="text-xs font-medium text-gray-300">
@@ -391,11 +392,11 @@
         <div id="tabContent-payment" class="hidden space-y-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-purple-500/10 to-transparent border border-white/10 p-6 rounded-3xl">
                 <div>
-                    <h3 class="text-base font-black text-white"><i class="fas fa-wallet text-orange-500 mr-1.5"></i> Thiết Lập Cổng Nhận Tiền Doanh Nghiệp</h3>
-                    <p class="text-xs text-gray-400 mt-1">Cấu hình thông tin tài khoản ngân hàng và các ví điện tử liên kết thanh toán.</p>
+                    <h3 class="text-base font-black text-white"><i class="fas fa-wallet text-orange-500 mr-1.5"></i> <span data-i18n="super_admin_payment_setup_title">Thiết Lập Cổng Nhận Tiền Doanh Nghiệp</span></h3>
+                    <p class="text-xs text-gray-400 mt-1" data-i18n="super_admin_payment_setup_desc">Cấu hình thông tin tài khoản ngân hàng và các ví điện tử liên kết thanh toán.</p>
                 </div>
                 <button type="button" onclick="openPaymentModal()" class="bg-cyan-500 hover:bg-cyan-400 text-black font-black px-5 py-3 rounded-xl transition shadow-lg text-xs uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-plus"></i> Thêm Cổng Thanh Toán
+                    <i class="fas fa-plus"></i> <span data-i18n="super_admin_btn_add_gateway">Thêm Cổng Thanh Toán</span>
                 </button>
             </div>
 
@@ -409,43 +410,43 @@
     <div id="paymentModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] hidden flex items-center justify-center p-4">
         <div class="bg-[#0b0a1a] border border-cyan-500/30 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
             <div class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-                <h3 class="text-sm font-black text-white uppercase tracking-wider" id="payModalTitle">Cài Đặt Cổng Nhận Tiền</h3>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider" id="payModalTitle" data-i18n="super_admin_modal_payment_title">Cài Đặt Cổng Nhận Tiền</h3>
                 <button type="button" onclick="closePaymentModal()" class="text-gray-400 hover:text-rose-500 transition"><i class="fas fa-times text-lg"></i></button>
             </div>
-            
+
             <form id="payForm" onsubmit="savePaymentMethod(event)" class="p-6 space-y-4">
                 <input type="hidden" id="payId">
-                
+
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mã BIN Ngân Hàng (VD: Vietcombank là 970436) *</label>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="super_admin_label_bin">Mã BIN Ngân Hàng (VD: Vietcombank là 970436) *</label>
                     <input type="text" id="payBin" required placeholder="970436" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none font-mono">
                 </div>
-                
+
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tên Hiển Thị (VD: MoMo, VietQR) *</label>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="super_admin_label_display_name">Tên Hiển Thị (VD: MoMo, VietQR) *</label>
                     <input type="text" id="payName" required placeholder="Vietcombank" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Số Tài Khoản *</label>
-                        <input type="text" id="payNumber" required placeholder="Số tài khoản ngân hàng" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none font-mono font-bold text-cyan-400">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="super_admin_label_account_number">Số Tài Khoản *</label>
+                        <input type="text" id="payNumber" required placeholder="Số tài khoản ngân hàng" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none font-mono font-bold text-cyan-400" data-i18n-placeholder="super_admin_placeholder_account_number">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tên Chủ Tài Khoản *</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="super_admin_label_account_owner">Tên Chủ Tài Khoản *</label>
                         <input type="text" id="payOwner" required placeholder="VD: HO DINH SANG" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none uppercase font-bold">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Đường dẫn logo ngân hàng / Cổng</label>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="super_admin_label_logo_url">Đường dẫn logo ngân hàng / Cổng</label>
                     <input type="url" id="payLogo" placeholder="https://..." class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm focus:border-cyan-400 outline-none">
                 </div>
 
                 <div class="pt-4 flex gap-3">
-                    <button type="button" onclick="closePaymentModal()" class="flex-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition text-xs uppercase">Hủy</button>
+                    <button type="button" onclick="closePaymentModal()" class="flex-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition text-xs uppercase" data-i18n="super_admin_btn_cancel">Hủy</button>
                     <button type="submit" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black py-3 rounded-xl transition text-xs uppercase shadow-lg flex items-center justify-center gap-2" id="paySubmitBtn">
-                        <i class="fas fa-save"></i> Lưu Cài Đặt
+                        <i class="fas fa-save"></i> <span data-i18n="super_admin_btn_save_settings">Lưu Cài Đặt</span>
                     </button>
                 </div>
             </form>
@@ -717,42 +718,41 @@
             const nganhNghe = document.getElementById('industrySelect').value; 
             const maKhachHang = document.getElementById('keyCodeInput').value.trim();
 
-            if(!maKhachHang) { showToast("Sếp chưa tạo mã khách hàng kìa!"); return; }
+            if(!maKhachHang) { showToast(t('super_admin_toast_no_key_code')); return; }
 
             try {
-                const { data, error } = await window.supabaseClient
-                    .from('license_keys')
-                    .insert([{ key_code: maKhachHang, industry: nganhNghe }])
-                    .select();
-
-                if (error) {
-                    showToast("❌ Lỗi: " + error.message);
-                } else {
-                    document.getElementById('keyCodeInput').value = ''; 
-                    showToast("✅ Đã đúc & lưu license lên Cloud thành công!");
-                    loadKeys(); 
+                const res = await fetch('/api/superadmin/duc_ma', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ license_key: maKhachHang, nganh_nghe: nganhNghe })
+                });
+                const resJson = await res.json();
+                if (!resJson.success) {
+                    showToast("❌ " + resJson.message);
+                    return;
                 }
+                document.getElementById('keyCodeInput').value = '';
+                showToast(t('super_admin_msg_license_saved'));
+                loadKeys();
             } catch (err) {
-                showToast("Lỗi: " + err.message);
+                showToast(t('super_admin_err_prefix') + err.message);
             }
         }
 
         async function loadKeys() {
             const tbody = document.getElementById('keysTableBody');
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 font-semibold"><i class="fas fa-spinner fa-spin mr-2 text-cyan-400"></i>Đang tải dữ liệu từ Cloud...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 font-semibold"><i class="fas fa-spinner fa-spin mr-2 text-cyan-400"></i>' + t('super_admin_loading_cloud_data') + '</td></tr>';
 
             try {
-                const { data: keys, error } = await window.supabaseClient
-                    .from('license_keys')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
+                const res = await fetch('/api/superadmin/get_keys');
+                const resJson = await res.json();
+                if (!resJson.success) throw new Error(resJson.message);
+                const keys = resJson.data;
 
                 if (keys && keys.length > 0) {
-                    tbody.innerHTML = ''; 
+                    tbody.innerHTML = '';
                     keys.forEach(item => {
-                        let displayStatus = item.status === 'Chưa sử dụng' ? 'Sẵn sàng' : item.status;
+                        let displayStatus = item.status === 'Chưa sử dụng' ? t('super_admin_status_ready') : item.status;
                         let statusColor = item.status === 'Chưa sử dụng' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : 'text-gray-400 border-gray-500/20 bg-gray-500/10';
 
                         tbody.innerHTML += `
@@ -763,7 +763,7 @@
                                     <span class="px-2 py-0.5 rounded text-[9px] uppercase font-black border ${statusColor}">${displayStatus}</span>
                                 </td>
                                 <td class="p-3 flex justify-end gap-2">
-                                    <button type="button" onclick="navigator.clipboard.writeText('${item.key_code}'); showToast('Đã Copy: ${item.key_code}')" class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors flex items-center justify-center" title="Copy Gửi Khách">
+                                    <button type="button" onclick="navigator.clipboard.writeText('${item.key_code}'); showToast('${t('super_admin_msg_copied_prefix')}${item.key_code}')" class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors flex items-center justify-center" title="Copy Gửi Khách">
                                         <i class="fas fa-copy text-xs"></i>
                                     </button>
                                     <button type="button" onclick="xoaMa(${item.id})" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center" title="Thu hồi / Xóa">
@@ -774,20 +774,23 @@
                         `;
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Kho đang trống. Sếp hãy đúc mã mới đi!</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">' + t('super_admin_empty_license_pool') + '</td></tr>';
                 }
             } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-rose-500">Lỗi lấy dữ liệu: ${error.message}</td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-rose-400 font-semibold">' + t('super_admin_err_load_data_prefix') + error.message + '</td></tr>';
             }
         }
 
         async function xoaMa(id) {
-            if(confirm("Sếp có chắc chắn muốn xóa mã này không?")) {
-                const { error } = await window.supabaseClient.from('license_keys').delete().eq('id', id);
-                if(error) showToast("Lỗi khi xóa: " + error.message);
-                else {
-                    showToast("✅ Đã xóa license thành công!");
+            if(confirm(t('super_admin_confirm_delete_license'))) {
+                try {
+                    const res = await fetch(`/api/superadmin/delete_key/${id}`, { method: 'DELETE' });
+                    const resJson = await res.json();
+                    if (!resJson.success) throw new Error(resJson.message);
+                    showToast(t('super_admin_msg_license_deleted'));
                     loadKeys();
+                } catch (err) {
+                    showToast(t('super_admin_err_delete_prefix') + err.message);
                 }
             }
         }
@@ -810,7 +813,7 @@
                     grid.innerHTML = ''; 
                     methods.forEach(method => {
                         const statusColor = method.is_active ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-gray-400 bg-gray-500/10 border-gray-500/20';
-                        const statusText = method.is_active ? 'Hoạt động' : 'Bảo trì';
+                        const statusText = method.is_active ? t('super_admin_status_active') : t('super_admin_status_maintenance');
                         const checkedState = method.is_active ? 'checked' : '';
 
                         grid.innerHTML += `
@@ -830,13 +833,13 @@
                                 </div>
                                 
                                 <div class="space-y-1 bg-black/30 p-3 rounded-xl border border-white/5 font-mono text-xs mb-4">
-                                    <div class="flex justify-between"><span class="text-gray-500">Số TK:</span> <span class="text-cyan-300 font-bold">${method.account_number}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Chủ TK:</span> <span class="text-white uppercase font-bold">${method.account_name}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Mã BIN:</span> <span class="text-gray-400">${method.bin_code}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">${t('super_admin_label_acc_number_short')}</span> <span class="text-cyan-300 font-bold">${method.account_number}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">${t('super_admin_label_acc_owner_short')}</span> <span class="text-white uppercase font-bold">${method.account_name}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">${t('super_admin_label_bin_short')}</span> <span class="text-gray-400">${method.bin_code}</span></div>
                                 </div>
 
                                 <div class="flex justify-between items-center pt-3 border-t border-white/5">
-                                    <span class="text-xs font-bold text-gray-400">Trạng thái Cổng:</span>
+                                    <span class="text-xs font-bold text-gray-400">${t('super_admin_label_gateway_status')}</span>
                                     
                                     <div class="relative inline-block w-11 mr-2 align-middle select-none transition duration-200 ease-in">
                                         <input type="checkbox" onchange="togglePaymentStatus(${method.id}, this.checked)" name="toggle" id="toggle-${method.id}" ${checkedState} class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0 bottom-0 m-auto right-0 opacity-0 z-10"/>
@@ -849,25 +852,25 @@
                 } else {
                     grid.innerHTML = `
                         <div class="col-span-full p-8 text-center text-gray-500 bg-white/5 rounded-2xl border border-dashed border-white/20">
-                            Chưa cấu hình ngân hàng nhận tiền nào. Checkout sẽ không hoạt động.
+                            ${t('super_admin_no_payment_methods')}
                         </div>
                     `;
                 }
             } catch (error) {
-                grid.innerHTML = `<div class="col-span-full p-4 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-semibold">Lỗi tải dữ liệu: ${error.message}</div>`;
+                grid.innerHTML = `<div class="col-span-full p-4 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-semibold">${t('super_admin_err_load_data_prefix')}${error.message}</div>`;
             }
         }
 
         function openPaymentModal(methodData = null) {
             const modal = document.getElementById('paymentModal');
             const form = document.getElementById('payForm');
-            
+
             form.reset();
             document.getElementById('payId').value = '';
-            document.getElementById('payModalTitle').innerText = 'Thêm Cổng Thanh Toán';
+            document.getElementById('payModalTitle').innerText = t('super_admin_btn_add_gateway');
 
             if(methodData) {
-                document.getElementById('payModalTitle').innerText = 'Sửa Cổng: ' + methodData.provider_name;
+                document.getElementById('payModalTitle').innerText = tf('super_admin_edit_gateway_title', {name: methodData.provider_name});
                 document.getElementById('payId').value = methodData.id;
                 document.getElementById('payBin').value = methodData.bin_code;
                 document.getElementById('payName').value = methodData.provider_name;
@@ -886,7 +889,7 @@
         async function savePaymentMethod(e) {
             e.preventDefault();
             const btn = document.getElementById('paySubmitBtn');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('super_admin_saving');
             btn.disabled = true;
 
             const id = document.getElementById('payId').value;
@@ -910,15 +913,15 @@
                 }
 
                 if(error) throw error;
-                
-                showToast("✅ Đã lưu cấu hình cổng thanh toán thành công!");
+
+                showToast(t('super_admin_msg_gateway_saved'));
                 closePaymentModal();
                 loadPaymentMethods();
-                
+
             } catch (err) {
-                showToast("Lỗi lưu cấu hình: " + err.message);
+                showToast(t('super_admin_err_save_config_prefix') + err.message);
             } finally {
-                btn.innerHTML = '<i class="fas fa-save"></i> Lưu Cài Đặt';
+                btn.innerHTML = '<i class="fas fa-save"></i> ' + t('super_admin_btn_save_settings');
                 btn.disabled = false;
             }
         }
@@ -929,18 +932,217 @@
                     .from('payment_methods')
                     .update({ is_active: isActive })
                     .eq('id', id);
-                
+
                 if(error) throw error;
-                showToast("✅ Đã cập nhật trạng thái cổng thanh toán!");
-                loadPaymentMethods(); 
+                showToast(t('super_admin_msg_status_updated'));
+                loadPaymentMethods();
             } catch (err) {
-                showToast("Không thể cập nhật: " + err.message);
+                showToast(t('super_admin_err_cannot_update_prefix') + err.message);
                 loadPaymentMethods();
             }
         }
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                super_admin_system_online: 'Hệ Thống Trực Tuyến',
+                super_admin_btn_home: 'Cổng Điều Hành',
+                super_admin_tab_ops: 'Vận Hành Command Center',
+                super_admin_tab_license: 'Cấp Phép Bản Quyền',
+                super_admin_tab_payment: 'Cài Đặt Ví Nhận Tiền',
+                super_admin_stat_revenue_today: 'Doanh Thu Hôm Nay',
+                super_admin_stat_vs_yesterday: 'so với hôm qua',
+                super_admin_stat_revenue_month: 'Doanh Thu Tháng Này',
+                super_admin_stat_target_reached: 'Đạt mục tiêu',
+                super_admin_stat_ai_conversations: 'Hội Thoại AI Hôm Nay',
+                super_admin_unit_sessions: 'cuộc',
+                super_admin_ai_auto_close_desc: 'AI tự động đàm thoại chốt đơn',
+                super_admin_leads_pipeline_desc: 'pipeline chốt khách',
+                super_admin_scenario_auto_quote: '📢 Báo giá tự động',
+                super_admin_scenario_appointment_reminder: '⏰ Nhắc nhở lịch hẹn',
+                super_admin_scenario_post_purchase_care: '🔄 Chăm sóc sau mua',
+                super_admin_scenario_upsell: '💰 Upsell dịch vụ',
+                super_admin_label_pos_conversion: 'Tỉ lệ chốt đơn POS:',
+                super_admin_label_returning_customer: 'Khách cũ quay lại:',
+                super_admin_btn_activate_ai_bot: 'Kích hoạt AI Bot Center',
+                super_admin_no_new_leads: 'Chưa có lead mới từ landing page.',
+                super_admin_revenue_inbox_title: 'Doanh Thu & Ominichannel Inbox',
+                super_admin_revenue_inbox_desc: 'Truy cập trực tiếp hệ thống doanh thu, đối soát công nợ, quản lý dòng tiền hoặc mở cổng đàm thoại nuôi khách hàng.',
+                super_admin_btn_ai_inbox: 'Hộp Thư AI',
+                super_admin_btn_pos_report: 'Báo Cáo POS',
+                super_admin_shortcut_profit: 'Lợi Nhuận',
+                super_admin_shortcut_expense_log: 'Nhật Ký Chi',
+                super_admin_shortcut_payment_history: 'Lịch Sử Pay',
+                super_admin_shortcut_campaign: 'Chiến Dịch',
+                super_admin_license_generator_title: 'Máy Đúc Bản Quyền Mới',
+                super_admin_label_select_industry: 'Chọn Ngành Nghề Gói Cấp Phép',
+                super_admin_industry_retail: 'Cửa Hàng Bán Lẻ (Retail)',
+                super_admin_industry_fnb: 'F&B (Nhà Hàng & Cafe)',
+                super_admin_industry_karaoke: 'Karaoke & Bida',
+                super_admin_industry_hotel: 'Khách Sạn (Hotel)',
+                super_admin_industry_production: 'Xưởng Sản Xuất',
+                super_admin_industry_technical: 'Kỹ Thuật & Bảo Trì',
+                super_admin_industry_office: 'Khối Văn Phòng',
+                super_admin_label_key_code: 'Mã Khách Hàng (Tự tạo hoặc Random)',
+                super_admin_btn_mint_license: 'ĐÚC BẢN QUYỀN MỚI',
+                super_admin_license_list_title: 'Danh Sách License Đã Đúc',
+                super_admin_btn_sync_cloud: 'Đồng bộ đám mây',
+                super_admin_th_key_code: 'Mã Đăng Ký (Key Code)',
+                super_admin_th_industry: 'Ngành Đăng Ký',
+                super_admin_th_cloud_status: 'Trạng Thái Cloud',
+                super_admin_th_control_actions: 'Thao Tác Điều Khiển',
+                super_admin_payment_setup_title: 'Thiết Lập Cổng Nhận Tiền Doanh Nghiệp',
+                super_admin_payment_setup_desc: 'Cấu hình thông tin tài khoản ngân hàng và các ví điện tử liên kết thanh toán.',
+                super_admin_btn_add_gateway: 'Thêm Cổng Thanh Toán',
+                super_admin_modal_payment_title: 'Cài Đặt Cổng Nhận Tiền',
+                super_admin_label_bin: 'Mã BIN Ngân Hàng (VD: Vietcombank là 970436) *',
+                super_admin_label_display_name: 'Tên Hiển Thị (VD: MoMo, VietQR) *',
+                super_admin_label_account_number: 'Số Tài Khoản *',
+                super_admin_placeholder_account_number: 'Số tài khoản ngân hàng',
+                super_admin_label_account_owner: 'Tên Chủ Tài Khoản *',
+                super_admin_label_logo_url: 'Đường dẫn logo ngân hàng / Cổng',
+                super_admin_btn_cancel: 'Hủy',
+                super_admin_btn_save_settings: 'Lưu Cài Đặt',
+                super_admin_toast_no_key_code: 'Sếp chưa tạo mã khách hàng kìa!',
+                super_admin_err_prefix: 'Lỗi: ',
+                super_admin_msg_license_saved: '✅ Đã đúc & lưu license lên Cloud thành công!',
+                super_admin_loading_cloud_data: 'Đang tải dữ liệu từ Cloud...',
+                super_admin_status_ready: 'Sẵn sàng',
+                super_admin_msg_copied_prefix: 'Đã Copy: ',
+                super_admin_empty_license_pool: 'Kho đang trống. Sếp hãy đúc mã mới đi!',
+                super_admin_err_load_data_prefix: 'Lỗi lấy dữ liệu: ',
+                super_admin_confirm_delete_license: 'Sếp có chắc chắn muốn xóa mã này không?',
+                super_admin_err_delete_prefix: 'Lỗi khi xóa: ',
+                super_admin_msg_license_deleted: '✅ Đã xóa license thành công!',
+                super_admin_status_active: 'Hoạt động',
+                super_admin_status_maintenance: 'Bảo trì',
+                super_admin_label_acc_number_short: 'Số TK:',
+                super_admin_label_acc_owner_short: 'Chủ TK:',
+                super_admin_label_bin_short: 'Mã BIN:',
+                super_admin_label_gateway_status: 'Trạng thái Cổng:',
+                super_admin_no_payment_methods: 'Chưa cấu hình ngân hàng nhận tiền nào. Checkout sẽ không hoạt động.',
+                super_admin_edit_gateway_title: 'Sửa Cổng: {name}',
+                super_admin_saving: 'Đang lưu...',
+                super_admin_msg_gateway_saved: '✅ Đã lưu cấu hình cổng thanh toán thành công!',
+                super_admin_err_save_config_prefix: 'Lỗi lưu cấu hình: ',
+                super_admin_msg_status_updated: '✅ Đã cập nhật trạng thái cổng thanh toán!',
+                super_admin_err_cannot_update_prefix: 'Không thể cập nhật: '
+            },
+            en: {
+                super_admin_system_online: 'System Online',
+                super_admin_btn_home: 'Operations Portal',
+                super_admin_tab_ops: 'Operations Command Center',
+                super_admin_tab_license: 'License Management',
+                super_admin_tab_payment: 'Payment Wallet Settings',
+                super_admin_stat_revenue_today: "Today's Revenue",
+                super_admin_stat_vs_yesterday: 'vs yesterday',
+                super_admin_stat_revenue_month: "This Month's Revenue",
+                super_admin_stat_target_reached: 'Target Reached',
+                super_admin_stat_ai_conversations: "Today's AI Conversations",
+                super_admin_unit_sessions: 'sessions',
+                super_admin_ai_auto_close_desc: 'AI auto-converses to close deals',
+                super_admin_leads_pipeline_desc: 'pipeline closing customers',
+                super_admin_scenario_auto_quote: '📢 Auto Quotes',
+                super_admin_scenario_appointment_reminder: '⏰ Appointment Reminders',
+                super_admin_scenario_post_purchase_care: '🔄 Post-Purchase Care',
+                super_admin_scenario_upsell: '💰 Service Upsell',
+                super_admin_label_pos_conversion: 'POS conversion rate:',
+                super_admin_label_returning_customer: 'Returning customers:',
+                super_admin_btn_activate_ai_bot: 'Activate AI Bot Center',
+                super_admin_no_new_leads: 'No new leads from the landing page yet.',
+                super_admin_revenue_inbox_title: 'Revenue & Omnichannel Inbox',
+                super_admin_revenue_inbox_desc: 'Directly access the revenue system, debt reconciliation, cash flow management, or open the customer nurturing conversation gateway.',
+                super_admin_btn_ai_inbox: 'AI Inbox',
+                super_admin_btn_pos_report: 'POS Report',
+                super_admin_shortcut_profit: 'Profit',
+                super_admin_shortcut_expense_log: 'Expense Log',
+                super_admin_shortcut_payment_history: 'Payment History',
+                super_admin_shortcut_campaign: 'Campaigns',
+                super_admin_license_generator_title: 'New License Minter',
+                super_admin_label_select_industry: 'Select License Package Industry',
+                super_admin_industry_retail: 'Retail Store',
+                super_admin_industry_fnb: 'F&B (Restaurant & Cafe)',
+                super_admin_industry_karaoke: 'Karaoke & Billiards',
+                super_admin_industry_hotel: 'Hotel',
+                super_admin_industry_production: 'Production Workshop',
+                super_admin_industry_technical: 'Technical & Maintenance',
+                super_admin_industry_office: 'Office Block',
+                super_admin_label_key_code: 'Customer Code (Auto-generate or Random)',
+                super_admin_btn_mint_license: 'MINT NEW LICENSE',
+                super_admin_license_list_title: 'Minted License List',
+                super_admin_btn_sync_cloud: 'Sync Cloud',
+                super_admin_th_key_code: 'Registration Code (Key Code)',
+                super_admin_th_industry: 'Registered Industry',
+                super_admin_th_cloud_status: 'Cloud Status',
+                super_admin_th_control_actions: 'Control Actions',
+                super_admin_payment_setup_title: 'Business Payment Gateway Setup',
+                super_admin_payment_setup_desc: 'Configure bank account information and e-wallets linked to payment.',
+                super_admin_btn_add_gateway: 'Add Payment Gateway',
+                super_admin_modal_payment_title: 'Payment Gateway Settings',
+                super_admin_label_bin: 'Bank BIN Code (E.g.: Vietcombank is 970436) *',
+                super_admin_label_display_name: 'Display Name (E.g.: MoMo, VietQR) *',
+                super_admin_label_account_number: 'Account Number *',
+                super_admin_placeholder_account_number: 'Bank account number',
+                super_admin_label_account_owner: 'Account Holder Name *',
+                super_admin_label_logo_url: 'Bank / Gateway logo URL',
+                super_admin_btn_cancel: 'Cancel',
+                super_admin_btn_save_settings: 'Save Settings',
+                super_admin_toast_no_key_code: "You haven't generated a customer code yet!",
+                super_admin_err_prefix: 'Error: ',
+                super_admin_msg_license_saved: '✅ License minted & saved to Cloud successfully!',
+                super_admin_loading_cloud_data: 'Loading data from Cloud...',
+                super_admin_status_ready: 'Ready',
+                super_admin_msg_copied_prefix: 'Copied: ',
+                super_admin_empty_license_pool: 'Pool is empty. Go mint a new code!',
+                super_admin_err_load_data_prefix: 'Error fetching data: ',
+                super_admin_confirm_delete_license: 'Are you sure you want to delete this code?',
+                super_admin_err_delete_prefix: 'Error deleting: ',
+                super_admin_msg_license_deleted: '✅ License deleted successfully!',
+                super_admin_status_active: 'Active',
+                super_admin_status_maintenance: 'Maintenance',
+                super_admin_label_acc_number_short: 'Acct No:',
+                super_admin_label_acc_owner_short: 'Acct Holder:',
+                super_admin_label_bin_short: 'BIN Code:',
+                super_admin_label_gateway_status: 'Gateway Status:',
+                super_admin_no_payment_methods: 'No receiving bank configured yet. Checkout will not work.',
+                super_admin_edit_gateway_title: 'Edit Gateway: {name}',
+                super_admin_saving: 'Saving...',
+                super_admin_msg_gateway_saved: '✅ Payment gateway configuration saved successfully!',
+                super_admin_err_save_config_prefix: 'Error saving configuration: ',
+                super_admin_msg_status_updated: '✅ Payment gateway status updated!',
+                super_admin_err_cannot_update_prefix: 'Could not update: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            loadKeys();
+            loadPaymentMethods();
+        }
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
         // Auto load on init
         window.addEventListener('DOMContentLoaded', () => {
+            applyStaticTranslations();
             loadKeys();
             loadPaymentMethods();
         });
