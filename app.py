@@ -32,10 +32,49 @@ from functools import wraps
 import requests
 from supabase_client import supabase, supabase_admin, SUPABASE_STATUS
 from ai_context_engine import AIContextEngine
-from tenant_engine import TenantEngine
-from currency_utils import format_money
-import payment_us_engine
 import jwt as pyjwt
+
+# Các module cho US market pivot (tenant_engine/currency_utils/payment_us_engine) từng làm
+# sập TOÀN BỘ app trên Vercel (mọi route, kể cả /favicon.ico, đều 500 FUNCTION_INVOCATION_FAILED
+# vì import app.py thất bại ngay từ đầu) do file chưa được commit lên git nên thiếu trong bản
+# deploy. Bọc try/except ở đây để một module tuỳ chọn bị thiếu/lỗi không còn kéo sập cả server —
+# chỉ tính năng multi-region/US payment bị vô hiệu (fallback VN/VND mặc định), các route khác
+# vẫn chạy bình thường. Vẫn cần đảm bảo 3 file này được commit đầy đủ để tính năng hoạt động thật.
+try:
+    from tenant_engine import TenantEngine
+except Exception as _import_err:
+    print(f"[!] Critical: could not import tenant_engine ({_import_err}). Falling back to VN/VND default for all tenants.")
+    class TenantEngine:
+        @staticmethod
+        def resolve_tenant(user_id):
+            return None
+
+        @staticmethod
+        def get_region_config(business_id):
+            return {"country": "VN", "currency": "VND"}
+
+try:
+    from currency_utils import format_money
+except Exception as _import_err:
+    print(f"[!] Critical: could not import currency_utils ({_import_err}). Falling back to plain VND formatting.")
+    def format_money(amount, currency='VND'):
+        try:
+            value = float(amount or 0)
+        except (TypeError, ValueError):
+            value = 0.0
+        if (currency or 'VND').upper() == 'USD':
+            return f"${value:,.2f}"
+        return f"{int(round(value)):,}".replace(',', '.') + 'đ'
+
+try:
+    import payment_us_engine
+except Exception as _import_err:
+    print(f"[!] Critical: could not import payment_us_engine ({_import_err}). US Square payment route will report 'not configured'.")
+    class _PaymentUsEngineFallback:
+        @staticmethod
+        def start_us_payment(amount_usd, txn_id, description='BitPaw POS Order'):
+            return {'success': False, 'configured': False, 'message': 'payment_us_engine module không khả dụng trên server này.'}
+    payment_us_engine = _PaymentUsEngineFallback()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 _flask_secret_key = os.environ.get('FLASK_SECRET_KEY')
