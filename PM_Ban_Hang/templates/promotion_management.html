@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Quản lý Khuyến mãi & Mã giảm giá</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+        
+        /* 3D Background & Effects */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
+        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+        .absolute-blur { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 80vw; height: 500px; background: rgba(6,182,212,0.15); border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+
+        /* Glassmorphism */
+        .glass-panel { background: rgba(10,15,37,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(6,182,212,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .glass-card { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid rgba(6,182,212,0.25); border-radius: 1rem; transition: all 0.2s ease; }
+        .glass-card:hover { border-color: #06b6d4; transform: translateY(-2px); box-shadow: 0 0 15px rgba(6,182,212,0.3); }
+        
+        /* Logo float */
+        @keyframes float-logo { 0%,100%{transform:translateY(0px);filter:drop-shadow(0 5px 5px rgba(6,182,212,0.4))} 50%{transform:translateY(-4px);filter:drop-shadow(0 12px 12px rgba(168,85,247,0.5))} }
+        .logo-float { animation: float-logo 4s ease-in-out infinite; }
+
+        /* Table styles */
+        .custom-table { width: 100%; border-collapse: collapse; }
+        .custom-table th { text-align: left; padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); color: #9ca3af; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .custom-table td { padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; vertical-align: middle; }
+        .custom-table tr:hover td { background: rgba(6,182,212,0.1); }
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        
+        /* Badge */
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 700; display: inline-block; }
+        .active-badge { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid #10b981; }
+        .inactive-badge { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; }
+        .expired-badge { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        
+        /* Filter input */
+        .filter-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; width: 100%; color: white; outline: none; transition: 0.2s; }
+        .filter-input:focus { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6,182,212,0.4); }
+        select.filter-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1rem; }
+        
+        /* Pagination */
+        .pagination-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+        .pagination-btn:hover:not(:disabled) { background: rgba(6,182,212,0.2); border-color: #06b6d4; }
+        .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10001; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-container { background: rgba(10,15,37,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(6,182,212,0.4); border-radius: 2rem; padding: 1.5rem; max-width: 90%; width: 550px; transform: scale(0.9); transition: transform 0.2s; }
+        .modal-overlay.active .modal-container { transform: scale(1); }
+        .glass-textarea { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.6rem 1rem; width: 100%; color: white; outline: none; resize: vertical; }
+        
+        /* Toast & Loading */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .loading-overlay.active { visibility: visible; opacity: 1; }
+        
+        /* CSKH Widget */
+        .cskh-widget { background: rgba(0,0,0,0.4); border-radius: 1.5rem; padding: 1rem; margin-top: 2rem; border: 1px solid rgba(255,255,255,0.05); }
+        .cskh-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 1rem; transition: 0.2s; text-decoration: none; }
+        .cskh-item:hover { background: rgba(6,182,212,0.15); }
+        .cskh-info { display: flex; flex-direction: column; }
+        .cskh-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+        .cskh-value { font-size: 0.85rem; font-weight: 500; color: white; }
+        .glass-input-sm { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.5rem 1rem; width: 100%; color: white; outline: none; font-size: 0.8rem; }
+        .glass-input-sm:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+        
+        @media (max-width: 768px) { body { padding: 1rem; } .custom-table th, .custom-table td { font-size: 0.7rem; padding: 0.5rem; } }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Khuyến mãi & Mã giảm giá</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý voucher, ưu đãi theo sản phẩm, tự động áp dụng</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+                <button id="addPromoBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-plus-circle"></i> Tạo khuyến mãi</button>
+            </div>
+        </div>
+
+        <!-- Thống kê nhanh -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng khuyến mãi</div><div class="text-2xl font-bold text-cyan-400" id="totalPromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đang hoạt động</div><div class="text-2xl font-bold text-emerald-400" id="activePromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đã sử dụng</div><div class="text-2xl font-bold text-purple-400" id="usedPromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Giảm giá trung bình</div><div class="text-2xl font-bold text-yellow-400" id="avgDiscount">0%</div></div>
+        </div>
+
+        <!-- Bộ lọc -->
+        <div class="glass-panel p-5 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Mã, tên khuyến mãi..."></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Trạng thái</label><select id="statusFilter" class="filter-input"><option value="all">Tất cả</option><option value="active">Đang hoạt động</option><option value="inactive">Tạm dừng</option><option value="expired">Hết hạn</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Loại giảm giá</label><select id="typeFilter" class="filter-input"><option value="all">Tất cả</option><option value="percentage">Phần trăm</option><option value="fixed">Số tiền cố định</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Hết hạn trước</label><input type="date" id="expiryFilter" class="filter-input"></div>
+            </div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+        </div>
+
+        <!-- Bảng danh sách khuyến mãi -->
+        <div class="glass-panel p-5">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-tags mr-2"></i> Danh sách khuyến mãi / Voucher</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="table-wrapper">
+                <table class="custom-table">
+                    <thead><tr><th>Mã</th><th>Tên khuyến mãi</th><th>Giảm giá</th><th>HSD</th><th>Số lần dùng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <tbody id="promoTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+        </div>
+
+        <!-- Biểu đồ phân bố -->
+        <div class="glass-panel p-5 mt-6">
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Phân bố khuyến mãi</h3>
+            <canvas id="discountChart" height="150" style="max-height: 200px;"></canvas>
+        </div>
+
+        <!-- CSKH Widget đầy đủ (thêm mới) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thêm/sửa khuyến mãi -->
+    <div id="promoModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-tag mr-2"></i> Thêm khuyến mãi</h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+    <form id="promoForm"><input type="hidden" id="promoId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Mã giảm giá (Code)</label><input type="text" id="code" class="glass-input w-full" required placeholder="SUMMER2025"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Tên khuyến mãi</label><input type="text" id="name" class="glass-input w-full" required placeholder="Ưu đãi hè 2025"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Loại giảm</label><select id="discountType" class="glass-input w-full"><option value="percentage">Phần trăm (%)</option><option value="fixed">Số tiền cố định</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Giá trị giảm</label><input type="number" id="discountValue" class="glass-input w-full" placeholder="10 hoặc 50000" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Ngày bắt đầu</label><input type="date" id="startDate" class="glass-input w-full"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Ngày kết thúc</label><input type="date" id="endDate" class="glass-input w-full"></div></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Giới hạn số lần sử dụng (tổng)</label><input type="number" id="usageLimit" class="glass-input w-full" value="100"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Áp dụng cho (ID sản phẩm, cách nhau bằng dấu phẩy, để trống nếu tất cả)</label><input type="text" id="productIds" class="glass-input w-full" placeholder="VD: 1,2,5"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Lưu</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></form></div></div>
+
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="modal-overlay"><div class="modal-container text-center"><i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-3"></i><h3 class="text-xl font-bold mb-2">Xác nhận xóa</h3><p>Bạn có chắc chắn muốn xóa khuyến mãi này?</p><div class="flex gap-3 mt-4"><button id="confirmDeleteBtn" class="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 py-2 rounded-xl font-bold">Xóa</button><button id="cancelDeleteBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></div></div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // ========== SUPABASE CONFIG ==========
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Global variables
+        let promotions = [];
+        let currentPage = 1, rowsPerPage = 5;
+        let filteredPromos = [];
+        let deleteId = null;
+        let chart = null;
+
+        // DOM elements (giữ nguyên tên)
+        const tbody = document.getElementById('promoTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const typeFilter = document.getElementById('typeFilter');
+        const expiryFilter = document.getElementById('expiryFilter');
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const recordCountSpan = document.getElementById('recordCount');
+        const resetBtn = document.getElementById('resetFilterBtn');
+        const exportBtn = document.getElementById('exportExcelBtn');
+        const addPromoBtn = document.getElementById('addPromoBtn');
+        const promoModal = document.getElementById('promoModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelModalBtn = document.getElementById('cancelModalBtn');
+        const promoForm = document.getElementById('promoForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const promoId = document.getElementById('promoId');
+        const codeInput = document.getElementById('code');
+        const nameInput = document.getElementById('name');
+        const discountType = document.getElementById('discountType');
+        const discountValue = document.getElementById('discountValue');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const usageLimitInput = document.getElementById('usageLimit');
+        const productIdsInput = document.getElementById('productIds');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const totalPromosSpan = document.getElementById('totalPromos');
+        const activePromosSpan = document.getElementById('activePromos');
+        const usedPromosSpan = document.getElementById('usedPromos');
+        const avgDiscountSpan = document.getElementById('avgDiscount');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const toast = document.getElementById('toast');
+
+        // Helper functions
+        function showToast(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            if (show) loadingOverlay.classList.add('active');
+            else loadingOverlay.classList.remove('active');
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'active') return '<span class="status-badge active-badge"><i class="fas fa-check-circle mr-1"></i> Đang hoạt động</span>';
+            if (status === 'inactive') return '<span class="status-badge inactive-badge"><i class="fas fa-pause-circle mr-1"></i> Tạm dừng</span>';
+            return '<span class="status-badge expired-badge"><i class="fas fa-hourglass-end mr-1"></i> Hết hạn</span>';
+        }
+
+        // Load dữ liệu từ Supabase
+        async function loadPromotions() {
+            showLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('promotions')
+                    .select('*')
+                    .order('id', { ascending: false });
+                if (error) throw error;
+                promotions = data || [];
+                applyFilters();
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Cập nhật thống kê và biểu đồ
+        function updateStats() {
+            const total = filteredPromos.length;
+            const active = filteredPromos.filter(p => p.status === 'active').length;
+            const used = filteredPromos.reduce((sum, p) => sum + (p.used_count || 0), 0);
+            const percentagePromos = filteredPromos.filter(p => p.discount_type === 'percentage');
+            const avgDisc = percentagePromos.length ? percentagePromos.reduce((sum, p) => sum + p.discount_value, 0) / percentagePromos.length : 0;
+            totalPromosSpan.innerText = total;
+            activePromosSpan.innerText = active;
+            usedPromosSpan.innerText = used;
+            avgDiscountSpan.innerText = Math.round(avgDisc) + '%';
+        }
+
+        // Lọc dữ liệu
+        function applyFilters() {
+            const search = searchInput.value.toLowerCase();
+            const status = statusFilter.value;
+            const type = typeFilter.value;
+            const expiry = expiryFilter.value;
+            filteredPromos = promotions.filter(p => {
+                const matchSearch = p.code.toLowerCase().includes(search) || p.name.toLowerCase().includes(search);
+                const matchStatus = status === 'all' || p.status === status;
+                const matchType = type === 'all' || p.discount_type === type;
+                let matchExpiry = true;
+                if (expiry && p.end_date && p.end_date < expiry) matchExpiry = false;
+                return matchSearch && matchStatus && matchType && matchExpiry;
+            });
+            currentPage = 1;
+            renderTable();
+            updateStats();
+            updateChart();
+            recordCountSpan.innerText = `Tổng: ${filteredPromos.length} khuyến mãi`;
+        }
+
+        // Render bảng
+        function renderTable() {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = filteredPromos.slice(start, end);
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Không có khuyến mãi</td></tr>';
+                pageInfo.innerText = 'Trang 0 / 0';
+                return;
+            }
+            tbody.innerHTML = pageData.map(p => `
+                <tr>
+                    <td class="font-mono text-xs">${escapeHtml(p.code)}</td>
+                    <td class="font-medium">${escapeHtml(p.name)}</td>
+                    <td class="font-mono">${p.discount_type === 'percentage' ? p.discount_value + '%' : p.discount_value.toLocaleString('vi-VN') + '₫'}</td>
+                    <td class="text-xs">${p.end_date || 'Không giới hạn'}</td>
+                    <td>${p.used_count || 0}/${p.usage_limit || 100}</td>
+                    <td>${getStatusBadge(p.status)}</td>
+                    <td><button class="edit-promo text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}"><i class="fas fa-edit"></i> Sửa</button> <button class="delete-promo text-rose-400 hover:text-rose-300 text-sm ml-2" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-trash-alt"></i> Xóa</button></td>
+                </tr>
+            `).join('');
+            document.querySelectorAll('.edit-promo').forEach(btn => btn.addEventListener('click', (e) => { const id = parseInt(btn.getAttribute('data-id')); openEditModal(id); }));
+            document.querySelectorAll('.delete-promo').forEach(btn => btn.addEventListener('click', (e) => { const id = parseInt(btn.getAttribute('data-id')); const name = btn.getAttribute('data-name'); openDeleteModal(id, name); }));
+            const totalPages = Math.ceil(filteredPromos.length / rowsPerPage);
+            pageInfo.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        // Cập nhật biểu đồ
+        function updateChart() {
+            const typeCount = { percentage: 0, fixed: 0 };
+            filteredPromos.forEach(p => typeCount[p.discount_type]++);
+            if (chart) chart.destroy();
+            const ctx = document.getElementById('discountChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'pie',
+                data: { labels: ['Giảm theo %', 'Giảm số tiền'], datasets: [{ data: [typeCount.percentage, typeCount.fixed], backgroundColor: ['#06b6d4', '#a855f7'] }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } } }
+            });
+        }
+
+        // Mở modal thêm/sửa
+        function openEditModal(id) {
+            const p = promotions.find(p => p.id === id);
+            if (p) {
+                promoId.value = p.id;
+                codeInput.value = p.code;
+                nameInput.value = p.name;
+                discountType.value = p.discount_type;
+                discountValue.value = p.discount_value;
+                startDateInput.value = p.start_date || '';
+                endDateInput.value = p.end_date || '';
+                usageLimitInput.value = p.usage_limit || 100;
+                productIdsInput.value = p.product_ids ? p.product_ids.join(',') : '';
+                modalTitle.innerHTML = '<i class="fas fa-edit mr-2"></i> Chỉnh sửa khuyến mãi';
+                promoModal.classList.add('active');
+            }
+        }
+        function openAddModal() {
+            promoId.value = '';
+            codeInput.value = '';
+            nameInput.value = '';
+            discountType.value = 'percentage';
+            discountValue.value = '';
+            startDateInput.value = new Date().toISOString().slice(0,10);
+            endDateInput.value = '';
+            usageLimitInput.value = '100';
+            productIdsInput.value = '';
+            modalTitle.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Thêm khuyến mãi';
+            promoModal.classList.add('active');
+        }
+
+        // Lưu khuyến mãi (thêm hoặc sửa)
+        async function savePromotion(e) {
+            e.preventDefault();
+            const id = promoId.value;
+            const code = codeInput.value.trim().toUpperCase();
+            const name = nameInput.value.trim();
+            const discount_type = discountType.value;
+            const discount_value = parseFloat(discountValue.value);
+            const start_date = startDateInput.value || null;
+            const end_date = endDateInput.value || null;
+            const usage_limit = parseInt(usageLimitInput.value) || 100;
+            let product_ids = productIdsInput.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+            if (product_ids.length === 0) product_ids = null;
+            if (!code || !name || !discount_value) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            // Xác định trạng thái
+            let status = 'active';
+            if (end_date && end_date < new Date().toISOString().slice(0,10)) status = 'expired';
+            showLoading(true);
+            try {
+                if (id) {
+                    const { error } = await supabase
+                        .from('promotions')
+                        .update({
+                            code, name, discount_type, discount_value, start_date, end_date,
+                            usage_limit, product_ids, status, updated_at: new Date()
+                        })
+                        .eq('id', id);
+                    if (error) throw error;
+                    showToast('Cập nhật thành công');
+                } else {
+                    const { error } = await supabase
+                        .from('promotions')
+                        .insert([{
+                            code, name, discount_type, discount_value, start_date, end_date,
+                            usage_limit, product_ids, status, used_count: 0, created_at: new Date()
+                        }]);
+                    if (error) throw error;
+                    showToast('Thêm khuyến mãi thành công');
+                }
+                await loadPromotions();
+                closeModals();
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Xóa khuyến mãi
+        async function deletePromotion() {
+            if (!deleteId) return;
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('promotions').delete().eq('id', deleteId);
+                if (error) throw error;
+                showToast('Xóa thành công');
+                await loadPromotions();
+                closeDeleteModal();
+            } catch (err) {
+                showToast('Lỗi xóa: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function openDeleteModal(id, name) {
+            deleteId = id;
+            const msg = document.querySelector('#deleteModal p');
+            if (msg) msg.innerText = `Xóa khuyến mãi "${name}"?`;
+            deleteModal.classList.add('active');
+        }
+        function closeDeleteModal() {
+            deleteModal.classList.remove('active');
+            deleteId = null;
+        }
+        function closeModals() {
+            promoModal.classList.remove('active');
+            deleteModal.classList.remove('active');
+        }
+
+        // Reset bộ lọc
+        function resetFilters() {
+            searchInput.value = '';
+            statusFilter.value = 'all';
+            typeFilter.value = 'all';
+            expiryFilter.value = '';
+            applyFilters();
+        }
+
+        // Xuất Excel
+        function exportToExcel() {
+            const wsData = [['Mã','Tên','Loại','Giá trị','HSD','SL dùng/Giới hạn','Trạng thái']];
+            filteredPromos.forEach(p => {
+                wsData.push([
+                    p.code, p.name,
+                    p.discount_type === 'percentage' ? p.discount_value + '%' : p.discount_value + '₫',
+                    p.end_date || 'Không giới hạn',
+                    `${p.used_count || 0}/${p.usage_limit || 100}`,
+                    p.status === 'active' ? 'Đang hoạt động' : (p.status === 'inactive' ? 'Tạm dừng' : 'Hết hạn')
+                ]);
+            });
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Promotions');
+            XLSX.writeFile(wb, `promotions_${new Date().toISOString().slice(0,19)}.xlsx`);
+            showToast('Xuất Excel thành công');
+        }
+
+        // CSKH track click & gửi yêu cầu
+        async function trackCSKHClick(channel) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+            } catch(e) { console.warn(e); }
+        }
+        document.querySelectorAll('[data-channel]').forEach(link => {
+            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+        });
+
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const phone = document.getElementById('supportPhone').value;
+            const message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) {
+                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                return;
+            }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) {
+                showToast('Lỗi: ' + err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+
+        // Event listeners
+        addPromoBtn.addEventListener('click', openAddModal);
+        closeModalBtn.addEventListener('click', closeModals);
+        cancelModalBtn.addEventListener('click', closeModals);
+        cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+        confirmDeleteBtn.addEventListener('click', deletePromotion);
+        resetBtn.addEventListener('click', resetFilters);
+        exportBtn.addEventListener('click', exportToExcel);
+        searchInput.addEventListener('input', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+        typeFilter.addEventListener('change', applyFilters);
+        expiryFilter.addEventListener('change', applyFilters);
+        prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+        nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredPromos.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); } });
+        promoForm.addEventListener('submit', savePromotion);
+        document.getElementById('promoModal').addEventListener('click', (e) => { if (e.target === promoModal) closeModals(); });
+        document.getElementById('deleteModal').addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
+
+        // Khởi tạo
+        loadPromotions();
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 600 : 1200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.05, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xa855f7, transparent: true, opacity: 0.6 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

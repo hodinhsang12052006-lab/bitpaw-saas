@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>BitPaw | Cảnh báo tồn kho & Nhập hàng thông minh</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+        
+        /* 3D Background & Scanlines */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
+        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+        .absolute-blur { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 80vw; height: 500px; background: rgba(6,182,212,0.15); border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+
+        /* Glassmorphism */
+        .glass-panel { background: rgba(10,15,37,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(6,182,212,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .glass-card { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid rgba(6,182,212,0.25); border-radius: 1rem; transition: all 0.2s ease; }
+        .glass-card:hover { border-color: #06b6d4; transform: translateY(-2px); box-shadow: 0 0 15px rgba(6,182,212,0.3); }
+        
+        /* Logo float */
+        @keyframes float-logo { 0%,100%{transform:translateY(0px);filter:drop-shadow(0 5px 5px rgba(6,182,212,0.4))} 50%{transform:translateY(-4px);filter:drop-shadow(0 12px 12px rgba(168,85,247,0.5))} }
+        .logo-float { animation: float-logo 4s ease-in-out infinite; }
+
+        /* Table & badges */
+        .custom-table { width: 100%; border-collapse: collapse; }
+        .custom-table th { text-align: left; padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); color: #9ca3af; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .custom-table td { padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; vertical-align: middle; }
+        .custom-table tr:hover td { background: rgba(6,182,212,0.1); }
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        .alert-badge { padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 700; display: inline-block; }
+        .critical { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; }
+        .warning { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+        .normal { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid #10b981; }
+        
+        /* Filter input */
+        .filter-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; padding: 0.5rem 1rem; font-size: 0.8rem; width: 100%; color: white; outline: none; transition: 0.2s; }
+        .filter-input:focus { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6,182,212,0.4); }
+        
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10001; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-container { background: rgba(10,15,37,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(6,182,212,0.4); border-radius: 2rem; padding: 1.5rem; max-width: 90%; width: 450px; transform: scale(0.9); transition: transform 0.2s; }
+        .modal-overlay.active .modal-container { transform: scale(1); }
+        .glass-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.6rem 1rem; width: 100%; color: white; outline: none; }
+        
+        /* Toast & Loading */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .loading-overlay.active { visibility: visible; opacity: 1; }
+
+        /* CSKH Widget */
+        .cskh-widget { background: rgba(0,0,0,0.4); border-radius: 1.5rem; padding: 1rem; margin-top: 2rem; border: 1px solid rgba(255,255,255,0.05); }
+        .cskh-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 1rem; transition: 0.2s; text-decoration: none; }
+        .cskh-item:hover { background: rgba(6,182,212,0.15); }
+        .cskh-info { display: flex; flex-direction: column; }
+        .cskh-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+        .cskh-value { font-size: 0.85rem; font-weight: 500; color: white; }
+        .glass-input-sm { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.5rem 1rem; width: 100%; color: white; outline: none; font-size: 0.8rem; }
+        .glass-input-sm:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+        
+        @media (max-width: 768px) { body { padding: 1rem; } .custom-table th, .custom-table td { font-size: 0.7rem; padding: 0.5rem; } }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="absolute-blur"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Cảnh báo tồn kho</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý ngưỡng tồn, nhập hàng thông minh</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+                <button id="settingsBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-sliders-h"></i> Ngưỡng tồn</button>
+            </div>
+        </div>
+
+        <!-- Thống kê nhanh -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm sắp hết</div><div class="text-2xl font-bold text-rose-400" id="criticalCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm dưới ngưỡng</div><div class="text-2xl font-bold text-yellow-400" id="warningCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng sản phẩm</div><div class="text-2xl font-bold text-cyan-400" id="totalProducts">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Giá trị tồn kho</div><div class="text-2xl font-bold text-emerald-400" id="totalInventoryValue">0₫</div></div>
+        </div>
+
+        <!-- Bộ lọc -->
+        <div class="glass-panel p-5 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên sản phẩm..."></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Danh mục</label><select id="categoryFilter" class="filter-input"><option value="all">Tất cả</option><option value="Đồ Ăn">F&B</option><option value="Spa">Spa</option><option value="Thời Trang">Bán lẻ</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Mức độ</label><select id="alertFilter" class="filter-input"><option value="all">Tất cả</option><option value="critical">Nguy cấp (≤5)</option><option value="warning">Dưới ngưỡng (≤10)</option><option value="normal">Bình thường</option></select></div>
+            </div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+        </div>
+
+        <!-- Bảng sản phẩm tồn kho -->
+        <div class="glass-panel p-5">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-boxes mr-2"></i> Danh sách sản phẩm & tồn kho</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="table-wrapper">
+                <table class="custom-table">
+                    <thead><tr><th>ID</th><th>Sản phẩm</th><th>Danh mục</th><th>Tồn kho</th><th>Ngưỡng</th><th>Trạng thái</th><th>Giá trị</th><th>Thao tác</th></tr></thead>
+                    <tbody id="inventoryTableBody"><tr><td colspan="8" class="text-center py-10 text-gray-500">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Biểu đồ dự báo nhu cầu -->
+        <div class="glass-panel p-5 mt-6">
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Dự báo nhu cầu & xu hướng nhập hàng</h3>
+            <canvas id="demandChart" height="150" style="max-height: 200px;"></canvas>
+        </div>
+
+        <!-- CSKH Widget -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline"><i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i><div class="cskh-info"><span class="cskh-label">Hotline (24/7)</span><span class="cskh-value">0794.678.904</span></div></a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo"><i class="fab fa-zalo text-blue-400 w-6 text-xl"></i><div class="cskh-info"><span class="cskh-label">Zalo Official</span><span class="cskh-value">0794.678.904 (Mr. Sang)</span></div></a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger"><i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i><div class="cskh-info"><span class="cskh-label">Messenger</span><span class="cskh-value">fb.com/chuyhieuhong</span></div></a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email"><i class="fas fa-envelope text-rose-400 w-6 text-lg"></i><div class="cskh-info"><span class="cskh-label">Email hỗ trợ</span><span class="cskh-value">hodinhsang30052003@gmail.com</span></div></a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal cài đặt ngưỡng tồn kho -->
+    <div id="thresholdModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-sliders-h mr-2"></i> Cài đặt ngưỡng tồn kho mặc định</h3><button id="closeThresholdBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+            <div class="space-y-4">
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Ngưỡng cảnh báo (dưới ngưỡng)</label><input type="number" id="warningThreshold" class="glass-input" placeholder="Ví dụ: 10"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Ngưỡng nguy cấp (cần nhập gấp)</label><input type="number" id="criticalThreshold" class="glass-input" placeholder="Ví dụ: 5"></div>
+                <button id="saveThresholdBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Lưu cài đặt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal nhập hàng nhanh -->
+    <div id="restockModal" class="modal-overlay">
+        <div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-truck mr-2"></i> Nhập thêm hàng</h3><button id="closeRestockBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+        <input type="hidden" id="restockProductId"><div><label class="block text-xs font-bold text-gray-400 mb-1">Số lượng nhập thêm</label><input type="number" id="restockQuantity" class="glass-input" placeholder="Nhập số lượng"></div><div class="flex gap-3 mt-4"><button id="confirmRestockBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Nhập hàng</button><button id="cancelRestockBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Global variables
+        let products = [];
+        let globalWarningThreshold = 10;
+        let globalCriticalThreshold = 5;
+        let currentPage = 1, rowsPerPage = 6;
+        let filteredProducts = [];
+        let demandChart = null;
+
+        // DOM elements
+        const tbody = document.getElementById('inventoryTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const alertFilter = document.getElementById('alertFilter');
+        const resetBtn = document.getElementById('resetFilterBtn');
+        const exportBtn = document.getElementById('exportExcelBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const thresholdModal = document.getElementById('thresholdModal');
+        const closeThresholdBtn = document.getElementById('closeThresholdBtn');
+        const saveThresholdBtn = document.getElementById('saveThresholdBtn');
+        const warningThresholdInput = document.getElementById('warningThreshold');
+        const criticalThresholdInput = document.getElementById('criticalThreshold');
+        const restockModal = document.getElementById('restockModal');
+        const closeRestockBtn = document.getElementById('closeRestockBtn');
+        const confirmRestockBtn = document.getElementById('confirmRestockBtn');
+        const cancelRestockBtn = document.getElementById('cancelRestockBtn');
+        const restockProductId = document.getElementById('restockProductId');
+        const restockQuantity = document.getElementById('restockQuantity');
+        const recordCountSpan = document.getElementById('recordCount');
+        const criticalCountSpan = document.getElementById('criticalCount');
+        const warningCountSpan = document.getElementById('warningCount');
+        const totalProductsSpan = document.getElementById('totalProducts');
+        const totalInventoryValueSpan = document.getElementById('totalInventoryValue');
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) overlay.classList.add('active');
+            else overlay.classList.remove('active');
+        }
+
+        // Load thresholds from system_settings
+        async function loadThresholds() {
+            try {
+                const { data, error } = await supabase.from('system_settings').select('value').eq('key', 'inventory_thresholds').single();
+                if (error && error.code !== 'PGRST116') throw error;
+                if (data) {
+                    const settings = JSON.parse(data.value);
+                    globalWarningThreshold = settings.warning || 10;
+                    globalCriticalThreshold = settings.critical || 5;
+                }
+                warningThresholdInput.value = globalWarningThreshold;
+                criticalThresholdInput.value = globalCriticalThreshold;
+            } catch (err) { console.warn('Threshold load error', err); }
+        }
+
+        // Save thresholds
+        async function saveThresholds() {
+            showLoading(true);
+            try {
+                const payload = { warning: globalWarningThreshold, critical: globalCriticalThreshold };
+                const { error } = await supabase.from('system_settings').upsert({ key: 'inventory_thresholds', value: JSON.stringify(payload), updated_at: new Date() });
+                if (error) throw error;
+                showToast('Đã lưu ngưỡng tồn kho');
+            } catch (err) { showToast('Lỗi lưu: ' + err.message, true); }
+            finally { showLoading(false); }
+        }
+
+        // Load products from Supabase (is_active = true)
+        async function loadProducts() {
+            showLoading(true);
+            try {
+                const { data, error } = await supabase.from('products').select('*').eq('is_active', true).order('id', { ascending: true });
+                if (error) throw error;
+                products = data || [];
+                applyFilters();
+                await loadThresholds();
+            } catch (err) { showToast('Lỗi tải sản phẩm: ' + err.message, true); }
+            finally { showLoading(false); }
+        }
+
+        // Update stats and chart
+        function updateStats() {
+            const total = filteredProducts.length;
+            const critical = filteredProducts.filter(p => p.stock <= globalCriticalThreshold).length;
+            const warning = filteredProducts.filter(p => p.stock > globalCriticalThreshold && p.stock <= globalWarningThreshold).length;
+            const totalValue = filteredProducts.reduce((sum, p) => sum + (p.stock * (p.price || 0)), 0);
+            totalProductsSpan.innerText = total;
+            criticalCountSpan.innerText = critical;
+            warningCountSpan.innerText = warning;
+            totalInventoryValueSpan.innerText = totalValue.toLocaleString('vi-VN') + '₫';
+        }
+
+        function getStatusBadge(stock) {
+            if (stock <= globalCriticalThreshold) return '<span class="alert-badge critical"><i class="fas fa-exclamation-triangle mr-1"></i> Cần nhập gấp</span>';
+            if (stock <= globalWarningThreshold) return '<span class="alert-badge warning"><i class="fas fa-exclamation-circle mr-1"></i> Sắp hết</span>';
+            return '<span class="alert-badge normal"><i class="fas fa-check-circle mr-1"></i> Bình thường</span>';
+        }
+
+        function applyFilters() {
+            const search = searchInput.value.toLowerCase();
+            const category = categoryFilter.value;
+            const alertLevel = alertFilter.value;
+            filteredProducts = products.filter(p => {
+                const matchSearch = (p.name || '').toLowerCase().includes(search);
+                const matchCategory = category === 'all' || (p.category || '') === category;
+                let matchAlert = true;
+                if (alertLevel === 'critical') matchAlert = p.stock <= globalCriticalThreshold;
+                else if (alertLevel === 'warning') matchAlert = p.stock > globalCriticalThreshold && p.stock <= globalWarningThreshold;
+                else if (alertLevel === 'normal') matchAlert = p.stock > globalWarningThreshold;
+                return matchSearch && matchCategory && matchAlert;
+            });
+            currentPage = 1;
+            renderTable();
+            updateStats();
+            updateChart();
+            recordCountSpan.innerText = `Tổng: ${filteredProducts.length} sản phẩm`;
+        }
+
+        function renderTable() {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = filteredProducts.slice(start, end);
+            if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-500">Không có sản phẩm nào</td></tr>'; return; }
+            tbody.innerHTML = pageData.map(p => `
+                <tr>
+                    <td class="text-gray-400">#${p.id}</td>
+                    <td class="font-medium">${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.category || 'Khác')}</td>
+                    <td class="${p.stock <= globalCriticalThreshold ? 'text-rose-400 font-bold' : (p.stock <= globalWarningThreshold ? 'text-yellow-400' : 'text-white')}">${p.stock}</td>
+                    <td class="text-gray-400">${globalWarningThreshold} / ${globalCriticalThreshold}</td>
+                    <td>${getStatusBadge(p.stock)}</td>
+                    <td class="font-mono text-emerald-400">${((p.stock || 0) * (p.price || 0)).toLocaleString('vi-VN')}₫</td>
+                    <td><button class="restock-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-truck"></i> Nhập hàng</button></td>
+                </tr>
+            `).join('');
+            document.querySelectorAll('.restock-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    restockProductId.value = btn.getAttribute('data-id');
+                    restockQuantity.value = '';
+                    restockModal.classList.add('active');
+                });
+            });
+        }
+
+        function updateChart() {
+            const labels = filteredProducts.map(p => (p.name || '').substring(0, 10));
+            const stockData = filteredProducts.map(p => p.stock);
+            const thresholds = filteredProducts.map(() => globalWarningThreshold);
+            if (demandChart) demandChart.destroy();
+            const ctx = document.getElementById('demandChart').getContext('2d');
+            demandChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: labels, datasets: [
+                    { label: 'Tồn kho hiện tại', data: stockData, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 },
+                    { label: 'Ngưỡng cảnh báo', data: thresholds, backgroundColor: 'rgba(245,158,11,0.4)', borderColor: '#f59e0b', borderWidth: 1, type: 'line', fill: false }
+                ] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa', rotation: -30 } } } }
+            });
+        }
+
+        function resetFilters() { searchInput.value = ''; categoryFilter.value = 'all'; alertFilter.value = 'all'; applyFilters(); }
+
+        function exportToExcel() {
+            const wsData = [['ID','Tên sản phẩm','Danh mục','Tồn kho','Ngưỡng cảnh báo','Ngưỡng nguy cấp','Trạng thái','Giá trị tồn']];
+            filteredProducts.forEach(p => {
+                const status = p.stock <= globalCriticalThreshold ? 'Cần nhập gấp' : (p.stock <= globalWarningThreshold ? 'Sắp hết' : 'Bình thường');
+                wsData.push([p.id, p.name, p.category, p.stock, globalWarningThreshold, globalCriticalThreshold, status, (p.stock * (p.price||0))]);
+            });
+            const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb, ws, 'Inventory'); XLSX.writeFile(wb, `inventory_${new Date().toISOString().slice(0,19)}.xlsx`); showToast('Xuất Excel thành công');
+        }
+
+        // Restock
+        async function restockProduct(id, quantity) {
+            const product = products.find(p => p.id == id);
+            if (!product) return false;
+            const newStock = product.stock + quantity;
+            try {
+                const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
+                if (error) throw error;
+                product.stock = newStock;
+                await supabase.from('inventory_logs').insert([{ product_id: id, quantity_change: quantity, type: 'restock', created_at: new Date() }]);
+                return true;
+            } catch (err) { showToast('Lỗi nhập hàng: ' + err.message, true); return false; }
+        }
+
+        // Confirm restock
+        confirmRestockBtn.addEventListener('click', async () => {
+            const id = parseInt(restockProductId.value);
+            const qty = parseInt(restockQuantity.value);
+            if (isNaN(qty) || qty <= 0) { showToast('Vui lòng nhập số lượng hợp lệ', true); return; }
+            showLoading(true);
+            const success = await restockProduct(id, qty);
+            if (success) {
+                applyFilters();
+                showToast(`Đã nhập thêm ${qty} sản phẩm`);
+            }
+            restockModal.classList.remove('active');
+            showLoading(false);
+        });
+
+        // Event listeners
+        searchInput.addEventListener('input', applyFilters);
+        categoryFilter.addEventListener('change', applyFilters);
+        alertFilter.addEventListener('change', applyFilters);
+        resetBtn.addEventListener('click', resetFilters);
+        exportBtn.addEventListener('click', exportToExcel);
+        settingsBtn.addEventListener('click', () => thresholdModal.classList.add('active'));
+        closeThresholdBtn.addEventListener('click', () => thresholdModal.classList.remove('active'));
+        saveThresholdBtn.addEventListener('click', async () => {
+            const newWarning = parseInt(warningThresholdInput.value);
+            const newCritical = parseInt(criticalThresholdInput.value);
+            if (isNaN(newWarning) || isNaN(newCritical) || newCritical >= newWarning) { showToast('Ngưỡng không hợp lệ!', true); return; }
+            globalWarningThreshold = newWarning;
+            globalCriticalThreshold = newCritical;
+            await saveThresholds();
+            applyFilters();
+            thresholdModal.classList.remove('active');
+            showToast('Cập nhật ngưỡng thành công');
+        });
+        closeRestockBtn.addEventListener('click', () => restockModal.classList.remove('active'));
+        cancelRestockBtn.addEventListener('click', () => restockModal.classList.remove('active'));
+        thresholdModal.addEventListener('click', (e) => { if (e.target === thresholdModal) thresholdModal.classList.remove('active'); });
+        restockModal.addEventListener('click', (e) => { if (e.target === restockModal) restockModal.classList.remove('active'); });
+
+        // CSKH track click
+        async function trackCSKHClick(channel) {
+            try { const { data: { user } } = await supabase.auth.getUser(); if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]); } catch(e) { console.warn(e); } }
+        document.querySelectorAll('[data-channel]').forEach(link => link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel'))));
+
+        const supportForm = document.getElementById('supportForm');
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value, phone = document.getElementById('supportPhone').value, message = document.getElementById('supportMessage').value;
+            if (!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            showLoading(true);
+            try {
+                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                if (error) throw error;
+                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                supportForm.reset();
+            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            finally { showLoading(false); }
+        });
+
+        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+        // Initial load
+        loadProducts();
+
+        // Pagination (simplified, no prev/next buttons in original? but we keep if needed)
+        // The original didn't have pagination buttons, so we skip adding them. But we keep currentPage logic for future.
+
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 600 : 1200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.05, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xa855f7, transparent: true, opacity: 0.6 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>

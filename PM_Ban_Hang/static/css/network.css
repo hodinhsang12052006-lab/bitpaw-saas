@@ -1,0 +1,290 @@
+/* =========================================================================
+   BITPAW NETWORK - GLOBAL CYBER DEEP NEON STYLESHEET
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --bg-darker: #04020a;
+    --bg-dark: #070514;
+    --bg-glass: rgba(11, 9, 28, 0.65);
+    --border-glass: rgba(6, 182, 212, 0.18);
+    --border-glass-purple: rgba(139, 92, 246, 0.22);
+    --color-cyan: #06b6d4;
+    --color-purple: #8b5cf6;
+    --color-pink: #d946ef;
+    --color-emerald: #10b981;
+    --font-outfit: 'Outfit', system-ui, sans-serif;
+    --font-mono: 'Space Grotesk', monospace;
+}
+
+body {
+    font-family: var(--font-outfit);
+    background-color: var(--bg-darker);
+    color: #f1f3f9;
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6);
+}
+
+.glass-card {
+    background: rgba(13, 10, 32, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-cyan);
+    box-shadow: 0 12px 30px rgba(6, 182, 212, 0.15);
+}
+
+/* Aurora Backdrop Blur */
+.aurora-bg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 100vh;
+    background: 
+        radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.15) 0%, transparent 55%),
+        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.15) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(217, 70, 239, 0.05) 0%, transparent 60%);
+    filter: blur(110px);
+    z-index: -2;
+    pointer-events: none;
+}
+
+.cyber-grid {
+    position: fixed;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(6, 182, 212, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6, 182, 212, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Inputs & Form Controls */
+.cyber-input {
+    background: rgba(4, 3, 10, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    color: #ffffff !important;
+    font-family: var(--font-outfit);
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.cyber-input:focus {
+    background: rgba(4, 3, 10, 0.95) !important;
+    border-color: var(--color-cyan) !important;
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.12), 0 0 20px rgba(6, 182, 212, 0.3) !important;
+    outline: none !important;
+}
+
+/* Cyber Neon Buttons */
+.cyber-btn-primary {
+    background: linear-gradient(135deg, var(--color-cyan) 0%, #3b82f6 50%, var(--color-purple) 100%);
+    color: #04020a !important;
+    font-family: var(--font-outfit);
+    font-weight: 800;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cyber-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.55);
+}
+
+.cyber-btn-secondary {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    transition: all 0.25s ease;
+}
+
+.cyber-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Glowing Neon Text and Badges */
+.text-glow-cyan {
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+.text-glow-purple {
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.badge-cyan {
+    background: rgba(6, 182, 212, 0.15);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    color: #22d3ee;
+}
+
+.badge-purple {
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #c084fc;
+}
+
+.badge-emerald {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+}
+
+.badge-yellow {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
+/* Interactive Network Galaxy / Graph */
+.network-galaxy {
+    position: relative;
+    height: 380px;
+    width: 100%;
+    overflow: hidden;
+    background: rgba(4, 2, 10, 0.45);
+    border: 1px solid rgba(6, 182, 212, 0.1);
+    border-radius: 2rem;
+}
+
+.galaxy-node {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 2;
+}
+
+.galaxy-node .node-dot {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(11, 8, 28, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.galaxy-node:hover {
+    transform: scale(1.12);
+}
+
+.galaxy-node:hover .node-dot {
+    box-shadow: 0 0 25px currentColor;
+    border-color: currentColor;
+}
+
+.galaxy-node span {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+/* Step Wizard for Onboarding */
+.wizard-step {
+    display: none;
+}
+
+.wizard-step.active {
+    display: block;
+    animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-progress-bar {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.wizard-progress-active {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-cyan) 0%, var(--color-purple) 100%);
+    width: 25%;
+    transition: width 0.3s ease;
+}
+
+/* Split Pane for Messages & Communities */
+.split-pane {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 600px;
+    border-radius: 2rem;
+    overflow: hidden;
+    border: 1px solid var(--border-glass);
+}
+
+@media (max-width: 768px) {
+    .split-pane {
+        grid-template-columns: 1fr;
+    }
+    .split-pane-right {
+        display: none;
+    }
+    .split-pane.show-right .split-pane-left {
+        display: none;
+    }
+    .split-pane.show-right .split-pane-right {
+        display: block;
+    }
+}
+
+.split-pane-left {
+    background: rgba(7, 5, 20, 0.8);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-y: auto;
+}
+
+.split-pane-right {
+    background: rgba(10, 8, 25, 0.4);
+    overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 182, 212, 0.3);
+}

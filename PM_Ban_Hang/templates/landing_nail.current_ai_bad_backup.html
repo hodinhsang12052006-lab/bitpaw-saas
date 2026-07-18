@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitPaw Nails | Phần Mềm Quản Lý Tiệm Nail, Tự Động Chia Tua & Tính Hoa Hồng</title>
+    <meta name="description" content="BitPaw Nails - Nền tảng số hóa vận hành tiệm Nails & Salon chuyên sâu: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS và CSKH tự động.">
+
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <style>
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #05040f;
+            color: white;
+            overflow-x: hidden;
+        }
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1; opacity: 0.8;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(236, 72, 153, 0.1) 0%, rgba(0, 0, 0, 0.5) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(236, 72, 153, 0.2);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(236, 72, 153, 0.6);
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.3);
+            transform: translateY(-5px);
+        }
+        .text-gradient-pink {
+            background: linear-gradient(to right, #ec4899, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .btn-neon-pink {
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .btn-neon-pink::before {
+            content: '';
+            position: absolute; top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s ease;
+            z-index: -1;
+        }
+        .btn-neon-pink:hover::before { left: 100%; }
+        .btn-neon-pink:hover {
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.6);
+            transform: translateY(-3px);
+        }
+        .contact-widget {
+            position: fixed; bottom: 30px; right: 30px;
+            z-index: 100; display: flex; flex-direction: column; gap: 15px;
+        }
+        .contact-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-decoration: none;
+        }
+        .contact-btn:hover { transform: scale(1.1) translateY(-5px); }
+        .btn-zalo { background: #0068FF; }
+        .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
+        .btn-call { background: #10b981; animation: ring 2s infinite; }
+        
+        @keyframes ring {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #05040f; }
+        ::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(236, 72, 153, 0.6); }
+    </style>
+</head>
+<body class="antialiased selection:bg-pink-500 selection:text-black relative">
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="fixed w-full top-0 z-50 glass border-b border-white/5 py-4">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                <div class="w-10 h-10 bg-pink-500/20 rounded-xl flex items-center justify-center border border-pink-500/50 overflow-hidden shadow-[0_0_10px_#ec4899]">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo">
+                </div>
+                <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-pink-400">Paw</span> <span class="text-xs px-2 py-0.5 bg-pink-500/20 rounded-md border border-pink-500/30 text-pink-300 font-normal">Nails</span></h1>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-8 text-sm font-bold text-gray-300">
+                <a href="#problems" class="hover:text-pink-400 transition-colors">Vấn Đề</a>
+                <a href="#features" class="hover:text-pink-400 transition-colors">Tính Năng</a>
+                <a href="#workflow" class="hover:text-pink-400 transition-colors">Quy Trình</a>
+                <a href="#benefits" class="hover:text-pink-400 transition-colors">Lợi Ích</a>
+                <a href="#pricing" class="hover:text-pink-400 transition-colors">Bảng Giá</a>
+                <a href="#faq" class="hover:text-pink-400 transition-colors">Hỏi Đáp</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('landingpage') }}" class="text-sm font-bold text-gray-400 hover:text-white transition flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Quay lại
+                </a>
+                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-full font-bold text-sm bg-white/10 hover:bg-white/20 transition-colors border border-white/10">Đăng Nhập</a>
+                <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black font-black px-6 py-2 rounded-full text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                    <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex items-center min-h-[90vh]">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10 w-full">
+            
+            <!-- Left Column: Copywriting -->
+            <div data-aos="fade-right" data-aos-duration="1000" class="lg:col-span-6 text-center lg:text-left">
+                <div class="inline-block bg-pink-500/10 border border-pink-500/30 text-pink-400 text-xs font-bold px-4 py-2 rounded-full mb-6 backdrop-blur-md">
+                    💅 Tiêu Chuẩn Vận Hành Tiệm Nails & Salon Thế Hệ Mới
+                </div>
+                <h1 class="text-4xl lg:text-5xl font-black leading-tight mb-6">
+                    Quản lý tiệm Nail gọn hơn: <br>
+                    <span class="text-gradient-pink">lịch hẹn, thợ, hoa hồng, khách hàng và doanh thu trong một hệ thống.</span>
+                </h1>
+                <p class="text-base lg:text-lg text-gray-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                    BitPaw giúp chủ tiệm Nail không còn phụ thuộc vào sổ tay, Excel rời rạc hay trí nhớ nhân viên. Từ đặt lịch, phân công thợ, tính hoa hồng đến chăm sóc khách quay lại đều được quản lý tập trung.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
+                    <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
+                        <i class="fas fa-rocket"></i> Dùng thử miễn phí
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-colors border border-white/10">
+                        <i class="fab fa-whatsapp"></i> Tư vấn qua Zalo
+                    </a>
+                    <a href="{{ url_for('login') }}" class="glass text-gray-300 text-lg font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-colors border border-white/10">
+                        <i class="fas fa-user-shield"></i> Đăng nhập quản trị
+                    </a>
+                </div>
+                
+                <!-- Trust Points -->
+                <div class="grid grid-cols-2 gap-4 pt-6 border-t border-white/10 text-left">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <span class="text-sm text-gray-300 font-medium">Quản lý lịch hẹn realtime</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <span class="text-sm text-gray-300 font-medium">Theo dõi thợ và hoa hồng</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <span class="text-sm text-gray-300 font-medium">Chăm sóc khách cũ tự động</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <span class="text-sm text-gray-300 font-medium">Báo cáo doanh thu rõ ràng</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Glowing rotating spinner overlayed with 3D KPIs -->
+            <div class="lg:col-span-6 relative flex justify-center items-center min-h-[450px]" data-aos="fade-left" data-aos-duration="1000">
+                <div class="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-purple-600/10 rounded-full blur-[80px]"></div>
+                
+                <!-- Signature Spinner Visual -->
+                <div class="relative w-64 h-64 lg:w-80 lg:h-80 rounded-full border-4 border-pink-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(236,72,153,0.3)]">
+                    <div class="absolute w-full h-full border-t-4 border-purple-500/40 rounded-full animate-spin" style="animation-duration: 4s;"></div>
+                    <div class="w-48 h-48 rounded-full bg-[#05040f] overflow-hidden border border-pink-500/30 flex items-center justify-center shadow-[0_0_30px_#ec4899]">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover rounded-full" alt="BitPaw Nails Logo">
+                    </div>
+                </div>
+
+                <!-- Overlay KPI 1: Real-time Revenue -->
+                <div class="absolute top-4 left-4 glass p-3.5 rounded-2xl border border-pink-500/30 shadow-lg transform -rotate-6 max-w-[170px]" data-tilt>
+                    <span class="text-[9px] text-gray-400 font-black uppercase tracking-widest block mb-0.5">Doanh thu hôm nay</span>
+                    <strong class="text-base font-mono text-emerald-400 block leading-none">14,850,000đ</strong>
+                    <span class="text-[8px] text-emerald-400 font-bold"><i class="fas fa-caret-up"></i> +12% so với hôm qua</span>
+                </div>
+
+                <!-- Overlay KPI 2: Live Queue -->
+                <div class="absolute bottom-4 right-4 glass p-3.5 rounded-2xl border border-purple-500/30 shadow-lg transform rotate-3 min-w-[200px]" data-tilt>
+                    <span class="text-[9px] text-purple-300 font-black uppercase tracking-widest block mb-1.5"><i class="fas fa-list-ol"></i> Bảng chia tua thợ (Tự Động)</span>
+                    <div class="space-y-1 text-[10px]">
+                        <div class="flex justify-between items-center text-white">
+                            <span>1. Thư Nguyễn</span>
+                            <span class="text-pink-400 font-bold bg-pink-500/10 px-1 py-0.2 rounded text-[8px]">Đang làm (Tua 3)</span>
+                        </div>
+                        <div class="flex justify-between items-center text-gray-400">
+                            <span>2. Kiều Lê</span>
+                            <span class="text-emerald-400 font-bold bg-emerald-500/10 px-1 py-0.2 rounded text-[8px]">Nhận tua kế</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overlay KPI 3: Booking mini -->
+                <div class="absolute top-1/2 -right-8 -translate-y-1/2 glass p-3.5 rounded-2xl border border-cyan-500/30 shadow-lg transform rotate-6 max-w-[180px]" data-tilt>
+                    <span class="text-[9px] text-cyan-300 font-black uppercase tracking-widest block mb-1"><i class="far fa-calendar-check"></i> Booking Hôm Nay</span>
+                    <div class="text-[10px] leading-tight">
+                        <div class="font-bold text-white">Sếp Hồ Đình Sang</div>
+                        <div class="text-cyan-400">15:30 - Móng Gel VIP</div>
+                        <span class="text-[8px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded block mt-1 text-center font-bold">Đã cọc 200k</span>
+                    </div>
+                </div>
+
+                <!-- Overlay KPI 4: Top Service -->
+                <div class="absolute bottom-6 left-0 glass p-3.5 rounded-2xl border border-yellow-500/30 shadow-lg transform -rotate-3" data-tilt>
+                    <span class="text-[9px] text-yellow-300 font-black uppercase tracking-widest block mb-0.5">Top Dịch Vụ</span>
+                    <strong class="text-xs text-white block">Fullset Acrylic + Design</strong>
+                    <span class="text-[8px] text-gray-400 font-bold">Đã làm 42 ca tuần này</span>
+                </div>
+
+                <!-- Overlay KPI 5: Bot CSKH -->
+                <div class="absolute top-8 right-6 glass p-2.5 rounded-xl border border-emerald-500/30 shadow-lg text-[9px] max-w-[130px]" data-tilt>
+                    <span class="text-emerald-400 font-black uppercase tracking-widest block"><i class="fas fa-brain animate-pulse"></i> AI Auto-Pilot</span>
+                    <span class="text-gray-300 leading-none">Đã gửi SMS nhắc lịch móng gel VIP</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problems Section -->
+    <section id="problems" class="py-20 bg-[#0a0826] border-y border-white/5 relative z-10">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <div class="inline-block bg-rose-500/10 px-4 py-1.5 rounded-full text-xs font-bold text-rose-400 mb-4 border border-rose-500/20 uppercase tracking-wider">
+                    ⚠️ Thực Trạng Vận Hành
+                </div>
+                <h2 class="text-3xl lg:text-4xl font-black mb-4">Vấn Đề Chủ Tiệm Nail Thường Gặp</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Vận hành tiệm Nails rất phức tạp do thợ làm việc trực tiếp, tiền tips nhạy cảm và phụ liệu dễ bị hao hụt.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-8">
+                <!-- Problem 1 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-calendar-times"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Khách đặt trùng lịch</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Khách hẹn qua Zalo, Facebook, Điện thoại cùng một giờ dẫn tới ùn ứ, thợ làm không kịp khiến khách bực mình bỏ về.</p>
+                </div>
+                <!-- Problem 2 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-book-dead"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Lễ tân ghi sổ tay chậm</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Ghi chép thủ công dễ mất mát, cuối ngày cộng tiền hoa hồng thợ mất cả tiếng đồng hồ mệt mỏi, dễ sai lệch.</p>
+                </div>
+                <!-- Problem 3 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-calculator"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Tính hoa hồng thủ công dễ sai</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Thợ làm nhiều dịch vụ kèm supply gel, nước sơn đắp bột khác nhau, tính tay cực kỳ dễ sai gây bất hòa nội bộ thợ.</p>
+                </div>
+                <!-- Problem 4 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="400">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-users-slash"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Thợ tranh giành khách làm</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Không có quy định chia tua khách rõ ràng khiến thợ tị nạnh nhau, giành khách VIP làm mất đoàn kết nội bộ.</p>
+                </div>
+                <!-- Problem 5 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="500">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-sms"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Khách cũ không quay lại</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Chủ bận rộn không nhớ ngày sinh nhật hay lịch dọn dẹp gel, vẽ lại móng của khách để gửi kịch bản chăm sóc cũ.</p>
+                </div>
+                <!-- Problem 6 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="600">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-chart-line"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Doanh thu mập mờ</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Công nợ, chi phí tiệm, tiền thu POS, tiền mặt không đối soát rành mạch, dễ bị nhân viên sửa giá bill hay bỏ túi riêng.</p>
+                </div>
+                <!-- Problem 7 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="700">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-store-slash"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Khó quản lý đa chi nhánh</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Mở rộng chuỗi Nails mới là ác mộng vì chủ không thể phân thân trực tiếp giám sát thợ và doanh số từng cửa hàng.</p>
+                </div>
+                <!-- Problem 8 -->
+                <div class="glass-card p-8 rounded-3xl" data-aos="fade-up" data-aos-delay="800">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center text-2xl mb-6"><i class="fas fa-boxes"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-3">Hao hụt supply sơn gel</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">Các hũ sơn gel đắt tiền, phụ kiện kim cương đính móng bị lãng phí do không thể định lượng tồn kho thợ sử dụng.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solutions Section -->
+    <section id="solutions" class="py-24 relative z-10 bg-[#05040f]">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <div class="inline-block bg-pink-500/10 px-4 py-1 rounded-full text-xs font-bold text-pink-400 mb-4 border border-pink-500/30">Hệ Thống Thực Tế</div>
+                <h2 class="text-3xl lg:text-5xl font-black mb-4">BitPaw Số Hóa Tiệm Nails Như Thế Nào?</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Vận hành quy trình khép kín thông qua các chức năng đã xây dựng sẵn trong code của hệ thống.</p>
+            </div>
+            
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div class="space-y-8" data-aos="fade-right">
+                    <!-- Solution 1 -->
+                    <div class="flex gap-5 p-5 rounded-2xl hover:bg-white/5 transition border border-transparent hover:border-white/10">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl shrink-0"><i class="far fa-calendar-alt"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white text-lg mb-1">Booking Tập Trung Cho Khách Đặt Lịch</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Khách hàng quét mã tự đặt bàn, chọn thợ làm móng rảnh rỗi và giờ giảm giá trực tiếp tại <a href="{{ url_for('public_booking') }}" class="text-pink-400 underline font-semibold font-mono">booking.html</a>.</p>
+                        </div>
+                    </div>
+                    <!-- Solution 2 -->
+                    <div class="flex gap-5 p-5 rounded-2xl hover:bg-white/5 transition border border-transparent hover:border-white/10">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl shrink-0"><i class="fas fa-id-card"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white text-lg mb-1">Chấm Công & Định Vị GPS Thợ</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Thợ bắt buộc chụp ảnh check-in GPS tại tiệm để nhận tua làm móng, loại bỏ gian lận đi trễ trên app <a href="{{ url_for('chamcong_industry', industry_code='nail') }}" class="text-pink-400 underline font-semibold font-mono">chamcong_nail.html</a>.</p>
+                        </div>
+                    </div>
+                    <!-- Solution 3 -->
+                    <div class="flex gap-5 p-5 rounded-2xl hover:bg-white/5 transition border border-transparent hover:border-white/10">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl shrink-0"><i class="fas fa-percentage"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white text-lg mb-1">Thiết Lập Hoa Hồng & Trừ Supply</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Cài đặt hoa hồng chia tua thợ đắp bột, làm móng và tự động khấu trừ chi phí gel, sơn supply chốt trong <a href="{{ url_for('quanly_dichvu') }}" class="text-pink-400 underline font-semibold font-mono">quanly_dichvu.html</a>.</p>
+                        </div>
+                    </div>
+                    <!-- Solution 4 -->
+                    <div class="flex gap-5 p-5 rounded-2xl hover:bg-white/5 transition border border-transparent hover:border-white/10">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl shrink-0"><i class="fas fa-chart-bar"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white text-lg mb-1">Báo Cáo Doanh Thu & Lợi Nhuận Chi Tiết</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">Theo dõi chi tiết doanh số, dòng tiền dịch vụ, hóa đơn thợ làm móng và tips của cửa hàng tại <a href="{{ url_for('report') }}" class="text-pink-400 underline font-semibold font-mono">report.html</a>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border border-pink-500/30" data-aos="fade-left">
+                    <h3 class="text-white font-black text-2xl mb-6 border-b border-white/10 pb-4 flex items-center gap-2"><i class="fas fa-hand-sparkles text-pink-400"></i> Quản Lý Dịch Vụ Mẫu</h3>
+                    <p class="text-gray-300 text-sm leading-relaxed mb-6">Thêm mới nhanh chóng gói dịch vụ chăm sóc móng, đắp móng úp nghệ thuật, đính đá sang trọng trực quan thông qua màn hình <a href="{{ url_for('quanly_dichvu') }}" class="text-pink-400 underline">quanly_dichvu.html</a>.</p>
+                    <div class="bg-black/50 border border-white/10 p-5 rounded-2xl font-mono text-xs">
+                        <div class="text-pink-400 font-bold mb-2">BẢNG GIÁ DỊCH VỤ SƠN GEL VIP:</div>
+                        <div class="flex justify-between mb-2"><span>1. Đắp Bột Ombre (Tua 60%)</span><span class="text-emerald-400">450,000đ</span></div>
+                        <div class="flex justify-between mb-2 text-gray-400"><span class="pl-3">- Phí Supply Gel: 15,000đ</span></div>
+                        <div class="flex justify-between mb-2"><span>2. Vẽ Móng Nghệ Thuật (Tua 50%)</span><span class="text-emerald-400">300,000đ</span></div>
+                        <div class="flex justify-between mb-2 text-gray-400"><span class="pl-3">- Phí Phụ Liệu Supply: 10,000đ</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature Grid Section -->
+    <section id="features" class="py-24 bg-[#0a0826] relative z-10 border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <div class="inline-block bg-pink-500/10 px-4 py-1 rounded-full text-xs font-bold text-pink-400 mb-4 border border-pink-500/30">Tính Năng Vận Hành</div>
+                <h2 class="text-3xl lg:text-5xl font-black mb-4">12 Tính Năng Vận Hành Tiệm Nails Thực Tế</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Đầy đủ các module nghiệp vụ thực tiễn xóa bỏ hoàn toàn sổ sách tay mệt mỏi.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Card 1 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="far fa-calendar-check"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Đặt lịch khách hàng</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Khách đặt lịch online, tự động gán lịch thợ rảnh, giảm tải 95% công việc lễ tân.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: booking.html</span>
+                </div>
+                <!-- Card 2 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-id-card"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Chấm công thợ Nail</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Thợ check-in định vị vệ tinh GPS tại cửa hàng để nhận tua làm và xem xếp hạng ca.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: chamcong_nail.html</span>
+                </div>
+                <!-- Card 3 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-calculator"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Tính hoa hồng thợ</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Tự động tính % dịch vụ gel, đắp bột của thợ. Xuất bảng lương thợ nhanh chóng.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: staff_management.html</span>
+                </div>
+                <!-- Card 4 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-hands"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Quản lý chia tua thợ</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Thuật toán xoay vòng thông minh chia đều tua cho thợ check-in trước, thợ hết tị nạnh.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: quanly_dichvu.html</span>
+                </div>
+                <!-- Card 5 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-bell"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Nhắc lịch tự động</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Tự động nhắn Zalo/Facebook nhắc nhở khách trước giờ hẹn 2 tiếng, tránh bùng lịch.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: crm_automation.html</span>
+                </div>
+                <!-- Card 6 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-comments"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">CSKH Zalo/Facebook</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Tích hợp Zalo OA và Website chat để trao đổi, chăm sóc và upsell khách hàng cũ.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: omnichannel_connect.html</span>
+                </div>
+                <!-- Card 7 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Báo cáo doanh thu</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Bảng thống kê doanh thu, tiền mặt, thẻ ngân hàng đối soát chống thất thoát 100%.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: report.html</span>
+                </div>
+                <!-- Card 8 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-chart-pie"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Dashboard realtime</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Chủ tiệm Nails xem tổng quan hiệu suất tiệm, doanh số, lượt tua thợ ngay trên điện thoại.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: app.py</span>
+                </div>
+                <!-- Card 9 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-user-shield"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Phân quyền nhân viên</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Thợ chỉ xem lịch cá nhân và bảng tua của mình, không can thiệp được doanh thu tiệm.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: staff_management.html</span>
+                </div>
+                <!-- Card 10 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-history"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Lịch sử giao dịch</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Truy xuất nhật ký thu tiền bill, tiền tips thợ rành mạch theo ngày, tuần, tháng.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: payment_history.html</span>
+                </div>
+                <!-- Card 11 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-tags"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Combo & Khuyến mãi</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Cấu hình các gói dịch vụ chăm sóc móng + đính đá giảm giá thu hút khách giờ vắng.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: quanly_dichvu.html</span>
+                </div>
+                <!-- Card 12 -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center text-lg mb-5"><i class="fas fa-user-check"></i></div>
+                        <h4 class="text-base font-bold text-white mb-2">Theo dõi khách quay lại</h4>
+                        <p class="text-xs text-gray-500 leading-relaxed mb-4">Đo lường tỷ suất khách hàng VIP quay lại làm móng theo tháng để đánh giá thợ.</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Module: report.html</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflow Section -->
+    <section id="workflow" class="py-20 bg-[#05040f] relative z-10 border-b border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-3xl lg:text-4xl font-black mb-4">Quy Trình 5 Bước Vận Hành</h2>
+                <p class="text-gray-400 max-w-xl mx-auto text-sm">Hành trình số hóa giúp tiệm Nails tự vận hành trơn tru và chuyên nghiệp nhất.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-5 gap-6 text-center">
+                <div class="glass p-6 rounded-2xl border border-white/10" data-aos="zoom-in" data-aos-delay="0">
+                    <div class="text-pink-400 font-black text-2xl mb-4">01</div>
+                    <h5 class="text-white font-bold mb-2 text-sm">Khách đặt lịch</h5>
+                    <p class="text-xs text-gray-500">Khách quét mã chọn dịch vụ và thợ rảnh tại <a href="{{ url_for('public_booking') }}" class="text-pink-400 underline">booking.html</a>.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10" data-aos="zoom-in" data-aos-delay="100">
+                    <div class="text-pink-400 font-black text-2xl mb-4">02</div>
+                    <h5 class="text-white font-bold mb-2 text-sm">Lễ tân chọn thợ</h5>
+                    <p class="text-xs text-gray-500">Lễ tân tiếp đón, hệ thống tự xếp thợ đầu tua trong <a href="{{ url_for('quanly_dichvu') }}" class="text-pink-400 underline">quanly_dichvu.html</a>.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="text-pink-400 font-black text-2xl mb-4">03</div>
+                    <h5 class="text-white font-bold mb-2 text-sm">Thợ thực hiện</h5>
+                    <p class="text-xs text-gray-500">Thợ làm móng, vẽ nghệ thuật, hệ thống tự động ghi nhận tua làm thợ.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10" data-aos="zoom-in" data-aos-delay="300">
+                    <div class="text-pink-400 font-black text-2xl mb-4">04</div>
+                    <h5 class="text-white font-bold mb-2 text-sm">Chủ xem doanh thu</h5>
+                    <p class="text-xs text-gray-500">Thu ngân POS chốt bill, tự động cộng hoa hồng thợ và báo cáo realtime.</p>
+                </div>
+                <div class="glass p-6 rounded-2xl border border-white/10" data-aos="zoom-in" data-aos-delay="400">
+                    <div class="text-pink-400 font-black text-2xl mb-4">05</div>
+                    <h5 class="text-white font-bold mb-2 text-sm">Bot nhắc khách</h5>
+                    <p class="text-xs text-gray-500">AI tự gửi tin nhắn Zalo/Facebook rủ rê khách quay lại dọn móng vẽ gel tiếp theo.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ROI / Business Benefits Section -->
+    <section id="benefits" class="py-20 bg-[#0a0826] relative z-10 border-y border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-3xl lg:text-4xl font-black mb-4">Lợi Ích Kinh Doanh Đạt Được</h2>
+                <p class="text-gray-400 max-w-xl mx-auto text-sm">Các tiệm Nails số hóa bằng BitPaw đã ghi nhận các chỉ số kinh doanh vượt bậc.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 lg:grid-cols-6 gap-8 text-center">
+                <div class="p-4" data-aos="zoom-in">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">99%</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Giảm sai hoa hồng thợ</p>
+                </div>
+                <div class="p-4" data-aos="zoom-in" data-aos-delay="100">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">15 Giờ</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Tiết kiệm cộng sổ/Tháng</p>
+                </div>
+                <div class="p-4" data-aos="zoom-in" data-aos-delay="200">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">+45%</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Tăng tỷ lệ khách quay lại</p>
+                </div>
+                <div class="p-4" data-aos="zoom-in" data-aos-delay="300">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">100%</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Chủ tiệm xem từ xa</p>
+                </div>
+                <div class="p-4" data-aos="zoom-in" data-aos-delay="400">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">1 Click</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Xuất bảng lương thợ chi tiết</p>
+                </div>
+                <div class="p-4" data-aos="zoom-in" data-aos-delay="500">
+                    <h3 class="text-4xl font-black text-pink-500 mb-2">0%</h3>
+                    <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Thất thoát tiền mặt/POS</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing / Consultation Section -->
+    <section id="pricing" class="py-24 bg-[#05040f] relative z-10 border-b border-white/5">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <h2 class="text-3xl lg:text-5xl font-black mb-4">Các Gói Triển Khai Linh Hoạt</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Sếp chọn gói phù hợp nhất để nâng tầm tiệm Nails của mình.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8 items-stretch">
+                <!-- Gói Khởi Động -->
+                <div class="glass-card p-8 rounded-3xl flex flex-col justify-between border border-white/10 relative">
+                    <div>
+                        <h4 class="text-lg font-black text-white mb-2">Gói Khởi Động</h4>
+                        <p class="text-xs text-gray-500 mb-6">Dành cho tiệm Nails nhỏ dưới 5 thợ, số hóa cơ bản.</p>
+                        <div class="border-t border-white/5 pt-4 mb-6">
+                            <span class="text-xs text-gray-400 font-bold block mb-3">TÍNH NĂNG NỔI BẬT:</span>
+                            <ul class="space-y-2.5 text-xs text-gray-300">
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Chấm công định vị GPS thợ</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Đặt lịch hẹn online cơ bản</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Báo cáo doanh thu cuối ngày</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Trạm liên lạc nội bộ</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl text-center text-xs tracking-wider uppercase block transition-all">Liên hệ tư vấn</a>
+                </div>
+
+                <!-- Gói Chuyên Nghiệp -->
+                <div class="glass-card p-8 rounded-3xl flex flex-col justify-between border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.25)] relative">
+                    <div class="absolute -top-3.5 right-6 bg-pink-500 text-black text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-pink-400 shadow-md">Được khuyên dùng</div>
+                    <div>
+                        <h4 class="text-lg font-black text-white mb-2">Gói Chuyên Nghiệp</h4>
+                        <p class="text-xs text-pink-300 font-medium mb-6">Giải pháp hoàn chỉnh chia tua thợ tự động và CSKH thông minh cho tiệm trung bình.</p>
+                        <div class="border-t border-white/5 pt-4 mb-6">
+                            <span class="text-xs text-pink-300 font-bold block mb-3">BAO GỒM GÓI KHỞI ĐỘNG VÀ:</span>
+                            <ul class="space-y-2.5 text-xs text-gray-300">
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> **Thuật toán chia tua thợ tự động**</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Tự động tính hoa hồng thợ chi tiết</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Quản lý trừ hao phụ liệu supply gel</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Mascot AI tự động nhắc hẹn CSKH</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-black font-black py-3.5 rounded-xl text-center text-xs tracking-widest uppercase block shadow-lg transition-transform active:scale-95">Liên hệ tư vấn</a>
+                </div>
+
+                <!-- Gói Chuỗi Chi Nhánh -->
+                <div class="glass-card p-8 rounded-3xl flex flex-col justify-between border border-white/10 relative">
+                    <div>
+                        <h4 class="text-lg font-black text-white mb-2">Gói Chuỗi Chi Nhánh</h4>
+                        <p class="text-xs text-gray-500 mb-6">Dành cho chủ hệ thống Nails chuỗi nhiều địa điểm.</p>
+                        <div class="border-t border-white/5 pt-4 mb-6">
+                            <span class="text-xs text-gray-400 font-bold block mb-3">TÍNH NĂNG CHUỖI ĐỘC QUYỀN:</span>
+                            <ul class="space-y-2.5 text-xs text-gray-300">
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Đồng bộ kho gel đa chi nhánh</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Báo cáo tổng chi nhánh realtime</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Phân quyền quản lý/chủ chuỗi chi tiết</li>
+                                <li><i class="fas fa-check text-pink-500 mr-2"></i> Kỹ sư BitPaw cài đặt tận nơi</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl text-center text-xs tracking-wider uppercase block transition-all">Liên hệ Enterprise</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-24 bg-[#0a0826] relative z-10 border-y border-white/5">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <h2 class="text-3xl lg:text-4xl font-black mb-4">Hỏi Đáp Thường Gặp (FAQ)</h2>
+                <p class="text-gray-400 max-w-xl mx-auto text-sm">Các thắc mắc phổ biến của chủ tiệm Nails khi đưa công nghệ số hóa vào vận hành tiệm.</p>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Q1 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Tiệm Nails nhỏ dưới 5 thợ có dùng được không?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ hoàn toàn được ạ! BitPaw thiết kế gói Starter riêng cho tiệm Nails nhỏ để làm quen với số hóa lịch hẹn và chấm công GPS với mức giá cực kỳ tiết kiệm, giúp sếp loại bỏ hoàn toàn sổ sách tay ngay từ đầu.</p>
+                </div>
+                <!-- Q2 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Phần mềm có dùng mượt mà trên điện thoại di động không?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ có ạ. Hệ thống BitPaw Nails được tối ưu responsive 100% trên thiết bị di động (iOS/Android). Cả chủ tiệm xem báo cáo từ xa và thợ nhận tua làm đều thao tác cực kỳ mượt mà trên điện thoại của mình.</p>
+                </div>
+                <!-- Q3 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Tiệm có nhiều thợ thì quản lý thợ thế nào?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ, hệ thống hỗ trợ quản lý danh sách thợ chi tiết. Thợ tự chấm công trên app riêng để nhận tua làm. Sếp chỉ cần mở 1 màn hình tổng để giám sát số tua làm thợ, bảng chấm công thợ đi làm và doanh số của từng thợ theo thời gian thực.</p>
+                </div>
+                <!-- Q4 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Tính năng tính phần trăm hoa hồng thợ có chính xác không?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ, vô cùng chính xác ạ. Hệ thống tự động trích lọc % hoa hồng thợ làm được cài sẵn cho từng dịch vụ (VD: vẽ móng 10%, đắp bột 15%) ngay khi in bill POS thanh toán và trừ đi phí phụ liệu supply gel. Tránh hoàn toàn nhầm lẫn so với tính sổ tay truyền thống.</p>
+                </div>
+                <!-- Q5 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Làm thế nào để nhắc lịch hẹn tránh khách quên giờ?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ, tích hợp với kịch bản CRM Automation, bot AI của BitPaw sẽ tự động quét danh sách lịch hẹn đặt trước tại booking.html để gửi tin nhắn qua Zalo/Facebook nhắc nhở khách trước giờ hẹn 2 tiếng hoàn toàn tự động.</p>
+                </div>
+                <!-- Q6 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> BitPaw có hỗ trợ nhập dữ liệu ban đầu không?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ có ạ. Đội ngũ kỹ sư hỗ trợ của BitPaw sẽ trực tiếp đồng hành, hỗ trợ sếp import toàn bộ danh sách dịch vụ, thợ làm móng và dữ liệu khách hàng từ file Excel hoặc sổ cũ sang hệ thống hoàn toàn miễn phí.</p>
+                </div>
+                <!-- Q7 -->
+                <div class="glass p-5 rounded-2xl border border-white/5">
+                    <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <i class="fas fa-question-circle text-pink-400"></i> Hệ thống có kết nối Zalo/Facebook không?
+                    </h4>
+                    <p class="text-xs text-gray-400 leading-relaxed pl-6 hidden">Dạ có ạ. Hệ thống cho phép sếp kết nối trực tiếp tài khoản Zalo OA, Fanpage Facebook Messenger thông qua cổng Omnichannel Connect để nhắn tin, nhắc lịch hẹn và CSKH tự động một cách mượt mà nhất.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final Call to Action -->
+    <section class="py-24 relative z-10 bg-gradient-to-b from-[#0a0826] to-[#05040f] text-center">
+        <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
+            <h2 class="text-3xl lg:text-5xl font-black mb-6">Đừng để tiệm Nail vận hành bằng sổ tay và tin nhắn rời rạc.</h2>
+            <p class="text-gray-400 mb-8 max-w-xl mx-auto text-sm leading-relaxed">
+                Hãy để BitPaw giúp bạn kiểm soát lịch, thợ, doanh thu và khách hàng trong một màn hình. Giải phóng sức lao động chủ tiệm và gia tăng tỷ lệ khách quen lên tới 85%.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black text-base font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_25px_rgba(236,72,153,0.5)]">
+                    <i class="fas fa-rocket"></i> Đăng ký dùng thử miễn phí 14 ngày
+                </a>
+                <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-base font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition-colors border border-white/10 shadow-lg">
+                    <i class="fab fa-whatsapp text-lg"></i> Trò chuyện Zalo tư vấn trực tiếp
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="relative z-10 bg-[#03020a] border-t border-white/10 py-12 text-gray-500 text-xs">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-pink-500/20 rounded-xl flex items-center justify-center border border-pink-500/50 overflow-hidden shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="BitPaw Logo">
+                </div>
+                <div class="flex flex-col text-left">
+                    <span class="font-bold text-white text-sm">BitPaw Nails Solution</span>
+                    <span class="text-[8px] uppercase tracking-widest text-gray-600 font-bold">Empowering Salon Business</span>
+                </div>
+            </div>
+            <p class="text-center md:text-left">&copy; 2026 BitPaw Technology. Hỗ trợ kỹ thuật 24/7 Hotline: 0794.678.904</p>
+            <div class="flex items-center gap-4 text-gray-400">
+                <a href="mailto:hodinhsang30052003@gmail.com" class="hover:text-pink-400">Email: hodinhsang30052003@gmail.com</a>
+                <span>|</span>
+                <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="hover:text-pink-400">fb.com/chuyhieuhong</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Contact Widget Floating -->
+    <div class="contact-widget z-[100]">
+        <a href="tel:0794678904" class="contact-btn btn-call" title="Hotline tư vấn"><i class="fas fa-phone-alt"></i></a>
+        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" title="Chat Zalo"><span class="font-black text-xs">Zalo</span></a>
+        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" title="Messenger"><i class="fab fa-facebook-messenger"></i></a>
+    </div>
+
+    <!-- Background Animation (Three.js Pink Particle Network) -->
+    <script>
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = window.innerWidth < 768 ? 300 : 900;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 100;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.14,
+            color: 0xec4899,
+            transparent: true,
+            opacity: 0.32,
+            blending: THREE.AdditiveBlending
+        });
+        const particlesMesh = new THREE.Points(particlesGeometry, material);
+        scene.add(particlesMesh);
+
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth/2) * 0.00025;
+            mouseY = (e.clientY - window.innerHeight/2) * 0.00025;
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+            particlesMesh.rotation.y = elapsed * 0.012;
+            particlesMesh.rotation.x = elapsed * 0.006;
+            particlesMesh.rotation.y += 0.45 * (mouseX - particlesMesh.rotation.y);
+            particlesMesh.rotation.x += 0.45 * (mouseY - particlesMesh.rotation.x);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        AOS.init({ once: true, offset: 40, duration: 800 });
+        
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"), {
+            max: 6,
+            speed: 400,
+            glare: true,
+            "max-glare": 0.3
+        });
+    </script>
+</body>
+</html>

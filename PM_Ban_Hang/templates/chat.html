@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạm Liên Lạc | BitPaw OS</title>
+
+    <!-- Libraries -->
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* 3D Background Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        /* Hiệu ứng scanline và laser */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+
+        .laser-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+
+        @keyframes scanMove {
+            0% {
+                top: -5%;
+            }
+
+            100% {
+                top: 105%;
+            }
+        }
+
+        @keyframes laserVertical {
+            0% {
+                left: -10%;
+            }
+
+            50% {
+                left: 110%;
+            }
+
+            100% {
+                left: -10%;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.4);
+            border-radius: 10px;
+        }
+
+        /* Chat Bubbles Enhancement */
+        .chat-bubble-me {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.9), rgba(59, 130, 246, 0.9));
+            border-radius: 16px 16px 0 16px;
+            border: 1px solid rgba(103, 232, 249, 0.3);
+            backdrop-filter: blur(8px);
+        }
+
+        .chat-bubble-other {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px 16px 16px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        .chat-image {
+            border-radius: 12px;
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            max-width: 200px;
+            max-height: 250px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .chat-image:hover {
+            transform: scale(1.03);
+            border-color: rgba(6, 182, 212, 0.8);
+            box-shadow: 0 10px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Popup Menu Animations */
+        .pop-menu {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: bottom left;
+        }
+
+        /* Mini 3D Hologram Logo (giống các trang khác) */
+        @keyframes float-hologram {
+            0% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
+
+            50% {
+                transform: translateY(-4px);
+                filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5));
+            }
+
+            100% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
+        }
+
+        .logo-float {
+            animation: float-hologram 4s ease-in-out infinite;
+        }
+
+        @keyframes scan-laser {
+            0% {
+                top: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 2px;
+            background: #06b6d4;
+            box-shadow: 0 0 10px #06b6d4;
+            left: -10%;
+            animation: scan-laser 2.5s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Animation cho tin nhắn */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex text-white font-sans overflow-hidden relative">
+
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar đồng bộ với dashboard (đã bổ sung đầy đủ menu) -->
+    <aside
+        class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between z-20 shrink-0 hidden md:flex shadow-[10px_0_30px_rgba(0,0,0,0.5)] h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
+                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin"
+                        style="animation-duration: 3s;"></div>
+                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin"
+                        style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo"
+                        class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+
+            <nav class="flex flex-col py-6 space-y-3 px-5">
+                <a href="/dashboard"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng
+                        quan</span>
+                </a>
+                <a href="{{ url_for('nhanvien') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý
+                        Nhân sự</span>
+                </a>
+                <a href="{{ url_for('chamcong') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm
+                        công</span>
+                </a>
+                <a href="{{ url_for('bangluong') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i
+                        class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng
+                        lương</span>
+                </a>
+                <a href="{{ url_for('chat') }}"
+                    class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group mt-2">
+                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Trạm
+                        Liên Lạc</span>
+                </a>
+                <a href="/map_dashboard"
+                    class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar
+                        GPS Thợ</span>
+                </a>
+                <!-- === CÁC MỤC MỚI THÊM === -->
+                <a href="{{ url_for('quanly_congno') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i
+                        class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Quản
+                        lý Công nợ</span>
+                </a>
+                <a href="{{ url_for('quanly_thuchi') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Quản lý
+                        Thu Chi</span>
+                </a>
+                <a href="{{ url_for('baocao_loinhuan') }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span>Báo
+                        cáo lợi nhuận</span>
+                </a>
+            </nav>
+
+            <!-- Kết nối CSKH (đã bổ sung Facebook) -->
+            <div class="px-5 pb-4 mt-auto">
+                <div
+                    class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:border-cyan-500/50 transition-colors">
+                    <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
+                    </p>
+                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                        <a href="tel:0794678904"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline:
+                                0794.678.904</span></a>
+                        <a href="https://zalo.me/0794678904" target="_blank"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo:
+                                0794.678.904</span></a>
+                        <!-- Thêm Facebook -->
+                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ
+                                Đình Sang</span></a>
+                    </div>
+                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')"
+                        class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
+                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="{{ url_for('home') }}"
+                class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng
+                    xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex h-full z-10 relative">
+
+        <!-- Channels & Online List -->
+        <div
+            class="w-20 md:w-80 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col h-full shrink-0 transition-all z-20 shadow-2xl">
+            <div class="p-5 border-b border-white/10 hidden md:block">
+                <h2 class="text-xl font-black text-white flex items-center gap-2"><i
+                        class="fas fa-satellite-dish text-cyan-400 animate-pulse"></i> Kênh Giao Tiếp</h2>
+                <div class="mt-4 relative group">
+                    <input type="text" id="searchUser" placeholder="Tìm kiếm đồng nghiệp..."
+                        class="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors">
+                    <i
+                        class="fas fa-search absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-cyan-400 transition-colors"></i>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2 md:p-4 space-y-1">
+                <p
+                    class="text-[10px] md:text-xs font-bold text-gray-500 uppercase px-1 md:px-2 pt-2 pb-2 text-center md:text-left tracking-wider">
+                    Kênh</p>
+                <div
+                    class="flex items-center gap-3 p-2 md:p-3 rounded-xl bg-cyan-500/10 cursor-pointer border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.1)] hover:bg-cyan-500/20 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white flex items-center justify-center font-bold text-lg mx-auto md:mx-0 shadow-lg group-hover:scale-105 transition-transform">
+                        <i class="fas fa-bullhorn text-sm"></i>
+                    </div>
+                    <div class="flex-1 hidden md:block">
+                        <h4 class="font-bold text-cyan-300 text-sm">Kênh Chung</h4>
+                        <p class="text-[11px] text-gray-400 truncate mt-0.5">Nhóm toàn bộ nhân sự</p>
+                    </div>
+                </div>
+
+                <p
+                    class="text-[10px] md:text-xs font-bold text-gray-500 uppercase px-1 md:px-2 pt-8 pb-2 text-center md:text-left tracking-wider">
+                    Trực tuyến</p>
+                <div id="onlineUsersList" class="space-y-1 flex flex-col items-center md:items-stretch">
+                    <div class="text-center text-xs text-cyan-500/50 mt-4"><i
+                            class="fas fa-circle-notch fa-spin text-2xl"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col bg-black/60 h-full relative min-w-0">
+            <div
+                class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none">
+            </div>
+
+            <!-- Chat Header -->
+            <div
+                class="h-16 md:h-20 bg-white/[0.02] backdrop-blur-xl border-b border-white/10 flex items-center px-4 md:px-6 z-10 shrink-0 shadow-md">
+                <button onclick="history.back()" class="md:hidden mr-4 text-gray-400 hover:text-white"><i
+                        class="fas fa-arrow-left text-xl"></i></button>
+
+                <div
+                    class="w-8 h-8 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold mr-3 md:mr-4 shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.4)] relative">
+                    <i class="fas fa-bullhorn text-xs md:text-base text-white"></i>
+                    <div
+                        class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-[#08061a] rounded-full">
+                    </div>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h3 class="font-black text-white text-base md:text-lg tracking-wide truncate">Kênh Thông Báo Chung
+                    </h3>
+                    <p class="text-[10px] md:text-xs text-emerald-400 flex items-center gap-1.5 mt-0.5"><span
+                            class="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_5px_#34d399]"></span>
+                        <span class="truncate">Kết nối Realtime ổn định</span></p>
+                </div>
+                <button id="loadMoreBtn"
+                    class="hidden md:block text-xs bg-white/5 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10 text-gray-400 hover:text-cyan-300">
+                    <i class="fas fa-history mr-1"></i> Tải thêm
+                </button>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatBox" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 z-10 scroll-smooth">
+                <div class="flex h-full items-center justify-center">
+                    <div class="text-center text-cyan-500/50 text-sm"><i
+                            class="fas fa-circle-notch fa-spin text-3xl mb-2"></i><br>Đang đồng bộ dữ liệu vệ tinh...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div
+                class="p-3 md:p-5 bg-white/[0.02] backdrop-blur-xl border-t border-cyan-500/20 z-10 shrink-0 relative shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+
+                <!-- Emoji Picker -->
+                <div id="emojiPicker"
+                    class="pop-menu absolute bottom-full left-4 mb-4 bg-[#0b0f1c] border border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.2)] rounded-2xl p-3 w-64 scale-0 opacity-0 grid grid-cols-6 gap-2 text-xl z-50">
+                    <button class="hover:scale-125 transition-transform" onclick="insertText('😀')">😀</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('😂')">😂</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🤣')">🤣</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🥰')">🥰</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('😎')">😎</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('😭')">😭</button>
+                    <button class="hover:scale-125 transition-transform" onclick="insertText('😡')">😡</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🥺')">🥺</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('👍')">👍</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🔥')">🔥</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('💔')">💔</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('💯')">💯</button>
+                    <button class="hover:scale-125 transition-transform" onclick="insertText('✅')">✅</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🚀')">🚀</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🎉')">🎉</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('💪')">💪</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('👀')">👀</button><button
+                        class="hover:scale-125 transition-transform" onclick="insertText('🙏')">🙏</button>
+                </div>
+
+                <!-- GIF Picker -->
+                <div id="gifPicker"
+                    class="pop-menu absolute bottom-full left-16 mb-4 bg-[#0b0f1c] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(217,70,239,0.2)] rounded-2xl p-3 w-72 h-64 overflow-y-auto scale-0 opacity-0 grid grid-cols-2 gap-2 z-50">
+                    <img onclick="sendGif('https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif')"
+                        src="https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                    <img onclick="sendGif('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')"
+                        src="https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                    <img onclick="sendGif('https://media.giphy.com/media/l41lFw057lAJQMwg0/giphy.gif')"
+                        src="https://media.giphy.com/media/l41lFw057lAJQMwg0/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                    <img onclick="sendGif('https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif')"
+                        src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                    <img onclick="sendGif('https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif')"
+                        src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                    <img onclick="sendGif('https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif')"
+                        src="https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif"
+                        class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
+                </div>
+
+                <form id="chatForm"
+                    class="flex items-center gap-2 md:gap-3 bg-black/50 border border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/50 focus-within:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all">
+
+                    <input type="file" id="imageInput" accept="image/*" class="hidden"
+                        onchange="uploadAndSendImage(this)">
+                    <button type="button" onclick="document.getElementById('imageInput').click()"
+                        class="w-10 h-10 rounded-xl hover:bg-white/10 text-cyan-400 transition-colors flex items-center justify-center shrink-0"
+                        title="Gửi ảnh">
+                        <i class="fas fa-image text-lg"></i>
+                    </button>
+
+                    <button type="button" onclick="togglePopup('emojiPicker')"
+                        class="w-10 h-10 rounded-xl hover:bg-white/10 text-yellow-400 transition-colors flex items-center justify-center shrink-0 hidden md:flex"
+                        title="Emoji">
+                        <i class="fas fa-smile text-lg"></i>
+                    </button>
+
+                    <button type="button" onclick="togglePopup('gifPicker')"
+                        class="w-10 h-10 rounded-xl hover:bg-white/10 text-fuchsia-400 transition-colors flex items-center justify-center shrink-0 font-black text-xs border border-transparent hover:border-fuchsia-500/30"
+                        title="Gửi Meme/GIF">
+                        GIF
+                    </button>
+
+                    <input type="text" id="msgInput" placeholder="Nhập chỉ thị..." autocomplete="off"
+                        class="flex-1 bg-transparent border-none py-2 px-2 text-sm text-white focus:outline-none focus:ring-0 min-w-0">
+
+                    <button type="submit" id="btnSend"
+                        class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-white flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-transform hover:scale-105 shrink-0 active:scale-95">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Photo Modal -->
+    <div id="photoModal"
+        class="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] hidden flex-col items-center justify-center p-4 transition-opacity">
+        <button onclick="closePhoto()"
+            class="absolute top-6 right-6 text-white/50 hover:text-rose-500 text-4xl transition-colors"><i
+                class="fas fa-times-circle"></i></button>
+        <img id="photoView" src=""
+            class="max-w-full max-h-[90vh] rounded-xl shadow-[0_0_50px_rgba(6,182,212,0.3)] object-contain">
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"
+        class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    </div>
+
+    <script>
+        // ========================================================
+        // THREE.JS BACKGROUND NÂNG CẤP (giống landing page)
+        // ========================================================
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Shooting stars
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i * 3] = (Math.random() - 0.5) * 120;
+                starPositions[i * 3 + 1] = (Math.random() - 0.5) * 70;
+                starPositions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.04) % 1;
+                material.color.setHSL(hue, 0.9, 0.65);
+
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i * 3] += starVelocities[i].x;
+                    posArr[i * 3 + 1] += starVelocities[i].y;
+                    posArr[i * 3 + 2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i * 3]) > 70 || Math.abs(posArr[i * 3 + 1]) > 45) {
+                        posArr[i * 3] = (Math.random() - 0.5) * 120;
+                        posArr[i * 3 + 1] = 40;
+                        posArr[i * 3 + 2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // ========================================================
+        // TOAST UTILITY
+        // ========================================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colorClass = 'cyan', iconClass = 'fa-info-circle';
+            if (type === 'success') { colorClass = 'emerald'; iconClass = 'fa-check-circle'; }
+            if (type === 'error') { colorClass = 'rose'; iconClass = 'fa-exclamation-triangle'; }
+            toast.className = `bg-[#0a0f25]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+            toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-xl shrink-0"></i> <span class="text-[13px] font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('-translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // ========================================================
+        // KIỂM TRA SESSION SUPABASE
+        // ========================================================
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.replace('{{ url_for('home') }}');
+                return false;
+            }
+            return true;
+        }
+        checkAuth();
+
+        // ========================================================
+        // CHAT ENGINE
+        // ========================================================
+        const currentRoom = "KenhChung";
+        const chatBox = document.getElementById('chatBox');
+        const onlineList = document.getElementById('onlineUsersList');
+
+        // Lấy thông tin người dùng từ localStorage hoặc từ session
+        let myName = localStorage.getItem('bp_user_name') || localStorage.getItem('bp_emp_name') || 'Ẩn danh';
+        let myEmail = localStorage.getItem('bp_user_email') || localStorage.getItem('bp_emp_code') || `User_${Math.floor(Math.random() * 1000)}`;
+
+        // Nếu có session user, ưu tiên lấy email thật
+        async function fetchUserInfo() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && user.email) {
+                myEmail = user.email;
+                // Lấy tên từ bảng employees
+                const { data: emp } = await supabase.from('employees').select('ho_ten').eq('email', myEmail).maybeSingle();
+                if (emp && emp.ho_ten) myName = emp.ho_ten;
+                else myName = myEmail.split('@')[0];
+                localStorage.setItem('bp_user_name', myName);
+                localStorage.setItem('bp_user_email', myEmail);
+            }
+        }
+        fetchUserInfo();
+
+        let isLoadingMore = false;
+        let oldestTimestamp = null;
+        let hasMore = true;
+
+        function scrollToBottom(smooth = false) {
+            if (smooth) chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+            else chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function loadHistory(reset = true) {
+            if (reset) {
+                chatBox.innerHTML = '';
+                oldestTimestamp = null;
+                hasMore = true;
+                isLoadingMore = false;
+            }
+            if (!hasMore && !reset) return;
+
+            let query = supabase
+                .from('messages')
+                .select('*')
+                .eq('room', currentRoom)
+                .order('timestamp', { ascending: false })
+                .limit(50);
+
+            if (oldestTimestamp && !reset) {
+                query = query.lt('timestamp', oldestTimestamp);
+            }
+
+            const { data, error } = await query;
+            if (error) {
+                console.error(error);
+                showToast("Lỗi tải tin nhắn!", "error");
+                return;
+            }
+
+            if (data.length < 50) hasMore = false;
+            if (data.length === 0 && reset) {
+                chatBox.innerHTML = '<div class="flex h-full items-center justify-center text-sm text-gray-500"><p class="bg-white/5 px-4 py-2 rounded-full border border-white/10">Trạm liên lạc trống. Khởi tạo phiên giao tiếp mới.</p></div>';
+                return;
+            }
+
+            // Đảo ngược để hiển thị đúng thứ tự thời gian
+            data.reverse();
+            if (!reset && chatBox.innerHTML.includes('Trạm liên lạc trống')) chatBox.innerHTML = '';
+
+            // Lưu lại timestamp cũ nhất để load thêm
+            if (data.length > 0) {
+                oldestTimestamp = data[0].timestamp;
+            }
+
+            const fragment = document.createDocumentFragment();
+            data.forEach(msg => {
+                const msgDiv = createMessageElement(msg);
+                fragment.appendChild(msgDiv);
+            });
+
+            if (reset) {
+                chatBox.innerHTML = '';
+                chatBox.appendChild(fragment);
+                scrollToBottom(false);
+            } else {
+                // Thêm vào đầu chatBox
+                const firstChild = chatBox.firstChild;
+                chatBox.insertBefore(fragment, firstChild);
+                // Giữ vị trí cuộn
+                const oldScrollHeight = chatBox.scrollHeight;
+                const oldScrollTop = chatBox.scrollTop;
+                setTimeout(() => {
+                    const newScrollHeight = chatBox.scrollHeight;
+                    chatBox.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+                }, 50);
+            }
+        }
+
+        function createMessageElement(data) {
+            const isMe = data.sender_id === myEmail;
+            let timeStr = "";
+            try {
+                const d = new Date(data.timestamp);
+                timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) { timeStr = "Vừa xong"; }
+
+            let displayContent = data.content;
+            let isMedia = false;
+
+            if (displayContent.startsWith('[IMG]')) {
+                let url = displayContent.replace('[IMG]', '');
+                displayContent = `<img src="${url}" class="chat-image" onclick="viewPhoto('${url}')" alt="Hình ảnh" loading="lazy">`;
+                isMedia = true;
+            } else if (displayContent.startsWith('[GIF]')) {
+                let url = displayContent.replace('[GIF]', '');
+                displayContent = `<img src="${url}" class="rounded-xl border-2 border-fuchsia-500/30 max-w-[200px] shadow-[0_0_15px_rgba(217,70,239,0.2)]" alt="Meme" loading="lazy">`;
+                isMedia = true;
+            }
+
+            const bubbleClassMe = isMedia ? "" : "chat-bubble-me p-3 text-sm text-white mb-1 leading-relaxed shadow-[0_5px_15px_rgba(6,182,212,0.3)]";
+            const bubbleClassOther = isMedia ? "" : "chat-bubble-other p-3 text-sm text-gray-200 mb-1 leading-relaxed shadow-lg";
+
+            const div = document.createElement('div');
+            div.className = 'animate-fadeIn';
+            if (isMe) {
+                div.innerHTML = `
+                <div class="flex justify-end">
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-end">
+                        <div class="${bubbleClassMe}">${displayContent}</div>
+                        <p class="text-[9px] md:text-[10px] text-cyan-500/60 text-right pr-2 mt-1 font-mono">${timeStr} <i class="fas fa-check-double ml-1 text-cyan-400"></i></p>
+                    </div>
+                </div>`;
+            } else {
+                const initial = data.sender_name ? data.sender_name.charAt(0).toUpperCase() : '?';
+                div.innerHTML = `
+                <div class="flex justify-start gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-bold text-white text-xs border border-white/10 shrink-0 mt-4 hidden md:flex shadow-inner">
+                        ${initial}
+                    </div>
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[10px] md:text-[11px] text-cyan-400 mb-1 ml-2 font-bold tracking-wide">${data.sender_name || data.sender_id}</p>
+                        <div class="${bubbleClassOther}">${displayContent}</div>
+                        <p class="text-[9px] md:text-[10px] text-gray-500 text-left pl-2 mt-1 font-mono">${timeStr}</p>
+                    </div>
+                </div>`;
+            }
+            return div;
+        }
+
+        async function loadMoreMessages() {
+            if (isLoadingMore || !hasMore) return;
+            isLoadingMore = true;
+            const btn = document.getElementById('loadMoreBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải...';
+            await loadHistory(false);
+            isLoadingMore = false;
+            btn.innerHTML = originalText;
+        }
+
+        document.getElementById('loadMoreBtn')?.addEventListener('click', loadMoreMessages);
+
+        // ========================================================
+        // GỬI TIN NHẮN
+        // ========================================================
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('msgInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            input.value = '';
+            hideAllPopups();
+
+            try {
+                await supabase.from('messages').insert([{
+                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: msg
+                }]);
+            } catch (error) {
+                showToast("Lỗi gửi tín hiệu!", "error");
+            }
+        });
+
+        async function uploadAndSendImage(inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            const btn = document.getElementById('btnSend');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; btn.disabled = true;
+
+            try {
+                const fileName = `img_${Date.now()}_${file.name.replace(/\s/g, '')}`;
+                const { error: upErr } = await supabase.storage.from('chat_images').upload(fileName, file);
+                if (upErr) throw upErr;
+
+                const { data } = supabase.storage.from('chat_images').getPublicUrl(fileName);
+                const imgUrl = data.publicUrl;
+
+                await supabase.from('messages').insert([{
+                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: `[IMG]${imgUrl}`
+                }]);
+                showToast("Đã gửi ảnh thành công!", "success");
+            } catch (e) {
+                showToast("Lỗi tải ảnh! Kiểm tra Bucket 'chat_images' trên Supabase.", "error");
+            }
+
+            inputElement.value = '';
+            btn.innerHTML = orig; btn.disabled = false;
+        }
+
+        async function sendGif(url) {
+            hideAllPopups();
+            try {
+                await supabase.from('messages').insert([{
+                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: `[GIF]${url}`
+                }]);
+            } catch (e) { showToast("Lỗi gửi GIF!", "error"); }
+        }
+
+        function insertText(emoji) {
+            const input = document.getElementById('msgInput');
+            input.value += emoji;
+            input.focus();
+            hideAllPopups();
+        }
+
+        function togglePopup(id) {
+            const el = document.getElementById(id);
+            const isHidden = el.classList.contains('scale-0');
+            hideAllPopups();
+            if (isHidden) {
+                el.classList.remove('scale-0', 'opacity-0');
+                el.classList.add('scale-100', 'opacity-100');
+            }
+        }
+
+        function hideAllPopups() {
+            document.getElementById('emojiPicker').classList.add('scale-0', 'opacity-0');
+            document.getElementById('emojiPicker').classList.remove('scale-100', 'opacity-100');
+            document.getElementById('gifPicker').classList.add('scale-0', 'opacity-0');
+            document.getElementById('gifPicker').classList.remove('scale-100', 'opacity-100');
+        }
+
+        function viewPhoto(url) {
+            document.getElementById('photoView').src = url;
+            const modal = document.getElementById('photoModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { modal.style.opacity = '1'; }, 10);
+        }
+
+        function closePhoto() {
+            const modal = document.getElementById('photoModal');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.getElementById('photoView').src = '';
+            }, 300);
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#chatForm') && !e.target.closest('.pop-menu')) {
+                hideAllPopups();
+            }
+        });
+
+        // ========================================================
+        // REALTIME & PRESENCE
+        // ========================================================
+        // Subscribe vào bảng messages
+        supabase.channel('public:messages')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+                if (payload.new.room === currentRoom) {
+                    const newMsgDiv = createMessageElement(payload.new);
+                    chatBox.appendChild(newMsgDiv);
+                    scrollToBottom(true);
+                }
+            }).subscribe();
+
+        // Presence channel
+        const presenceChannel = supabase.channel('online-users', {
+            config: { presence: { key: myEmail } },
+        });
+
+        presenceChannel.on('presence', { event: 'sync' }, () => {
+            const newState = presenceChannel.presenceState();
+            renderOnlineUsers(newState);
+        });
+
+        presenceChannel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await presenceChannel.track({ name: myName, email: myEmail, online_at: new Date().toISOString() });
+            }
+        });
+
+        // Xử lý khi user rời đi (trình duyệt đóng)
+        window.addEventListener('beforeunload', async () => {
+            await presenceChannel.untrack();
+        });
+
+        function renderOnlineUsers(presenceState) {
+            onlineList.innerHTML = '';
+            let activeUsers = [];
+            for (const key in presenceState) {
+                activeUsers.push(presenceState[key][0]);
+            }
+
+            if (activeUsers.length === 0) {
+                onlineList.innerHTML = '<div class="text-center text-xs text-gray-500 mt-4">Chưa có ai trực tuyến</div>';
+                return;
+            }
+
+            activeUsers.forEach(user => {
+                let isMe = user.email === myEmail;
+                let isMeTag = isMe ? " (Bạn)" : "";
+                onlineList.innerHTML += `
+                    <div class="flex items-center gap-2 md:gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group border border-transparent hover:border-white/10">
+                        <div class="relative mx-auto md:mx-0">
+                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-gray-300 font-bold uppercase border border-white/10 shadow-inner group-hover:text-white transition-colors">
+                                ${user.name.charAt(0)}
+                            </div>
+                            <div class="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-emerald-400 border-2 border-[#08061a] rounded-full shadow-[0_0_5px_#34d399]"></div>
+                        </div>
+                        <div class="flex-1 hidden md:block">
+                            <h4 class="font-bold text-gray-300 text-sm group-hover:text-cyan-300 transition-colors truncate w-[130px]">${user.name} <span class="text-[10px] text-gray-500 font-normal">${isMeTag}</span></h4>
+                            <p class="text-[10px] text-emerald-400/80 font-medium">Đang hoạt động</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Search user (lọc danh sách online)
+        const searchInput = document.getElementById('searchUser');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const keyword = e.target.value.toLowerCase();
+                const userDivs = onlineList.querySelectorAll('div.flex.items-center');
+                userDivs.forEach(div => {
+                    const nameDiv = div.querySelector('h4');
+                    if (nameDiv) {
+                        const name = nameDiv.innerText.toLowerCase();
+                        if (name.includes(keyword)) div.style.display = 'flex';
+                        else div.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Init
+        loadHistory(true);
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>BitPaw | Khách gọi món tại bàn</title>
+    
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: #ffffff;
+            overflow-x: hidden;
+            padding-bottom: 80px;
+        }
+        
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        .laser-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
+
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .glass-card {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1rem;
+            transition: all 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: #06b6d4;
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        
+        @keyframes float-logo {
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(168, 85, 247, 0.5)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+        }
+        .logo-float {
+            animation: float-logo 4s ease-in-out infinite;
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.5); border-radius: 10px; }
+
+        .qty-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid #06b6d4;
+            color: white;
+            font-weight: bold;
+            transition: 0.1s;
+        }
+        .qty-btn:active { transform: scale(0.9); }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.5);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .cart-sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 380px;
+            height: 100vh;
+            background: rgba(8, 6, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(6, 182, 212, 0.4);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -5px 0 30px rgba(0,0,0,0.5);
+        }
+        .cart-sidebar.open {
+            transform: translateX(0);
+        }
+        @media (max-width: 480px) {
+            .cart-sidebar { width: 100%; }
+        }
+        
+        .cart-item {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: 0.1s;
+        }
+        .cart-item:hover { background: rgba(6,182,212,0.1); }
+        
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        @media (max-width: 640px) {
+            .menu-grid { grid-template-columns: 1fr; }
+        }
+
+        /* CSKH Widget */
+        .cskh-widget {
+            background: rgba(0,0,0,0.4);
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .cskh-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .cskh-item:hover {
+            background: rgba(6, 182, 212, 0.15);
+        }
+        .cskh-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .cskh-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+        }
+        .cskh-value {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: white;
+        }
+        .glass-input-sm {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 0.8rem;
+        }
+        .glass-input-sm:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 8px rgba(6,182,212,0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- <div class="scan-line"></div> -->
+    <!-- <div class="laser-vertical"></div> -->
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-4 pt-5">
+        <div class="glass-panel p-4 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="relative w-12 h-12 logo-float">
+                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>
+                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> Vị trí: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="cartButton" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border border-cyan-500/50 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition">
+                    <i class="fas fa-shopping-cart"></i> Giỏ hàng <span id="cartBadge" class="bg-rose-500 text-white text-xs w-5 h-5 rounded-full inline-flex items-center justify-center ml-1">0</span>
+                </button>
+                <div class="relative">
+                    <button id="langBtn" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-full text-sm font-semibold flex items-center gap-1">
+                        <span id="currentLangFlag">🇻🇳</span> <span id="currentLangName">VN</span> <i class="fas fa-chevron-down text-[10px]"></i>
+                    </button>
+                    <div id="langDropdown" class="absolute right-0 mt-2 w-32 bg-black/80 backdrop-blur border border-white/10 rounded-xl hidden flex-col z-30">
+                        <button onclick="setLanguage('vi')" class="lang-option text-left px-4 py-2 hover:bg-cyan-500/20 rounded-t-xl flex items-center gap-2" data-lang="vi">🇻🇳 Tiếng Việt</button>
+                        <button onclick="setLanguage('en')" class="lang-option text-left px-4 py-2 hover:bg-cyan-500/20 flex items-center gap-2" data-lang="en">🇬🇧 English</button>
+                        <button onclick="setLanguage('ko')" class="lang-option text-left px-4 py-2 hover:bg-cyan-500/20 flex items-center gap-2" data-lang="ko">🇰🇷 한국어</button>
+                        <button onclick="setLanguage('zh')" class="lang-option text-left px-4 py-2 hover:bg-cyan-500/20 rounded-b-xl flex items-center gap-2" data-lang="zh">🇨🇳 中文</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-4 py-6">
+        <div class="glass-panel p-5">
+            <div class="mb-4 relative">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="searchInput" placeholder="Tìm món..." class="w-full bg-black/50 border border-white/10 rounded-full py-3 pl-11 pr-4 text-white focus:outline-none focus:border-cyan-400">
+            </div>
+            <div class="menu-grid" id="menuGrid">
+                <div class="col-span-full text-center py-10 text-gray-500">Đang tải thực đơn...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSKH Widget đầy đủ (thêm mới) -->
+    <div class="relative z-10 max-w-6xl mx-auto px-4 mt-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                <div class="flex flex-col gap-2">
+                    <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
+                        <i class="fas fa-phone-alt text-emerald-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Hotline (24/7)</span>
+                            <span class="cskh-value">0794.678.904</span>
+                        </div>
+                    </a>
+                    <a href="https://zalo.me/0794678904" target="_blank" class="cskh-item" data-channel="zalo">
+                        <i class="fab fa-zalo text-blue-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Zalo Official</span>
+                            <span class="cskh-value">0794.678.904 (Mr. Sang)</span>
+                        </div>
+                    </a>
+                    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="cskh-item" data-channel="messenger">
+                        <i class="fab fa-facebook-messenger text-sky-400 w-6 text-xl"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Messenger</span>
+                            <span class="cskh-value">fb.com/chuyhieuhong</span>
+                        </div>
+                    </a>
+                    <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
+                        <i class="fas fa-envelope text-rose-400 w-6 text-lg"></i>
+                        <div class="cskh-info">
+                            <span class="cskh-label">Email hỗ trợ</span>
+                            <span class="cskh-value">hodinhsang30052003@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="cskh-widget">
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <form id="supportForm" class="space-y-2">
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                </form>
+                <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/40">
+            <h2 class="text-xl font-bold text-cyan-400"><i class="fas fa-shopping-basket mr-2"></i> Giỏ hàng</h2>
+            <button id="closeCartBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div id="cartItemsList" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="text-center text-gray-500 py-10">Chưa có món nào</div>
+        </div>
+        <div class="p-4 border-t border-white/10 bg-black/40">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-gray-300">Tổng cộng:</span>
+                <span id="cartTotal" class="text-2xl font-bold text-cyan-400">0₫</span>
+            </div>
+            <button id="submitOrderBtn" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg">
+                <i class="fas fa-paper-plane mr-1"></i> Gửi đơn hàng
+            </button>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i><span>Đang xử lý...</span></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // ========== SUPABASE CONFIG ==========
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // State
+        let tableId = null;
+        let tableName = null;
+
+        // Load table parameters from DOM data attributes
+        const tableDisplayEl = document.getElementById('tableNameDisplay');
+        if (tableDisplayEl) {
+            const attrId = tableDisplayEl.getAttribute('data-table-id');
+            tableId = attrId ? parseInt(attrId) : null;
+            tableName = tableDisplayEl.getAttribute('data-table-name');
+        }
+        let products = [];
+        let cart = []; // { id, name, price, quantity }
+        let currentLang = 'vi';
+
+        // Translation dictionary
+        const translations = {
+            vi: {
+                cart_empty: "Chưa có món nào",
+                total: "Tổng cộng",
+                send_order: "Gửi đơn hàng",
+                added_to_cart: "Đã thêm vào giỏ",
+                order_sent: "Đơn hàng đã gửi!",
+                order_failed: "Gửi đơn thất bại, thử lại",
+                staff_called: "Đã gọi nhân viên",
+                bill_requested: "Đã yêu cầu tính tiền",
+                loading: "Đang xử lý...",
+                search_placeholder: "Tìm món...",
+                cart_title: "Giỏ hàng"
+            },
+            en: {
+                cart_empty: "Cart is empty",
+                total: "Total",
+                send_order: "Place order",
+                added_to_cart: "Added to cart",
+                order_sent: "Order sent!",
+                order_failed: "Order failed, please retry",
+                staff_called: "Staff called",
+                bill_requested: "Bill requested",
+                loading: "Processing...",
+                search_placeholder: "Search dish...",
+                cart_title: "Shopping Cart"
+            },
+            ko: {
+                cart_empty: "장바구니가 비어 있습니다",
+                total: "총계",
+                send_order: "주문하기",
+                added_to_cart: "장바구니에 추가됨",
+                order_sent: "주문이 접수되었습니다!",
+                order_failed: "주문 실패, 다시 시도하세요",
+                staff_called: "직원 호출됨",
+                bill_requested: "계산서 요청됨",
+                loading: "처리 중...",
+                search_placeholder: "메뉴 검색...",
+                cart_title: "장바구니"
+            },
+            zh: {
+                cart_empty: "购物车是空的",
+                total: "总计",
+                send_order: "下订单",
+                added_to_cart: "已添加到购物车",
+                order_sent: "订单已发送！",
+                order_failed: "订单失败，请重试",
+                staff_called: "已呼叫服务员",
+                bill_requested: "已请求结账",
+                loading: "处理中...",
+                search_placeholder: "搜索菜品...",
+                cart_title: "购物车"
+            }
+        };
+        
+        function t(key) {
+            return translations[currentLang]?.[key] || translations.vi[key] || key;
+        }
+        
+        function updateUIAfterLang() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) el.innerText = translations[currentLang][key];
+            });
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t('search_placeholder');
+            const submitBtn = document.getElementById('submitOrderBtn');
+            if (submitBtn) submitBtn.innerHTML = `<i class="fas fa-paper-plane mr-1"></i> ${t('send_order')}`;
+            renderCart();
+        }
+        
+        // Helper functions
+        function showToastMessage(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) overlay.classList.add('active');
+            else overlay.classList.remove('active');
+        }
+        
+        // Lấy thông tin bàn từ URL param (qr_token hoặc id)
+        async function loadTableInfo() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ind = urlParams.get('industry') || 'fnb';
+            let labelText = "Bàn";
+            if (ind === 'nail') labelText = "Ghế";
+            else if (ind === 'spa') labelText = "Giường/Phòng";
+            
+            // Update label element prefix
+            const labelSpan = document.getElementById('tableNameDisplay');
+            if (labelSpan && labelSpan.parentNode) {
+                labelSpan.parentNode.innerHTML = `<i class="fas fa-qrcode"></i> ${labelText}: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="${tableId || ''}" data-table-name="${tableName || ''}">${tableName || 'Đang tải...'}</span>`;
+            }
+
+            if (tableId && tableName) {
+                const nameSpan = document.getElementById('tableNameDisplay');
+                if (nameSpan) nameSpan.innerText = tableName;
+                return true;
+            }
+            
+            let token = urlParams.get('table_id') || urlParams.get('token');
+            if (!token) {
+                // fallback: check path segment
+                const pathParts = window.location.pathname.split('/');
+                token = pathParts[pathParts.length - 1] || 'demo_token';
+            }
+            
+            // If token is numeric (ID)
+            let query = supabase.from('dining_tables').select('id, name');
+            if (token.toString().match(/^\d+$/)) {
+                query = query.eq('id', parseInt(token));
+            } else {
+                query = query.eq('qr_token', token);
+            }
+            
+            const { data, error } = await query.maybeSingle();
+            if (error || !data) {
+                console.error('Không tìm thấy bàn/ghế/phòng', error);
+                const nameSpan = document.getElementById('tableNameDisplay');
+                if (nameSpan) nameSpan.innerText = 'Lỗi tải vị trí';
+                return null;
+            }
+            tableId = data.id;
+            tableName = data.name;
+            const nameSpan = document.getElementById('tableNameDisplay');
+            if (nameSpan) {
+                nameSpan.setAttribute('data-table-id', tableId);
+                nameSpan.setAttribute('data-table-name', tableName);
+                nameSpan.innerText = tableName;
+            }
+            return true;
+        }
+        
+        // Lấy danh sách sản phẩm (is_active true, filtered dynamically by industry)
+        async function loadProducts() {
+            showLoading(true);
+            const urlParams = new URLSearchParams(window.location.search);
+            const ind = urlParams.get('industry') || 'fnb';
+            let channelType = 'fnb';
+            if (ind === 'nail') channelType = 'nail';
+            else if (ind === 'spa') channelType = 'spa';
+
+            const { data, error } = await supabase
+                .from('products')
+                .select('id, name, price, category, image')
+                .eq('is_active', true)
+                .eq('channel_type', channelType)
+                .order('name');
+            if (error) {
+                showToastMessage('Lỗi tải thực đơn: ' + error.message, true);
+                showLoading(false);
+                return [];
+            }
+            showLoading(false);
+            return data || [];
+        }
+        
+        function renderMenu(productsArray) {
+            const container = document.getElementById('menuGrid');
+            if (!productsArray.length) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">Chưa có món nào</div>';
+                return;
+            }
+            container.innerHTML = productsArray.map(p => `
+                <div class="glass-card p-3 cursor-pointer transition" data-product-id="${p.id}" data-product-name="${escapeHtml(p.name)}" data-product-price="${p.price}" data-product-img="${p.image || ''}">
+                    <div class="flex gap-3">
+                        ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-3xl">🍽️</div>`}
+                        <div class="flex-1">
+                            <h3 class="font-bold text-white text-base">${escapeHtml(p.name)}</h3>
+                            <p class="text-xs text-gray-400">${escapeHtml(p.category) || 'Món'}</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-cyan-400 font-mono font-bold">${p.price.toLocaleString('vi-VN')}₫</span>
+                                <div class="flex items-center gap-2">
+                                    <button class="qty-btn-decr w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30 text-white text-sm">-</button>
+                                    <span class="item-qty-display w-6 text-center text-white font-bold">1</span>
+                                    <button class="qty-btn-incr w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30 text-white text-sm">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="add-to-cart-btn mt-2 w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 rounded-xl text-sm transition">+ Thêm vào giỏ</button>
+                </div>
+            `).join('');
+            attachProductEvents();
+        }
+        
+        function attachProductEvents() {
+            // Tăng/giảm số lượng
+            document.querySelectorAll('.qty-btn-decr').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = btn.closest('.glass-card');
+                    const qtySpan = card.querySelector('.item-qty-display');
+                    let val = parseInt(qtySpan.innerText) || 1;
+                    if (val > 1) qtySpan.innerText = val - 1;
+                });
+            });
+            document.querySelectorAll('.qty-btn-incr').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = btn.closest('.glass-card');
+                    const qtySpan = card.querySelector('.item-qty-display');
+                    let val = parseInt(qtySpan.innerText) || 1;
+                    qtySpan.innerText = val + 1;
+                });
+            });
+            // Thêm vào giỏ
+            document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = btn.closest('.glass-card');
+                    const productId = parseInt(card.getAttribute('data-product-id'));
+                    const name = card.getAttribute('data-product-name');
+                    const price = parseInt(card.getAttribute('data-product-price'));
+                    const qtySpan = card.querySelector('.item-qty-display');
+                    const quantity = parseInt(qtySpan.innerText) || 1;
+                    addToCart(productId, name, price, quantity);
+                    qtySpan.innerText = '1';
+                });
+            });
+        }
+        
+        function addToCart(productId, name, price, quantity) {
+            const existing = cart.find(item => item.id === productId);
+            if (existing) existing.quantity += quantity;
+            else cart.push({ id: productId, name, price, quantity });
+            renderCart();
+            showToastMessage(t('added_to_cart'));
+        }
+        
+        function renderCart() {
+            const container = document.getElementById('cartItemsList');
+            const totalSpan = document.getElementById('cartTotal');
+            const badge = document.getElementById('cartBadge');
+            let total = 0, count = 0;
+            if (!cart.length) {
+                container.innerHTML = `<div class="text-center text-gray-500 py-10">${t('cart_empty')}</div>`;
+                totalSpan.innerText = '0₫';
+                badge.innerText = '0';
+                return;
+            }
+            let html = '';
+            cart.forEach((item, idx) => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                count += item.quantity;
+                html += `
+                     <div class="cart-item flex justify-between items-center p-3 rounded-xl">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-white">${escapeHtml(item.name)}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                <button class="cart-qty-down w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30" data-idx="${idx}">-</button>
+                                <span class="w-6 text-center text-white">${item.quantity}</span>
+                                <button class="cart-qty-up w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30" data-idx="${idx}">+</button>
+                                <span class="ml-2 text-cyan-400 font-mono">${item.price.toLocaleString('vi-VN')}₫</span>
+                            </div>
+                        </div>
+                        <button class="cart-remove text-rose-400 hover:text-rose-300 text-xl w-8 h-8 rounded-full flex items-center justify-center" data-idx="${idx}"><i class="fas fa-trash-alt text-sm"></i></button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            totalSpan.innerText = total.toLocaleString('vi-VN') + '₫';
+            badge.innerText = count;
+            
+            // Cart events
+            document.querySelectorAll('.cart-qty-down').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    if (cart[idx].quantity > 1) cart[idx].quantity--;
+                    else cart.splice(idx, 1);
+                    renderCart();
+                });
+            });
+            document.querySelectorAll('.cart-qty-up').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    cart[idx].quantity++;
+                    renderCart();
+                });
+            });
+            document.querySelectorAll('.cart-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    cart.splice(idx, 1);
+                    renderCart();
+                });
+            });
+        }
+        
+        async function submitOrder() {
+            if (cart.length === 0) {
+                showToastMessage("Giỏ hàng trống!", true);
+                return;
+            }
+            if (!tableId) {
+                showToastMessage("Không xác định được bàn", true);
+                return;
+            }
+            showLoading(true);
+            
+            let isSubmitted = false;
+            
+            // 1. Try sending as a unified JSON payload to backend Flask API
+            try {
+                const response = await fetch('/api/submit_qr_order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table_id: tableId,
+                        items: cart,
+                        total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+                        customer_note: ''
+                    })
+                });
+                const resData = await response.json();
+                if (response.ok && resData.success) {
+                    isSubmitted = true;
+                }
+            } catch (e) {
+                console.warn("Backend submit_qr_order failed, falling back to direct client-side Supabase...", e);
+            }
+            
+            // 2. Fallback: Client-side Supabase direct insert
+            if (!isSubmitted) {
+                try {
+                    for (let item of cart) {
+                        const { error } = await supabase.from('table_orders').insert([{
+                            table_id: tableId,
+                            product_id: item.id,
+                            quantity: item.quantity,
+                            created_at: new Date()
+                        }]);
+                        if (error) throw error;
+                    }
+                    // Update table status
+                    await supabase.from('dining_tables').update({ status: 'Đang phục vụ' }).eq('id', tableId);
+                    isSubmitted = true;
+                } catch (err) {
+                    console.error("Supabase direct insert failed:", err);
+                }
+            }
+            
+            if (isSubmitted) {
+                cart = [];
+                renderCart();
+                showToastMessage(t('order_sent'));
+                document.getElementById('cartSidebar').classList.remove('open');
+            } else {
+                showToastMessage(t('order_failed'), true);
+            }
+            showLoading(false);
+        }
+        
+        // Gọi nhân viên / tính tiền (gửi thông báo đến POS qua supabase realtime)
+        async function callService(type) {
+            if (!tableId) return;
+            showLoading(true);
+            try {
+                await supabase.from('user_logs').insert([{
+                    user_email: `table_${tableId}`,
+                    action: type === 'staff' ? 'call_staff' : 'request_bill',
+                    description: `Bàn ${tableName} yêu cầu ${type === 'staff' ? 'gọi nhân viên' : 'tính tiền'}`,
+                    created_at: new Date()
+                }]);
+                showToastMessage(type === 'staff' ? t('staff_called') : t('bill_requested'));
+            } catch (err) {
+                console.warn(err);
+                showToastMessage(type === 'staff' ? t('staff_called') : t('bill_requested'));
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Tìm kiếm sản phẩm (client-side)
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const keyword = e.target.value.toLowerCase().trim();
+                const cards = document.querySelectorAll('.glass-card[data-product-id]');
+                cards.forEach(card => {
+                    const name = card.getAttribute('data-product-name').toLowerCase();
+                    card.style.display = name.includes(keyword) ? '' : 'none';
+                });
+            });
+        }
+        
+        // Sidebar controls
+        function initSidebar() {
+            const cartButton = document.getElementById('cartButton');
+            const cartSidebar = document.getElementById('cartSidebar');
+            const closeCartBtn = document.getElementById('closeCartBtn');
+            cartButton.addEventListener('click', () => cartSidebar.classList.add('open'));
+            closeCartBtn.addEventListener('click', () => cartSidebar.classList.remove('open'));
+            document.addEventListener('click', (e) => {
+                if (!cartSidebar.contains(e.target) && e.target !== cartButton && !cartButton.contains(e.target)) {
+                    cartSidebar.classList.remove('open');
+                }
+            });
+            document.getElementById('submitOrderBtn').addEventListener('click', submitOrder);
+        }
+        
+        // FAB gọi nhân viên & tính tiền
+        function initFAB() {
+            const fabDiv = document.createElement('div');
+            fabDiv.className = 'fixed bottom-24 right-6 z-30 flex flex-col gap-3';
+            fabDiv.innerHTML = `
+                <button id="callStaffBtn" class="bg-white/10 backdrop-blur border border-cyan-500/30 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:scale-105 transition"><i class="fas fa-bell text-cyan-400 text-xl"></i></button>
+                <button id="callBillBtn" class="bg-white/10 backdrop-blur border border-cyan-500/30 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:scale-105 transition"><i class="fas fa-receipt text-cyan-400 text-xl"></i></button>
+            `;
+            document.body.appendChild(fabDiv);
+            document.getElementById('callStaffBtn').addEventListener('click', () => callService('staff'));
+            document.getElementById('callBillBtn').addEventListener('click', () => callService('bill'));
+        }
+        
+        // Ngôn ngữ
+        function initLanguage() {
+            const langBtn = document.getElementById('langBtn');
+            const langDropdown = document.getElementById('langDropdown');
+            langBtn.addEventListener('click', () => langDropdown.classList.toggle('hidden'));
+            document.addEventListener('click', (e) => {
+                if (!langBtn.contains(e.target) && !langDropdown.contains(e.target)) langDropdown.classList.add('hidden');
+            });
+            window.setLanguage = (lang) => {
+                currentLang = lang;
+                const flag = lang === 'vi' ? '🇻🇳' : lang === 'en' ? '🇬🇧' : lang === 'ko' ? '🇰🇷' : '🇨🇳';
+                const name = lang === 'vi' ? 'VN' : lang === 'en' ? 'EN' : lang === 'ko' ? 'KO' : 'ZH';
+                document.getElementById('currentLangFlag').innerText = flag;
+                document.getElementById('currentLangName').innerText = name;
+                langDropdown.classList.add('hidden');
+                updateUIAfterLang();
+            };
+        }
+        
+        function initCSKH() {
+            document.querySelectorAll('[data-channel]').forEach(link => {
+                link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
+            });
+            const supportForm = document.getElementById('supportForm');
+            if (supportForm) {
+                supportForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const name = document.getElementById('supportName').value;
+                    const phone = document.getElementById('supportPhone').value;
+                    const message = document.getElementById('supportMessage').value;
+                    if (!name || !phone || !message) {
+                        showToastMessage('Vui lòng nhập đầy đủ thông tin', true);
+                        return;
+                    }
+                    showLoading(true);
+                    try {
+                        const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                        if (error) throw error;
+                        showToastMessage('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                        supportForm.reset();
+                    } catch(err) {
+                        showToastMessage('Lỗi: ' + err.message, true);
+                    } finally {
+                        showLoading(false);
+                    }
+                });
+            }
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+        
+        // Khởi tạo
+        async function init() {
+            const tableLoaded = await loadTableInfo();
+            if (!tableLoaded) {
+                document.getElementById('menuGrid').innerHTML = '<div class="col-span-full text-center py-10 text-rose-400">Không tìm thấy thông tin vị trí. Vui lòng thử lại.</div>';
+                return;
+            }
+            let productsList = await loadProducts();
+            if (!productsList || productsList.length === 0) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const ind = urlParams.get('industry') || 'fnb';
+                if (ind === 'nail') {
+                    productsList = [
+                        { id: 201, name: "Sơn Gel Cao Cấp", price: 120000, category: "Dịch Vụ Nails", image: "" },
+                        { id: 202, name: "Cắt Da & Tạo Form Móng", price: 50000, category: "Chăm Sóc Móng", image: "" },
+                        { id: 203, name: "Đắp Bột Nghệ Thuật", price: 350000, category: "Nails Cao Cấp", image: "" },
+                        { id: 204, name: "Vẽ Móng Nghệ Thuật 3D", price: 180000, category: "Nails Thiết Kế", image: "" }
+                    ];
+                } else if (ind === 'spa') {
+                    productsList = [
+                        { id: 301, name: "Massage Body Thảo Dược (60p)", price: 290000, category: "Massage Thư Giãn", image: "" },
+                        { id: 302, name: "Gội Đầu Dưỡng Sinh Cổ Truyền", price: 150000, category: "Chăm Sóc Tóc", image: "" },
+                        { id: 303, name: "Chăm Sóc Da Mặt Chuyên Sâu", price: 450000, category: "Chăm Sóc Da", image: "" },
+                        { id: 304, name: "Liệu Trình Xông Hơi Đá Muối", price: 200000, category: "Trị Liệu", image: "" }
+                    ];
+                } else {
+                    productsList = [
+                        { id: 101, name: "Cà Phê Muối BitPaw", price: 35000, category: "Cà Phê", image: "" },
+                        { id: 102, name: "Trà Đào Cam Sả", price: 40000, category: "Trà Trái Cây", image: "" },
+                        { id: 103, name: "Bạc Xỉu Sữa Dừa", price: 35000, category: "Cà Phê", image: "" },
+                        { id: 104, name: "Mì Quảng Tôm Thịt", price: 55000, category: "Món Ăn", image: "" },
+                        { id: 105, name: "Phở Bò Kobe Đặc Biệt", price: 85000, category: "Món Ăn", image: "" },
+                        { id: 106, name: "Trà Sữa Khoai Môn Trân Châu", price: 45000, category: "Trà Sữa", image: "" }
+                    ];
+                }
+            }
+            products = productsList;
+            renderMenu(products);
+            initSearch();
+            initSidebar();
+            initFAB();
+            initLanguage();
+            initCSKH();
+            updateUIAfterLang();
+        }
+        init();
+        
+        // 3D Background (giữ nguyên)
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 600 : 1200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            const starCount = 80;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i*3] = (Math.random() - 0.5) * 120;
+                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
+                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.06, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length) {
+                    mouseX = (e.touches[0].clientX - halfX) * 0.001;
+                    mouseY = (e.touches[0].clientY - halfY) * 0.001;
+                }
+            }, { passive: true });
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.03) % 1;
+                material.color.setHSL(hue, 0.8, 0.6);
+                particles.rotation.y = t * 0.02;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i*3] += starVelocities[i].x;
+                    posArr[i*3+1] += starVelocities[i].y;
+                    posArr[i*3+2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
+                        posArr[i*3] = (Math.random() - 0.5) * 120;
+                        posArr[i*3+1] = 40;
+                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+    <script src="/static/js/cskh_widget.js"></script>
+</body>
+</html>

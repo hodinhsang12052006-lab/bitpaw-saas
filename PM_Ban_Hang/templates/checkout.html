@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thanh Toán & Cấp Tài Khoản | BitPaw OS</title>
+
+    <!-- Libraries -->
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Smooth Scroll Lenis */
+        html.lenis {
+            height: auto;
+        }
+
+        .lenis.lenis-smooth {
+            scroll-behavior: auto !important;
+        }
+
+        .lenis.lenis-smooth [data-lenis-prevent] {
+            overscroll-behavior: contain;
+        }
+
+        .lenis.lenis-stopped {
+            overflow: hidden;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        .glass {
+            background: rgba(10, 15, 37, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-glass {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .input-glass:focus {
+            border-color: var(--theme-color);
+            box-shadow: 0 0 15px var(--theme-shadow);
+            outline: none;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        /* Dynamic Theme Variables */
+        :root {
+            --theme-color: #06b6d4;
+            --theme-shadow: rgba(6, 182, 212, 0.3);
+            --theme-gradient: linear-gradient(135deg, #06b6d4, #3b82f6);
+        }
+
+        .theme-hrm {
+            --theme-color: #06b6d4;
+            --theme-shadow: rgba(6, 182, 212, 0.3);
+            --theme-gradient: linear-gradient(135deg, #06b6d4, #0284c7);
+        }
+
+        .theme-pos {
+            --theme-color: #ec4899;
+            --theme-shadow: rgba(236, 72, 153, 0.3);
+            --theme-gradient: linear-gradient(135deg, #ec4899, #e11d48);
+        }
+
+        .theme-ecom {
+            --theme-color: #f97316;
+            --theme-shadow: rgba(249, 115, 22, 0.3);
+            --theme-gradient: linear-gradient(135deg, #f97316, #ea580c);
+        }
+
+        .theme-agency {
+            --theme-color: #3b82f6;
+            --theme-shadow: rgba(59, 130, 246, 0.3);
+            --theme-gradient: linear-gradient(135deg, #3b82f6, #4f46e5);
+        }
+
+        /* Payment Tab Styles */
+        .pay-tab {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            opacity: 0.6;
+            filter: grayscale(100%);
+        }
+
+        .pay-tab.active {
+            opacity: 1;
+            filter: grayscale(0%);
+            border-color: var(--theme-color);
+            box-shadow: 0 0 15px var(--theme-shadow);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .qr-container {
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .qr-container.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--theme-color);
+            border-radius: 10px;
+        }
+
+        /* Dynamic Hologram CSS tied to Theme Variables */
+        .hologram-mini {
+            perspective: 800px;
+            transform-style: preserve-3d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes float-mini {
+            0% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 5px 5px var(--theme-shadow));
+            }
+
+            50% {
+                transform: translateY(-8px) rotateX(-5deg) rotateY(10deg);
+                filter: drop-shadow(0 15px 15px var(--theme-shadow));
+            }
+
+            100% {
+                transform: translateY(0px) rotateX(5deg) rotateY(-5deg);
+                filter: drop-shadow(0 5px 5px var(--theme-shadow));
+            }
+        }
+
+        .animated-mini-3d {
+            animation: float-mini 4s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes scan-laser {
+            0% {
+                top: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 120%;
+            height: 2px;
+            background: var(--theme-color);
+            box-shadow: 0 0 10px var(--theme-color);
+            left: -10%;
+            animation: scan-laser 2.5s linear infinite;
+            z-index: 20;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body id="bodyTheme" class="antialiased min-h-screen flex items-center justify-center py-10 relative">
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="max-w-6xl w-full px-4 relative z-10" id="scroll-container">
+        <a href="/landing"
+            class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-6 font-bold bg-black/40 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-md hover:border-[var(--theme-color)]">
+            <i class="fas fa-arrow-left"></i> Quay lại trang chủ
+        </a>
+
+        <div
+            class="glass rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col lg:flex-row relative">
+
+            <div class="absolute -top-32 -left-32 w-64 h-64 rounded-full blur-[120px] opacity-30 pointer-events-none"
+                style="background-color: var(--theme-color);"></div>
+
+            <div class="w-full lg:w-5/12 bg-black/60 p-8 lg:p-10 border-r border-white/10 flex flex-col relative z-10">
+                <div class="mb-10">
+                    <div class="flex items-center gap-4 mb-6">
+                        <!-- Hologram Động thay thế cho Icon tĩnh -->
+                        <div class="hologram-mini w-16 h-16 shrink-0" data-tilt data-tilt-max="20" data-tilt-speed="400"
+                            data-tilt-glare="true" data-tilt-max-glare="0.5">
+                            <div class="relative w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_15px_var(--theme-shadow)]"
+                                style="border-color: var(--theme-shadow);">
+                                <div class="absolute w-full h-full border-t-2 rounded-full animate-spin"
+                                    style="border-color: var(--theme-color); animation-duration: 3s;"></div>
+                                <div class="absolute w-[110%] h-[110%] border-b-2 rounded-full animate-spin"
+                                    style="border-color: var(--theme-color); animation-duration: 4s; animation-direction: reverse;">
+                                </div>
+                                <div
+                                    class="relative animated-mini-3d w-10 h-10 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
+                                    <img src="{{ url_for('static', filename='cho1.jpg') }}"
+                                        class="w-full h-full object-cover" alt="Logo">
+                                    <div class="scanner-line"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Giỏ hàng của Sếp
+                            </h2>
+                            <span class="bg-white/10 px-2 py-0.5 rounded text-[10px] text-gray-300 font-mono"><i
+                                    class="fas fa-lock mr-1 text-green-400"></i>AES-256</span>
+                        </div>
+                    </div>
+
+                    <h1 class="text-3xl font-black mb-2 leading-tight" style="color: var(--theme-color);"
+                        id="moduleName">BitPaw OS Module</h1>
+                    <p class="text-sm text-gray-400 mb-8 border-b border-white/10 pb-6" id="moduleDesc">Giải pháp chuyển
+                        đổi số toàn diện.</p>
+
+                    <div class="space-y-4 text-sm font-medium mb-6">
+                        <div
+                            class="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5 shadow-inner">
+                            <span class="text-gray-400">Chu kỳ thanh toán</span>
+                            <span
+                                class="bg-[var(--theme-color)] text-black px-3 py-1 rounded-lg text-xs font-bold shadow-[0_0_10px_var(--theme-shadow)]"
+                                id="billingCycle">Theo Tháng</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 px-4">
+                            <span class="text-gray-400">Phí khởi tạo (Setup)</span>
+                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Miễn
+                                phí</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 px-4">
+                            <span class="text-gray-400">Bảo trì hệ thống</span>
+                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Trọn
+                                đời</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/50 p-6 rounded-2xl border shadow-[0_0_20px_var(--theme-shadow)] mt-6 text-center transition-all"
+                        style="border-color: var(--theme-color);">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Tổng Cần Thanh Toán
+                        </p>
+                        <div class="flex items-baseline justify-center gap-1">
+                            <span class="text-5xl font-black text-white" id="totalPriceDisplay">0</span><span
+                                class="text-xl font-bold" style="color: var(--theme-color);"
+                                id="currencySpan">VNĐ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-6 border-t border-white/10">
+                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                        <i class="fas fa-shield-alt text-green-500 text-2xl"></i>
+                        <p>Thanh toán an toàn 100% được bảo vệ bởi chuẩn mã hóa. Tài khoản hệ thống sẽ được cấp tự động
+                            sau khi giao dịch hoàn tất.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-7/12 p-8 lg:p-12 relative overflow-hidden z-10 flex flex-col justify-center">
+
+                <form id="checkoutForm" class="space-y-6" onsubmit="processOrder(event)">
+
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-user-circle"
+                                style="color: var(--theme-color);"></i> 1. Đăng ký Tài Khoản Admin</h3>
+                        <p class="text-xs text-gray-400">Thông tin này sẽ được dùng để khởi tạo Master Admin cho hệ
+                            thống.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Tên người đại diện (Sếp) <span
+                                    class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <i
+                                    class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                <input type="text" id="custName" required placeholder="Nhập tên..."
+                                    class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Số điện thoại đăng nhập <span
+                                    class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <i
+                                    class="fas fa-phone-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                <input type="tel" id="custPhone" required placeholder="09xxxx..."
+                                    class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Tên Thương Hiệu (Cửa hàng) <span
+                                    class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <i
+                                    class="fas fa-store absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                <input type="text" id="custShop" required placeholder="VD: BitPaw Store..."
+                                    class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Email nhận thông báo</label>
+                            <div class="relative">
+                                <i
+                                    class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                                <input type="email" id="custEmail" placeholder="email@congty.com"
+                                    class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-6 border-t border-white/10 mt-8" id="paymentSection">
+                        <div class="flex justify-between items-end mb-6">
+                            <div>
+                                <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-qrcode"
+                                        style="color: var(--theme-color);"></i> 2. Quét QR Thanh Toán</h3>
+                                <p class="text-xs text-gray-400">Mở App Ngân hàng hoặc ví điện tử để quét mã. Giao dịch
+                                    xử lý 24/7.</p>
+                            </div>
+                            <div class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-[10px] text-gray-300 font-mono shadow-inner"
+                                id="memoDisplay">Mã: Đang tạo...</div>
+                        </div>
+
+                        <div class="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6" id="bankTabsContainer">
+                            <div class="col-span-full text-center text-xs text-gray-500 py-4"><i
+                                    class="fas fa-circle-notch fa-spin mr-2"></i>Đang tải Cổng thanh toán...</div>
+                        </div>
+
+                        <div class="bg-black/60 rounded-2xl border border-white/10 p-6 flex flex-col items-center justify-center min-h-[300px] relative shadow-inner"
+                            id="qrContainerWrapper">
+                            <div class="text-center text-gray-500 text-sm py-10" id="qrPlaceholder">
+                                Vui lòng chọn một Cổng thanh toán ở trên.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full py-4 rounded-xl font-black text-white text-lg transition-transform hover:scale-[1.02] active:scale-95 mt-6 shadow-[0_10px_30px_var(--theme-shadow)] flex justify-center items-center gap-2"
+                        style="background: var(--theme-gradient);" id="btnSubmit">
+                        <i class="fas fa-check-circle"></i> TÔI ĐÃ CHUYỂN KHOẢN
+                    </button>
+                    <p class="text-center text-[10px] text-gray-500 mt-2" id="submitNote">Hệ thống sẽ tự động đối soát
+                        trong 3-5 giây.</p>
+                </form>
+
+                <div id="successScreen"
+                    class="absolute inset-0 bg-[#08061a]/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center px-8 hidden">
+                    <div class="w-24 h-24 rounded-full flex items-center justify-center text-4xl mb-6 relative"
+                        style="color: var(--theme-color);">
+                        <div class="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin"
+                            style="border-color: var(--theme-color); border-top-color: transparent;" id="spinLoading">
+                        </div>
+                        <i class="fas fa-shield-check opacity-0 transform scale-50 transition-all duration-500"
+                            id="checkDone"></i>
+                    </div>
+                    <h2 class="text-3xl font-black mb-3 text-white" id="successTitle">Đang Kiểm Tra Giao Dịch...</h2>
+                    <p class="text-gray-400 mb-8 max-w-sm text-sm" id="successDesc">Vui lòng không đóng trình duyệt. Hệ
+                        thống API đang đối soát dòng tiền với Ngân hàng.</p>
+
+                    <a href="/login" id="btnLoginGo"
+                        class="hidden bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/20 transition items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                        Đăng Nhập Quản Trị Ngay <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================================
+        // INIT ĐỒ CHƠI (LENIS & TILT)
+        // ========================================================
+        const lenis = new Lenis({
+            wrapper: window,
+            content: document.body,
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            smooth: true
+        });
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+        requestAnimationFrame(raf);
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+
+        function fireConfetti() {
+            var duration = 3000;
+            var end = Date.now() + duration;
+            var colors = ['#06b6d4', '#ec4899', '#f97316', '#ffffff'];
+
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
+                if (Date.now() < end) { requestAnimationFrame(frame); }
+            }());
+        }
+
+        // ========================================================
+        // LOGIC CHÍNH SUPABASE
+        // ========================================================
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const moduleType = urlParams.get('plan') || 'pos';
+
+        const moduleData = {
+            'hrm': { name: 'BitPaw HRM & Radar', desc: 'Phần mềm quản trị 50+ Nhân sự hiện trường, chấm công GPS & Điều phối AI tự động.', price: 1500000, theme: 'theme-hrm', colorHex: 0x06b6d4 },
+            'pos': { name: 'BitPaw Smart POS', desc: 'Cỗ máy bán hàng đa ngành cho F&B, Spa, Salon. Màn hình KDS và thuật toán xoay tua.', price: 1200000, theme: 'theme-pos', colorHex: 0xec4899 },
+            'ecom': { name: 'BitPaw E-Com Omni', desc: 'Hệ thống đồng bộ tồn kho đa sàn Shopee, Tiktok Shop và báo cáo Lãi ròng thực tế.', price: 1800000, theme: 'theme-ecom', colorHex: 0xf97316 },
+            'agency': { name: 'Gói Tăng Trưởng Lõi', desc: 'Dịch vụ Media Agency, Thiết kế Landing Page chuẩn SEO và Chạy Ads ra Lead.', price: 0, theme: 'theme-agency', colorHex: 0x3b82f6 }
+        };
+
+        const currentModule = moduleData[moduleType] || moduleData['pos'];
+
+        const randomMemo = 'BP-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+        document.getElementById('memoDisplay').innerText = 'Mã Đơn: ' + randomMemo;
+
+        document.getElementById('bodyTheme').classList.add(currentModule.theme);
+        document.getElementById('moduleName').innerText = currentModule.name;
+        document.getElementById('moduleDesc').innerText = currentModule.desc;
+
+        if (moduleType === 'agency') {
+            document.getElementById('totalPriceDisplay').innerText = 'Chờ Tư Vấn';
+            document.getElementById('currencySpan').style.display = 'none';
+            document.getElementById('billingCycle').innerText = 'Theo Dự Án';
+            document.getElementById('paymentSection').style.display = 'none';
+            document.getElementById('btnSubmit').innerHTML = '<i class="fas fa-headset"></i> GỬI YÊU CẦU TƯ VẤN';
+            document.getElementById('submitNote').innerText = 'Chuyên gia sẽ liên hệ báo giá riêng cho Sếp.';
+        } else {
+            document.getElementById('totalPriceDisplay').innerText = currentModule.price.toLocaleString('vi-VN');
+        }
+
+        let activeBanks = [];
+
+        async function fetchPaymentMethods() {
+            if (moduleType === 'agency') return;
+
+            const tabsContainer = document.getElementById('bankTabsContainer');
+            try {
+                const { data, error } = await supabase
+                    .from('payment_methods')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+                activeBanks = data;
+
+                if (activeBanks.length > 0) {
+                    tabsContainer.innerHTML = '';
+                    activeBanks.forEach((bank, index) => {
+                        const isActiveClass = index === 0 ? 'active' : '';
+                        tabsContainer.innerHTML += `
+                            <button type="button" class="pay-tab ${isActiveClass} flex flex-col items-center justify-center p-3 rounded-xl gap-2 h-full" onclick="generateQR(${index}, this)">
+                                <div class="w-8 h-8 rounded bg-white p-1 flex items-center justify-center">
+                                    <img src="${bank.logo_url || 'https://via.placeholder.com/50?text=Bank'}" class="w-full h-full object-contain">
+                                </div>
+                                <span class="text-[10px] font-bold line-clamp-1 truncate w-full px-1">${bank.provider_name}</span>
+                            </button>
+                        `;
+                    });
+                    generateQR(0, tabsContainer.firstElementChild);
+                } else {
+                    tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Hệ thống thanh toán đang bảo trì.</div>';
+                    document.getElementById('qrPlaceholder').innerText = 'Không có phương thức thanh toán khả dụng.';
+                    document.getElementById('btnSubmit').disabled = true;
+                    document.getElementById('btnSubmit').style.opacity = '0.5';
+                }
+            } catch (error) {
+                tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4">Lỗi kết nối tới Server.</div>';
+            }
+        }
+
+        function generateQR(bankIndex, tabElement) {
+            const tabs = document.querySelectorAll('.pay-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            if (tabElement) tabElement.classList.add('active');
+
+            const bank = activeBanks[bankIndex];
+            const qrWrapper = document.getElementById('qrContainerWrapper');
+
+            qrWrapper.innerHTML = `<div class="text-gray-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>Đang tạo mã QR...</div>`;
+
+            const amount = currentModule.price;
+            const addInfo = encodeURIComponent(randomMemo);
+            const accountName = encodeURIComponent(bank.account_name);
+            const qrUrl = `https://img.vietqr.io/image/${bank.bin_code}-${bank.account_number}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
+
+            setTimeout(() => {
+                qrWrapper.innerHTML = `
+                    <div class="qr-container active flex-col items-center w-full">
+                        <div class="bg-white p-2 rounded-xl shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-4 w-48 h-48 sm:w-56 sm:h-56">
+                            <img src="${qrUrl}" alt="QR Code" class="w-full h-full object-contain rounded-lg">
+                        </div>
+                        <p class="text-sm font-bold text-white mb-1 uppercase">${bank.account_name}</p>
+                        <p class="text-xs text-gray-400 font-mono tracking-widest bg-gray-800 px-3 py-1 rounded-md mb-3">${bank.account_number}</p>
+                        <div class="text-[10px] text-gray-500 bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-center">
+                            <p>Số tiền: <strong class="text-white">${amount.toLocaleString('vi-VN')} đ</strong></p>
+                            <p>Nội dung: <strong style="color: var(--theme-color);">${randomMemo}</strong></p>
+                        </div>
+                    </div>
+                `;
+            }, 300);
+        }
+
+        async function processOrder(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('checkoutForm');
+            if (!form.checkValidity()) {
+                form.reportValidity(); return;
+            }
+
+            const btn = document.getElementById('btnSubmit');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ĐANG GỬI DỮ LIỆU...';
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
+
+            const orderData = {
+                customer_name: document.getElementById('custName').value.trim(),
+                phone: document.getElementById('custPhone').value.trim(),
+                shop_name: document.getElementById('custShop').value.trim(),
+                email: document.getElementById('custEmail').value.trim(),
+                module_plan: moduleType,
+                total_price: currentModule.price,
+                memo_code: randomMemo,
+                status: 'pending'
+            };
+
+            try {
+                const { error } = await supabase.from('orders').insert([orderData]);
+                if (error) throw error;
+
+                document.getElementById('successScreen').classList.remove('hidden');
+
+                setTimeout(() => {
+                    document.getElementById('spinLoading').classList.add('hidden');
+
+                    const checkDone = document.getElementById('checkDone');
+                    checkDone.classList.remove('opacity-0', 'scale-50');
+                    checkDone.classList.add('opacity-100', 'scale-100');
+                    checkDone.classList.add('text-green-400');
+
+                    document.getElementById('successTitle').innerText = 'Yêu Cầu Đã Gửi Thành Công!';
+                    document.getElementById('successTitle').classList.add('text-green-400');
+
+                    if (moduleType === 'agency') {
+                        document.getElementById('successDesc').innerText = 'Chuyên gia Marketing của BitPaw sẽ liên hệ với Sếp qua số điện thoại đăng ký trong vòng 15 phút tới.';
+                    } else {
+                        document.getElementById('successDesc').innerHTML = `Mã đơn hàng <strong class="text-white">${randomMemo}</strong> đã được ghi nhận. Hệ thống đang chờ tiền về để tự động kích hoạt tài khoản cho Sếp.`;
+                    }
+
+                    document.getElementById('btnLoginGo').classList.remove('hidden');
+                    document.getElementById('btnLoginGo').classList.add('inline-flex');
+
+                    fireConfetti(); // Bắn pháo hoa ăn mừng chốt đơn
+                }, 2500);
+
+            } catch (error) {
+                alert("Lỗi khi tạo đơn hàng: " + error.message);
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> THỬ LẠI LẦN NỮA';
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+
+        // ========================================================
+        // BACKGROUND 3D DYNAMIC COLOR
+        // ========================================================
+        if (document.getElementById('bg-canvas')) {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = window.innerWidth < 768 ? 800 : 1500;
+            const posArray = new Float32Array(particlesCount * 3);
+
+            for (let i = 0; i < particlesCount * 3; i++) { posArray[i] = (Math.random() - 0.5) * 120; }
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const material = new THREE.PointsMaterial({ size: 0.15, color: currentModule.colorHex, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const particlesMesh = new THREE.Points(particlesGeometry, material);
+            scene.add(particlesMesh);
+
+            let mouseX = 0; let mouseY = 0; let targetX = 0; let targetY = 0;
+            const windowHalfX = window.innerWidth / 2; const windowHalfY = window.innerHeight / 2;
+
+            if (window.innerWidth >= 768) {
+                document.addEventListener('mousemove', (event) => {
+                    mouseX = (event.clientX - windowHalfX) * 0.0005;
+                    mouseY = (event.clientY - windowHalfY) * 0.0005;
+                });
+            }
+
+            const clock = new THREE.Clock();
+            function animateBg() {
+                requestAnimationFrame(animateBg);
+                const elapsedTime = clock.getElapsedTime();
+                particlesMesh.rotation.y = elapsedTime * 0.03;
+                particlesMesh.rotation.x = elapsedTime * 0.01;
+
+                if (window.innerWidth >= 768) {
+                    targetX = mouseX * 0.5; targetY = mouseY * 0.5;
+                    particlesMesh.rotation.y += 0.5 * (targetX - particlesMesh.rotation.y);
+                    particlesMesh.rotation.x += 0.5 * (targetY - particlesMesh.rotation.x);
+                }
+                renderer.render(scene, camera);
+            }
+            animateBg();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', fetchPaymentMethods);
+    </script>
+</body>
+
+</html>

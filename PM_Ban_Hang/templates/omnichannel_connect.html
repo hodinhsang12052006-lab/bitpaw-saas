@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Nối Nền Tảng Đa Kênh | BitPaw AI</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        .glass-panel { background: rgba(10, 15, 37, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
+        .glass-card { background: linear-gradient(145deg, rgba(6,182,212,0.05) 0%, rgba(0,0,0,0.4) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-card:hover { border-color: rgba(6, 182, 212, 0.3); transform: translateY(-4px); box-shadow: 0 10px 25px rgba(6, 182, 212, 0.1); }
+        .text-gradient { background: linear-gradient(to right, #06b6d4, #a855f7); -webkit-background-clip: text;
+            background-clip: text; -webkit-text-fill-color: transparent; }
+        .glow-btn-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); border: 1px solid #06b6d4; transition: all 0.3s; }
+        .glow-btn-cyan:hover { box-shadow: 0 0 30px rgba(6, 182, 212, 0.8); transform: scale(1.02); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.3); border-radius: 10px; }
+    
+        /* Cyberpunk Smooth Micro Interactions System */
+        .glass-card {
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(6, 182, 212, 0.25), 0 0 15px rgba(168, 85, 247, 0.15);
+            border-color: rgba(6, 182, 212, 0.5) !important;
+        }
+        .btn-neon {
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .btn-neon:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 0 35px rgba(6, 182, 212, 0.7);
+        }
+        
+        /* Shimmer Loading placeholders */
+        .shimmer-placeholder {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: loadingShimmer 1.5s infinite linear;
+        }
+        @keyframes loadingShimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased">
+
+    <!-- ========================================== -->
+    <!-- FUTURISTIC AI BOOTSTRAP INITIALIZING LOADER -->
+    <!-- ========================================== -->
+    <div id="ai-loading-screen" class="fixed inset-0 bg-[#04020a] z-[999999] flex flex-col items-center justify-center transition-all duration-700">
+        <div class="relative mb-6" style="perspective: 1000px;">
+            <div class="w-24 h-24 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin flex items-center justify-center mascot-glow shadow-[0_0_30px_rgba(6,182,212,0.4)]">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-16 h-16 rounded-full object-cover">
+            </div>
+            <div class="absolute -inset-2 border border-purple-500/30 rounded-full animate-ping pointer-events-none"></div>
+            <div class="scanner-line" style="height: 2px; width: 100%; top: 50%;"></div>
+        </div>
+        <h2 class="text-white font-black tracking-widest text-base md:text-lg uppercase mb-2 text-center" style="font-family: 'Inter', sans-serif;">
+            <span class="text-gradient">BITPAW AI OPERATING CORE</span>
+        </h2>
+        <div class="w-56 h-1 bg-white/10 rounded-full overflow-hidden mb-4 relative">
+            <div class="h-full bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full" id="loading-progress" style="width: 0%; transition: width 0.08s ease;"></div>
+        </div>
+        <div class="text-[9px] text-cyan-400 font-mono tracking-wider" id="loading-status">System Core Initializing...</div>
+    </div>
+    
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar (Same as ai_bot.html) -->
+    <aside class="w-64 glass-panel border-r border-white/5 flex flex-col justify-between z-20 shrink-0 hidden md:flex h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center mb-2">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+
+            <nav class="flex flex-col pb-6 space-y-2 px-5 mt-6">
+                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="/ai_bot" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-robot w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span>AI Copilot Console</span>
+                </a>
+                <a href="/ai/connect-platforms" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner px-4 py-2.5 rounded-r-xl transition-all group">
+                    <i class="fas fa-network-wired w-5 text-xl"></i>
+                    <span>Kết nối kênh</span>
+                </a>
+                <a href="/ai/customer-nurturing" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-users-cog w-5 text-xl"></i>
+                    <span>Dữ liệu khách hàng</span>
+                </a>
+                <a href="/ai/campaign-builder" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-bullhorn w-5 text-xl"></i>
+                    <span>Chiến dịch AI</span>
+                </a>
+            </nav>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-screen p-4 md:p-8 relative overflow-hidden z-10">
+        <!-- Top Header Panel -->
+        <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
+            <div>
+                <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
+                    <i class="fas fa-network-wired text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> Kết Nối <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Đa Kênh Omnichannel</span>
+                </h2>
+                <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Đồng bộ Inbox, Comment, CRM & POS tự động
+                </p>
+            </div>
+            <div>
+                <span class="text-xs bg-[#0a192f] text-cyan-400 px-4 py-2 rounded-xl border border-cyan-500/30 font-bold"><i class="fas fa-shield-alt mr-1"></i> SSL 256-bit Secured</span>
+            </div>
+        </div>
+
+        <!-- NEW: Realtime Stats Dashboard Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0 z-10 relative" data-aos="fade-down">
+            <div class="glass-card p-5 rounded-2xl border-l-4 border-l-cyan-500 relative overflow-hidden group shadow-lg">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-cyan-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Tổng khách đồng bộ</span>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-total-synced">10,480</strong>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg"><i class="fas fa-users-viewfinder"></i></div>
+                </div>
+                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> +12% tuần này</div>
+            </div>
+            
+            <div class="glass-card p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group shadow-lg">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-purple-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Kênh kết nối</span>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-connected-channels">3 / 5</strong>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg"><i class="fas fa-network-wired"></i></div>
+                </div>
+                <div class="text-[9px] text-cyan-400 mt-2 font-bold flex items-center gap-1">Zalo, FB, WebForm</div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500 relative overflow-hidden group shadow-lg">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">AI CSKH hôm nay</span>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-ai-nurtures">342</strong>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg"><i class="fas fa-brain"></i></div>
+                </div>
+                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-circle animate-pulse text-[7px]"></i> 100% tự động hóa</div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl border-l-4 border-l-rose-500 relative overflow-hidden group shadow-lg">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-rose-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Tỷ lệ quay lại (LTV)</span>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-retention-rate">45.2%</strong>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center text-lg"><i class="fas fa-chart-line"></i></div>
+                </div>
+                <div class="text-[9px] text-rose-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> +14.6% vs tháng trước</div>
+            </div>
+        </div>
+
+        <!-- NEW: Interactive Connection Pipeline Flow Diagram -->
+        <div class="glass-panel p-6 rounded-3xl border border-white/10 mb-6 shrink-0 relative z-10 overflow-hidden shadow-2xl">
+            <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 opacity-50"></div>
+            <div class="flex justify-between items-center mb-4 relative z-10">
+                <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-route text-sm"></i> Sơ Đồ Quy Trình Thu Thập & Chăm Sóc Đa Kênh Tự Động</h4>
+                <span class="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-black uppercase"><i class="fas fa-bolt mr-1"></i> Realtime engine active</span>
+            </div>
+            
+            <div class="relative flex flex-col md:flex-row items-center justify-between gap-6 py-4 relative z-10">
+                <!-- Node 1: Social Channels -->
+                <div class="flex flex-col items-center w-full md:w-1/5 text-center group">
+                    <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-xl text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                        <i class="fab fa-facebook-messenger"></i>
+                    </div>
+                    <span class="text-white font-bold text-xs mt-2 block">1. Nhận Inbox Đa Kênh</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Facebook / Zalo / WhatsApp</p>
+                </div>
+                
+                <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
+                    <i class="fas fa-arrow-right animate-pulse text-lg"></i>
+                </div>
+
+                <!-- Node 2: AI Data Center -->
+                <div class="flex flex-col items-center w-full md:w-1/5 text-center group">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-xl text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]">
+                        <i class="fas fa-cloud-arrow-down"></i>
+                    </div>
+                    <span class="text-white font-bold text-xs mt-2 block">2. AI Gom Dữ Liệu</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Đồng bộ POS / Booking tự động</p>
+                </div>
+
+                <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
+                    <i class="fas fa-arrow-right animate-pulse text-lg"></i>
+                </div>
+
+                <!-- Node 3: AI Behavior Analysis -->
+                <div class="flex flex-col items-center w-full md:w-1/5 text-center group">
+                    <div class="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-xl text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <span class="text-white font-bold text-xs mt-2 block">3. AI Phân Tích & Kịch Bản</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Tính toán Churn Risk & Soạn tin</p>
+                </div>
+
+                <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
+                    <i class="fas fa-arrow-right animate-pulse text-lg"></i>
+                </div>
+
+                <!-- Node 4: Owner Approval -->
+                <div class="flex flex-col items-center w-full md:w-1/5 text-center group">
+                    <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <span class="text-white font-bold text-xs mt-2 block">4. Chủ Tiệm Phê Duyệt</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Chốt gửi an toàn sau 1-Click</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+            <!-- FB Messenger Card -->
+            <div id="card-messenger" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center text-blue-400 text-2xl"><i class="fab fa-facebook-messenger"></i></div>
+                        <span id="status-messenger" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">Facebook Messenger</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tin nhắn trực tiếp từ khách hàng gửi tới Fanpage, tự động phân tích & phản hồi qua AI.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Khách hàng đồng bộ:</span><strong class="text-white" id="leads-messenger">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-messenger">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-messenger" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Meta.</p>
+                            <p><strong>Bước 2:</strong> Cấp quyền Send/Receive API cho Messenger App của BitPaw.</p>
+                            <p><strong>Bước 3:</strong> Trạng thái chuyển sang "ĐÃ KẾT NỐI" và tự động gom tin.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-messenger" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('messenger')" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Facebook Messenger</button>
+                </div>
+            </div>
+
+            <!-- Facebook Page Comments Card -->
+            <div id="card-fb_page" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-indigo-400 text-2xl"><i class="fab fa-facebook"></i></div>
+                        <span id="status-fb_page" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">Facebook Page Comments</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Gom tất cả bình luận bài viết Fanpage và bài chạy quảng cáo, tự động trả lời tự động hoặc inbox ẩn giá.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Số bình luận đã quét:</span><strong class="text-white" id="leads-fb_page">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-fb_page">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-fb_page" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Facebook Page.</p>
+                            <p><strong>Bước 2:</strong> Chọn Fanpage cần cấp quyền lắng nghe bình luận.</p>
+                            <p><strong>Bước 3:</strong> AI tự động thu thập & trả lời hoặc tự động gửi inbox.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-fb_page" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('fb_page')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Facebook Page</button>
+                </div>
+            </div>
+
+            <!-- Zalo OA Card -->
+            <div id="card-zalo_oa" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-center text-cyan-400 text-xl font-black">Zalo</div>
+                        <span id="status-zalo_oa" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">Zalo Official Account</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tin nhắn Zalo OA, tự động phân nhóm và gửi tin nhắn chăm sóc lại khách hàng Việt Nam cực kỳ hiệu quả.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Quan tâm OA:</span><strong class="text-white" id="leads-zalo_oa">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-zalo_oa">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-zalo_oa" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng liên kết Zalo Cloud.</p>
+                            <p><strong>Bước 2:</strong> Đồng ý liên kết ứng dụng với tài khoản Zalo OA.</p>
+                            <p><strong>Bước 3:</strong> AI kích hoạt webhook lắng nghe tin nhắn tức thời.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-zalo_oa" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('zalo_oa')" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg glow-btn-cyan">Kết nối Zalo OA</button>
+                </div>
+            </div>
+
+            <!-- WhatsApp Business Card -->
+            <div id="card-whatsapp" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-400 text-2xl"><i class="fab fa-whatsapp"></i></div>
+                        <span id="status-whatsapp" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">WhatsApp Business</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Gửi tin nhắc lịch hẹn, chăm sóc tự động và chốt đơn lại tập khách hàng cũ nước ngoài siêu mượt mà.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Số điện thoại:</span><strong class="text-white" id="leads-whatsapp">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-whatsapp">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-whatsapp" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Đăng ký tài khoản WhatsApp Business Cloud API qua Meta Developer.</p>
+                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token cấu hình của sếp.</p>
+                            <p><strong>Bước 3:</strong> Kích hoạt chiến dịch nuôi dưỡng tự động an toàn.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-whatsapp" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('whatsapp')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối WhatsApp</button>
+                </div>
+            </div>
+
+            <!-- Website Form / Mascot Chat Card -->
+            <div id="card-mascot_chat" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-purple-500/10 border border-purple-500/30 rounded-2xl flex items-center justify-center text-purple-400 text-2xl"><i class="fas fa-globe"></i></div>
+                        <span id="status-mascot_chat" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">Website Mascot Chat</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Tích hợp AI Mascot Chatbot trực tiếp vào Website hoặc Landing Page của bạn để đón chào và tự động gom lead.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Leads thu thập:</span><strong class="text-white" id="leads-mascot_chat">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-mascot_chat">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-mascot_chat" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Chèn đoạn mã script Mascot Chat widget vào thẻ &lt;head&gt; của Website.</p>
+                            <p><strong>Bước 2:</strong> Mascot AI tự động chào hỏi, tư vấn sản phẩm và ghi nhận SĐT.</p>
+                            <p><strong>Bước 3:</strong> Dữ liệu khách tự động đồng bộ thẳng về CRM cục bộ.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-mascot_chat" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('mascot_chat')" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Mascot Chat</button>
+                </div>
+            </div>
+
+            <!-- QR/POS Customer Sync Card -->
+            <div id="card-pos_sync" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full"></div>
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center text-orange-400 text-2xl"><i class="fas fa-sync"></i></div>
+                        <span id="status-pos_sync" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white mb-2">QR / POS Customer Source</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tức thời toàn bộ danh sách khách hàng cũ từ dữ liệu bán hàng tại quầy (POS) và lịch hẹn (Booking) để AI lập kịch bản nuôi dưỡng.</p>
+                    
+                    <div class="text-[11px] text-gray-400 space-y-1 mb-4">
+                        <div class="flex justify-between"><span>Khách hàng POS:</span><strong class="text-white" id="leads-pos_sync">0</strong></div>
+                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-pos_sync">Chưa có</strong></div>
+                    </div>
+
+                    <!-- Config / Error Info Box -->
+                    <div id="info-box-pos_sync" class="hidden text-[11px] mb-4"></div>
+
+                    <!-- Collapsible Setup Guide -->
+                    <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                            <p><strong>Bước 1:</strong> Bật chế độ "Đồng bộ QR/POS" để kết nối database thanh toán bán hàng.</p>
+                            <p><strong>Bước 2:</strong> AI tự động ánh xạ thông tin chi tiêu, ngày mua cuối sang hồ sơ khách.</p>
+                            <p><strong>Bước 3:</strong> Kịch bản CSKH tự động kích hoạt dựa trên lịch sử mua hàng.</p>
+                        </div>
+                    </details>
+                </div>
+                <div id="actions-container-pos_sync" class="space-y-2 pt-2">
+                    <button onclick="connectPlatformDirect('pos_sync')" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kích hoạt POS Sync</button>
+                </div>
+            </div>
+        </div>
+
+
+            <!-- Terminal Live Logs -->
+            <div class="glass-panel p-5 rounded-3xl border border-white/10 mt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-terminal text-sm"></i> Bảng Nhật Ký Kết Nối Kênh</h4>
+                    <button onclick="clearLogs()" class="text-[10px] text-gray-500 hover:text-white transition">Xóa nhật ký</button>
+                </div>
+                <div id="log-console" class="bg-black/60 border border-white/5 rounded-2xl p-4 h-36 overflow-y-auto text-xs font-mono text-gray-400 space-y-2">
+                    <p class="text-cyan-500 font-bold">[SYSTEM] Sẵn sàng thiết lập kết nối đa kênh cho BitPaw OS.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Connection Configuration Modal (Cyber Glass Design) -->
+    <div id="channelConfigModal" class="fixed inset-0 z-[99999] hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-[#0b0c24]/95 border border-cyan-500/40 rounded-3xl w-full max-w-md p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative transition-all duration-300">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-white/10">
+                <h3 id="modalConfigTitle" class="text-base font-black uppercase text-cyan-400 tracking-widest flex items-center gap-2">
+                    <i class="fas fa-network-wired"></i> Cấu hình tài khoản
+                </h3>
+                <button onclick="closeConfigModal()" class="text-gray-400 hover:text-rose-500 text-xl transition"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div id="configSetupGuide" class="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-gray-400 leading-relaxed mb-4 space-y-1">
+                Đang tải hướng dẫn...
+            </div>
+            
+            <form id="channelConfigForm" onsubmit="saveChannelConfig(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="config-platform">
+                
+                <div>
+                    <label class="text-cyan-400 font-bold block mb-1">Tên tài khoản / Shop Owner Name:</label>
+                    <input type="text" id="config-account-name" placeholder="Ví dụ: BitPaw Store, Nguyễn Văn A..." required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                </div>
+                <div>
+                    <label class="text-cyan-400 font-bold block mb-1">ID Kênh (Channel ID / Phone Number):</label>
+                    <input type="text" id="config-channel-id" placeholder="ID Kênh hoặc Số điện thoại kết nối..." required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                </div>
+                <div>
+                    <label class="text-cyan-400 font-bold block mb-1">Mã Access Token / API Key:</label>
+                    <input type="password" id="config-access-token" placeholder="Nhập API Access Token chính chủ..." required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                    <p class="text-[9px] text-gray-500 mt-1">Token sẽ được mã hóa an toàn SSL 256-bit trước khi lưu.</p>
+                </div>
+                
+                <div class="flex flex-col gap-2.5 pt-3">
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-black uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">Lưu cấu hình</button>
+                    <button type="button" onclick="testChannelConfig()" class="w-full py-2.5 bg-transparent border border-cyan-500/50 hover:bg-cyan-500/10 text-cyan-400 font-bold uppercase tracking-wider rounded-xl transition">Kiểm tra kết nối</button>
+                    <button type="button" onclick="disconnectChannel()" id="btn-config-disconnect" class="w-full py-2 bg-rose-600/20 border border-rose-500/50 hover:bg-rose-600 hover:text-white text-rose-400 font-bold uppercase tracking-wider rounded-xl transition hidden">Hủy & Ngắt kết nối</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables to store existing config cache
+        let channelCache = {};
+
+        // Load connection status on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            reloadConnectionStatus();
+            // Expose reloadConnectionStatus to window so popups can call it
+            window.reloadConnectionStatus = reloadConnectionStatus;
+        });
+
+        // Triggered when clicks OAuth Connect button
+        function connectPlatformDirect(platform) {
+            logToConsole(`[OAUTH] Đang kết nối tới cổng cấp quyền giả lập ${platform.toUpperCase()}...`);
+            
+            // Define standard popup configuration
+            const width = 550;
+            const height = 680;
+            const left = (window.innerWidth - width) / 2;
+            const top = (window.innerHeight - height) / 2;
+            const popupOptions = `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`;
+            
+            const oauthUrl = `/omnichannel/connect/${platform}`;
+            
+            // Open simulated OAuth window
+            const oauthWindow = window.open(oauthUrl, `BitPawOAuth_${platform}`, popupOptions);
+            
+            if (!oauthWindow) {
+                logToConsole(`[WARNING] Popup blocked! Vui lòng cho phép trình duyệt hiển thị popup để kết nối.`, 'rose');
+                alert("Vui lòng cho phép hiển thị cửa sổ bật lên (popup) để chạy Cổng ủy quyền.");
+            } else {
+                logToConsole(`[PENDING] Vui lòng hoàn tất biểu mẫu cấp quyền trong cửa sổ mới...`);
+                // Poll check for window closing if window.opener fails
+                const timer = setInterval(() => {
+                    if (oauthWindow.closed) {
+                        clearInterval(timer);
+                        logToConsole(`[SYSTEM] Cửa sổ OAuth đã đóng. Đang kiểm tra lại trạng thái...`);
+                        reloadConnectionStatus();
+                    }
+                }, 1000);
+            }
+        }
+
+        // Triggered when clicks Disconnect button
+        function disconnectPlatformDirect(platform) {
+            if (confirm(`Sếp có chắc chắn muốn ngắt kết nối cổng ${platform.toUpperCase()} không?`)) {
+                logToConsole(`[DISCONNECT] Đang ngắt kết nối cổng ${platform.toUpperCase()}...`);
+                
+                fetch(`/omnichannel/disconnect/${platform}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        reloadConnectionStatus();
+                        logToConsole(`[SUCCESS] Đã ngắt kết nối thành công kênh ${platform.toUpperCase()}.`, 'rose');
+                    } else {
+                        logToConsole(`[ERROR] Không thể ngắt kết nối: ${res.message}`, 'rose');
+                    }
+                })
+                .catch(err => {
+                    logToConsole(`[ERROR] Lỗi hệ thống: ${err.message}`, 'rose');
+                });
+            }
+        }
+
+        // Triggered when clicks Test Connection button
+        function testConnectionDirect(platform) {
+            logToConsole(`[TEST] Đang gửi yêu cầu ping thử nghiệm tới ${platform.toUpperCase()} Provider API...`);
+            
+            fetch(`/omnichannel/test/${platform}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
+                    alert(res.message);
+                } else {
+                    logToConsole(`[ERROR] Kiểm thử thất bại: ${res.message}`, 'rose');
+                    alert(`❌ Lỗi kết nối: ${res.message}`);
+                }
+            })
+            .catch(err => {
+                logToConsole(`[ERROR] Lỗi kết nối API: ${err.message}`, 'rose');
+                alert(`❌ Lỗi kết nối: ${err.message}`);
+            });
+        }
+
+        // Open manual configuration modal as fallback
+        function openManualConfig(platform) {
+            let guideHtml = "";
+            if (platform === 'messenger' || platform === 'fb_page') {
+                guideHtml = `
+                    <p><strong>Hướng dẫn cấu hình Facebook:</strong></p>
+                    <p>1. Điền Tên Trang Facebook chính chủ của sếp.</p>
+                    <p>2. Điền ID Trang (Page ID) tương ứng.</p>
+                    <p>3. Điền API Access Token lấy từ Facebook Developers Console.</p>
+                `;
+            } else if (platform === 'zalo_oa') {
+                guideHtml = `
+                    <p><strong>Hướng dẫn cấu hình Zalo OA:</strong></p>
+                    <p>1. Điền Tên Official Account tương ứng.</p>
+                    <p>2. Điền Zalo OA ID nhận từ trang quản trị.</p>
+                    <p>3. Điền API Access Token được cấp bởi Zalo Developers.</p>
+                `;
+            } else if (platform === 'whatsapp') {
+                guideHtml = `
+                    <p><strong>Hướng dẫn cấu hình WhatsApp Business:</strong></p>
+                    <p>1. Điền Tên doanh nghiệp đăng ký WhatsApp.</p>
+                    <p>2. Điền số điện thoại đăng ký (định dạng quốc tế).</p>
+                    <p>3. Điền API Access Token / System User Token từ Meta.</p>
+                `;
+            } else if (platform === 'mascot_chat') {
+                guideHtml = `
+                    <p><strong>Hướng dẫn cấu hình Website Mascot Chat:</strong></p>
+                    <p>1. Điền Tên Website của sếp cần cài đặt.</p>
+                    <p>2. Điền Mã ID Kịch bản AI Mascot.</p>
+                    <p>3. Điền API Access Token của BitPaw Platform.</p>
+                `;
+            } else {
+                guideHtml = `<p>Điền thông tin cấu hình đồng bộ cục bộ SQLite POS / Booking.</p>`;
+            }
+
+            const modal = document.getElementById("channelConfigModal");
+            const titleEl = document.getElementById("modalConfigTitle");
+            const guideEl = document.getElementById("configSetupGuide");
+            const platformInput = document.getElementById("config-platform");
+            const disconnectBtn = document.getElementById("btn-config-disconnect");
+
+            // Fill inputs with cached data if exists
+            const cache = channelCache[platform] || {};
+            document.getElementById("config-account-name").value = cache.account_name || "";
+            document.getElementById("config-channel-id").value = cache.channel_id || "";
+            document.getElementById("config-access-token").value = cache.access_token || "";
+
+            platformInput.value = platform;
+            titleEl.innerHTML = `<i class="fas fa-sliders text-cyan-400 animate-pulse"></i> Cấu hình thủ công ${platform.toUpperCase()}`;
+            guideEl.innerHTML = guideHtml;
+            
+            if (cache.status === 'CONNECTED') {
+                disconnectBtn.classList.remove("hidden");
+            } else {
+                disconnectBtn.classList.add("hidden");
+            }
+
+            modal.classList.remove("hidden");
+        }
+
+        function closeConfigModal() {
+            document.getElementById("channelConfigModal").classList.add("hidden");
+        }
+
+        function saveChannelConfig(e) {
+            e.preventDefault();
+            const platform = document.getElementById("config-platform").value;
+            const account_name = document.getElementById("config-account-name").value;
+            const channel_id = document.getElementById("config-channel-id").value;
+            const access_token = document.getElementById("config-access-token").value;
+
+            logToConsole(`[CONFIG] Đang lưu cấu hình thủ công cho cổng ${platform.toUpperCase()}...`);
+
+            fetch("/api/ai/nurture/toggle-connection", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    platform,
+                    action: "SAVE",
+                    account_name,
+                    channel_id,
+                    access_token
+                })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    reloadConnectionStatus();
+                    logToConsole(`[SUCCESS] Đã lưu cấu hình và kích hoạt thành công cổng ${platform.toUpperCase()}!`, 'emerald');
+                    closeConfigModal();
+                } else {
+                    logToConsole(`[ERROR] Không thể lưu cấu hình: ${res.message}`, 'rose');
+                    alert(res.message);
+                }
+            })
+            .catch(err => {
+                logToConsole(`[ERROR] Lỗi kết nối: ${err.message}`, 'rose');
+            });
+        }
+
+        function testChannelConfig() {
+            const platform = document.getElementById("config-platform").value;
+            const account_name = document.getElementById("config-account-name").value;
+            const channel_id = document.getElementById("config-channel-id").value;
+            const access_token = document.getElementById("config-access-token").value;
+
+            logToConsole(`[TEST] Đang gửi gói tin kiểm thử API cho cấu hình thủ công ${platform.toUpperCase()}...`);
+
+            fetch("/api/ai/nurture/test-connection", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    platform,
+                    account_name,
+                    channel_id,
+                    access_token
+                })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
+                    alert(res.message);
+                } else {
+                    logToConsole(`[ERROR] Kiểm thử thủ công thất bại: ${res.message}`, 'rose');
+                    alert(res.message);
+                }
+            })
+            .catch(err => {
+                logToConsole(`[ERROR] Lỗi API: ${err.message}`, 'rose');
+            });
+        }
+
+        function disconnectChannel() {
+            const platform = document.getElementById("config-platform").value;
+            closeConfigModal();
+            disconnectPlatformDirect(platform);
+        }
+
+        function reloadConnectionStatus() {
+            fetch("/omnichannel/status")
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        channelCache = res.data;
+                        let connectedCount = 0;
+                        for (const [platform, data] of Object.entries(res.data)) {
+                            updateUIState(platform, data.status, data.last_sync, data.leads_count, data);
+                            if (data.status === 'CONNECTED') {
+                                connectedCount++;
+                            }
+                        }
+                        // Update dynamic badge stats in top grid
+                        const totalSyncedEl = document.getElementById("stat-total-synced");
+                        const connectedChannelsEl = document.getElementById("stat-connected-channels");
+                        if (connectedChannelsEl) {
+                            connectedChannelsEl.innerText = `${connectedCount} / 6`;
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error("Lỗi khi tải trạng thái đồng bộ đa kênh:", err);
+                });
+        }
+
+        function updateUIState(platform, status, last_sync = 'Chưa đồng bộ', leads_count = 0, dataObj = {}) {
+            const cardEl = document.getElementById(`card-${platform}`);
+            const statusEl = document.getElementById(`status-${platform}`);
+            const actionsContainerEl = document.getElementById(`actions-container-${platform}`);
+            const syncEl = document.getElementById(`sync-${platform}`);
+            const leadsEl = document.getElementById(`leads-${platform}`);
+            const infoBoxEl = document.getElementById(`info-box-${platform}`);
+
+            if (!statusEl || !actionsContainerEl) return;
+
+            if (syncEl) syncEl.innerText = last_sync;
+            if (leadsEl) leadsEl.innerText = leads_count.toLocaleString();
+
+            // Reset dynamic styles and borders on the parent card
+            if (cardEl) {
+                cardEl.className = "glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border transition-all duration-300";
+            }
+
+            // Reset info box hidden state
+            if (infoBoxEl) {
+                infoBoxEl.classList.add("hidden");
+                infoBoxEl.innerHTML = "";
+            }
+
+            // Remove old classes from badge
+            statusEl.classList.remove("bg-rose-500/10", "text-rose-400", "border-rose-500/30", "bg-emerald-500/10", "text-emerald-400", "border-emerald-500/30", "bg-yellow-500/10", "text-yellow-400", "border-yellow-500/30");
+
+            if (status === 'CONNECTED') {
+                statusEl.innerText = "ĐÃ KẾT NỐI";
+                statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.2)]";
+                
+                if (cardEl) {
+                    cardEl.classList.add("border-emerald-500/40", "shadow-[0_0_20px_rgba(16,185,129,0.15)]");
+                }
+
+                // Show details inside info box
+                if (infoBoxEl && dataObj.account_name) {
+                    infoBoxEl.classList.remove("hidden");
+                    infoBoxEl.innerHTML = `
+                        <div class="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 text-gray-300 space-y-1 mb-2">
+                            <p class="font-bold text-emerald-400"><i class="fas fa-check-circle mr-1"></i> Liên kết thành công</p>
+                            <p>Tài khoản: <strong class="text-white">${dataObj.account_name}</strong></p>
+                            <p>ID kênh: <strong class="text-white">${dataObj.channel_id}</strong></p>
+                        </div>
+                    `;
+                }
+
+                // Render Connect, Disconnect, Test Connection action buttons
+                actionsContainerEl.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="testConnectionDirect('${platform}')" class="py-2.5 bg-transparent border border-cyan-500/50 hover:bg-cyan-500/10 text-cyan-400 font-bold text-[10px] uppercase tracking-wider rounded-xl transition shadow-md">
+                            <i class="fas fa-network-wired mr-1 animate-pulse"></i> Test API
+                        </button>
+                        <button onclick="disconnectPlatformDirect('${platform}')" class="py-2.5 bg-rose-600/15 border border-rose-500/50 hover:bg-rose-600 hover:text-white text-rose-400 font-bold text-[10px] uppercase tracking-wider rounded-xl transition shadow-md">
+                            <i class="fas fa-unlink mr-1"></i> Hủy kết nối
+                        </button>
+                    </div>
+                `;
+            } else if (status === 'SETUP_REQUIRED') {
+                statusEl.innerText = "YÊU CẦU CẤU HÌNH";
+                statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 px-3 py-1 rounded-full";
+                
+                if (cardEl) {
+                    cardEl.classList.add("border-yellow-500/35", "shadow-[0_0_15px_rgba(234,179,8,0.1)]");
+                }
+
+                // Show details inside info box
+                if (infoBoxEl) {
+                    infoBoxEl.classList.remove("hidden");
+                    infoBoxEl.innerHTML = `
+                        <div class="bg-yellow-950/20 border border-yellow-500/20 rounded-xl p-2.5 text-gray-300 space-y-1 mb-2">
+                            <p class="font-bold text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i> Thiếu API Credential</p>
+                            <p class="text-[10px] leading-normal text-gray-400">Ứng dụng chưa được nhập API Access Token hợp lệ từ sếp quản trị.</p>
+                        </div>
+                    `;
+                }
+
+                // Render Connect and Manual config buttons
+                let btnColorClass = "bg-yellow-600 hover:bg-yellow-500 text-black";
+                actionsContainerEl.innerHTML = `
+                    <button onclick="connectPlatformDirect('${platform}')" class="w-full py-3 ${btnColorClass} font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">
+                        <i class="fas fa-plug mr-1"></i> Kết nối (OAuth)
+                    </button>
+                    <button onclick="openManualConfig('${platform}')" class="w-full py-2 bg-transparent border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition mt-2">
+                        Cấu hình thủ công
+                    </button>
+                `;
+            } else {
+                statusEl.innerText = "CHƯA KẾT NỐI";
+                statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full";
+                
+                if (cardEl) {
+                    cardEl.classList.add("border-white/5");
+                }
+
+                // Render Connect and Manual config buttons
+                let btnColorClass = "bg-blue-600 hover:bg-blue-500 text-white";
+                if (platform === 'messenger') btnColorClass = "bg-blue-600 hover:bg-blue-500 text-white";
+                else if (platform === 'fb_page') btnColorClass = "bg-indigo-600 hover:bg-indigo-500 text-white";
+                else if (platform === 'zalo_oa') btnColorClass = "bg-cyan-500 hover:bg-cyan-400 text-black glow-btn-cyan";
+                else if (platform === 'whatsapp') btnColorClass = "bg-emerald-600 hover:bg-emerald-500 text-white";
+                else if (platform === 'mascot_chat') btnColorClass = "bg-purple-600 hover:bg-purple-500 text-white";
+                else if (platform === 'pos_sync') btnColorClass = "bg-orange-600 hover:bg-orange-500 text-white";
+
+                actionsContainerEl.innerHTML = `
+                    <button onclick="connectPlatformDirect('${platform}')" class="w-full py-3 ${btnColorClass} font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">
+                        <i class="fas fa-plug mr-1"></i> Kết nối (OAuth)
+                    </button>
+                    <button onclick="openManualConfig('${platform}')" class="w-full py-2 bg-transparent border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition mt-2">
+                        Cấu hình thủ công
+                    </button>
+                `;
+            }
+        }
+
+        function triggerImport() {
+            const btn = document.getElementById("btn-import");
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang đồng bộ dữ liệu...';
+            btn.classList.add("opacity-50", "cursor-not-allowed");
+            
+            logToConsole("[POS-SYNC] Khởi chạy bộ đồng bộ API dữ liệu bán hàng POS và lịch hẹn Booking...");
+            
+            fetch("/api/ai/nurture/import-data", { method: "POST" })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
+                        alert(res.message);
+                    } else {
+                        logToConsole(`[ERROR] Đồng bộ thất bại: ${res.message}`, 'rose');
+                    }
+                })
+                .finally(() => {
+                    btn.innerHTML = '<i class="fas fa-sync"></i> Đồng bộ dữ liệu POS/Booking';
+                    btn.classList.remove("opacity-50", "cursor-not-allowed");
+                });
+        }
+
+        function logToConsole(msg, colorClass = '') {
+            const consoleEl = document.getElementById("log-console");
+            if (!consoleEl) return;
+            const time = new Date().toLocaleTimeString();
+            const color = colorClass === 'emerald' ? 'text-emerald-400 font-bold' : colorClass === 'rose' ? 'text-rose-400 font-bold' : 'text-gray-400';
+            consoleEl.innerHTML += `<p class="${color}">[${time}] ${msg}</p>`;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById("log-console").innerHTML = '<p class="text-cyan-500 font-bold">[SYSTEM] Nhật ký đã được dọn dẹp sạch sẽ.</p>';
+        }
+
+        // Three.js Background particles
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            const count = 800;
+            const geom = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * 120;
+            geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ size: 0.18, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+            const pts = new THREE.Points(geom, mat);
+            scene.add(pts);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                pts.rotation.y += 0.001;
+                pts.rotation.x += 0.0005;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+
+    <script>
+        // --- FUTURISTIC BOOT LOADER INITIALIZER ---
+        document.addEventListener("DOMContentLoaded", function() {
+            const loader = document.getElementById("ai-loading-screen");
+            const progressBar = document.getElementById("loading-progress");
+            const progressStatus = document.getElementById("loading-status");
+            if (!loader || !progressBar || !progressStatus) return;
+
+            const bootLogs = [
+                { pct: 0, msg: "🤖 [BOOT] BitPaw AI Kernel initializing..." },
+                { pct: 15, msg: "🔒 [SECURE] Probing Row-Level Security (RLS) PostgreSQL cache..." },
+                { pct: 35, msg: "🔄 [SYNC] Synchronizing Omnichannel API webhooks (FB/Zalo)..." },
+                { pct: 55, msg: "🧠 [DIAGNOSTIC] Running Churn Risk customer retain calculation..." },
+                { pct: 75, msg: "🌐 [CLOUD] Loading AWS Multi-Region cluster status... Latency: 12ms." },
+                { pct: 90, msg: "🚀 [OPTIMIZE] Hot-reloading Smart POS assets & GPS radar modules..." },
+                { pct: 100, msg: "⚡ [SYSTEM READY] AI Core Active. Boot successfully completed." }
+            ];
+
+            let index = 0;
+            function runBootLog() {
+                if (index < bootLogs.length) {
+                    const log = bootLogs[index];
+                    progressBar.style.width = log.pct + "%";
+                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${log.msg}`;
+                    
+                    let delay = 250;
+                    if (index === bootLogs.length - 1) delay = 400; // longer pause at 100%
+                    
+                    index++;
+                    setTimeout(runBootLog, delay);
+                } else {
+                    // Gracefully fade out loading screen
+                    loader.style.opacity = "0";
+                    loader.style.transform = "scale(1.05)";
+                    setTimeout(() => {
+                        loader.style.display = "none";
+                    }, 700);
+                }
+            }
+            
+            // start bootstrap simulation
+            setTimeout(runBootLog, 100);
+        });
+    </script>
+    
+    <script src="/static/js/cskh_widget.js"></script>
+</body>
+</html>

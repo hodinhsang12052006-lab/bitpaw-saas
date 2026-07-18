@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitPaw AI Copilot | Trợ Lý Chỉ Huy</title>
+
+    <script>
+        // Suppress Tailwind CSS CDN warning in the developer console
+        (function () {
+            const warn = console.warn;
+            console.warn = function (...args) {
+                if (args[0] && typeof args[0] === 'string' &&
+                    (args[0].includes('cdn.tailwindcss.com') ||
+                        args[0].includes('should not be used in production') ||
+                        args[0].includes('Tailwind CSS'))) {
+                    return;
+                }
+                warn.apply(console, args);
+            };
+        })();
+    </script>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* 3D Background Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        /* Hiệu ứng scanline và laser */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+
+        .laser-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: laserVertical 12s ease-in-out infinite;
+        }
+
+        @keyframes scanMove {
+            0% {
+                top: -5%;
+            }
+
+            100% {
+                top: 105%;
+            }
+        }
+
+        @keyframes laserVertical {
+            0% {
+                left: -10%;
+            }
+
+            50% {
+                left: 110%;
+            }
+
+            100% {
+                left: -10%;
+            }
+        }
+
+        .light-ray {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), transparent);
+            height: 2px;
+            width: 150%;
+            transform: rotate(-35deg);
+            transform-origin: left;
+            pointer-events: none;
+        }
+
+        .absolute-blur {
+            position: absolute;
+            top: -10%;
+            left: 20%;
+            width: 600px;
+            height: 600px;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 50%;
+            filter: blur(150px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+            padding: 16px 20px;
+            border-radius: 16px;
+            outline: none;
+            width: 100%;
+            font-weight: 500;
+        }
+
+        .glass-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+        }
+
+        /* Chat styles */
+        .chat-ai {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 4px 20px 20px 20px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+        }
+
+        .chat-user {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.8), rgba(59, 130, 246, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px 4px 20px 20px;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typing {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+                opacity: 0.3;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .ai-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(6, 182, 212, 0) 70%);
+            filter: blur(40px);
+            animation: pulse-core 4s infinite alternate;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes pulse-core {
+            0% {
+                width: 200px;
+                height: 200px;
+                opacity: 0.3;
+            }
+
+            100% {
+                width: 350px;
+                height: 350px;
+                opacity: 0.6;
+            }
+        }
+
+        /* Hologram Logo */
+        @keyframes float-hologram {
+            0% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
+
+            50% {
+                transform: translateY(-4px);
+                filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5));
+            }
+
+            100% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
+        }
+
+        .logo-float {
+            animation: float-hologram 4s ease-in-out infinite;
+        }
+
+        .customer-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .customer-item:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-left-color: #06b6d4;
+        }
+
+        .active-customer {
+            background: rgba(6, 182, 212, 0.2);
+            border-left: 3px solid #06b6d4;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen relative antialiased">
+
+    <div class="scan-line"></div>
+    <div class="laser-vertical"></div>
+    <div class="light-ray top-0 -left-[20%] z-0"></div>
+    <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
+    <div class="absolute-blur"></div>
+    <div
+        class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0">
+    </div>
+    <canvas id="bg-canvas"></canvas>
+
+    <aside
+        class="w-64 glass-panel border-r border-white/5 flex flex-col justify-between z-20 shrink-0 transition-all duration-300 hidden md:flex h-screen">
+        <div>
+            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
+                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
+                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin"
+                        style="animation-duration: 3s;"></div>
+                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin"
+                        style="animation-duration: 4s; animation-direction: reverse;"></div>
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo"
+                        class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
+                </div>
+                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+            </div>
+
+            {% if profile.has_profile %}
+            <div
+                class="mx-4 my-4 bg-[#0a0f25]/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
+                <div class="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
+                    <div
+                        class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-black text-lg shadow-[0_0_10px_rgba(6,182,212,0.5)] shrink-0">
+                        {{ profile.name[0] | upper if profile.name else '?' }}
+                    </div>
+                    <div class="overflow-hidden">
+                        <h3 class="text-white font-bold text-[13px] truncate">{{ profile.name }}</h3>
+                        <p class="text-cyan-400 text-[9px] uppercase tracking-widest font-bold mt-0.5">
+                            Doanh Nghiệp
+                        </p>
+                    </div>
+                </div>
+                <div class="space-y-2.5 text-[11px] text-gray-300 font-medium">
+                    <div class="flex items-center gap-2.5"><i
+                            class="fas fa-envelope text-gray-500 w-3 text-center"></i><span class="truncate">{{
+                            profile.email }}</span></div>
+                    <div class="flex items-center gap-2.5"><i
+                            class="fas fa-phone-alt text-gray-500 w-3 text-center"></i><span>{{ profile.phone }}</span>
+                    </div>
+                    <div class="flex items-center gap-2.5"><span
+                            class="text-blue-400 font-bold w-3 text-center text-[10px]">Zalo</span><span>{{ profile.zalo
+                            }}</span></div>
+
+                    <div class="pt-2 border-t border-white/5 flex items-start gap-2.5">
+                        <i class="fas fa-briefcase text-gray-500 w-3 text-center mt-0.5"></i>
+                        <span class="leading-relaxed"><span class="text-gray-500 uppercase text-[9px]">Ngành nghề
+                                KD:</span><br><span>{{ profile.industry }}</span></span>
+                    </div>
+                    <div class="pt-2 border-t border-white/5 space-y-2">
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i
+                                    class="fas fa-crown text-yellow-500 w-3 text-center"></i> Gói dịch vụ:</span><span
+                                class="text-emerald-400 font-bold">{{ profile.tier }}</span></div>
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i
+                                    class="fas fa-users text-gray-500 w-3 text-center"></i> NV quản lý:</span><span
+                                class="text-white font-bold">{{ profile.staff }}</span></div>
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i
+                                    class="fas fa-calendar-check text-gray-500 w-3 text-center"></i> Tham
+                                gia:</span><span class="text-white font-bold">{{ profile.joined }}</span></div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div
+                class="mx-4 my-4 bg-[#0a0f25]/40 backdrop-blur-md border border-dashed border-white/10 rounded-xl p-4 text-center">
+                <i class="fas fa-briefcase text-gray-600 text-lg mb-2 block"></i>
+                <p class="text-xs text-gray-500 font-bold">Chưa có dữ liệu doanh nghiệp</p>
+                <p class="text-[9px] text-gray-600 mt-1">Vui lòng thiết lập thông tin hoặc kích hoạt license.</p>
+            </div>
+            {% endif %}
+
+
+            <nav class="flex flex-col pb-6 space-y-2 px-5">
+                <!-- CORE NAVIGATION -->
+                <a href="{{ url_for('index') }}"
+                    class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span>Tổng quan</span>
+                </a>
+
+                <!-- DYNAMIC CORE MODULES PER INDUSTRY -->
+                <!-- F&B (Smart POS, QR Menu) -->
+                {% if 'ordering' in active_industry_cfg.modules or 'tables' in active_industry_cfg.modules %}
+                <a href="{{ url_for('pos') }}"
+                    class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-cash-register w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Smart POS</span>
+                </a>
+                <a href="/qr_menu/demo"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-qrcode w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>QR Menu</span>
+                </a>
+                {% endif %}
+
+                <!-- Spa & Nails (POS Dịch vụ, Đặt lịch hẹn) -->
+                {% if 'spa_services' in active_industry_cfg.modules or 'nail_services' in active_industry_cfg.modules %}
+                <a href="{{ url_for('pos') }}"
+                    class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>POS Dịch vụ</span>
+                </a>
+                <a href="/booking"
+                    class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Đặt lịch hẹn</span>
+                </a>
+                {% endif %}
+
+                <!-- Retail / Generic sell (Bán hàng) -->
+                {% if 'sales' in active_industry_cfg.modules and 'ordering' not in active_industry_cfg.modules and
+                'spa_services' not in active_industry_cfg.modules %}
+                <a href="/sell"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Bán hàng</span>
+                </a>
+                {% endif %}
+
+                <!-- AI MODULES -->
+                <a href="{{ url_for('ai_bot') }}"
+                    class="flex items-center space-x-4 {% if request.path == url_for('ai_bot') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-robot w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>AI Copilot Console</span>
+                </a>
+                <div class="pl-6 flex flex-col space-y-1.5 border-l border-cyan-500/25 ml-4 my-1">
+                    <a href="/ai/connect-platforms"
+                        class="text-xs text-gray-400 hover:text-cyan-300 font-medium py-1 flex items-center gap-2"><i
+                            class="fas fa-network-wired text-[10px]"></i> Kết nối kênh</a>
+                    <a href="/ai/customer-nurturing"
+                        class="text-xs text-gray-400 hover:text-cyan-300 font-medium py-1 flex items-center gap-2"><i
+                            class="fas fa-users-cog text-[10px]"></i> Dữ liệu khách</a>
+                    <a href="/ai/campaign-builder"
+                        class="text-xs text-gray-400 hover:text-cyan-300 font-medium py-1 flex items-center gap-2"><i
+                            class="fas fa-bullhorn text-[10px]"></i> Chiến dịch AI</a>
+                </div>
+                <a href="{{ url_for('ai_studio') }}"
+                    class="flex items-center space-x-4 {% if request.path == url_for('ai_studio') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                    <i class="fas fa-magic w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>AI Studio</span>
+                </a>
+
+                <!-- STAFF & ATTENDANCE -->
+                {% if 'attendance' in active_industry_cfg.modules or 'payroll' in active_industry_cfg.modules %}
+                <a href="/staff"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Quản lý Nhân sự</span>
+                </a>
+                <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Chấm công</span>
+                </a>
+                <a href="/bangluong"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Bảng lương</span>
+                </a>
+                {% endif %}
+
+                <!-- Radar GPS Thợ -->
+                {% if 'dispatch_gps' in active_industry_cfg.modules %}
+                <a href="{{ url_for('map_dashboard') }}"
+                    class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span>Radar GPS Thợ</span>
+                </a>
+                {% endif %}
+
+                <!-- ERP OPERATIONS (Expenses / Inventory) -->
+                {% if 'expenses' in active_industry_cfg.modules or 'inventory' in active_industry_cfg.modules %}
+                <a href="/quanly_congno"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Quản lý Công nợ</span>
+                </a>
+                <a href="/quanly_thuchi"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Quản lý Thu Chi</span>
+                </a>
+                <a href="/baocao_loinhuan"
+                    class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span>Báo cáo lợi nhuận</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <div class="px-5 pb-4 mt-auto">
+                <div
+                    class="bg-gradient-to-br from-cyan-900/30 to-blue-900/10 p-4 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:border-cyan-500/50 transition-colors">
+                    <p class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-headset mr-2 text-lg"></i> KẾT NỐI CSKH
+                    </p>
+                    <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                        <a href="tel:0794678904"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fas fa-phone-alt text-emerald-400 text-sm w-4 text-center"></i> <span>Hotline:
+                                0794.678.904</span></a>
+                        <a href="https://zalo.me/0794678904" target="_blank"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fas fa-comment-dots text-blue-400 text-sm w-4 text-center"></i> <span>Zalo:
+                                0794.678.904</span></a>
+                        <a href="https://www.facebook.com/chuyhieuhong" target="_blank"
+                            class="flex items-center gap-2 hover:text-white transition cursor-pointer"><i
+                                class="fab fa-facebook-f text-blue-400 text-sm w-4 text-center"></i> <span>Facebook: Hồ
+                                Đình Sang</span></a>
+                    </div>
+                    <button onclick="window.open('https://zalo.me/0794678904', '_blank')"
+                        class="w-full mt-4 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 text-cyan-300 hover:text-white text-xs py-2 rounded-lg transition-all font-bold">
+                        <i class="fas fa-comment-medical mr-1"></i> Live Chat Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-white/10 shrink-0">
+            <a href="{{ url_for('logout') }}"
+                class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng
+                    xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen p-4 md:p-8 relative overflow-hidden">
+        <div class="ai-core"></div>
+
+        <div
+            class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
+            <div>
+                <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
+                    <i class="fas fa-fingerprint text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> BitPaw
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">AI
+                        Copilot</span>
+                </h2>
+                <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span> Trợ
+                    lý Phân tích & Điều phối Tự động
+                </p>
+            </div>
+            <div class="hidden md:flex gap-3">
+                <a href="/ai/connect-platforms"
+                    class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/50 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                    <i class="fas fa-network-wired"></i> Kết nối kênh CSKH
+                </a>
+                <a href="/ai/customer-nurturing"
+                    class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
+                    <i class="fas fa-users-cog"></i> Khách hàng & Chiến dịch
+                </a>
+            </div>
+        </div>
+
+        <div class="flex gap-5 flex-1 min-h-0 relative z-10">
+
+            <div
+                class="w-1/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+                <div class="p-4 border-b border-white/10 bg-black/40 space-y-3 shrink-0">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" id="searchInput" placeholder="Tìm kiếm khách hàng..."
+                            class="glass-input pl-10 py-3 text-sm rounded-2xl bg-black/50">
+                    </div>
+
+                    <!-- Nurturing segment selectors -->
+                    <div>
+                        <label class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block mb-1">Hộp thư &
+                            Phân khúc</label>
+                        <select id="nurtureFilter" onchange="applyNurtureFilter()"
+                            class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
+                            <option value="ALL">📬 Inbox Đa Kênh (Tất cả)</option>
+                            <option value="NEW">🆕 Khách Hàng Mới</option>
+                            <option value="HOT">🔥 Lead Nóng (Potential > 80%)</option>
+                            <option value="NEEDS_CARE">⚠️ Khách Cần Chăm Lại</option>
+                            <option value="REMARKETING">🔄 Khách Cũ Remarketing</option>
+                            <option value="CAMPAIGNS">🎯 Kịch Bản Đang Chạy</option>
+                        </select>
+                    </div>
+
+                    <!-- Demo Mode toggle switch -->
+                    <div class="flex items-center justify-between px-1">
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Chế độ hiển
+                            thị</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] text-gray-400 font-bold" id="demoModeLabel">Dữ liệu thật</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="demoModeSwitch" class="sr-only peer"
+                                    onchange="toggleDemoMode()">
+                                <div
+                                    class="w-7 h-4 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyan-500">
+                                </div>
+                            </label>
+                            <span
+                                class="text-[9px] text-yellow-500/50 peer-checked:text-yellow-400 font-black uppercase"
+                                id="demoModeOnLabel">Demo Mode</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="customerList" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                    <div class="text-center text-cyan-400 py-10"><i class="fas fa-circle-notch fa-spin text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+
+            <div
+                class="w-2/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+
+                <div class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">
+                            <span id="chatAvatar">👤</span>
+                        </div>
+                        <div>
+                            <h3 id="chatCustomerName" class="font-bold text-white text-sm">Chưa chọn khách</h3>
+                            <p class="text-[10px] text-cyan-400 tracking-wider flex items-center gap-1"><span
+                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đang hoạt động</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-black/50 px-4 py-2 rounded-xl border border-white/5">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            id="modeLabelOff">Chat Tay</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="aiToggleSwitch" class="sr-only peer" checked>
+                            <div
+                                class="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                            </div>
+                        </label>
+                        <span
+                            class="text-[10px] font-black text-cyan-400 uppercase tracking-widest drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]"
+                            id="modeLabelOn">AI Trực</span>
+                    </div>
+                </div>
+
+                <!-- AI suggestion to close deal (Gợi ý AI chốt đơn) -->
+                <div id="aiClosingAlert"
+                    class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-magic text-purple-400 animate-pulse text-sm"></i>
+                        <span><strong class="text-cyan-400 font-bold">AI Gợi Ý Chốt Đơn:</strong> <span
+                                id="aiClosingText">Tặng voucher giảm giá 15% hóa đơn chốt dịch vụ ngay hôm
+                                nay!</span></span>
+                    </div>
+                    <button onclick="applyAISuggestion()"
+                        class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i
+                            class="fas fa-check mr-1"></i> Sử dụng gợi ý</button>
+                </div>
+
+
+                <div
+                    class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0">
+                    <button onclick="sendQuickMessage('Gợi ý cho tôi chiến dịch tăng doanh thu trong tuần này?')"
+                        class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-chart-line mr-1"></i> Gợi ý doanh thu</button>
+                    <button onclick="sendQuickMessage('Kịch bản tin nhắn chăm sóc và giữ chân khách hàng cũ hiệu quả?')"
+                        class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-heart mr-1"></i> Gợi ý chăm sóc khách</button>
+                    <button onclick="sendQuickMessage('Phân tích tồn kho và gợi ý phương án thanh lý vật tư cận date?')"
+                        class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-boxes mr-1"></i> Gợi ý tồn kho</button>
+                    <button
+                        onclick="sendQuickMessage('Tối ưu hóa lịch làm việc và sắp xếp ca trực nhân sự thông minh?')"
+                        class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-users mr-1"></i> Gợi ý nhân sự</button>
+                </div>
+
+                <div id="chatBox"
+                    class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
+                    <div class="flex justify-start gap-4">
+                        <div
+                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1">
+                            <i class="fas fa-robot"></i></div>
+                        <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                            <p
+                                class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">
+                                BitPaw Copilot</p>
+                            <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">
+                                Chào Sếp! Chọn một khách hàng bên trái để bắt đầu trò chuyện nhé. Em đang ở chế độ trực
+                                tự động! 🚀
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
+                    <form id="aiForm" class="flex items-center gap-3 relative" onsubmit="handleUserSubmit(event)">
+                        <input type="text" id="userInput" placeholder="Nhắn tin cho khách hàng..." autocomplete="off"
+                            class="glass-input pl-5 pr-16 font-medium text-sm rounded-2xl">
+                        <button type="submit" id="btnSend"
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all hover:scale-110 active:scale-95 border border-cyan-400">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="toast-container"
+        class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // 3D Background Logic
+        (function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const isMobile = window.innerWidth < 768;
+            const particlesCount = isMobile ? 700 : 1500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            const starCount = 100;
+            const starPositions = new Float32Array(starCount * 3);
+            const starVelocities = [];
+            for (let i = 0; i < starCount; i++) {
+                starPositions[i * 3] = (Math.random() - 0.5) * 120;
+                starPositions[i * 3 + 1] = (Math.random() - 0.5) * 70;
+                starPositions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 30;
+                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
+
+            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - halfX) * 0.0005;
+                mouseY = (e.clientY - halfY) * 0.0005;
+            });
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                if (document.hidden) return; // Pause rendering when tab is hidden to save CPU/GPU cycles
+                const t = clock.getElapsedTime();
+                const hue = (t * 0.04) % 1;
+                material.color.setHSL(hue, 0.9, 0.65);
+                particles.rotation.y = t * 0.03;
+                particles.rotation.x = t * 0.01;
+                targetX = mouseX * 0.5;
+                targetY = mouseY * 0.5;
+                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
+                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
+
+                const posArr = stars.geometry.attributes.position.array;
+                for (let i = 0; i < starCount; i++) {
+                    posArr[i * 3] += starVelocities[i].x;
+                    posArr[i * 3 + 1] += starVelocities[i].y;
+                    posArr[i * 3 + 2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i * 3]) > 70 || Math.abs(posArr[i * 3 + 1]) > 45) {
+                        posArr[i * 3] = (Math.random() - 0.5) * 120;
+                        posArr[i * 3 + 1] = 40;
+                        posArr[i * 3 + 2] = (Math.random() - 0.5) * 50 - 25;
+                    }
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // Supabase Init
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        let currentCustomerId = null;
+        let conversationHistory = [];
+        let allCustomers = [];
+        let isMockMode = false;
+        let isDemoMode = false;
+
+
+        // DOM Elements
+        const customerListDiv = document.getElementById('customerList');
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const chatCustomerName = document.getElementById('chatCustomerName');
+        const chatAvatar = document.getElementById('chatAvatar');
+        const aiToggleSwitch = document.getElementById('aiToggleSwitch');
+        const modeLabelOn = document.getElementById('modeLabelOn');
+        const modeLabelOff = document.getElementById('modeLabelOff');
+
+        // Logic Công tắc AI
+        aiToggleSwitch.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                modeLabelOn.classList.add('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
+                modeLabelOn.classList.remove('text-gray-500');
+                modeLabelOff.classList.remove('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
+                modeLabelOff.classList.add('text-gray-500');
+                showToast('Đã BẬT chế độ Bot AI tự động', 'success');
+            } else {
+                modeLabelOn.classList.remove('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
+                modeLabelOn.classList.add('text-gray-500');
+                modeLabelOff.classList.add('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
+                modeLabelOff.classList.remove('text-gray-500');
+                showToast('Đã TẮT Bot. Chuyển sang chat thủ công!', 'error');
+            }
+        });
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colorClass = type === 'success' ? 'emerald' : 'rose';
+            let iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            toast.className = `bg-[#0a0f25]/95 backdrop-blur-xl border border-${colorClass}-500/50 text-white px-4 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 transform -translate-y-full opacity-0 transition-all duration-300 w-full`;
+            toast.innerHTML = `<i class="fas ${iconClass} text-${colorClass}-400 text-xl shrink-0"></i> <span class="text-[13px] font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => { toast.classList.add('-translate-y-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3500);
+        }
+
+        const mockCustomers = [
+            { id: 'mock-1', full_name: 'Nhà hàng Sen Vàng (F&B)', last_message: 'Sếp ơi gợi ý tăng doanh thu tuần này?', last_message_time: new Date().toISOString() },
+            { id: 'mock-2', full_name: 'Boutique Paris (Retail)', last_message: 'Hàng tồn kho cận date xử lý sao sếp?', last_message_time: new Date().toISOString() },
+            { id: 'mock-3', full_name: 'An Nhiên Spa (Spa)', last_message: 'Kịch bản chăm sóc khách cũ thế nào sếp?', last_message_time: new Date().toISOString() },
+            { id: 'mock-4', full_name: 'Karaoke Dragon (Karaoke)', last_message: 'Tối ưu ca trực nhân sự cuối tuần sếp ơi.', last_message_time: new Date().toISOString() },
+            { id: 'mock-5', full_name: 'Nail Art Studio (Nails)', last_message: 'Mẫu móng mới có nên chạy quảng cáo không sếp?', last_message_time: new Date().toISOString() }
+        ];
+
+        const mockMessages = {
+            'mock-1': [
+                { sender_type: 'customer', content: 'Chào sếp! Nhà hàng Sen Vàng đang cần lập chiến lược tăng doanh thu tuần này. Sếp gợi ý hộ em.', created_at: new Date().toISOString() }
+            ],
+            'mock-2': [
+                { sender_type: 'customer', content: 'Sếp ơi, kho bên shop Boutique Paris còn nhiều đồ cận date quá. Có phương án nào xử lý không?', created_at: new Date().toISOString() }
+            ],
+            'mock-3': [
+                { sender_type: 'customer', content: 'Bên An Nhiên Spa đang rảnh lịch. Em muốn gửi tin nhắn chăm sóc khách cũ mà chưa biết soạn sao.', created_at: new Date().toISOString() }
+            ],
+            'mock-4': [
+                { sender_type: 'customer', content: 'Quán Karaoke Dragon cuối tuần hay bị chồng chéo nhân sự. Sếp gợi ý cách sắp xếp ca trực tối ưu đi sếp.', created_at: new Date().toISOString() }
+            ],
+            'mock-5': [
+                { sender_type: 'customer', content: 'Bên tiệm Nails của mình vừa ra bộ sưu tập móng nhung mới sếp ạ. Chạy marketing sao cho hot sếp?', created_at: new Date().toISOString() }
+            ]
+        };
+
+
+        async function fetchCustomers() {
+            try {
+                const { data, error } = await supabase.from('bot_customers').select('*').order('last_message_time', { ascending: false });
+                if (error) throw error;
+                allCustomers = data || [];
+
+                if (allCustomers.length === 0) {
+                    throw new Error("No data in table");
+                }
+                isMockMode = false;
+                applyNurtureFilter();
+            } catch (err) {
+                console.warn("Supabase database unreachable or empty.", err);
+                if (isDemoMode) {
+                    isMockMode = true;
+                    allCustomers = mockCustomers;
+                    applyNurtureFilter();
+                } else {
+                    isMockMode = false;
+                    allCustomers = [];
+                    renderEmptyState();
+                }
+            }
+        }
+
+        function renderEmptyState() {
+            customerListDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
+                    <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 animate-pulse">
+                        <i class="fas fa-users-slash text-lg"></i>
+                    </div>
+                    <h4 class="text-xs font-black text-white uppercase tracking-wider">Chưa có khách hàng</h4>
+                    <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Hãy kết nối Zalo/Facebook hoặc thu lead từ Landing Page.</p>
+                </div>
+            `;
+
+            // Reset chat area
+            chatCustomerName.innerText = "Chưa chọn khách";
+            chatAvatar.innerText = "👤";
+            document.getElementById("aiClosingAlert").classList.add("hidden");
+            chatBox.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 px-8 text-center bg-black/10 rounded-3xl border border-white/5">
+                    <i class="fas fa-comments text-5xl text-cyan-500/20 mb-4 animate-pulse"></i>
+                    <h3 class="font-bold text-gray-300 text-sm">Hộp thư trống</h3>
+                    <p class="text-xs text-gray-600 mt-2 max-w-sm">Hệ thống đang hoạt động. Khi có tin nhắn từ Zalo/Facebook Page, cuộc hội thoại sẽ xuất hiện lập tức tại đây.</p>
+                </div>
+            `;
+        }
+
+        window.toggleDemoMode = function () {
+            const demoSwitch = document.getElementById("demoModeSwitch");
+            const labelReal = document.getElementById("demoModeLabel");
+            const labelDemo = document.getElementById("demoModeOnLabel");
+
+            isDemoMode = demoSwitch.checked;
+
+            if (isDemoMode) {
+                labelReal.classList.replace("text-gray-400", "text-gray-600");
+                labelDemo.classList.replace("text-yellow-500/50", "text-yellow-400");
+                labelDemo.classList.add("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
+                showToast("Đã kích hoạt Chế độ Demo (Demo Mode)", "success");
+            } else {
+                labelReal.classList.replace("text-gray-600", "text-gray-400");
+                labelDemo.classList.replace("text-yellow-400", "text-yellow-500/50");
+                labelDemo.classList.remove("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
+                showToast("Đã chuyển về hiển thị Dữ liệu thực từ Supabase", "error");
+            }
+
+            fetchCustomers();
+        }
+
+        window.applyNurtureFilter = function () {
+            const filterValue = document.getElementById("nurtureFilter").value;
+            let filtered = [...allCustomers];
+
+            if (filterValue === 'CAMPAIGNS') {
+                renderCampaignsList();
+                return;
+            }
+
+            if (filterValue === 'NEW') {
+                filtered = filtered.filter(c => c.status === 'NEW' || c.id === 'mock-5');
+            } else if (filterValue === 'HOT') {
+                filtered = filtered.filter(c => (c.potential_score && c.potential_score > 80) || c.id === 'mock-1' || c.id === 'mock-3');
+            } else if (filterValue === 'NEEDS_CARE') {
+                filtered = filtered.filter(c => c.status === 'NEEDS_CARE' || c.id === 'mock-4');
+            } else if (filterValue === 'REMARKETING') {
+                filtered = filtered.filter(c => c.status === 'HIBERNATING' || c.status === 'CHURN_RISK' || c.id === 'mock-2');
+            }
+
+            renderCustomerList(filtered);
+        }
+
+        function renderCampaignsList() {
+            customerListDiv.innerHTML = `
+                <div class="p-2 space-y-3 shrink-0">
+                    <div class="glass-card p-3 rounded-xl border border-cyan-500/20 bg-cyan-950/20">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Đang chạy</span>
+                            <span class="text-[8px] text-gray-500 font-bold">Zalo OA</span>
+                        </div>
+                        <h4 class="text-[11px] font-black text-white">Chiến dịch Phục Hồi Khách Churn</h4>
+                        <p class="text-[9px] text-gray-400 mt-1">Đã gửi: 120/150 tin nhắn tự động.</p>
+                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-cyan-400" style="width: 80%;"></div>
+                        </div>
+                    </div>
+                    <div class="glass-card p-3 rounded-xl border border-purple-500/20 bg-purple-950/20">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Đang chạy</span>
+                            <span class="text-[8px] text-gray-500 font-bold">Facebook Messenger</span>
+                        </div>
+                        <h4 class="text-[11px] font-black text-white">Tri Ân Khách Hàng Mới VIP</h4>
+                        <p class="text-[9px] text-gray-400 mt-1">Đã gửi: 45/45 tin nhắn tự động.</p>
+                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-purple-500" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.applyAISuggestion = function () {
+            const closingText = document.getElementById("aiClosingText").innerText;
+            userInput.value = `[AI Chốt đơn] Gửi ưu đãi đặc biệt: ${closingText}`;
+            userInput.focus();
+        }
+
+        function renderCustomerList(customers) {
+            customerListDiv.innerHTML = '';
+            if (customers.length === 0) {
+                customerListDiv.innerHTML = `<p class="text-center text-gray-500 text-xs py-8 font-medium">Không tìm thấy khách hàng</p>`;
+                return;
+            }
+
+            customers.forEach(cus => {
+                const item = document.createElement('div');
+                item.className = `customer-item flex items-center gap-3 p-3 rounded-2xl border border-transparent transition-all cursor-pointer ${currentCustomerId === cus.id ? 'active-customer' : 'hover:bg-white/5'}`;
+                item.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr ${currentCustomerId === cus.id ? 'from-cyan-500 to-purple-600' : 'from-gray-700 to-gray-600'} flex items-center justify-center text-white font-bold shadow-md shrink-0">
+                        ${cus.full_name?.charAt(0) || '?'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-0.5">
+                            <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${cus.full_name || 'Khách'}</p>
+                        </div>
+                        <p class="text-[11px] text-gray-500 truncate font-medium">${cus.last_message || 'Chưa có tin nhắn'}</p>
+                    </div>
+                `;
+                item.addEventListener('click', () => onSelectCustomer(cus));
+                customerListDiv.appendChild(item);
+            });
+        }
+
+        async function onSelectCustomer(customer) {
+            currentCustomerId = customer.id;
+            conversationHistory = [];
+            chatCustomerName.innerText = customer.full_name || 'Khách';
+            chatAvatar.innerText = customer.full_name?.charAt(0) || '👤';
+
+            // Show AI Closing suggestion
+            const aiClosingAlert = document.getElementById("aiClosingAlert");
+            const aiClosingText = document.getElementById("aiClosingText");
+            if (aiClosingAlert && aiClosingText) {
+                aiClosingAlert.classList.remove("hidden");
+                if (customer.id.includes('mock-1')) {
+                    aiClosingText.innerText = "Tặng voucher giảm giá 15% cho hóa đơn gọi món nướng hải sản cuối tuần!";
+                } else if (customer.id.includes('mock-2')) {
+                    aiClosingText.innerText = "Mã ưu đãi giảm 35% cho các combo quần áo thời trang cận date để xả kho ngay!";
+                } else if (customer.id.includes('mock-3')) {
+                    aiClosingText.innerText = "Tặng suất Massage đá nóng miễn phí khi đặt lịch hẹn dịch vụ Spa trước chiều mai!";
+                } else if (customer.id.includes('mock-4')) {
+                    aiClosingText.innerText = "Giảm 20% phí phòng hát giờ vàng kèm free nước ngọt cho ca sinh nhật!";
+                } else if (customer.id.includes('mock-5')) {
+                    aiClosingText.innerText = "Ưu đãi 15% gói combo vẽ móng nhung thiết kế nghệ thuật mới ra mắt!";
+                } else {
+                    aiClosingText.innerText = "Voucher ưu đãi 10% hóa đơn chốt đơn chăm sóc khách hàng tự động!";
+                }
+            }
+
+            renderCustomerList(allCustomers);
+            await loadMessages(customer.id);
+        }
+
+
+        async function loadMessages(customerId) {
+            chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i></div>';
+            if (isMockMode || String(customerId).startsWith('mock-')) {
+                chatBox.innerHTML = '';
+                const msgs = mockMessages[customerId] || [{ sender_type: 'customer', content: 'Chào sếp! Sếp tư vấn giúp em phương án tối ưu vận hành nhé.', created_at: new Date().toISOString() }];
+                msgs.forEach(msg => {
+                    if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
+                    else appendAIMessageStatic(msg.content, msg.created_at);
+                });
+                scrollToBottom();
+                return;
+            }
+            try {
+                const { data, error } = await supabase.from('bot_messages').select('*').eq('customer_id', customerId).order('created_at', { ascending: true });
+                if (error) throw error;
+                chatBox.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    appendAIMessageStatic("Hệ thống đã kết nối. Chờ khách hàng nhắn tin...");
+                } else {
+                    data.forEach(msg => {
+                        if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
+                        else appendAIMessageStatic(msg.content, msg.created_at);
+                    });
+                }
+                scrollToBottom();
+            } catch (err) {
+                console.error(err);
+                chatBox.innerHTML = '<div class="text-center text-rose-400 py-10">Lỗi tải tin nhắn</div>';
+            }
+        }
+
+        function appendUserMessageStatic(text, time = null) {
+            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const html = `
+                <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-end">
+                        <div class="chat-user p-4 text-sm text-white leading-relaxed font-medium">${text}</div>
+                        <p class="text-[9px] text-gray-500 mt-1 mr-2 font-bold"><i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+        }
+
+        function appendAIMessageStatic(text, time = null) {
+            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const html = `
+                <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[10px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Khách hàng</p>
+                        <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${text}</div>
+                        <p class="text-[9px] text-gray-500 mt-1 ml-2 font-bold">${timeStr}</p>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+        }
+
+        function appendCopilotMessageStatic(text) {
+            const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const html = `
+                <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
+                        <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">${text}</div>
+                        <p class="text-[9px] text-gray-500 mt-1 ml-2 font-bold">${timeStr}</p>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
+
+        window.sendQuickMessage = function (text) {
+            if (!currentCustomerId) { showToast('Vui lòng chọn một khách hàng hoặc chi nhánh bên trái trước!', 'error'); return; }
+            userInput.value = text;
+            handleUserSubmit(new Event('submit'));
+        }
+
+        function showTypingIndicator() {
+            const html = `
+                <div id="typingIndicator" class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
+                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
+                        <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium flex items-center gap-1.5" style="background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.15)); border: 1px solid rgba(139,92,246,0.3);">
+                            <span class="typing-dot w-2 h-2 bg-cyan-400 rounded-full"></span>
+                            <span class="typing-dot w-2 h-2 bg-cyan-400 rounded-full"></span>
+                            <span class="typing-dot w-2 h-2 bg-cyan-400 rounded-full"></span>
+                        </div>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.remove();
+        }
+
+        // Xử lý gửi tin
+        window.handleUserSubmit = async function (e) {
+            if (e) e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text) return;
+            if (!currentCustomerId) { showToast('Vui lòng chọn khách hàng bên trái trước!', 'error'); return; }
+
+            userInput.value = '';
+            appendUserMessageStatic(text);
+            scrollToBottom();
+
+            // Hiển thị typing và disable input/button để chống spam
+            showTypingIndicator();
+            userInput.disabled = true;
+            const btnSend = document.getElementById('btnSend');
+            if (btnSend) {
+                btnSend.disabled = true;
+                btnSend.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            // Lưu tin nhắn mới nhất vào conversationHistory
+            conversationHistory.push({ role: "user", content: text });
+            if (conversationHistory.length > 6) {
+                conversationHistory.shift();
+            }
+
+            let aiResponse = "";
+            try {
+                const systemPrompt = `Bạn là BitPaw AI Tư Vấn, một nhân viên tư vấn phần mềm thật, không phải chatbot văn mẫu.
+Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải.
+Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ” ở mọi câu.
+Không tự hứa đã gửi link/bảng giá nếu hệ thống chưa thực hiện hành động đó.
+Không tự báo giá cụ thể nếu chưa có bảng giá chính thức trong dữ liệu.
+Nếu khách hỏi giá, hãy nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.”
+Luôn nhớ ngữ cảnh trong cuộc trò chuyện hiện tại.
+Khi khách đã cung cấp ngành/quy mô, hãy tóm tắt lại bằng 1 câu rồi đề xuất bước tiếp theo.
+Trả lời tối đa 2–4 câu, dưới 350 ký tự.
+Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm.
+Không spam hotline. Chỉ nhắc Zalo/hotline khi khách muốn demo, báo giá, hoặc cần người hỗ trợ.
+Nếu khách muốn dùng thử, không nói “em sẽ gửi link” nếu chưa có link thật. Hãy nói: “Em có thể chuyển thông tin này cho đội tư vấn để setup demo phù hợp.”
+
+BitPaw OS hỗ trợ POS, QR Order, HRM, chấm công, tính lương, CRM, AI CSKH, marketing, tồn kho, báo cáo, thanh toán.
+Nếu hỏi thanh toán QR: nói rõ demo đang xác nhận thủ công; tự động nhận diện tiền cần webhook/ngân hàng/cổng thanh toán.
+Không hứa tính năng chưa chắc có.
+Hotline/Zalo khi cần: 0794.678.904.`;
+
+                // Build rolling chat history context
+                const historyContext = conversationHistory.slice(-6).map(item => `${item.role === "user" ? "Khách" : "BitPaw AI"}: ${item.content}`).join("\n");
+                const rollingContext = `Danh sách lịch sử hội thoại gần nhất:
+${historyContext}
+
+Tin nhắn mới nhất của khách:
+${text}`;
+
+                const response = await fetch('/api/ai/studio/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemPrompt: systemPrompt,
+                        userPrompt: rollingContext,
+                        temperature: 0.7,
+                        max_tokens: 220,
+                        source: "ai_bot_console"
+                    })
+                });
+
+                if (!response.ok) throw new Error("HTTP error " + response.status);
+                const resData = await response.json();
+
+                if (resData && resData.choices && resData.choices[0] && resData.choices[0].message) {
+                    aiResponse = resData.choices[0].message.content;
+                } else if (resData && resData.error) {
+                    throw new Error(resData.error);
+                } else {
+                    throw new Error("Invalid response format");
+                }
+            } catch (err) {
+                console.error("API Call error:", err);
+                aiResponse = "Em đang hơi chậm chút, nhưng em vẫn ghi nhận nhu cầu của anh/chị. Mình đang ưu tiên setup phần nào trước ạ?";
+            } finally {
+                // Xóa typing và enable lại input/button
+                removeTypingIndicator();
+                userInput.disabled = false;
+                if (btnSend) {
+                    btnSend.disabled = false;
+                    btnSend.classList.remove('opacity-50', 'pointer-events-none');
+                }
+                userInput.focus();
+            }
+
+            // Cắt mềm dưới 350 ký tự nếu response quá dài
+            if (aiResponse.length > 350) {
+                aiResponse = aiResponse.substring(0, 347) + "...";
+            }
+
+            // Lưu câu trả lời của AI vào conversationHistory
+            conversationHistory.push({ role: "assistant", content: aiResponse });
+            if (conversationHistory.length > 6) {
+                conversationHistory.shift();
+            }
+
+            appendCopilotMessageStatic(aiResponse);
+
+            // Lưu lên Supabase nếu không phải chế độ mock
+            if (!isMockMode && !String(currentCustomerId).startsWith('mock-')) {
+                try {
+                    const senderType = aiToggleSwitch.checked ? 'ai' : 'staff';
+                    await supabase.from('bot_messages').insert([
+                        { customer_id: currentCustomerId, sender_type: senderType, content: text, created_at: new Date().toISOString() },
+                        { customer_id: currentCustomerId, sender_type: 'ai', content: aiResponse, created_at: new Date().toISOString() }
+                    ]);
+                    await supabase.from('bot_customers').update({ last_message: aiResponse, last_message_time: new Date().toISOString() }).eq('id', currentCustomerId);
+                } catch (ex) {
+                    console.error("Save failed:", ex);
+                }
+            }
+        };
+
+        // Bật Realtime lắng nghe tin nhắn mới
+        function subscribeToRealtime() {
+            try {
+                supabase.channel('public:bot_messages')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bot_messages' }, payload => {
+                        const newMsg = payload.new;
+                        if (newMsg.customer_id === currentCustomerId) {
+                            if (newMsg.sender_type !== 'staff' && newMsg.sender_type !== 'ai') {
+                                appendAIMessageStatic(newMsg.content, newMsg.created_at);
+                                scrollToBottom();
+                            }
+                        }
+                        fetchCustomers();
+                    }).subscribe();
+            } catch (ex) {
+                console.warn("Realtime channel skipped offline.");
+            }
+        }
+
+        // Khởi động
+        fetchCustomers();
+        subscribeToRealtime();
+    </script>
+    {% include 'components/cskh_global.html' %}
+</body>
+
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Điểm Danh Của Tôi | BitPaw OS</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- 🚀 THÊM THƯ VIỆN SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+        }
+
+        /* Hiệu ứng gợn sóng Neon cho nút bấm */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 30px rgba(6, 182, 212, 0);
+            }
+
+            100% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+            }
+        }
+
+        .btn-glow {
+            animation: pulse-ring 2s infinite;
+        }
+
+        /* Lật ngược camera cho giống soi gương */
+        #cameraFeed {
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden text-white">
+
+    <div
+        class="absolute top-[-10%] left-[-10%] w-[400px] h-[400px] bg-purple-700/20 rounded-full blur-[100px] pointer-events-none">
+    </div>
+    <div
+        class="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[100px] pointer-events-none">
+    </div>
+
+    <div
+        class="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative z-10 flex flex-col items-center text-center">
+
+        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo"
+            class="w-16 h-16 rounded-full mx-auto mb-2 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-black/20 p-1">
+        <h2 class="text-sm font-bold text-gray-400 mb-1 uppercase tracking-wider">Xin chào,</h2>
+        <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6"
+            id="empName">Đang tải...</h1>
+
+        <div
+            class="bg-black/40 border border-cyan-500/30 rounded-2xl w-full py-4 mb-6 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+            <p class="text-gray-400 text-xs mb-1 font-medium uppercase tracking-widest" id="currentDate">--/--/----</p>
+            <div class="text-4xl font-mono font-bold text-cyan-300 tracking-wider drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                id="clockText">00:00:00</div>
+        </div>
+
+        <!-- BƯỚC 1: NÚT IN MỞ CAMERA -->
+        <div id="step1_Start" class="relative w-full flex flex-col items-center justify-center mb-2">
+            <button onclick="startCameraAndGPS()"
+                class="btn-glow w-36 h-36 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-4 border-white/10 text-white font-black text-xl flex flex-col items-center justify-center gap-2 shadow-[0_0_40px_rgba(6,182,212,0.6)] hover:scale-105 transition-transform">
+                <i class="fas fa-fingerprint text-5xl"></i>
+                <span>IN</span>
+            </button>
+            <p class="text-xs text-gray-500 mt-6"><i class="fas fa-map-marker-alt text-cyan-500 mr-1"></i> Bắt buộc cấp
+                quyền Camera & GPS</p>
+        </div>
+
+        <!-- BƯỚC 2: KHUNG CAMERA & NÚT CHỤP -->
+        <div id="step2_Camera" class="w-full hidden flex-col items-center">
+            <div
+                class="relative w-full rounded-2xl overflow-hidden border-2 border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.3)] mb-4 bg-black">
+                <video id="cameraFeed" class="w-full h-[250px] object-cover" autoplay playsinline></video>
+
+                <div id="gpsStatus"
+                    class="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30">
+                    <i class="fas fa-spinner fa-spin"></i> Đang định vị vệ tinh...
+                </div>
+            </div>
+
+            <button id="captureBtn" onclick="captureAndSubmit()" disabled
+                class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all opacity-50 cursor-not-allowed flex justify-center items-center gap-2">
+                <i class="fas fa-camera text-xl"></i> CHỤP & LƯU VÀO CA
+            </button>
+            <button onclick="cancelCheckin()" class="mt-3 text-xs text-gray-400 hover:text-rose-400 underline">Hủy
+                bỏ</button>
+        </div>
+
+        <!-- BƯỚC 3: THÀNH CÔNG -->
+        <div id="step3_Success" class="w-full hidden flex-col items-center justify-center py-6">
+            <div
+                class="w-32 h-32 rounded-full bg-emerald-500/20 border-4 border-emerald-500/50 text-emerald-400 font-black text-xl flex flex-col items-center justify-center gap-2 shadow-[0_0_40px_rgba(16,185,129,0.4)] mb-4">
+                <i class="fas fa-check-circle text-5xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-emerald-400 mb-1">Thành Công!</h3>
+            <p class="text-gray-400 text-sm mb-6" id="successTime">Đã ghi nhận lúc: --:--</p>
+
+            <button onclick="window.history.back()"
+                class="bg-white/10 hover:bg-white/20 border border-white/10 px-6 py-2 rounded-xl text-sm font-bold text-white transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Về App Nhân Viên
+            </button>
+        </div>
+
+        <canvas id="snapshotCanvas" class="hidden"></canvas>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🚀 1. CẤU HÌNH SUPABASE 
+        // ==========================================
+        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdHJkbmdhaGRqcG5pbmptemhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDIyODQsImV4cCI6MjA5Mjg3ODI4NH0.TX0f_pbiqSiF39ISt9z_flvyRVxNc730By87Zae2uRc';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Biến lưu thông tin nhân viên (Lấy từ LocalStorage đã đăng nhập ở App Nhân Viên)
+        let currentUser = { code: 'NV-0000', name: 'Chưa đăng nhập' };
+
+        // Kiểm tra đăng nhập khi mở trang
+        window.onload = () => {
+            const savedName = localStorage.getItem('bp_emp_name');
+            const savedCode = localStorage.getItem('bp_emp_code');
+
+            if (savedName && savedCode) {
+                currentUser.name = savedName;
+                currentUser.code = savedCode;
+                document.getElementById('empName').innerText = currentUser.name;
+            } else {
+                document.getElementById('empName').innerText = "Vui lòng đăng nhập!";
+                alert("Bạn chưa đăng nhập. Vui lòng mở App Nhân Viên để đăng nhập trước!");
+            }
+        };
+
+        // --- 2. ĐỒNG HỒ ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentDate').innerText = now.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('clockText').innerText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        // --- BIẾN TOÀN CỤC LƯU TRỮ CAMERA & GPS ---
+        let videoStream = null;
+        let currentLat = null;
+        let currentLng = null;
+
+        // --- 3. BẤM NÚT "IN" -> MỞ CAMERA & XIN GPS ---
+        async function startCameraAndGPS() {
+            if (currentUser.code === 'NV-0000') return alert("Bạn chưa đăng nhập!");
+
+            // Chuyển giao diện
+            document.getElementById('step1_Start').classList.add('hidden');
+            document.getElementById('step2_Camera').classList.remove('hidden');
+            document.getElementById('step2_Camera').classList.add('flex');
+
+            // 3.1 Bật Camera
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" }, // Ưu tiên camera trước
+                    audio: false
+                });
+                document.getElementById('cameraFeed').srcObject = videoStream;
+            } catch (err) {
+                alert("Lỗi: Không thể truy cập Camera. Vui lòng cấp quyền!");
+                cancelCheckin();
+                return;
+            }
+
+            // 3.2 Xin quyền định vị GPS
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentLat = position.coords.latitude;
+                        currentLng = position.coords.longitude;
+
+                        // Đã có GPS -> Đổi chữ xanh, Mở khóa nút CHỤP
+                        const gpsUI = document.getElementById('gpsStatus');
+                        gpsUI.innerHTML = `<i class="fas fa-map-marker-check"></i> Đã khóa mục tiêu GPS`;
+                        gpsUI.className = "absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-[10px] text-emerald-400 flex items-center justify-center gap-2 border border-emerald-400/30";
+
+                        const capBtn = document.getElementById('captureBtn');
+                        capBtn.disabled = false;
+                        capBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        capBtn.classList.add('hover:scale-105');
+                    },
+                    (error) => {
+                        alert("Lỗi: Không thể lấy vị trí GPS. Vui lòng bật Vị trí (Location) trên điện thoại!");
+                        cancelCheckin();
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                alert("Trình duyệt của bạn không hỗ trợ GPS!");
+            }
+        }
+
+        // --- 4. BẤM "CHỤP & LƯU" -> ĐẨY THẲNG LÊN SUPABASE CLOUD ---
+        async function captureAndSubmit() {
+            const btn = document.getElementById('captureBtn');
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Đang tải lên hệ thống...`;
+            btn.disabled = true;
+
+            // 4.1 Chụp ảnh từ Video sang Canvas
+            const video = document.getElementById('cameraFeed');
+            const canvas = document.getElementById('snapshotCanvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Lật ngược lại ctx để lưu đúng chiều (vì video đang soi gương lật ngược)
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Tắt Camera cho đỡ tốn pin
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+
+            // 4.2 Ép khung Canvas thành 1 File Ảnh (Blob) thay vì Base64 nặng nề
+            canvas.toBlob(async (blob) => {
+                try {
+                    const todayStr = new Date().toLocaleDateString('en-GB'); // Định dạng: DD/MM/YYYY
+                    const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const toa_do = `${currentLat},${currentLng}`;
+                    const fileName = `diemdanh_${currentUser.code}_${Date.now()}.jpg`;
+
+                    // A. Tải ảnh điểm danh lên Đám mây (Storage: checkin_images)
+                    const { data: uploadData, error: uploadErr } = await supabase.storage
+                        .from('checkin_images')
+                        .upload(fileName, blob, { contentType: 'image/jpeg' });
+
+                    if (uploadErr) throw uploadErr;
+
+                    // B. Lấy đường link public của ảnh vừa up
+                    const { data: publicUrlData } = supabase.storage
+                        .from('checkin_images')
+                        .getPublicUrl(fileName);
+
+                    const imageUrl = publicUrlData.publicUrl;
+
+                    // C. Lưu thông tin (Giờ, Tọa độ, Link Ảnh) vào Bảng 'chamcong'
+                    const { error: dbErr } = await supabase.from('chamcong').insert([{
+                        ma_nv: currentUser.code,
+                        ngay_cham: todayStr,
+                        gio_den: timeStr,
+                        trang_thai: 'Có mặt',
+                        nganh_nghe: 'Kỹ Thuật', // Tùy chỉnh theo Sếp
+                        toa_do: toa_do,
+                        anh_checkin: imageUrl
+                    }]);
+
+                    if (dbErr) throw dbErr;
+
+                    // Ghi nhận cờ Đã Điểm Danh vào điện thoại
+                    localStorage.setItem('bp_da_diem_danh', new Date().toDateString());
+
+                    // D. Chuyển UI sang màn hình Thành công
+                    document.getElementById('step2_Camera').classList.add('hidden');
+                    document.getElementById('step2_Camera').classList.remove('flex');
+                    document.getElementById('step3_Success').classList.remove('hidden');
+                    document.getElementById('step3_Success').classList.add('flex');
+                    document.getElementById('successTime').innerText = `Đã chốt ca lúc: ${timeStr}`;
+
+                } catch (error) {
+                    alert("Lỗi tải lên máy chủ: " + error.message);
+                    cancelCheckin();
+                }
+            }, 'image/jpeg', 0.8); // Ép nén Jpeg 80% cho nhẹ Database
+        }
+
+        // --- 5. HỦY BỎ ĐIỂM DANH ---
+        function cancelCheckin() {
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            document.getElementById('step2_Camera').classList.add('hidden');
+            document.getElementById('step2_Camera').classList.remove('flex');
+            document.getElementById('step1_Start').classList.remove('hidden');
+            document.getElementById('step1_Start').classList.add('flex');
+
+            // Reset lại UI Nút và GPS
+            document.getElementById('captureBtn').disabled = true;
+            document.getElementById('captureBtn').className = "w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all opacity-50 cursor-not-allowed flex justify-center items-center gap-2";
+            document.getElementById('captureBtn').innerHTML = `<i class="fas fa-camera text-xl"></i> CHỤP & LƯU VÀO CA`;
+
+            const gpsUI = document.getElementById('gpsStatus');
+            gpsUI.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Đang định vị vệ tinh...`;
+            gpsUI.className = "absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30";
+        }
+    </script>
+</body>
+
+</html>
