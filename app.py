@@ -233,16 +233,10 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def init_db():
+    # kho_license (SQLite) đã bị loại bỏ hoàn toàn — toàn bộ license giờ dùng bảng
+    # license_codes trên Supabase (xem duc_ma/get_keys/delete_key/register ở trên).
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS kho_license (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            license_key TEXT UNIQUE NOT NULL,
-            nganh_nghe TEXT,
-            trang_thai TEXT DEFAULT 'Sẵn sàng'
-        )
-    ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS cskh_request_outbox (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -427,34 +421,31 @@ def register():
         business_type = request.form['business_type']
         license_key = request.form.get('license_key', '').strip()
         
-        # Kiểm tra License Key trên local SQLite database
+        # Kiểm tra License Key trên bảng license_codes (Supabase) — trước đây dùng SQLite
+        # local (kho_license) nhưng không hoạt động trên Vercel (serverless filesystem không
+        # có file database.db bền vững -> "unable to open database file").
         if not license_key:
             flash('Vui lòng nhập Mã kích hoạt bản quyền!', 'danger')
             return render_template('index.html', active_tab='register')
-            
+
         try:
-            conn = sqlite3.connect('database.db')
-            c = conn.cursor()
-            c.execute("SELECT * FROM kho_license WHERE license_key=? AND trang_thai='Sẵn sàng'", (license_key,))
-            key_valid = c.fetchone()
+            key_res = supabase.table('license_codes').select('id, license_key, nganh_nghe, trang_thai') \
+                .eq('license_key', license_key).eq('trang_thai', 'Sẵn sàng').limit(1).execute()
+            key_valid = key_res.data[0] if key_res.data else None
             if not key_valid:
-                conn.close()
                 flash('Mã kích hoạt không hợp lệ, sai mã, hoặc đã được sử dụng!', 'danger')
                 return render_template('index.html', active_tab='register')
-            
+
             # Kiểm tra xem mã kích hoạt có hợp lệ với ngành nghề được chọn không
-            license_nganh = key_valid[2]
+            license_nganh = key_valid.get('nganh_nghe')
             if license_nganh and license_nganh.strip() and license_nganh.lower() != 'all' and license_nganh.lower() != business_type.lower():
-                conn.close()
                 flash(f'Mã kích hoạt này chỉ dành cho ngành nghề: {license_nganh.upper()}!', 'danger')
                 return render_template('index.html', active_tab='register')
-            
+
             # Cập nhật trạng thái key
-            c.execute("UPDATE kho_license SET trang_thai='Đã kích hoạt' WHERE license_key=?", (license_key,))
-            conn.commit()
-            conn.close()
+            supabase.table('license_codes').update({'trang_thai': 'Đã kích hoạt'}).eq('license_key', license_key).execute()
         except Exception as db_err:
-            print(f"Local license check failed: {str(db_err)}")
+            print(f"[register] Lỗi kiểm tra license_codes trên Supabase: {str(db_err)}")
             flash(f'Lỗi kiểm tra mã kích hoạt: {str(db_err)}', 'danger')
             return render_template('index.html', active_tab='register')
 
@@ -3261,18 +3252,22 @@ def ai_bot():
         staff_count = c.fetchone()[0]
         if staff_count > 0:
             brand_staff = f"{staff_count} nhân sự"
-            
-        # Check if license details can provide tier
-        c.execute("SELECT license_key FROM kho_license WHERE trang_thai='Đã kích hoạt' ORDER BY id DESC LIMIT 1")
-        license_row = c.fetchone()
-        if license_row:
-            brand_tier = 'BitPaw Pro (Premium)'
-            has_profile = True
-            
+
         conn.close()
     except Exception as db_err:
         print(f"[!] SQLite brand config fallback read error: {str(db_err)}")
-        
+
+    # Check if license details can provide tier — license_codes nằm trên Supabase (không phải
+    # SQLite local, vốn không hoạt động trên Vercel), nên tách riêng try/except khỏi khối trên.
+    try:
+        license_res = supabase.table('license_codes').select('license_key') \
+            .eq('trang_thai', 'Đã kích hoạt').order('id', desc=True).limit(1).execute()
+        if license_res.data:
+            brand_tier = 'BitPaw Pro (Premium)'
+            has_profile = True
+    except Exception as db_err:
+        print(f"[!] license_codes tier lookup failed: {str(db_err)}")
+
     profile = {
         "has_profile": has_profile,
         "name": brand_name if has_profile or brand_name != 'Chưa có dữ liệu doanh nghiệp' else "Chưa có dữ liệu doanh nghiệp",
@@ -3468,16 +3463,23 @@ def duc_ma():
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
     data = request.json
-    ma_key = data.get('license_key')
+    ma_key = (data.get('license_key') or '').strip()
     nganh = data.get('nganh_nghe')
+    if not ma_key:
+        return jsonify({"success": False, "message": "Thiếu mã license."}), 400
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO kho_license (license_key, nganh_nghe, trang_thai) VALUES (?, ?, 'Sẵn sàng')", (ma_key, nganh))
-        conn.commit()
-        conn.close()
+        # license_codes là bảng license dùng chung toàn hệ thống trên Supabase (xem
+        # supabase_schema_full.sql), thay cho bảng kho_license SQLite cũ vốn không hoạt động
+        # trên Vercel (serverless filesystem không có file database.db bền vững -> "unable to
+        # open database file"). upsert theo license_key giữ đúng hành vi "INSERT OR REPLACE" cũ.
+        supabase.table('license_codes').upsert({
+            'license_key': ma_key,
+            'nganh_nghe': nganh,
+            'trang_thai': 'Sẵn sàng'
+        }, on_conflict='license_key').execute()
         return jsonify({"success": True, "message": f"Đã đúc mã {ma_key} thành công!"})
     except Exception as e:
+        print(f"[duc_ma] Lỗi ghi license_codes lên Supabase: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/superadmin/get_keys', methods=['GET'])
@@ -3486,19 +3488,16 @@ def get_keys():
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("SELECT id, license_key, nganh_nghe, trang_thai FROM kho_license ORDER BY id DESC")
-        keys = c.fetchall()
-        conn.close()
+        res = supabase.table('license_codes').select('id, license_key, nganh_nghe, trang_thai').order('id', desc=True).execute()
         keys_list = [{
-            "id": k[0],
-            "key_code": k[1],
-            "industry": k[2],
-            "status": 'Chưa sử dụng' if k[3] == 'Sẵn sàng' else k[3]
-        } for k in keys]
+            "id": k['id'],
+            "key_code": k['license_key'],
+            "industry": k['nganh_nghe'],
+            "status": 'Chưa sử dụng' if k['trang_thai'] == 'Sẵn sàng' else k['trang_thai']
+        } for k in (res.data or [])]
         return jsonify({"success": True, "data": keys_list})
     except Exception as e:
+        print(f"[get_keys] Lỗi đọc license_codes từ Supabase: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -3508,13 +3507,10 @@ def delete_key(key_id):
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("DELETE FROM kho_license WHERE id=?", (key_id,))
-        conn.commit()
-        conn.close()
+        supabase.table('license_codes').delete().eq('id', key_id).execute()
         return jsonify({"success": True, "message": "Đã xóa license key thành công!"})
     except Exception as e:
+        print(f"[delete_key] Lỗi xóa license_codes id={key_id} trên Supabase: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
