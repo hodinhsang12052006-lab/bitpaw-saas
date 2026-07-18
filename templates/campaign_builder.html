@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chiến Dịch AI & Phê Duyệt Tin Nhắn | BitPaw AI</title>
+    <title>AI Campaigns & Message Approval | BitPaw AI</title>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -66,12 +66,12 @@
             <div class="scanner-line" style="height: 2px; width: 100%; top: 50%;"></div>
         </div>
         <h2 class="text-white font-black tracking-widest text-base md:text-lg uppercase mb-2 text-center" style="font-family: 'Inter', sans-serif;">
-            <span class="text-gradient">BITPAW AI OPERATING CORE</span>
+            <span class="text-gradient" data-i18n="campaignbuilder_boot_title">BITPAW AI OPERATING CORE</span>
         </h2>
         <div class="w-56 h-1 bg-white/10 rounded-full overflow-hidden mb-4 relative">
             <div class="h-full bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full" id="loading-progress" style="width: 0%; transition: width 0.08s ease;"></div>
         </div>
-        <div class="text-[9px] text-cyan-400 font-mono tracking-wider" id="loading-status">System Core Initializing...</div>
+        <div class="text-[9px] text-cyan-400 font-mono tracking-wider" id="loading-status" data-i18n="campaignbuilder_boot_status_init">System Core Initializing...</div>
     </div>
     
     <canvas id="bg-canvas"></canvas>
@@ -86,32 +86,36 @@
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
 
-            <nav class="flex flex-col pb-6 space-y-2 px-5 mt-6">
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
+            <nav class="flex flex-col pb-6 space-y-2 px-5 mt-4">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Tổng quan</span>
+                    <span data-i18n="dashboard_nav_overview">Overview</span>
                 </a>
                 <a href="/ai_bot" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-robot w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>AI Copilot Console</span>
+                    <span data-i18n="campaignbuilder_nav_copilot">AI Copilot Console</span>
                 </a>
                 <a href="/ai/connect-platforms" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-network-wired w-5 text-xl"></i>
-                    <span>Kết nối kênh</span>
+                    <span data-i18n="campaignbuilder_nav_connect">Connect Channels</span>
                 </a>
                 <a href="/ai/customer-nurturing" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-users-cog w-5 text-xl"></i>
-                    <span>Dữ liệu khách hàng</span>
+                    <span data-i18n="campaignbuilder_nav_customer_data">Customer Data</span>
                 </a>
                 <a href="/ai/campaign-builder" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner px-4 py-2.5 rounded-r-xl transition-all group">
                     <i class="fas fa-bullhorn w-5 text-xl"></i>
-                    <span>Chiến dịch AI</span>
+                    <span data-i18n="campaignbuilder_nav_campaigns">AI Campaigns</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="dashboard_logout">Logout</span>
             </a>
         </div>
     </aside>
@@ -122,14 +126,14 @@
         <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
-                    <i class="fas fa-bullhorn text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> Chiến Dịch AI & <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Phê Duyệt Tin Nhắn</span>
+                    <i class="fas fa-bullhorn text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> <span data-i18n="campaignbuilder_header_title_prefix">AI Campaigns & </span><span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500" data-i18n="campaignbuilder_header_title_highlight">Message Approval</span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Hệ thống an toàn - Sếp duyệt tin nhắn trước khi tự động gửi
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> <span data-i18n="campaignbuilder_header_subtitle">Safe system - Manager approves messages before they are sent automatically</span>
                 </p>
             </div>
             <div>
-                <span class="text-xs bg-[#0a192f] text-cyan-400 px-4 py-2 rounded-xl border border-cyan-500/30 font-bold"><i class="fas fa-shield-halved mr-1"></i> Chế độ phê duyệt an toàn</span>
+                <span class="text-xs bg-[#0a192f] text-cyan-400 px-4 py-2 rounded-xl border border-cyan-500/30 font-bold"><i class="fas fa-shield-halved mr-1"></i> <span data-i18n="campaignbuilder_badge_safe_mode">Safe approval mode</span></span>
             </div>
         </div>
 
@@ -137,74 +141,74 @@
             <!-- Left: Campaign Settings form & Visual Flow Builder -->
             <div class="w-6/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6">
                 <div class="border-b border-white/10 pb-4 mb-4 shrink-0">
-                    <h3 class="font-black text-white text-base flex items-center gap-2"><i class="fas fa-sliders text-cyan-400"></i> Cấu Hình Chiến Dịch AI</h3>
-                    <p class="text-gray-500 text-[10px] uppercase font-bold mt-1">AI tự động lên kịch bản chăm sóc 3, 7, 14 ngày</p>
+                    <h3 class="font-black text-white text-base flex items-center gap-2"><i class="fas fa-sliders text-cyan-400"></i> <span data-i18n="campaignbuilder_config_title">AI Campaign Configuration</span></h3>
+                    <p class="text-gray-500 text-[10px] uppercase font-bold mt-1" data-i18n="campaignbuilder_config_subtitle">AI automatically schedules a 3, 7, 14-day nurture sequence</p>
                 </div>
 
                 <div class="flex-1 overflow-y-auto pr-1 space-y-4 custom-scrollbar flex flex-col min-h-0">
                     <form id="campaignForm" onsubmit="createCampaign(event)" class="space-y-4 text-xs font-medium shrink-0">
                         <div>
-                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]">1. Nhóm Khách Hàng Mục Tiêu</label>
+                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_segment">1. Target Customer Group</label>
                             <select id="campSegment" class="glass-input cursor-pointer">
-                                <option value="ALL">Tất cả khách hàng</option>
-                                <option value="VIP">Nhóm khách hàng VIP (Chi tiêu > 5 Triệu)</option>
-                                <option value="CHURN">Nhóm khách hàng nguy cơ rời bỏ</option>
+                                <option value="ALL" data-i18n="campaignbuilder_opt_segment_all">All customers</option>
+                                <option value="VIP" data-i18n="campaignbuilder_opt_segment_vip">VIP customer group (Spend > 5 Million)</option>
+                                <option value="CHURN" data-i18n="campaignbuilder_opt_segment_churn">Churn-risk customer group</option>
                             </select>
                         </div>
 
                         <div>
-                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]">2. Mục Tiêu Chiến Dịch</label>
+                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_goal">2. Campaign Goal</label>
                             <select id="campGoal" class="glass-input cursor-pointer">
-                                <option value="RECALL">Kéo khách cũ quay lại (Recall)</option>
-                                <option value="UPSELL">Giới thiệu sản phẩm mới & Bán combo (Upsell)</option>
-                                <option value="REVIEW">Khảo sát & Xin đánh giá (Review)</option>
-                                <option value="BIRTHDAY">Tặng voucher chúc mừng sinh nhật (Birthday)</option>
+                                <option value="RECALL" data-i18n="campaignbuilder_opt_goal_recall">Bring back old customers (Recall)</option>
+                                <option value="UPSELL" data-i18n="campaignbuilder_opt_goal_upsell">Introduce new products & sell combos (Upsell)</option>
+                                <option value="REVIEW" data-i18n="campaignbuilder_opt_goal_review">Survey & ask for reviews (Review)</option>
+                                <option value="BIRTHDAY" data-i18n="campaignbuilder_opt_goal_birthday">Send birthday voucher (Birthday)</option>
                             </select>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]">3. Kênh Gửi Tin Nhắn</label>
+                                <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_channel">3. Message Channel</label>
                                 <select id="campChannel" class="glass-input cursor-pointer">
-                                    <option value="ZALO">Zalo (Ưu tiên)</option>
-                                    <option value="FB">Facebook Messenger</option>
-                                    <option value="WHATSAPP">WhatsApp</option>
-                                    <option value="SMS">SMS Manual</option>
+                                    <option value="ZALO" data-i18n="campaignbuilder_opt_channel_zalo">Zalo (Priority)</option>
+                                    <option value="FB" data-i18n="campaignbuilder_opt_channel_fb">Facebook Messenger</option>
+                                    <option value="WHATSAPP" data-i18n="campaignbuilder_opt_channel_whatsapp">WhatsApp</option>
+                                    <option value="SMS" data-i18n="campaignbuilder_opt_channel_sms">SMS Manual</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]">4. Giọng Văn Của AI</label>
+                                <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_tone">4. AI Tone of Voice</label>
                                 <select id="campTone" class="glass-input cursor-pointer">
-                                    <option value="friendly">Thân thiện, gần gũi</option>
-                                    <option value="premium">Sang trọng, quý phái</option>
-                                    <option value="urgent">Khẩn cấp, kích cầu</option>
-                                    <option value="professional">Chuyên nghiệp</option>
+                                    <option value="friendly" data-i18n="campaignbuilder_opt_tone_friendly">Friendly, approachable</option>
+                                    <option value="premium" data-i18n="campaignbuilder_opt_tone_premium">Elegant, upscale</option>
+                                    <option value="urgent" data-i18n="campaignbuilder_opt_tone_urgent">Urgent, promotional</option>
+                                    <option value="professional" data-i18n="campaignbuilder_opt_tone_professional">Professional</option>
                                 </select>
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]">5. Tần Suất Lịch Trình</label>
+                            <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_schedule">5. Schedule Frequency</label>
                             <div class="bg-black/40 border border-white/5 p-3 rounded-xl space-y-2 text-gray-400">
-                                <p class="flex justify-between"><span>👉 Gửi lần 1:</span><strong class="text-cyan-400">Sau 3 ngày</strong></p>
-                                <p class="flex justify-between"><span>👉 Gửi lần 2:</span><strong class="text-cyan-400">Sau 7 ngày</strong></p>
-                                <p class="flex justify-between"><span>👉 Gửi lần 3:</span><strong class="text-cyan-400">Sau 14 ngày</strong></p>
+                                <p class="flex justify-between"><span data-i18n="campaignbuilder_schedule_send1_label">👉 Send 1st:</span><strong class="text-cyan-400" data-i18n="campaignbuilder_schedule_send1_value">After 3 days</strong></p>
+                                <p class="flex justify-between"><span data-i18n="campaignbuilder_schedule_send2_label">👉 Send 2nd:</span><strong class="text-cyan-400" data-i18n="campaignbuilder_schedule_send2_value">After 7 days</strong></p>
+                                <p class="flex justify-between"><span data-i18n="campaignbuilder_schedule_send3_label">👉 Send 3rd:</span><strong class="text-cyan-400" data-i18n="campaignbuilder_schedule_send3_value">After 14 days</strong></p>
                             </div>
                         </div>
 
-                        <button type="submit" id="btn-generate" class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase text-xs tracking-widest rounded-xl transition shadow-lg glow-btn-cyan flex items-center justify-center gap-2"><i class="fas fa-brain"></i> Khởi Tạo Chuỗi Tin Nhắn AI</button>
+                        <button type="submit" id="btn-generate" class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase text-xs tracking-widest rounded-xl transition shadow-lg glow-btn-cyan flex items-center justify-center gap-2"><i class="fas fa-brain"></i> <span data-i18n="campaignbuilder_btn_generate">Generate AI Message Sequence</span></button>
                     </form>
 
                     <!-- Journey Flow Canvas Mockup -->
                     <div class="border-t border-white/10 pt-4 flex flex-col min-h-[340px] shrink-0">
-                        <h4 class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center gap-1.5"><i class="fas fa-project-diagram text-xs"></i> AI Journey Workflow Builder</h4>
+                        <h4 class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-3 flex items-center gap-1.5"><i class="fas fa-project-diagram text-xs"></i> <span data-i18n="campaignbuilder_journey_title">AI Journey Workflow Builder</span></h4>
                         <div class="flex-1 bg-black/50 border border-white/5 rounded-2xl p-4 overflow-y-auto relative custom-scrollbar flex flex-col gap-3 min-h-[280px]">
                             <!-- Node 1: Trigger -->
                             <div class="glass-card p-3 rounded-xl border-l-4 border-l-cyan-400 flex items-center gap-3 relative shrink-0">
                                 <div class="w-7 h-7 bg-cyan-400/20 text-cyan-400 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-bolt"></i></div>
                                 <div>
-                                    <strong class="text-[10px] text-white font-bold block">TRIGGER: Cảnh Báo Churn Risk</strong>
-                                    <span class="text-[8px] text-gray-500 block">AI phát hiện khách hàng im lặng > 14 ngày</span>
+                                    <strong class="text-[10px] text-white font-bold block" data-i18n="campaignbuilder_node1_title">TRIGGER: Churn Risk Alert</strong>
+                                    <span class="text-[8px] text-gray-500 block" data-i18n="campaignbuilder_node1_desc">AI detects a customer inactive for > 14 days</span>
                                 </div>
                             </div>
 
@@ -215,8 +219,8 @@
                             <div class="glass-card p-3 rounded-xl border-l-4 border-l-purple-400 flex items-center gap-3 relative shrink-0">
                                 <div class="w-7 h-7 bg-purple-400/20 text-purple-400 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-hourglass-half"></i></div>
                                 <div>
-                                    <strong class="text-[10px] text-white font-bold block">DELAY: Chờ 3 Ngày</strong>
-                                    <span class="text-[8px] text-gray-500 block">Tránh spam khách liên tục</span>
+                                    <strong class="text-[10px] text-white font-bold block" data-i18n="campaignbuilder_node2_title">DELAY: Wait 3 Days</strong>
+                                    <span class="text-[8px] text-gray-500 block" data-i18n="campaignbuilder_node2_desc">Avoid spamming the customer repeatedly</span>
                                 </div>
                             </div>
 
@@ -227,8 +231,8 @@
                             <div class="glass-card p-3 rounded-xl border-l-4 border-l-pink-400 flex items-center gap-3 relative shrink-0">
                                 <div class="w-7 h-7 bg-pink-400/20 text-pink-400 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-magic"></i></div>
                                 <div>
-                                    <strong class="text-[10px] text-white font-bold block">AI GENERATOR: Tạo Nội Dung CSKH</strong>
-                                    <span class="text-[8px] text-gray-500 block">Sinh tin nhắn ưu đãi cá nhân hóa tự động</span>
+                                    <strong class="text-[10px] text-white font-bold block" data-i18n="campaignbuilder_node3_title">AI GENERATOR: Create Customer Care Content</strong>
+                                    <span class="text-[8px] text-gray-500 block" data-i18n="campaignbuilder_node3_desc">Automatically generates personalized offer messages</span>
                                 </div>
                             </div>
 
@@ -239,8 +243,8 @@
                             <div class="glass-card p-3 rounded-xl border-l-4 border-l-emerald-400 flex items-center gap-3 relative shrink-0">
                                 <div class="w-7 h-7 bg-emerald-400/20 text-emerald-400 rounded-lg flex items-center justify-center text-xs"><i class="fab fa-whatsapp"></i></div>
                                 <div>
-                                    <strong class="text-[10px] text-white font-bold block">ACTION: Gửi Tin Zalo OA / Messenger</strong>
-                                    <span class="text-[8px] text-gray-500 block">Chuyển tin nhắn vào hàng đợi Sếp duyệt</span>
+                                    <strong class="text-[10px] text-white font-bold block" data-i18n="campaignbuilder_node4_title">ACTION: Send Zalo OA / Messenger Message</strong>
+                                    <span class="text-[8px] text-gray-500 block" data-i18n="campaignbuilder_node4_desc">Sends the message to the manager's approval queue</span>
                                 </div>
                             </div>
                         </div>
@@ -258,36 +262,36 @@
                         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-3 bg-gray-800 rounded-b-xl z-10"></div>
                         <!-- Screen Header -->
                         <div class="border-b border-white/5 pb-1 mb-1 text-[8px] text-gray-500 flex justify-between font-bold shrink-0 pt-1">
-                            <span>Zalo Chat</span>
+                            <span data-i18n="campaignbuilder_phone_label">Zalo Chat</span>
                             <span>9:41 AM</span>
                         </div>
                         <!-- Message Bubble Container -->
                         <div class="flex-1 overflow-y-auto py-1 custom-scrollbar">
-                            <div class="bg-blue-600/80 text-white rounded-2xl p-2 text-[9px] leading-relaxed max-w-[88%] self-start italic font-medium" id="phonePreviewText">
-                                Chọn một tin nhắn phía dưới để xem trước mẫu AI soạn thảo thực tế tại đây...
+                            <div class="bg-blue-600/80 text-white rounded-2xl p-2 text-[9px] leading-relaxed max-w-[88%] self-start italic font-medium" id="phonePreviewText" data-i18n="campaignbuilder_phone_placeholder">
+                                Select a message below to preview the actual AI-drafted content here...
                             </div>
                         </div>
                         <!-- Screen Input mock -->
                         <div class="border-t border-white/5 pt-1 mt-1 flex justify-between items-center text-[7px] text-gray-600 font-bold shrink-0">
                             <span>Aa</span>
-                            <span class="text-cyan-400"><i class="fas fa-paper-plane"></i> Gửi</span>
+                            <span class="text-cyan-400"><i class="fas fa-paper-plane"></i> <span data-i18n="campaignbuilder_phone_send">Send</span></span>
                         </div>
                     </div>
 
                     <!-- Performance Predictions Metrics -->
                     <div class="space-y-3 font-medium text-xs">
-                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-chart-line text-xs"></i> AI Performance Prediction</h4>
+                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-chart-line text-xs"></i> <span data-i18n="campaignbuilder_perf_title">AI Performance Prediction</span></h4>
                         <div class="space-y-2">
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span>Khả năng mở tin (Open):</span><strong class="text-emerald-400 text-sm font-black" id="predOpen">--%</strong></p>
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span>Dự kiến click (CTR):</span><strong class="text-cyan-400 text-sm font-black" id="predCTR">--%</strong></p>
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span>Hiệu quả phục hồi (ROI):</span><strong class="text-purple-400 text-sm font-black" id="predROI">--%</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_open">Open rate (Open):</span><strong class="text-emerald-400 text-sm font-black" id="predOpen">--%</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_ctr">Expected clicks (CTR):</span><strong class="text-cyan-400 text-sm font-black" id="predCTR">--%</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_roi">Recovery effectiveness (ROI):</span><strong class="text-purple-400 text-sm font-black" id="predROI">--%</strong></p>
                         </div>
                     </div>
                 </div>
 
                 <div class="p-4 bg-black/20 border-b border-white/10 flex justify-between items-center shrink-0">
-                    <h3 class="font-black text-white text-sm flex items-center gap-2"><i class="fas fa-clipboard-check text-rose-400"></i> Hàng Đợi Phê Duyệt Tin Nhắn</h3>
-                    <span class="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full font-black animate-pulse shadow-md" id="pendingCounter">0 CHỜ DUYỆT</span>
+                    <h3 class="font-black text-white text-sm flex items-center gap-2"><i class="fas fa-clipboard-check text-rose-400"></i> <span data-i18n="campaignbuilder_queue_title">Message Approval Queue</span></h3>
+                    <span class="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full font-black animate-pulse shadow-md" id="pendingCounter">0 PENDING</span>
                 </div>
 
                 <!-- Approval Grid List -->
@@ -302,6 +306,196 @@
     </main>
 
     <script>
+        // ========== i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                campaignbuilder_boot_title: 'LÕI VẬN HÀNH BITPAW AI',
+                campaignbuilder_boot_status_init: 'Đang khởi tạo lõi hệ thống...',
+                campaignbuilder_boot_log_1: '🤖 [BOOT] Đang khởi tạo Nhân AI BitPaw...',
+                campaignbuilder_boot_log_2: '🔒 [BẢO MẬT] Đang dò bộ nhớ đệm Row-Level Security (RLS) PostgreSQL...',
+                campaignbuilder_boot_log_3: '🔄 [ĐỒNG BỘ] Đang đồng bộ webhook API đa kênh (FB/Zalo)...',
+                campaignbuilder_boot_log_4: '🧠 [CHẨN ĐOÁN] Đang tính toán khả năng giữ chân khách hàng rời bỏ...',
+                campaignbuilder_boot_log_5: '🌐 [ĐIỆN TOÁN MÂY] Đang tải trạng thái cụm AWS đa vùng... Độ trễ: 12ms.',
+                campaignbuilder_boot_log_6: '🚀 [TỐI ƯU] Đang tải lại tài nguyên Smart POS & mô-đun radar GPS...',
+                campaignbuilder_boot_log_7: '⚡ [HỆ THỐNG SẴN SÀNG] Lõi AI đã hoạt động. Khởi động thành công.',
+                dashboard_nav_overview: 'Tổng quan',
+                campaignbuilder_nav_copilot: 'Bảng Điều Khiển AI Copilot',
+                campaignbuilder_nav_connect: 'Kết Nối Kênh',
+                campaignbuilder_nav_customer_data: 'Dữ Liệu Khách Hàng',
+                campaignbuilder_nav_campaigns: 'Chiến Dịch AI',
+                dashboard_logout: 'Đăng xuất',
+                campaignbuilder_header_title_prefix: 'Chiến Dịch AI & ',
+                campaignbuilder_header_title_highlight: 'Duyệt Tin Nhắn',
+                campaignbuilder_header_subtitle: 'Hệ thống an toàn - Quản lý duyệt tin nhắn trước khi gửi tự động',
+                campaignbuilder_badge_safe_mode: 'Chế độ duyệt an toàn',
+                campaignbuilder_config_title: 'Cấu Hình Chiến Dịch AI',
+                campaignbuilder_config_subtitle: 'AI tự động lên lịch chuỗi chăm sóc 3, 7, 14 ngày',
+                campaignbuilder_label_segment: '1. Nhóm Khách Hàng Mục Tiêu',
+                campaignbuilder_opt_segment_all: 'Tất cả khách hàng',
+                campaignbuilder_opt_segment_vip: 'Nhóm khách VIP (Chi tiêu > 5 Triệu)',
+                campaignbuilder_opt_segment_churn: 'Nhóm khách có nguy cơ rời bỏ',
+                campaignbuilder_label_goal: '2. Mục Tiêu Chiến Dịch',
+                campaignbuilder_opt_goal_recall: 'Kéo khách cũ quay lại (Recall)',
+                campaignbuilder_opt_goal_upsell: 'Giới thiệu sản phẩm mới & bán combo (Upsell)',
+                campaignbuilder_opt_goal_review: 'Khảo sát & xin đánh giá (Review)',
+                campaignbuilder_opt_goal_birthday: 'Gửi voucher sinh nhật (Birthday)',
+                campaignbuilder_label_channel: '3. Kênh Gửi Tin Nhắn',
+                campaignbuilder_opt_channel_zalo: 'Zalo (Ưu tiên)',
+                campaignbuilder_opt_channel_fb: 'Facebook Messenger',
+                campaignbuilder_opt_channel_whatsapp: 'WhatsApp',
+                campaignbuilder_opt_channel_sms: 'SMS Thủ Công',
+                campaignbuilder_label_tone: '4. Giọng Văn AI',
+                campaignbuilder_opt_tone_friendly: 'Thân thiện, gần gũi',
+                campaignbuilder_opt_tone_premium: 'Sang trọng, cao cấp',
+                campaignbuilder_opt_tone_urgent: 'Khẩn cấp, khuyến mãi',
+                campaignbuilder_opt_tone_professional: 'Chuyên nghiệp',
+                campaignbuilder_label_schedule: '5. Tần Suất Lịch Gửi',
+                campaignbuilder_schedule_send1_label: '👉 Gửi lần 1:',
+                campaignbuilder_schedule_send1_value: 'Sau 3 ngày',
+                campaignbuilder_schedule_send2_label: '👉 Gửi lần 2:',
+                campaignbuilder_schedule_send2_value: 'Sau 7 ngày',
+                campaignbuilder_schedule_send3_label: '👉 Gửi lần 3:',
+                campaignbuilder_schedule_send3_value: 'Sau 14 ngày',
+                campaignbuilder_btn_generate: 'Tạo Chuỗi Tin Nhắn AI',
+                campaignbuilder_btn_generating: 'Trợ lý AI đang tạo chuỗi tin nhắn...',
+                campaignbuilder_journey_title: 'Trình Xây Dựng Hành Trình AI',
+                campaignbuilder_node1_title: 'KÍCH HOẠT: Cảnh Báo Rời Bỏ',
+                campaignbuilder_node1_desc: 'AI phát hiện khách hàng không hoạt động > 14 ngày',
+                campaignbuilder_node2_title: 'CHỜ: Đợi 3 Ngày',
+                campaignbuilder_node2_desc: 'Tránh làm phiền khách hàng liên tục',
+                campaignbuilder_node3_title: 'AI TẠO NỘI DUNG: Soạn Nội Dung Chăm Sóc Khách Hàng',
+                campaignbuilder_node3_desc: 'Tự động tạo tin nhắn ưu đãi cá nhân hóa',
+                campaignbuilder_node4_title: 'HÀNH ĐỘNG: Gửi Tin Nhắn Zalo OA / Messenger',
+                campaignbuilder_node4_desc: 'Gửi tin nhắn vào hàng chờ duyệt của quản lý',
+                campaignbuilder_phone_label: 'Zalo Chat',
+                campaignbuilder_phone_placeholder: 'Chọn một tin nhắn dưới đây để xem trước nội dung AI đã soạn...',
+                campaignbuilder_phone_send: 'Gửi',
+                campaignbuilder_perf_title: 'Dự Đoán Hiệu Suất AI',
+                campaignbuilder_perf_open: 'Tỷ lệ mở (Open):',
+                campaignbuilder_perf_ctr: 'Tỷ lệ click dự kiến (CTR):',
+                campaignbuilder_perf_roi: 'Hiệu quả thu hồi (ROI):',
+                campaignbuilder_queue_title: 'Hàng Chờ Duyệt Tin Nhắn',
+                campaignbuilder_pending_counter: '{count} CHỜ DUYỆT',
+                campaignbuilder_empty_title: 'Không có tin nhắn chờ duyệt',
+                campaignbuilder_empty_desc: 'Vui lòng điền cấu hình bên trái và nhấn tạo để AI tự động tạo chuỗi chăm sóc khách hàng cho salon nail, spa hoặc nhà hàng của bạn!',
+                campaignbuilder_msg_day_prefix: 'Ngày',
+                campaignbuilder_msg_day_suffix: 'sau khi mua hàng',
+                campaignbuilder_btn_approve: 'Duyệt',
+                campaignbuilder_btn_reject: 'Từ chối',
+                campaignbuilder_status_approved: 'Đã Duyệt & Gửi',
+                campaignbuilder_status_rejected: 'Đã Từ Chối',
+                campaignbuilder_alert_approve_error_prefix: 'Đã xảy ra lỗi: ',
+                campaignbuilder_alert_campaign_success: 'Tạo chiến dịch thành công!',
+                campaignbuilder_alert_campaign_label: 'Chiến dịch:',
+                campaignbuilder_alert_customers_scanned_label: 'Khách hàng đã quét:',
+                campaignbuilder_alert_messages_generated_label: 'Tin nhắn tự tạo:',
+                campaignbuilder_alert_campaign_fail_prefix: 'Tạo thất bại: '
+            },
+            en: {
+                campaignbuilder_boot_title: 'BITPAW AI OPERATING CORE',
+                campaignbuilder_boot_status_init: 'System Core Initializing...',
+                campaignbuilder_boot_log_1: '🤖 [BOOT] BitPaw AI Kernel initializing...',
+                campaignbuilder_boot_log_2: '🔒 [SECURE] Probing Row-Level Security (RLS) PostgreSQL cache...',
+                campaignbuilder_boot_log_3: '🔄 [SYNC] Synchronizing Omnichannel API webhooks (FB/Zalo)...',
+                campaignbuilder_boot_log_4: '🧠 [DIAGNOSTIC] Running Churn Risk customer retain calculation...',
+                campaignbuilder_boot_log_5: '🌐 [CLOUD] Loading AWS Multi-Region cluster status... Latency: 12ms.',
+                campaignbuilder_boot_log_6: '🚀 [OPTIMIZE] Hot-reloading Smart POS assets & GPS radar modules...',
+                campaignbuilder_boot_log_7: '⚡ [SYSTEM READY] AI Core Active. Boot successfully completed.',
+                dashboard_nav_overview: 'Overview',
+                campaignbuilder_nav_copilot: 'AI Copilot Console',
+                campaignbuilder_nav_connect: 'Connect Channels',
+                campaignbuilder_nav_customer_data: 'Customer Data',
+                campaignbuilder_nav_campaigns: 'AI Campaigns',
+                dashboard_logout: 'Logout',
+                campaignbuilder_header_title_prefix: 'AI Campaigns & ',
+                campaignbuilder_header_title_highlight: 'Message Approval',
+                campaignbuilder_header_subtitle: 'Safe system - Manager approves messages before they are sent automatically',
+                campaignbuilder_badge_safe_mode: 'Safe approval mode',
+                campaignbuilder_config_title: 'AI Campaign Configuration',
+                campaignbuilder_config_subtitle: 'AI automatically schedules a 3, 7, 14-day nurture sequence',
+                campaignbuilder_label_segment: '1. Target Customer Group',
+                campaignbuilder_opt_segment_all: 'All customers',
+                campaignbuilder_opt_segment_vip: 'VIP customer group (Spend > 5 Million)',
+                campaignbuilder_opt_segment_churn: 'Churn-risk customer group',
+                campaignbuilder_label_goal: '2. Campaign Goal',
+                campaignbuilder_opt_goal_recall: 'Bring back old customers (Recall)',
+                campaignbuilder_opt_goal_upsell: 'Introduce new products & sell combos (Upsell)',
+                campaignbuilder_opt_goal_review: 'Survey & ask for reviews (Review)',
+                campaignbuilder_opt_goal_birthday: 'Send birthday voucher (Birthday)',
+                campaignbuilder_label_channel: '3. Message Channel',
+                campaignbuilder_opt_channel_zalo: 'Zalo (Priority)',
+                campaignbuilder_opt_channel_fb: 'Facebook Messenger',
+                campaignbuilder_opt_channel_whatsapp: 'WhatsApp',
+                campaignbuilder_opt_channel_sms: 'SMS Manual',
+                campaignbuilder_label_tone: '4. AI Tone of Voice',
+                campaignbuilder_opt_tone_friendly: 'Friendly, approachable',
+                campaignbuilder_opt_tone_premium: 'Elegant, upscale',
+                campaignbuilder_opt_tone_urgent: 'Urgent, promotional',
+                campaignbuilder_opt_tone_professional: 'Professional',
+                campaignbuilder_label_schedule: '5. Schedule Frequency',
+                campaignbuilder_schedule_send1_label: '👉 Send 1st:',
+                campaignbuilder_schedule_send1_value: 'After 3 days',
+                campaignbuilder_schedule_send2_label: '👉 Send 2nd:',
+                campaignbuilder_schedule_send2_value: 'After 7 days',
+                campaignbuilder_schedule_send3_label: '👉 Send 3rd:',
+                campaignbuilder_schedule_send3_value: 'After 14 days',
+                campaignbuilder_btn_generate: 'Generate AI Message Sequence',
+                campaignbuilder_btn_generating: 'AI assistant is generating the sequence...',
+                campaignbuilder_journey_title: 'AI Journey Workflow Builder',
+                campaignbuilder_node1_title: 'TRIGGER: Churn Risk Alert',
+                campaignbuilder_node1_desc: 'AI detects a customer inactive for > 14 days',
+                campaignbuilder_node2_title: 'DELAY: Wait 3 Days',
+                campaignbuilder_node2_desc: 'Avoid spamming the customer repeatedly',
+                campaignbuilder_node3_title: 'AI GENERATOR: Create Customer Care Content',
+                campaignbuilder_node3_desc: 'Automatically generates personalized offer messages',
+                campaignbuilder_node4_title: 'ACTION: Send Zalo OA / Messenger Message',
+                campaignbuilder_node4_desc: "Sends the message to the manager's approval queue",
+                campaignbuilder_phone_label: 'Zalo Chat',
+                campaignbuilder_phone_placeholder: 'Select a message below to preview the actual AI-drafted content here...',
+                campaignbuilder_phone_send: 'Send',
+                campaignbuilder_perf_title: 'AI Performance Prediction',
+                campaignbuilder_perf_open: 'Open rate (Open):',
+                campaignbuilder_perf_ctr: 'Expected clicks (CTR):',
+                campaignbuilder_perf_roi: 'Recovery effectiveness (ROI):',
+                campaignbuilder_queue_title: 'Message Approval Queue',
+                campaignbuilder_pending_counter: '{count} PENDING',
+                campaignbuilder_empty_title: 'No messages pending',
+                campaignbuilder_empty_desc: 'Please fill in the configuration on the left and click generate to let AI automatically create a nail, spa, or dining outreach sequence for your customers!',
+                campaignbuilder_msg_day_prefix: 'Day',
+                campaignbuilder_msg_day_suffix: 'after purchase',
+                campaignbuilder_btn_approve: 'Approve',
+                campaignbuilder_btn_reject: 'Reject',
+                campaignbuilder_status_approved: 'Approved & Sent',
+                campaignbuilder_status_rejected: 'Rejected',
+                campaignbuilder_alert_approve_error_prefix: 'An error occurred: ',
+                campaignbuilder_alert_campaign_success: 'Campaign created successfully!',
+                campaignbuilder_alert_campaign_label: 'Campaign:',
+                campaignbuilder_alert_customers_scanned_label: 'Customers scanned:',
+                campaignbuilder_alert_messages_generated_label: 'Messages auto-generated:',
+                campaignbuilder_alert_campaign_fail_prefix: 'Creation failed: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render danh sách chờ duyệt do JS tạo ra để cập nhật theo ngôn ngữ mới
+            try { if (allMessages && allMessages.length > 0) renderApprovalQueue(allMessages); } catch (e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         document.addEventListener("DOMContentLoaded", () => {
             fetchApprovalQueue();
         });
@@ -324,14 +518,14 @@
             const counterEl = document.getElementById("pendingCounter");
             
             const pendingCount = list.filter(item => item.status === 'PENDING').length;
-            counterEl.innerText = `${pendingCount} CHỜ DUYỆT`;
+            counterEl.innerText = t('campaignbuilder_pending_counter').replace('{count}', pendingCount);
 
             if (list.length === 0) {
                 listEl.innerHTML = `
                     <div class="text-center p-12 text-gray-500 flex flex-col items-center">
                         <i class="fas fa-envelope-open-text text-5xl text-gray-700 mb-4"></i>
-                        <h4 class="font-bold text-gray-400">Không có tin nhắn nào đang chờ</h4>
-                        <p class="text-xs text-gray-600 mt-1 max-w-[280px]">Vui lòng điền cấu hình bên trái và click khởi tạo để AI tự động lên kịch bản gửi móng, spa, ăn uống cho khách!</p>
+                        <h4 class="font-bold text-gray-400">${t('campaignbuilder_empty_title')}</h4>
+                        <p class="text-xs text-gray-600 mt-1 max-w-[280px]">${t('campaignbuilder_empty_desc')}</p>
                     </div>
                 `;
                 return;
@@ -344,17 +538,17 @@
 
                 const approvalActions = m.status === 'PENDING' ? `
                     <div class="flex gap-2 shrink-0">
-                        <button onclick="approveMessage('${m.id}', 'APPROVED', event)" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-black text-[10px]"><i class="fas fa-check"></i> Duyệt</button>
-                        <button onclick="approveMessage('${m.id}', 'REJECTED', event)" class="px-3.5 py-1.5 bg-rose-900/50 hover:bg-rose-800 text-rose-300 rounded-lg transition font-bold border border-rose-500/30 text-[10px]"><i class="fas fa-times"></i> Hủy</button>
+                        <button onclick="approveMessage('${m.id}', 'APPROVED', event)" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-black text-[10px]"><i class="fas fa-check"></i> ${t('campaignbuilder_btn_approve')}</button>
+                        <button onclick="approveMessage('${m.id}', 'REJECTED', event)" class="px-3.5 py-1.5 bg-rose-900/50 hover:bg-rose-800 text-rose-300 rounded-lg transition font-bold border border-rose-500/30 text-[10px]"><i class="fas fa-times"></i> ${t('campaignbuilder_btn_reject')}</button>
                     </div>
-                ` : `<span class="text-[10px] font-black border px-3 py-1 rounded-full uppercase ${statusColor}">${m.status === 'APPROVED' ? 'Đã duyệt gửi' : 'Đã hủy bỏ'}</span>`;
+                ` : `<span class="text-[10px] font-black border px-3 py-1 rounded-full uppercase ${statusColor}">${m.status === 'APPROVED' ? t('campaignbuilder_status_approved') : t('campaignbuilder_status_rejected')}</span>`;
 
                 return `
                     <div class="bg-black/40 border border-white/10 p-4 rounded-2xl flex flex-col justify-between gap-3 cursor-pointer hover:border-cyan-500/30 transition-all" onclick="previewMessage('${m.id}')">
                         <div class="flex justify-between items-start gap-4">
                             <div>
                                 <h4 class="font-bold text-white text-xs">${m.customer_name}</h4>
-                                <p class="text-[9px] text-cyan-400 font-bold uppercase tracking-wider mt-1"><i class="fas fa-clock mr-1"></i> Ngày thứ ${m.delay} sau mua hàng</p>
+                                <p class="text-[9px] text-cyan-400 font-bold uppercase tracking-wider mt-1"><i class="fas fa-clock mr-1"></i> ${t('campaignbuilder_msg_day_prefix')} ${m.delay} ${t('campaignbuilder_msg_day_suffix')}</p>
                             </div>
                             ${approvalActions}
                         </div>
@@ -403,7 +597,7 @@
                 if (res.success) {
                     fetchApprovalQueue();
                 } else {
-                    alert("Có lỗi xảy ra: " + res.message);
+                    alert(t('campaignbuilder_alert_approve_error_prefix') + res.message);
                 }
             });
         }
@@ -411,7 +605,7 @@
         function createCampaign(e) {
             e.preventDefault();
             const btn = document.getElementById("btn-generate");
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Trợ lý AI đang tạo kịch bản...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ' + t('campaignbuilder_btn_generating');
             btn.classList.add("opacity-50", "cursor-not-allowed");
 
             const segment = document.getElementById("campSegment").value;
@@ -427,14 +621,14 @@
             .then(res => res.json())
             .then(res => {
                 if (res.success) {
-                    alert(`Khởi tạo chiến dịch thành công!\n-----------------------\nChiến dịch: ${res.campaign_name}\nSố khách được quét: ${res.target_count} khách\nSố tin nhắn được sinh tự động: ${res.messages_count} tin`);
+                    alert(`${t('campaignbuilder_alert_campaign_success')}\n-----------------------\n${t('campaignbuilder_alert_campaign_label')} ${res.campaign_name}\n${t('campaignbuilder_alert_customers_scanned_label')} ${res.target_count}\n${t('campaignbuilder_alert_messages_generated_label')} ${res.messages_count}`);
                     fetchApprovalQueue();
                 } else {
-                    alert("Khởi tạo thất bại: " + res.message);
+                    alert(t('campaignbuilder_alert_campaign_fail_prefix') + res.message);
                 }
             })
             .finally(() => {
-                btn.innerHTML = '<i class="fas fa-brain"></i> Khởi Tạo Chuỗi Tin Nhắn AI';
+                btn.innerHTML = '<i class="fas fa-brain"></i> ' + t('campaignbuilder_btn_generate');
                 btn.classList.remove("opacity-50", "cursor-not-allowed");
             });
         }
@@ -482,13 +676,13 @@
             if (!loader || !progressBar || !progressStatus) return;
 
             const bootLogs = [
-                { pct: 0, msg: "🤖 [BOOT] BitPaw AI Kernel initializing..." },
-                { pct: 15, msg: "🔒 [SECURE] Probing Row-Level Security (RLS) PostgreSQL cache..." },
-                { pct: 35, msg: "🔄 [SYNC] Synchronizing Omnichannel API webhooks (FB/Zalo)..." },
-                { pct: 55, msg: "🧠 [DIAGNOSTIC] Running Churn Risk customer retain calculation..." },
-                { pct: 75, msg: "🌐 [CLOUD] Loading AWS Multi-Region cluster status... Latency: 12ms." },
-                { pct: 90, msg: "🚀 [OPTIMIZE] Hot-reloading Smart POS assets & GPS radar modules..." },
-                { pct: 100, msg: "⚡ [SYSTEM READY] AI Core Active. Boot successfully completed." }
+                { pct: 0, msg: t('campaignbuilder_boot_log_1') },
+                { pct: 15, msg: t('campaignbuilder_boot_log_2') },
+                { pct: 35, msg: t('campaignbuilder_boot_log_3') },
+                { pct: 55, msg: t('campaignbuilder_boot_log_4') },
+                { pct: 75, msg: t('campaignbuilder_boot_log_5') },
+                { pct: 90, msg: t('campaignbuilder_boot_log_6') },
+                { pct: 100, msg: t('campaignbuilder_boot_log_7') }
             ];
 
             let index = 0;

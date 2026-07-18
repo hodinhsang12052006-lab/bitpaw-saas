@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPay | Lịch sử giao dịch - Payment History</title>
+    <title>BitPay | Transaction History - Payment History</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -299,12 +299,13 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Pay</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Lịch sử giao dịch | Payment History</p>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="payment_history_subtitle">Lịch sử giao dịch | Payment History</p>
                 </div>
             </div>
-            <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <a href="{{ url_for('payment_gateway') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-credit-card"></i> Thanh toán</a>
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="payment_history_nav_home">Trang chủ</span></a>
+                <a href="{{ url_for('payment_gateway') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-credit-card"></i> <span data-i18n="payment_history_nav_payment">Thanh toán</span></a>
             </div>
         </div>
 
@@ -312,96 +313,96 @@
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label>
-                    <input type="text" id="searchInput" class="filter-input" placeholder="Mã GD, phương thức...">
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_history_filter_search">Tìm kiếm</label>
+                    <input type="text" id="searchInput" class="filter-input" placeholder="Mã GD, phương thức..." data-i18n-placeholder="payment_history_filter_search_ph">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Trạng thái</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_history_filter_status">Trạng thái</label>
                     <select id="statusFilter" class="filter-input">
-                        <option value="all">Tất cả</option>
-                        <option value="success">Thành công</option>
-                        <option value="pending">Chờ xử lý</option>
-                        <option value="failed">Thất bại</option>
-                        <option value="refunded">Hoàn tiền</option>
+                        <option value="all" data-i18n="payment_history_status_all">Tất cả</option>
+                        <option value="success" data-i18n="payment_history_status_success">Thành công</option>
+                        <option value="pending" data-i18n="payment_history_status_pending">Chờ xử lý</option>
+                        <option value="failed" data-i18n="payment_history_status_failed">Thất bại</option>
+                        <option value="refunded" data-i18n="payment_history_status_refunded">Hoàn tiền</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Từ ngày</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_history_filter_from">Từ ngày</label>
                     <input type="date" id="startDate" class="filter-input">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Đến ngày</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_history_filter_to">Đến ngày</label>
                     <input type="date" id="endDate" class="filter-input">
                 </div>
             </div>
             <div class="flex justify-end mt-4">
-                <button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button>
+                <button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="payment_history_btn_reset">Đặt lại</span></button>
             </div>
         </div>
 
         <!-- Bảng lịch sử giao dịch -->
         <div class="glass-panel p-5">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-history mr-2"></i> Lịch sử giao dịch</h2>
-                <div class="text-sm text-gray-400" id="recordCount">Đang tải...</div>
+                <h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-history mr-2"></i> <span data-i18n="payment_history_table_title">Lịch sử giao dịch</span></h2>
+                <div class="text-sm text-gray-400" id="recordCount" data-i18n="payment_history_loading">Đang tải...</div>
             </div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table" id="historyTable">
                     <thead>
                         <tr>
-                            <th>Mã GD</th>
-                            <th>Phương thức</th>
-                            <th>Số tiền</th>
-                            <th>Trạng thái</th>
-                            <th>Thời gian</th>
-                            <th>Chi tiết</th>
+                            <th data-i18n="payment_history_th_transid">Mã GD</th>
+                            <th data-i18n="payment_history_th_method">Phương thức</th>
+                            <th data-i18n="payment_history_th_amount">Số tiền</th>
+                            <th data-i18n="payment_history_th_status">Trạng thái</th>
+                            <th data-i18n="payment_history_th_time">Thời gian</th>
+                            <th data-i18n="payment_history_th_details">Chi tiết</th>
                         </tr>
                     </thead>
                     <tbody id="historyTableBody">
-                        <tr><td colspan="6" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr>
+                        <tr><td colspan="6" class="text-center py-10 text-gray-500" data-i18n="payment_history_loading_data">Đang tải dữ liệu...</td></tr>
                     </tbody>
                 </table>
                 </div>
             </div>
-            
+
             <!-- Pagination -->
             <div class="flex justify-center items-center gap-3 mt-6">
-                <button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button>
+                <button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="payment_history_btn_prev">Trước</span></button>
                 <span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span>
-                <button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button>
+                <button id="nextPage" class="pagination-btn"><span data-i18n="payment_history_btn_next">Sau</span> <i class="fas fa-chevron-right ml-1"></i></button>
             </div>
         </div>
-        
+
         <!-- Biểu đồ thống kê đơn giản -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <div class="glass-panel p-5">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Phân bổ theo phương thức</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="payment_history_chart_method">Phân bổ theo phương thức</span></h3>
                 <canvas id="methodChart" height="200" style="max-height: 200px;"></canvas>
             </div>
             <div class="glass-panel p-5">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Giao dịch theo tháng</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="payment_history_chart_monthly">Giao dịch theo tháng</span></h3>
                 <canvas id="monthlyChart" height="200" style="max-height: 200px;"></canvas>
             </div>
         </div>
-        
+
     </div>
 
     <!-- Modal chi tiết giao dịch -->
     <div id="detailModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[10002] hidden items-center justify-center p-4">
         <div class="glass-panel p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-info-circle mr-2"></i> Chi tiết giao dịch</h3>
+                <h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-info-circle mr-2"></i> <span data-i18n="payment_history_modal_title">Chi tiết giao dịch</span></h3>
                 <button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
             </div>
             <div id="modalContent" class="space-y-3 text-sm">
                 <!-- Nội dung sẽ được JS điền -->
             </div>
-            <button id="closeModalFooterBtn" class="w-full mt-4 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Đóng</button>
+            <button id="closeModalFooterBtn" class="w-full mt-4 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="payment_history_btn_close">Đóng</button>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="payment_history_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -437,6 +438,130 @@
         const loadingOverlay = document.getElementById('loadingOverlay');
         const toast = document.getElementById('toast');
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                payment_history_subtitle: 'Lịch sử giao dịch | Payment History',
+                payment_history_nav_home: 'Trang chủ',
+                payment_history_nav_payment: 'Thanh toán',
+                payment_history_filter_search: 'Tìm kiếm',
+                payment_history_filter_search_ph: 'Mã GD, phương thức...',
+                payment_history_filter_status: 'Trạng thái',
+                payment_history_status_all: 'Tất cả',
+                payment_history_status_success: 'Thành công',
+                payment_history_status_pending: 'Chờ xử lý',
+                payment_history_status_failed: 'Thất bại',
+                payment_history_status_refunded: 'Hoàn tiền',
+                payment_history_filter_from: 'Từ ngày',
+                payment_history_filter_to: 'Đến ngày',
+                payment_history_btn_reset: 'Đặt lại',
+                payment_history_table_title: 'Lịch sử giao dịch',
+                payment_history_loading: 'Đang tải...',
+                payment_history_loading_data: 'Đang tải dữ liệu...',
+                payment_history_th_transid: 'Mã GD',
+                payment_history_th_method: 'Phương thức',
+                payment_history_th_amount: 'Số tiền',
+                payment_history_th_status: 'Trạng thái',
+                payment_history_th_time: 'Thời gian',
+                payment_history_th_details: 'Chi tiết',
+                payment_history_btn_prev: 'Trước',
+                payment_history_btn_next: 'Sau',
+                payment_history_chart_method: 'Phân bổ theo phương thức',
+                payment_history_chart_monthly: 'Giao dịch theo tháng',
+                payment_history_modal_title: 'Chi tiết giao dịch',
+                payment_history_btn_close: 'Đóng',
+                payment_history_processing: 'Đang xử lý...',
+                payment_history_toast_load_error: 'Lỗi tải dữ liệu: {msg}',
+                payment_history_total_records: 'Tổng: {count} giao dịch',
+                payment_history_no_transactions: 'Không có giao dịch nào',
+                payment_history_page_info: 'Trang {current} / {total}',
+                payment_history_unknown: 'Không rõ',
+                payment_history_btn_view: 'Xem',
+                payment_history_detail_transid: 'Mã giao dịch:',
+                payment_history_detail_method: 'Phương thức:',
+                payment_history_detail_amount: 'Số tiền:',
+                payment_history_detail_status: 'Trạng thái:',
+                payment_history_detail_time: 'Thời gian:',
+                payment_history_detail_customer: 'Khách hàng:',
+                payment_history_method_other: 'Khác',
+                payment_history_chart_dataset_label: 'Số giao dịch'
+            },
+            en: {
+                payment_history_subtitle: 'Transaction History | Payment History',
+                payment_history_nav_home: 'Home',
+                payment_history_nav_payment: 'Payment',
+                payment_history_filter_search: 'Search',
+                payment_history_filter_search_ph: 'Trans ID, method...',
+                payment_history_filter_status: 'Status',
+                payment_history_status_all: 'All',
+                payment_history_status_success: 'Success',
+                payment_history_status_pending: 'Pending',
+                payment_history_status_failed: 'Failed',
+                payment_history_status_refunded: 'Refunded',
+                payment_history_filter_from: 'From date',
+                payment_history_filter_to: 'To date',
+                payment_history_btn_reset: 'Reset',
+                payment_history_table_title: 'Transaction History',
+                payment_history_loading: 'Loading...',
+                payment_history_loading_data: 'Loading data...',
+                payment_history_th_transid: 'Trans ID',
+                payment_history_th_method: 'Method',
+                payment_history_th_amount: 'Amount',
+                payment_history_th_status: 'Status',
+                payment_history_th_time: 'Time',
+                payment_history_th_details: 'Details',
+                payment_history_btn_prev: 'Previous',
+                payment_history_btn_next: 'Next',
+                payment_history_chart_method: 'Distribution by Method',
+                payment_history_chart_monthly: 'Transactions by Month',
+                payment_history_modal_title: 'Transaction Details',
+                payment_history_btn_close: 'Close',
+                payment_history_processing: 'Processing...',
+                payment_history_toast_load_error: 'Error loading data: {msg}',
+                payment_history_total_records: 'Total: {count} transactions',
+                payment_history_no_transactions: 'No transactions found',
+                payment_history_page_info: 'Page {current} / {total}',
+                payment_history_unknown: 'Unknown',
+                payment_history_btn_view: 'View',
+                payment_history_detail_transid: 'Transaction ID:',
+                payment_history_detail_method: 'Method:',
+                payment_history_detail_amount: 'Amount:',
+                payment_history_detail_status: 'Status:',
+                payment_history_detail_time: 'Time:',
+                payment_history_detail_customer: 'Customer:',
+                payment_history_method_other: 'Other',
+                payment_history_chart_dataset_label: 'Number of transactions'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render dynamic table/pagination/chart content so it re-localizes too
+            renderTable();
+            updateCharts();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
         // Helper functions
         function showToast(msg, isError = false) {
             toast.innerText = msg;
@@ -455,10 +580,10 @@
         }
         function getStatusBadge(status) {
             const map = {
-                success: '<span class="status-badge status-success"><i class="fas fa-check-circle mr-1"></i> Thành công</span>',
-                pending: '<span class="status-badge status-pending"><i class="fas fa-clock mr-1"></i> Chờ xử lý</span>',
-                failed: '<span class="status-badge status-failed"><i class="fas fa-exclamation-triangle mr-1"></i> Thất bại</span>',
-                refunded: '<span class="status-badge status-refunded"><i class="fas fa-undo-alt mr-1"></i> Hoàn tiền</span>'
+                success: `<span class="status-badge status-success"><i class="fas fa-check-circle mr-1"></i> ${t('payment_history_status_success')}</span>`,
+                pending: `<span class="status-badge status-pending"><i class="fas fa-clock mr-1"></i> ${t('payment_history_status_pending')}</span>`,
+                failed: `<span class="status-badge status-failed"><i class="fas fa-exclamation-triangle mr-1"></i> ${t('payment_history_status_failed')}</span>`,
+                refunded: `<span class="status-badge status-refunded"><i class="fas fa-undo-alt mr-1"></i> ${t('payment_history_status_refunded')}</span>`
             };
             return map[status] || map.failed;
         }
@@ -482,7 +607,7 @@
             const to = from + rowsPerPage - 1;
             const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
             if (error) {
-                showToast('Lỗi tải dữ liệu: ' + error.message, true);
+                showToast(tf('payment_history_toast_load_error', { msg: error.message }), true);
                 showLoading(false);
                 return;
             }
@@ -491,49 +616,49 @@
             totalRecords = count || 0;
             renderTable();
             updateCharts();
-            recordCountSpan.innerText = `Tổng: ${totalRecords} giao dịch`;
+            recordCountSpan.innerText = tf('payment_history_total_records', { count: totalRecords });
             showLoading(false);
         }
 
         function renderTable() {
             if (filteredTransactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">Không có giao dịch nào</td></tr>';
-                pageInfo.innerText = `Trang 0 / 0`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-500">${t('payment_history_no_transactions')}</td></tr>`;
+                pageInfo.innerText = tf('payment_history_page_info', { current: 0, total: 0 });
                 return;
             }
             tbody.innerHTML = filteredTransactions.map(tx => `
                 <tr>
                     <td class="font-mono text-xs">${tx.transaction_id || tx.id}</td>
-                    <td>${tx.method || 'Unknown'}</td>
+                    <td>${tx.method || t('payment_history_unknown')}</td>
                     <td class="font-mono text-emerald-400">${formatCurrency(tx.amount, tx.currency || 'VND')}</td>
                     <td>${getStatusBadge(tx.status)}</td>
                     <td class="text-xs text-gray-400">${new Date(tx.created_at).toLocaleString('vi-VN')}</td>
-                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300 text-sm" data-id="${tx.id}"><i class="fas fa-eye mr-1"></i> Xem</button></td>
+                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300 text-sm" data-id="${tx.id}"><i class="fas fa-eye mr-1"></i> ${t('payment_history_btn_view')}</button></td>
                 </tr>
             `).join('');
-            
+
             document.querySelectorAll('.view-detail').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const id = btn.getAttribute('data-id');
-                    const tx = transactions.find(t => t.id == id);
-                    if (tx) showDetailModal(tx);
+                    const row = transactions.find(item => item.id == id);
+                    if (row) showDetailModal(row);
                 });
             });
-            
+
             const totalPages = Math.ceil(totalRecords / rowsPerPage);
-            pageInfo.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfo.innerText = tf('payment_history_page_info', { current: currentPage, total: totalPages || 1 });
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages || totalPages === 0;
         }
 
         function showDetailModal(tx) {
             modalContent.innerHTML = `
-                <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-400">Mã giao dịch:</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Phương thức:</span><span>${tx.method}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Số tiền:</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Trạng thái:</span>${getStatusBadge(tx.status)}</div>
-                <div class="flex justify-between"><span class="text-gray-400">Thời gian:</span><span>${new Date(tx.created_at).toLocaleString('vi-VN')}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Khách hàng:</span><span>${tx.customer_name || 'N/A'}</span></div>
+                <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-400">${t('payment_history_detail_transid')}</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_method')}</span><span>${tx.method}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_amount')}</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_status')}</span>${getStatusBadge(tx.status)}</div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_time')}</span><span>${new Date(tx.created_at).toLocaleString('vi-VN')}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_customer')}</span><span>${tx.customer_name || 'N/A'}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Email:</span><span>${tx.customer_email || 'N/A'}</span></div>
             `;
             modal.classList.remove('hidden');
@@ -560,7 +685,7 @@
                 else if (method.includes('ZaloPay')) method = 'ZaloPay';
                 else if (method.includes('Klarna')) method = 'Klarna';
                 else if (method.includes('Afterpay')) method = 'Afterpay';
-                else method = 'Khác';
+                else method = t('payment_history_method_other');
                 methodCount[method] = (methodCount[method] || 0) + 1;
             });
             const methodLabels = Object.keys(methodCount);
@@ -570,7 +695,7 @@
             const ctxMethod = document.getElementById('methodChart').getContext('2d');
             methodChart = new Chart(ctxMethod, {
                 type: 'bar',
-                data: { labels: methodLabels, datasets: [{ label: 'Số giao dịch', data: methodData, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
+                data: { labels: methodLabels, datasets: [{ label: t('payment_history_chart_dataset_label'), data: methodData, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } } }
             });
             
@@ -586,7 +711,7 @@
             const ctxMonth = document.getElementById('monthlyChart').getContext('2d');
             monthlyChart = new Chart(ctxMonth, {
                 type: 'line',
-                data: { labels: sortedMonths, datasets: [{ label: 'Số giao dịch', data: monthData, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', fill: true, tension: 0.3 }] },
+                data: { labels: sortedMonths, datasets: [{ label: t('payment_history_chart_dataset_label'), data: monthData, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', fill: true, tension: 0.3 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } } }
             });
         }
@@ -660,10 +785,10 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                const elapsed = clock.getElapsedTime();
+                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -125,10 +125,11 @@
         <div class="flex-shrink-0 p-4 pb-2 flex items-center gap-3 border-b border-white/10 bg-black/30">
             <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-8 h-8 rounded-full border border-cyan-500/50 object-cover">
             <div>
-                <h1 class="text-base font-bold tracking-wide">Trợ lý <span class="text-cyan-400">BitPaw</span></h1>
-                <p class="text-[9px] text-gray-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online 24/7</p>
+                <h1 class="text-base font-bold tracking-wide"><span data-i18n="portal_header_assistant">Trợ lý</span> <span class="text-cyan-400">BitPaw</span></h1>
+                <p class="text-[9px] text-gray-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> <span data-i18n="portal_status_online">Online 24/7</span></p>
             </div>
             <div class="flex-1"></div>
+            <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-2 py-0.5 rounded-full text-[9px] font-bold transition mr-2">EN</button>
             <div class="text-xs text-gray-400" id="customerIdBadge"></div>
         </div>
 
@@ -136,17 +137,17 @@
         <main class="flex-1 flex flex-col overflow-hidden px-2 py-2">
             <div class="glass-panel rounded-3xl flex flex-col flex-1 overflow-hidden shadow-2xl">
                 <div id="chatBox" class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-                    <div class="flex justify-center py-10 text-gray-400 text-sm">Đang tải hội thoại...</div>
+                    <div class="flex justify-center py-10 text-gray-400 text-sm" data-i18n="portal_loading_conversation">Đang tải hội thoại...</div>
                 </div>
 
                 <!-- Nút gợi ý ngang -->
                 <div class="p-2 border-t border-white/10 bg-black/30">
                     <div class="suggestions-scroll flex gap-2 overflow-x-auto pb-1">
-                        <button onclick="sendQuickMessage('Tôi cần hỗ trợ gói dịch vụ')" class="suggestion-chip whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-3 py-1.5 rounded-full text-xs font-medium">💬 Hỗ trợ dịch vụ</button>
-                        <button onclick="sendQuickMessage('Tôi muốn nhận ưu đãi tri ân')" class="suggestion-chip whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-3 py-1.5 rounded-full text-xs font-medium">🎁 Ưu đãi tri ân</button>
-                        <button onclick="sendQuickMessage('Khiếu nại / góp ý')" class="suggestion-chip whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-full text-xs font-medium">📝 Khiếu nại</button>
-                        <button onclick="sendQuickMessage('Hướng dẫn đặt lịch')" class="suggestion-chip whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-3 py-1.5 rounded-full text-xs font-medium">📅 Đặt lịch</button>
-                        <button onclick="sendQuickMessage('Xem chính sách bảo hành')" class="suggestion-chip whitespace-nowrap bg-yellow-500/10 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 px-3 py-1.5 rounded-full text-xs font-medium">🔧 Bảo hành</button>
+                        <button onclick="sendQuickMessage('Tôi cần hỗ trợ gói dịch vụ')" class="suggestion-chip whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-3 py-1.5 rounded-full text-xs font-medium" data-i18n="portal_chip_support">💬 Hỗ trợ dịch vụ</button>
+                        <button onclick="sendQuickMessage('Tôi muốn nhận ưu đãi tri ân')" class="suggestion-chip whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-3 py-1.5 rounded-full text-xs font-medium" data-i18n="portal_chip_promo">🎁 Ưu đãi tri ân</button>
+                        <button onclick="sendQuickMessage('Khiếu nại / góp ý')" class="suggestion-chip whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-full text-xs font-medium" data-i18n="portal_chip_complaint">📝 Khiếu nại</button>
+                        <button onclick="sendQuickMessage('Hướng dẫn đặt lịch')" class="suggestion-chip whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-3 py-1.5 rounded-full text-xs font-medium" data-i18n="portal_chip_booking">📅 Đặt lịch</button>
+                        <button onclick="sendQuickMessage('Xem chính sách bảo hành')" class="suggestion-chip whitespace-nowrap bg-yellow-500/10 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 px-3 py-1.5 rounded-full text-xs font-medium" data-i18n="portal_chip_warranty">🔧 Bảo hành</button>
                     </div>
                 </div>
 
@@ -163,7 +164,7 @@
                         <span>💯</span><span>✅</span><span>🙏</span><span>😘</span><span>😁</span><span>🤣</span>
                     </div>
                     <form id="chatForm" class="relative" onsubmit="handleSendMessage(event)">
-                        <input type="text" id="messageInput" placeholder="Nhập tin nhắn..." class="glass-input w-full pr-12 py-2 pl-4 rounded-full text-sm">
+                        <input type="text" id="messageInput" placeholder="Nhập tin nhắn..." class="glass-input w-full pr-12 py-2 pl-4 rounded-full text-sm" data-i18n-placeholder="portal_placeholder_message">
                         <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </button>
@@ -173,9 +174,9 @@
                 </div>
             </div>
         </main>
-        
+
         <div class="text-center text-[9px] text-gray-500 py-2">
-            <i class="fas fa-lock"></i> Bảo mật tuyệt đối | BitPaw
+            <i class="fas fa-lock"></i> <span data-i18n="portal_footer_security">Bảo mật tuyệt đối</span> | BitPaw
         </div>
     </div>
 
@@ -210,10 +211,86 @@
         const fileImageInput = document.getElementById('fileImageInput');
         const fileGifInput = document.getElementById('fileGifInput');
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                portal_header_assistant: 'Trợ lý',
+                portal_status_online: 'Online 24/7',
+                portal_loading_conversation: 'Đang tải hội thoại...',
+                portal_chip_support: '💬 Hỗ trợ dịch vụ',
+                portal_chip_promo: '🎁 Ưu đãi tri ân',
+                portal_chip_complaint: '📝 Khiếu nại',
+                portal_chip_booking: '📅 Đặt lịch',
+                portal_chip_warranty: '🔧 Bảo hành',
+                portal_placeholder_message: 'Nhập tin nhắn...',
+                portal_footer_security: 'Bảo mật tuyệt đối',
+                portal_no_id: 'Chưa có ID',
+                portal_assistant_name: 'Trợ lý BitPaw',
+                portal_err_no_customer_id: 'Không tìm thấy mã khách hàng.',
+                portal_err_no_customer: 'Không tìm thấy khách hàng',
+                portal_err_upload: 'Lỗi upload',
+                portal_invalid_link: 'Link không hợp lệ.<br>Vui lòng quét mã QR hoặc liên hệ CSKH.',
+                portal_loading: 'Đang tải...',
+                portal_err_load_history: 'Lỗi tải lịch sử',
+                portal_welcome_message: '🎉 Chào mừng bạn quay lại! Em là trợ lý BitPaw. Có gì cần tư vấn về dịch vụ hoặc ưu đãi hôm nay không ạ?'
+            },
+            en: {
+                portal_header_assistant: 'Assistant',
+                portal_status_online: 'Online 24/7',
+                portal_loading_conversation: 'Loading conversation...',
+                portal_chip_support: '💬 Service Support',
+                portal_chip_promo: '🎁 Loyalty Offers',
+                portal_chip_complaint: '📝 Complaint',
+                portal_chip_booking: '📅 Book Appointment',
+                portal_chip_warranty: '🔧 Warranty',
+                portal_placeholder_message: 'Type a message...',
+                portal_footer_security: 'Fully Secure',
+                portal_no_id: 'No ID yet',
+                portal_assistant_name: 'BitPaw Assistant',
+                portal_err_no_customer_id: 'Customer ID not found.',
+                portal_err_no_customer: 'Customer not found',
+                portal_err_upload: 'Upload error',
+                portal_invalid_link: 'Invalid link.<br>Please scan the QR code or contact support.',
+                portal_loading: 'Loading...',
+                portal_err_load_history: 'Error loading history',
+                portal_welcome_message: "🎉 Welcome back! I'm the BitPaw assistant. Anything you'd like help with regarding services or offers today?"
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (currentCustomerId) {
+                customerIdBadge.innerHTML = `<i class="fas fa-user-check"></i> ID: ${currentCustomerId}`;
+            } else {
+                customerIdBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-400"></i> ${t('portal_no_id')}`;
+            }
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
         if (currentCustomerId) {
             customerIdBadge.innerHTML = `<i class="fas fa-user-check"></i> ID: ${currentCustomerId}`;
         } else {
-            customerIdBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-400"></i> Chưa có ID`;
+            customerIdBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-400"></i> ${t('portal_no_id')}`;
         }
 
         // Helper
@@ -248,7 +325,7 @@
             const avatarHtml = isUser ? '' : `<div class="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-robot text-white text-xs"></i></div>`;
             const bubbleClass = isUser ? 'chat-user' : 'chat-ai';
             const justifyClass = isUser ? 'justify-end' : 'justify-start';
-            const nameLabel = isUser ? '' : '<p class="text-[9px] text-cyan-400 mb-0.5 ml-1">Trợ lý BitPaw</p>';
+            const nameLabel = isUser ? '' : '<p class="text-[9px] text-cyan-400 mb-0.5 ml-1">' + t('portal_assistant_name') + '</p>';
             
             let contentHtml = '';
             if (mediaUrl) {
@@ -462,7 +539,7 @@
             let text = messageInput.value.trim();
             if (!text) return;
             if (!currentCustomerId) {
-                showToast('Không tìm thấy mã khách hàng.', 'error');
+                showToast(t('portal_err_no_customer_id'), 'error');
                 return;
             }
             messageInput.value = '';
@@ -474,7 +551,7 @@
         // Gửi ảnh/GIF
         async function sendMedia(file, isGif = false) {
             if (!currentCustomerId) {
-                showToast('Không tìm thấy khách hàng', 'error');
+                showToast(t('portal_err_no_customer'), 'error');
                 return;
             }
             if (!file) return;
@@ -484,7 +561,7 @@
                 .from('chat_images')
                 .upload(fileName, file, { cacheControl: '3600', upsert: false });
             if (error) {
-                showToast('Lỗi upload', 'error');
+                showToast(t('portal_err_upload'), 'error');
                 return;
             }
             const { data: publicUrlData } = supabase.storage.from('chat_images').getPublicUrl(fileName);
@@ -569,22 +646,22 @@
         // ========== LOAD LỊCH SỬ ==========
         async function loadHistory() {
             if (!currentCustomerId) {
-                chatBox.innerHTML = '<div class="text-center text-gray-400 py-10">Link không hợp lệ.<br>Vui lòng quét mã QR hoặc liên hệ CSKH.</div>';
+                chatBox.innerHTML = '<div class="text-center text-gray-400 py-10">' + t('portal_invalid_link') + '</div>';
                 return;
             }
-            chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i><span class="ml-2 text-gray-400">Đang tải...</span></div>';
+            chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i><span class="ml-2 text-gray-400">' + t('portal_loading') + '</span></div>';
             const { data, error } = await supabase
                 .from('bot_messages')
                 .select('*')
                 .eq('customer_id', currentCustomerId)
                 .order('created_at', { ascending: true });
             if (error) {
-                chatBox.innerHTML = '<div class="text-center text-red-400 py-10">Lỗi tải lịch sử</div>';
+                chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t('portal_err_load_history') + '</div>';
                 return;
             }
             chatBox.innerHTML = '';
             if (!data || data.length === 0) {
-                appendMessage('ai', '🎉 Chào mừng bạn quay lại! Em là trợ lý BitPaw. Có gì cần tư vấn về dịch vụ hoặc ưu đãi hôm nay không ạ?');
+                appendMessage('ai', t('portal_welcome_message'));
                 isWaitingForReply = true;
                 resetFollowUpTimer();
             } else {

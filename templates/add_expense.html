@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Nhập Chi Tiêu - BitPaw</title>
-    
+    <title>Enter Expense - BitPaw</title>
+
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -17,7 +17,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        
+
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
 
         .scan-line {
@@ -49,29 +49,29 @@
             z-index: 0;
         }
 
-        .glass-panel { 
-            background: rgba(10, 15, 37, 0.6); 
-            backdrop-filter: blur(24px); 
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.6);
+            backdrop-filter: blur(24px);
             border: 1px solid rgba(244, 63, 94, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(244, 63, 94, 0.1); 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(244, 63, 94, 0.1);
         }
-        
-        .glass-input { 
-            background: rgba(0,0,0,0.6); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            color: white; 
-            transition: all 0.3s; 
-            padding: 12px 16px; 
-            border-radius: 12px; 
-            outline: none; 
-            width: 100%; 
+
+        .glass-input {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            transition: all 0.3s;
+            padding: 12px 16px;
+            border-radius: 12px;
+            outline: none;
+            width: 100%;
             font-weight: 500;
             font-size: 0.9rem;
         }
-        .glass-input:focus { 
-            border-color: #f43f5e; 
-            box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); 
-            background: rgba(0,0,0,0.8); 
+        .glass-input:focus {
+            border-color: #f43f5e;
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
+            background: rgba(0,0,0,0.8);
         }
 
         .logo-float {
@@ -202,14 +202,19 @@
     </style>
 </head>
 <body class="antialiased relative">
-    
+
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
     <div class="absolute-blur"></div>
     <canvas id="bg-canvas"></canvas>
 
     <div class="w-full max-w-3xl mx-auto relative z-10 px-4">
-        
+
+        <!-- Lang toggle -->
+        <div class="flex justify-end mb-2">
+            <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+        </div>
+
         <!-- Auth row -->
         <div class="auth-container" id="authContainer"></div>
 
@@ -221,35 +226,35 @@
                 <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
             </div>
             <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-rose-400">Paw</span></h1>
-            <p class="text-xs text-gray-400 mt-1">Quản lý chi tiêu thông minh</p>
+            <p class="text-xs text-gray-400 mt-1" data-i18n="addexpense_tagline">Quản lý chi tiêu thông minh</p>
         </div>
 
-        <!-- Form và biểu đồ + danh sách -->
+        <!-- Form and chart + list -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Form nhập chi tiêu -->
+            <!-- Expense entry form -->
             <div class="glass-panel rounded-3xl p-6">
                 <div class="text-center mb-6">
                     <h2 class="text-xl font-bold text-rose-400 flex items-center justify-center gap-2">
-                        <i class="fas fa-chart-line rotate-180"></i> Nhập Khoản Chi Tiêu
+                        <i class="fas fa-chart-line rotate-180"></i> <span data-i18n="addexpense_form_title">Nhập Khoản Chi</span>
                     </h2>
-                    <p class="text-xs text-gray-400 mt-2">Ghi chép dòng tiền ra để AI phân tích chuẩn xác</p>
+                    <p class="text-xs text-gray-400 mt-2" data-i18n="addexpense_form_subtitle">Ghi lại dòng tiền chi ra để AI phân tích chính xác</p>
                 </div>
 
                 <form id="expenseForm" class="space-y-4">
-                    <!-- Danh mục chi -->
+                    <!-- Expense category -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Danh mục</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addexpense_category_label">Danh mục</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-tag text-gray-500 text-sm"></i>
                             </div>
                             <select name="category" required class="glass-input pl-11 appearance-none">
-                                <option value="Nhân sự">🧑‍💼 Nhân sự (Lương, thưởng)</option>
-                                <option value="Vật tư">📦 Vật tư, nguyên liệu</option>
-                                <option value="Marketing">📢 Marketing, quảng cáo</option>
-                                <option value="Vận hành">⚙️ Vận hành (điện, nước, internet)</option>
-                                <option value="Thuê mặt bằng">🏢 Thuê mặt bằng</option>
-                                <option value="Khác">🔄 Khác</option>
+                                <option value="Nhân sự" data-i18n="addexpense_opt_personnel">🧑‍💼 Nhân sự (Lương, thưởng)</option>
+                                <option value="Vật tư" data-i18n="addexpense_opt_supplies">📦 Vật tư, nguyên liệu</option>
+                                <option value="Marketing" data-i18n="addexpense_opt_marketing">📢 Marketing, quảng cáo</option>
+                                <option value="Vận hành" data-i18n="addexpense_opt_operations">⚙️ Vận hành (điện, nước, internet)</option>
+                                <option value="Thuê mặt bằng" data-i18n="addexpense_opt_rent">🏢 Thuê mặt bằng</option>
+                                <option value="Khác" data-i18n="addexpense_opt_other">🔄 Khác</option>
                             </select>
                             <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                                 <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
@@ -257,20 +262,20 @@
                         </div>
                     </div>
 
-                    <!-- Lý do chi tiền -->
+                    <!-- Reason for the expense -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Lý do chi tiền</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addexpense_reason_label">Lý do chi tiêu</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-edit text-gray-500 text-sm"></i>
                             </div>
-                            <input type="text" name="description" required placeholder="VD: Tiền điện, Mua vật tư..." class="glass-input pl-11">
+                            <input type="text" name="description" required placeholder="E.g.: Electricity bill, Supply purchase..." data-i18n-placeholder="addexpense_reason_placeholder" class="glass-input pl-11">
                         </div>
                     </div>
 
-                    <!-- Số tiền (có format) -->
+                    <!-- Amount (formatted) -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Số tiền (VNĐ)</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addexpense_amount_label">Số tiền (VNĐ)</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-money-bill-wave text-gray-500 text-sm"></i>
@@ -283,9 +288,9 @@
                         </div>
                     </div>
 
-                    <!-- Ngày chi -->
+                    <!-- Expense date -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Ngày chi</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addexpense_date_label">Ngày chi</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-calendar-alt text-gray-500 text-sm"></i>
@@ -294,72 +299,72 @@
                         </div>
                     </div>
 
-                    <!-- Chip thêm nhanh -->
+                    <!-- Quick-add chips -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Thêm nhanh</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addexpense_quickadd_label">Thêm nhanh</label>
                         <div class="flex flex-wrap gap-2">
-                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc="Tiền điện" data-amount="500000">⚡ Tiền điện 500k</div>
-                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc="Tiền nước" data-amount="300000">💧 Tiền nước 300k</div>
-                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc="Thuê mặt bằng" data-amount="5000000">🏢 Thuê MB 5tr</div>
-                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc="Lương nhân viên" data-amount="20000000">👥 Lương NV 20tr</div>
+                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc-key="addexpense_chip_electricity_desc" data-amount="500000" data-i18n="addexpense_chip_electricity">⚡ Điện 500k</div>
+                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc-key="addexpense_chip_water_desc" data-amount="300000" data-i18n="addexpense_chip_water">💧 Nước 300k</div>
+                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc-key="addexpense_chip_rent_desc" data-amount="5000000" data-i18n="addexpense_chip_rent">🏢 Thuê mặt bằng 5tr</div>
+                            <div class="expense-chip bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs text-gray-300 hover:text-white" data-desc-key="addexpense_chip_salary_desc" data-amount="20000000" data-i18n="addexpense_chip_salary">👥 Lương NV 20tr</div>
                         </div>
                     </div>
 
                     <div class="pt-4 space-y-3">
                         <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] hover:shadow-[0_0_25px_rgba(244,63,94,0.6)] hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                            <i class="fas fa-save"></i> Lưu Khoản Chi
+                            <i class="fas fa-save"></i> <span data-i18n="addexpense_submit_btn">Lưu Khoản Chi</span>
                         </button>
                         <a href="{{ url_for('index') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
-                            <i class="fas fa-arrow-left"></i> Quay lại Dashboard
+                            <i class="fas fa-arrow-left"></i> <span data-i18n="addexpense_back_btn">Về Trang Chủ</span>
                         </a>
                     </div>
                 </form>
             </div>
 
-            <!-- Biểu đồ và danh sách chi tiêu gần đây -->
+            <!-- Chart and recent expense list -->
             <div class="glass-panel rounded-3xl p-6 flex flex-col gap-5">
                 <div>
                     <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400 flex items-center gap-2 mb-2">
-                        <i class="fas fa-chart-simple"></i> Chi tiêu 30 ngày qua
+                        <i class="fas fa-chart-simple"></i> <span data-i18n="addexpense_chart30_title">Chi tiêu 30 ngày qua</span>
                     </h3>
                     <canvas id="expenseChart" height="140" style="max-height: 140px; width: 100%"></canvas>
                 </div>
                 <div>
                     <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400 flex items-center gap-2 mb-2">
-                        <i class="fas fa-chart-pie"></i> Phân bổ danh mục (7 ngày)
+                        <i class="fas fa-chart-pie"></i> <span data-i18n="addexpense_chart_category_title">Phân loại chi tiêu (7 ngày)</span>
                     </h3>
                     <canvas id="categoryChart" height="140" style="max-height: 140px; width: 100%"></canvas>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400"><i class="fas fa-history"></i> 5 Chi tiêu gần nhất</h3>
-                        <button id="exportPdfBtn" class="text-xs bg-white/10 px-3 py-1 rounded-full hover:bg-rose-500/30 transition"><i class="fas fa-file-pdf"></i> Xuất PDF</button>
+                        <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400"><i class="fas fa-history"></i> <span data-i18n="addexpense_recent_title">5 Khoản Chi Gần Nhất</span></h3>
+                        <button id="exportPdfBtn" class="text-xs bg-white/10 px-3 py-1 rounded-full hover:bg-rose-500/30 transition"><i class="fas fa-file-pdf"></i> <span data-i18n="addexpense_export_pdf_btn">Xuất PDF</span></button>
                     </div>
                     <div id="recentList" class="space-y-2 max-h-48 overflow-y-auto text-sm"></div>
                 </div>
                 <div class="mt-2 text-center">
-                    <a href="{{ url_for('expense_list') }}" class="text-xs text-rose-400 hover:underline">📋 Xem tất cả lịch sử chi tiêu →</a>
+                    <a href="{{ url_for('expense_list') }}" class="text-xs text-rose-400 hover:underline" data-i18n="addexpense_view_all_link">📋 Xem toàn bộ lịch sử chi tiêu →</a>
                 </div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 mt-6">
-            <!-- Form gửi yêu cầu hỗ trợ -->
+            <!-- Support request form -->
             <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-rose-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <h3 class="text-sm font-bold text-rose-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> <span data-i18n="addexpense_support_title">Gửi yêu cầu hỗ trợ</span></h3>
                 <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input text-sm py-2" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input text-sm py-2" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input text-sm py-2" required></textarea>
-                    <button type="submit" class="w-full bg-rose-600/80 hover:bg-rose-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                    <input type="text" id="supportName" placeholder="Your name" data-i18n-placeholder="addexpense_support_name_placeholder" class="glass-input text-sm py-2" required>
+                    <input type="text" id="supportPhone" placeholder="Phone number / Zalo" data-i18n-placeholder="addexpense_support_phone_placeholder" class="glass-input text-sm py-2" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Describe what you need help with..." data-i18n-placeholder="addexpense_support_message_placeholder" class="glass-input text-sm py-2" required></textarea>
+                    <button type="submit" class="w-full bg-rose-600/80 hover:bg-rose-500 text-white font-bold py-2 rounded-xl text-sm transition" data-i18n="addexpense_support_submit_btn">Gửi yêu cầu</button>
                 </form>
                 <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
             </div>
         </div>
     </div>
 
-    <!-- Toast thông báo -->
-    <div id="toast" class="toast">Thông báo</div>
+    <!-- Notification toast -->
+    <div id="toast" class="toast" data-i18n="addexpense_toast_default">Thông báo</div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -367,7 +372,7 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
         // DOM elements
         const amountRaw = document.getElementById('amountRaw');
@@ -378,6 +383,154 @@
         let expenseChart = null;
         let categoryChart = null;
         let currentUser = null;
+
+        // ========== I18N ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                addexpense_tagline: 'Quản lý chi tiêu thông minh',
+                addexpense_form_title: 'Nhập Khoản Chi',
+                addexpense_form_subtitle: 'Ghi lại dòng tiền chi ra để AI phân tích chính xác',
+                addexpense_category_label: 'Danh mục',
+                addexpense_opt_personnel: '🧑‍💼 Nhân sự (Lương, thưởng)',
+                addexpense_opt_supplies: '📦 Vật tư, nguyên liệu',
+                addexpense_opt_marketing: '📢 Marketing, quảng cáo',
+                addexpense_opt_operations: '⚙️ Vận hành (điện, nước, internet)',
+                addexpense_opt_rent: '🏢 Thuê mặt bằng',
+                addexpense_opt_other: '🔄 Khác',
+                addexpense_reason_label: 'Lý do chi tiêu',
+                addexpense_reason_placeholder: 'VD: Tiền điện, Mua vật tư...',
+                addexpense_amount_label: 'Số tiền (VNĐ)',
+                addexpense_date_label: 'Ngày chi',
+                addexpense_quickadd_label: 'Thêm nhanh',
+                addexpense_chip_electricity: '⚡ Điện 500k',
+                addexpense_chip_electricity_desc: 'Tiền điện',
+                addexpense_chip_water: '💧 Nước 300k',
+                addexpense_chip_water_desc: 'Tiền nước',
+                addexpense_chip_rent: '🏢 Thuê mặt bằng 5tr',
+                addexpense_chip_rent_desc: 'Thuê mặt bằng',
+                addexpense_chip_salary: '👥 Lương NV 20tr',
+                addexpense_chip_salary_desc: 'Lương nhân viên',
+                addexpense_submit_btn: 'Lưu Khoản Chi',
+                addexpense_back_btn: 'Về Trang Chủ',
+                addexpense_chart30_title: 'Chi tiêu 30 ngày qua',
+                addexpense_chart_category_title: 'Phân loại chi tiêu (7 ngày)',
+                addexpense_recent_title: '5 Khoản Chi Gần Nhất',
+                addexpense_export_pdf_btn: 'Xuất PDF',
+                addexpense_view_all_link: '📋 Xem toàn bộ lịch sử chi tiêu →',
+                addexpense_support_title: 'Gửi yêu cầu hỗ trợ',
+                addexpense_support_name_placeholder: 'Tên của bạn',
+                addexpense_support_phone_placeholder: 'Số điện thoại / Zalo',
+                addexpense_support_message_placeholder: 'Mô tả vấn đề cần hỗ trợ...',
+                addexpense_support_submit_btn: 'Gửi yêu cầu',
+                addexpense_toast_default: 'Thông báo',
+                addexpense_logout_btn: 'Đăng xuất',
+                addexpense_login_btn: 'Đăng nhập',
+                addexpense_register_btn: 'Đăng ký',
+                addexpense_prompt_login_email: 'Email đăng nhập:',
+                addexpense_prompt_password: 'Mật khẩu:',
+                addexpense_prompt_register_email: 'Email đăng ký:',
+                addexpense_prompt_register_password: 'Mật khẩu (>=6 ký tự):',
+                addexpense_toast_register_success: 'Đăng ký thành công! Vui lòng xác nhận email.',
+                addexpense_msg_login_required: 'Vui lòng đăng nhập để xem chi tiêu',
+                addexpense_msg_no_expenses: 'Chưa có chi tiêu nào',
+                addexpense_chart_dataset_label: 'Chi tiêu (VNĐ)',
+                addexpense_confirm_delete: 'Xóa khoản chi này?',
+                addexpense_toast_delete_error: 'Lỗi xóa',
+                addexpense_toast_deleted: 'Đã xóa',
+                addexpense_toast_load_error: 'Lỗi tải dữ liệu chi tiêu',
+                addexpense_toast_login_first: 'Vui lòng đăng nhập trước!',
+                addexpense_toast_invalid_amount: 'Vui lòng nhập số tiền hợp lệ!',
+                addexpense_toast_large_amount: '⚠️ Khoản chi lớn hơn 10 triệu! Hãy kiểm tra lại.',
+                addexpense_processing: 'Đang xử lý...',
+                addexpense_toast_add_success: '✅ Đã thêm khoản chi thành công!',
+                addexpense_toast_save_error_prefix: '❌ Lỗi khi lưu chi tiêu: ',
+                addexpense_toast_fill_all: 'Vui lòng nhập đầy đủ',
+                addexpense_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                addexpense_toast_generic_error_prefix: 'Lỗi: '
+            },
+            en: {
+                addexpense_tagline: 'Smart expense management',
+                addexpense_form_title: 'Enter Expense',
+                addexpense_form_subtitle: 'Log outgoing cash flow so the AI can analyze it accurately',
+                addexpense_category_label: 'Category',
+                addexpense_opt_personnel: '🧑‍💼 Personnel (Salary, bonuses)',
+                addexpense_opt_supplies: '📦 Supplies, materials',
+                addexpense_opt_marketing: '📢 Marketing, advertising',
+                addexpense_opt_operations: '⚙️ Operations (electricity, water, internet)',
+                addexpense_opt_rent: '🏢 Rent',
+                addexpense_opt_other: '🔄 Other',
+                addexpense_reason_label: 'Reason for expense',
+                addexpense_reason_placeholder: 'E.g.: Electricity bill, Supply purchase...',
+                addexpense_amount_label: 'Amount (VND)',
+                addexpense_date_label: 'Expense date',
+                addexpense_quickadd_label: 'Quick add',
+                addexpense_chip_electricity: '⚡ Electricity 500k',
+                addexpense_chip_electricity_desc: 'Electricity bill',
+                addexpense_chip_water: '💧 Water 300k',
+                addexpense_chip_water_desc: 'Water bill',
+                addexpense_chip_rent: '🏢 Rent 5M',
+                addexpense_chip_rent_desc: 'Rent',
+                addexpense_chip_salary: '👥 Staff salary 20M',
+                addexpense_chip_salary_desc: 'Staff salary',
+                addexpense_submit_btn: 'Save Expense',
+                addexpense_back_btn: 'Back to Dashboard',
+                addexpense_chart30_title: 'Expenses over the last 30 days',
+                addexpense_chart_category_title: 'Category breakdown (7 days)',
+                addexpense_recent_title: '5 Most Recent Expenses',
+                addexpense_export_pdf_btn: 'Export PDF',
+                addexpense_view_all_link: '📋 View all expense history →',
+                addexpense_support_title: 'Send a support request',
+                addexpense_support_name_placeholder: 'Your name',
+                addexpense_support_phone_placeholder: 'Phone number / Zalo',
+                addexpense_support_message_placeholder: 'Describe what you need help with...',
+                addexpense_support_submit_btn: 'Send request',
+                addexpense_toast_default: 'Notification',
+                addexpense_logout_btn: 'Log out',
+                addexpense_login_btn: 'Log in',
+                addexpense_register_btn: 'Register',
+                addexpense_prompt_login_email: 'Login email:',
+                addexpense_prompt_password: 'Password:',
+                addexpense_prompt_register_email: 'Registration email:',
+                addexpense_prompt_register_password: 'Password (>=6 characters):',
+                addexpense_toast_register_success: 'Registration successful! Please confirm your email.',
+                addexpense_msg_login_required: 'Please log in to view expenses',
+                addexpense_msg_no_expenses: 'No expenses yet',
+                addexpense_chart_dataset_label: 'Expenses (VND)',
+                addexpense_confirm_delete: 'Delete this expense?',
+                addexpense_toast_delete_error: 'Delete error',
+                addexpense_toast_deleted: 'Deleted',
+                addexpense_toast_load_error: 'Error loading expense data',
+                addexpense_toast_login_first: 'Please log in first!',
+                addexpense_toast_invalid_amount: 'Please enter a valid amount!',
+                addexpense_toast_large_amount: '⚠️ This expense is over 10 million! Please double-check.',
+                addexpense_processing: 'Processing...',
+                addexpense_toast_add_success: '✅ Expense added successfully!',
+                addexpense_toast_save_error_prefix: '❌ Error saving expense: ',
+                addexpense_toast_fill_all: 'Please fill in all fields',
+                addexpense_toast_support_sent: '✅ Request sent! We will contact you within 15 minutes.',
+                addexpense_toast_generic_error_prefix: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Refresh JS-rendered parts (auth buttons, recent list, chart labels) so they pick up the new language.
+            try { updateAuthUI(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
         // Helper: toast
         function showToast(message, isError = false) {
@@ -404,9 +557,9 @@
         // Chip nhanh
         document.querySelectorAll('.expense-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                const desc = chip.getAttribute('data-desc');
+                const descKey = chip.getAttribute('data-desc-key');
                 const amt = chip.getAttribute('data-amount');
-                document.querySelector('input[name="description"]').value = desc;
+                document.querySelector('input[name="description"]').value = t(descKey);
                 amountRaw.value = parseInt(amt).toLocaleString('vi-VN');
                 amountHidden.value = amt;
                 amountRaw.focus();
@@ -416,38 +569,38 @@
         // ========== AUTH ==========
         const authContainer = document.getElementById('authContainer');
         async function updateAuthUI() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
                 currentUser = user;
                 authContainer.innerHTML = `<span class="user-email"><i class="fas fa-user-circle"></i> ${user.email}</span>
-                                           <div class="auth-btn" id="logoutBtn">Đăng xuất</div>`;
+                                           <div class="auth-btn" id="logoutBtn">${t('addexpense_logout_btn')}</div>`;
                 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-                    await supabase.auth.signOut();
+                    await supabaseClient.auth.signOut();
                     location.reload();
                 });
                 loadExpenseData(); // load sau khi đã login
             } else {
                 currentUser = null;
-                authContainer.innerHTML = `<div class="auth-btn" id="loginBtn">Đăng nhập</div>
-                                           <div class="auth-btn" id="registerBtn">Đăng ký</div>`;
+                authContainer.innerHTML = `<div class="auth-btn" id="loginBtn">${t('addexpense_login_btn')}</div>
+                                           <div class="auth-btn" id="registerBtn">${t('addexpense_register_btn')}</div>`;
                 document.getElementById('loginBtn').onclick = () => {
-                    const email = prompt('Email đăng nhập:');
-                    const pwd = prompt('Mật khẩu:');
-                    if(email && pwd) supabase.auth.signInWithPassword({ email, password: pwd }).then(res => {
+                    const email = prompt(t('addexpense_prompt_login_email'));
+                    const pwd = prompt(t('addexpense_prompt_password'));
+                    if(email && pwd) supabaseClient.auth.signInWithPassword({ email, password: pwd }).then(res => {
                         if(res.error) showToast(res.error.message, true);
                         else updateAuthUI();
                     });
                 };
                 document.getElementById('registerBtn').onclick = () => {
-                    const email = prompt('Email đăng ký:');
-                    const pwd = prompt('Mật khẩu (>=6 ký tự):');
-                    if(email && pwd && pwd.length>=6) supabase.auth.signUp({ email, password: pwd }).then(res => {
+                    const email = prompt(t('addexpense_prompt_register_email'));
+                    const pwd = prompt(t('addexpense_prompt_register_password'));
+                    if(email && pwd && pwd.length>=6) supabaseClient.auth.signUp({ email, password: pwd }).then(res => {
                         if(res.error) showToast(res.error.message, true);
-                        else showToast('Đăng ký thành công! Vui lòng xác nhận email.');
+                        else showToast(t('addexpense_toast_register_success'));
                     });
                 };
                 // Ẩn phần chi tiêu nếu chưa đăng nhập
-                document.getElementById('recentList').innerHTML = '<div class="text-center text-gray-500 text-sm p-4">Vui lòng đăng nhập để xem chi tiêu</div>';
+                document.getElementById('recentList').innerHTML = `<div class="text-center text-gray-500 text-sm p-4">${t('addexpense_msg_login_required')}</div>`;
                 if(expenseChart) expenseChart.destroy();
                 if(categoryChart) categoryChart.destroy();
             }
@@ -457,7 +610,7 @@
         async function loadExpenseData() {
             if(!currentUser) return;
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('expenses')
                     .select('*')
                     .eq('user_id', currentUser.id)
@@ -483,7 +636,7 @@
                 if (expenseChart) expenseChart.destroy();
                 expenseChart = new Chart(ctxBar, {
                     type: 'bar',
-                    data: { labels, datasets: [{ label: 'Chi tiêu (VNĐ)', data: barData, backgroundColor: '#f43f5e', borderRadius: 6 }] },
+                    data: { labels, datasets: [{ label: t('addexpense_chart_dataset_label'), data: barData, backgroundColor: '#f43f5e', borderRadius: 6 }] },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { callback: v => v.toLocaleString() } } } }
                 });
 
@@ -504,7 +657,7 @@
                 const recentList = data?.slice(0,5) || [];
                 const listDiv = document.getElementById('recentList');
                 if (recentList.length === 0) {
-                    listDiv.innerHTML = '<div class="text-center text-gray-500 text-sm p-4">Chưa có chi tiêu nào</div>';
+                    listDiv.innerHTML = `<div class="text-center text-gray-500 text-sm p-4">${t('addexpense_msg_no_expenses')}</div>`;
                 } else {
                     listDiv.innerHTML = recentList.map(item => `
                         <div class="recent-item">
@@ -514,45 +667,45 @@
                     `).join('');
                     document.querySelectorAll('.delete-expense').forEach(btn => {
                         btn.addEventListener('click', async (e) => {
-                            if(confirm('Xóa khoản chi này?')) {
-                                const { error } = await supabase.from('expenses').delete().eq('id', btn.dataset.id).eq('user_id', currentUser.id);
-                                if(error) showToast('Lỗi xóa', true);
-                                else { showToast('Đã xóa'); loadExpenseData(); }
+                            if(confirm(t('addexpense_confirm_delete'))) {
+                                const { error } = await supabaseClient.from('expenses').delete().eq('id', btn.dataset.id).eq('user_id', currentUser.id);
+                                if(error) showToast(t('addexpense_toast_delete_error'), true);
+                                else { showToast(t('addexpense_toast_deleted')); loadExpenseData(); }
                             }
                         });
                     });
                 }
             } catch(err) {
                 console.error(err);
-                showToast('Lỗi tải dữ liệu chi tiêu', true);
+                showToast(t('addexpense_toast_load_error'), true);
             }
         }
 
         // ========== SUBMIT FORM ==========
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if(!currentUser) { showToast('Vui lòng đăng nhập trước!', true); return; }
+            if(!currentUser) { showToast(t('addexpense_toast_login_first'), true); return; }
             const amountVal = amountHidden.value;
             if (!amountVal || parseInt(amountVal) <= 0) {
-                showToast('Vui lòng nhập số tiền hợp lệ!', true);
+                showToast(t('addexpense_toast_invalid_amount'), true);
                 return;
             }
             const amount = parseInt(amountVal);
-            if (amount > 10000000) showToast('⚠️ Khoản chi lớn hơn 10 triệu! Hãy kiểm tra lại.', false);
+            if (amount > 10000000) showToast(t('addexpense_toast_large_amount'), false);
             const formData = new FormData(form);
             const category = formData.get('category');
             const description = formData.get('description');
             const expenseDate = formData.get('expense_date') || today;
-            
+
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('addexpense_processing')}`;
             try {
-                const { error } = await supabase.from('expenses').insert([{
+                const { error } = await supabaseClient.from('expenses').insert([{
                     user_id: currentUser.id,
                     category, description, amount, expense_date: expenseDate, created_at: new Date()
                 }]);
                 if (error) throw error;
-                showToast('✅ Đã thêm khoản chi thành công!');
+                showToast(t('addexpense_toast_add_success'));
                 document.querySelector('input[name="description"]').value = '';
                 amountRaw.value = '';
                 amountHidden.value = '';
@@ -560,10 +713,10 @@
                 setTimeout(() => { window.location.href = "{{ url_for('index') }}"; }, 1500);
             } catch (err) {
                 console.error(err);
-                showToast('❌ Lỗi khi lưu chi tiêu: ' + err.message, true);
+                showToast(t('addexpense_toast_save_error_prefix') + err.message, true);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Lưu Khoản Chi';
+                submitBtn.innerHTML = `<i class="fas fa-save"></i> ${t('addexpense_submit_btn')}`;
             }
         });
 
@@ -571,7 +724,7 @@
         async function trackCSKHClick(channel) {
             if(!currentUser) return;
             try {
-                await supabase.from('cskh_clicks').insert([{ user_id: currentUser.id, channel, clicked_at: new Date() }]);
+                await supabaseClient.from('cskh_clicks').insert([{ user_id: currentUser.id, channel, clicked_at: new Date() }]);
             } catch(e) { console.warn('track click error', e); }
         }
         document.querySelectorAll('[data-channel]').forEach(link => {
@@ -585,19 +738,19 @@
             const name = document.getElementById('supportName').value;
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
-            if(!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            if(!name || !phone || !message) { showToast(t('addexpense_toast_fill_all'), true); return; }
             try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if(error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('addexpense_toast_support_sent'));
                 supportForm.reset();
                 // Gửi email thông báo nếu có EmailJS (cần cấu hình key thật)
                 if(window.emailjs) {
                     emailjs.init('YOUR_PUBLIC_KEY'); // thay bằng key thật nếu muốn
                     emailjs.send('service_demo', 'template_demo', { to_name: 'BitPaw Support', user_name: name, user_phone: phone, message: message })
-                        .catch(() => console.log('EmailJS chưa config'));
+                        .catch(() => console.log('EmailJS not configured'));
                 }
-            } catch(err) { showToast('Lỗi: '+err.message, true); }
+            } catch(err) { showToast(t('addexpense_toast_generic_error_prefix') + err.message, true); }
         });
 
         // ========== XUẤT PDF ==========
@@ -609,14 +762,14 @@
         await updateAuthUI();
 
         // ========== TẠO BẢNG NẾU CHƯA CÓ (hướng dẫn) ==========
-        console.log('Chạy các câu lệnh SQL trong Supabase Editor:\n' +
-            'CREATE TABLE IF NOT EXISTS expenses (id SERIAL PRIMARY KEY, user_id UUID REFERENCES auth.users(id), category TEXT, description TEXT, amount BIGINT, expense_date DATE, created_at TIMESTAMPTZ);\n' +
-            'ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;\n' +
-            'CREATE POLICY "Users can view own expenses" ON expenses FOR SELECT USING (auth.uid() = user_id);\n' +
-            'CREATE POLICY "Users can insert own expenses" ON expenses FOR INSERT WITH CHECK (auth.uid() = user_id);\n' +
-            'CREATE POLICY "Users can delete own expenses" ON expenses FOR DELETE USING (auth.uid() = user_id);\n' +
-            'CREATE TABLE IF NOT EXISTS cskh_requests (id SERIAL PRIMARY KEY, name TEXT, phone TEXT, message TEXT, status TEXT, created_at TIMESTAMPTZ);\n' +
-            'CREATE TABLE IF NOT EXISTS cskh_clicks (id SERIAL PRIMARY KEY, user_id UUID, channel TEXT, clicked_at TIMESTAMPTZ);');
+        // Chạy các câu lệnh SQL trong Supabase Editor:
+        // CREATE TABLE IF NOT EXISTS expenses (id SERIAL PRIMARY KEY, user_id UUID REFERENCES auth.users(id), category TEXT, description TEXT, amount BIGINT, expense_date DATE, created_at TIMESTAMPTZ);
+        // ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+        // CREATE POLICY "Users can view own expenses" ON expenses FOR SELECT USING (auth.uid() = user_id);
+        // CREATE POLICY "Users can insert own expenses" ON expenses FOR INSERT WITH CHECK (auth.uid() = user_id);
+        // CREATE POLICY "Users can delete own expenses" ON expenses FOR DELETE USING (auth.uid() = user_id);
+        // CREATE TABLE IF NOT EXISTS cskh_requests (id SERIAL PRIMARY KEY, name TEXT, phone TEXT, message TEXT, status TEXT, created_at TIMESTAMPTZ);
+        // CREATE TABLE IF NOT EXISTS cskh_clicks (id SERIAL PRIMARY KEY, user_id UUID, channel TEXT, clicked_at TIMESTAMPTZ);
 
         // ========== 3D BACKGROUND GIỮ NGUYÊN ==========
         (function init3D() {
@@ -635,7 +788,7 @@
             const positions = new Float32Array(particlesCount * 3);
             for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
+
             const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0xf43f5e, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
             const particles = new THREE.Points(geometry, material);
             scene.add(particles);

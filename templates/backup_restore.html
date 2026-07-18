@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -84,11 +84,14 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Sao lưu & Phục hồi</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Backup & Restore dữ liệu toàn hệ thống</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="backuprestore_title_suffix">| Sao lưu & Phục hồi</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="backuprestore_subtitle">Backup & Restore dữ liệu toàn hệ thống</p>
                 </div>
             </div>
-            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+            <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="backuprestore_home_btn">Trang chủ</span></a>
+            </div>
         </div>
 
         <!-- 2 hành động chính + backup lên cloud -->
@@ -98,10 +101,10 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-cyan-500/20 flex items-center justify-center text-3xl text-cyan-400">
                     <i class="fas fa-database"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">Sao lưu & Tải về</h2>
-                <p class="text-gray-400 text-sm mb-5">Xuất toàn bộ dữ liệu ra file JSON, tải về máy tính của bạn.</p>
+                <h2 class="text-2xl font-bold text-white mb-2" data-i18n="backuprestore_local_title">Sao lưu & Tải về</h2>
+                <p class="text-gray-400 text-sm mb-5" data-i18n="backuprestore_local_desc">Xuất toàn bộ dữ liệu ra file JSON, tải về máy tính của bạn.</p>
                 <button id="backupNowBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
-                    <i class="fas fa-download"></i> Sao lưu ngay
+                    <i class="fas fa-download"></i> <span data-i18n="backuprestore_local_btn">Sao lưu ngay</span>
                 </button>
             </div>
             <!-- Restore from file -->
@@ -109,14 +112,14 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center text-3xl text-purple-400">
                     <i class="fas fa-upload"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">Phục hồi từ file</h2>
-                <p class="text-gray-400 text-sm mb-5">Tải file backup JSON lên và khôi phục hệ thống. <span class="text-rose-400">⚠️ Dữ liệu hiện tại sẽ bị thay thế!</span></p>
+                <h2 class="text-2xl font-bold text-white mb-2" data-i18n="backuprestore_restore_title">Phục hồi từ file</h2>
+                <p class="text-gray-400 text-sm mb-5"><span data-i18n="backuprestore_restore_desc">Tải file backup JSON lên và khôi phục hệ thống.</span> <span class="text-rose-400" data-i18n="backuprestore_restore_warn">⚠️ Dữ liệu hiện tại sẽ bị thay thế!</span></p>
                 <label class="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fas fa-folder-open"></i> Chọn file JSON
+                    <i class="fas fa-folder-open"></i> <span data-i18n="backuprestore_choose_file">Chọn file JSON</span>
                     <input type="file" id="restoreFileInput" accept=".json" class="hidden">
                 </label>
                 <button id="restoreBtn" class="w-full mt-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50" disabled>
-                    <i class="fas fa-sync-alt"></i> Khôi phục từ file
+                    <i class="fas fa-sync-alt"></i> <span data-i18n="backuprestore_restore_btn">Khôi phục từ file</span>
                 </button>
             </div>
             <!-- Backup lên Cloud (Supabase Storage) -->
@@ -124,36 +127,36 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center text-3xl text-emerald-400">
                     <i class="fas fa-cloud-upload-alt"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">Sao lưu lên Cloud</h2>
-                <p class="text-gray-400 text-sm mb-5">Lưu bản sao lưu lên Supabase Storage, an toàn & có thể phục hồi bất cứ lúc nào.</p>
+                <h2 class="text-2xl font-bold text-white mb-2" data-i18n="backuprestore_cloud_title">Sao lưu lên Cloud</h2>
+                <p class="text-gray-400 text-sm mb-5" data-i18n="backuprestore_cloud_desc">Lưu bản sao lưu lên Supabase Storage, an toàn & có thể phục hồi bất cứ lúc nào.</p>
                 <button id="backupCloudBtn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-cloud-upload-alt"></i> Đẩy lên Cloud
+                    <i class="fas fa-cloud-upload-alt"></i> <span data-i18n="backuprestore_cloud_btn">Đẩy lên Cloud</span>
                 </button>
             </div>
         </div>
 
         <!-- Danh sách các bản sao lưu trên Cloud (lấy từ Supabase) -->
         <div class="glass-panel p-5">
-            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-cloud"></i> Các bản sao lưu trên Cloud</h2>
+            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-cloud"></i> <span data-i18n="backuprestore_cloud_list_title">Các bản sao lưu trên Cloud</span></h2>
             <div id="cloudBackupList" class="space-y-2 max-h-64 overflow-y-auto">
-                <div class="text-center text-gray-500 py-5">Đang tải danh sách từ Cloud...</div>
+                <div class="text-center text-gray-500 py-5" data-i18n="backuprestore_cloud_loading">Đang tải danh sách từ Cloud...</div>
             </div>
         </div>
 
         <!-- Thông tin dung lượng & khuyến cáo -->
         <div class="glass-card p-4 mt-6 flex items-center gap-3 text-sm">
             <i class="fas fa-shield-alt text-2xl text-emerald-400"></i>
-            <div><span class="font-bold">Khuyến cáo:</span> Sao lưu thường xuyên để tránh mất dữ liệu. Bản sao lưu được mã hóa. Dung lượng tối đa file restore: 50MB.</div>
+            <div><span class="font-bold" data-i18n="backuprestore_advice_label">Khuyến cáo:</span> <span data-i18n="backuprestore_advice_text">Sao lưu thường xuyên để tránh mất dữ liệu. Bản sao lưu được mã hóa. Dung lượng tối đa file restore: 50MB.</span></div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 mt-6">
             <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> <span data-i18n="backuprestore_support_title">Gửi yêu cầu hỗ trợ</span></h3>
                 <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
-                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                    <input type="text" id="supportName" placeholder="Tên của bạn" data-i18n-placeholder="backuprestore_support_name_ph" class="glass-input-sm" required>
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" data-i18n-placeholder="backuprestore_support_phone_ph" class="glass-input-sm" required>
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." data-i18n-placeholder="backuprestore_support_msg_ph" class="glass-input-sm" required></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition" data-i18n="backuprestore_support_submit">Gửi yêu cầu</button>
                 </form>
                 <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
             </div>
@@ -164,16 +167,16 @@
     <div id="confirmRestoreModal" class="modal-overlay">
         <div class="modal-container text-center">
             <i class="fas fa-exclamation-triangle text-5xl text-rose-400 mb-3"></i>
-            <h3 class="text-xl font-bold mb-2">Xác nhận phục hồi dữ liệu</h3>
-            <p class="text-gray-300 mb-4">Hành động này sẽ <span class="text-rose-400 font-bold">thay thế toàn bộ dữ liệu hiện tại</span> bằng dữ liệu từ file backup. Bạn có chắc chắn muốn tiếp tục?</p>
+            <h3 class="text-xl font-bold mb-2" data-i18n="backuprestore_confirm_title">Xác nhận phục hồi dữ liệu</h3>
+            <p class="text-gray-300 mb-4"><span data-i18n="backuprestore_confirm_text1">Hành động này sẽ</span> <span class="text-rose-400 font-bold" data-i18n="backuprestore_confirm_text2">thay thế toàn bộ dữ liệu hiện tại</span> <span data-i18n="backuprestore_confirm_text3">bằng dữ liệu từ file backup. Bạn có chắc chắn muốn tiếp tục?</span></p>
             <div class="flex gap-3">
-                <button id="confirmRestoreAction" class="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 py-2 rounded-xl font-bold">Xác nhận</button>
-                <button id="cancelRestoreModal" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy bỏ</button>
+                <button id="confirmRestoreAction" class="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 py-2 rounded-xl font-bold" data-i18n="backuprestore_confirm_btn">Xác nhận</button>
+                <button id="cancelRestoreModal" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="backuprestore_cancel_btn">Hủy bỏ</button>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="backuprestore_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -182,20 +185,170 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
             .then(json => {
                 if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
                 } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
+                    console.error('Failed to retrieve tenant token:', json && json.error);
                 }
-                return supabase;
+                return supabaseClient;
             })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+            .catch(e => { console.error('Error calling /api/session/supabase_token:', e); return supabaseClient; });
         const BACKUP_BUCKET = 'backups';
+
+        // ========== i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                backuprestore_title_suffix: '| Sao lưu & Phục hồi',
+                backuprestore_subtitle: 'Backup & Restore dữ liệu toàn hệ thống',
+                backuprestore_home_btn: 'Trang chủ',
+                backuprestore_local_title: 'Sao lưu & Tải về',
+                backuprestore_local_desc: 'Xuất toàn bộ dữ liệu ra file JSON, tải về máy tính của bạn.',
+                backuprestore_local_btn: 'Sao lưu ngay',
+                backuprestore_restore_title: 'Phục hồi từ file',
+                backuprestore_restore_desc: 'Tải file backup JSON lên và khôi phục hệ thống.',
+                backuprestore_restore_warn: '⚠️ Dữ liệu hiện tại sẽ bị thay thế!',
+                backuprestore_choose_file: 'Chọn file JSON',
+                backuprestore_restore_btn: 'Khôi phục từ file',
+                backuprestore_cloud_title: 'Sao lưu lên Cloud',
+                backuprestore_cloud_desc: 'Lưu bản sao lưu lên Supabase Storage, an toàn & có thể phục hồi bất cứ lúc nào.',
+                backuprestore_cloud_btn: 'Đẩy lên Cloud',
+                backuprestore_cloud_list_title: 'Các bản sao lưu trên Cloud',
+                backuprestore_cloud_loading: 'Đang tải danh sách từ Cloud...',
+                backuprestore_advice_label: 'Khuyến cáo:',
+                backuprestore_advice_text: 'Sao lưu thường xuyên để tránh mất dữ liệu. Bản sao lưu được mã hóa. Dung lượng tối đa file restore: 50MB.',
+                backuprestore_support_title: 'Gửi yêu cầu hỗ trợ',
+                backuprestore_support_name_ph: 'Tên của bạn',
+                backuprestore_support_phone_ph: 'Số điện thoại / Zalo',
+                backuprestore_support_msg_ph: 'Nội dung cần hỗ trợ...',
+                backuprestore_support_submit: 'Gửi yêu cầu',
+                backuprestore_confirm_title: 'Xác nhận phục hồi dữ liệu',
+                backuprestore_confirm_text1: 'Hành động này sẽ',
+                backuprestore_confirm_text2: 'thay thế toàn bộ dữ liệu hiện tại',
+                backuprestore_confirm_text3: 'bằng dữ liệu từ file backup. Bạn có chắc chắn muốn tiếp tục?',
+                backuprestore_confirm_btn: 'Xác nhận',
+                backuprestore_cancel_btn: 'Hủy bỏ',
+                backuprestore_processing: 'Đang xử lý...',
+                backuprestore_toast_backup_created: 'Đã tạo backup:',
+                backuprestore_toast_backup_error: 'Lỗi khi sao lưu: ',
+                backuprestore_toast_cloud_success: 'Đã đẩy backup lên Cloud thành công!',
+                backuprestore_toast_cloud_error: 'Lỗi upload lên Cloud: ',
+                backuprestore_loading_short: 'Đang tải...',
+                backuprestore_no_cloud_backups: 'Chưa có bản sao lưu nào trên Cloud.',
+                backuprestore_unknown: 'Không rõ',
+                backuprestore_restore_action: 'Phục hồi',
+                backuprestore_delete_action: 'Xóa',
+                backuprestore_cloud_list_error: 'Lỗi tải danh sách Cloud',
+                backuprestore_confirm_delete_cloud: 'Xóa bản backup "{filename}" khỏi Cloud?',
+                backuprestore_toast_deleted: 'Đã xóa backup khỏi Cloud',
+                backuprestore_confirm_restore_cloud: 'Phục hồi dữ liệu từ bản backup "{filename}"? Dữ liệu hiện tại sẽ bị thay thế!',
+                backuprestore_invalid_backup: 'File backup không hợp lệ',
+                backuprestore_toast_restore_cloud_success: 'Phục hồi từ Cloud thành công! Hệ thống sẽ tải lại.',
+                backuprestore_toast_restore_error: 'Lỗi phục hồi: ',
+                backuprestore_toast_choose_json: 'Vui lòng chọn file JSON',
+                backuprestore_toast_no_file_selected: 'Chưa chọn file backup',
+                backuprestore_invalid_format: 'File backup không đúng định dạng',
+                backuprestore_toast_restore_success: 'Khôi phục thành công! Hệ thống sẽ tải lại.',
+                backuprestore_toast_restore_err2: 'Lỗi khôi phục: ',
+                backuprestore_toast_fill_info: 'Vui lòng nhập đầy đủ thông tin',
+                backuprestore_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                backuprestore_toast_generic_error: 'Lỗi: ',
+                backuprestore_dev_table_fetch_err: 'Lỗi lấy bảng',
+                backuprestore_dev_table_delete_err: 'Xóa bảng {table} lỗi:',
+                backuprestore_err_restore_table: 'Lỗi restore bảng {table}: {msg}',
+                backuprestore_dev_sql_hint: 'Chạy SQL tạo bảng backup_logs:',
+                backuprestore_dev_bucket_hint: "Chưa có bucket '{bucket}', hãy tạo thủ công trên Supabase Storage với policy public."
+            },
+            en: {
+                backuprestore_title_suffix: '| Backup & Restore',
+                backuprestore_subtitle: 'Backup & Restore all system data',
+                backuprestore_home_btn: 'Home',
+                backuprestore_local_title: 'Backup & Download',
+                backuprestore_local_desc: 'Export all data to a JSON file and download it to your computer.',
+                backuprestore_local_btn: 'Backup Now',
+                backuprestore_restore_title: 'Restore from file',
+                backuprestore_restore_desc: 'Upload a JSON backup file and restore the system.',
+                backuprestore_restore_warn: '⚠️ Current data will be replaced!',
+                backuprestore_choose_file: 'Choose JSON file',
+                backuprestore_restore_btn: 'Restore from file',
+                backuprestore_cloud_title: 'Backup to Cloud',
+                backuprestore_cloud_desc: 'Save a backup to Supabase Storage, safe & restorable anytime.',
+                backuprestore_cloud_btn: 'Push to Cloud',
+                backuprestore_cloud_list_title: 'Cloud backups',
+                backuprestore_cloud_loading: 'Loading list from Cloud...',
+                backuprestore_advice_label: 'Recommendation:',
+                backuprestore_advice_text: 'Back up regularly to avoid data loss. Backups are encrypted. Maximum restore file size: 50MB.',
+                backuprestore_support_title: 'Send support request',
+                backuprestore_support_name_ph: 'Your name',
+                backuprestore_support_phone_ph: 'Phone number / Zalo',
+                backuprestore_support_msg_ph: 'Describe what you need help with...',
+                backuprestore_support_submit: 'Send request',
+                backuprestore_confirm_title: 'Confirm data restore',
+                backuprestore_confirm_text1: 'This action will',
+                backuprestore_confirm_text2: 'replace all current data',
+                backuprestore_confirm_text3: 'with data from the backup file. Are you sure you want to continue?',
+                backuprestore_confirm_btn: 'Confirm',
+                backuprestore_cancel_btn: 'Cancel',
+                backuprestore_processing: 'Processing...',
+                backuprestore_toast_backup_created: 'Backup created:',
+                backuprestore_toast_backup_error: 'Backup error: ',
+                backuprestore_toast_cloud_success: 'Backup pushed to Cloud successfully!',
+                backuprestore_toast_cloud_error: 'Cloud upload error: ',
+                backuprestore_loading_short: 'Loading...',
+                backuprestore_no_cloud_backups: 'No backups on Cloud yet.',
+                backuprestore_unknown: 'Unknown',
+                backuprestore_restore_action: 'Restore',
+                backuprestore_delete_action: 'Delete',
+                backuprestore_cloud_list_error: 'Error loading Cloud list',
+                backuprestore_confirm_delete_cloud: 'Delete backup "{filename}" from Cloud?',
+                backuprestore_toast_deleted: 'Backup deleted from Cloud',
+                backuprestore_confirm_restore_cloud: 'Restore data from backup "{filename}"? Current data will be replaced!',
+                backuprestore_invalid_backup: 'Invalid backup file',
+                backuprestore_toast_restore_cloud_success: 'Restored from Cloud successfully! The system will reload.',
+                backuprestore_toast_restore_error: 'Restore error: ',
+                backuprestore_toast_choose_json: 'Please choose a JSON file',
+                backuprestore_toast_no_file_selected: 'No backup file selected',
+                backuprestore_invalid_format: 'Invalid backup file format',
+                backuprestore_toast_restore_success: 'Restore successful! The system will reload.',
+                backuprestore_toast_restore_err2: 'Restore error: ',
+                backuprestore_toast_fill_info: 'Please fill in all information',
+                backuprestore_toast_support_sent: '✅ Request sent! We will contact you within 15 minutes.',
+                backuprestore_toast_generic_error: 'Error: ',
+                backuprestore_dev_table_fetch_err: 'Error fetching table',
+                backuprestore_dev_table_delete_err: 'Error deleting table {table}:',
+                backuprestore_err_restore_table: 'Error restoring table {table}: {msg}',
+                backuprestore_dev_sql_hint: 'Run SQL to create backup_logs table:',
+                backuprestore_dev_bucket_hint: "Bucket '{bucket}' does not exist yet, please create it manually in Supabase Storage with a public policy."
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            try { loadCloudBackups(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
         // Helper
         function showToast(msg, isError = false) {
@@ -217,11 +370,11 @@
             const result = {};
             for (const table of tables) {
                 try {
-                    const { data, error } = await supabase.from(table).select('*');
+                    const { data, error } = await supabaseClient.from(table).select('*');
                     if (error) throw error;
                     result[table] = data || [];
                 } catch (err) {
-                    console.warn(`Lỗi lấy bảng ${table}:`, err);
+                    console.warn(`${t('backuprestore_dev_table_fetch_err')} ${table}:`, err);
                     result[table] = [];
                 }
             }
@@ -241,12 +394,12 @@
             for (const table of order) {
                 if (backupData[table] !== undefined) {
                     // Xóa tất cả bản ghi cũ
-                    const { error: delError } = await supabase.from(table).delete().neq('id', 0);
-                    if (delError) console.warn(`Xóa bảng ${table} lỗi:`, delError);
+                    const { error: delError } = await supabaseClient.from(table).delete().neq('id', 0);
+                    if (delError) console.warn(tf('backuprestore_dev_table_delete_err', { table }), delError);
                     // Chèn dữ liệu mới
                     if (backupData[table].length > 0) {
-                        const { error: insertError } = await supabase.from(table).insert(backupData[table]);
-                        if (insertError) throw new Error(`Lỗi restore bảng ${table}: ${insertError.message}`);
+                        const { error: insertError } = await supabaseClient.from(table).insert(backupData[table]);
+                        if (insertError) throw new Error(tf('backuprestore_err_restore_table', { table, msg: insertError.message }));
                     }
                 }
             }
@@ -270,12 +423,12 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                showToast(`Đã tạo backup: ${filename} (${(blob.size/1024).toFixed(2)} KB)`);
+                showToast(`${t('backuprestore_toast_backup_created')} ${filename} (${(blob.size/1024).toFixed(2)} KB)`);
                 // Sau khi backup thành công, ghi log lên bảng backup_logs (nếu muốn)
-                await supabase.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), user_email: (await supabase.auth.getUser()).data.user?.email || 'anonymous' }]);
+                await supabaseClient.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), user_email: (await supabaseClient.auth.getUser()).data.user?.email || 'anonymous' }]);
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi khi sao lưu: ' + err.message, true);
+                showToast(t('backuprestore_toast_backup_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -291,15 +444,15 @@
                 const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
                 const filename = `bitpaw_cloud_backup_${timestamp}.json`;
                 const filePath = `backups/${filename}`;
-                const { error: uploadError } = await supabase.storage.from(BACKUP_BUCKET).upload(filePath, blob, { cacheControl: '3600', upsert: true });
+                const { error: uploadError } = await supabaseClient.storage.from(BACKUP_BUCKET).upload(filePath, blob, { cacheControl: '3600', upsert: true });
                 if (uploadError) throw uploadError;
                 // Lưu thông tin vào bảng backup_logs
-                await supabase.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), storage_path: filePath, user_email: (await supabase.auth.getUser()).data.user?.email || 'anonymous' }]);
-                showToast('Đã đẩy backup lên Cloud thành công!');
+                await supabaseClient.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), storage_path: filePath, user_email: (await supabaseClient.auth.getUser()).data.user?.email || 'anonymous' }]);
+                showToast(t('backuprestore_toast_cloud_success'));
                 await loadCloudBackups();
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi upload lên Cloud: ' + err.message, true);
+                showToast(t('backuprestore_toast_cloud_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -308,22 +461,22 @@
         // ========== 5. Lấy danh sách backup từ Cloud ==========
         async function loadCloudBackups() {
             const container = document.getElementById('cloudBackupList');
-            container.innerHTML = '<div class="text-center text-gray-500 py-5">Đang tải...</div>';
+            container.innerHTML = `<div class="text-center text-gray-500 py-5">${t('backuprestore_loading_short')}</div>`;
             try {
-                const { data, error } = await supabase.storage.from(BACKUP_BUCKET).list('backups');
+                const { data, error } = await supabaseClient.storage.from(BACKUP_BUCKET).list('backups');
                 if (error) throw error;
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có bản sao lưu nào trên Cloud.</div>';
+                    container.innerHTML = `<div class="text-center text-gray-500 py-5">${t('backuprestore_no_cloud_backups')}</div>`;
                     return;
                 }
                 // Lấy thêm thông tin từ bảng backup_logs để hiển thị thời gian tạo
-                const { data: logs } = await supabase.from('backup_logs').select('*').order('created_at', { ascending: false });
+                const { data: logs } = await supabaseClient.from('backup_logs').select('*').order('created_at', { ascending: false });
                 const logMap = new Map();
                 logs?.forEach(log => logMap.set(log.filename, log));
                 container.innerHTML = data.map(file => {
                     const log = logMap.get(file.name);
                     const size = (file.metadata?.size / 1024).toFixed(2) + ' KB';
-                    const created = log ? new Date(log.created_at).toLocaleString() : 'Không rõ';
+                    const created = log ? new Date(log.created_at).toLocaleString() : t('backuprestore_unknown');
                     return `
                         <div class="backup-item glass-card p-3 flex justify-between items-center">
                             <div>
@@ -334,8 +487,8 @@
                                 <div class="text-xs text-gray-400">${created} - ${size}</div>
                             </div>
                             <div class="flex gap-2">
-                                <button class="restore-cloud-btn bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">Phục hồi</button>
-                                <button class="delete-cloud-btn bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">Xóa</button>
+                                <button class="restore-cloud-btn bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">${t('backuprestore_restore_action')}</button>
+                                <button class="delete-cloud-btn bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">${t('backuprestore_delete_action')}</button>
                             </div>
                         </div>
                     `;
@@ -350,35 +503,35 @@
                 document.querySelectorAll('.delete-cloud-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const filename = btn.getAttribute('data-filename');
-                        if (confirm(`Xóa bản backup "${filename}" khỏi Cloud?`)) {
-                            await supabase.storage.from(BACKUP_BUCKET).remove([`backups/${filename}`]);
-                            await supabase.from('backup_logs').delete().eq('filename', filename);
-                            showToast('Đã xóa backup khỏi Cloud');
+                        if (confirm(tf('backuprestore_confirm_delete_cloud', { filename }))) {
+                            await supabaseClient.storage.from(BACKUP_BUCKET).remove([`backups/${filename}`]);
+                            await supabaseClient.from('backup_logs').delete().eq('filename', filename);
+                            showToast(t('backuprestore_toast_deleted'));
                             loadCloudBackups();
                         }
                     });
                 });
             } catch (err) {
                 console.error(err);
-                container.innerHTML = '<div class="text-center text-rose-400 py-5">Lỗi tải danh sách Cloud</div>';
+                container.innerHTML = `<div class="text-center text-rose-400 py-5">${t('backuprestore_cloud_list_error')}</div>`;
             }
         }
 
         // Phục hồi từ một file trên Cloud
         async function restoreFromCloud(filename) {
-            if (!confirm(`Phục hồi dữ liệu từ bản backup "${filename}"? Dữ liệu hiện tại sẽ bị thay thế!`)) return;
+            if (!confirm(tf('backuprestore_confirm_restore_cloud', { filename }))) return;
             showLoading(true);
             try {
-                const { data, error } = await supabase.storage.from(BACKUP_BUCKET).download(`backups/${filename}`);
+                const { data, error } = await supabaseClient.storage.from(BACKUP_BUCKET).download(`backups/${filename}`);
                 if (error) throw error;
                 const text = await data.text();
                 const backupData = JSON.parse(text);
-                if (!backupData.products) throw new Error('File backup không hợp lệ');
+                if (!backupData.products) throw new Error(t('backuprestore_invalid_backup'));
                 await restoreAllData(backupData);
-                showToast('Phục hồi từ Cloud thành công! Hệ thống sẽ tải lại.');
+                showToast(t('backuprestore_toast_restore_cloud_success'));
                 setTimeout(() => window.location.reload(), 2000);
             } catch (err) {
-                showToast('Lỗi phục hồi: ' + err.message, true);
+                showToast(t('backuprestore_toast_restore_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -392,17 +545,17 @@
             if (e.target.files.length > 0) {
                 selectedFile = e.target.files[0];
                 if (!selectedFile.name.endsWith('.json')) {
-                    showToast('Vui lòng chọn file JSON', true);
+                    showToast(t('backuprestore_toast_choose_json'), true);
                     selectedFile = null;
                     restoreBtn.disabled = true;
                     return;
                 }
                 restoreBtn.disabled = false;
-                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Khôi phục từ file (${selectedFile.name})`;
+                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> ${t('backuprestore_restore_btn')} (${selectedFile.name})`;
             } else {
                 selectedFile = null;
                 restoreBtn.disabled = true;
-                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Khôi phục từ file`;
+                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> ${t('backuprestore_restore_btn')}`;
             }
         });
 
@@ -416,7 +569,7 @@
 
         confirmRestoreAction.addEventListener('click', async () => {
             if (!selectedFile) {
-                showToast('Chưa chọn file backup', true);
+                showToast(t('backuprestore_toast_no_file_selected'), true);
                 closeConfirmModal();
                 return;
             }
@@ -424,28 +577,28 @@
             try {
                 const text = await selectedFile.text();
                 const backupData = JSON.parse(text);
-                if (!backupData.products) throw new Error('File backup không đúng định dạng');
+                if (!backupData.products) throw new Error(t('backuprestore_invalid_format'));
                 await restoreAllData(backupData);
-                showToast('Khôi phục thành công! Hệ thống sẽ tải lại.');
+                showToast(t('backuprestore_toast_restore_success'));
                 setTimeout(() => window.location.reload(), 2000);
             } catch (err) {
-                showToast('Lỗi khôi phục: ' + err.message, true);
+                showToast(t('backuprestore_toast_restore_err2') + err.message, true);
             } finally {
                 showLoading(false);
                 closeConfirmModal();
                 fileInput.value = '';
                 selectedFile = null;
                 restoreBtn.disabled = true;
-                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Khôi phục từ file`;
+                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> ${t('backuprestore_restore_btn')}`;
             }
         });
 
         // ========== 7. CSKH: track click & gửi yêu cầu ==========
         async function trackCSKHClick(channel) {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
                 }
             } catch(e) { console.warn(e); }
         }
@@ -460,32 +613,32 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('backuprestore_toast_fill_info'), true);
                 return;
             }
             try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('backuprestore_toast_support_sent'));
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('backuprestore_toast_generic_error') + err.message, true);
             }
         });
 
         // ========== 8. Khởi tạo & tạo bảng nếu chưa có ==========
         async function init() {
             // Kiểm tra bảng backup_logs, nếu chưa có thì tạo (hướng dẫn)
-            const { error: checkError } = await supabase.from('backup_logs').select('id').limit(1);
+            const { error: checkError } = await supabaseClient.from('backup_logs').select('id').limit(1);
             if (checkError && checkError.message.includes('does not exist')) {
-                console.log('Chạy SQL tạo bảng backup_logs:\n' +
+                console.log(t('backuprestore_dev_sql_hint') + '\n' +
                     'CREATE TABLE IF NOT EXISTS backup_logs (id SERIAL PRIMARY KEY, filename TEXT, size_kb TEXT, created_at TIMESTAMPTZ, storage_path TEXT, user_email TEXT);\n' +
                     'ALTER TABLE backup_logs ENABLE ROW LEVEL SECURITY;');
             }
             // Tạo bucket backups nếu chưa có (hướng dẫn thủ công hoặc dùng SDK)
-            const { data: buckets } = await supabase.storage.listBuckets();
+            const { data: buckets } = await supabaseClient.storage.listBuckets();
             if (!buckets.find(b => b.name === BACKUP_BUCKET)) {
-                console.log(`Chưa có bucket '${BACKUP_BUCKET}', hãy tạo thủ công trên Supabase Storage với policy public.`);
+                console.log(tf('backuprestore_dev_bucket_hint', { bucket: BACKUP_BUCKET }));
             }
             await loadCloudBackups();
         }

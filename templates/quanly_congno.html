@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -96,42 +96,46 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_overview">Tổng quan</span>
                 </a>
                 <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_attendance">Chấm công</span>
                 </a>
                 <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_payroll">Bảng lương</span>
                 </a>
                 <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Trạm Liên Lạc</span>
+                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_comm">Trạm Liên Lạc</span>
                 </a>
                 <a href="/map_dashboard" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_gps">Radar GPS Thợ</span>
                 </a>
                 <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Công nợ</span>
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_debt">Quản lý Công nợ</span>
                 </a>
                 <!-- === CÁC MỤC MỚI THÊM === -->
                 <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Thu Chi</span>
+                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_revenue">Quản lý Thu Chi</span>
                 </a>
                 <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Báo cáo lợi nhuận</span>
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="congno_nav_profit">Báo cáo lợi nhuận</span>
                 </a>
             </nav>
 
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="congno_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -141,16 +145,16 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
-                    Quản Lý <span class="text-cyan-400">Công Nợ</span> <i class="fas fa-hand-holding-usd text-cyan-400"></i>
+                    <span data-i18n="congno_title_prefix">Quản Lý</span> <span class="text-cyan-400" data-i18n="congno_title_suffix">Công Nợ</span> <i class="fas fa-hand-holding-usd text-cyan-400"></i>
                 </h2>
-                <p class="text-gray-400 text-sm mt-1">Theo dõi công nợ khách hàng, nhà cung cấp</p>
+                <p class="text-gray-400 text-sm mt-1" data-i18n="congno_subtitle">Theo dõi công nợ khách hàng, nhà cung cấp</p>
             </div>
             <div class="flex gap-3">
                 <button onclick="openTransactionModal()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black px-5 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 text-sm">
-                    <i class="fas fa-plus-circle"></i> Ghi nhận giao dịch
+                    <i class="fas fa-plus-circle"></i> <span data-i18n="congno_btn_record_trans">Ghi nhận giao dịch</span>
                 </button>
                 <button onclick="exportToExcel()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white px-5 py-2.5 rounded-xl transition-all font-bold text-sm flex items-center gap-2">
-                    <i class="fas fa-file-excel"></i> Xuất Excel
+                    <i class="fas fa-file-excel"></i> <span data-i18n="congno_btn_export_excel">Xuất Excel</span>
                 </button>
             </div>
         </div>
@@ -158,27 +162,27 @@
         <!-- Bộ lọc -->
         <div class="glass-panel p-4 rounded-2xl mb-6 flex flex-wrap gap-4 items-end">
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Loại đối tượng</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="congno_filter_type_label">Loại đối tượng</label>
                 <select id="filterType" class="glass-input py-2 text-sm w-40" onchange="loadDebtList()">
-                    <option value="all">Tất cả</option>
-                    <option value="customer">Khách hàng</option>
-                    <option value="supplier">Nhà cung cấp</option>
+                    <option value="all" data-i18n="congno_filter_type_all">Tất cả</option>
+                    <option value="customer" data-i18n="congno_partner_customer">Khách hàng</option>
+                    <option value="supplier" data-i18n="congno_partner_supplier">Nhà cung cấp</option>
                 </select>
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Từ ngày</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="congno_filter_from">Từ ngày</label>
                 <input type="date" id="filterFrom" class="glass-input py-2 text-sm w-40">
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Đến ngày</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="congno_filter_to">Đến ngày</label>
                 <input type="date" id="filterTo" class="glass-input py-2 text-sm w-40">
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tìm kiếm</label>
-                <input type="text" id="searchInput" placeholder="Tên, mã, SĐT..." class="glass-input py-2 text-sm w-56">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="congno_filter_search_label">Tìm kiếm</label>
+                <input type="text" id="searchInput" placeholder="Tên, mã, SĐT..." data-i18n-placeholder="congno_filter_search_placeholder" class="glass-input py-2 text-sm w-56">
             </div>
             <button onclick="loadDebtList()" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 font-bold px-4 py-2 rounded-xl transition-colors">
-                <i class="fas fa-search mr-1"></i> Lọc
+                <i class="fas fa-search mr-1"></i> <span data-i18n="congno_filter_btn">Lọc</span>
             </button>
         </div>
 
@@ -188,15 +192,15 @@
                 <table class="min-w-full text-left border-collapse">
                     <thead class="bg-black/60 border-b border-cyan-500/30 text-cyan-400 text-xs uppercase tracking-wider font-black">
                         <tr>
-                            <th class="px-6 py-4">Mã</th>
-                            <th class="px-6 py-4">Tên đối tượng</th>
-                            <th class="px-6 py-4">Loại</th>
-                            <th class="px-6 py-4 text-right">Số dư nợ (₫)</th>
-                            <th class="px-6 py-4 text-center">Thao tác</th>
+                            <th class="px-6 py-4" data-i18n="congno_th_code">Mã</th>
+                            <th class="px-6 py-4" data-i18n="congno_th_partner_name">Tên đối tượng</th>
+                            <th class="px-6 py-4" data-i18n="congno_th_type">Loại</th>
+                            <th class="px-6 py-4 text-right"><span data-i18n="congno_th_balance">Số dư nợ</span> (<span class="currency-symbol-slot">₫</span>)</th>
+                            <th class="px-6 py-4 text-center" data-i18n="congno_th_actions">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="debtTable" class="text-gray-300 text-sm">
-                        <tr><td colspan="5" class="text-center py-10 text-gray-500 animate-pulse"><i class="fas fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...</td</td>
+                        <tr><td colspan="5" class="text-center py-10 text-gray-500 animate-pulse"><i class="fas fa-spinner fa-spin mr-2"></i> <span data-i18n="congno_loading_data">Đang tải dữ liệu...</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -206,44 +210,44 @@
         <div id="transactionModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4 modal-transition">
             <div class="bg-[#0a0f25] border border-cyan-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl">
                 <div class="flex justify-between items-center mb-5 border-b border-white/10 pb-3">
-                    <h3 class="text-xl font-black text-cyan-400"><i class="fas fa-exchange-alt mr-2"></i> Ghi nhận giao dịch</h3>
+                    <h3 class="text-xl font-black text-cyan-400"><i class="fas fa-exchange-alt mr-2"></i> <span data-i18n="congno_btn_record_trans">Ghi nhận giao dịch</span></h3>
                     <button onclick="closeTransactionModal()" class="text-gray-400 hover:text-rose-500 text-2xl">&times;</button>
                 </div>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Loại đối tượng</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="congno_filter_type_label">Loại đối tượng</label>
                         <select id="transType" class="glass-input py-2 text-sm" onchange="toggleCustomerSupplier()">
-                            <option value="customer">Khách hàng</option>
-                            <option value="supplier">Nhà cung cấp</option>
+                            <option value="customer" data-i18n="congno_partner_customer">Khách hàng</option>
+                            <option value="supplier" data-i18n="congno_partner_supplier">Nhà cung cấp</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Đối tượng</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="congno_partner_label">Đối tượng</label>
                         <select id="transPartner" class="glass-input py-2 text-sm">
-                            <option value="">-- Chọn --</option>
+                            <option value="" data-i18n="congno_select_placeholder">-- Chọn --</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Loại giao dịch</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="congno_trans_direction_label">Loại giao dịch</label>
                         <select id="transDirection" class="glass-input py-2 text-sm">
-                            <option value="expense">Phát sinh nợ (mua hàng, dịch vụ)</option>
-                            <option value="payment">Thanh toán (giảm nợ)</option>
+                            <option value="expense" data-i18n="congno_direction_expense">Phát sinh nợ (mua hàng, dịch vụ)</option>
+                            <option value="payment" data-i18n="congno_direction_payment">Thanh toán (giảm nợ)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Số tiền (₫)</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1"><span data-i18n="congno_amount_label">Số tiền</span> (<span class="currency-symbol-slot">₫</span>)</label>
                         <input type="number" id="transAmount" class="glass-input py-2 text-sm" placeholder="0">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Ngày giao dịch</label>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="congno_trans_date_label">Ngày giao dịch</label>
                         <input type="date" id="transDate" class="glass-input py-2 text-sm" value="">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Ghi chú</label>
-                        <input type="text" id="transNote" class="glass-input py-2 text-sm" placeholder="Nội dung...">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1" data-i18n="congno_note_label">Ghi chú</label>
+                        <input type="text" id="transNote" class="glass-input py-2 text-sm" placeholder="Nội dung..." data-i18n-placeholder="congno_note_placeholder">
                     </div>
                     <button onclick="saveTransaction()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-black py-3 rounded-xl transition-colors mt-3">
-                        <i class="fas fa-save mr-2"></i> Lưu giao dịch
+                        <i class="fas fa-save mr-2"></i> <span data-i18n="congno_save_trans_btn">Lưu giao dịch</span>
                     </button>
                 </div>
             </div>
@@ -253,19 +257,19 @@
         <div id="detailModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4 modal-transition">
             <div class="bg-[#0a0f25] border border-cyan-500/30 rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
                 <div class="flex justify-between items-center p-5 border-b border-white/10 shrink-0">
-                    <h3 class="text-xl font-black text-cyan-400"><i class="fas fa-history mr-2"></i> Lịch sử công nợ - <span id="detailName" class="text-white"></span></h3>
+                    <h3 class="text-xl font-black text-cyan-400"><i class="fas fa-history mr-2"></i> <span data-i18n="congno_detail_title">Lịch sử công nợ</span> - <span id="detailName" class="text-white"></span></h3>
                     <button onclick="closeDetailModal()" class="text-gray-400 hover:text-rose-500 text-2xl">&times;</button>
                 </div>
                 <div class="overflow-y-auto p-4 flex-1">
                     <table class="min-w-full text-left border-collapse">
                         <thead class="bg-black/60 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider font-bold sticky top-0">
                             <tr>
-                                <th class="px-4 py-3">Ngày</th>
-                                <th class="px-4 py-3">Loại giao dịch</th>
-                                <th class="px-4 py-3 text-right">Phát sinh (₫)</th>
-                                <th class="px-4 py-3 text-right">Thanh toán (₫)</th>
-                                <th class="px-4 py-3 text-right">Dư nợ sau GD</th>
-                                <th class="px-4 py-3">Ghi chú</th>
+                                <th class="px-4 py-3" data-i18n="congno_th_date">Ngày</th>
+                                <th class="px-4 py-3" data-i18n="congno_trans_direction_label">Loại giao dịch</th>
+                                <th class="px-4 py-3 text-right"><span data-i18n="congno_th_expense">Phát sinh</span> (<span class="currency-symbol-slot">₫</span>)</th>
+                                <th class="px-4 py-3 text-right"><span data-i18n="congno_th_payment">Thanh toán</span> (<span class="currency-symbol-slot">₫</span>)</th>
+                                <th class="px-4 py-3 text-right" data-i18n="congno_th_balance_after">Dư nợ sau GD</th>
+                                <th class="px-4 py-3" data-i18n="congno_note_label">Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody id="detailTableBody" class="text-sm"></tbody>
@@ -391,6 +395,167 @@
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                congno_nav_overview: 'Tổng quan',
+                congno_nav_hr: 'Quản lý Nhân sự',
+                congno_nav_attendance: 'Chấm công',
+                congno_nav_payroll: 'Bảng lương',
+                congno_nav_comm: 'Trạm Liên Lạc',
+                congno_nav_gps: 'Radar GPS Thợ',
+                congno_nav_debt: 'Quản lý Công nợ',
+                congno_nav_revenue: 'Quản lý Thu Chi',
+                congno_nav_profit: 'Báo cáo lợi nhuận',
+                congno_logout: 'Đăng xuất',
+                congno_title_prefix: 'Quản Lý',
+                congno_title_suffix: 'Công Nợ',
+                congno_subtitle: 'Theo dõi công nợ khách hàng, nhà cung cấp',
+                congno_btn_record_trans: 'Ghi nhận giao dịch',
+                congno_btn_export_excel: 'Xuất Excel',
+                congno_filter_type_label: 'Loại đối tượng',
+                congno_filter_type_all: 'Tất cả',
+                congno_partner_customer: 'Khách hàng',
+                congno_partner_supplier: 'Nhà cung cấp',
+                congno_filter_from: 'Từ ngày',
+                congno_filter_to: 'Đến ngày',
+                congno_filter_search_label: 'Tìm kiếm',
+                congno_filter_search_placeholder: 'Tên, mã, SĐT...',
+                congno_filter_btn: 'Lọc',
+                congno_th_code: 'Mã',
+                congno_th_partner_name: 'Tên đối tượng',
+                congno_th_type: 'Loại',
+                congno_th_balance: 'Số dư nợ',
+                congno_th_actions: 'Thao tác',
+                congno_loading_data: 'Đang tải dữ liệu...',
+                congno_no_debt_data: 'Không có dữ liệu công nợ.',
+                congno_partner_label: 'Đối tượng',
+                congno_select_placeholder: '-- Chọn --',
+                congno_trans_direction_label: 'Loại giao dịch',
+                congno_direction_expense: 'Phát sinh nợ (mua hàng, dịch vụ)',
+                congno_direction_payment: 'Thanh toán (giảm nợ)',
+                congno_direction_expense_short: 'Phát sinh nợ',
+                congno_amount_label: 'Số tiền',
+                congno_trans_date_label: 'Ngày giao dịch',
+                congno_note_label: 'Ghi chú',
+                congno_note_placeholder: 'Nội dung...',
+                congno_save_trans_btn: 'Lưu giao dịch',
+                congno_detail_title: 'Lịch sử công nợ',
+                congno_th_date: 'Ngày',
+                congno_th_expense: 'Phát sinh',
+                congno_th_payment: 'Thanh toán',
+                congno_th_balance_after: 'Dư nợ sau GD',
+                congno_no_trans_yet: 'Chưa có giao dịch',
+                congno_view_history_title: 'Xem lịch sử',
+                congno_record_trans_title: 'Ghi nhận giao dịch',
+                congno_toast_load_debt_error: 'Lỗi tải dữ liệu công nợ!',
+                congno_toast_load_history_error: 'Lỗi tải lịch sử!',
+                congno_toast_select_partner: 'Vui lòng chọn đối tượng!',
+                congno_toast_invalid_amount: 'Số tiền không hợp lệ!',
+                congno_toast_select_date: 'Chọn ngày giao dịch!',
+                congno_saving: 'Đang lưu...',
+                congno_toast_saved_success: 'Đã ghi nhận giao dịch thành công!',
+                congno_toast_error_prefix: 'Lỗi: ',
+                congno_code_prefix_customer: 'KH',
+                congno_code_prefix_supplier: 'NCC'
+            },
+            en: {
+                congno_nav_overview: 'Overview',
+                congno_nav_hr: 'Staff Management',
+                congno_nav_attendance: 'Attendance',
+                congno_nav_payroll: 'Payroll',
+                congno_nav_comm: 'Communication Hub',
+                congno_nav_gps: 'Staff GPS Radar',
+                congno_nav_debt: 'Debt Management',
+                congno_nav_revenue: 'Revenue & Expenses',
+                congno_nav_profit: 'Profit Report',
+                congno_logout: 'Log Out',
+                congno_title_prefix: 'Debt',
+                congno_title_suffix: 'Management',
+                congno_subtitle: 'Track customer and supplier debt',
+                congno_btn_record_trans: 'Record Transaction',
+                congno_btn_export_excel: 'Export Excel',
+                congno_filter_type_label: 'Partner Type',
+                congno_filter_type_all: 'All',
+                congno_partner_customer: 'Customer',
+                congno_partner_supplier: 'Supplier',
+                congno_filter_from: 'From Date',
+                congno_filter_to: 'To Date',
+                congno_filter_search_label: 'Search',
+                congno_filter_search_placeholder: 'Name, code, phone...',
+                congno_filter_btn: 'Filter',
+                congno_th_code: 'Code',
+                congno_th_partner_name: 'Partner Name',
+                congno_th_type: 'Type',
+                congno_th_balance: 'Balance',
+                congno_th_actions: 'Actions',
+                congno_loading_data: 'Loading data...',
+                congno_no_debt_data: 'No debt data available.',
+                congno_partner_label: 'Partner',
+                congno_select_placeholder: '-- Select --',
+                congno_trans_direction_label: 'Transaction Type',
+                congno_direction_expense: 'Debt incurred (purchase, service)',
+                congno_direction_payment: 'Payment (debt reduction)',
+                congno_direction_expense_short: 'Debt incurred',
+                congno_amount_label: 'Amount',
+                congno_trans_date_label: 'Transaction Date',
+                congno_note_label: 'Note',
+                congno_note_placeholder: 'Content...',
+                congno_save_trans_btn: 'Save Transaction',
+                congno_detail_title: 'Debt History',
+                congno_th_date: 'Date',
+                congno_th_expense: 'Debit',
+                congno_th_payment: 'Payment',
+                congno_th_balance_after: 'Balance After',
+                congno_no_trans_yet: 'No transactions yet',
+                congno_view_history_title: 'View history',
+                congno_record_trans_title: 'Record transaction',
+                congno_toast_load_debt_error: 'Error loading debt data!',
+                congno_toast_load_history_error: 'Error loading history!',
+                congno_toast_select_partner: 'Please select a partner!',
+                congno_toast_invalid_amount: 'Invalid amount!',
+                congno_toast_select_date: 'Please select a transaction date!',
+                congno_saving: 'Saving...',
+                congno_toast_saved_success: 'Transaction recorded successfully!',
+                congno_toast_error_prefix: 'Error: ',
+                congno_code_prefix_customer: 'CUS',
+                congno_code_prefix_supplier: 'SUP'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('.currency-symbol-slot').forEach(el => { el.innerText = currencySymbol(); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render danh sách công nợ để các nhãn (Loại đối tượng, tiền tệ...) đổi theo ngôn ngữ mới.
+            if (typeof loadDebtList === 'function') loadDebtList();
+        }
+
+        // Đa tiền tệ: tenant US hiển thị USD, tenant VN giữ nguyên VNĐ.
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function currencySymbol() { return TENANT_CURRENCY === 'USD' ? '$' : '₫'; }
+        function formatMoney(value) {
+            const num = Number(value) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(num).toLocaleString('vi-VN') + ' ₫';
+        }
+        function formatNumber(value) {
+            const num = Number(value) || 0;
+            return TENANT_CURRENCY === 'USD' ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(num).toLocaleString('vi-VN');
+        }
+
         // Dữ liệu mẫu cho đối tượng (khách hàng & nhà cung cấp) - có thể mở rộng từ bảng riêng
         let partners = {
             customer: [],
@@ -430,20 +595,20 @@
             if (toDate) query = query.lte('transaction_date', toDate);
             const { data: transactions, error } = await query.order('transaction_date', { ascending: false });
             if (error) {
-                showToast("Lỗi tải dữ liệu công nợ!", "error");
+                showToast(t('congno_toast_load_debt_error'), "error");
                 return;
             }
 
             // Tính dư nợ cho từng đối tượng
             const debtMap = new Map(); // key: `${type}_${id}`
-            for (const t of transactions) {
-                const key = `${t.partner_type}_${t.partner_id}`;
+            for (const row of transactions) {
+                const key = `${row.partner_type}_${row.partner_id}`;
                 if (!debtMap.has(key)) {
-                    debtMap.set(key, { partner_type: t.partner_type, partner_id: t.partner_id, balance: 0 });
+                    debtMap.set(key, { partner_type: row.partner_type, partner_id: row.partner_id, balance: 0 });
                 }
                 const partner = debtMap.get(key);
-                if (t.direction === 'expense') partner.balance += t.amount;
-                else partner.balance -= t.amount;
+                if (row.direction === 'expense') partner.balance += row.amount;
+                else partner.balance -= row.amount;
             }
 
             // Lấy thông tin chi tiết đối tượng
@@ -456,7 +621,7 @@
                 if (!partnerInfo) continue;
 
                 const name = partnerInfo.name;
-                const code = partnerInfo.code || (data.partner_type === 'customer' ? 'KH' : 'NCC') + data.partner_id;
+                const code = partnerInfo.code || (data.partner_type === 'customer' ? t('congno_code_prefix_customer') : t('congno_code_prefix_supplier')) + data.partner_id;
                 if (search && !name.toLowerCase().includes(search) && !code.toLowerCase().includes(search)) continue;
 
                 const balance = data.balance;
@@ -465,16 +630,16 @@
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
                         <td class="px-6 py-4 font-mono">${code}</td>
                         <td class="px-6 py-4 font-bold">${name}</td>
-                        <td class="px-6 py-4">${data.partner_type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'}</td>
-                        <td class="px-6 py-4 text-right font-black ${balanceClass}">${balance.toLocaleString('vi-VN')} ₫</td>
+                        <td class="px-6 py-4">${data.partner_type === 'customer' ? t('congno_partner_customer') : t('congno_partner_supplier')}</td>
+                        <td class="px-6 py-4 text-right font-black ${balanceClass}">${formatMoney(balance)}</td>
                         <td class="px-6 py-4 text-center">
-                            <button onclick="viewDetail('${data.partner_type}', ${data.partner_id}, '${name}')" class="text-cyan-400 hover:text-cyan-300 transition-colors mr-3" title="Xem lịch sử"><i class="fas fa-history"></i></button>
-                            <button onclick="openTransactionModalWithPartner('${data.partner_type}', ${data.partner_id})" class="text-emerald-400 hover:text-emerald-300 transition-colors" title="Ghi nhận giao dịch"><i class="fas fa-plus-circle"></i></button>
+                            <button onclick="viewDetail('${data.partner_type}', ${data.partner_id}, '${name}')" class="text-cyan-400 hover:text-cyan-300 transition-colors mr-3" title="${t('congno_view_history_title')}"><i class="fas fa-history"></i></button>
+                            <button onclick="openTransactionModalWithPartner('${data.partner_type}', ${data.partner_id})" class="text-emerald-400 hover:text-emerald-300 transition-colors" title="${t('congno_record_trans_title')}"><i class="fas fa-plus-circle"></i></button>
                         </td>
                     </tr>
                 `;
             }
-            if (html === '') html = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Không có dữ liệu công nợ.</td></tr>';
+            if (html === '') html = `<tr><td colspan="5" class="text-center py-10 text-gray-500">${t('congno_no_debt_data')}</td></tr>`;
             tbody.innerHTML = html;
         }
 
@@ -487,27 +652,27 @@
                 .eq('partner_id', id)
                 .order('transaction_date', { ascending: true });
             if (error) {
-                showToast("Lỗi tải lịch sử!", "error");
+                showToast(t('congno_toast_load_history_error'), "error");
                 return;
             }
             let balance = 0;
             const tbody = document.getElementById('detailTableBody');
             let html = '';
-            for (const t of transactions) {
-                if (t.direction === 'expense') balance += t.amount;
-                else balance -= t.amount;
+            for (const row of transactions) {
+                if (row.direction === 'expense') balance += row.amount;
+                else balance -= row.amount;
                 html += `
                     <tr class="border-b border-white/5">
-                        <td class="px-4 py-3">${t.transaction_date}</td>
-                        <td class="px-4 py-3">${t.direction === 'expense' ? 'Phát sinh nợ' : 'Thanh toán'}</td>
-                        <td class="px-4 py-3 text-right">${t.direction === 'expense' ? t.amount.toLocaleString('vi-VN') : '-'}</td>
-                        <td class="px-4 py-3 text-right">${t.direction === 'payment' ? t.amount.toLocaleString('vi-VN') : '-'}</td>
-                        <td class="px-4 py-3 text-right font-bold ${balance > 0 ? 'text-rose-400' : 'text-emerald-400'}">${balance.toLocaleString('vi-VN')} ₫</td>
-                        <td class="px-4 py-3 text-gray-400">${t.note || ''}</td>
+                        <td class="px-4 py-3">${row.transaction_date}</td>
+                        <td class="px-4 py-3">${row.direction === 'expense' ? t('congno_direction_expense_short') : t('congno_th_payment')}</td>
+                        <td class="px-4 py-3 text-right">${row.direction === 'expense' ? formatNumber(row.amount) : '-'}</td>
+                        <td class="px-4 py-3 text-right">${row.direction === 'payment' ? formatNumber(row.amount) : '-'}</td>
+                        <td class="px-4 py-3 text-right font-bold ${balance > 0 ? 'text-rose-400' : 'text-emerald-400'}">${formatMoney(balance)}</td>
+                        <td class="px-4 py-3 text-gray-400">${row.note || ''}</td>
                     </tr>
                 `;
             }
-            if (html === '') html = '<tr><td colspan="6" class="text-center py-10">Chưa có giao dịch</td</tr>';
+            if (html === '') html = `<tr><td colspan="6" class="text-center py-10">${t('congno_no_trans_yet')}</td></tr>`;
             tbody.innerHTML = html;
             document.getElementById('detailModal').classList.remove('hidden');
             document.getElementById('detailModal').classList.add('flex');
@@ -550,10 +715,10 @@
         function toggleCustomerSupplier() {
             const type = document.getElementById('transType').value;
             const select = document.getElementById('transPartner');
-            select.innerHTML = '<option value="">-- Chọn --</option>';
+            select.innerHTML = `<option value="">${t('congno_select_placeholder')}</option>`;
             const list = type === 'customer' ? partners.customer : partners.supplier;
             list.forEach(p => {
-                select.innerHTML += `<option value="${p.id}">${p.name} (${p.code || (type==='customer'?'KH':'NCC')+p.id})</option>`;
+                select.innerHTML += `<option value="${p.id}">${p.name} (${p.code || (type==='customer'?t('congno_code_prefix_customer'):t('congno_code_prefix_supplier'))+p.id})</option>`;
             });
         }
 
@@ -565,13 +730,13 @@
             const transDate = document.getElementById('transDate').value;
             const note = document.getElementById('transNote').value;
 
-            if (!partnerId) return showToast("Vui lòng chọn đối tượng!", "error");
-            if (!amount || amount <= 0) return showToast("Số tiền không hợp lệ!", "error");
-            if (!transDate) return showToast("Chọn ngày giao dịch!", "error");
+            if (!partnerId) return showToast(t('congno_toast_select_partner'), "error");
+            if (!amount || amount <= 0) return showToast(t('congno_toast_invalid_amount'), "error");
+            if (!transDate) return showToast(t('congno_toast_select_date'), "error");
 
             const btn = event.target;
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('congno_saving')}`;
             btn.disabled = true;
 
             try {
@@ -586,11 +751,11 @@
                 }]);
                 if (error) throw error;
 
-                showToast("Đã ghi nhận giao dịch thành công!", "success");
+                showToast(t('congno_toast_saved_success'), "success");
                 closeTransactionModal();
                 loadDebtList();
             } catch (e) {
-                showToast("Lỗi: " + e.message, "error");
+                showToast(t('congno_toast_error_prefix') + e.message, "error");
             }
             btn.innerHTML = originalText;
             btn.disabled = false;
@@ -599,7 +764,7 @@
         // Xuất Excel
         function exportToExcel() {
             const rows = document.querySelectorAll('#debtTable tr');
-            let data = [['Mã', 'Tên đối tượng', 'Loại', 'Số dư nợ (₫)']];
+            let data = [[t('congno_th_code'), t('congno_th_partner_name'), t('congno_th_type'), `${t('congno_th_balance')} (${currencySymbol()})`]];
             for (let i = 0; i < rows.length; i++) {
                 const cols = rows[i].querySelectorAll('td');
                 if (cols.length) {
@@ -607,7 +772,7 @@
                         cols[0].innerText,
                         cols[1].innerText,
                         cols[2].innerText,
-                        cols[3].innerText.replace('₫', '').trim()
+                        cols[3].innerText.replace('₫', '').replace('$', '').trim()
                     ]);
                 }
             }
@@ -618,6 +783,11 @@
         }
 
         // Khởi tạo
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
         window.onload = async () => {
             await supabaseReady;
             await loadPartners();

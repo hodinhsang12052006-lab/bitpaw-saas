@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw | Quản lý Khuyến mãi & Mã giảm giá</title>
+    <title>BitPaw | Promotion & Discount Code Management</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -109,66 +109,251 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Khuyến mãi & Mã giảm giá</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý voucher, ưu đãi theo sản phẩm, tự động áp dụng</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="promo_header_subtitle">| Promotions & Discount Codes</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="promo_header_desc">Manage vouchers, product-specific offers, auto-apply</p>
                 </div>
             </div>
-            <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <button id="addPromoBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-plus-circle"></i> Tạo khuyến mãi</button>
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="promo_home_link">Home</span></a>
+                <button id="addPromoBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-plus-circle"></i> <span data-i18n="promo_create_btn">Create Promotion</span></button>
             </div>
         </div>
 
         <!-- Thống kê nhanh -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng khuyến mãi</div><div class="text-2xl font-bold text-cyan-400" id="totalPromos">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đang hoạt động</div><div class="text-2xl font-bold text-emerald-400" id="activePromos">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đã sử dụng</div><div class="text-2xl font-bold text-purple-400" id="usedPromos">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Giảm giá trung bình</div><div class="text-2xl font-bold text-yellow-400" id="avgDiscount">0%</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="promo_stat_total">Total Promotions</div><div class="text-2xl font-bold text-cyan-400" id="totalPromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="promo_status_active">Active</div><div class="text-2xl font-bold text-emerald-400" id="activePromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="promo_stat_used">Used</div><div class="text-2xl font-bold text-purple-400" id="usedPromos">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="promo_stat_avg_discount">Average Discount</div><div class="text-2xl font-bold text-yellow-400" id="avgDiscount">0%</div></div>
         </div>
 
         <!-- Bộ lọc -->
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Mã, tên khuyến mãi..."></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Trạng thái</label><select id="statusFilter" class="filter-input"><option value="all">Tất cả</option><option value="active">Đang hoạt động</option><option value="inactive">Tạm dừng</option><option value="expired">Hết hạn</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Loại giảm giá</label><select id="typeFilter" class="filter-input"><option value="all">Tất cả</option><option value="percentage">Phần trăm</option><option value="fixed">Số tiền cố định</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Hết hạn trước</label><input type="date" id="expiryFilter" class="filter-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_search_label">Search</label><input type="text" id="searchInput" class="filter-input" placeholder="Code, promotion name..." data-i18n-placeholder="promo_search_placeholder"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_status_label">Status</label><select id="statusFilter" class="filter-input"><option value="all" data-i18n="promo_filter_all">All</option><option value="active" data-i18n="promo_status_active">Active</option><option value="inactive" data-i18n="promo_status_paused">Paused</option><option value="expired" data-i18n="promo_status_expired">Expired</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_type_label">Discount Type</label><select id="typeFilter" class="filter-input"><option value="all" data-i18n="promo_filter_all">All</option><option value="percentage" data-i18n="promo_type_percentage">Percentage</option><option value="fixed" data-i18n="promo_type_fixed">Fixed Amount</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_expiry_label">Expires Before</label><input type="date" id="expiryFilter" class="filter-input"></div>
             </div>
-            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="promo_reset_btn">Reset</span></button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="promo_export_btn">Export Excel</span></button></div>
         </div>
 
         <!-- Bảng danh sách khuyến mãi -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-tags mr-2"></i> Danh sách khuyến mãi / Voucher</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-tags mr-2"></i> <span data-i18n="promo_list_heading">Promotion / Voucher List</span></h2><div class="text-sm text-gray-400" id="recordCount" data-i18n="promo_loading">Loading...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table">
-                    <thead><tr><th>Mã</th><th>Tên khuyến mãi</th><th>Giảm giá</th><th>HSD</th><th>Số lần dùng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-                    <tbody id="promoTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr></tbody>
+                    <thead><tr><th data-i18n="promo_th_code">Code</th><th data-i18n="promo_th_name">Promotion Name</th><th data-i18n="promo_th_discount">Discount</th><th data-i18n="promo_th_expiry">Expiry</th><th data-i18n="promo_th_uses">Uses</th><th data-i18n="promo_status_label">Status</th><th data-i18n="promo_th_actions">Actions</th></tr></thead>
+                    <tbody id="promoTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500" data-i18n="promo_loading_data">Loading data...</td></tr></tbody>
                 </table>
                 </div>
             </div>
-            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="promo_prev_btn">Previous</span></button><span class="text-sm text-gray-400" id="pageInfo">Page 1 / 1</span><button id="nextPage" class="pagination-btn"><span data-i18n="promo_next_btn">Next</span> <i class="fas fa-chevron-right ml-1"></i></button></div>
         </div>
 
         <!-- Biểu đồ phân bố -->
         <div class="glass-panel p-5 mt-6">
-            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Phân bố khuyến mãi</h3>
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="promo_chart_heading">Promotion Distribution</span></h3>
             <canvas id="discountChart" height="150" style="max-height: 200px;"></canvas>
         </div>
 
     </div>
 
     <!-- Modal thêm/sửa khuyến mãi -->
-    <div id="promoModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-tag mr-2"></i> Thêm khuyến mãi</h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
-    <form id="promoForm"><input type="hidden" id="promoId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Mã giảm giá (Code)</label><input type="text" id="code" class="glass-input w-full" required placeholder="SUMMER2025"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Tên khuyến mãi</label><input type="text" id="name" class="glass-input w-full" required placeholder="Ưu đãi hè 2025"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Loại giảm</label><select id="discountType" class="glass-input w-full"><option value="percentage">Phần trăm (%)</option><option value="fixed">Số tiền cố định</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Giá trị giảm</label><input type="number" id="discountValue" class="glass-input w-full" placeholder="10 hoặc 50000" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Ngày bắt đầu</label><input type="date" id="startDate" class="glass-input w-full"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Ngày kết thúc</label><input type="date" id="endDate" class="glass-input w-full"></div></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Giới hạn số lần sử dụng (tổng)</label><input type="number" id="usageLimit" class="glass-input w-full" value="100"></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Áp dụng cho (ID sản phẩm, cách nhau bằng dấu phẩy, để trống nếu tất cả)</label><input type="text" id="productIds" class="glass-input w-full" placeholder="VD: 1,2,5"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Lưu</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></form></div></div>
+    <div id="promoModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-tag mr-2"></i> <span data-i18n="promo_modal_add_title">Thêm khuyến mãi</span></h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+    <form id="promoForm"><input type="hidden" id="promoId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_code">Mã giảm giá (Code)</label><input type="text" id="code" class="glass-input w-full" required placeholder="SUMMER2025"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_name">Tên khuyến mãi</label><input type="text" id="name" class="glass-input w-full" required placeholder="Ưu đãi hè 2025" data-i18n-placeholder="promo_placeholder_name"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_discount_type">Loại giảm</label><select id="discountType" class="glass-input w-full"><option value="percentage" data-i18n="promo_option_percentage">Phần trăm (%)</option><option value="fixed" data-i18n="promo_option_fixed">Số tiền cố định</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_discount_value">Giá trị giảm</label><input type="number" id="discountValue" class="glass-input w-full" placeholder="10 hoặc 50000" required data-i18n-placeholder="promo_placeholder_discount_value"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_start_date">Ngày bắt đầu</label><input type="date" id="startDate" class="glass-input w-full"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_end_date">Ngày kết thúc</label><input type="date" id="endDate" class="glass-input w-full"></div></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_usage_limit">Giới hạn số lần sử dụng (tổng)</label><input type="number" id="usageLimit" class="glass-input w-full" value="100"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="promo_field_product_ids">Áp dụng cho (ID sản phẩm, cách nhau bằng dấu phẩy, để trống nếu tất cả)</label><input type="text" id="productIds" class="glass-input w-full" placeholder="VD: 1,2,5" data-i18n-placeholder="promo_placeholder_product_ids"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="promo_save_btn">Lưu</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="promo_cancel_btn">Hủy</button></div></form></div></div>
 
     <!-- Modal xác nhận xóa -->
-    <div id="deleteModal" class="modal-overlay"><div class="modal-container text-center"><i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-3"></i><h3 class="text-xl font-bold mb-2">Xác nhận xóa</h3><p>Bạn có chắc chắn muốn xóa khuyến mãi này?</p><div class="flex gap-3 mt-4"><button id="confirmDeleteBtn" class="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 py-2 rounded-xl font-bold">Xóa</button><button id="cancelDeleteBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></div></div>
+    <div id="deleteModal" class="modal-overlay"><div class="modal-container text-center"><i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-3"></i><h3 class="text-xl font-bold mb-2" data-i18n="promo_delete_title">Xác nhận xóa</h3><p data-i18n="promo_delete_desc">Bạn có chắc chắn muốn xóa khuyến mãi này?</p><div class="flex gap-3 mt-4"><button id="confirmDeleteBtn" class="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 py-2 rounded-xl font-bold" data-i18n="promo_delete_btn">Xóa</button><button id="cancelDeleteBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="promo_cancel_btn">Hủy</button></div></div></div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="promo_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
+
+    <script>
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                promo_header_subtitle: '| Khuyến mãi & Mã giảm giá',
+                promo_header_desc: 'Quản lý voucher, ưu đãi theo sản phẩm, tự động áp dụng',
+                promo_home_link: 'Trang chủ',
+                promo_create_btn: 'Tạo Khuyến mãi',
+                promo_stat_total: 'Tổng Khuyến mãi',
+                promo_stat_used: 'Đã dùng',
+                promo_stat_avg_discount: 'Giảm giá TB',
+                promo_search_label: 'Tìm kiếm',
+                promo_search_placeholder: 'Mã, tên khuyến mãi...',
+                promo_status_label: 'Trạng thái',
+                promo_filter_all: 'Tất cả',
+                promo_status_active: 'Đang hoạt động',
+                promo_status_paused: 'Tạm dừng',
+                promo_status_expired: 'Hết hạn',
+                promo_type_label: 'Loại giảm giá',
+                promo_type_percentage: 'Phần trăm',
+                promo_type_fixed: 'Số tiền cố định',
+                promo_expiry_label: 'Hết hạn trước',
+                promo_reset_btn: 'Đặt lại',
+                promo_export_btn: 'Xuất Excel',
+                promo_list_heading: 'Danh sách Khuyến mãi / Voucher',
+                promo_loading: 'Đang tải...',
+                promo_th_code: 'Mã',
+                promo_th_name: 'Tên Khuyến mãi',
+                promo_th_discount: 'Giảm giá',
+                promo_th_expiry: 'Hết hạn',
+                promo_th_uses: 'Lượt dùng',
+                promo_th_actions: 'Thao tác',
+                promo_loading_data: 'Đang tải dữ liệu...',
+                promo_prev_btn: 'Trước',
+                promo_next_btn: 'Sau',
+                promo_chart_heading: 'Phân bổ Khuyến mãi',
+                promo_modal_add_title: 'Thêm khuyến mãi',
+                promo_modal_edit_title: 'Chỉnh sửa khuyến mãi',
+                promo_field_code: 'Mã giảm giá (Code)',
+                promo_field_name: 'Tên khuyến mãi',
+                promo_placeholder_name: 'Ưu đãi hè 2025',
+                promo_field_discount_type: 'Loại giảm',
+                promo_option_percentage: 'Phần trăm (%)',
+                promo_option_fixed: 'Số tiền cố định',
+                promo_field_discount_value: 'Giá trị giảm',
+                promo_placeholder_discount_value: '10 hoặc 50000',
+                promo_field_start_date: 'Ngày bắt đầu',
+                promo_field_end_date: 'Ngày kết thúc',
+                promo_field_usage_limit: 'Giới hạn số lần sử dụng (tổng)',
+                promo_field_product_ids: 'Áp dụng cho (ID sản phẩm, cách nhau bằng dấu phẩy, để trống nếu tất cả)',
+                promo_placeholder_product_ids: 'VD: 1,2,5',
+                promo_save_btn: 'Lưu',
+                promo_cancel_btn: 'Hủy',
+                promo_delete_title: 'Xác nhận xóa',
+                promo_delete_desc: 'Bạn có chắc chắn muốn xóa khuyến mãi này?',
+                promo_delete_btn: 'Xóa',
+                promo_processing: 'Đang xử lý...',
+                promo_toast_error_loading: 'Lỗi tải dữ liệu: {msg}',
+                promo_no_limit: 'Không giới hạn',
+                promo_row_edit_btn: 'Sửa',
+                promo_no_promotions_found: 'Không có khuyến mãi',
+                promo_page_info: 'Trang {current} / {total}',
+                promo_record_count: 'Tổng: {count} khuyến mãi',
+                promo_chart_label_percentage: 'Giảm theo %',
+                promo_chart_label_fixed: 'Giảm số tiền',
+                promo_toast_fill_required: 'Vui lòng nhập đầy đủ thông tin',
+                promo_toast_update_success: 'Cập nhật thành công',
+                promo_toast_add_success: 'Thêm khuyến mãi thành công',
+                promo_toast_save_error: 'Lỗi: {msg}',
+                promo_toast_delete_success: 'Xóa thành công',
+                promo_toast_delete_error: 'Lỗi xóa: {msg}',
+                promo_delete_confirm_msg: 'Xóa khuyến mãi "{name}"?',
+                promo_excel_th_name: 'Tên',
+                promo_excel_th_type: 'Loại',
+                promo_excel_th_value: 'Giá trị',
+                promo_excel_th_expiry: 'HSD',
+                promo_excel_th_usage: 'SL dùng/Giới hạn',
+                promo_excel_success: 'Xuất Excel thành công'
+            },
+            en: {
+                promo_header_subtitle: '| Promotions & Discount Codes',
+                promo_header_desc: 'Manage vouchers, product-specific offers, auto-apply',
+                promo_home_link: 'Home',
+                promo_create_btn: 'Create Promotion',
+                promo_stat_total: 'Total Promotions',
+                promo_stat_used: 'Used',
+                promo_stat_avg_discount: 'Average Discount',
+                promo_search_label: 'Search',
+                promo_search_placeholder: 'Code, promotion name...',
+                promo_status_label: 'Status',
+                promo_filter_all: 'All',
+                promo_status_active: 'Active',
+                promo_status_paused: 'Paused',
+                promo_status_expired: 'Expired',
+                promo_type_label: 'Discount Type',
+                promo_type_percentage: 'Percentage',
+                promo_type_fixed: 'Fixed Amount',
+                promo_expiry_label: 'Expires Before',
+                promo_reset_btn: 'Reset',
+                promo_export_btn: 'Export Excel',
+                promo_list_heading: 'Promotion / Voucher List',
+                promo_loading: 'Loading...',
+                promo_th_code: 'Code',
+                promo_th_name: 'Promotion Name',
+                promo_th_discount: 'Discount',
+                promo_th_expiry: 'Expiry',
+                promo_th_uses: 'Uses',
+                promo_th_actions: 'Actions',
+                promo_loading_data: 'Loading data...',
+                promo_prev_btn: 'Previous',
+                promo_next_btn: 'Next',
+                promo_chart_heading: 'Promotion Distribution',
+                promo_modal_add_title: 'Add Promotion',
+                promo_modal_edit_title: 'Edit Promotion',
+                promo_field_code: 'Discount Code',
+                promo_field_name: 'Promotion Name',
+                promo_placeholder_name: 'e.g. Summer Sale 2025',
+                promo_field_discount_type: 'Discount Type',
+                promo_option_percentage: 'Percentage (%)',
+                promo_option_fixed: 'Fixed Amount',
+                promo_field_discount_value: 'Discount Value',
+                promo_placeholder_discount_value: 'e.g. 10 or 50000',
+                promo_field_start_date: 'Start Date',
+                promo_field_end_date: 'End Date',
+                promo_field_usage_limit: 'Usage Limit (total)',
+                promo_field_product_ids: 'Applies to (product IDs, comma-separated, leave blank for all)',
+                promo_placeholder_product_ids: 'e.g. 1,2,5',
+                promo_save_btn: 'Save',
+                promo_cancel_btn: 'Cancel',
+                promo_delete_title: 'Confirm Deletion',
+                promo_delete_desc: 'Are you sure you want to delete this promotion?',
+                promo_delete_btn: 'Delete',
+                promo_processing: 'Processing...',
+                promo_toast_error_loading: 'Error loading data: {msg}',
+                promo_no_limit: 'No limit',
+                promo_row_edit_btn: 'Edit',
+                promo_no_promotions_found: 'No promotions found',
+                promo_page_info: 'Page {current} / {total}',
+                promo_record_count: 'Total: {count} promotions',
+                promo_chart_label_percentage: 'Percentage discount',
+                promo_chart_label_fixed: 'Fixed amount discount',
+                promo_toast_fill_required: 'Please fill in all required fields',
+                promo_toast_update_success: 'Updated successfully',
+                promo_toast_add_success: 'Promotion added successfully',
+                promo_toast_save_error: 'Error: {msg}',
+                promo_toast_delete_success: 'Deleted successfully',
+                promo_toast_delete_error: 'Delete error: {msg}',
+                promo_delete_confirm_msg: 'Delete promotion "{name}"?',
+                promo_excel_th_name: 'Name',
+                promo_excel_th_type: 'Type',
+                promo_excel_th_value: 'Value',
+                promo_excel_th_expiry: 'Expiry',
+                promo_excel_th_usage: 'Used/Limit',
+                promo_excel_success: 'Excel exported successfully'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof window.applyFilters === 'function') window.applyFilters();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+    </script>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -245,11 +430,19 @@
             if (show) loadingOverlay.classList.add('active');
             else loadingOverlay.classList.remove('active');
         }
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatCurrency(amount) {
+            amount = amount || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(amount).toLocaleString('vi-VN') + 'đ';
+        }
 
         function getStatusBadge(status) {
-            if (status === 'active') return '<span class="status-badge active-badge"><i class="fas fa-check-circle mr-1"></i> Đang hoạt động</span>';
-            if (status === 'inactive') return '<span class="status-badge inactive-badge"><i class="fas fa-pause-circle mr-1"></i> Tạm dừng</span>';
-            return '<span class="status-badge expired-badge"><i class="fas fa-hourglass-end mr-1"></i> Hết hạn</span>';
+            if (status === 'active') return `<span class="status-badge active-badge"><i class="fas fa-check-circle mr-1"></i> ${t('promo_status_active')}</span>`;
+            if (status === 'inactive') return `<span class="status-badge inactive-badge"><i class="fas fa-pause-circle mr-1"></i> ${t('promo_status_paused')}</span>`;
+            return `<span class="status-badge expired-badge"><i class="fas fa-hourglass-end mr-1"></i> ${t('promo_status_expired')}</span>`;
         }
 
         // Load dữ liệu từ Supabase
@@ -265,7 +458,7 @@
                 applyFilters();
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+                showToast(tf('promo_toast_error_loading', { msg: err.message }), true);
             } finally {
                 showLoading(false);
             }
@@ -302,8 +495,9 @@
             renderTable();
             updateStats();
             updateChart();
-            recordCountSpan.innerText = `Tổng: ${filteredPromos.length} khuyến mãi`;
+            recordCountSpan.innerText = tf('promo_record_count', { count: filteredPromos.length });
         }
+        window.applyFilters = applyFilters;
 
         // Render bảng
         function renderTable() {
@@ -311,25 +505,25 @@
             const end = start + rowsPerPage;
             const pageData = filteredPromos.slice(start, end);
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Không có khuyến mãi</td></tr>';
-                pageInfo.innerText = 'Trang 0 / 0';
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-500">${t('promo_no_promotions_found')}</td></tr>`;
+                pageInfo.innerText = tf('promo_page_info', { current: 0, total: 0 });
                 return;
             }
             tbody.innerHTML = pageData.map(p => `
                 <tr>
                     <td class="font-mono text-xs">${escapeHtml(p.code)}</td>
                     <td class="font-medium">${escapeHtml(p.name)}</td>
-                    <td class="font-mono">${p.discount_type === 'percentage' ? p.discount_value + '%' : p.discount_value.toLocaleString('vi-VN') + '₫'}</td>
-                    <td class="text-xs">${p.end_date || 'Không giới hạn'}</td>
+                    <td class="font-mono">${p.discount_type === 'percentage' ? p.discount_value + '%' : formatCurrency(p.discount_value)}</td>
+                    <td class="text-xs">${p.end_date || t('promo_no_limit')}</td>
                     <td>${p.used_count || 0}/${p.usage_limit || 100}</td>
                     <td>${getStatusBadge(p.status)}</td>
-                    <td><button class="edit-promo text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}"><i class="fas fa-edit"></i> Sửa</button> <button class="delete-promo text-rose-400 hover:text-rose-300 text-sm ml-2" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-trash-alt"></i> Xóa</button></td>
+                    <td><button class="edit-promo text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}"><i class="fas fa-edit"></i> ${t('promo_row_edit_btn')}</button> <button class="delete-promo text-rose-400 hover:text-rose-300 text-sm ml-2" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-trash-alt"></i> ${t('promo_delete_btn')}</button></td>
                 </tr>
             `).join('');
             document.querySelectorAll('.edit-promo').forEach(btn => btn.addEventListener('click', (e) => { const id = parseInt(btn.getAttribute('data-id')); openEditModal(id); }));
             document.querySelectorAll('.delete-promo').forEach(btn => btn.addEventListener('click', (e) => { const id = parseInt(btn.getAttribute('data-id')); const name = btn.getAttribute('data-name'); openDeleteModal(id, name); }));
             const totalPages = Math.ceil(filteredPromos.length / rowsPerPage);
-            pageInfo.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfo.innerText = tf('promo_page_info', { current: currentPage, total: totalPages || 1 });
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages || totalPages === 0;
         }
@@ -342,7 +536,7 @@
             const ctx = document.getElementById('discountChart').getContext('2d');
             chart = new Chart(ctx, {
                 type: 'pie',
-                data: { labels: ['Giảm theo %', 'Giảm số tiền'], datasets: [{ data: [typeCount.percentage, typeCount.fixed], backgroundColor: ['#06b6d4', '#a855f7'] }] },
+                data: { labels: [t('promo_chart_label_percentage'), t('promo_chart_label_fixed')], datasets: [{ data: [typeCount.percentage, typeCount.fixed], backgroundColor: ['#06b6d4', '#a855f7'] }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } } }
             });
         }
@@ -360,7 +554,7 @@
                 endDateInput.value = p.end_date || '';
                 usageLimitInput.value = p.usage_limit || 100;
                 productIdsInput.value = p.product_ids ? p.product_ids.join(',') : '';
-                modalTitle.innerHTML = '<i class="fas fa-edit mr-2"></i> Chỉnh sửa khuyến mãi';
+                modalTitle.innerHTML = `<i class="fas fa-edit mr-2"></i> ${t('promo_modal_edit_title')}`;
                 promoModal.classList.add('active');
             }
         }
@@ -374,7 +568,7 @@
             endDateInput.value = '';
             usageLimitInput.value = '100';
             productIdsInput.value = '';
-            modalTitle.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Thêm khuyến mãi';
+            modalTitle.innerHTML = `<i class="fas fa-plus-circle mr-2"></i> ${t('promo_modal_add_title')}`;
             promoModal.classList.add('active');
         }
 
@@ -392,7 +586,7 @@
             let product_ids = productIdsInput.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
             if (product_ids.length === 0) product_ids = null;
             if (!code || !name || !discount_value) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('promo_toast_fill_required'), true);
                 return;
             }
             // Xác định trạng thái
@@ -409,7 +603,7 @@
                         })
                         .eq('id', id);
                     if (error) throw error;
-                    showToast('Cập nhật thành công');
+                    showToast(t('promo_toast_update_success'));
                 } else {
                     const { error } = await supabase
                         .from('promotions')
@@ -418,13 +612,13 @@
                             usage_limit, product_ids, status, used_count: 0, created_at: new Date()
                         }]);
                     if (error) throw error;
-                    showToast('Thêm khuyến mãi thành công');
+                    showToast(t('promo_toast_add_success'));
                 }
                 await loadPromotions();
                 closeModals();
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi: ' + err.message, true);
+                showToast(tf('promo_toast_save_error', { msg: err.message }), true);
             } finally {
                 showLoading(false);
             }
@@ -437,11 +631,11 @@
             try {
                 const { error } = await supabase.from('promotions').delete().eq('id', deleteId);
                 if (error) throw error;
-                showToast('Xóa thành công');
+                showToast(t('promo_toast_delete_success'));
                 await loadPromotions();
                 closeDeleteModal();
             } catch (err) {
-                showToast('Lỗi xóa: ' + err.message, true);
+                showToast(tf('promo_toast_delete_error', { msg: err.message }), true);
             } finally {
                 showLoading(false);
             }
@@ -450,7 +644,7 @@
         function openDeleteModal(id, name) {
             deleteId = id;
             const msg = document.querySelector('#deleteModal p');
-            if (msg) msg.innerText = `Xóa khuyến mãi "${name}"?`;
+            if (msg) msg.innerText = tf('promo_delete_confirm_msg', { name });
             deleteModal.classList.add('active');
         }
         function closeDeleteModal() {
@@ -473,21 +667,21 @@
 
         // Xuất Excel
         function exportToExcel() {
-            const wsData = [['Mã','Tên','Loại','Giá trị','HSD','SL dùng/Giới hạn','Trạng thái']];
+            const wsData = [[t('promo_th_code'), t('promo_excel_th_name'), t('promo_excel_th_type'), t('promo_excel_th_value'), t('promo_excel_th_expiry'), t('promo_excel_th_usage'), t('promo_status_label')]];
             filteredPromos.forEach(p => {
                 wsData.push([
                     p.code, p.name,
-                    p.discount_type === 'percentage' ? p.discount_value + '%' : p.discount_value + '₫',
-                    p.end_date || 'Không giới hạn',
+                    p.discount_type === 'percentage' ? p.discount_value + '%' : formatCurrency(p.discount_value),
+                    p.end_date || t('promo_no_limit'),
                     `${p.used_count || 0}/${p.usage_limit || 100}`,
-                    p.status === 'active' ? 'Đang hoạt động' : (p.status === 'inactive' ? 'Tạm dừng' : 'Hết hạn')
+                    p.status === 'active' ? t('promo_status_active') : (p.status === 'inactive' ? t('promo_status_paused') : t('promo_status_expired'))
                 ]);
             });
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'Promotions');
             XLSX.writeFile(wb, `promotions_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast('Xuất Excel thành công');
+            showToast(t('promo_excel_success'));
         }
 
         function escapeHtml(str) {
@@ -558,10 +752,10 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                const elapsed = clock.getElapsedTime();
+                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

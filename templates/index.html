@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 
 <head>
     <meta charset="UTF-8">
@@ -763,14 +763,14 @@
                             class="text-xs px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30 uppercase tracking-widest font-bold font-mono">Launcher</span>
                     </h1>
                     <p class="text-gray-400 text-xs mt-0.5 uppercase tracking-widest flex items-center gap-1.5"><i
-                            class="fas fa-university text-cyan-400"></i> Doanh nghiệp: <span
+                            class="fas fa-university text-cyan-400"></i> <span data-i18n="index_business_label">Doanh nghiệp:</span> <span
                             class="text-white font-bold">{{ session.get('user_email', 'BitPaw Merchant') }}</span></p>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-4">
                 <div class="text-right hidden md:block">
-                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold">Thời gian vận
+                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold" data-i18n="index_uptime_label">Thời gian vận
                         hành</span>
                     <span id="launcherClock" class="font-mono text-cyan-400 font-bold text-lg">00:00:00</span>
                 </div>
@@ -780,10 +780,10 @@
                 <div class="flex gap-2">
                     <span
                         class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.15)]"><i
-                            class="fas fa-check-circle animate-pulse"></i> License: Hoạt động</span>
+                            class="fas fa-check-circle animate-pulse"></i> <span data-i18n="index_license_active">License: Hoạt động</span></span>
                     <a href="{{ url_for('logout') }}"
                         class="bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 transition"><i
-                            class="fas fa-sign-out-alt"></i> Đăng xuất</a>
+                            class="fas fa-sign-out-alt"></i> <span data-i18n="index_logout_btn">Đăng xuất</span></a>
                 </div>
             </div>
         </div>
@@ -803,12 +803,12 @@
 
                     <h3
                         class="text-xs font-black text-cyan-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2 flex items-center gap-2">
-                        <i class="fas fa-fingerprint"></i> Thông Tin Vận Hành
+                        <i class="fas fa-fingerprint"></i> <span data-i18n="index_operating_info_title">Thông Tin Vận Hành</span>
                     </h3>
 
                     <div class="space-y-4">
                         <div>
-                            <span class="text-[10px] text-gray-400 block mb-1 uppercase font-bold tracking-wider">Môi
+                            <span class="text-[10px] text-gray-400 block mb-1 uppercase font-bold tracking-wider" data-i18n="index_industry_zone_label">Môi
                                 trường phân vùng / Industry:</span>
                             <div
                                 class="flex items-center gap-2.5 bg-black/30 border border-white/5 rounded-xl px-4 py-2.5">
@@ -820,31 +820,31 @@
                                 </span>
                                 <div>
                                     <span class="font-bold text-white block text-sm">
-                                        {% if session.get('business_mode') == 'fnb' %} Nhà hàng & Cafe (F&B)
-                                        {% elif session.get('business_mode') == 'nail' %} Nails & Salon
-                                        {% elif session.get('business_mode') == 'spa' %} Spa & Wellness
-                                        {% else %} Bán lẻ & ERP (Retail) {% endif %}
+                                        {% if session.get('business_mode') == 'fnb' %} <span data-i18n="index_industry_fnb">Nhà hàng & Cafe (F&B)</span>
+                                        {% elif session.get('business_mode') == 'nail' %} <span data-i18n="index_industry_nail">Nails & Salon</span>
+                                        {% elif session.get('business_mode') == 'spa' %} <span data-i18n="index_industry_spa">Spa & Wellness</span>
+                                        {% else %} <span data-i18n="index_industry_retail">Bán lẻ & ERP (Retail)</span> {% endif %}
                                     </span>
-                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-mono">Industry
-                                        Active: {{ session.get('business_mode', 'retail') }}</span>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-mono"><span data-i18n="index_industry_active_prefix">Industry
+                                        Active:</span> {{ session.get('business_mode', 'retail') }}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="bg-black/30 border border-white/5 p-4 rounded-xl space-y-2">
                             <span class="text-[10px] text-gray-400 uppercase tracking-wider block font-bold"><i
-                                    class="fas fa-robot text-cyan-400"></i> BitPaw AI Core Status</span>
+                                    class="fas fa-robot text-cyan-400"></i> <span data-i18n="index_ai_core_status_title">BitPaw AI Core Status</span></span>
                             <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-400">Trạng thái AI:</span>
+                                <span class="text-gray-400" data-i18n="index_ai_status_label">Trạng thái AI:</span>
                                 <span class="text-emerald-400 font-bold flex items-center gap-1"><i
-                                        class="fas fa-circle text-[9px] animate-pulse"></i> Online</span>
+                                        class="fas fa-circle text-[9px] animate-pulse"></i> <span data-i18n="index_ai_status_online">Online</span></span>
                             </div>
                             <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-400">Chats hôm nay:</span>
+                                <span class="text-gray-400" data-i18n="index_chats_today_label">Chats hôm nay:</span>
                                 <span class="text-white font-mono font-bold">142 chats</span>
                             </div>
                             <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-400">Lead thu về:</span>
+                                <span class="text-gray-400" data-i18n="index_leads_captured_label">Lead thu về:</span>
                                 <span class="text-cyan-400 font-mono font-bold">+28 leads</span>
                             </div>
                         </div>
@@ -856,20 +856,20 @@
                     <div class="flex justify-between items-center mb-3">
                         <h3
                             class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
-                            <i class="fas fa-clock"></i> Chấm Công Nhân Sự
+                            <i class="fas fa-clock"></i> <span data-i18n="index_attendance_title">Chấm Công Nhân Sự</span>
                         </h3>
-                        <span class="text-[9px] bg-white/5 px-2 py-0.5 rounded text-gray-400 uppercase">Secondary</span>
+                        <span class="text-[9px] bg-white/5 px-2 py-0.5 rounded text-gray-400 uppercase" data-i18n="index_secondary_badge">Secondary</span>
                     </div>
-                    <p class="text-gray-400 text-xs mb-4">Mở bảng chấm công và xác thực check-in nhanh cho nhân viên khi
+                    <p class="text-gray-400 text-xs mb-4" data-i18n="index_attendance_desc">Mở bảng chấm công và xác thực check-in nhanh cho nhân viên khi
                         vào ca.</p>
                     <div class="flex gap-2">
                         <button onclick="openFastCheckin()"
                             class="flex-1 bg-white/5 border border-white/10 hover:bg-cyan-500/10 hover:text-cyan-300 text-gray-300 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-fingerprint"></i> Checkin ca
+                            <i class="fas fa-fingerprint"></i> <span data-i18n="index_checkin_shift_btn">Checkin ca</span>
                         </button>
                         <a href="/chamcong"
                             class="flex-1 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:text-purple-300 text-gray-300 text-xs font-bold py-2.5 rounded-xl text-center transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-calendar-alt"></i> Bảng biểu
+                            <i class="fas fa-calendar-alt"></i> <span data-i18n="index_attendance_board_btn">Bảng biểu</span>
                         </a>
                     </div>
                 </div>
@@ -878,12 +878,12 @@
                 <div class="glass-panel p-6 flex-1 flex flex-col">
                     <h3
                         class="text-xs font-black text-cyan-400 uppercase tracking-widest mb-3 border-b border-white/5 pb-2 flex items-center gap-2">
-                        <i class="fas fa-history"></i> Nhật Ký Vận Hành
+                        <i class="fas fa-history"></i> <span data-i18n="index_activity_log_title">Nhật Ký Vận Hành</span>
                     </h3>
                     <div id="launcherActivityList"
                         class="recent-scroll space-y-2.5 text-xs text-gray-400 overflow-y-auto flex-1 pr-1">
-                        <div class="text-center text-gray-500 py-4"><i class="fas fa-spinner fa-spin mr-1"></i> Đang kết
-                            nối dữ liệu...</div>
+                        <div class="text-center text-gray-500 py-4"><i class="fas fa-spinner fa-spin mr-1"></i> <span data-i18n="index_connecting_data">Đang kết
+                            nối dữ liệu...</span></div>
                     </div>
                 </div>
             </div>
@@ -899,12 +899,12 @@
                             <i class="fas fa-cash-register"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider">Mở
+                            class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_pos_badge">Mở
                             POS Screen</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Hệ Thống Bán Hàng & POS</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Mở quầy gọi món tại chỗ, xếp lịch Nails/Spa,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_pos_title">Hệ Thống Bán Hàng & POS</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_pos_desc">Mở quầy gọi món tại chỗ, xếp lịch Nails/Spa,
                             treo bill, in hóa đơn nhiệt và thanh toán trực tiếp cho khách hàng.</p>
                     </div>
                 </a>
@@ -917,12 +917,12 @@
                             <i class="fas fa-robot"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider">AI
+                            class="text-[9px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_ai_badge">AI
                             Copilot</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">BitPaw AI Copilot Core</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Kích hoạt trợ lý chatbot AI đàm thoại bán hàng
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_ai_title">BitPaw AI Copilot Core</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_ai_desc">Kích hoạt trợ lý chatbot AI đàm thoại bán hàng
                             24/7, bám đuổi tư vấn tự động, thu thập leads chốt đơn đa nền tảng.</p>
                     </div>
                 </a>
@@ -935,12 +935,12 @@
                             <i class="fas fa-qrcode"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold uppercase tracking-wider">QR
+                            class="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_qr_badge">QR
                             Menu View</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Thực Đơn QR Động & Đặt Lịch</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Mã QR đặt món và thanh toán tại bàn (F&B), hoặc
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_qr_title">Thực Đơn QR Động & Đặt Lịch</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_qr_desc">Mã QR đặt món và thanh toán tại bàn (F&B), hoặc
                             tự chọn ghế Nails/ Spa booking trực tuyến cực kỳ sang xịn.</p>
                     </div>
                 </a>
@@ -953,11 +953,11 @@
                             <i class="fas fa-tachometer-alt"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-bold uppercase tracking-wider">Dashboard</span>
+                            class="text-[9px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_crm_badge">Dashboard</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Môi Trường Doanh Nghiệp (CRM)</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Theo dõi chi tiết dữ liệu khách hàng CRM, tỷ lệ
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_crm_title">Môi Trường Doanh Nghiệp (CRM)</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_crm_desc">Theo dõi chi tiết dữ liệu khách hàng CRM, tỷ lệ
                             quay lại, quản lý tồn kho sản phẩm, phân cấp phân quyền bảo mật.</p>
                     </div>
                 </a>
@@ -970,12 +970,12 @@
                             <i class="fas fa-envelope-open-text"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold uppercase tracking-wider">Hộp
+                            class="text-[9px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_inbox_badge">Hộp
                             Thư AI</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Inbox Đa Kênh Omnichannel</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Kết nối tin nhắn đa kênh (Messenger, Zalo OA,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_inbox_title">Inbox Đa Kênh Omnichannel</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_inbox_desc">Kết nối tin nhắn đa kênh (Messenger, Zalo OA,
                             Web Form) đổ dồn về một hộp thư thông minh tập trung quản trị.</p>
                     </div>
                 </a>
@@ -988,12 +988,12 @@
                             <i class="fas fa-paper-plane"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-bold uppercase tracking-wider">Gửi
+                            class="text-[9px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_campaign_badge">Gửi
                             Chiến Dịch</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Chiến Dịch & Trình Gửi Tin</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Lên lịch kịch bản tự động chăm sóc sau mua,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_campaign_title">Chiến Dịch & Trình Gửi Tin</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_campaign_desc">Lên lịch kịch bản tự động chăm sóc sau mua,
                             chúc mừng sinh nhật, gửi mã coupon ưu đãi tái kích hoạt tệp khách cũ.</p>
                     </div>
                 </a>
@@ -1006,12 +1006,12 @@
                             <i class="fas fa-credit-card"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold uppercase tracking-wider">Cấu
+                            class="text-[9px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_payment_badge">Cấu
                             Hình Pay</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1">Cổng Nhận Tiền & Fintech</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed">Cấu hình VietQR động chuyển tiền trực tiếp về
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_payment_title">Cổng Nhận Tiền & Fintech</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_payment_desc">Cấu hình VietQR động chuyển tiền trực tiếp về
                             tài khoản, Stripe thanh toán thẻ quốc tế, ví MoMo, ZaloPay nhận tiền.</p>
                     </div>
                 </a>
@@ -1025,12 +1025,12 @@
                                 <i class="fas fa-chart-pie"></i>
                             </div>
                             <span
-                                class="text-[9px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30 font-bold uppercase tracking-wider">Xem
+                                class="text-[9px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_report_badge">Xem
                                 Báo Cáo</span>
                         </div>
                         <div>
-                            <h4 class="font-bold text-white text-base mb-1">Doanh Thu & Dòng Tiền</h4>
-                            <p class="text-gray-400 text-xs leading-relaxed">Tra cứu doanh số, lợi nhuận thực tế, chi
+                            <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_report_title">Doanh Thu & Dòng Tiền</h4>
+                            <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_report_desc">Tra cứu doanh số, lợi nhuận thực tế, chi
                                 phí đầu vào, thống kê dòng tiền chênh lệch theo thời gian thực.</p>
                         </div>
                 </a>
@@ -1078,10 +1078,10 @@
                     </h1>
                 </div>
 
-                <h2 id="txt_welcome"
+                <h2 id="txt_welcome" data-i18n="index_auth_welcome_title"
                     class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300 uppercase mb-1.5 text-center lg:text-left relative z-10 tracking-wide">Cổng
                     Kích Hoạt Hệ Thống</h2>
-                <p id="txt_subwelcome" class="text-slate-400 text-xs mb-8 text-center lg:text-left relative z-10 font-medium">Đăng
+                <p id="txt_subwelcome" data-i18n="index_auth_welcome_subtitle" class="text-slate-400 text-xs mb-8 text-center lg:text-left relative z-10 font-medium">Đăng
                     nhập tài khoản quản trị để vận hành Doanh nghiệp.</p>
 
                 <!-- Flash Messages -->
@@ -1108,7 +1108,7 @@
                                 <i
                                     class="far fa-envelope text-gray-400 group-focus-within:text-cyan-400 transition-colors"></i>
                             </div>
-                            <input type="email" id="loginEmail" name="email" placeholder="Email quản trị" required
+                            <input type="email" id="loginEmail" name="email" placeholder="Email quản trị" data-i18n-placeholder="index_login_email_placeholder" required
                                 class="cyber-input w-full pl-12 pr-4 py-3.5 rounded-xl text-white text-sm">
                         </div>
                         <div class="mb-3 relative group">
@@ -1116,26 +1116,26 @@
                                 <i
                                     class="fas fa-lock text-gray-400 group-focus-within:text-cyan-400 transition-colors"></i>
                             </div>
-                            <input type="password" id="loginPassword" name="password" placeholder="Mật khẩu" required
+                            <input type="password" id="loginPassword" name="password" placeholder="Mật khẩu" data-i18n-placeholder="index_login_password_placeholder" required
                                 class="cyber-input w-full pl-12 pr-10 py-3.5 rounded-xl text-white text-sm">
                         </div>
 
                         <div class="flex justify-end mb-6">
-                            <button type="button" onclick="forgotPassword()" id="btn_forgot"
+                            <button type="button" onclick="forgotPassword()" id="btn_forgot" data-i18n="index_forgot_password_btn"
                                 class="text-cyan-400 text-xs hover:text-cyan-300 font-semibold transition-colors">Quên
                                 mật khẩu?</button>
                         </div>
 
                         <div class="flex flex-col gap-3">
-                            <button type="submit" id="btnLogin"
+                            <button type="submit" id="btnLogin" data-i18n="index_login_submit_btn"
                                 class="cyber-btn-primary w-full text-white text-xs font-black tracking-widest py-4 rounded-xl">
                                 ĐĂNG NHẬP VẬN HÀNH
                             </button>
                             <div class="text-center mt-1">
                                 <button type="button" onclick="setActiveTab('register')"
                                     class="text-gray-400 text-xs hover:text-white transition-all duration-300 flex items-center justify-center gap-1 mx-auto mt-2">
-                                    <span id="txt_newbiz" class="opacity-80">Chưa có bản quyền?</span>
-                                    <span id="txt_createnow"
+                                    <span id="txt_newbiz" data-i18n="index_no_license_text" class="opacity-80">Chưa có bản quyền?</span>
+                                    <span id="txt_createnow" data-i18n="index_initialize_now_btn"
                                         class="text-cyan-400 hover:text-cyan-300 font-bold border-b border-cyan-500/30 hover:border-cyan-400 transition-colors pb-0.5">Khởi
                                         tạo ngay</span>
                                 </button>
@@ -1147,16 +1147,16 @@
                 <!-- Register Form -->
                 <div id="registerForm" class="form-panel relative z-10">
                     <form id="registerFormElement" action="{{ url_for('register') }}" method="POST" class="space-y-3.5">
-                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)"
+                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)" data-i18n-placeholder="index_reg_fullname_placeholder"
                             required class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
                         <input type="text" id="regBusinessName" name="business_name"
-                            placeholder="Tên cửa hàng / Doanh nghiệp" required
+                            placeholder="Tên cửa hàng / Doanh nghiệp" data-i18n-placeholder="index_reg_business_name_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
                         <div>
                             <label
                                 class="block text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1.5 ml-1"><i
-                                    class="fas fa-shapes mr-1"></i> Chọn Ngành Nghề</label>
+                                    class="fas fa-shapes mr-1"></i> <span data-i18n="index_reg_industry_label">Chọn Ngành Nghề</span></label>
                             <select name="business_type" id="reg_business_type" required
                                 class="cyber-input w-full px-4 py-3 rounded-xl text-xs cursor-pointer">
                                 {% for code, cfg in industry_config.items() %}
@@ -1166,15 +1166,15 @@
                             </select>
                         </div>
 
-                        <input type="email" id="regEmail" name="email" placeholder="Email quản trị" required
+                        <input type="email" id="regEmail" name="email" placeholder="Email quản trị" data-i18n-placeholder="index_login_email_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
                         <div class="relative">
-                            <label id="txt_license_label"
+                            <label id="txt_license_label" data-i18n="index_license_key_label"
                                 class="block text-rose-400 text-[10px] font-bold mb-1 uppercase tracking-widest"><i
                                     class="fas fa-key mr-1"></i> Nhập License Key Bản Quyền</label>
                             <div class="relative">
-                                <input type="text" id="reg_license" name="license_key" placeholder="VD: BITPAW-TR8D8T5S"
+                                <input type="text" id="reg_license" name="license_key" placeholder="VD: BITPAW-TR8D8T5S" data-i18n-placeholder="index_reg_license_placeholder"
                                     required
                                     class="w-full bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 pl-10 text-white outline-none focus:border-rose-400 font-mono tracking-widest uppercase text-sm">
                                 <i class="fas fa-lock absolute left-3.5 top-3.5 text-rose-400 text-sm"></i>
@@ -1182,12 +1182,12 @@
                         </div>
 
                         <input type="password" id="regPassword" name="password"
-                            placeholder="Mật khẩu (tối thiểu 6 ký tự)" required
+                            placeholder="Mật khẩu (tối thiểu 6 ký tự)" data-i18n-placeholder="index_reg_password_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
-                        <input type="password" id="regConfirm" name="confirm" placeholder="Xác nhận mật khẩu" required
+                        <input type="password" id="regConfirm" name="confirm" placeholder="Xác nhận mật khẩu" data-i18n-placeholder="index_reg_confirm_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
-                        <button type="submit" id="btnRegister"
+                        <button type="submit" id="btnRegister" data-i18n="index_reg_submit_btn"
                             class="cyber-btn-secondary w-full text-white text-xs font-black tracking-widest py-3.5 rounded-xl">
                             KHỜI TẠO BITPAW OS
                         </button>
@@ -1195,8 +1195,8 @@
                         <div class="text-center">
                             <button type="button" onclick="setActiveTab('login')"
                                 class="text-gray-400 text-xs hover:text-white transition-all duration-300 flex items-center justify-center gap-1 mx-auto mt-2">
-                                <span id="txt_have_account" class="opacity-80">Đã có tài khoản?</span>
-                                <span id="txt_login_now"
+                                <span id="txt_have_account" data-i18n="index_have_account_text" class="opacity-80">Đã có tài khoản?</span>
+                                <span id="txt_login_now" data-i18n="index_login_now_btn"
                                     class="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500/30 hover:border-purple-400 transition-colors pb-0.5">Đăng
                                     nhập</span>
                             </button>
@@ -1208,15 +1208,15 @@
                 <div class="border-t border-white/5 pt-4 mt-6 flex justify-between items-center text-[10px] font-mono text-slate-500 relative z-10">
                     <span class="flex items-center gap-1.5 hover:text-cyan-400 transition-colors">
                         <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
-                        Secure Session
+                        <span data-i18n="index_telemetry_secure_session">Secure Session</span>
                     </span>
                     <span class="flex items-center gap-1.5 hover:text-purple-400 transition-colors">
                         <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-                        Multi-tenant OS
+                        <span data-i18n="index_telemetry_multitenant">Multi-tenant OS</span>
                     </span>
                     <span class="flex items-center gap-1.5 hover:text-emerald-400 transition-colors">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Cloud Sync Ready
+                        <span data-i18n="index_telemetry_cloud_sync">Cloud Sync Ready</span>
                     </span>
                 </div>
             </div>
@@ -1245,12 +1245,12 @@
                                 BitPaw AI OS Core
                                 <span
                                     class="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[7px] text-emerald-400 uppercase font-mono font-bold tracking-wider"><span
-                                        class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> Secure /
-                                    Online</span>
+                                        class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> <span data-i18n="index_secure_online_badge">Secure /
+                                    Online</span></span>
                             </h2>
                             <span
                                 class="text-[9px] text-gray-500 uppercase tracking-widest font-mono flex items-center gap-1">
-                                <i class="fas fa-project-diagram text-[8px] text-cyan-400"></i> Live Ecosystem Map
+                                <i class="fas fa-project-diagram text-[8px] text-cyan-400"></i> <span data-i18n="index_live_ecosystem_map">Live Ecosystem Map</span>
                             </span>
                         </div>
                     </div>
@@ -1411,18 +1411,18 @@
                         class="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl mx-auto mb-3">
                         <i class="fas fa-fingerprint"></i>
                     </div>
-                    <h2 class="text-lg font-black text-white">Xác Thực Nhân Sự</h2>
-                    <p class="text-xs text-gray-400 mt-1">Nhập Mã NV để checkin điểm danh ca làm.</p>
+                    <h2 class="text-lg font-black text-white" data-i18n="index_fastcheckin_title">Xác Thực Nhân Sự</h2>
+                    <p class="text-xs text-gray-400 mt-1" data-i18n="index_fastcheckin_desc">Nhập Mã NV để checkin điểm danh ca làm.</p>
                 </div>
                 <div class="space-y-4">
                     <div class="relative">
                         <i class="fas fa-id-badge absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                        <input type="text" id="fc_empCode" placeholder="VD: NV001"
+                        <input type="text" id="fc_empCode" placeholder="VD: NV001" data-i18n-placeholder="index_fastcheckin_placeholder"
                             class="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white uppercase font-mono tracking-widest focus:border-emerald-400 outline-none transition-colors text-sm">
                     </div>
                     <button onclick="proceedToCamera()" id="btnProceedCheckin"
                         class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3.5 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:scale-[1.02] transition flex justify-center items-center gap-2 text-xs uppercase tracking-wider">
-                        TIẾP TỤC <i class="fas fa-arrow-right"></i>
+                        <span data-i18n="index_fastcheckin_continue_btn">TIẾP TỤC</span> <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -1449,12 +1449,12 @@
                 <h2 id="txt_reset_title" class="text-lg font-black text-cyan-400 mb-2">Khôi Phục Mật Khẩu</h2>
                 <p id="txt_reset_desc" class="text-xs text-gray-400 mb-6">Nhập Email quản trị của Sếp, hệ thống sẽ gửi
                     liên kết đổi mật khẩu mới.</p>
-                <input type="email" id="resetEmail" placeholder="Nhập Email của bạn"
+                <input type="email" id="resetEmail" placeholder="Nhập Email của bạn" data-i18n-placeholder="index_reset_email_placeholder"
                     class="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 text-white focus:border-cyan-400 outline-none mb-4 text-sm">
                 <div class="flex justify-end gap-3">
-                    <button onclick="closeForgotModal()"
+                    <button onclick="closeForgotModal()" data-i18n="index_forgot_cancel_btn"
                         class="px-4 py-2 text-gray-400 hover:text-white transition-colors text-xs font-bold uppercase">Hủy</button>
-                    <button onclick="sendResetPassword()" id="btnReset"
+                    <button onclick="sendResetPassword()" id="btnReset" data-i18n="index_forgot_send_btn"
                         class="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl font-bold transition-transform hover:scale-105 text-xs uppercase">Gửi
                         Link Reset</button>
                 </div>
@@ -1689,17 +1689,17 @@
             // ========== SUPABASE DATABASE REGISTRY CONNECT ==========
             const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-            const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
             async function fetchDashboardData() {
                 try {
-                    const { data: activities, error: actErr } = await supabase
+                    const { data: activities, error: actErr } = await supabaseClient
                         .from('user_logs')
                         .select('action, description, created_at')
                         .order('created_at', { ascending: false })
                         .limit(5);
 
-                    let activityHtml = '<div class="text-center text-gray-500 py-2">Chưa có hoạt động nào</div>';
+                    let activityHtml = `<div class="text-center text-gray-500 py-2">${currentLang === 'en' ? 'No activity yet' : 'Chưa có hoạt động nào'}</div>`;
                     if (!actErr && activities && activities.length) {
                         activityHtml = activities.map(act => {
                             const time = new Date(act.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -1718,7 +1718,7 @@
                     if (document.getElementById('launcherActivityList')) document.getElementById('launcherActivityList').innerHTML = activityHtml;
                 } catch (err) {
                     console.error("Lỗi fetch log:", err);
-                    const errHtml = '<div class="text-center text-rose-400 py-2">Không thể kết nối máy chủ Cloud</div>';
+                    const errHtml = `<div class="text-center text-rose-400 py-2">${currentLang === 'en' ? 'Unable to connect to the Cloud server' : 'Không thể kết nối máy chủ Cloud'}</div>`;
                     if (document.getElementById('launcherActivityList')) document.getElementById('launcherActivityList').innerHTML = errHtml;
                 }
             }
@@ -1756,15 +1756,15 @@
 
             async function proceedToCamera() {
                 const code = document.getElementById('fc_empCode').value.trim().toUpperCase();
-                if (!code) return showMessage("Vui lòng nhập Mã Nhân Viên!", true);
+                if (!code) return showMessage(currentLang === 'en' ? "Please enter your Employee Code!" : "Vui lòng nhập Mã Nhân Viên!", true);
                 const btn = document.getElementById('btnProceedCheckin');
                 const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> KẾT NỐI...'; btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'CONNECTING...' : 'KẾT NỐI...'}`; btn.disabled = true;
                 try {
-                    const { data, error } = await supabase.from('employees').select('ho_ten').eq('ma_nv', code).maybeSingle();
+                    const { data, error } = await supabaseClient.from('employees').select('ho_ten').eq('ma_nv', code).maybeSingle();
                     if (error) throw error;
                     if (!data) {
-                        showMessage("Không tìm thấy Nhân viên mang mã: " + code, true);
+                        showMessage((currentLang === 'en' ? "No employee found with code: " : "Không tìm thấy Nhân viên mang mã: ") + code, true);
                         btn.innerHTML = originalText; btn.disabled = false;
                         return;
                     }
@@ -1772,7 +1772,7 @@
                     sessionStorage.setItem('bp_emp_name', data.ho_ten);
                     window.location.href = 'diemdanh.html';
                 } catch (err) {
-                    showMessage("Lỗi kết nối máy chủ!", true);
+                    showMessage(currentLang === 'en' ? "Server connection error!" : "Lỗi kết nối máy chủ!", true);
                     btn.innerHTML = originalText; btn.disabled = false;
                 }
             }
@@ -1810,8 +1810,90 @@
                 }
             };
 
+            // Generic data-i18n / data-i18n-placeholder dictionary for elements not covered
+            // by the legacy id-based `i18n` map above (dashboard launcher, modals, telemetry).
+            const dataI18n = {
+                index_business_label: { vi: 'Doanh nghiệp:', en: 'Business:' },
+                index_uptime_label: { vi: 'Thời gian vận hành', en: 'Operating Uptime' },
+                index_license_active: { vi: 'License: Hoạt động', en: 'License: Active' },
+                index_logout_btn: { vi: 'Đăng xuất', en: 'Logout' },
+                index_operating_info_title: { vi: 'Thông Tin Vận Hành', en: 'Operating Information' },
+                index_industry_zone_label: { vi: 'Môi trường phân vùng / Industry:', en: 'Industry Zone:' },
+                index_industry_fnb: { vi: 'Nhà hàng & Cafe (F&B)', en: 'Restaurant & Cafe (F&B)' },
+                index_industry_nail: { vi: 'Nails & Salon', en: 'Nails & Salon' },
+                index_industry_spa: { vi: 'Spa & Wellness', en: 'Spa & Wellness' },
+                index_industry_retail: { vi: 'Bán lẻ & ERP (Retail)', en: 'Retail & ERP' },
+                index_industry_active_prefix: { vi: 'Ngành đang hoạt động:', en: 'Industry Active:' },
+                index_ai_core_status_title: { vi: 'Trạng Thái BitPaw AI Core', en: 'BitPaw AI Core Status' },
+                index_ai_status_label: { vi: 'Trạng thái AI:', en: 'AI Status:' },
+                index_ai_status_online: { vi: 'Online', en: 'Online' },
+                index_chats_today_label: { vi: 'Chats hôm nay:', en: 'Chats today:' },
+                index_leads_captured_label: { vi: 'Lead thu về:', en: 'Leads captured:' },
+                index_attendance_title: { vi: 'Chấm Công Nhân Sự', en: 'Staff Attendance' },
+                index_secondary_badge: { vi: 'Secondary', en: 'Secondary' },
+                index_attendance_desc: { vi: 'Mở bảng chấm công và xác thực check-in nhanh cho nhân viên khi vào ca.', en: 'Open the attendance board and quickly verify staff check-ins at shift start.' },
+                index_checkin_shift_btn: { vi: 'Checkin ca', en: 'Check in' },
+                index_attendance_board_btn: { vi: 'Bảng biểu', en: 'Board' },
+                index_activity_log_title: { vi: 'Nhật Ký Vận Hành', en: 'Operation Log' },
+                index_connecting_data: { vi: 'Đang kết nối dữ liệu...', en: 'Connecting to data...' },
+                index_card_pos_badge: { vi: 'Mở POS Screen', en: 'Open POS Screen' },
+                index_card_pos_title: { vi: 'Hệ Thống Bán Hàng & POS', en: 'Sales & POS System' },
+                index_card_pos_desc: { vi: 'Mở quầy gọi món tại chỗ, xếp lịch Nails/Spa, treo bill, in hóa đơn nhiệt và thanh toán trực tiếp cho khách hàng.', en: 'Open dine-in ordering, schedule Nails/Spa appointments, hold open tabs, print thermal receipts, and take payments directly from customers.' },
+                index_card_ai_badge: { vi: 'AI Copilot', en: 'AI Copilot' },
+                index_card_ai_title: { vi: 'BitPaw AI Copilot Core', en: 'BitPaw AI Copilot Core' },
+                index_card_ai_desc: { vi: 'Kích hoạt trợ lý chatbot AI đàm thoại bán hàng 24/7, bám đuổi tư vấn tự động, thu thập leads chốt đơn đa nền tảng.', en: 'Activate a 24/7 conversational AI sales chatbot that follows up automatically and captures leads across multiple platforms.' },
+                index_card_qr_badge: { vi: 'QR Menu View', en: 'QR Menu View' },
+                index_card_qr_title: { vi: 'Thực Đơn QR Động & Đặt Lịch', en: 'Dynamic QR Menu & Booking' },
+                index_card_qr_desc: { vi: 'Mã QR đặt món và thanh toán tại bàn (F&B), hoặc tự chọn ghế Nails/ Spa booking trực tuyến cực kỳ sang xịn.', en: 'QR code ordering and table-side payment for F&B, or self-service seat selection for premium online Nails/Spa booking.' },
+                index_card_crm_badge: { vi: 'Dashboard', en: 'Dashboard' },
+                index_card_crm_title: { vi: 'Môi Trường Doanh Nghiệp (CRM)', en: 'Business Environment (CRM)' },
+                index_card_crm_desc: { vi: 'Theo dõi chi tiết dữ liệu khách hàng CRM, tỷ lệ quay lại, quản lý tồn kho sản phẩm, phân cấp phân quyền bảo mật.', en: 'Track detailed CRM customer data and return rates, manage product inventory, and set tiered security permissions.' },
+                index_card_inbox_badge: { vi: 'Hộp Thư AI', en: 'AI Inbox' },
+                index_card_inbox_title: { vi: 'Inbox Đa Kênh Omnichannel', en: 'Omnichannel Inbox' },
+                index_card_inbox_desc: { vi: 'Kết nối tin nhắn đa kênh (Messenger, Zalo OA, Web Form) đổ dồn về một hộp thư thông minh tập trung quản trị.', en: 'Connect messages from multiple channels (Messenger, Zalo OA, Web Form) into one smart, centrally managed inbox.' },
+                index_card_campaign_badge: { vi: 'Gửi Chiến Dịch', en: 'Send Campaign' },
+                index_card_campaign_title: { vi: 'Chiến Dịch & Trình Gửi Tin', en: 'Campaigns & Messaging' },
+                index_card_campaign_desc: { vi: 'Lên lịch kịch bản tự động chăm sóc sau mua, chúc mừng sinh nhật, gửi mã coupon ưu đãi tái kích hoạt tệp khách cũ.', en: 'Schedule automated post-purchase care, birthday greetings, and coupon codes to re-engage past customers.' },
+                index_card_payment_badge: { vi: 'Cấu Hình Pay', en: 'Payment Setup' },
+                index_card_payment_title: { vi: 'Cổng Nhận Tiền & Fintech', en: 'Payment Gateway & Fintech' },
+                index_card_payment_desc: { vi: 'Cấu hình VietQR động chuyển tiền trực tiếp về tài khoản, Stripe thanh toán thẻ quốc tế, ví MoMo, ZaloPay nhận tiền.', en: 'Configure dynamic VietQR for direct bank transfers, Stripe for international card payments, and MoMo/ZaloPay wallets.' },
+                index_card_report_badge: { vi: 'Xem Báo Cáo', en: 'View Report' },
+                index_card_report_title: { vi: 'Doanh Thu & Dòng Tiền', en: 'Revenue & Cash Flow' },
+                index_card_report_desc: { vi: 'Tra cứu doanh số, lợi nhuận thực tế, chi phí đầu vào, thống kê dòng tiền chênh lệch theo thời gian thực.', en: 'Look up sales, actual profit, input costs, and real-time cash flow variance statistics.' },
+                index_reg_industry_label: { vi: 'Chọn Ngành Nghề', en: 'Select Industry' },
+                index_telemetry_secure_session: { vi: 'Secure Session', en: 'Secure Session' },
+                index_telemetry_multitenant: { vi: 'Multi-tenant OS', en: 'Multi-tenant OS' },
+                index_telemetry_cloud_sync: { vi: 'Cloud Sync Ready', en: 'Cloud Sync Ready' },
+                index_secure_online_badge: { vi: 'Secure / Online', en: 'Secure / Online' },
+                index_live_ecosystem_map: { vi: 'Live Ecosystem Map', en: 'Live Ecosystem Map' },
+                index_fastcheckin_title: { vi: 'Xác Thực Nhân Sự', en: 'Staff Verification' },
+                index_fastcheckin_desc: { vi: 'Nhập Mã NV để checkin điểm danh ca làm.', en: 'Enter your Employee Code to check in for your shift.' },
+                index_fastcheckin_continue_btn: { vi: 'TIẾP TỤC', en: 'CONTINUE' },
+                index_forgot_cancel_btn: { vi: 'Hủy', en: 'Cancel' },
+                index_forgot_send_btn: { vi: 'Gửi Link Reset', en: 'Send Reset Link' }
+            };
+            const dataI18nPlaceholder = {
+                index_fastcheckin_placeholder: { vi: 'VD: NV001', en: 'e.g. NV001' },
+                index_reset_email_placeholder: { vi: 'Nhập Email của bạn', en: 'Enter your email' },
+                index_reg_license_placeholder: { vi: 'VD: BITPAW-TR8D8T5S', en: 'e.g. BITPAW-TR8D8T5S' }
+            };
+            function applyDataI18n(lang) {
+                const useLang = (lang === 'en') ? 'en' : 'vi';
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const entry = dataI18n[el.getAttribute('data-i18n')];
+                    if (entry && entry[useLang]) el.textContent = entry[useLang];
+                });
+                document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                    const entry = dataI18nPlaceholder[el.getAttribute('data-i18n-placeholder')];
+                    if (entry && entry[useLang]) el.placeholder = entry[useLang];
+                });
+            }
+
+            let currentLang = 'vi';
             function setLang(lang) {
                 const t = i18n[lang];
+                currentLang = lang;
+                applyDataI18n(lang);
                 if (!t) return;
 
                 const wTxt = document.getElementById('txt_welcome');
@@ -1870,7 +1952,7 @@
 
                 localStorage.setItem('bitpaw_lang', lang);
             }
-            const savedLang = localStorage.getItem('bitpaw_lang') || 'vi';
+            const savedLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
             setLang(savedLang);
 
             const loginPanel = document.getElementById('loginForm');
@@ -1887,7 +1969,7 @@
             function toggleLoading(btnId, isLoading, originalText) {
                 const btn = document.getElementById(btnId);
                 if (!btn) return;
-                if (isLoading) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang xử lý...'; btn.classList.add('opacity-70'); }
+                if (isLoading) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${currentLang === 'en' ? 'Processing...' : 'Đang xử lý...'}`; btn.classList.add('opacity-70'); }
                 else { btn.disabled = false; btn.innerHTML = originalText; btn.classList.remove('opacity-70'); }
             }
 
@@ -1898,13 +1980,13 @@
                     const confirm = document.getElementById('regConfirm').value;
                     if (password !== confirm) {
                         e.preventDefault();
-                        showMessage("❌ Mật khẩu xác nhận không khớp!", true);
+                        showMessage(currentLang === 'en' ? "❌ Password confirmation does not match!" : "❌ Mật khẩu xác nhận không khớp!", true);
                         return false;
                     }
                     const strongRegex = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
                     if (!strongRegex.test(password)) {
                         e.preventDefault();
-                        showMessage("❌ Mật khẩu phải có ít nhất 6 ký tự, 1 chữ hoa và 1 số!", true);
+                        showMessage(currentLang === 'en' ? "❌ Password must have at least 6 characters, 1 uppercase letter and 1 number!" : "❌ Mật khẩu phải có ít nhất 6 ký tự, 1 chữ hoa và 1 số!", true);
                         return false;
                     }
                     const originalText = document.getElementById('btnRegister').textContent;
@@ -1928,16 +2010,16 @@
             function closeForgotModal() { document.getElementById('forgotPasswordModal').classList.replace('flex', 'hidden'); }
             async function sendResetPassword() {
                 const email = document.getElementById('resetEmail').value.trim();
-                if (!email) return showMessage("Vui lòng nhập Email!", true);
+                if (!email) return showMessage(currentLang === 'en' ? "Please enter your Email!" : "Vui lòng nhập Email!", true);
                 const btn = document.getElementById('btnReset');
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...'; btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'Sending...' : 'Đang gửi...'}`; btn.disabled = true;
                 try {
-                    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password.html' });
+                    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password.html' });
                     if (error) throw error;
-                    showMessage("✅ Đã gửi link khôi phục vào Email.", false);
+                    showMessage(currentLang === 'en' ? "✅ Recovery link sent to your Email." : "✅ Đã gửi link khôi phục vào Email.", false);
                     closeForgotModal();
-                } catch (e) { showMessage("❌ Lỗi: " + e.message, true); }
-                btn.innerHTML = 'Gửi Link Reset'; btn.disabled = false;
+                } catch (e) { showMessage((currentLang === 'en' ? "❌ Error: " : "❌ Lỗi: ") + e.message, true); }
+                btn.innerHTML = currentLang === 'en' ? 'Send Reset Link' : 'Gửi Link Reset'; btn.disabled = false;
             }
 
             fetchDashboardData();

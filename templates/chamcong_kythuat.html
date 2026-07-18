@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Điều Phối Kỹ Thuật | BitPaw OS</title>
-    
+    <title>Technical Dispatch | BitPaw OS</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -18,10 +18,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
-        
+
         /* 3D Background Canvas */
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
-        
+
         /* Hiệu ứng scanline và laser */
         .scan-line {
             position: fixed; top: 0; left: 0; width: 100%; height: 2px;
@@ -40,7 +40,7 @@
 
         /* Tia sáng chéo */
         .light-ray { position: absolute; background: linear-gradient(90deg, transparent, rgba(234,179,8,0.3), transparent); height: 2px; width: 150%; transform: rotate(-35deg); transform-origin: left; pointer-events: none; }
-        
+
         /* Khối mờ */
         .absolute-blur {
             position: absolute;
@@ -55,10 +55,10 @@
             z-index: 0;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; } 
-        ::-webkit-scrollbar-track { background: transparent; } 
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(234, 179, 8, 0.5); border-radius: 10px; }
-        
+
         .glass-panel { background: rgba(15, 17, 21, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-sidebar { background: rgba(8, 6, 26, 0.6); backdrop-filter: blur(30px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
 
@@ -74,11 +74,11 @@
 
         .tech-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; color: #fff; width: 100%; outline: none; transition: 0.3s; font-size: 1rem; font-weight: bold; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
         .tech-input:focus { border-color: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,0.2), inset 0 2px 5px rgba(0,0,0,0.5); background: rgba(255,255,255,0.05); }
-        
+
         .screen { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; position: relative; z-index: 10; }
         .screen.active { display: flex; opacity: 1; animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
+
         input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; opacity: 0.6; transition: 0.3s; }
         input[type="date"]:focus::-webkit-calendar-picker-indicator, input[type="time"]:focus::-webkit-calendar-picker-indicator { opacity: 1; filter: invert(0.7) sepia(1) saturate(5) hue-rotate(320deg); }
 
@@ -113,42 +113,46 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-yellow-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_overview">Tổng quan</span>
                 </a>
                 <a href="nhanvien.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="chamcong.html" class="flex items-center space-x-4 bg-gradient-to-r from-yellow-500/20 to-transparent border-l-4 border-yellow-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-yellow-300 group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_attendance">Chấm công</span>
                 </a>
                 <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_payroll">Bảng lương</span>
                 </a>
                 <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Trạm Liên Lạc</span>
+                    <i class="fas fa-comments w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="chamcongkythuat_nav_comm">Trạm Liên Lạc</span>
                 </a>
                 <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_gps">Radar GPS Thợ</span>
                 </a>
                 <!-- === CÁC MỤC MỚI THÊM === -->
                 <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Quản lý Công nợ</span>
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_debt">Quản lý Công nợ</span>
                 </a>
                 <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Quản lý Thu Chi</span>
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_revenue">Quản lý Thu Chi</span>
                 </a>
                 <a href="baocaoloinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span>Báo cáo lợi nhuận</span>
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_profit">Báo cáo lợi nhuận</span>
                 </a>
             </nav>
 
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="dashboard_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -159,20 +163,20 @@
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 shrink-0 gap-4">
                 <div>
                     <h2 class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-md flex items-center gap-3">
-                        <i class="fas fa-tools text-yellow-500 drop-shadow-[0_0_8px_currentColor]"></i> Điều Phối Kỹ Thuật
+                        <i class="fas fa-tools text-yellow-500 drop-shadow-[0_0_8px_currentColor]"></i> <span data-i18n="chamcongkythuat_title">Điều Phối Kỹ Thuật</span>
                     </h2>
-                    <p class="text-gray-400 mt-2 text-sm font-medium">Gán lệnh, chấm công và xuất vật tư từ kho.</p>
+                    <p class="text-gray-400 mt-2 text-sm font-medium" data-i18n="chamcongkythuat_subtitle">Phân công công việc, chấm công và xuất vật tư từ kho.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                    <a href="quanly_dichvu.html" class="glass-panel hover:bg-cyan-500/10 border-cyan-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-satellite-dish"></i> Radar Kanban</a>
-                    <a href="quanly_kho.html" class="glass-panel hover:bg-emerald-500/10 border-emerald-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-boxes"></i> Quản Lý Kho</a>
-                    <a href="chamcong.html" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-arrow-left"></i> Trở về</a>
+                    <a href="quanly_dichvu.html" class="glass-panel hover:bg-cyan-500/10 border-cyan-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-satellite-dish"></i> <span data-i18n="chamcongkythuat_btn_radar">Radar Kanban</span></a>
+                    <a href="quanly_kho.html" class="glass-panel hover:bg-emerald-500/10 border-emerald-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-boxes"></i> <span data-i18n="chamcongkythuat_btn_inventory">Quản lý Kho</span></a>
+                    <a href="chamcong.html" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-arrow-left"></i> <span data-i18n="chamcongkythuat_btn_back">Quay lại</span></a>
                 </div>
             </div>
-            
+
             <div class="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
                 <i class="fas fa-hard-hat text-gray-400"></i>
-                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs">Danh Sách Kỹ Thuật Viên</h3>
+                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs" data-i18n="chamcongkythuat_technician_list">Danh Sách Kỹ Thuật Viên</h3>
             </div>
 
             <div id="employeeGrid" class="flex flex-col gap-4 overflow-y-auto pb-10 custom-scrollbar pr-2">
@@ -191,14 +195,14 @@
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div>
-                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md">Phiếu Điều Phối: <span id="pos_worker_name" class="text-yellow-400">---</span></h2>
-                        <p class="text-[10px] text-gray-400 mt-1 font-mono tracking-widest uppercase">Mã Thợ: <span id="pos_worker_id" class="font-bold text-yellow-200 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/30">---</span></p>
+                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md"><span data-i18n="chamcongkythuat_dispatch_sheet">Phiếu Điều Phối:</span> <span id="pos_worker_name" class="text-yellow-400">---</span></h2>
+                        <p class="text-[10px] text-gray-400 mt-1 font-mono tracking-widest uppercase"><span data-i18n="chamcongkythuat_technician_id">Mã Kỹ Thuật Viên:</span> <span id="pos_worker_id" class="font-bold text-yellow-200 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/30">---</span></p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 bg-black/50 border border-white/10 px-5 py-3 rounded-2xl shadow-inner w-full md:w-auto">
                     <i class="far fa-calendar-alt text-emerald-400 text-lg"></i>
                     <div class="flex flex-col flex-1">
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Ngày Thực Hiện</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5" data-i18n="chamcongkythuat_date_performed">Ngày Thực Hiện</span>
                         <input type="date" id="pos_date" class="bg-transparent border-none outline-none text-white text-sm font-bold cursor-pointer font-mono">
                     </div>
                 </div>
@@ -206,38 +210,38 @@
 
             <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-0">
                 <div class="glass-panel rounded-[2rem] p-6 lg:p-8 shadow-2xl flex flex-col overflow-y-auto relative border border-yellow-500/20">
-                    <h3 class="font-black text-yellow-400 mb-6 border-b border-white/10 pb-4 tracking-widest uppercase text-sm"><i class="fas fa-clipboard-list mr-2 drop-shadow-[0_0_5px_currentColor]"></i>Chi Tiết Công Việc & Vật Tư</h3>
-                    
+                    <h3 class="font-black text-yellow-400 mb-6 border-b border-white/10 pb-4 tracking-widest uppercase text-sm"><i class="fas fa-clipboard-list mr-2 drop-shadow-[0_0_5px_currentColor]"></i><span data-i18n="chamcongkythuat_job_details">Chi Tiết Công Việc & Vật Tư</span></h3>
+
                     <div class="space-y-6">
-                        
+
                         <div class="bg-[#0f1115]/80 border border-cyan-500/30 p-5 rounded-2xl shadow-inner relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-bl-full pointer-events-none blur-md"></div>
-                            <label class="block text-cyan-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-link mr-2"></i> Gán Lệnh Từ Radar</label>
+                            <label class="block text-cyan-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-link mr-2"></i> <span data-i18n="chamcongkythuat_assign_job">Gán Công Việc Từ Radar</span></label>
                             <div class="relative">
                                 <select id="link_task_id" class="tech-input text-white appearance-none border-cyan-500/50 bg-black/60 focus:border-cyan-400 focus:shadow-[0_0_10px_rgba(6,182,212,0.3)]" onchange="autoFillTaskData()">
-                                    <option value="">-- Chỉ điểm danh thường (Không gán Job) --</option>
+                                    <option value="" data-i18n="chamcongkythuat_attendance_only">-- Chỉ Chấm Công (Không Gán Việc) --</option>
                                 </select>
                                 <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-cyan-500/50 pointer-events-none"></i>
                             </div>
-                            <p class="text-[10px] text-gray-400 mt-2 font-medium italic"><i class="fas fa-info-circle text-cyan-500/70 mr-1"></i>Hệ thống tự động hoàn thành Job bên Radar nếu bạn chọn gán ở đây.</p>
+                            <p class="text-[10px] text-gray-400 mt-2 font-medium italic"><i class="fas fa-info-circle text-cyan-500/70 mr-1"></i><span data-i18n="chamcongkythuat_auto_complete_note">Hệ thống sẽ tự động hoàn thành Công việc trên Radar nếu bạn gán tại đây.</span></p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-5">
                             <div>
-                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Trạng Thái Công Nhật</label>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n="chamcongkythuat_daily_status">Trạng Thái Ngày</label>
                                 <div class="relative">
                                     <select id="trang_thai" class="tech-input cursor-pointer text-white appearance-none">
-                                        <option value="Có Mặt (Trọn Ngày)">✅ Có Mặt (Trọn Ngày)</option>
-                                        <option value="Nửa Ngày (Sáng)">🌤️ Nửa Ngày (Sáng)</option>
-                                        <option value="Nửa Ngày (Chiều)">🌥️ Nửa Ngày (Chiều)</option>
-                                        <option value="Đi Công Tác Xa">🚗 Đi Công Tác Xa</option>
-                                        <option value="Nghỉ Phép / Bệnh">❌ Nghỉ Phép / Bệnh</option>
+                                        <option value="Có Mặt (Trọn Ngày)" data-i18n="chamcongkythuat_status_present">✅ Có Mặt (Trọn Ngày)</option>
+                                        <option value="Nửa Ngày (Sáng)" data-i18n="chamcongkythuat_status_half_am">🌤️ Nửa Ngày (Sáng)</option>
+                                        <option value="Nửa Ngày (Chiều)" data-i18n="chamcongkythuat_status_half_pm">🌥️ Nửa Ngày (Chiều)</option>
+                                        <option value="Đi Công Tác Xa" data-i18n="chamcongkythuat_status_offsite">🚗 Đi Công Tác Xa</option>
+                                        <option value="Nghỉ Phép / Bệnh" data-i18n="chamcongkythuat_status_leave">❌ Nghỉ Phép / Bệnh</option>
                                     </select>
                                     <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" title="Số giờ tăng ca ngoài giờ (OT)">Tăng Ca Khuya (OT)</label>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n-title="chamcongkythuat_ot_title" title="Giờ làm thêm (OT)" data-i18n="chamcongkythuat_ot_label">Tăng Ca Đêm (OT)</label>
                                 <div class="relative">
                                     <input type="number" id="tang_ca" class="tech-input text-rose-400 font-mono pl-3 pr-10" value="0">
                                     <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">h</span>
@@ -247,14 +251,14 @@
 
                         <div class="grid grid-cols-2 gap-5 pt-4 border-t border-white/10">
                             <div>
-                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" title="Tiền xăng, cơm, công tác">Phụ Cấp / CT Phí</label>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n-title="chamcongkythuat_allowance_title" title="Xăng xe, ăn uống, phụ cấp di chuyển" data-i18n="chamcongkythuat_allowance_label">Phụ Cấp / Chi Phí Di Chuyển</label>
                                 <div class="relative">
                                     <input type="number" id="phu_cap" class="tech-input text-emerald-400 font-mono pr-8" value="0">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" title="Khách cho thêm ngoài hóa đơn">Khách Tip Riêng</label>
+                                <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n-title="chamcongkythuat_tip_title" title="Tiền tip thêm từ khách ngoài hóa đơn" data-i18n="chamcongkythuat_tip_label">Tiền Tip Khách</label>
                                 <div class="relative">
                                     <input type="number" id="tien_tips" class="tech-input text-purple-400 font-mono pr-8" value="0">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
@@ -264,42 +268,42 @@
 
                         <div class="border-t border-white/10 pt-6 mt-2">
                             <div class="flex items-center justify-between mb-4">
-                                <label class="block text-yellow-400 text-sm font-black uppercase tracking-widest"><i class="fas fa-boxes mr-2 drop-shadow-[0_0_5px_currentColor]"></i>Tủ Vật Tư Xuất Kho</label>
-                                <button onclick="loadInventory()" class="text-[10px] text-emerald-400 hover:text-white font-bold tracking-widest uppercase border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 rounded transition-colors"><i class="fas fa-sync-alt mr-1"></i> Check kho</button>
+                                <label class="block text-yellow-400 text-sm font-black uppercase tracking-widest"><i class="fas fa-boxes mr-2 drop-shadow-[0_0_5px_currentColor]"></i><span data-i18n="chamcongkythuat_materials_label">Vật Tư Xuất Kho</span></label>
+                                <button onclick="loadInventory()" class="text-[10px] text-emerald-400 hover:text-white font-bold tracking-widest uppercase border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 rounded transition-colors"><i class="fas fa-sync-alt mr-1"></i> <span data-i18n="chamcongkythuat_check_stock">Kiểm Tra Kho</span></button>
                             </div>
-                            
+
                             <div class="relative mb-5">
                                 <select id="loai_cong_viec" class="tech-input cursor-pointer text-white appearance-none border-yellow-500/30 bg-[#0f1115]" onchange="autoSuggestMaterials()">
-                                    <option value="">-- Chọn gói sửa chữa để AI gợi ý vật tư --</option>
-                                    <option value="Vệ sinh máy lạnh">💧 Vệ sinh máy lạnh</option>
-                                    <option value="Sửa bo mạch / Điện">⚡ Sửa bo mạch / Điện</option>
-                                    <option value="Bơm Gas / Lắp đặt">🔧 Bơm Gas / Lắp đặt Máy</option>
+                                    <option value="" data-i18n="chamcongkythuat_select_package">-- Chọn gói sửa chữa để AI gợi ý vật tư --</option>
+                                    <option value="Vệ sinh máy lạnh" data-i18n="chamcongkythuat_pkg_ac_clean">💧 Vệ Sinh Máy Lạnh</option>
+                                    <option value="Sửa bo mạch / Điện" data-i18n="chamcongkythuat_pkg_circuit">⚡ Sửa Bo Mạch / Điện</option>
+                                    <option value="Bơm Gas / Lắp đặt" data-i18n="chamcongkythuat_pkg_gas">🔧 Bơm Gas / Lắp Đặt Máy</option>
                                 </select>
                                 <i class="fas fa-magic absolute right-4 top-1/2 -translate-y-1/2 text-yellow-500/50 pointer-events-none"></i>
                             </div>
 
-                            <label class="block text-gray-400 text-[10px] font-bold mb-3 uppercase tracking-widest">Đồ Nghề Cần Xuất (Tick để trừ kho)</label>
+                            <label class="block text-gray-400 text-[10px] font-bold mb-3 uppercase tracking-widest" data-i18n="chamcongkythuat_tools_label">Dụng Cụ Xuất (Tick để trừ kho)</label>
                             <div id="tu_do_nghe" class="flex flex-wrap gap-2.5">
-                                <div class="animate-pulse text-gray-500 text-xs">Đang kiểm tra kho...</div>
+                                <div class="animate-pulse text-gray-500 text-xs" data-i18n="chamcongkythuat_checking_inventory">Đang kiểm tra kho...</div>
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase">Ghi chú thêm</label>
-                            <input type="text" id="ghi_chu" class="tech-input font-normal text-sm" placeholder="VD: Sửa xong máy ở Q1, Khách tip thêm...">
+                            <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n="chamcongkythuat_notes_label">Ghi Chú Thêm</label>
+                            <input type="text" id="ghi_chu" class="tech-input font-normal text-sm" placeholder="VD: Sửa máy tại Quận 1, khách thêm tiền tip..." data-i18n-placeholder="chamcongkythuat_notes_placeholder">
                         </div>
                     </div>
 
                     <div class="mt-auto pt-8 relative z-10">
                         <button onclick="submitTech()" id="btnSubmit" class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 font-black p-4 rounded-xl text-lg hover:shadow-[0_10px_30px_rgba(234,179,8,0.4)] hover:scale-[1.02] active:scale-95 transition-all tracking-widest text-black flex items-center justify-center gap-3">
-                            <i class="fas fa-save text-xl"></i> CHỐT LỆNH VÀO HỆ THỐNG
+                            <i class="fas fa-save text-xl"></i> <span data-i18n="chamcongkythuat_submit_btn">GỬI VÀO HỆ THỐNG</span>
                         </button>
                     </div>
                 </div>
 
                 <div class="glass-panel rounded-[2rem] p-6 flex flex-col min-h-0 relative">
                     <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
-                        <h3 class="font-black text-white text-sm uppercase tracking-widest flex items-center"><i class="fas fa-history text-yellow-400 text-lg mr-2"></i>Lịch Sử Gần Đây</h3>
+                        <h3 class="font-black text-white text-sm uppercase tracking-widest flex items-center"><i class="fas fa-history text-yellow-400 text-lg mr-2"></i><span data-i18n="chamcongkythuat_recent_history">Lịch Sử Gần Đây</span></h3>
                         <button onclick="loadHistory(currentWorkerId)" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/20 transition-colors flex items-center justify-center text-gray-400 hover:text-yellow-400"><i class="fas fa-sync-alt"></i></button>
                     </div>
                     <div id="historyBox" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar"></div>
@@ -315,6 +319,171 @@
     </main>
 
     <script>
+        // ========================================================
+        // I18N (VI mặc định / EN chuyển đổi)
+        // ========================================================
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                chamcongkythuat_nav_comm: 'Trạm Liên Lạc',
+                chamcongkythuat_title: 'Điều Phối Kỹ Thuật',
+                chamcongkythuat_subtitle: 'Phân công công việc, chấm công và xuất vật tư từ kho.',
+                chamcongkythuat_btn_radar: 'Radar Kanban',
+                chamcongkythuat_btn_inventory: 'Quản lý Kho',
+                chamcongkythuat_btn_back: 'Quay lại',
+                chamcongkythuat_technician_list: 'Danh Sách Kỹ Thuật Viên',
+                chamcongkythuat_no_technicians: 'Chưa có kỹ thuật viên nào.',
+                chamcongkythuat_btn_dispatch: 'Điều Phối',
+                chamcongkythuat_default_role: 'Kỹ thuật viên',
+                chamcongkythuat_dispatch_sheet: 'Phiếu Điều Phối:',
+                chamcongkythuat_technician_id: 'Mã Kỹ Thuật Viên:',
+                chamcongkythuat_date_performed: 'Ngày Thực Hiện',
+                chamcongkythuat_job_details: 'Chi Tiết Công Việc & Vật Tư',
+                chamcongkythuat_assign_job: 'Gán Công Việc Từ Radar',
+                chamcongkythuat_attendance_only: '-- Chỉ Chấm Công (Không Gán Việc) --',
+                chamcongkythuat_auto_complete_note: 'Hệ thống sẽ tự động hoàn thành Công việc trên Radar nếu bạn gán tại đây.',
+                chamcongkythuat_daily_status: 'Trạng Thái Ngày',
+                chamcongkythuat_status_present: '✅ Có Mặt (Trọn Ngày)',
+                chamcongkythuat_status_half_am: '🌤️ Nửa Ngày (Sáng)',
+                chamcongkythuat_status_half_pm: '🌥️ Nửa Ngày (Chiều)',
+                chamcongkythuat_status_offsite: '🚗 Đi Công Tác Xa',
+                chamcongkythuat_status_leave: '❌ Nghỉ Phép / Bệnh',
+                chamcongkythuat_ot_label: 'Tăng Ca Đêm (OT)',
+                chamcongkythuat_ot_title: 'Giờ làm thêm (OT)',
+                chamcongkythuat_allowance_label: 'Phụ Cấp / Chi Phí Di Chuyển',
+                chamcongkythuat_allowance_title: 'Xăng xe, ăn uống, phụ cấp di chuyển',
+                chamcongkythuat_tip_label: 'Tiền Tip Khách',
+                chamcongkythuat_tip_title: 'Tiền tip thêm từ khách ngoài hóa đơn',
+                chamcongkythuat_materials_label: 'Vật Tư Xuất Kho',
+                chamcongkythuat_check_stock: 'Kiểm Tra Kho',
+                chamcongkythuat_select_package: '-- Chọn gói sửa chữa để AI gợi ý vật tư --',
+                chamcongkythuat_pkg_ac_clean: '💧 Vệ Sinh Máy Lạnh',
+                chamcongkythuat_pkg_circuit: '⚡ Sửa Bo Mạch / Điện',
+                chamcongkythuat_pkg_gas: '🔧 Bơm Gas / Lắp Đặt Máy',
+                chamcongkythuat_tools_label: 'Dụng Cụ Xuất (Tick để trừ kho)',
+                chamcongkythuat_checking_inventory: 'Đang kiểm tra kho...',
+                chamcongkythuat_notes_label: 'Ghi Chú Thêm',
+                chamcongkythuat_notes_placeholder: 'VD: Sửa máy tại Quận 1, khách thêm tiền tip...',
+                chamcongkythuat_submit_btn: 'GỬI VÀO HỆ THỐNG',
+                chamcongkythuat_syncing_data: 'ĐANG ĐỒNG BỘ...',
+                chamcongkythuat_recent_history: 'Lịch Sử Gần Đây',
+                chamcongkythuat_no_reports: 'Chưa có báo cáo nào được gửi.',
+                chamcongkythuat_server_error: 'Lỗi kết nối server!',
+                chamcongkythuat_view_photo_title: 'Xem ảnh minh chứng',
+                chamcongkythuat_proof_label: 'Minh Chứng',
+                chamcongkythuat_open_map_title: 'Mở bản đồ vị trí',
+                chamcongkythuat_gps_label: 'GPS',
+                chamcongkythuat_allow_label: 'Phụ cấp:',
+                chamcongkythuat_tip_short_label: 'Tip:',
+                chamcongkythuat_timestamp_prefix: 'Thời gian:',
+                chamcongkythuat_toast_load_workers_fail: 'Không tải được danh sách kỹ thuật viên',
+                chamcongkythuat_toast_load_tasks_fail: 'Không tải được công việc từ Kanban',
+                chamcongkythuat_toast_submit_success: 'Đã gửi phiếu công việc và trừ kho thành công!',
+                chamcongkythuat_toast_save_error_prefix: 'Lỗi khi lưu dữ liệu: ',
+                chamcongkythuat_inventory_empty: 'Kho trống!',
+                chamcongkythuat_inventory_conn_error: 'Lỗi kết nối kho!',
+                chamcongkythuat_in_stock_prefix: 'Còn trong kho',
+                chamcongkythuat_loading_jobs: 'Đang tải công việc từ Radar...',
+                chamcongkythuat_task_assign_prefix: '⚡ GÁN VIỆC:',
+                chamcongkythuat_task_progress_prefix: '🔧 ĐANG LÀM:',
+                chamcongkythuat_customer_label: 'Khách hàng',
+                chamcongkythuat_completed_job_prefix: 'Hoàn thành Công việc #',
+                chamcongkythuat_customer_colon: 'Khách hàng:',
+                chamcongkythuat_details_colon: 'Chi tiết:',
+                chamcongkythuat_scanning_inventory: 'Đang quét kho...',
+                chamcongkythuat_fetching_data: 'Đang lấy dữ liệu vệ tinh...'
+            },
+            en: {
+                chamcongkythuat_nav_comm: 'Comm Station',
+                chamcongkythuat_title: 'Technical Dispatch',
+                chamcongkythuat_subtitle: 'Assign jobs, log attendance, and issue materials from inventory.',
+                chamcongkythuat_btn_radar: 'Radar Kanban',
+                chamcongkythuat_btn_inventory: 'Inventory Management',
+                chamcongkythuat_btn_back: 'Back',
+                chamcongkythuat_technician_list: 'Technician List',
+                chamcongkythuat_no_technicians: 'No technicians yet.',
+                chamcongkythuat_btn_dispatch: 'Dispatch',
+                chamcongkythuat_default_role: 'Technician',
+                chamcongkythuat_dispatch_sheet: 'Dispatch Sheet:',
+                chamcongkythuat_technician_id: 'Technician ID:',
+                chamcongkythuat_date_performed: 'Date Performed',
+                chamcongkythuat_job_details: 'Job Details & Materials',
+                chamcongkythuat_assign_job: 'Assign Job From Radar',
+                chamcongkythuat_attendance_only: '-- Attendance Only (No Job Assigned) --',
+                chamcongkythuat_auto_complete_note: 'The system will automatically complete the Job on Radar if you assign it here.',
+                chamcongkythuat_daily_status: 'Daily Status',
+                chamcongkythuat_status_present: '✅ Present (Full Day)',
+                chamcongkythuat_status_half_am: '🌤️ Half Day (Morning)',
+                chamcongkythuat_status_half_pm: '🌥️ Half Day (Afternoon)',
+                chamcongkythuat_status_offsite: '🚗 Field / Off-site Work',
+                chamcongkythuat_status_leave: '❌ Leave / Sick',
+                chamcongkythuat_ot_label: 'Night Overtime (OT)',
+                chamcongkythuat_ot_title: 'Overtime hours (OT)',
+                chamcongkythuat_allowance_label: 'Allowance / Travel Cost',
+                chamcongkythuat_allowance_title: 'Gas, meal, travel allowance',
+                chamcongkythuat_tip_label: 'Customer Tip',
+                chamcongkythuat_tip_title: 'Extra tip from customer outside the invoice',
+                chamcongkythuat_materials_label: 'Materials to Issue',
+                chamcongkythuat_check_stock: 'Check Stock',
+                chamcongkythuat_select_package: '-- Select a repair package for AI material suggestions --',
+                chamcongkythuat_pkg_ac_clean: '💧 AC Cleaning',
+                chamcongkythuat_pkg_circuit: '⚡ Circuit Board / Electrical Repair',
+                chamcongkythuat_pkg_gas: '🔧 Gas Refill / Machine Installation',
+                chamcongkythuat_tools_label: 'Tools to Issue (Check to deduct from stock)',
+                chamcongkythuat_checking_inventory: 'Checking inventory...',
+                chamcongkythuat_notes_label: 'Additional Notes',
+                chamcongkythuat_notes_placeholder: 'e.g. Fixed unit in District 1, customer added extra tip...',
+                chamcongkythuat_submit_btn: 'SUBMIT TO SYSTEM',
+                chamcongkythuat_syncing_data: 'SYNCING DATA...',
+                chamcongkythuat_recent_history: 'Recent History',
+                chamcongkythuat_no_reports: 'No reports submitted yet.',
+                chamcongkythuat_server_error: 'Server connection error!',
+                chamcongkythuat_view_photo_title: 'View Proof Photo',
+                chamcongkythuat_proof_label: 'Proof',
+                chamcongkythuat_open_map_title: 'Open location map',
+                chamcongkythuat_gps_label: 'GPS',
+                chamcongkythuat_allow_label: 'Allow.:',
+                chamcongkythuat_tip_short_label: 'Tip:',
+                chamcongkythuat_timestamp_prefix: 'Timestamp:',
+                chamcongkythuat_toast_load_workers_fail: 'Failed to load technician list',
+                chamcongkythuat_toast_load_tasks_fail: 'Failed to load tasks from Kanban',
+                chamcongkythuat_toast_submit_success: 'Work order submitted and inventory deducted successfully!',
+                chamcongkythuat_toast_save_error_prefix: 'Error saving data: ',
+                chamcongkythuat_inventory_empty: 'Inventory empty!',
+                chamcongkythuat_inventory_conn_error: 'Inventory connection error!',
+                chamcongkythuat_in_stock_prefix: 'In stock',
+                chamcongkythuat_loading_jobs: 'Loading jobs from Radar...',
+                chamcongkythuat_task_assign_prefix: '⚡ ASSIGN:',
+                chamcongkythuat_task_progress_prefix: '🔧 IN PROGRESS:',
+                chamcongkythuat_customer_label: 'Customer',
+                chamcongkythuat_completed_job_prefix: 'Completed Job #',
+                chamcongkythuat_customer_colon: 'Customer:',
+                chamcongkythuat_details_colon: 'Details:',
+                chamcongkythuat_scanning_inventory: 'Scanning inventory...',
+                chamcongkythuat_fetching_data: 'Fetching satellite data...'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            try { if (document.getElementById('screen_pos').classList.contains('active')) { loadActiveTasksForWorker(currentWorkerName); loadHistory(currentWorkerId); } } catch(e) {}
+            try { loadWorkers(); } catch(e) {}
+            try { loadInventory(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========================================================
         // THREE.JS BACKGROUND NÂNG CẤP (CHUẨN LANDING PAGE)
         // ========================================================
@@ -369,7 +538,7 @@
                 const t = clock.getElapsedTime();
                 const hue = (t * 0.04) % 1;
                 material.color.setHSL(hue, 0.9, 0.65);
-                
+
                 particles.rotation.y = t * 0.03;
                 particles.rotation.x = t * 0.01;
                 targetX = mouseX * 0.5;
@@ -438,9 +607,9 @@
         // ========================================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
 
         document.getElementById('pos_date').valueAsDate = new Date();
         let currentWorkerId = ""; let currentWorkerName = ""; let activeTasksData = []; let globalInventory = [];
@@ -448,7 +617,7 @@
         function getFormattedDate() {
             const rawDate = document.getElementById('pos_date').value || new Date().toISOString().split('T')[0];
             const parts = rawDate.split('-');
-            if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
             return rawDate;
         }
 
@@ -462,12 +631,12 @@
         // ========================================================
         async function loadInventory() {
             const container = document.getElementById('tu_do_nghe');
-            container.innerHTML = '<div class="animate-pulse text-gray-500 text-xs font-bold uppercase tracking-widest"><i class="fas fa-spinner fa-spin mr-2"></i>Đang quét kho...</div>';
+            container.innerHTML = `<div class="animate-pulse text-gray-500 text-xs font-bold uppercase tracking-widest"><i class="fas fa-spinner fa-spin mr-2"></i>${t('chamcongkythuat_scanning_inventory')}</div>`;
             try {
-                const { data, error } = await supabase.from('kho_vat_tu').select('*').order('id', { ascending: true });
+                const { data, error } = await supabaseClient.from('kho_vat_tu').select('*').order('id', { ascending: true });
                 if(error) throw error;
                 if(!data || data.length === 0) {
-                    container.innerHTML = '<span class="text-[10px] text-rose-500 font-bold uppercase tracking-widest border border-rose-500/30 p-2 rounded bg-rose-500/10">Kho trống!</span>';
+                    container.innerHTML = `<span class="text-[10px] text-rose-500 font-bold uppercase tracking-widest border border-rose-500/30 p-2 rounded bg-rose-500/10">${t('chamcongkythuat_inventory_empty')}</span>`;
                     return;
                 }
                 globalInventory = data;
@@ -475,18 +644,18 @@
                 data.forEach(item => {
                     const isOutOfStock = item.ton_kho <= 0;
                     html += `
-                        <label class="cursor-pointer relative group" title="Tồn kho: ${item.ton_kho} ${item.don_vi}">
+                        <label class="cursor-pointer relative group" title="${t('chamcongkythuat_in_stock_prefix')}: ${item.ton_kho} ${item.don_vi}">
                             <input type="checkbox" value="${item.ten_vat_tu}" data-id="${item.id}" data-stock="${item.ton_kho}" class="tool-checkbox hidden" ${isOutOfStock ? 'disabled' : ''}>
                             <div class="border border-white/10 bg-black/40 px-3 py-2 rounded-xl text-xs font-bold text-gray-300 hover:bg-white/10 transition-all select-none flex items-center gap-2">
                                 ${isOutOfStock ? `<i class="fas fa-ban text-rose-500"></i>` : `<i class="fas fa-toolbox text-gray-500 group-hover:text-yellow-400"></i>`}
-                                ${item.ten_vat_tu} 
+                                ${item.ten_vat_tu}
                                 <span class="text-[9px] ${isOutOfStock ? 'text-rose-500' : 'text-emerald-400'} font-mono ml-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">${item.ton_kho}</span>
                             </div>
                         </label>
                     `;
                 });
                 container.innerHTML = html;
-            } catch(e) { container.innerHTML = '<span class="text-xs text-rose-500">Lỗi kết nối kho!</span>'; }
+            } catch(e) { container.innerHTML = `<span class="text-xs text-rose-500">${t('chamcongkythuat_inventory_conn_error')}</span>`; }
         }
 
         const jobTemplates = {
@@ -512,12 +681,12 @@
         // ========================================================
         async function loadWorkers() {
             try {
-                const { data, error } = await supabase.from('employees').select('*').ilike('linh_vuc', '%Kỹ Thuật%').order('id', { ascending: true });
+                const { data, error } = await supabaseClient.from('employees').select('*').ilike('linh_vuc', '%Kỹ Thuật%').order('id', { ascending: true });
                 if (error) throw error;
                 const grid = document.getElementById('employeeGrid');
                 grid.innerHTML = '';
                 if(!data || data.length === 0) {
-                    grid.innerHTML = '<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Chưa có Kỹ thuật viên nào.</div>'; return;
+                    grid.innerHTML = `<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">${t('chamcongkythuat_no_technicians')}</div>`; return;
                 }
                 data.forEach((emp, index) => {
                     const delay = index * 50;
@@ -533,46 +702,46 @@
                                     <h3 class="font-black text-white text-lg lg:text-xl group-hover:text-yellow-400 transition-colors truncate drop-shadow-md">${emp.ho_ten}</h3>
                                     <p class="text-[11px] text-gray-400 font-mono mt-0.5 uppercase tracking-widest"><i class="fas fa-id-badge text-yellow-500/50 mr-1"></i>${emp.ma_nv}</p>
                                     <div class="mt-1.5">
-                                        <span class="text-[9px] bg-white/10 text-gray-300 px-2 py-0.5 rounded border border-white/10 font-bold uppercase tracking-widest">${emp.chuc_vu || 'Kỹ thuật viên'}</span>
+                                        <span class="text-[9px] bg-white/10 text-gray-300 px-2 py-0.5 rounded border border-white/10 font-bold uppercase tracking-widest">${emp.chuc_vu || t('chamcongkythuat_default_role')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 mt-4 md:mt-0 z-10 w-full md:w-auto">
-                                <button class="w-full md:w-auto bg-gradient-to-r from-yellow-500 to-amber-600 text-black hover:text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] group-hover:shadow-[0_0_20px_rgba(234,179,8,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-wrench text-lg"></i> Điều Phối</button>
+                                <button class="w-full md:w-auto bg-gradient-to-r from-yellow-500 to-amber-600 text-black hover:text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] group-hover:shadow-[0_0_20px_rgba(234,179,8,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-wrench text-lg"></i> ${t('chamcongkythuat_btn_dispatch')}</button>
                             </div>
                         </div>`;
                     grid.innerHTML += card;
                 });
                 setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
-            } catch(e) { showToast("Lỗi tải danh sách thợ", "error"); }
+            } catch(e) { showToast(t('chamcongkythuat_toast_load_workers_fail'), "error"); }
         }
-        
+
         async function loadActiveTasksForWorker(workerName) {
             try {
                 const selectEl = document.getElementById('link_task_id');
-                selectEl.innerHTML = '<option value="">Đang tải các lệnh từ Radar...</option>';
-                const { data, error } = await supabase.from('tasks').select('*')
+                selectEl.innerHTML = `<option value="">${t('chamcongkythuat_loading_jobs')}</option>`;
+                const { data, error } = await supabaseClient.from('tasks').select('*')
                     .or(`trang_thai.eq.Chờ Nhận,and(trang_thai.eq.Đã Nhận,nguoi_nhan.eq.${workerName})`)
                     .order('id', { ascending: false });
                 if (error) throw error;
-                activeTasksData = data; 
-                let options = '<option value="" class="bg-gray-900">-- Chỉ điểm danh thường (Không gán Job) --</option>';
+                activeTasksData = data;
+                let options = `<option value="" class="bg-gray-900">${t('chamcongkythuat_attendance_only')}</option>`;
                 if(data && data.length > 0) {
                     data.forEach(task => {
-                        let prefix = task.trang_thai === 'Chờ Nhận' ? '⚡ GÁN:' : '🔧 ĐANG LÀM:';
-                        options += `<option value="${task.id}" class="bg-gray-900">${prefix} KH ${task.ten_khach} (${task.dia_chi})</option>`;
+                        let prefix = task.trang_thai === 'Chờ Nhận' ? t('chamcongkythuat_task_assign_prefix') : t('chamcongkythuat_task_progress_prefix');
+                        options += `<option value="${task.id}" class="bg-gray-900">${prefix} ${t('chamcongkythuat_customer_label')} ${task.ten_khach} (${task.dia_chi})</option>`;
                     });
                 }
                 selectEl.innerHTML = options;
-            } catch(e) { showToast("Lỗi load Tasks từ Kanban", "error"); }
+            } catch(e) { showToast(t('chamcongkythuat_toast_load_tasks_fail'), "error"); }
         }
 
         function autoFillTaskData() {
             const taskId = document.getElementById('link_task_id').value;
             if(!taskId) { document.getElementById('ghi_chu').value = ''; return; }
-            const task = activeTasksData.find(t => t.id == taskId);
+            const task = activeTasksData.find(tk => tk.id == taskId);
             if(task) {
-                document.getElementById('ghi_chu').value = `[Hoàn thành Lệnh #${task.id}] KH: ${task.ten_khach}. Nd: ${task.noi_dung.substring(0,50)}...`;
+                document.getElementById('ghi_chu').value = `[${t('chamcongkythuat_completed_job_prefix')}${task.id}] ${t('chamcongkythuat_customer_colon')} ${task.ten_khach}. ${t('chamcongkythuat_details_colon')} ${task.noi_dung.substring(0,50)}...`;
                 if(task.noi_dung.toLowerCase().includes('vệ sinh')) {
                     document.getElementById('loai_cong_viec').value = 'Vệ sinh máy lạnh';
                     autoSuggestMaterials();
@@ -588,9 +757,9 @@
             document.getElementById('ghi_chu').value = "";
             document.getElementById('screen_list').classList.remove('active');
             setTimeout(() => { document.getElementById('screen_pos').classList.add('active'); }, 50);
-            loadHistory(id); 
+            loadHistory(id);
             loadActiveTasksForWorker(name);
-            loadInventory(); 
+            loadInventory();
         }
 
         function backToList() {
@@ -611,7 +780,7 @@
             let finalGhiChu = document.getElementById('ghi_chu').value;
             let loaiCongViec = document.getElementById('loai_cong_viec').value;
             if (checkedToolNames.length > 0) {
-                finalGhiChu += ` [${loaiCongViec ? loaiCongViec : 'Xuất kho'}: ${checkedToolNames.join(', ')}]`;
+                finalGhiChu += ` [${loaiCongViec ? loaiCongViec : t('chamcongkythuat_materials_label')}: ${checkedToolNames.join(', ')}]`;
             }
 
             const payload = {
@@ -626,30 +795,30 @@
             const taskIdToLink = document.getElementById('link_task_id').value;
             const btn = document.getElementById('btnSubmit');
             const origHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ĐANG ĐỒNG BỘ DATA...'; btn.disabled = true;
-            
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${t('chamcongkythuat_syncing_data')}`; btn.disabled = true;
+
             try {
-                const { error } = await supabase.from('chamcong').insert([payload]);
+                const { error } = await supabaseClient.from('chamcong').insert([payload]);
                 if (error) throw error;
                 if (taskIdToLink) {
-                    await supabase.from('tasks').update({ trang_thai: 'Hoàn Thành', nguoi_nhan: currentWorkerName }).eq('id', taskIdToLink);
+                    await supabaseClient.from('tasks').update({ trang_thai: 'Hoàn Thành', nguoi_nhan: currentWorkerName }).eq('id', taskIdToLink);
                 }
                 if (checkedNodes.length > 0) {
                     for (let node of checkedNodes) {
                         const matId = node.getAttribute('data-id');
                         const currentStock = parseInt(node.getAttribute('data-stock'));
-                        await supabase.from('kho_vat_tu').update({ ton_kho: currentStock - 1 }).eq('id', matId);
+                        await supabaseClient.from('kho_vat_tu').update({ ton_kho: currentStock - 1 }).eq('id', matId);
                     }
                 }
-                showToast("Đã chốt phiếu công tác và trừ kho thành công!", "success");
+                showToast(t('chamcongkythuat_toast_submit_success'), "success");
                 triggerConfetti();
                 loadHistory(currentWorkerId);
                 loadActiveTasksForWorker(currentWorkerName);
-                loadInventory(); 
+                loadInventory();
                 document.getElementById('tang_ca').value = "0"; document.getElementById('phu_cap').value = "0"; document.getElementById('tien_tips').value = "0";
                 document.getElementById('ghi_chu').value = ""; document.getElementById('loai_cong_viec').value = ""; document.getElementById('link_task_id').value = "";
                 document.querySelectorAll('.tool-checkbox').forEach(cb => cb.checked = false);
-            } catch(e) { showToast("Lỗi lưu dữ liệu: " + e.message, "error"); }
+            } catch(e) { showToast(t('chamcongkythuat_toast_save_error_prefix') + e.message, "error"); }
             btn.innerHTML = origHTML; btn.disabled = false;
         }
 
@@ -658,18 +827,18 @@
         // ========================================================
         async function loadHistory(ma_nv) {
             const box = document.getElementById('historyBox');
-            box.innerHTML = '<div class="animate-pulse text-gray-500 mt-4 text-center font-bold tracking-widest uppercase text-[10px]"><i class="fas fa-satellite fa-spin text-yellow-500 text-lg mb-2"></i><br>Đang lấy dữ liệu vệ tinh...</div>';
+            box.innerHTML = `<div class="animate-pulse text-gray-500 mt-4 text-center font-bold tracking-widest uppercase text-[10px]"><i class="fas fa-satellite fa-spin text-yellow-500 text-lg mb-2"></i><br>${t('chamcongkythuat_fetching_data')}</div>`;
             try {
-                const { data, error } = await supabase.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30); 
+                const { data, error } = await supabaseClient.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30);
                 if (error) throw error;
                 box.innerHTML = '';
                 if(!data || data.length === 0) {
-                    box.innerHTML = '<p class="text-gray-500 text-[11px] font-bold uppercase tracking-widest text-center mt-8 border-2 border-dashed border-gray-700/50 p-4 rounded-xl">Thợ chưa nộp báo cáo.</p>';
+                    box.innerHTML = `<p class="text-gray-500 text-[11px] font-bold uppercase tracking-widest text-center mt-8 border-2 border-dashed border-gray-700/50 p-4 rounded-xl">${t('chamcongkythuat_no_reports')}</p>`;
                     return;
                 }
                 data.forEach((r, index) => {
-                    let photoBtn = r.anh_checkin ? `<button onclick="viewPhoto('${r.anh_checkin}', '${r.ngay_cham} ${r.gio_den||''}')" class="bg-cyan-500/20 text-cyan-400 p-1.5 rounded-lg hover:bg-cyan-500 hover:text-black transition ml-2" title="Xem ảnh Bằng chứng"><i class="fas fa-image"></i> Bằng chứng</button>` : '';
-                    let mapBtn = r.toa_do ? `<button onclick="window.open('http://googleusercontent.com/maps.google.com/?q=${r.toa_do}')" class="bg-emerald-500/20 text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-500 hover:text-black transition ml-2" title="Mở bản đồ vị trí"><i class="fas fa-map-marker-alt"></i> GPS</button>` : '';
+                    let photoBtn = r.anh_checkin ? `<button onclick="viewPhoto('${r.anh_checkin}', '${r.ngay_cham} ${r.gio_den||''}')" class="bg-cyan-500/20 text-cyan-400 p-1.5 rounded-lg hover:bg-cyan-500 hover:text-black transition ml-2" title="${t('chamcongkythuat_view_photo_title')}"><i class="fas fa-image"></i> ${t('chamcongkythuat_proof_label')}</button>` : '';
+                    let mapBtn = r.toa_do ? `<button onclick="window.open('http://googleusercontent.com/maps.google.com/?q=${r.toa_do}')" class="bg-emerald-500/20 text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-500 hover:text-black transition ml-2" title="${t('chamcongkythuat_open_map_title')}"><i class="fas fa-map-marker-alt"></i> ${t('chamcongkythuat_gps_label')}</button>` : '';
                     let noteHTML = r.ghi_chu ? `<p class="text-[11px] text-gray-400 mt-2.5 bg-black/60 p-2.5 rounded-lg border border-white/5 shadow-inner"><i class="fas fa-clipboard-list text-yellow-500/70 mr-1.5"></i> ${r.ghi_chu.replace(/\n/g, '<br>')}</p>` : '';
                     let otHTML = r.tang_ca > 0 ? `<span class="text-rose-400 text-[10px] font-black tracking-widest ml-2 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30">+${r.tang_ca}h OT</span>` : '';
                     const delay = index * 50;
@@ -684,19 +853,19 @@
                                     <p class="text-[11px] text-yellow-400 font-bold uppercase tracking-widest mt-1.5">${r.trang_thai} ${otHTML}</p>
                                 </div>
                                 <div class="text-right text-[10px] font-mono font-bold space-y-1.5 bg-black/50 p-2.5 rounded-xl border border-white/5 shadow-inner shrink-0 ml-2">
-                                    <p class="text-emerald-400 tracking-wider">P.Cấp: +${Number(r.phu_cap || r.tien_tua || 0).toLocaleString()}đ</p>
-                                    <p class="text-purple-400 tracking-wider">Tip KH: +${Number(r.tien_tips||0).toLocaleString()}đ</p>
+                                    <p class="text-emerald-400 tracking-wider">${t('chamcongkythuat_allow_label')} +${Number(r.phu_cap || r.tien_tua || 0).toLocaleString()}đ</p>
+                                    <p class="text-purple-400 tracking-wider">${t('chamcongkythuat_tip_short_label')} +${Number(r.tien_tips||0).toLocaleString()}đ</p>
                                 </div>
                             </div>
                             ${noteHTML}
                         </div>`;
                 });
-            } catch(e) { box.innerHTML = '<p class="text-rose-500 text-xs font-bold text-center mt-5">Lỗi kết nối máy chủ!</p>'; }
+            } catch(e) { box.innerHTML = `<p class="text-rose-500 text-xs font-bold text-center mt-5">${t('chamcongkythuat_server_error')}</p>`; }
         }
 
         function viewPhoto(url, timeInfo) {
             document.getElementById('photoView').src = url;
-            document.getElementById('photoTime').innerText = `Timestamp: ${timeInfo}`;
+            document.getElementById('photoTime').innerText = `${t('chamcongkythuat_timestamp_prefix')} ${timeInfo}`;
             const modal = document.getElementById('photoModal');
             modal.classList.remove('hidden'); modal.classList.add('flex');
             setTimeout(() => { modal.classList.remove('opacity-0'); document.getElementById('photoView').classList.remove('scale-95'); }, 10);

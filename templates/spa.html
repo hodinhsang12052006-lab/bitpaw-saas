@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -670,28 +670,29 @@
                 <img src="{{ url_for('static', filename='cho1.jpg') }}" class="logo-bitpaw" alt="BitPaw">
                 <div>
                     <h1>{{ brand_name }}</h1>
-                    <p>Khởi tạo dịch vụ - Chạm để thanh toán</p>
+                    <p data-i18n="spa_header_tagline">Khởi tạo dịch vụ - Chạm để thanh toán</p>
                 </div>
             </div>
             <div class="header-actions">
-                <a href="{{ url_for('add_spa') }}" class="btn-glass"><span>✨</span> Thêm Dịch Vụ</a>
-                <a href="{{ url_for('brand_settings') }}" class="btn-glass"><span>⚙️</span> Tùy Chỉnh</a>
-                <a href="{{ url_for('index') }}" class="btn-glass">⬅ Sảnh</a>
+                <button id="langToggleBtn" type="button" class="btn-glass" style="border:none; cursor:pointer;">EN</button>
+                <a href="{{ url_for('add_spa') }}" class="btn-glass"><span>✨</span> <span data-i18n="spa_btn_add_service">Thêm Dịch Vụ</span></a>
+                <a href="{{ url_for('brand_settings') }}" class="btn-glass"><span>⚙️</span> <span data-i18n="spa_btn_customize">Tùy Chỉnh</span></a>
+                <a href="{{ url_for('index') }}" class="btn-glass">⬅ <span data-i18n="spa_btn_lobby">Sảnh</span></a>
             </div>
         </div>
 
         <div class="search-filter-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="Tìm dịch vụ...">
+                <input type="text" id="searchInput" placeholder="Tìm dịch vụ..." data-i18n-placeholder="spa_placeholder_search">
             </div>
             <select id="categoryFilter" class="filter-select">
-                <option value="all">Tất cả danh mục</option>
-                <option value="Chăm sóc da mặt">✨ Chăm sóc da mặt</option>
-                <option value="Massage cơ thể">💆 Massage cơ thể</option>
-                <option value="Chăm sóc tóc">💇 Chăm sóc tóc</option>
-                <option value="Liệu trình đặc biệt">🌿 Liệu trình đặc biệt</option>
-                <option value="Combo tiết kiệm">🎁 Combo tiết kiệm</option>
+                <option value="all" data-i18n="spa_cat_all">Tất cả danh mục</option>
+                <option value="Chăm sóc da mặt" data-i18n="spa_cat_facial">✨ Chăm sóc da mặt</option>
+                <option value="Massage cơ thể" data-i18n="spa_cat_massage">💆 Massage cơ thể</option>
+                <option value="Chăm sóc tóc" data-i18n="spa_cat_hair">💇 Chăm sóc tóc</option>
+                <option value="Liệu trình đặc biệt" data-i18n="spa_cat_special">🌿 Liệu trình đặc biệt</option>
+                <option value="Combo tiết kiệm" data-i18n="spa_cat_combo">🎁 Combo tiết kiệm</option>
             </select>
         </div>
 
@@ -709,21 +710,21 @@
                 </div>
                 <div class="product-info">
                     <div class="product-name">{{ s.name }}</div>
-                    <div class="product-price">{{ "{:,.0f}".format(s.price) }} VNĐ</div>
+                    <div class="product-price">{{ s.price | money(tenant_currency) }}</div>
                     <div class="qty-cart-wrapper">
                         <div class="qty-control">
                             <button class="qty-btn decr">-</button>
                             <input type="number" value="1" min="1" class="qty-value" readonly>
                             <button class="qty-btn incr">+</button>
                         </div>
-                        <button class="btn-add-cart"><i class="fas fa-cart-plus"></i> Thêm</button>
+                        <button class="btn-add-cart"><i class="fas fa-cart-plus"></i> <span data-i18n="spa_btn_add">Thêm</span></button>
                     </div>
                 </div>
             </div>
             {% else %}
             <div class="col-span-full text-center py-20">
-                <h2 style="color: var(--theme-color, #06b6d4);" class="text-2xl font-bold mb-2">Chưa Có Dịch Vụ</h2>
-                <p class="text-gray-400">Vui lòng thêm các liệu trình Spa / Thẩm mỹ</p>
+                <h2 style="color: var(--theme-color, #06b6d4);" class="text-2xl font-bold mb-2" data-i18n="spa_empty_title">Chưa Có Dịch Vụ</h2>
+                <p class="text-gray-400" data-i18n="spa_empty_desc">Vui lòng thêm các liệu trình Spa / Thẩm mỹ</p>
             </div>
             {% endfor %}
         </div>
@@ -732,18 +733,18 @@
 
     <div id="cartSidebar" class="cart-sidebar">
         <div class="cart-header">
-            <h3 class="font-bold text-xl"><i class="fas fa-shopping-basket"></i> Giỏ hàng</h3>
+            <h3 class="font-bold text-xl"><i class="fas fa-shopping-basket"></i> <span data-i18n="spa_cart_title">Giỏ hàng</span></h3>
             <button id="closeCartBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
         </div>
         <div id="cartItemsList" class="cart-items">
-            <div class="text-center text-gray-500 py-5">Chưa có sản phẩm</div>
+            <div class="text-center text-gray-500 py-5" data-i18n="spa_cart_empty">Chưa có sản phẩm</div>
         </div>
         <div class="cart-footer">
             <div class="cart-total">
-                <span>Tổng cộng:</span>
+                <span data-i18n="spa_cart_total_label">Tổng cộng:</span>
                 <span id="cartTotalAmount">0₫</span>
             </div>
-            <button id="openCheckoutModalBtn" class="btn-checkout">Thanh toán ngay</button>
+            <button id="openCheckoutModalBtn" class="btn-checkout" data-i18n="spa_btn_checkout_now">Thanh toán ngay</button>
         </div>
     </div>
 
@@ -756,19 +757,19 @@
         <div class="max-w-6xl mx-auto w-full relative font-[Inter]">
             <button id="closeGlobalCheckoutBtn" class="absolute -top-6 right-0 md:-right-6 text-gray-400 hover:text-white text-3xl z-10 transition">&times;</button>
             
-            <h2 class="text-3xl font-black text-white mb-6 text-center tracking-tight">Thanh Toán An Toàn</h2>
+            <h2 class="text-3xl font-black text-white mb-6 text-center tracking-tight" data-i18n="spa_checkout_title">Thanh Toán An Toàn</h2>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-1 glass-panel-pay p-6 h-fit sticky top-4">
-                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-shopping-bag mr-2"></i> Tổng quan (Summary)</h3>
-                    
+                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-shopping-bag mr-2"></i> <span data-i18n="spa_checkout_summary_title">Tổng quan (Summary)</span></h3>
+
                     <div id="checkoutSummaryItems" class="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
                         </div>
-                    
+
                     <div class="border-t border-white/10 my-4"></div>
-                    
+
                     <div class="flex justify-between items-center text-sm text-gray-400 mb-4">
-                        <span>Tiền tệ (Currency)</span>
+                        <span data-i18n="spa_label_currency">Tiền tệ (Currency)</span>
                         <select id="currencySelector" class="bg-black/50 border border-white/20 rounded px-2 py-1 outline-none cursor-pointer text-white">
                             <option value="VND">VND (₫)</option>
                             <option value="USD">USD ($)</option>
@@ -776,7 +777,7 @@
                     </div>
 
                     <div class="flex justify-between font-bold">
-                        <span>Tổng thanh toán</span>
+                        <span data-i18n="spa_label_total_payment">Tổng thanh toán</span>
                         <div class="text-right">
                             <span class="text-2xl text-cyan-400 block" id="checkoutTotalMain">0₫</span>
                             <span class="text-xs text-gray-500" id="checkoutTotalSub">~ $0.00 USD</span>
@@ -787,27 +788,27 @@
                         <div class="flex items-center gap-3">
                             <i class="fas fa-undo text-blue-400 text-xl"></i>
                             <div>
-                                <p class="text-xs font-bold text-white">Chính sách hoàn tiền (Refund Policy)</p>
-                                <p class="text-[10px] text-gray-400">Cam kết hoàn tiền theo quy định của {{ brand_name }}.</p>
+                                <p class="text-xs font-bold text-white" data-i18n="spa_refund_policy_title">Chính sách hoàn tiền (Refund Policy)</p>
+                                <p class="text-[10px] text-gray-400"><span data-i18n="spa_refund_policy_desc_prefix">Cam kết hoàn tiền theo quy định của</span> {{ brand_name }}.</p>
                             </div>
                         </div>
                         <div class="border-t border-white/5"></div>
                         <div class="flex items-center gap-3">
                             <i class="fas fa-shield-alt text-emerald-400 text-xl"></i>
                             <div>
-                                <p class="text-xs font-bold text-white">Bảo mật giao dịch</p>
-                                <p class="text-[10px] text-gray-400">Mã hóa 256-bit SSL. Thông tin thẻ không được lưu trữ.</p>
+                                <p class="text-xs font-bold text-white" data-i18n="spa_security_title">Bảo mật giao dịch</p>
+                                <p class="text-[10px] text-gray-400" data-i18n="spa_security_desc">Mã hóa 256-bit SSL. Thông tin thẻ không được lưu trữ.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-2 glass-panel-pay p-6">
-                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-credit-card mr-2"></i> Chọn cổng thanh toán</h3>
-                    
+                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-credit-card mr-2"></i> <span data-i18n="spa_choose_payment_title">Chọn cổng thanh toán</span></h3>
+
                     <div class="space-y-6">
                         <div>
-                            <div class="pay-category-title">Cards & Digital Wallets (Quốc tế)</div>
+                            <div class="pay-category-title" data-i18n="spa_pay_category_intl">Cards & Digital Wallets (Quốc tế)</div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div class="payment-method glass-card active" data-method="stripe" data-type="card">
                                     <div class="flex gap-1 text-xl">
@@ -832,23 +833,23 @@
                         </div>
 
                         <div>
-                            <div class="pay-category-title">Local Payment (Việt Nam)</div>
+                            <div class="pay-category-title" data-i18n="spa_pay_category_local">Local Payment (Việt Nam)</div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div class="payment-method glass-card" data-method="vietqr" data-type="qr">
                                     <i class="fas fa-qrcode text-3xl text-emerald-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium">Chuyển khoản VietQR</p>
+                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_vietqr">Chuyển khoản VietQR</p>
                                 </div>
                                 <div class="payment-method glass-card" data-method="vnpay" data-type="redirect">
                                     <div class="text-blue-500 font-black text-xl border-b-2 border-red-500 inline-block leading-none">VNPAY</div>
-                                    <p class="text-[11px] mt-2 font-medium">Thẻ ATM Nội địa</p>
+                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_atm_domestic">Thẻ ATM Nội địa</p>
                                 </div>
                                 <div class="payment-method glass-card" data-method="momo" data-type="qr">
                                     <div class="bg-pink-600 text-white font-bold px-2 py-1 rounded-md mb-1">MoMo</div>
-                                    <p class="text-[11px] mt-1 font-medium">Ví MoMo</p>
+                                    <p class="text-[11px] mt-1 font-medium" data-i18n="spa_pay_momo">Ví MoMo</p>
                                 </div>
                                 <div class="payment-method glass-card" data-method="cash" data-type="cash">
                                     <i class="fas fa-money-bill-wave text-3xl text-green-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium">Tiền mặt tại quầy</p>
+                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_cash">Tiền mặt tại quầy</p>
                                 </div>
                             </div>
                         </div>
@@ -858,30 +859,30 @@
                         <form id="paymentProcessForm" class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Họ và tên</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_fullname">Họ và tên</label>
                                     <input type="text" id="custName" class="glass-input" placeholder="JOHN DOE" required>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Email nhận biên lai</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_email">Email nhận biên lai</label>
                                     <input type="email" id="custEmail" class="glass-input" placeholder="email@domain.com" required>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Số điện thoại khách hàng (Tùy chọn)</label>
+                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_phone_optional">Số điện thoại khách hàng (Tùy chọn)</label>
                                 <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
                             </div>
 
                             <div id="cardDetailsBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4">
-                                <h3 class="text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-credit-card"></i> Thông tin thẻ tín dụng</h3>
+                                <h3 class="text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-credit-card"></i> <span data-i18n="spa_label_card_info">Thông tin thẻ tín dụng</span></h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-400 mb-1">Số thẻ</label>
+                                        <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_card_number">Số thẻ</label>
                                         <input type="text" id="cardNumber" class="glass-input" placeholder="4242 4242 4242 4242">
                                     </div>
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-xs font-bold text-gray-400 mb-1">Hết hạn (MM/YY)</label>
+                                            <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_expiry">Hết hạn (MM/YY)</label>
                                             <input type="text" class="glass-input" placeholder="12/26">
                                         </div>
                                         <div>
@@ -893,20 +894,20 @@
                             </div>
 
                             <div id="qrCodeBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4 hidden text-center">
-                                <h3 class="text-sm font-bold mb-3" id="qrTitle">Quét mã QR</h3>
+                                <h3 class="text-sm font-bold mb-3" id="qrTitle" data-i18n="spa_qr_title">Quét mã QR</h3>
                                 <div class="qr-area mb-3">
                                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=BitPayCheckout" class="w-36 h-36 mx-auto">
                                 </div>
-                                <p class="text-xs text-gray-400" id="qrInstruction">Mở ứng dụng để quét mã thanh toán.</p>
+                                <p class="text-xs text-gray-400" id="qrInstruction" data-i18n="spa_qr_instruction">Mở ứng dụng để quét mã thanh toán.</p>
                             </div>
 
                             <div id="redirectBlock" class="bg-blue-900/20 p-4 rounded-xl border border-blue-500/20 mt-4 hidden text-center">
                                 <i id="redirectIcon" class="fas fa-external-link-alt text-4xl text-blue-400 mb-2"></i>
-                                <p class="text-sm" id="redirectText">Bạn sẽ được chuyển hướng an toàn để hoàn tất giao dịch.</p>
+                                <p class="text-sm" id="redirectText" data-i18n="spa_redirect_default_text">Bạn sẽ được chuyển hướng an toàn để hoàn tất giao dịch.</p>
                             </div>
-                            
+
                             <button type="submit" id="finalPayBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-4 rounded-xl shadow-lg mt-6 transition">
-                                <i class="fas fa-lock"></i> Thanh toán
+                                <i class="fas fa-lock"></i> <span data-i18n="spa_btn_pay">Thanh toán</span>
                             </button>
                         </form>
                     </div>
@@ -918,25 +919,25 @@
     <div id="resultModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10005] hidden items-center justify-center p-4">
         <div class="glass-panel p-8 w-full max-w-md text-center transform scale-95 transition-transform duration-300 font-[Inter]" id="resultModalInner">
             <i class="fas fa-check-circle text-7xl text-emerald-400 mb-4 shadow-emerald-500/50 drop-shadow-lg"></i>
-            <h3 class="text-2xl font-black mb-2 text-white">Thành công!</h3>
-            <p class="text-gray-400 text-sm mb-4">Hệ thống đã ghi nhận đơn hàng của bạn.</p>
-            
+            <h3 class="text-2xl font-black mb-2 text-white" data-i18n="spa_result_success_title">Thành công!</h3>
+            <p class="text-gray-400 text-sm mb-4" data-i18n="spa_result_success_desc">Hệ thống đã ghi nhận đơn hàng của bạn.</p>
+
             <div class="bg-black/40 p-4 rounded-xl text-left mb-6 mt-4">
                 <p class="text-sm text-gray-300 flex justify-between mb-2">
-                    <span>Mã GD:</span> 
+                    <span data-i18n="spa_result_txn_label">Mã GD:</span>
                     <span id="resTxn" class="font-mono text-cyan-400">#TXN</span>
                 </p>
                 <p class="text-sm text-gray-300 flex justify-between mb-2">
-                    <span>Phương thức:</span> 
+                    <span data-i18n="spa_result_method_label">Phương thức:</span>
                     <span id="resMethod" class="font-bold text-white">STRIPE</span>
                 </p>
                 <p class="text-sm text-gray-300 flex justify-between font-bold border-t border-white/10 pt-2 mt-2">
-                    <span>Số tiền:</span> 
+                    <span data-i18n="spa_result_amount_label">Số tiền:</span>
                     <span id="resAmount" class="text-xl text-emerald-400">0₫</span>
                 </p>
             </div>
 
-            <button onclick="window.location.reload()" class="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition">Đóng & Về trang chủ</button>
+            <button onclick="window.location.reload()" class="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition" data-i18n="spa_btn_close_home">Đóng & Về trang chủ</button>
         </div>
     </div>
 
@@ -948,8 +949,8 @@
                 <i class="fas fa-shield-alt absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-400 text-xl"></i>
             </div>
             <div class="text-center">
-                <h3 class="font-bold text-white mb-1">Hệ thống đang xử lý...</h3>
-                <span class="text-xs text-gray-400 font-mono" id="loadingMethodText">Xin vui lòng không đóng trang</span>
+                <h3 class="font-bold text-white mb-1" data-i18n="spa_loading_title">Hệ thống đang xử lý...</h3>
+                <span class="text-xs text-gray-400 font-mono" id="loadingMethodText" data-i18n="spa_loading_subtitle">Xin vui lòng không đóng trang</span>
             </div>
         </div>
     </div>
@@ -1009,7 +1010,8 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        function showLoading(show, text = 'Đang xử lý...') {
+        function showLoading(show, text = null) {
+            if (text === null) text = t('spa_loading_processing');
             loadingMethodText.innerText = text;
             if (show) {
                 loadingOverlay.classList.add('active');
@@ -1033,7 +1035,7 @@
         // ========== CART LOGIC ==========
         function updateCartUI() {
             if (cart.length === 0) {
-                cartItemsList.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có sản phẩm</div>';
+                cartItemsList.innerHTML = '<div class="text-center text-gray-500 py-5">' + t('spa_cart_empty') + '</div>';
                 cartTotalSpan.innerText = '0₫';
                 cartCountBadge.style.display = 'none';
                 return;
@@ -1120,7 +1122,7 @@
                 }
                 
                 updateCartUI();
-                showToast(`Đã thêm vào giỏ`);
+                showToast(t('spa_toast_added_to_cart'));
                 qtyInput.value = 1;
             });
         });
@@ -1135,9 +1137,9 @@
 
         // ========== CHECKOUT MODAL LOGIC ==========
         openCheckoutModalBtn.addEventListener('click', () => {
-            if (cart.length === 0) { 
-                showToast('Giỏ hàng trống!', true); 
-                return; 
+            if (cart.length === 0) {
+                showToast(t('spa_toast_cart_empty'), true);
+                return;
             }
             
             // Populate Checkout Summary
@@ -1195,13 +1197,13 @@
             const displayStr = currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD');
             
             if (paymentType === 'card') {
-                finalPayBtn.innerHTML = `<i class="fas fa-lock"></i> Thanh toán ${displayStr}`;
+                finalPayBtn.innerHTML = `<i class="fas fa-lock"></i> ${tf('spa_btn_pay_amount', {amount: displayStr})}`;
             } else if (paymentType === 'qr' || paymentType === 'crypto') {
-                finalPayBtn.innerHTML = `<i class="fas fa-qrcode"></i> Lấy mã QR (${displayStr})`;
+                finalPayBtn.innerHTML = `<i class="fas fa-qrcode"></i> ${tf('spa_btn_get_qr', {amount: displayStr})}`;
             } else if (paymentType === 'cash') {
-                finalPayBtn.innerHTML = `<i class="fas fa-check"></i> Xác nhận đặt hẹn (${displayStr})`;
+                finalPayBtn.innerHTML = `<i class="fas fa-check"></i> ${tf('spa_btn_confirm_booking', {amount: displayStr})}`;
             } else {
-                finalPayBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> Tiếp tục (${displayStr})`;
+                finalPayBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> ${tf('spa_btn_continue', {amount: displayStr})}`;
             }
         }
 
@@ -1237,19 +1239,19 @@
             } 
             else if (paymentType === 'qr' || paymentType === 'crypto') {
                 qrCodeBlock.classList.remove('hidden');
-                document.getElementById('qrTitle').innerText = 
-                    selectedMethod === 'crypto' ? 'Gửi Crypto (USDT)' : `Quét mã ${selectedMethod.toUpperCase()}`;
-                
+                document.getElementById('qrTitle').innerText =
+                    selectedMethod === 'crypto' ? t('spa_qr_title_crypto') : tf('spa_qr_title_scan', {method: selectedMethod.toUpperCase()});
+
                 if (selectedMethod === 'crypto') {
                     document.getElementById('cryptoAddressBox').classList.remove('hidden');
                 }
-            } 
+            }
             else if (paymentType === 'redirect' || paymentType === 'wallet' || paymentType === 'cash') {
                 redirectBlock.classList.remove('hidden');
-                document.getElementById('redirectIcon').className = 
+                document.getElementById('redirectIcon').className =
                     paymentType === 'cash' ? 'fas fa-store text-4xl text-green-400 mb-2' : 'fas fa-shield-alt text-4xl text-blue-400 mb-2';
-                document.getElementById('redirectText').innerText = 
-                    paymentType === 'cash' ? 'Thanh toán trực tiếp tại quầy khi đến sử dụng dịch vụ.' : 'Chuyển hướng an toàn để hoàn tất thanh toán.';
+                document.getElementById('redirectText').innerText =
+                    paymentType === 'cash' ? t('spa_redirect_cash_text') : t('spa_redirect_online_text');
             }
         }
 
@@ -1264,20 +1266,20 @@
 
             if(paymentType === 'card') {
                 const cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
-                if (cardNum.length < 15) { 
-                    showToast('Số thẻ không hợp lệ', true); 
-                    return; 
+                if (cardNum.length < 15) {
+                    showToast(t('spa_toast_invalid_card'), true);
+                    return;
                 }
             }
 
-            showLoading(true, `Kết nối cổng ${selectedMethod.toUpperCase()}...`);
+            showLoading(true, tf('spa_loading_connecting_gateway', {method: selectedMethod.toUpperCase()}));
 
             try {
                 // Giả lập thời gian verify payment quốc tế (Stripe, Paypal)
                 await new Promise(res => setTimeout(res, 2000));
 
                 // Lưu vào Supabase Database
-                showLoading(true, 'Đang lưu đơn hàng...');
+                showLoading(true, t('spa_loading_saving_order'));
                 
                 const { data: orderData, error: orderError } = await supabase
                     .from('orders')
@@ -1329,7 +1331,7 @@
 
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi xử lý giao dịch. Vui lòng thử lại.', true);
+                showToast(t('spa_toast_transaction_error'), true);
             } finally {
                 showLoading(false);
             }
@@ -1398,12 +1400,177 @@
             
             anim();
             
-            window.addEventListener('resize', () => { 
-                camera.aspect = window.innerWidth / window.innerHeight; 
-                camera.updateProjectionMatrix(); 
-                renderer.setSize(window.innerWidth, window.innerHeight); 
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             });
         })();
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                spa_header_tagline: 'Khởi tạo dịch vụ - Chạm để thanh toán',
+                spa_btn_add_service: 'Thêm Dịch Vụ',
+                spa_btn_customize: 'Tùy Chỉnh',
+                spa_btn_lobby: 'Sảnh',
+                spa_placeholder_search: 'Tìm dịch vụ...',
+                spa_cat_all: 'Tất cả danh mục',
+                spa_cat_facial: '✨ Chăm sóc da mặt',
+                spa_cat_massage: '💆 Massage cơ thể',
+                spa_cat_hair: '💇 Chăm sóc tóc',
+                spa_cat_special: '🌿 Liệu trình đặc biệt',
+                spa_cat_combo: '🎁 Combo tiết kiệm',
+                spa_btn_add: 'Thêm',
+                spa_empty_title: 'Chưa Có Dịch Vụ',
+                spa_empty_desc: 'Vui lòng thêm các liệu trình Spa / Thẩm mỹ',
+                spa_cart_title: 'Giỏ hàng',
+                spa_cart_empty: 'Chưa có sản phẩm',
+                spa_cart_total_label: 'Tổng cộng:',
+                spa_btn_checkout_now: 'Thanh toán ngay',
+                spa_checkout_title: 'Thanh Toán An Toàn',
+                spa_checkout_summary_title: 'Tổng quan (Summary)',
+                spa_label_currency: 'Tiền tệ (Currency)',
+                spa_label_total_payment: 'Tổng thanh toán',
+                spa_refund_policy_title: 'Chính sách hoàn tiền (Refund Policy)',
+                spa_refund_policy_desc_prefix: 'Cam kết hoàn tiền theo quy định của',
+                spa_security_title: 'Bảo mật giao dịch',
+                spa_security_desc: 'Mã hóa 256-bit SSL. Thông tin thẻ không được lưu trữ.',
+                spa_choose_payment_title: 'Chọn cổng thanh toán',
+                spa_pay_category_intl: 'Cards & Digital Wallets (Quốc tế)',
+                spa_pay_category_local: 'Local Payment (Việt Nam)',
+                spa_pay_vietqr: 'Chuyển khoản VietQR',
+                spa_pay_atm_domestic: 'Thẻ ATM Nội địa',
+                spa_pay_momo: 'Ví MoMo',
+                spa_pay_cash: 'Tiền mặt tại quầy',
+                spa_label_fullname: 'Họ và tên',
+                spa_label_email: 'Email nhận biên lai',
+                spa_label_phone_optional: 'Số điện thoại khách hàng (Tùy chọn)',
+                spa_label_card_info: 'Thông tin thẻ tín dụng',
+                spa_label_card_number: 'Số thẻ',
+                spa_label_expiry: 'Hết hạn (MM/YY)',
+                spa_qr_title: 'Quét mã QR',
+                spa_qr_instruction: 'Mở ứng dụng để quét mã thanh toán.',
+                spa_redirect_default_text: 'Bạn sẽ được chuyển hướng an toàn để hoàn tất giao dịch.',
+                spa_btn_pay: 'Thanh toán',
+                spa_result_success_title: 'Thành công!',
+                spa_result_success_desc: 'Hệ thống đã ghi nhận đơn hàng của bạn.',
+                spa_result_txn_label: 'Mã GD:',
+                spa_result_method_label: 'Phương thức:',
+                spa_result_amount_label: 'Số tiền:',
+                spa_btn_close_home: 'Đóng & Về trang chủ',
+                spa_loading_title: 'Hệ thống đang xử lý...',
+                spa_loading_subtitle: 'Xin vui lòng không đóng trang',
+                spa_loading_processing: 'Đang xử lý...',
+                spa_toast_added_to_cart: 'Đã thêm vào giỏ',
+                spa_toast_cart_empty: 'Giỏ hàng trống!',
+                spa_btn_pay_amount: 'Thanh toán {amount}',
+                spa_btn_get_qr: 'Lấy mã QR ({amount})',
+                spa_btn_confirm_booking: 'Xác nhận đặt hẹn ({amount})',
+                spa_btn_continue: 'Tiếp tục ({amount})',
+                spa_qr_title_crypto: 'Gửi Crypto (USDT)',
+                spa_qr_title_scan: 'Quét mã {method}',
+                spa_redirect_cash_text: 'Thanh toán trực tiếp tại quầy khi đến sử dụng dịch vụ.',
+                spa_redirect_online_text: 'Chuyển hướng an toàn để hoàn tất thanh toán.',
+                spa_toast_invalid_card: 'Số thẻ không hợp lệ',
+                spa_loading_connecting_gateway: 'Kết nối cổng {method}...',
+                spa_loading_saving_order: 'Đang lưu đơn hàng...',
+                spa_toast_transaction_error: 'Lỗi xử lý giao dịch. Vui lòng thử lại.'
+            },
+            en: {
+                spa_header_tagline: 'Set up services - Tap to pay',
+                spa_btn_add_service: 'Add Service',
+                spa_btn_customize: 'Customize',
+                spa_btn_lobby: 'Lobby',
+                spa_placeholder_search: 'Search services...',
+                spa_cat_all: 'All categories',
+                spa_cat_facial: '✨ Facial Care',
+                spa_cat_massage: '💆 Body Massage',
+                spa_cat_hair: '💇 Hair Care',
+                spa_cat_special: '🌿 Special Treatments',
+                spa_cat_combo: '🎁 Saving Combos',
+                spa_btn_add: 'Add',
+                spa_empty_title: 'No Services Yet',
+                spa_empty_desc: 'Please add Spa / Beauty treatments',
+                spa_cart_title: 'Cart',
+                spa_cart_empty: 'No products yet',
+                spa_cart_total_label: 'Total:',
+                spa_btn_checkout_now: 'Checkout Now',
+                spa_checkout_title: 'Secure Checkout',
+                spa_checkout_summary_title: 'Summary',
+                spa_label_currency: 'Currency',
+                spa_label_total_payment: 'Total Payment',
+                spa_refund_policy_title: 'Refund Policy',
+                spa_refund_policy_desc_prefix: 'Refund guaranteed according to',
+                spa_security_title: 'Transaction Security',
+                spa_security_desc: '256-bit SSL encryption. Card details are not stored.',
+                spa_choose_payment_title: 'Choose Payment Gateway',
+                spa_pay_category_intl: 'Cards & Digital Wallets (International)',
+                spa_pay_category_local: 'Local Payment (Vietnam)',
+                spa_pay_vietqr: 'VietQR Bank Transfer',
+                spa_pay_atm_domestic: 'Domestic ATM Card',
+                spa_pay_momo: 'MoMo Wallet',
+                spa_pay_cash: 'Cash at Counter',
+                spa_label_fullname: 'Full Name',
+                spa_label_email: 'Receipt Email',
+                spa_label_phone_optional: 'Customer Phone Number (Optional)',
+                spa_label_card_info: 'Credit Card Information',
+                spa_label_card_number: 'Card Number',
+                spa_label_expiry: 'Expiry (MM/YY)',
+                spa_qr_title: 'Scan QR Code',
+                spa_qr_instruction: 'Open the app to scan the payment code.',
+                spa_redirect_default_text: 'You will be securely redirected to complete the transaction.',
+                spa_btn_pay: 'Pay',
+                spa_result_success_title: 'Success!',
+                spa_result_success_desc: 'Your order has been recorded.',
+                spa_result_txn_label: 'Transaction ID:',
+                spa_result_method_label: 'Method:',
+                spa_result_amount_label: 'Amount:',
+                spa_btn_close_home: 'Close & Back to Home',
+                spa_loading_title: 'Processing...',
+                spa_loading_subtitle: 'Please do not close this page',
+                spa_loading_processing: 'Processing...',
+                spa_toast_added_to_cart: 'Added to cart',
+                spa_toast_cart_empty: 'Cart is empty!',
+                spa_btn_pay_amount: 'Pay {amount}',
+                spa_btn_get_qr: 'Get QR Code ({amount})',
+                spa_btn_confirm_booking: 'Confirm Booking ({amount})',
+                spa_btn_continue: 'Continue ({amount})',
+                spa_qr_title_crypto: 'Send Crypto (USDT)',
+                spa_qr_title_scan: 'Scan {method} Code',
+                spa_redirect_cash_text: 'Pay directly at the counter when you arrive for your service.',
+                spa_redirect_online_text: 'Securely redirecting to complete payment.',
+                spa_toast_invalid_card: 'Invalid card number',
+                spa_loading_connecting_gateway: 'Connecting to {method} gateway...',
+                spa_loading_saving_order: 'Saving order...',
+                spa_toast_transaction_error: 'Error processing transaction. Please try again.'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
     </script>
 </body>
 </html>

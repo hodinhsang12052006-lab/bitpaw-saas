@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thanh Toán & Cấp Tài Khoản | BitPaw OS</title>
+    <title>Checkout & Account Provisioning | BitPaw OS</title>
     
     <!-- Libraries -->
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -69,7 +69,7 @@
 
     <div class="max-w-6xl w-full px-4 relative z-10" id="scroll-container">
         <a href="/landing" class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-6 font-bold bg-black/40 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-md hover:border-[var(--theme-color)]">
-            <i class="fas fa-arrow-left"></i> Quay lại trang chủ
+            <i class="fas fa-arrow-left"></i> Back to homepage
         </a>
 
         <div class="glass rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col lg:flex-row relative">
@@ -91,33 +91,33 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Giỏ hàng của Sếp</h2>
+                            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Your Cart</h2>
                             <span class="bg-white/10 px-2 py-0.5 rounded text-[10px] text-gray-300 font-mono"><i class="fas fa-lock mr-1 text-green-400"></i>AES-256</span>
                         </div>
                     </div>
                     
                     <h1 class="text-3xl font-black mb-2 leading-tight" style="color: var(--theme-color);" id="moduleName">BitPaw OS Module</h1>
-                    <p class="text-sm text-gray-400 mb-8 border-b border-white/10 pb-6" id="moduleDesc">Giải pháp chuyển đổi số toàn diện.</p>
-                    
+                    <p class="text-sm text-gray-400 mb-8 border-b border-white/10 pb-6" id="moduleDesc">Comprehensive digital transformation solution.</p>
+
                     <div class="space-y-4 text-sm font-medium mb-6">
                         <div class="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5 shadow-inner">
-                            <span class="text-gray-400">Chu kỳ thanh toán</span>
-                            <span class="bg-[var(--theme-color)] text-black px-3 py-1 rounded-lg text-xs font-bold shadow-[0_0_10px_var(--theme-shadow)]" id="billingCycle">Theo Tháng</span>
+                            <span class="text-gray-400">Billing cycle</span>
+                            <span class="bg-[var(--theme-color)] text-black px-3 py-1 rounded-lg text-xs font-bold shadow-[0_0_10px_var(--theme-shadow)]" id="billingCycle">Monthly</span>
                         </div>
                         <div class="flex justify-between items-center p-2 px-4">
-                            <span class="text-gray-400">Phí khởi tạo (Setup)</span>
-                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Miễn phí</span>
+                            <span class="text-gray-400">Setup fee</span>
+                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Free</span>
                         </div>
                         <div class="flex justify-between items-center p-2 px-4">
-                            <span class="text-gray-400">Bảo trì hệ thống</span>
-                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Trọn đời</span>
+                            <span class="text-gray-400">System maintenance</span>
+                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Lifetime</span>
                         </div>
                     </div>
 
                     <div class="bg-black/50 p-6 rounded-2xl border shadow-[0_0_20px_var(--theme-shadow)] mt-6 text-center transition-all" style="border-color: var(--theme-color);">
-                        <p class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Tổng Cần Thanh Toán</p>
+                        <p class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Total Amount Due</p>
                         <div class="flex items-baseline justify-center gap-1">
-                            <span class="text-5xl font-black text-white" id="totalPriceDisplay">0</span><span class="text-xl font-bold" style="color: var(--theme-color);" id="currencySpan">VNĐ</span>
+                            <span class="text-5xl font-black text-white" id="totalPriceDisplay">0</span><span class="text-xl font-bold" style="color: var(--theme-color);" id="currencySpan">VND</span>
                         </div>
                     </div>
                 </div>
@@ -125,7 +125,7 @@
                 <div class="mt-auto pt-6 border-t border-white/10">
                     <div class="flex items-center gap-3 text-xs text-gray-500">
                         <i class="fas fa-shield-alt text-green-500 text-2xl"></i>
-                        <p>Thanh toán an toàn 100% được bảo vệ bởi chuẩn mã hóa. Tài khoản hệ thống sẽ được cấp tự động sau khi giao dịch hoàn tất.</p>
+                        <p>100% secure payment protected by encryption standards. Your system account will be provisioned automatically once the transaction is complete.</p>
                     </div>
                 </div>
             </div>
@@ -135,40 +135,40 @@
                 <form id="checkoutForm" class="space-y-6" onsubmit="processOrder(event)">
                     
                     <div class="mb-8">
-                        <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-user-circle" style="color: var(--theme-color);"></i> 1. Đăng ký Tài Khoản Admin</h3>
-                        <p class="text-xs text-gray-400">Thông tin này sẽ được dùng để khởi tạo Master Admin cho hệ thống.</p>
+                        <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-user-circle" style="color: var(--theme-color);"></i> 1. Register Admin Account</h3>
+                        <p class="text-xs text-gray-400">This information will be used to set up the Master Admin for the system.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Tên người đại diện (Sếp) <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Representative Name (Owner) <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <i class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="text" id="custName" required placeholder="Nhập tên..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                                <input type="text" id="custName" required placeholder="Enter name..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Số điện thoại đăng nhập <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Login phone number <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <i class="fas fa-phone-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
                                 <input type="tel" id="custPhone" required placeholder="09xxxx..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Tên Thương Hiệu (Cửa hàng) <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Brand Name (Store) <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <i class="fas fa-store absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="text" id="custShop" required placeholder="VD: BitPaw Store..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                                <input type="text" id="custShop" required placeholder="e.g. BitPaw Store..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Email nhận thông báo</label>
+                            <label class="block text-xs font-bold text-gray-400 mb-2">Notification email</label>
                             <div class="relative">
                                 <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="email" id="custEmail" placeholder="email@congty.com" class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
+                                <input type="email" id="custEmail" placeholder="email@company.com" class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
                             </div>
                         </div>
                     </div>
@@ -176,27 +176,27 @@
                     <div class="pt-6 border-t border-white/10 mt-8" id="paymentSection">
                         <div class="flex justify-between items-end mb-6">
                             <div>
-                                <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-qrcode" style="color: var(--theme-color);"></i> 2. Quét QR Thanh Toán</h3>
-                                <p class="text-xs text-gray-400">Mở App Ngân hàng hoặc ví điện tử để quét mã. Giao dịch xử lý 24/7.</p>
+                                <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-qrcode" style="color: var(--theme-color);"></i> 2. Scan QR to Pay</h3>
+                                <p class="text-xs text-gray-400">Open your banking app or e-wallet to scan the code. Transactions processed 24/7.</p>
                             </div>
-                            <div class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-[10px] text-gray-300 font-mono shadow-inner" id="memoDisplay">Mã: Đang tạo...</div>
+                            <div class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-[10px] text-gray-300 font-mono shadow-inner" id="memoDisplay">Code: Generating...</div>
                         </div>
 
                         <div class="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6" id="bankTabsContainer">
-                            <div class="col-span-full text-center text-xs text-gray-500 py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i>Đang tải Cổng thanh toán...</div>
+                            <div class="col-span-full text-center text-xs text-gray-500 py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading payment gateway...</div>
                         </div>
 
                         <div class="bg-black/60 rounded-2xl border border-white/10 p-6 flex flex-col items-center justify-center min-h-[300px] relative shadow-inner" id="qrContainerWrapper">
                             <div class="text-center text-gray-500 text-sm py-10" id="qrPlaceholder">
-                                Vui lòng chọn một Cổng thanh toán ở trên.
+                                Please select a payment gateway above.
                             </div>
                         </div>
                     </div>
 
                     <button type="submit" class="w-full py-4 rounded-xl font-black text-white text-lg transition-transform hover:scale-[1.02] active:scale-95 mt-6 shadow-[0_10px_30px_var(--theme-shadow)] flex justify-center items-center gap-2" style="background: var(--theme-gradient);" id="btnSubmit">
-                        <i class="fas fa-check-circle"></i> TÔI ĐÃ CHUYỂN KHOẢN
+                        <i class="fas fa-check-circle"></i> I HAVE MADE THE TRANSFER
                     </button>
-                    <p class="text-center text-[10px] text-gray-500 mt-2" id="submitNote">Hệ thống sẽ tự động đối soát trong 3-5 giây.</p>
+                    <p class="text-center text-[10px] text-gray-500 mt-2" id="submitNote">The system will automatically verify within 3-5 seconds.</p>
                 </form>
 
                 <div id="successScreen" class="absolute inset-0 bg-[#08061a]/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center px-8 hidden">
@@ -204,11 +204,11 @@
                         <div class="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style="border-color: var(--theme-color); border-top-color: transparent;" id="spinLoading"></div>
                         <i class="fas fa-shield-check opacity-0 transform scale-50 transition-all duration-500" id="checkDone"></i>
                     </div>
-                    <h2 class="text-3xl font-black mb-3 text-white" id="successTitle">Đang Kiểm Tra Giao Dịch...</h2>
-                    <p class="text-gray-400 mb-8 max-w-sm text-sm" id="successDesc">Vui lòng không đóng trình duyệt. Hệ thống API đang đối soát dòng tiền với Ngân hàng.</p>
-                    
+                    <h2 class="text-3xl font-black mb-3 text-white" id="successTitle">Checking Transaction...</h2>
+                    <p class="text-gray-400 mb-8 max-w-sm text-sm" id="successDesc">Please do not close your browser. The API system is reconciling the payment with the bank.</p>
+
                     <a href="/login" id="btnLoginGo" class="hidden bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/20 transition items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                        Đăng Nhập Quản Trị Ngay <i class="fas fa-arrow-right"></i>
+                        Log In to Admin Now <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
 
@@ -254,28 +254,28 @@
         const moduleType = urlParams.get('plan') || 'pos';
         
         const moduleData = {
-            'hrm': { name: 'BitPaw HRM & Radar', desc: 'Phần mềm quản trị 50+ Nhân sự hiện trường, chấm công GPS & Điều phối AI tự động.', price: 1500000, theme: 'theme-hrm', colorHex: 0x06b6d4 },
-            'pos': { name: 'BitPaw Smart POS', desc: 'Cỗ máy bán hàng đa ngành cho F&B, Spa, Salon. Màn hình KDS và thuật toán xoay tua.', price: 1200000, theme: 'theme-pos', colorHex: 0xec4899 },
-            'ecom': { name: 'BitPaw E-Com Omni', desc: 'Hệ thống đồng bộ tồn kho đa sàn Shopee, Tiktok Shop và báo cáo Lãi ròng thực tế.', price: 1800000, theme: 'theme-ecom', colorHex: 0xf97316 },
-            'agency': { name: 'Gói Tăng Trưởng Lõi', desc: 'Dịch vụ Media Agency, Thiết kế Landing Page chuẩn SEO và Chạy Ads ra Lead.', price: 0, theme: 'theme-agency', colorHex: 0x3b82f6 }
+            'hrm': { name: 'BitPaw HRM & Radar', desc: 'Workforce management software for 50+ field staff, GPS time tracking & automatic AI dispatch.', price: 1500000, theme: 'theme-hrm', colorHex: 0x06b6d4 },
+            'pos': { name: 'BitPaw Smart POS', desc: 'Multi-industry point-of-sale engine for F&B, Spa, Salon. KDS screen and turn-rotation algorithm.', price: 1200000, theme: 'theme-pos', colorHex: 0xec4899 },
+            'ecom': { name: 'BitPaw E-Com Omni', desc: 'Multi-channel inventory sync system for Shopee, TikTok Shop, and real net-profit reporting.', price: 1800000, theme: 'theme-ecom', colorHex: 0xf97316 },
+            'agency': { name: 'Core Growth Package', desc: 'Media agency service, SEO-optimized landing page design, and lead-generating ad campaigns.', price: 0, theme: 'theme-agency', colorHex: 0x3b82f6 }
         };
 
         const currentModule = moduleData[moduleType] || moduleData['pos'];
-        
+
         const randomMemo = 'BP-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-        document.getElementById('memoDisplay').innerText = 'Mã Đơn: ' + randomMemo;
+        document.getElementById('memoDisplay').innerText = 'Order Code: ' + randomMemo;
 
         document.getElementById('bodyTheme').classList.add(currentModule.theme);
         document.getElementById('moduleName').innerText = currentModule.name;
         document.getElementById('moduleDesc').innerText = currentModule.desc;
-        
+
         if(moduleType === 'agency') {
-            document.getElementById('totalPriceDisplay').innerText = 'Chờ Tư Vấn';
+            document.getElementById('totalPriceDisplay').innerText = 'Contact for Pricing';
             document.getElementById('currencySpan').style.display = 'none';
-            document.getElementById('billingCycle').innerText = 'Theo Dự Án';
+            document.getElementById('billingCycle').innerText = 'Per Project';
             document.getElementById('paymentSection').style.display = 'none';
-            document.getElementById('btnSubmit').innerHTML = '<i class="fas fa-headset"></i> GỬI YÊU CẦU TƯ VẤN';
-            document.getElementById('submitNote').innerText = 'Chuyên gia sẽ liên hệ báo giá riêng cho Sếp.';
+            document.getElementById('btnSubmit').innerHTML = '<i class="fas fa-headset"></i> SEND CONSULTATION REQUEST';
+            document.getElementById('submitNote').innerText = 'Our expert will contact you with a custom quote.';
         } else {
             document.getElementById('totalPriceDisplay').innerText = currentModule.price.toLocaleString('vi-VN');
         }
@@ -311,13 +311,13 @@
                     });
                     generateQR(0, tabsContainer.firstElementChild);
                 } else {
-                    tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Hệ thống thanh toán đang bảo trì.</div>';
-                    document.getElementById('qrPlaceholder').innerText = 'Không có phương thức thanh toán khả dụng.';
+                    tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Payment system under maintenance.</div>';
+                    document.getElementById('qrPlaceholder').innerText = 'No payment method available.';
                     document.getElementById('btnSubmit').disabled = true;
                     document.getElementById('btnSubmit').style.opacity = '0.5';
                 }
             } catch (error) {
-                tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4">Lỗi kết nối tới Server.</div>';
+                tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4">Server connection error.</div>';
             }
         }
 
@@ -329,7 +329,7 @@
             const bank = activeBanks[bankIndex];
             const qrWrapper = document.getElementById('qrContainerWrapper');
             
-            qrWrapper.innerHTML = `<div class="text-gray-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>Đang tạo mã QR...</div>`;
+            qrWrapper.innerHTML = `<div class="text-gray-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>Generating QR code...</div>`;
 
             const amount = currentModule.price;
             const addInfo = encodeURIComponent(randomMemo);
@@ -345,8 +345,8 @@
                         <p class="text-sm font-bold text-white mb-1 uppercase">${bank.account_name}</p>
                         <p class="text-xs text-gray-400 font-mono tracking-widest bg-gray-800 px-3 py-1 rounded-md mb-3">${bank.account_number}</p>
                         <div class="text-[10px] text-gray-500 bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-center">
-                            <p>Số tiền: <strong class="text-white">${amount.toLocaleString('vi-VN')} đ</strong></p>
-                            <p>Nội dung: <strong style="color: var(--theme-color);">${randomMemo}</strong></p>
+                            <p>Amount: <strong class="text-white">${amount.toLocaleString('vi-VN')} VND</strong></p>
+                            <p>Memo: <strong style="color: var(--theme-color);">${randomMemo}</strong></p>
                         </div>
                     </div>
                 `;
@@ -362,7 +362,7 @@
             }
 
             const btn = document.getElementById('btnSubmit');
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ĐANG GỬI DỮ LIỆU...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> SENDING DATA...';
             btn.classList.add('opacity-70', 'cursor-not-allowed');
 
             const orderData = {
@@ -390,13 +390,13 @@
                     checkDone.classList.add('opacity-100', 'scale-100');
                     checkDone.classList.add('text-green-400');
                     
-                    document.getElementById('successTitle').innerText = 'Yêu Cầu Đã Gửi Thành Công!';
+                    document.getElementById('successTitle').innerText = 'Request Sent Successfully!';
                     document.getElementById('successTitle').classList.add('text-green-400');
-                    
+
                     if(moduleType === 'agency') {
-                        document.getElementById('successDesc').innerText = 'Chuyên gia Marketing của BitPaw sẽ liên hệ với Sếp qua số điện thoại đăng ký trong vòng 15 phút tới.';
+                        document.getElementById('successDesc').innerText = 'A BitPaw marketing specialist will contact you via your registered phone number within the next 15 minutes.';
                     } else {
-                        document.getElementById('successDesc').innerHTML = `Mã đơn hàng <strong class="text-white">${randomMemo}</strong> đã được ghi nhận. Hệ thống đang chờ tiền về để tự động kích hoạt tài khoản cho Sếp.`;
+                        document.getElementById('successDesc').innerHTML = `Order code <strong class="text-white">${randomMemo}</strong> has been recorded. The system is waiting for the payment to arrive to automatically activate your account.`;
                     }
                     
                     document.getElementById('btnLoginGo').classList.remove('hidden');
@@ -406,8 +406,8 @@
                 }, 2500);
 
             } catch (error) {
-                alert("Lỗi khi tạo đơn hàng: " + error.message);
-                btn.innerHTML = '<i class="fas fa-check-circle"></i> THỬ LẠI LẦN NỮA';
+                alert("Error creating order: " + error.message);
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> TRY AGAIN';
                 btn.classList.remove('opacity-70', 'cursor-not-allowed');
             }
         }

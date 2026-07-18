@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -375,28 +375,31 @@
                 </div>
                 <h1 class="text-2xl font-bold">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg">Ad Assistant</span></h1>
             </div>
-            <a href="/" class="text-gray-400 hover:text-white text-sm">← Về Dashboard</a>
+            <div class="flex items-center gap-3">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
+                <a href="/" class="text-gray-400 hover:text-white text-sm"><span data-i18n="ad_assistant_back_dashboard">← Về Dashboard</span></a>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Cột trái: Form + Chart -->
             <div class="glass-card p-6">
-                <h2 class="text-xl font-bold mb-4">🚀 Thông tin chiến dịch</h2>
+                <h2 class="text-xl font-bold mb-4" data-i18n="ad_assistant_campaign_info_title">🚀 Thông tin chiến dịch</h2>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Tên sản phẩm / Dịch vụ</label>
-                        <input type="text" id="productName" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="VD: Áo thun thể thao">
+                        <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_product_name_label">Tên sản phẩm / Dịch vụ</label>
+                        <input type="text" id="productName" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="VD: Áo thun thể thao" data-i18n-placeholder="ad_assistant_product_name_placeholder">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Mô tả (tuỳ chọn)</label>
-                        <textarea id="productDesc" rows="2" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="Mô tả ngắn về sản phẩm"></textarea>
+                        <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_product_desc_label">Mô tả (tuỳ chọn)</label>
+                        <textarea id="productDesc" rows="2" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="Mô tả ngắn về sản phẩm" data-i18n-placeholder="ad_assistant_product_desc_placeholder"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Ngân sách (VNĐ)</label>
+                        <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Ngân sách</span> (<span id="budgetCurrencyUnit">{{ 'USD' if tenant_currency == 'USD' else 'VNĐ' }}</span>)</label>
                         <input type="number" id="budget" value="2000000" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="100000">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Nền tảng</label>
+                        <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_platform_label">Nền tảng</label>
                         <select id="platform" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white">
                             <option value="facebook">Facebook / Instagram</option>
                             <option value="tiktok">TikTok</option>
@@ -404,24 +407,24 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Đối tượng mục tiêu (tuổi, sở thích)</label>
+                        <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_audience_label">Đối tượng mục tiêu (tuổi, sở thích)</label>
                         <div class="flex gap-2">
-                            <input type="number" id="ageMin" placeholder="Tuổi min" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="18">
-                            <input type="number" id="ageMax" placeholder="Tuổi max" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="35">
+                            <input type="number" id="ageMin" placeholder="Tuổi min" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="18" data-i18n-placeholder="ad_assistant_age_min_placeholder">
+                            <input type="number" id="ageMax" placeholder="Tuổi max" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="35" data-i18n-placeholder="ad_assistant_age_max_placeholder">
                         </div>
-                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="thể thao, thời trang">
+                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="thể thao, thời trang" data-i18n-placeholder="ad_assistant_interests_placeholder">
                     </div>
                     <button id="createCampaignBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-lg font-bold mt-2 relative">
-                        <span id="btnText">🚀 Lấy gợi ý AI & Tạo chiến dịch</span>
+                        <span id="btnText" data-i18n="ad_assistant_create_campaign_btn">🚀 Lấy gợi ý AI & Tạo chiến dịch</span>
                         <span id="btnLoading" class="loading-spinner hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></span>
                     </button>
                     <div id="campaignResult" class="text-sm mt-2 hidden"></div>
                 </div>
 
                 <div class="mt-8">
-                    <h3 class="font-bold text-sm mb-2 text-cyan-400">📈 Dự phóng hiệu quả (7 ngày)</h3>
+                    <h3 class="font-bold text-sm mb-2 text-cyan-400" data-i18n="ad_assistant_forecast_title">📈 Dự phóng hiệu quả (7 ngày)</h3>
                     <canvas id="roiChart" height="200" style="max-height: 200px;"></canvas>
-                    <p class="text-xs text-gray-400 text-center mt-2">*Dữ liệu mô phỏng, thay đổi theo ngân sách</p>
+                    <p class="text-xs text-gray-400 text-center mt-2" data-i18n="ad_assistant_forecast_note">*Dữ liệu mô phỏng, thay đổi theo ngân sách</p>
                 </div>
             </div>
 
@@ -448,12 +451,12 @@
 
         <div class="grid grid-cols-1 gap-4 mt-6">
             <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> <span data-i18n="ad_assistant_support_title">Gửi yêu cầu hỗ trợ</span></h3>
                 <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
-                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required data-i18n-placeholder="ad_assistant_support_name_placeholder">
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required data-i18n-placeholder="ad_assistant_support_phone_placeholder">
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required data-i18n-placeholder="ad_assistant_support_message_placeholder"></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition" data-i18n="ad_assistant_support_submit_btn">Gửi yêu cầu</button>
                 </form>
                 <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
             </div>
@@ -467,27 +470,168 @@
         </div>
         <div class="chat-window" id="chatWindow">
             <div class="chat-header">
-                <span><i class="fas fa-robot text-cyan-400"></i> AI Trợ lý quảng cáo</span>
+                <span><i class="fas fa-robot text-cyan-400"></i> <span data-i18n="ad_assistant_chat_header">AI Trợ lý quảng cáo</span></span>
                 <i class="fas fa-times cursor-pointer" id="closeChat"></i>
             </div>
             <div class="chat-messages" id="chatMessages">
-                <div class="message bot-message">Chào bạn! Hãy chat với tôi, ví dụ: "Lên chiến dịch bán giày thể thao 5 triệu trên TikTok"</div>
+                <div class="message bot-message" data-i18n="ad_assistant_chat_welcome">Chào bạn! Hãy chat với tôi, ví dụ: "Lên chiến dịch bán giày thể thao 5 triệu trên TikTok"</div>
             </div>
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Nhập yêu cầu...">
-                <button id="sendChat" class="bg-cyan-500 px-4 py-2 rounded-full text-black font-bold">Gửi</button>
+                <input type="text" id="chatInput" placeholder="Nhập yêu cầu..." data-i18n-placeholder="ad_assistant_chat_input_placeholder">
+                <button id="sendChat" class="bg-cyan-500 px-4 py-2 rounded-full text-black font-bold" data-i18n="ad_assistant_chat_send_btn">Gửi</button>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
-    <div id="toast" class="toast">Thông báo</div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="ad_assistant_processing">Đang xử lý...</span></div></div>
+    <div id="toast" class="toast" data-i18n="ad_assistant_toast_default">Thông báo</div>
 
     <script>
         // ========== SUPABASE CLIENT ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // ========== MULTI-LANGUAGE (VI/EN) ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+
+        const translations = {
+            vi: {
+                ad_assistant_back_dashboard: '← Về Dashboard',
+                ad_assistant_campaign_info_title: '🚀 Thông tin chiến dịch',
+                ad_assistant_product_name_label: 'Tên sản phẩm / Dịch vụ',
+                ad_assistant_product_name_placeholder: 'VD: Áo thun thể thao',
+                ad_assistant_product_desc_label: 'Mô tả (tuỳ chọn)',
+                ad_assistant_product_desc_placeholder: 'Mô tả ngắn về sản phẩm',
+                ad_assistant_budget_label: 'Ngân sách',
+                ad_assistant_platform_label: 'Nền tảng',
+                ad_assistant_audience_label: 'Đối tượng mục tiêu (tuổi, sở thích)',
+                ad_assistant_age_min_placeholder: 'Tuổi min',
+                ad_assistant_age_max_placeholder: 'Tuổi max',
+                ad_assistant_interests_placeholder: 'Sở thích (cách nhau dấu phẩy)',
+                ad_assistant_create_campaign_btn: '🚀 Lấy gợi ý AI & Tạo chiến dịch',
+                ad_assistant_forecast_title: '📈 Dự phóng hiệu quả (7 ngày)',
+                ad_assistant_forecast_note: '*Dữ liệu mô phỏng, thay đổi theo ngân sách',
+                ad_assistant_support_title: 'Gửi yêu cầu hỗ trợ',
+                ad_assistant_support_name_placeholder: 'Tên của bạn',
+                ad_assistant_support_phone_placeholder: 'Số điện thoại / Zalo',
+                ad_assistant_support_message_placeholder: 'Nội dung cần hỗ trợ...',
+                ad_assistant_support_submit_btn: 'Gửi yêu cầu',
+                ad_assistant_chat_header: 'AI Trợ lý quảng cáo',
+                ad_assistant_chat_welcome: 'Chào bạn! Hãy chat với tôi, ví dụ: "Lên chiến dịch bán giày thể thao 5 triệu trên TikTok"',
+                ad_assistant_chat_input_placeholder: 'Nhập yêu cầu...',
+                ad_assistant_chat_send_btn: 'Gửi',
+                ad_assistant_processing: 'Đang xử lý...',
+                ad_assistant_toast_default: 'Thông báo',
+                ad_assistant_no_suggestions: 'Chưa có gợi ý. Hãy nhập thông tin và nhấn "Lấy gợi ý".',
+                ad_assistant_card_fomo: '🔥 Mẫu FOMO (Sốt hàng)',
+                ad_assistant_card_story: '📖 Mẫu Kể chuyện',
+                ad_assistant_card_trend: '🕺 Mẫu Bắt trend',
+                ad_assistant_cta_buy_now: 'Mua ngay',
+                ad_assistant_cta_experience: 'Trải nghiệm',
+                ad_assistant_cta_view_now: 'Xem ngay',
+                ad_assistant_cta_label: 'CTA:',
+                ad_assistant_copied: 'Đã copy nội dung!',
+                ad_assistant_tiktok_mockup: 'Video TikTok Mockup',
+                ad_assistant_time_ago: '1 giờ trước · 📍',
+                ad_assistant_product_image: 'Ảnh sản phẩm',
+                ad_assistant_enter_product_name: 'Vui lòng nhập tên sản phẩm.',
+                ad_assistant_error_prefix: 'Lỗi: ',
+                ad_assistant_connection_error: 'Lỗi kết nối đến máy chủ.',
+                ad_assistant_campaign_create_failed: 'Tạo chiến dịch thất bại',
+                ad_assistant_campaign_created: '✅ Đã tạo chiến dịch',
+                ad_assistant_campaign_pending: '⚠️ Gợi ý đã sẵn sàng, nhưng chưa tạo được campaign thật. Kiểm tra lại thông tin nền tảng.',
+                ad_assistant_default_product_name: 'sản phẩm mới',
+                ad_assistant_chat_analyzing: '🤖 AI đang phân tích và lấy gợi ý...',
+                ad_assistant_chat_filled: '✅ Đã điền form và lấy gợi ý cho "{name}" trên {platform} với ngân sách {budget}đ.',
+                ad_assistant_fill_all_fields: 'Vui lòng nhập đầy đủ thông tin',
+                ad_assistant_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                ad_assistant_cannot_get_suggestions: 'Không thể lấy gợi ý'
+            },
+            en: {
+                ad_assistant_back_dashboard: '← Back to Dashboard',
+                ad_assistant_campaign_info_title: '🚀 Campaign Information',
+                ad_assistant_product_name_label: 'Product / Service Name',
+                ad_assistant_product_name_placeholder: 'E.g.: Sports T-shirt',
+                ad_assistant_product_desc_label: 'Description (optional)',
+                ad_assistant_product_desc_placeholder: 'Short product description',
+                ad_assistant_budget_label: 'Budget',
+                ad_assistant_platform_label: 'Platform',
+                ad_assistant_audience_label: 'Target audience (age, interests)',
+                ad_assistant_age_min_placeholder: 'Min age',
+                ad_assistant_age_max_placeholder: 'Max age',
+                ad_assistant_interests_placeholder: 'Interests (comma-separated)',
+                ad_assistant_create_campaign_btn: '🚀 Get AI Suggestions & Create Campaign',
+                ad_assistant_forecast_title: '📈 Performance Forecast (7 days)',
+                ad_assistant_forecast_note: '*Simulated data, varies with budget',
+                ad_assistant_support_title: 'Send a support request',
+                ad_assistant_support_name_placeholder: 'Your name',
+                ad_assistant_support_phone_placeholder: 'Phone number / Zalo',
+                ad_assistant_support_message_placeholder: 'Describe what you need help with...',
+                ad_assistant_support_submit_btn: 'Send request',
+                ad_assistant_chat_header: 'AI Ad Assistant',
+                ad_assistant_chat_welcome: 'Hi! Chat with me, e.g.: "Create a campaign to sell sneakers with a 5 million budget on TikTok"',
+                ad_assistant_chat_input_placeholder: 'Type your request...',
+                ad_assistant_chat_send_btn: 'Send',
+                ad_assistant_processing: 'Processing...',
+                ad_assistant_toast_default: 'Notification',
+                ad_assistant_no_suggestions: 'No suggestions yet. Enter your info and click "Get suggestions".',
+                ad_assistant_card_fomo: '🔥 FOMO Template (Selling fast)',
+                ad_assistant_card_story: '📖 Storytelling Template',
+                ad_assistant_card_trend: '🕺 Trend-jacking Template',
+                ad_assistant_cta_buy_now: 'Buy now',
+                ad_assistant_cta_experience: 'Experience it',
+                ad_assistant_cta_view_now: 'View now',
+                ad_assistant_cta_label: 'CTA:',
+                ad_assistant_copied: 'Content copied!',
+                ad_assistant_tiktok_mockup: 'TikTok Video Mockup',
+                ad_assistant_time_ago: '1 hour ago · 📍',
+                ad_assistant_product_image: 'Product image',
+                ad_assistant_enter_product_name: 'Please enter a product name.',
+                ad_assistant_error_prefix: 'Error: ',
+                ad_assistant_connection_error: 'Connection error to the server.',
+                ad_assistant_campaign_create_failed: 'Failed to create campaign',
+                ad_assistant_campaign_created: '✅ Campaign created',
+                ad_assistant_campaign_pending: '⚠️ Suggestions are ready, but the real campaign could not be created. Please check your platform info.',
+                ad_assistant_default_product_name: 'new product',
+                ad_assistant_chat_analyzing: '🤖 AI is analyzing and fetching suggestions...',
+                ad_assistant_chat_filled: '✅ Form filled and suggestions fetched for "{name}" on {platform} with a budget of {budget}₫.',
+                ad_assistant_fill_all_fields: 'Please fill in all the information',
+                ad_assistant_support_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                ad_assistant_cannot_get_suggestions: 'Unable to get suggestions'
+            }
+        };
+
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.innerHTML = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+            });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            fetchSuggestions();
+        }
+        document.addEventListener('DOMContentLoaded', applyStaticTranslations);
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         // ========== TOAST & LOADING ==========
         const toast = document.getElementById('toast');
@@ -547,7 +691,7 @@
                     <div class="tt-mockup">
                         <div class="tt-video">
                             <i class="fas fa-play-circle text-5xl text-white/50"></i>
-                            <p class="text-xs text-center text-gray-400 mt-2">Video TikTok Mockup</p>
+                            <p class="text-xs text-center text-gray-400 mt-2">${t('ad_assistant_tiktok_mockup')}</p>
                         </div>
                         <div class="mt-3">
                             <div class="flex items-center gap-2">
@@ -568,7 +712,7 @@
                             <div class="fb-avatar">BP</div>
                             <div>
                                 <div class="font-bold text-sm">BitPaw Ads</div>
-                                <div class="text-[10px] text-gray-400">1 giờ trước · 📍</div>
+                                <div class="text-[10px] text-gray-400">${t('ad_assistant_time_ago')}</div>
                             </div>
                         </div>
                         <div class="fb-caption">
@@ -576,7 +720,7 @@
                             <p class="text-gray-300 mt-1">${desc}</p>
                         </div>
                         <div class="fb-img-placeholder">
-                            <i class="fas fa-image text-3xl"></i> <span class="ml-2">Ảnh sản phẩm</span>
+                            <i class="fas fa-image text-3xl"></i> <span class="ml-2">${t('ad_assistant_product_image')}</span>
                         </div>
                         <div class="flex justify-around mt-3 text-gray-400 text-sm">
                             <span><i class="far fa-heart"></i> Like</span>
@@ -592,15 +736,15 @@
         function renderSuggestions(suggestions) {
             const container = document.getElementById('abContentContainer');
             if (!suggestions || !suggestions.headlines || !suggestions.descriptions) {
-                container.innerHTML = `<p class="text-gray-400">Chưa có gợi ý. Hãy nhập thông tin và nhấn "Lấy gợi ý".</p>`;
+                container.innerHTML = `<p class="text-gray-400">${t('ad_assistant_no_suggestions')}</p>`;
                 return;
             }
             const headlines = suggestions.headlines;
             const descriptions = suggestions.descriptions;
             const cardData = [
-                { type: 'fomo', label: '🔥 Mẫu FOMO (Sốt hàng)', headline: headlines[0] || '', desc: descriptions[0] || '', cta: 'Mua ngay' },
-                { type: 'story', label: '📖 Mẫu Kể chuyện', headline: headlines[1] || headlines[0] || '', desc: descriptions[1] || descriptions[0] || '', cta: 'Trải nghiệm' },
-                { type: 'trend', label: '🕺 Mẫu Bắt trend', headline: headlines[2] || headlines[0] || '', desc: descriptions[2] || descriptions[0] || '', cta: 'Xem ngay' }
+                { type: 'fomo', label: t('ad_assistant_card_fomo'), headline: headlines[0] || '', desc: descriptions[0] || '', cta: t('ad_assistant_cta_buy_now') },
+                { type: 'story', label: t('ad_assistant_card_story'), headline: headlines[1] || headlines[0] || '', desc: descriptions[1] || descriptions[0] || '', cta: t('ad_assistant_cta_experience') },
+                { type: 'trend', label: t('ad_assistant_card_trend'), headline: headlines[2] || headlines[0] || '', desc: descriptions[2] || descriptions[0] || '', cta: t('ad_assistant_cta_view_now') }
             ];
             container.innerHTML = cardData.map(card => `
                 <div class="glass-card p-4">
@@ -610,7 +754,7 @@
                     </div>
                     <h4 class="font-bold mt-2">${card.headline}</h4>
                     <p class="text-sm text-gray-300 mt-1">${card.desc}</p>
-                    <div class="mt-2 text-xs text-cyan-400">CTA: ${card.cta}</div>
+                    <div class="mt-2 text-xs text-cyan-400">${t('ad_assistant_cta_label')} ${card.cta}</div>
                 </div>
             `).join('');
             document.querySelectorAll('.copy-btn').forEach(btn => {
@@ -618,7 +762,7 @@
                     const headline = btn.getAttribute('data-headline');
                     const desc = btn.getAttribute('data-desc');
                     navigator.clipboard.writeText(headline + "\n" + desc);
-                    alert("Đã copy nội dung!");
+                    alert(t('ad_assistant_copied'));
                 });
             });
             const platform = document.getElementById('platform').value;
@@ -633,7 +777,7 @@
         async function fetchSuggestions() {
             const productName = document.getElementById('productName').value.trim();
             if (!productName) {
-                showToast('Vui lòng nhập tên sản phẩm.', true);
+                showToast(t('ad_assistant_enter_product_name'), true);
                 return;
             }
             const body = {
@@ -657,10 +801,10 @@
                 if (data.success) {
                     renderSuggestions(data.suggestions);
                 } else {
-                    showToast('Lỗi: ' + (data.error || 'Không thể lấy gợi ý'), true);
+                    showToast(t('ad_assistant_error_prefix') + (data.error || t('ad_assistant_cannot_get_suggestions')), true);
                 }
             } catch (err) {
-                showToast('Lỗi kết nối đến máy chủ.', true);
+                showToast(t('ad_assistant_connection_error'), true);
             }
         }
 
@@ -668,7 +812,7 @@
         async function createCampaign() {
             const productName = document.getElementById('productName').value.trim();
             if (!productName) {
-                showToast('Vui lòng nhập tên sản phẩm.', true);
+                showToast(t('ad_assistant_enter_product_name'), true);
                 return;
             }
             const body = {
@@ -689,10 +833,10 @@
                 if (data.success) {
                     return data.campaign_id;
                 } else {
-                    throw new Error(data.error || "Tạo chiến dịch thất bại");
+                    throw new Error(data.error || t('ad_assistant_campaign_create_failed'));
                 }
             } catch (err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('ad_assistant_error_prefix') + err.message, true);
                 return null;
             }
         }
@@ -713,9 +857,9 @@
             const campaignId = await createCampaign();
 
             if (campaignId) {
-                campaignResult.innerHTML = `✅ Đã tạo chiến dịch <span class="text-cyan-400 font-mono">${campaignId}</span>`;
+                campaignResult.innerHTML = `${t('ad_assistant_campaign_created')} <span class="text-cyan-400 font-mono">${campaignId}</span>`;
             } else {
-                campaignResult.innerHTML = `⚠️ Gợi ý đã sẵn sàng, nhưng chưa tạo được campaign thật. Kiểm tra lại thông tin nền tảng.`;
+                campaignResult.innerHTML = t('ad_assistant_campaign_pending');
             }
             campaignResult.classList.remove('hidden');
 
@@ -745,7 +889,7 @@
 
         function parseMessage(msg) {
             const lower = msg.toLowerCase();
-            let productName = "sản phẩm mới";
+            let productName = t('ad_assistant_default_product_name');
             let budgetVal = 3000000;
             let platformVal = "facebook";
             const productMatch = msg.match(/bán\s+([a-zA-ZÀ-ỹ\s]+?)(?:\s+\d+\s*tr|trên|\s+với|\s+giá)/i);
@@ -771,12 +915,12 @@
             if (!userMsg) return;
             addMessage(userMsg, true);
             chatInput.value = '';
-            addMessage("🤖 AI đang phân tích và lấy gợi ý...", false);
+            addMessage(t('ad_assistant_chat_analyzing'), false);
             const { productName, budgetVal, platformVal } = parseMessage(userMsg);
             autoFillFormAndFetch(productName, budgetVal, platformVal);
             setTimeout(() => {
                 if (chatMessages.lastChild) chatMessages.removeChild(chatMessages.lastChild);
-                addMessage(`✅ Đã điền form và lấy gợi ý cho "${productName}" trên ${platformVal} với ngân sách ${budgetVal.toLocaleString()}đ.`, false);
+                addMessage(tf('ad_assistant_chat_filled', { name: productName, platform: platformVal, budget: budgetVal.toLocaleString() }), false);
             }, 2500);
         });
         chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat.click(); });
@@ -829,7 +973,7 @@
             const phone = document.getElementById('supportPhone').value.trim();
             const message = document.getElementById('supportMessage').value.trim();
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('ad_assistant_fill_all_fields'), true);
                 return;
             }
             showLoading(true);
@@ -838,10 +982,10 @@
                     name, phone, message, status: 'pending', created_at: new Date()
                 }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('ad_assistant_support_sent'));
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('ad_assistant_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }

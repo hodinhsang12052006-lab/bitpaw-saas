@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -92,40 +92,44 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_overview">Tổng quan</span>
                 </a>
                 <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_attendance">Chấm công</span>
                 </a>
                 <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_payroll">Bảng lương</span>
                 </a>
                 <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Trạm Liên Lạc</span>
+                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="baocaoloinhuan_nav_chat">Trạm Liên Lạc</span>
                 </a>
                 <a href="/map_dashboard" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_gps">Radar GPS Thợ</span>
                 </a>
                 <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Công nợ</span>
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_debt">Quản lý Công nợ</span>
                 </a>
                 <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Thu Chi</span>
+                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_revenue">Quản lý Thu Chi</span>
                 </a>
                 <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Báo cáo lợi nhuận</span>
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_profit">Báo cáo lợi nhuận</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="dashboard_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -135,16 +139,16 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
-                    Báo cáo <span class="text-cyan-400">Lợi nhuận</span> <i class="fas fa-chart-line text-cyan-400"></i>
+                    <span data-i18n="baocaoloinhuan_title_prefix">Báo cáo</span> <span class="text-cyan-400" data-i18n="baocaoloinhuan_title_highlight">Lợi nhuận</span> <i class="fas fa-chart-line text-cyan-400"></i>
                 </h2>
-                <p class="text-gray-400 text-sm mt-1">Phân tích doanh thu, chi phí và lợi nhuận theo thời gian</p>
+                <p class="text-gray-400 text-sm mt-1" data-i18n="baocaoloinhuan_subtitle">Phân tích doanh thu, chi phí và lợi nhuận theo thời gian</p>
             </div>
             <div class="flex gap-3">
                 <button onclick="exportToExcel()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white px-5 py-2.5 rounded-xl transition-all font-bold text-sm flex items-center gap-2">
-                    <i class="fas fa-file-excel"></i> Xuất Excel
+                    <i class="fas fa-file-excel"></i> <span data-i18n="baocaoloinhuan_export_excel">Xuất Excel</span>
                 </button>
                 <button onclick="exportToPDF()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white px-5 py-2.5 rounded-xl transition-all font-bold text-sm flex items-center gap-2">
-                    <i class="fas fa-file-pdf"></i> Xuất PDF
+                    <i class="fas fa-file-pdf"></i> <span data-i18n="baocaoloinhuan_export_pdf">Xuất PDF</span>
                 </button>
             </div>
         </div>
@@ -152,49 +156,49 @@
         <!-- Bộ lọc -->
         <div class="glass-panel p-4 rounded-2xl mb-6 flex flex-wrap gap-4 items-end">
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Kỳ báo cáo</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_filter_period_type">Kỳ báo cáo</label>
                 <select id="periodType" class="glass-input py-2 text-sm w-32" onchange="changePeriodType()">
-                    <option value="month">Theo tháng</option>
-                    <option value="quarter">Theo quý</option>
-                    <option value="year">Theo năm</option>
+                    <option value="month" data-i18n="baocaoloinhuan_period_month">Theo tháng</option>
+                    <option value="quarter" data-i18n="baocaoloinhuan_period_quarter">Theo quý</option>
+                    <option value="year" data-i18n="baocaoloinhuan_period_year">Theo năm</option>
                 </select>
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Năm</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_filter_year">Năm</label>
                 <select id="yearSelect" class="glass-input py-2 text-sm w-32" onchange="loadProfitReport()"></select>
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Từ ngày (tùy chọn)</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_filter_from">Từ ngày (tùy chọn)</label>
                 <input type="date" id="customFrom" class="glass-input py-2 text-sm w-40">
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Đến ngày</label>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_filter_to">Đến ngày</label>
                 <input type="date" id="customTo" class="glass-input py-2 text-sm w-40">
             </div>
             <button onclick="loadProfitReport()" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 font-bold px-4 py-2 rounded-xl transition-colors">
-                <i class="fas fa-chart-simple mr-1"></i> Xem báo cáo
+                <i class="fas fa-chart-simple mr-1"></i> <span data-i18n="baocaoloinhuan_view_report">Xem báo cáo</span>
             </button>
         </div>
 
         <!-- Thẻ tổng quan -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-emerald-500">
-                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1">Tổng doanh thu</p>
+                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_total_revenue">Tổng doanh thu</p>
                 <p class="text-3xl font-black text-emerald-400" id="totalRevenue">0 ₫</p>
             </div>
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-rose-500">
-                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1">Tổng chi phí</p>
+                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_total_cost">Tổng chi phí</p>
                 <p class="text-3xl font-black text-rose-400" id="totalCost">0 ₫</p>
             </div>
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-cyan-500">
-                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1">Lợi nhuận ròng</p>
+                <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_net_profit">Lợi nhuận ròng</p>
                 <p class="text-3xl font-black text-cyan-400" id="netProfit">0 ₫</p>
             </div>
         </div>
 
         <!-- Biểu đồ lợi nhuận -->
         <div class="glass-panel p-5 rounded-3xl mb-8">
-            <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-chart-column text-cyan-400"></i> Biểu đồ lợi nhuận</h3>
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-chart-column text-cyan-400"></i> <span data-i18n="baocaoloinhuan_chart_title">Biểu đồ lợi nhuận</span></h3>
             <canvas id="profitChart" height="100"></canvas>
         </div>
 
@@ -204,15 +208,15 @@
                 <table class="min-w-full text-left border-collapse" id="reportTable">
                     <thead class="bg-black/60 border-b border-cyan-500/30 text-cyan-400 text-xs uppercase tracking-wider font-black">
                         <tr>
-                            <th class="px-6 py-4">Kỳ</th>
-                            <th class="px-6 py-4 text-right">Doanh thu (₫)</th>
-                            <th class="px-6 py-4 text-right">Chi phí (₫)</th>
-                            <th class="px-6 py-4 text-right">Lợi nhuận (₫)</th>
-                            <th class="px-6 py-4 text-right">Biên lợi nhuận (%)</th>
+                            <th class="px-6 py-4" data-i18n="baocaoloinhuan_th_period">Kỳ</th>
+                            <th class="px-6 py-4 text-right" data-i18n="baocaoloinhuan_th_revenue">Doanh thu (₫)</th>
+                            <th class="px-6 py-4 text-right" data-i18n="baocaoloinhuan_th_cost">Chi phí (₫)</th>
+                            <th class="px-6 py-4 text-right" data-i18n="baocaoloinhuan_th_profit">Lợi nhuận (₫)</th>
+                            <th class="px-6 py-4 text-right" data-i18n="baocaoloinhuan_th_margin">Biên lợi nhuận (%)</th>
                         </tr>
                     </thead>
                     <tbody id="reportBody" class="text-gray-300 text-sm">
-                        <tr><td colspan="5" class="text-center py-10 text-gray-500 animate-pulse"><i class="fas fa-spinner fa-spin mr-2"></i> Đang tải...</td</tr>
+                        <tr><td colspan="5" class="text-center py-10 text-gray-500 animate-pulse"><i class="fas fa-spinner fa-spin mr-2"></i> <span data-i18n="baocaoloinhuan_loading">Đang tải...</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -222,6 +226,113 @@
     <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
     <script>
+        // ========================================================
+        // I18N (VI/EN)
+        // ========================================================
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                dashboard_nav_overview: 'Tổng quan',
+                dashboard_nav_hr: 'Quản lý Nhân sự',
+                dashboard_nav_attendance: 'Chấm công',
+                dashboard_nav_payroll: 'Bảng lương',
+                dashboard_nav_gps: 'Radar GPS Thợ',
+                dashboard_nav_debt: 'Quản lý Công nợ',
+                dashboard_nav_revenue: 'Quản lý Thu Chi',
+                dashboard_nav_profit: 'Báo cáo lợi nhuận',
+                dashboard_logout: 'Đăng xuất',
+                baocaoloinhuan_nav_chat: 'Trạm Liên Lạc',
+                baocaoloinhuan_title_prefix: 'Báo cáo',
+                baocaoloinhuan_title_highlight: 'Lợi nhuận',
+                baocaoloinhuan_subtitle: 'Phân tích doanh thu, chi phí và lợi nhuận theo thời gian',
+                baocaoloinhuan_export_excel: 'Xuất Excel',
+                baocaoloinhuan_export_pdf: 'Xuất PDF',
+                baocaoloinhuan_filter_period_type: 'Kỳ báo cáo',
+                baocaoloinhuan_period_month: 'Theo tháng',
+                baocaoloinhuan_period_quarter: 'Theo quý',
+                baocaoloinhuan_period_year: 'Theo năm',
+                baocaoloinhuan_filter_year: 'Năm',
+                baocaoloinhuan_filter_from: 'Từ ngày (tùy chọn)',
+                baocaoloinhuan_filter_to: 'Đến ngày',
+                baocaoloinhuan_view_report: 'Xem báo cáo',
+                baocaoloinhuan_total_revenue: 'Tổng doanh thu',
+                baocaoloinhuan_total_cost: 'Tổng chi phí',
+                baocaoloinhuan_net_profit: 'Lợi nhuận ròng',
+                baocaoloinhuan_chart_title: 'Biểu đồ lợi nhuận',
+                baocaoloinhuan_th_period: 'Kỳ',
+                baocaoloinhuan_th_revenue: 'Doanh thu (₫)',
+                baocaoloinhuan_th_cost: 'Chi phí (₫)',
+                baocaoloinhuan_th_profit: 'Lợi nhuận (₫)',
+                baocaoloinhuan_th_margin: 'Biên lợi nhuận (%)',
+                baocaoloinhuan_loading: 'Đang tải...',
+                baocaoloinhuan_no_data: 'Không có dữ liệu',
+                baocaoloinhuan_toast_load_error: 'Lỗi tải dữ liệu!',
+                baocaoloinhuan_toast_no_data_export: 'Không có dữ liệu để xuất!',
+                baocaoloinhuan_toast_export_excel_success: 'Xuất Excel thành công!',
+                baocaoloinhuan_toast_export_pdf_success: 'Xuất PDF thành công!',
+                baocaoloinhuan_pdf_title: 'BÁO CÁO LỢI NHUẬN'
+            },
+            en: {
+                dashboard_nav_overview: 'Overview',
+                dashboard_nav_hr: 'Staff Management',
+                dashboard_nav_attendance: 'Attendance',
+                dashboard_nav_payroll: 'Payroll',
+                dashboard_nav_gps: 'Staff GPS Radar',
+                dashboard_nav_debt: 'Debt Management',
+                dashboard_nav_revenue: 'Revenue & Expenses',
+                dashboard_nav_profit: 'Profit Report',
+                dashboard_logout: 'Log Out',
+                baocaoloinhuan_nav_chat: 'Communication Hub',
+                baocaoloinhuan_title_prefix: 'Profit',
+                baocaoloinhuan_title_highlight: 'Report',
+                baocaoloinhuan_subtitle: 'Analyze revenue, costs and profit over time',
+                baocaoloinhuan_export_excel: 'Export Excel',
+                baocaoloinhuan_export_pdf: 'Export PDF',
+                baocaoloinhuan_filter_period_type: 'Report Period',
+                baocaoloinhuan_period_month: 'Monthly',
+                baocaoloinhuan_period_quarter: 'Quarterly',
+                baocaoloinhuan_period_year: 'Yearly',
+                baocaoloinhuan_filter_year: 'Year',
+                baocaoloinhuan_filter_from: 'From date (optional)',
+                baocaoloinhuan_filter_to: 'To date',
+                baocaoloinhuan_view_report: 'View Report',
+                baocaoloinhuan_total_revenue: 'Total Revenue',
+                baocaoloinhuan_total_cost: 'Total Cost',
+                baocaoloinhuan_net_profit: 'Net Profit',
+                baocaoloinhuan_chart_title: 'Profit Chart',
+                baocaoloinhuan_th_period: 'Period',
+                baocaoloinhuan_th_revenue: 'Revenue (₫)',
+                baocaoloinhuan_th_cost: 'Cost (₫)',
+                baocaoloinhuan_th_profit: 'Profit (₫)',
+                baocaoloinhuan_th_margin: 'Profit Margin (%)',
+                baocaoloinhuan_loading: 'Loading...',
+                baocaoloinhuan_no_data: 'No data available',
+                baocaoloinhuan_toast_load_error: 'Failed to load data!',
+                baocaoloinhuan_toast_no_data_export: 'No data to export!',
+                baocaoloinhuan_toast_export_excel_success: 'Excel exported successfully!',
+                baocaoloinhuan_toast_export_pdf_success: 'PDF exported successfully!',
+                baocaoloinhuan_pdf_title: 'PROFIT REPORT'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            try { if (currentData && currentData.length) { loadProfitReport(); } } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========================================================
         // THREE.JS BACKGROUND
         // ========================================================
@@ -330,9 +441,9 @@
         // ========================================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
 
         let profitChart = null;
         let currentData = [];
@@ -365,10 +476,10 @@
             }
 
             // Lấy tất cả giao dịch thu chi trong khoảng thời gian
-            let query = supabase.from('transactions').select('*').gte('transaction_date', startDate).lte('transaction_date', endDate);
+            let query = supabaseClient.from('transactions').select('*').gte('transaction_date', startDate).lte('transaction_date', endDate);
             const { data, error } = await query;
             if (error) {
-                showToast("Lỗi tải dữ liệu!", "error");
+                showToast(t('baocaoloinhuan_toast_load_error'), "error");
                 return;
             }
 
@@ -422,7 +533,7 @@
             // Hiển thị bảng
             const tbody = document.getElementById('reportBody');
             if (report.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Không có dữ liệu</td</tr>';
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">${t('baocaoloinhuan_no_data')}</td></tr>`;
                 return;
             }
             let html = '';
@@ -450,7 +561,7 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Lợi nhuận (₫)',
+                            label: t('baocaoloinhuan_th_profit'),
                             data: profits,
                             borderColor: '#06b6d4',
                             backgroundColor: 'rgba(6, 182, 212, 0.1)',
@@ -479,33 +590,33 @@
         }
 
         async function exportToExcel() {
-            if (!currentData.length) return showToast("Không có dữ liệu để xuất!", "error");
+            if (!currentData.length) return showToast(t('baocaoloinhuan_toast_no_data_export'), "error");
             const data = currentData.map(r => ({
-                'Kỳ': r.period,
-                'Doanh thu (₫)': r.revenue,
-                'Chi phí (₫)': r.cost,
-                'Lợi nhuận (₫)': r.profit,
-                'Biên lợi nhuận (%)': r.margin
+                [t('baocaoloinhuan_th_period')]: r.period,
+                [t('baocaoloinhuan_th_revenue')]: r.revenue,
+                [t('baocaoloinhuan_th_cost')]: r.cost,
+                [t('baocaoloinhuan_th_profit')]: r.profit,
+                [t('baocaoloinhuan_th_margin')]: r.margin
             }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoLoiNhuan');
             XLSX.writeFile(wb, `BaoCaoLoiNhuan_${new Date().toISOString().slice(0,10)}.xlsx`);
-            showToast("Xuất Excel thành công!", "success");
+            showToast(t('baocaoloinhuan_toast_export_excel_success'), "success");
         }
 
         async function exportToPDF() {
-            if (!currentData.length) return showToast("Không có dữ liệu để xuất!", "error");
+            if (!currentData.length) return showToast(t('baocaoloinhuan_toast_no_data_export'), "error");
             const element = document.createElement('div');
             element.innerHTML = `
                 <div style="padding:20px; font-family: 'Inter'; background:#fff; color:#000;">
-                    <h1 style="text-align:center;">BÁO CÁO LỢI NHUẬN</h1>
+                    <h1 style="text-align:center;">${t('baocaoloinhuan_pdf_title')}</h1>
                     <p style="text-align:center;">BitPaw OS</p>
                     <hr/>
                     <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; margin-top:20px;">
                         <thead>
                             <tr style="background:#f0f0f0;">
-                                <th>Kỳ</th><th>Doanh thu (₫)</th><th>Chi phí (₫)</th><th>Lợi nhuận (₫)</th><th>Biên lợi nhuận (%)</th>
+                                <th>${t('baocaoloinhuan_th_period')}</th><th>${t('baocaoloinhuan_th_revenue')}</th><th>${t('baocaoloinhuan_th_cost')}</th><th>${t('baocaoloinhuan_th_profit')}</th><th>${t('baocaoloinhuan_th_margin')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -523,7 +634,7 @@
                 </div>
             `;
             html2pdf().from(element).set({ margin: 0.5, filename: `BaoCaoLoiNhuan_${new Date().toISOString().slice(0,10)}.pdf` }).save();
-            showToast("Xuất PDF thành công!", "success");
+            showToast(t('baocaoloinhuan_toast_export_pdf_success'), "success");
         }
 
         // Khởi tạo

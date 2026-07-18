@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo cáo Tổng hợp Toàn chuỗi | BitPaw OS</title>
+    <title>Consolidated Chain Report | BitPaw OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -15,54 +15,111 @@
     <div class="max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-3xl font-black flex items-center gap-3"><i class="fas fa-sitemap text-purple-400"></i> Báo cáo Tổng hợp Toàn chuỗi</h1>
-                <p class="text-gray-400 mt-2 text-sm">Cộng gộp doanh thu &amp; chi phí của tất cả chi nhánh bạn đang quản lý.</p>
+                <h1 class="text-3xl font-black flex items-center gap-3"><i class="fas fa-sitemap text-purple-400"></i> <span data-i18n="report_consolidated_title">Consolidated Chain Report</span></h1>
+                <p class="text-gray-400 mt-2 text-sm" data-i18n="report_consolidated_desc">Combined revenue &amp; expenses across all branches you manage.</p>
             </div>
-            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2.5 rounded-xl text-sm font-bold transition"><i class="fas fa-arrow-left mr-2"></i> Về Dashboard</a>
+            <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2.5 rounded-xl text-sm font-bold transition"><i class="fas fa-arrow-left mr-2"></i> <span data-i18n="report_consolidated_back_btn">Back to Dashboard</span></a>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
             <div class="glass-panel p-5 rounded-2xl">
-                <div class="text-gray-400 text-sm mb-1">Tổng doanh thu toàn chuỗi</div>
-                <div class="text-3xl font-black text-emerald-400">{{ "{:,.0f}".format(total_revenue_all).replace(",", ".") }}đ</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="report_consolidated_total_revenue">Total Chain Revenue</div>
+                <div class="text-3xl font-black text-emerald-400">{{ total_revenue_all | money(tenant_currency) }}</div>
             </div>
             <div class="glass-panel p-5 rounded-2xl">
-                <div class="text-gray-400 text-sm mb-1">Tổng chi phí toàn chuỗi</div>
-                <div class="text-3xl font-black text-rose-400">{{ "{:,.0f}".format(total_expense_all).replace(",", ".") }}đ</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="report_consolidated_total_expense">Total Chain Expenses</div>
+                <div class="text-3xl font-black text-rose-400">{{ total_expense_all | money(tenant_currency) }}</div>
             </div>
             <div class="glass-panel p-5 rounded-2xl">
-                <div class="text-gray-400 text-sm mb-1">Lợi nhuận toàn chuỗi</div>
-                <div class="text-3xl font-black {% if total_profit_all >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ "{:,.0f}".format(total_profit_all).replace(",", ".") }}đ</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="report_consolidated_total_profit">Total Chain Profit</div>
+                <div class="text-3xl font-black {% if total_profit_all >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ total_profit_all | money(tenant_currency) }}</div>
             </div>
         </div>
 
         <div class="glass-panel rounded-2xl p-5">
-            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-store mr-2"></i> Chi tiết theo chi nhánh</h2>
+            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-store mr-2"></i> <span data-i18n="report_consolidated_details_heading">Details by Branch</span></h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-gray-400 border-b border-white/10">
-                            <th class="py-2 pr-4">Chi nhánh</th>
-                            <th class="py-2 pr-4 text-right">Doanh thu</th>
-                            <th class="py-2 pr-4 text-right">Chi phí</th>
-                            <th class="py-2 pr-4 text-right">Lợi nhuận</th>
+                            <th class="py-2 pr-4" data-i18n="report_consolidated_th_branch">Branch</th>
+                            <th class="py-2 pr-4 text-right" data-i18n="report_consolidated_th_revenue">Revenue</th>
+                            <th class="py-2 pr-4 text-right" data-i18n="report_consolidated_th_expense">Expenses</th>
+                            <th class="py-2 pr-4 text-right" data-i18n="report_consolidated_th_profit">Profit</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for b in branch_reports %}
                         <tr class="border-b border-white/5">
                             <td class="py-3 pr-4 font-bold">{{ b.branch_name }}</td>
-                            <td class="py-3 pr-4 text-right text-emerald-400">{{ "{:,.0f}".format(b.revenue).replace(",", ".") }}đ</td>
-                            <td class="py-3 pr-4 text-right text-rose-400">{{ "{:,.0f}".format(b.expense).replace(",", ".") }}đ</td>
-                            <td class="py-3 pr-4 text-right font-bold {% if b.profit >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ "{:,.0f}".format(b.profit).replace(",", ".") }}đ</td>
+                            <td class="py-3 pr-4 text-right text-emerald-400">{{ b.revenue | money(tenant_currency) }}</td>
+                            <td class="py-3 pr-4 text-right text-rose-400">{{ b.expense | money(tenant_currency) }}</td>
+                            <td class="py-3 pr-4 text-right font-bold {% if b.profit >= 0 %}text-cyan-400{% else %}text-rose-500{% endif %}">{{ b.profit | money(tenant_currency) }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="text-center py-8 text-gray-500">Chưa có chi nhánh nào.</td></tr>
+                        <tr><td colspan="4" class="text-center py-8 text-gray-500" data-i18n="report_consolidated_no_branches">No branches yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+
+    <script>
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                report_consolidated_title: 'Báo cáo Tổng hợp Chuỗi',
+                report_consolidated_desc: 'Tổng hợp doanh thu &amp; chi phí của tất cả chi nhánh bạn quản lý.',
+                report_consolidated_back_btn: 'Về Trang chủ',
+                report_consolidated_total_revenue: 'Tổng Doanh thu Chuỗi',
+                report_consolidated_total_expense: 'Tổng Chi phí Chuỗi',
+                report_consolidated_total_profit: 'Tổng Lợi nhuận Chuỗi',
+                report_consolidated_details_heading: 'Chi tiết theo Chi nhánh',
+                report_consolidated_th_branch: 'Chi nhánh',
+                report_consolidated_th_revenue: 'Doanh thu',
+                report_consolidated_th_expense: 'Chi phí',
+                report_consolidated_th_profit: 'Lợi nhuận',
+                report_consolidated_no_branches: 'Chưa có chi nhánh nào.'
+            },
+            en: {
+                report_consolidated_title: 'Consolidated Chain Report',
+                report_consolidated_desc: 'Combined revenue &amp; expenses across all branches you manage.',
+                report_consolidated_back_btn: 'Back to Dashboard',
+                report_consolidated_total_revenue: 'Total Chain Revenue',
+                report_consolidated_total_expense: 'Total Chain Expenses',
+                report_consolidated_total_profit: 'Total Chain Profit',
+                report_consolidated_details_heading: 'Details by Branch',
+                report_consolidated_th_branch: 'Branch',
+                report_consolidated_th_revenue: 'Revenue',
+                report_consolidated_th_expense: 'Expenses',
+                report_consolidated_th_profit: 'Profit',
+                report_consolidated_no_branches: 'No branches yet.'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+    </script>
 </body>
 </html>

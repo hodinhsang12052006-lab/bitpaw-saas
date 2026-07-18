@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw KDS | Màn hình Bếp Thông Minh</title>
+    <title>BitPaw KDS | Smart Kitchen Display</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -246,13 +246,14 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium">| Màn hình Bếp</span></h1>
-                    <p class="text-[10px] text-gray-400 tracking-wider">Kitchen Display System - Theo dõi đơn hàng realtime</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium" data-i18n="kitchen_display_header_suffix">| Kitchen Display</span></h1>
+                    <p class="text-[10px] text-gray-400 tracking-wider" data-i18n="kitchen_display_header_subtitle">Kitchen Display System - Realtime order tracking</p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
                 <div class="bg-emerald-500/20 border border-emerald-500/50 rounded-full px-3 py-1 text-xs font-bold text-emerald-400 flex items-center gap-1">
-                    <i class="fas fa-circle text-[6px] animate-pulse"></i> Đang trực tuyến
+                    <i class="fas fa-circle text-[6px] animate-pulse"></i> <span data-i18n="kitchen_display_online">Online</span>
                 </div>
                 <span id="currentTime" class="text-sm font-mono text-gray-300 bg-black/30 px-3 py-1 rounded-full"></span>
             </div>
@@ -261,19 +262,19 @@
         <!-- Khu vực hiển thị đơn hàng -->
         <div class="flex-1 overflow-hidden">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2"><i class="fas fa-receipt"></i> Đơn hàng cần chế biến</h2>
+                <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2"><i class="fas fa-receipt"></i> <span data-i18n="kitchen_display_orders_heading">Orders to Prepare</span></h2>
                 <div class="text-xs text-gray-400 bg-black/30 px-3 py-1 rounded-full">
-                    <i class="fas fa-sync-alt"></i> Cập nhật realtime
+                    <i class="fas fa-sync-alt"></i> <span data-i18n="kitchen_display_realtime_updates">Realtime updates</span>
                 </div>
             </div>
             <div id="ordersContainer" class="orders-grid">
-                <div class="col-span-full text-center text-gray-500 py-20">Đang tải đơn hàng...</div>
+                <div class="col-span-full text-center text-gray-500 py-20" data-i18n="kitchen_display_loading_orders">Loading orders...</div>
             </div>
         </div>
 
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="kitchen_display_processing">Processing...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -320,7 +321,7 @@
             return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         }
 
-        const STATUS_LABEL = { pending: 'Đang chờ', cooking: 'Đang nấu', completed: 'Đã xong' };
+        const STATUS_LABEL_KEY = { pending: 'kitchen_display_status_pending', cooking: 'kitchen_display_status_cooking', completed: 'kitchen_display_status_done' };
         const STATUS_BADGE_CLASS = {
             pending: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
             cooking: 'bg-orange-500/20 text-orange-300 border-orange-500/30 animate-pulse',
@@ -329,23 +330,23 @@
 
         function renderOrders() {
             if (!orders.length) {
-                ordersContainer.innerHTML = '<div class="col-span-full text-center text-gray-500 py-20"><i class="fas fa-check-circle text-4xl mb-2 opacity-30"></i><br>Không có đơn hàng chờ xử lý</div>';
+                ordersContainer.innerHTML = `<div class="col-span-full text-center text-gray-500 py-20"><i class="fas fa-check-circle text-4xl mb-2 opacity-30"></i><br>${t('kitchen_display_no_orders_waiting')}</div>`;
                 return;
             }
             ordersContainer.innerHTML = orders.map(order => {
                 const status = order.status || 'pending';
                 const actionBtn = status === 'cooking'
-                    ? `<button class="btn-complete text-sm px-3 py-1.5" onclick="completeOrder(${order.id})"><i class="fas fa-check mr-1"></i> Hoàn thành</button>`
-                    : `<button class="btn-complete text-sm px-3 py-1.5" onclick="startCooking(${order.id})"><i class="fas fa-fire mr-1"></i> Bắt đầu nấu</button>`;
+                    ? `<button class="btn-complete text-sm px-3 py-1.5" onclick="completeOrder(${order.id})"><i class="fas fa-check mr-1"></i> ${t('kitchen_display_btn_complete')}</button>`
+                    : `<button class="btn-complete text-sm px-3 py-1.5" onclick="startCooking(${order.id})"><i class="fas fa-fire mr-1"></i> ${t('kitchen_display_btn_start_cooking')}</button>`;
                 return `
                 <div class="order-card p-4 flex flex-col gap-3" data-order-id="${order.id}">
                     <div class="flex justify-between items-start">
                         <div>
-                            <h3 class="font-bold text-white text-lg">${escapeHtml(order.table_name || ('Bàn ' + order.table_id))}</h3>
+                            <h3 class="font-bold text-white text-lg">${escapeHtml(order.table_name || ('Table ' + order.table_id))}</h3>
                             <p class="text-[10px] text-gray-400"><i class="far fa-clock"></i> ${formatTime(order.created_at)}</p>
                         </div>
                         <div class="flex flex-col items-end gap-2">
-                            <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_BADGE_CLASS[status] || STATUS_BADGE_CLASS.pending}">${STATUS_LABEL[status] || status}</span>
+                            <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_BADGE_CLASS[status] || STATUS_BADGE_CLASS.pending}">${t(STATUS_LABEL_KEY[status]) || status}</span>
                             ${actionBtn}
                         </div>
                     </div>
@@ -371,7 +372,7 @@
                     if (card) {
                         card.classList.add('new-order');
                         setTimeout(() => card.classList.remove('new-order'), 1500);
-                        showToast(`🆕 Đơn mới từ ${order.table_name || 'Bàn ' + order.table_id}`, false);
+                        showToast(`🆕 ${tf('kitchen_display_toast_new_order', { table: order.table_name || 'Table ' + order.table_id })}`, false);
                     }
                 }
             });
@@ -387,10 +388,10 @@
                 if (error) throw error;
                 order.status = 'cooking';
                 renderOrders();
-                showToast(`🔥 Đang nấu đơn ${order.table_name}`, false);
+                showToast(`🔥 ${tf('kitchen_display_toast_cooking_order', { table: order.table_name })}`, false);
             } catch (err) {
                 console.warn(err);
-                showToast('Lỗi cập nhật đơn hàng', true);
+                showToast(t('kitchen_display_toast_error_updating'), true);
             } finally {
                 showLoading(false);
             }
@@ -406,10 +407,10 @@
                 orders = orders.filter(o => o.id !== orderId);
                 renderOrders();
                 checkNewOrders(orders);
-                showToast(`✅ Đã hoàn thành đơn ${order.table_name}`, false);
+                showToast(`✅ ${tf('kitchen_display_toast_completed_order', { table: order.table_name })}`, false);
             } catch (err) {
                 console.warn(err);
-                showToast('Lỗi cập nhật đơn hàng', true);
+                showToast(t('kitchen_display_toast_error_updating'), true);
             } finally {
                 showLoading(false);
             }
@@ -517,17 +518,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('kitchen_display_toast_fill_all'), true);
                 return;
             }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(`✅ ${t('kitchen_display_toast_request_sent')}`);
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('kitchen_display_toast_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -536,6 +537,80 @@
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+        }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                kitchen_display_header_suffix: '| Màn Hình Bếp',
+                kitchen_display_header_subtitle: 'Hệ thống màn hình bếp - Theo dõi đơn hàng thời gian thực',
+                kitchen_display_online: 'Đang hoạt động',
+                kitchen_display_orders_heading: 'Đơn Hàng Cần Chế Biến',
+                kitchen_display_realtime_updates: 'Cập nhật thời gian thực',
+                kitchen_display_loading_orders: 'Đang tải đơn hàng...',
+                kitchen_display_processing: 'Đang xử lý...',
+                kitchen_display_no_orders_waiting: 'Không có đơn hàng chờ',
+                kitchen_display_status_pending: 'Chờ xử lý',
+                kitchen_display_status_cooking: 'Đang chế biến',
+                kitchen_display_status_done: 'Hoàn thành',
+                kitchen_display_btn_complete: 'Hoàn thành',
+                kitchen_display_btn_start_cooking: 'Bắt đầu nấu',
+                kitchen_display_toast_new_order: 'Đơn hàng mới từ {table}',
+                kitchen_display_toast_cooking_order: 'Đang nấu đơn {table}',
+                kitchen_display_toast_completed_order: 'Đã hoàn thành đơn {table}',
+                kitchen_display_toast_error_updating: 'Lỗi khi cập nhật đơn hàng',
+                kitchen_display_toast_fill_all: 'Vui lòng điền đầy đủ thông tin',
+                kitchen_display_toast_request_sent: 'Đã gửi yêu cầu! Chúng tôi sẽ liên hệ trong vòng 15 phút.',
+                kitchen_display_toast_error_prefix: 'Lỗi: '
+            },
+            en: {
+                kitchen_display_header_suffix: '| Kitchen Display',
+                kitchen_display_header_subtitle: 'Kitchen Display System - Realtime order tracking',
+                kitchen_display_online: 'Online',
+                kitchen_display_orders_heading: 'Orders to Prepare',
+                kitchen_display_realtime_updates: 'Realtime updates',
+                kitchen_display_loading_orders: 'Loading orders...',
+                kitchen_display_processing: 'Processing...',
+                kitchen_display_no_orders_waiting: 'No orders waiting',
+                kitchen_display_status_pending: 'Pending',
+                kitchen_display_status_cooking: 'Cooking',
+                kitchen_display_status_done: 'Done',
+                kitchen_display_btn_complete: 'Complete',
+                kitchen_display_btn_start_cooking: 'Start Cooking',
+                kitchen_display_toast_new_order: 'New order from {table}',
+                kitchen_display_toast_cooking_order: 'Cooking order {table}',
+                kitchen_display_toast_completed_order: 'Completed order {table}',
+                kitchen_display_toast_error_updating: 'Error updating order',
+                kitchen_display_toast_fill_all: 'Please fill in all information',
+                kitchen_display_toast_request_sent: 'Request sent! We will contact you within 15 minutes.',
+                kitchen_display_toast_error_prefix: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            renderOrders();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
         // Khởi tạo
@@ -596,11 +671,11 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.03) % 1;
+                const elapsed = clock.getElapsedTime();
+                const hue = (elapsed * 0.03) % 1;
                 material.color.setHSL(hue, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

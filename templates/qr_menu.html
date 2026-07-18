@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -247,12 +247,12 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>
-                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> Bàn: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
+                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="tableLabelPrefix">Bàn</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
                 <button id="cartButton" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border border-cyan-500/50 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition">
-                    <i class="fas fa-shopping-cart"></i> Giỏ hàng <span id="cartBadge" class="bg-rose-500 text-white text-xs w-5 h-5 rounded-full inline-flex items-center justify-center ml-1">0</span>
+                    <i class="fas fa-shopping-cart"></i> <span data-i18n="cart_title">Giỏ hàng</span> <span id="cartBadge" class="bg-rose-500 text-white text-xs w-5 h-5 rounded-full inline-flex items-center justify-center ml-1">0</span>
                 </button>
                 <div class="relative">
                     <button id="langBtn" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-full text-sm font-semibold flex items-center gap-1">
@@ -276,22 +276,22 @@
                 <input type="text" id="searchInput" placeholder="Tìm món..." class="w-full bg-black/50 border border-white/10 rounded-full py-3 pl-11 pr-4 text-white focus:outline-none focus:border-cyan-400">
             </div>
             <div class="menu-grid" id="menuGrid">
-                <div class="col-span-full text-center py-10 text-gray-500">Đang tải thực đơn...</div>
+                <div class="col-span-full text-center py-10 text-gray-500" data-i18n="loading_menu">Đang tải thực đơn...</div>
             </div>
         </div>
     </div>
 
     <div id="cartSidebar" class="cart-sidebar">
         <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/40">
-            <h2 class="text-xl font-bold text-cyan-400"><i class="fas fa-shopping-basket mr-2"></i> Giỏ hàng</h2>
+            <h2 class="text-xl font-bold text-cyan-400"><i class="fas fa-shopping-basket mr-2"></i> <span data-i18n="cart_title">Giỏ hàng</span></h2>
             <button id="closeCartBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
         </div>
         <div id="cartItemsList" class="flex-1 overflow-y-auto p-4 space-y-3">
-            <div class="text-center text-gray-500 py-10">Chưa có món nào</div>
+            <div class="text-center text-gray-500 py-10" data-i18n="cart_empty">Chưa có món nào</div>
         </div>
         <div class="p-4 border-t border-white/10 bg-black/40">
             <div class="flex justify-between items-center mb-4">
-                <span class="text-gray-300">Tổng cộng:</span>
+                <span class="text-gray-300" data-i18n="total">Tổng cộng:</span>
                 <span id="cartTotal" class="text-2xl font-bold text-cyan-400">0₫</span>
             </div>
             <button id="submitOrderBtn" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg">
@@ -300,7 +300,7 @@
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i><span>Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i><span data-i18n="loading">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -331,12 +331,13 @@
         let products = [];
         let cart = []; // { id, name, price, quantity }
         let currentLang = 'vi';
+        let currentIndustry = 'fnb';
 
         // Translation dictionary
         const translations = {
             vi: {
                 cart_empty: "Chưa có món nào",
-                total: "Tổng cộng",
+                total: "Tổng cộng:",
                 send_order: "Gửi đơn hàng",
                 added_to_cart: "Đã thêm vào giỏ",
                 order_sent: "Đơn hàng đã gửi!",
@@ -345,11 +346,23 @@
                 bill_requested: "Đã yêu cầu tính tiền",
                 loading: "Đang xử lý...",
                 search_placeholder: "Tìm món...",
-                cart_title: "Giỏ hàng"
+                cart_title: "Giỏ hàng",
+                loading_menu: "Đang tải thực đơn...",
+                loading_generic: "Đang tải...",
+                menu_empty: "Chưa có món nào",
+                default_category: "Món",
+                menu_load_error: "Lỗi tải thực đơn: ",
+                cart_empty_warning: "Giỏ hàng trống!",
+                table_undetermined: "Không xác định được bàn",
+                location_load_error: "Lỗi tải vị trí",
+                table_not_found_error: "Không tìm thấy thông tin bàn. Vui lòng quét lại QR code.",
+                label_table: "Bàn",
+                label_chair: "Ghế",
+                label_bed_room: "Giường/Phòng"
             },
             en: {
                 cart_empty: "Cart is empty",
-                total: "Total",
+                total: "Total:",
                 send_order: "Place order",
                 added_to_cart: "Added to cart",
                 order_sent: "Order sent!",
@@ -358,11 +371,23 @@
                 bill_requested: "Bill requested",
                 loading: "Processing...",
                 search_placeholder: "Search dish...",
-                cart_title: "Shopping Cart"
+                cart_title: "Shopping Cart",
+                loading_menu: "Loading menu...",
+                loading_generic: "Loading...",
+                menu_empty: "No dishes available",
+                default_category: "Dish",
+                menu_load_error: "Error loading menu: ",
+                cart_empty_warning: "Your cart is empty!",
+                table_undetermined: "Could not determine the table",
+                location_load_error: "Error loading location",
+                table_not_found_error: "Table information not found. Please scan the QR code again.",
+                label_table: "Table",
+                label_chair: "Chair",
+                label_bed_room: "Bed/Room"
             },
             ko: {
                 cart_empty: "장바구니가 비어 있습니다",
-                total: "총계",
+                total: "총계:",
                 send_order: "주문하기",
                 added_to_cart: "장바구니에 추가됨",
                 order_sent: "주문이 접수되었습니다!",
@@ -371,11 +396,23 @@
                 bill_requested: "계산서 요청됨",
                 loading: "처리 중...",
                 search_placeholder: "메뉴 검색...",
-                cart_title: "장바구니"
+                cart_title: "장바구니",
+                loading_menu: "메뉴 로딩 중...",
+                loading_generic: "로딩 중...",
+                menu_empty: "메뉴가 없습니다",
+                default_category: "메뉴",
+                menu_load_error: "메뉴 로딩 오류: ",
+                cart_empty_warning: "장바구니가 비어 있습니다!",
+                table_undetermined: "테이블을 확인할 수 없습니다",
+                location_load_error: "위치 로딩 오류",
+                table_not_found_error: "테이블 정보를 찾을 수 없습니다. QR 코드를 다시 스캔해 주세요.",
+                label_table: "테이블",
+                label_chair: "의자",
+                label_bed_room: "침대/객실"
             },
             zh: {
                 cart_empty: "购物车是空的",
-                total: "总计",
+                total: "总计:",
                 send_order: "下订单",
                 added_to_cart: "已添加到购物车",
                 order_sent: "订单已发送！",
@@ -384,7 +421,19 @@
                 bill_requested: "已请求结账",
                 loading: "处理中...",
                 search_placeholder: "搜索菜品...",
-                cart_title: "购物车"
+                cart_title: "购物车",
+                loading_menu: "菜单加载中...",
+                loading_generic: "加载中...",
+                menu_empty: "暂无菜品",
+                default_category: "菜品",
+                menu_load_error: "菜单加载错误：",
+                cart_empty_warning: "购物车是空的！",
+                table_undetermined: "无法确定桌台",
+                location_load_error: "位置加载错误",
+                table_not_found_error: "未找到桌台信息。请重新扫描二维码。",
+                label_table: "桌台",
+                label_chair: "座椅",
+                label_bed_room: "床位/房间"
             }
         };
         
@@ -401,7 +450,20 @@
             if (searchInput) searchInput.placeholder = t('search_placeholder');
             const submitBtn = document.getElementById('submitOrderBtn');
             if (submitBtn) submitBtn.innerHTML = `<i class="fas fa-paper-plane mr-1"></i> ${t('send_order')}`;
+            updateTableLabel();
             renderCart();
+        }
+
+        // Nhãn "Bàn/Ghế/Giường/Phòng" phụ thuộc industry (không đổi khi chuyển ngôn ngữ)
+        // nhưng vẫn phải dịch theo currentLang mỗi khi người dùng đổi ngôn ngữ.
+        function tableLabelKey(ind) {
+            if (ind === 'nail') return 'label_chair';
+            if (ind === 'spa') return 'label_bed_room';
+            return 'label_table';
+        }
+        function updateTableLabel() {
+            const labelSpan = document.getElementById('tableLabelPrefix');
+            if (labelSpan) labelSpan.innerText = t(tableLabelKey(currentIndustry));
         }
         
         // Helper functions
@@ -422,28 +484,23 @@
         async function loadTableInfo() {
             const urlParams = new URLSearchParams(window.location.search);
             const ind = urlParams.get('industry') || 'fnb';
-            let labelText = "Bàn";
-            if (ind === 'nail') labelText = "Ghế";
-            else if (ind === 'spa') labelText = "Giường/Phòng";
-            
-            // Update label element prefix
-            const labelSpan = document.getElementById('tableNameDisplay');
-            if (labelSpan && labelSpan.parentNode) {
-                labelSpan.parentNode.innerHTML = `<i class="fas fa-qrcode"></i> ${labelText}: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="${tableId || ''}" data-table-name="${tableName || ''}">${tableName || 'Đang tải...'}</span>`;
-            }
+            currentIndustry = ind;
+            updateTableLabel();
 
             if (tableId && tableName) {
                 const nameSpan = document.getElementById('tableNameDisplay');
                 if (nameSpan) nameSpan.innerText = tableName;
                 return true;
             }
-            
+
             let token = urlParams.get('token');
             if (!token) {
                 // fallback: check path segment
                 const pathParts = window.location.pathname.split('/');
                 token = pathParts[pathParts.length - 1] || 'demo_token';
             }
+            const loadingNameSpan = document.getElementById('tableNameDisplay');
+            if (loadingNameSpan) loadingNameSpan.innerText = t('loading_generic');
             const { data, error } = await supabase
                 .from('dining_tables')
                 .select('id, name')
@@ -452,7 +509,7 @@
             if (error || !data) {
                 console.error('Không tìm thấy bàn/ghế/phòng', error);
                 const nameSpan = document.getElementById('tableNameDisplay');
-                if (nameSpan) nameSpan.innerText = 'Lỗi tải vị trí';
+                if (nameSpan) nameSpan.innerText = t('location_load_error');
                 return null;
             }
             tableId = data.id;
@@ -483,7 +540,7 @@
             if (tableBusinessId) query = query.eq('business_id', tableBusinessId);
             const { data, error } = await query.order('name');
             if (error) {
-                showToastMessage('Lỗi tải thực đơn: ' + error.message, true);
+                showToastMessage(t('menu_load_error') + error.message, true);
                 showLoading(false);
                 return [];
             }
@@ -494,7 +551,7 @@
         function renderMenu(productsArray) {
             const container = document.getElementById('menuGrid');
             if (!productsArray.length) {
-                container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">Chưa có món nào</div>';
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">${t('menu_empty')}</div>`;
                 return;
             }
             container.innerHTML = productsArray.map(p => `
@@ -503,7 +560,7 @@
                         ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-3xl">🍽️</div>`}
                         <div class="flex-1">
                             <h3 class="font-bold text-white text-base">${escapeHtml(p.name)}</h3>
-                            <p class="text-xs text-gray-400">${escapeHtml(p.category) || 'Món'}</p>
+                            <p class="text-xs text-gray-400">${escapeHtml(p.category) || t('default_category')}</p>
                             <div class="flex justify-between items-center mt-2">
                                 <span class="text-cyan-400 font-mono font-bold">${p.price.toLocaleString('vi-VN')}₫</span>
                                 <div class="flex items-center gap-2">
@@ -626,11 +683,11 @@
         
         async function submitOrder() {
             if (cart.length === 0) {
-                showToastMessage("Giỏ hàng trống!", true);
+                showToastMessage(t('cart_empty_warning'), true);
                 return;
             }
             if (!tableId) {
-                showToastMessage("Không xác định được bàn", true);
+                showToastMessage(t('table_undetermined'), true);
                 return;
             }
             showLoading(true);
@@ -752,7 +809,7 @@
         async function init() {
             const tableLoaded = await loadTableInfo();
             if (!tableLoaded) {
-                document.getElementById('menuGrid').innerHTML = '<div class="col-span-full text-center py-10 text-rose-400">Không tìm thấy thông tin bàn. Vui lòng quét lại QR code.</div>';
+                document.getElementById('menuGrid').innerHTML = `<div class="col-span-full text-center py-10 text-rose-400">${t('table_not_found_error')}</div>`;
                 return;
             }
             const productsList = await loadProducts();

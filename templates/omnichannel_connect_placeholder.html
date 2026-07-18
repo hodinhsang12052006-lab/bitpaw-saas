@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cổng Cấp Quyền Đối Tác | BitPaw OS</title>
+    <title>Partner Authorization Portal | BitPaw OS</title>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -11,23 +11,23 @@
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Inter', system-ui, sans-serif; 
-            background-color: #05030f; 
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #05030f;
             color: #f1f3f9;
             overflow: hidden;
             min-height: 100vh;
         }
-        
-        #bg-canvas { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            z-index: -2; 
-            opacity: 0.95; 
-            pointer-events: none; 
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            opacity: 0.95;
+            pointer-events: none;
         }
 
         .scan-line {
@@ -45,7 +45,7 @@
             border-radius: 2rem;
             box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(6, 182, 212, 0.1);
         }
-        
+
         .input-glow:focus {
             box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3), 0 0 20px rgba(6,182,212,0.4);
             border-color: #06b6d4;
@@ -60,11 +60,14 @@
     </style>
 </head>
 <body class="antialiased relative min-h-screen flex items-center justify-center p-4">
-    
+
     <div class="scan-line"></div>
     <canvas id="bg-canvas"></canvas>
 
-    <div class="w-full max-w-md z-10 glass-panel p-8">
+    <div class="w-full max-w-md z-10 glass-panel p-8 relative">
+        <!-- Lang toggle -->
+        <button id="langToggleBtn" type="button" class="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+
         <!-- Logo Header -->
         <div class="text-center mb-6">
             <div class="flex justify-center items-center gap-4 mb-4">
@@ -86,46 +89,109 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full object-cover">
                 </div>
             </div>
-            <h2 class="text-lg font-black tracking-widest text-white uppercase">CỔNG XÁC THỰC GIẢ LẬP</h2>
-            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mt-1">OAuth Simulated Authorization Portal</p>
+            <h2 class="text-lg font-black tracking-widest text-white uppercase" data-i18n="omnichannel_title">CỔNG XÁC THỰC MÔ PHỎNG</h2>
+            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mt-1" data-i18n="omnichannel_subtitle">Cổng Ủy Quyền OAuth Mô Phỏng</p>
         </div>
 
         <div class="bg-cyan-950/20 border border-cyan-500/25 rounded-2xl p-4 text-[11px] text-gray-300 leading-relaxed mb-6 space-y-1.5">
-            <p class="font-bold text-white uppercase"><i class="fas fa-shield-alt text-cyan-400 mr-1"></i> Yêu cầu cấp quyền:</p>
-            <p>Ứng dụng <strong>BitPaw AI Platform</strong> yêu cầu cấp quyền đọc tin nhắn, đồng bộ danh sách khách hàng và tự động phân tích hành vi để lên kịch bản CSKH cho kênh <strong>{{ channel.upper() }}</strong>.</p>
+            <p class="font-bold text-white uppercase"><i class="fas fa-shield-alt text-cyan-400 mr-1"></i> <span data-i18n="omnichannel_permission_label">Yêu Cầu Quyền Truy Cập:</span></p>
+            <p id="permissionDesc">The <strong>BitPaw AI Platform</strong> application requests permission to read messages, sync the customer list, and automatically analyze behavior to build customer care scripts for the <strong>{{ channel.upper() }}</strong> channel.</p>
         </div>
 
         <!-- Simulation Form -->
         <form action="/omnichannel/callback/{{ channel }}" method="GET" class="space-y-4 text-xs">
             <div>
-                <label class="text-cyan-400 font-bold block mb-1">Tên tài khoản quản trị (Owner / Page Name):</label>
-                <input type="text" name="account_name" id="account_name" required 
+                <label class="text-cyan-400 font-bold block mb-1" data-i18n="omnichannel_label_account_name">Tên Tài Khoản Quản Trị (Chủ sở hữu / Tên Trang):</label>
+                <input type="text" name="account_name" id="account_name" required
                        class="input-glow w-full px-4 py-3 rounded-xl bg-black/50 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400 transition"
-                       placeholder="Ví dụ: BitPaw Shop, Cửa hàng Cafe 01...">
+                       placeholder="e.g. BitPaw Shop, Cafe Store 01..." data-i18n-placeholder="omnichannel_placeholder_account_name">
             </div>
             <div>
-                <label class="text-cyan-400 font-bold block mb-1">ID Kênh (Channel ID / Phone Number):</label>
-                <input type="text" name="channel_id" id="channel_id" required 
+                <label class="text-cyan-400 font-bold block mb-1" data-i18n="omnichannel_label_channel_id">ID Kênh / Số Điện Thoại:</label>
+                <input type="text" name="channel_id" id="channel_id" required
                        class="input-glow w-full px-4 py-3 rounded-xl bg-black/50 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400 transition"
-                       placeholder="Nhập ID kênh hoặc Số điện thoại...">
+                       placeholder="Enter Channel ID or Phone Number..." data-i18n-placeholder="omnichannel_placeholder_channel_id">
             </div>
             <div>
-                <label class="text-cyan-400 font-bold block mb-1">API Access Token / Authorization Code:</label>
-                <input type="password" name="access_token" id="access_token" required 
+                <label class="text-cyan-400 font-bold block mb-1" data-i18n="omnichannel_label_access_token">Mã Truy Cập API / Mã Ủy Quyền:</label>
+                <input type="password" name="access_token" id="access_token" required
                        class="input-glow w-full px-4 py-3 rounded-xl bg-black/50 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400 transition"
-                       placeholder="Nhập API Access Token...">
+                       placeholder="Enter API Access Token..." data-i18n-placeholder="omnichannel_placeholder_access_token">
             </div>
 
             <div class="flex flex-col gap-2.5 pt-4">
                 <button type="submit" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-black uppercase tracking-widest rounded-xl transition shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.02] flex items-center justify-center gap-2">
-                    <i class="fas fa-check-double"></i> CHẤP THUẬN & ỦY QUYỀN
+                    <i class="fas fa-check-double"></i> <span data-i18n="omnichannel_btn_approve">PHÊ DUYỆT &amp; ỦY QUYỀN</span>
                 </button>
                 <button type="button" onclick="window.close()" class="w-full py-3 bg-transparent border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white font-bold uppercase tracking-wider rounded-xl transition">
-                    HỦY BỎ
+                    <span data-i18n="omnichannel_btn_cancel">HỦY BỎ</span>
                 </button>
             </div>
         </form>
     </div>
+
+    <!-- I18N -->
+    <script>
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const channelUpper = "{{ channel.upper() }}";
+        const translations = {
+            vi: {
+                omnichannel_title: 'CỔNG XÁC THỰC MÔ PHỎNG',
+                omnichannel_subtitle: 'Cổng Ủy Quyền OAuth Mô Phỏng',
+                omnichannel_permission_label: 'Yêu Cầu Quyền Truy Cập:',
+                omnichannel_permission_desc: 'Ứng dụng <strong>{app}</strong> yêu cầu quyền đọc tin nhắn, đồng bộ danh sách khách hàng và tự động phân tích hành vi để xây dựng kịch bản chăm sóc khách hàng cho kênh <strong>{channel}</strong>.',
+                omnichannel_label_account_name: 'Tên Tài Khoản Quản Trị (Chủ sở hữu / Tên Trang):',
+                omnichannel_placeholder_account_name: 'VD: Cửa hàng BitPaw, Quán Cafe 01...',
+                omnichannel_label_channel_id: 'ID Kênh / Số Điện Thoại:',
+                omnichannel_placeholder_channel_id: 'Nhập ID Kênh hoặc Số Điện Thoại...',
+                omnichannel_label_access_token: 'Mã Truy Cập API / Mã Ủy Quyền:',
+                omnichannel_placeholder_access_token: 'Nhập Mã Truy Cập API...',
+                omnichannel_btn_approve: 'PHÊ DUYỆT & ỦY QUYỀN',
+                omnichannel_btn_cancel: 'HỦY BỎ'
+            },
+            en: {
+                omnichannel_title: 'SIMULATED AUTHENTICATION PORTAL',
+                omnichannel_subtitle: 'OAuth Simulated Authorization Portal',
+                omnichannel_permission_label: 'Permission Request:',
+                omnichannel_permission_desc: 'The <strong>{app}</strong> application requests permission to read messages, sync the customer list, and automatically analyze behavior to build customer care scripts for the <strong>{channel}</strong> channel.',
+                omnichannel_label_account_name: 'Admin Account Name (Owner / Page Name):',
+                omnichannel_placeholder_account_name: 'e.g. BitPaw Shop, Cafe Store 01...',
+                omnichannel_label_channel_id: 'Channel ID / Phone Number:',
+                omnichannel_placeholder_channel_id: 'Enter Channel ID or Phone Number...',
+                omnichannel_label_access_token: 'API Access Token / Authorization Code:',
+                omnichannel_placeholder_access_token: 'Enter API Access Token...',
+                omnichannel_btn_approve: 'APPROVE & AUTHORIZE',
+                omnichannel_btn_cancel: 'CANCEL'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function renderPermissionDesc() {
+            const el = document.getElementById('permissionDesc');
+            if (el) el.innerHTML = tf('omnichannel_permission_desc', { app: 'BitPaw AI Platform', channel: channelUpper });
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            renderPermissionDesc();
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+    </script>
 
     <!-- Background Particle Canvas (Three.js Particle Animation) -->
     <script>

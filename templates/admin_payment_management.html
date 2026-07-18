@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -352,31 +352,32 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Pay</span> <span class="text-gray-400 text-sm font-medium">Admin</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý giao dịch | Payment Management</p>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider"><span data-i18n="admin_payment_subtitle">Quản lý giao dịch | Payment Management</span></p>
                 </div>
             </div>
-            <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <a href="{{ url_for('payment_gateway') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-credit-card"></i> Cổng thanh toán</a>
+            <div class="flex gap-3 items-center">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="admin_payment_home_btn">Trang chủ</span></a>
+                <a href="{{ url_for('payment_gateway') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-credit-card"></i> <span data-i18n="admin_payment_gateway_btn">Cổng thanh toán</span></a>
             </div>
         </div>
 
         <!-- Thống kê nhanh -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div class="glass-card p-4 text-center">
-                <div class="text-gray-400 text-sm mb-1">Tổng giao dịch</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="admin_payment_stat_total">Tổng giao dịch</div>
                 <div class="text-2xl font-bold text-cyan-400" id="totalTransactions">0</div>
             </div>
             <div class="glass-card p-4 text-center">
-                <div class="text-gray-400 text-sm mb-1">Doanh thu (VND)</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="admin_payment_stat_revenue_vnd">Doanh thu (VND)</div>
                 <div class="text-2xl font-bold text-emerald-400" id="totalRevenueVND">0₫</div>
             </div>
             <div class="glass-card p-4 text-center">
-                <div class="text-gray-400 text-sm mb-1">Doanh thu (USD)</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="admin_payment_stat_revenue_usd">Doanh thu (USD)</div>
                 <div class="text-2xl font-bold text-emerald-400" id="totalRevenueUSD">$0</div>
             </div>
             <div class="glass-card p-4 text-center">
-                <div class="text-gray-400 text-sm mb-1">Hoàn tiền</div>
+                <div class="text-gray-400 text-sm mb-1" data-i18n="admin_payment_stat_refunded">Hoàn tiền</div>
                 <div class="text-2xl font-bold text-rose-400" id="totalRefunded">0</div>
             </div>
         </div>
@@ -385,23 +386,23 @@
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label>
-                    <input type="text" id="searchInput" class="filter-input" placeholder="Mã GD, email, tên...">
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="admin_payment_label_search">Tìm kiếm</label>
+                    <input type="text" id="searchInput" class="filter-input" placeholder="Mã GD, email, tên..." data-i18n-placeholder="admin_payment_search_placeholder">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Trạng thái</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="admin_payment_label_status">Trạng thái</label>
                     <select id="statusFilter" class="filter-input">
-                        <option value="all">Tất cả</option>
-                        <option value="success">Thành công</option>
-                        <option value="pending">Chờ xử lý</option>
-                        <option value="failed">Thất bại</option>
-                        <option value="refunded">Hoàn tiền</option>
+                        <option value="all" data-i18n="admin_payment_opt_all">Tất cả</option>
+                        <option value="success" data-i18n="admin_payment_opt_success">Thành công</option>
+                        <option value="pending" data-i18n="admin_payment_opt_pending">Chờ xử lý</option>
+                        <option value="failed" data-i18n="admin_payment_opt_failed">Thất bại</option>
+                        <option value="refunded" data-i18n="admin_payment_opt_refunded">Hoàn tiền</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Phương thức</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="admin_payment_label_method">Phương thức</label>
                     <select id="methodFilter" class="filter-input">
-                        <option value="all">Tất cả</option>
+                        <option value="all" data-i18n="admin_payment_opt_all">Tất cả</option>
                         <option value="Stripe">Stripe/Card</option>
                         <option value="PayPal">PayPal</option>
                         <option value="MoMo">MoMo</option>
@@ -415,73 +416,73 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Từ ngày</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="admin_payment_label_start_date">Từ ngày</label>
                     <input type="date" id="startDate" class="filter-input">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1">Đến ngày</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="admin_payment_label_end_date">Đến ngày</label>
                     <input type="date" id="endDate" class="filter-input">
                 </div>
             </div>
             <div class="flex justify-between mt-4">
-                <button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button>
-                <button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button>
+                <button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="admin_payment_reset_btn">Đặt lại</span></button>
+                <button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="admin_payment_export_btn">Xuất Excel</span></button>
             </div>
         </div>
 
         <!-- Bảng giao dịch -->
         <div class="glass-panel p-5">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-receipt mr-2"></i> Danh sách giao dịch</h2>
-                <div class="text-sm text-gray-400" id="recordCount">Đang tải...</div>
+                <h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-receipt mr-2"></i> <span data-i18n="admin_payment_table_title">Danh sách giao dịch</span></h2>
+                <div class="text-sm text-gray-400" id="recordCount" data-i18n="admin_payment_loading">Đang tải...</div>
             </div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table" id="transactionTable">
                     <thead>
                         <tr>
-                            <th>Mã GD</th>
-                            <th>Khách hàng</th>
-                            <th>Phương thức</th>
-                            <th>Số tiền</th>
-                            <th>Trạng thái</th>
-                            <th>Thời gian</th>
-                            <th>Thao tác</th>
+                            <th data-i18n="admin_payment_th_id">Mã GD</th>
+                            <th data-i18n="admin_payment_th_customer">Khách hàng</th>
+                            <th data-i18n="admin_payment_th_method">Phương thức</th>
+                            <th data-i18n="admin_payment_th_amount">Số tiền</th>
+                            <th data-i18n="admin_payment_th_status">Trạng thái</th>
+                            <th data-i18n="admin_payment_th_time">Thời gian</th>
+                            <th data-i18n="admin_payment_th_action">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="transactionTableBody">
-                        <tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr>
+                        <tr><td colspan="7" class="text-center py-10 text-gray-500" data-i18n="admin_payment_loading_data">Đang tải dữ liệu...</td></tr>
                     </tbody>
                 </table>
                 </div>
             </div>
             <div class="flex justify-center items-center gap-3 mt-6">
-                <button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button>
+                <button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="admin_payment_prev_btn">Trước</span></button>
                 <span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span>
-                <button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button>
+                <button id="nextPage" class="pagination-btn"><span data-i18n="admin_payment_next_btn">Sau</span> <i class="fas fa-chevron-right ml-1"></i></button>
             </div>
         </div>
-        
+
         <!-- Biểu đồ thống kê -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <div class="glass-panel p-5">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Theo phương thức</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="admin_payment_chart_by_method">Theo phương thức</span></h3>
                 <canvas id="methodChart" height="200" style="max-height: 200px;"></canvas>
             </div>
             <div class="glass-panel p-5">
-                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Giao dịch theo ngày</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="admin_payment_chart_by_day">Giao dịch theo ngày</span></h3>
                 <canvas id="dailyChart" height="200" style="max-height: 200px;"></canvas>
             </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 mt-6">
             <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> <span data-i18n="admin_payment_support_title">Gửi yêu cầu hỗ trợ</span></h3>
                 <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
-                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required data-i18n-placeholder="admin_payment_support_name_placeholder">
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required data-i18n-placeholder="admin_payment_support_phone_placeholder">
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required data-i18n-placeholder="admin_payment_support_message_placeholder"></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition" data-i18n="admin_payment_support_submit_btn">Gửi yêu cầu</button>
                 </form>
                 <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
             </div>
@@ -492,28 +493,28 @@
     <div id="transactionModal" class="modal-overlay">
         <div class="modal-container">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-info-circle mr-2"></i> Chi tiết giao dịch</h3>
+                <h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-info-circle mr-2"></i> <span data-i18n="admin_payment_modal_title">Chi tiết giao dịch</span></h3>
                 <button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
             </div>
             <div id="modalDetails" class="space-y-3 text-sm"></div>
             <div class="mt-4 pt-3 border-t border-white/10">
-                <label class="block text-xs font-bold text-gray-400 mb-2">Cập nhật trạng thái</label>
+                <label class="block text-xs font-bold text-gray-400 mb-2" data-i18n="admin_payment_modal_update_status_label">Cập nhật trạng thái</label>
                 <select id="updateStatusSelect" class="glass-select mb-3">
-                    <option value="success">Thành công</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="failed">Thất bại</option>
-                    <option value="refunded">Hoàn tiền</option>
+                    <option value="success" data-i18n="admin_payment_opt_success">Thành công</option>
+                    <option value="pending" data-i18n="admin_payment_opt_pending">Chờ xử lý</option>
+                    <option value="failed" data-i18n="admin_payment_opt_failed">Thất bại</option>
+                    <option value="refunded" data-i18n="admin_payment_opt_refunded">Hoàn tiền</option>
                 </select>
                 <div class="flex gap-3">
-                    <button id="updateStatusBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold transition">Cập nhật</button>
-                    <button id="closeModalFooterBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold transition">Đóng</button>
+                    <button id="updateStatusBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold transition" data-i18n="admin_payment_modal_update_btn">Cập nhật</button>
+                    <button id="closeModalFooterBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold transition" data-i18n="admin_payment_modal_close_btn">Đóng</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Loading & Toast -->
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="admin_payment_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -568,7 +569,194 @@
         const totalRefundedSpan = document.getElementById('totalRefunded');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const toast = document.getElementById('toast');
-        
+
+        // ========== MULTI-LANGUAGE (VI/EN) ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+
+        const translations = {
+            vi: {
+                admin_payment_subtitle: 'Quản lý giao dịch | Payment Management',
+                admin_payment_home_btn: 'Trang chủ',
+                admin_payment_gateway_btn: 'Cổng thanh toán',
+                admin_payment_stat_total: 'Tổng giao dịch',
+                admin_payment_stat_revenue_vnd: 'Doanh thu (VND)',
+                admin_payment_stat_revenue_usd: 'Doanh thu (USD)',
+                admin_payment_stat_refunded: 'Hoàn tiền',
+                admin_payment_label_search: 'Tìm kiếm',
+                admin_payment_search_placeholder: 'Mã GD, email, tên...',
+                admin_payment_label_status: 'Trạng thái',
+                admin_payment_opt_all: 'Tất cả',
+                admin_payment_opt_success: 'Thành công',
+                admin_payment_opt_pending: 'Chờ xử lý',
+                admin_payment_opt_failed: 'Thất bại',
+                admin_payment_opt_refunded: 'Hoàn tiền',
+                admin_payment_label_method: 'Phương thức',
+                admin_payment_label_start_date: 'Từ ngày',
+                admin_payment_label_end_date: 'Đến ngày',
+                admin_payment_reset_btn: 'Đặt lại',
+                admin_payment_export_btn: 'Xuất Excel',
+                admin_payment_table_title: 'Danh sách giao dịch',
+                admin_payment_loading: 'Đang tải...',
+                admin_payment_th_id: 'Mã GD',
+                admin_payment_th_customer: 'Khách hàng',
+                admin_payment_th_method: 'Phương thức',
+                admin_payment_th_amount: 'Số tiền',
+                admin_payment_th_status: 'Trạng thái',
+                admin_payment_th_time: 'Thời gian',
+                admin_payment_th_action: 'Thao tác',
+                admin_payment_loading_data: 'Đang tải dữ liệu...',
+                admin_payment_prev_btn: 'Trước',
+                admin_payment_next_btn: 'Sau',
+                admin_payment_chart_by_method: 'Theo phương thức',
+                admin_payment_chart_by_day: 'Giao dịch theo ngày',
+                admin_payment_chart_legend_transactions: 'Số giao dịch',
+                admin_payment_support_title: 'Gửi yêu cầu hỗ trợ',
+                admin_payment_support_name_placeholder: 'Tên của bạn',
+                admin_payment_support_phone_placeholder: 'Số điện thoại / Zalo',
+                admin_payment_support_message_placeholder: 'Nội dung cần hỗ trợ...',
+                admin_payment_support_submit_btn: 'Gửi yêu cầu',
+                admin_payment_modal_title: 'Chi tiết giao dịch',
+                admin_payment_modal_update_status_label: 'Cập nhật trạng thái',
+                admin_payment_modal_update_btn: 'Cập nhật',
+                admin_payment_modal_close_btn: 'Đóng',
+                admin_payment_processing: 'Đang xử lý...',
+                admin_payment_no_transactions: 'Không có giao dịch nào',
+                admin_payment_page_info: 'Trang {page} / {total}',
+                admin_payment_total_count: 'Tổng: {count} giao dịch',
+                admin_payment_view_btn: 'Xem',
+                admin_payment_modal_label_id: 'Mã GD:',
+                admin_payment_modal_label_customer: 'Khách hàng:',
+                admin_payment_modal_label_email: 'Email:',
+                admin_payment_modal_label_method: 'Phương thức:',
+                admin_payment_modal_label_amount: 'Số tiền:',
+                admin_payment_modal_label_status: 'Trạng thái:',
+                admin_payment_modal_label_time: 'Thời gian:',
+                admin_payment_toast_load_error: 'Lỗi tải dữ liệu: {msg}',
+                admin_payment_toast_update_success: 'Cập nhật trạng thái thành công',
+                admin_payment_toast_update_error: 'Lỗi cập nhật: {msg}',
+                admin_payment_toast_no_data_export: 'Không có dữ liệu để xuất',
+                admin_payment_toast_export_success: 'Xuất file Excel thành công!',
+                admin_payment_toast_fill_all: 'Vui lòng nhập đầy đủ thông tin',
+                admin_payment_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                admin_payment_toast_generic_error: 'Lỗi: {msg}',
+                admin_payment_excel_h_id: 'Mã GD',
+                admin_payment_excel_h_customer: 'Khách hàng',
+                admin_payment_excel_h_email: 'Email',
+                admin_payment_excel_h_method: 'Phương thức',
+                admin_payment_excel_h_amount: 'Số tiền',
+                admin_payment_excel_h_currency: 'Tiền tệ',
+                admin_payment_excel_h_status: 'Trạng thái',
+                admin_payment_excel_h_time: 'Thời gian'
+            },
+            en: {
+                admin_payment_subtitle: 'Transaction Management | Payment Management',
+                admin_payment_home_btn: 'Home',
+                admin_payment_gateway_btn: 'Payment Gateway',
+                admin_payment_stat_total: 'Total Transactions',
+                admin_payment_stat_revenue_vnd: 'Revenue (VND)',
+                admin_payment_stat_revenue_usd: 'Revenue (USD)',
+                admin_payment_stat_refunded: 'Refunded',
+                admin_payment_label_search: 'Search',
+                admin_payment_search_placeholder: 'Transaction ID, email, name...',
+                admin_payment_label_status: 'Status',
+                admin_payment_opt_all: 'All',
+                admin_payment_opt_success: 'Success',
+                admin_payment_opt_pending: 'Pending',
+                admin_payment_opt_failed: 'Failed',
+                admin_payment_opt_refunded: 'Refunded',
+                admin_payment_label_method: 'Method',
+                admin_payment_label_start_date: 'From date',
+                admin_payment_label_end_date: 'To date',
+                admin_payment_reset_btn: 'Reset',
+                admin_payment_export_btn: 'Export Excel',
+                admin_payment_table_title: 'Transaction List',
+                admin_payment_loading: 'Loading...',
+                admin_payment_th_id: 'Transaction ID',
+                admin_payment_th_customer: 'Customer',
+                admin_payment_th_method: 'Method',
+                admin_payment_th_amount: 'Amount',
+                admin_payment_th_status: 'Status',
+                admin_payment_th_time: 'Time',
+                admin_payment_th_action: 'Action',
+                admin_payment_loading_data: 'Loading data...',
+                admin_payment_prev_btn: 'Previous',
+                admin_payment_next_btn: 'Next',
+                admin_payment_chart_by_method: 'By Method',
+                admin_payment_chart_by_day: 'Transactions by Day',
+                admin_payment_chart_legend_transactions: 'Transactions',
+                admin_payment_support_title: 'Send Support Request',
+                admin_payment_support_name_placeholder: 'Your name',
+                admin_payment_support_phone_placeholder: 'Phone / Zalo',
+                admin_payment_support_message_placeholder: 'Describe what you need help with...',
+                admin_payment_support_submit_btn: 'Send Request',
+                admin_payment_modal_title: 'Transaction Details',
+                admin_payment_modal_update_status_label: 'Update Status',
+                admin_payment_modal_update_btn: 'Update',
+                admin_payment_modal_close_btn: 'Close',
+                admin_payment_processing: 'Processing...',
+                admin_payment_no_transactions: 'No transactions found',
+                admin_payment_page_info: 'Page {page} / {total}',
+                admin_payment_total_count: 'Total: {count} transactions',
+                admin_payment_view_btn: 'View',
+                admin_payment_modal_label_id: 'Transaction ID:',
+                admin_payment_modal_label_customer: 'Customer:',
+                admin_payment_modal_label_email: 'Email:',
+                admin_payment_modal_label_method: 'Method:',
+                admin_payment_modal_label_amount: 'Amount:',
+                admin_payment_modal_label_status: 'Status:',
+                admin_payment_modal_label_time: 'Time:',
+                admin_payment_toast_load_error: 'Error loading data: {msg}',
+                admin_payment_toast_update_success: 'Status updated successfully',
+                admin_payment_toast_update_error: 'Update error: {msg}',
+                admin_payment_toast_no_data_export: 'No data to export',
+                admin_payment_toast_export_success: 'Excel file exported successfully!',
+                admin_payment_toast_fill_all: 'Please fill in all fields',
+                admin_payment_toast_support_sent: '✅ Request sent! We will contact you within 15 minutes.',
+                admin_payment_toast_generic_error: 'Error: {msg}',
+                admin_payment_excel_h_id: 'Transaction ID',
+                admin_payment_excel_h_customer: 'Customer',
+                admin_payment_excel_h_email: 'Email',
+                admin_payment_excel_h_method: 'Method',
+                admin_payment_excel_h_amount: 'Amount',
+                admin_payment_excel_h_currency: 'Currency',
+                admin_payment_excel_h_status: 'Status',
+                admin_payment_excel_h_time: 'Time'
+            }
+        };
+
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.innerHTML = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+            });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            loadTransactions();
+        }
+
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
         function showToast(msg, isError = false) {
             toast.innerText = msg;
             toast.style.borderColor = isError ? '#ef4444' : '#10b981';
@@ -583,10 +771,10 @@
         
         function getStatusBadge(status) {
             const map = {
-                success: '<span class="status-badge status-success"><i class="fas fa-check-circle mr-1"></i> Thành công</span>',
-                pending: '<span class="status-badge status-pending"><i class="fas fa-clock mr-1"></i> Chờ xử lý</span>',
-                failed: '<span class="status-badge status-failed"><i class="fas fa-exclamation-triangle mr-1"></i> Thất bại</span>',
-                refunded: '<span class="status-badge status-refunded"><i class="fas fa-undo-alt mr-1"></i> Hoàn tiền</span>'
+                success: `<span class="status-badge status-success"><i class="fas fa-check-circle mr-1"></i> ${t('admin_payment_opt_success')}</span>`,
+                pending: `<span class="status-badge status-pending"><i class="fas fa-clock mr-1"></i> ${t('admin_payment_opt_pending')}</span>`,
+                failed: `<span class="status-badge status-failed"><i class="fas fa-exclamation-triangle mr-1"></i> ${t('admin_payment_opt_failed')}</span>`,
+                refunded: `<span class="status-badge status-refunded"><i class="fas fa-undo-alt mr-1"></i> ${t('admin_payment_opt_refunded')}</span>`
             };
             return map[status] || map.failed;
         }
@@ -613,7 +801,7 @@
             
             const { data, error, count } = await query;
             if (error) {
-                showToast('Lỗi tải dữ liệu: ' + error.message, true);
+                showToast(tf('admin_payment_toast_load_error', { msg: error.message }), true);
                 loadingOverlay.classList.remove('active');
                 return;
             }
@@ -625,9 +813,9 @@
         
         function renderTable(transactions) {
             if (transactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Không có giao dịch nào</td></tr>';
-                pageInfo.innerText = `Trang 0 / 0`;
-                recordCountSpan.innerText = `Tổng: ${totalRecords} giao dịch`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-500">${t('admin_payment_no_transactions')}</td></tr>`;
+                pageInfo.innerText = tf('admin_payment_page_info', { page: 0, total: 0 });
+                recordCountSpan.innerText = tf('admin_payment_total_count', { count: totalRecords });
                 return;
             }
             tbody.innerHTML = transactions.map(tx => `
@@ -638,22 +826,22 @@
                     <td class="font-mono text-emerald-400">${formatCurrency(tx.amount, tx.currency || 'VND')}</td>
                     <td>${getStatusBadge(tx.status)}</td>
                     <td class="text-xs text-gray-400">${new Date(tx.created_at).toLocaleString('vi-VN')}</td>
-                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300 text-sm" data-id="${tx.id}"><i class="fas fa-eye mr-1"></i> Xem</button></td>
+                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300 text-sm" data-id="${tx.id}"><i class="fas fa-eye mr-1"></i> ${t('admin_payment_view_btn')}</button></td>
                 </tr>
             `).join('');
-            
+
             document.querySelectorAll('.view-detail').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const { data } = await supabase.from('payment_transactions').select('*').eq('id', btn.dataset.id).single();
                     if (data) showDetailModal(data);
                 });
             });
-            
+
             const totalPages = Math.ceil(totalRecords / rowsPerPage);
-            pageInfo.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfo.innerText = tf('admin_payment_page_info', { page: currentPage, total: totalPages || 1 });
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-            recordCountSpan.innerText = `Tổng: ${totalRecords} giao dịch`;
+            recordCountSpan.innerText = tf('admin_payment_total_count', { count: totalRecords });
         }
         
         async function updateStatsAndCharts(transactions) {
@@ -682,7 +870,7 @@
             const ctxMethod = document.getElementById('methodChart').getContext('2d');
             methodChart = new Chart(ctxMethod, {
                 type: 'bar',
-                data: { labels: Object.keys(methodCount), datasets: [{ label: 'Số giao dịch', data: Object.values(methodCount), backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
+                data: { labels: Object.keys(methodCount), datasets: [{ label: t('admin_payment_chart_legend_transactions'), data: Object.values(methodCount), backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa', rotation: -30 } } } }
             });
             
@@ -698,7 +886,7 @@
             const ctxDaily = document.getElementById('dailyChart').getContext('2d');
             dailyChart = new Chart(ctxDaily, {
                 type: 'line',
-                data: { labels: sortedDates, datasets: [{ label: 'Số giao dịch', data: dailyData, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', fill: true, tension: 0.3 }] },
+                data: { labels: sortedDates, datasets: [{ label: t('admin_payment_chart_legend_transactions'), data: dailyData, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', fill: true, tension: 0.3 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } } }
             });
         }
@@ -706,13 +894,13 @@
         function showDetailModal(tx) {
             currentModalId = tx.id;
             modalDetails.innerHTML = `
-                <div class="grid grid-cols-2 gap-2 border-b border-white/10 pb-2"><span class="text-gray-400">Mã GD:</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Khách hàng:</span><span>${tx.customer_name || 'N/A'}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Email:</span><span>${tx.customer_email || 'N/A'}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Phương thức:</span><span>${tx.method || 'N/A'}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Số tiền:</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Trạng thái:</span>${getStatusBadge(tx.status)}</div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">Thời gian:</span><span>${new Date(tx.created_at).toLocaleString('vi-VN')}</span></div>
+                <div class="grid grid-cols-2 gap-2 border-b border-white/10 pb-2"><span class="text-gray-400">${t('admin_payment_modal_label_id')}</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_customer')}</span><span>${tx.customer_name || 'N/A'}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_email')}</span><span>${tx.customer_email || 'N/A'}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_method')}</span><span>${tx.method || 'N/A'}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_amount')}</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_status')}</span>${getStatusBadge(tx.status)}</div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_time')}</span><span>${new Date(tx.created_at).toLocaleString('vi-VN')}</span></div>
             `;
             updateStatusSelect.value = tx.status;
             modal.classList.add('active');
@@ -729,9 +917,9 @@
             loadingOverlay.classList.add('active');
             const { error } = await supabase.from('payment_transactions').update({ status: newStatus }).eq('id', currentModalId);
             if (error) {
-                showToast('Lỗi cập nhật: ' + error.message, true);
+                showToast(tf('admin_payment_toast_update_error', { msg: error.message }), true);
             } else {
-                showToast('Cập nhật trạng thái thành công');
+                showToast(t('admin_payment_toast_update_success'));
                 await loadTransactions();
             }
             loadingOverlay.classList.remove('active');
@@ -760,10 +948,10 @@
             if (endDate.value) query = query.lte('created_at', endDate.value + ' 23:59:59');
             const { data } = await query;
             if (!data || data.length === 0) {
-                showToast('Không có dữ liệu để xuất', true);
+                showToast(t('admin_payment_toast_no_data_export'), true);
                 return;
             }
-            const wsData = [['Mã GD', 'Khách hàng', 'Email', 'Phương thức', 'Số tiền', 'Tiền tệ', 'Trạng thái', 'Thời gian']];
+            const wsData = [[t('admin_payment_excel_h_id'), t('admin_payment_excel_h_customer'), t('admin_payment_excel_h_email'), t('admin_payment_excel_h_method'), t('admin_payment_excel_h_amount'), t('admin_payment_excel_h_currency'), t('admin_payment_excel_h_status'), t('admin_payment_excel_h_time')]];
             data.forEach(tx => {
                 wsData.push([tx.transaction_id, tx.customer_name, tx.customer_email, tx.method, tx.amount, tx.currency, tx.status, tx.created_at]);
             });
@@ -771,7 +959,7 @@
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
             XLSX.writeFile(wb, `transactions_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast('Xuất file Excel thành công!');
+            showToast(t('admin_payment_toast_export_success'));
         }
         
         // CSKH: track click & gửi yêu cầu
@@ -794,7 +982,7 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('admin_payment_toast_fill_all'), true);
                 return;
             }
             try {
@@ -802,10 +990,10 @@
                     name, phone, message, status: 'pending', created_at: new Date()
                 }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('admin_payment_toast_support_sent'));
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(tf('admin_payment_toast_generic_error', { msg: err.message }), true);
             }
         });
         
@@ -825,6 +1013,7 @@
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
         
         // Initial load
+        applyStaticTranslations();
         supabaseReady.then(() => { loadTransactions(); });
         
         // ========== 3D Background GIỮ NGUYÊN ==========

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw | Báo Cáo Doanh Thu & Phân Tích</title>
+    <title>BitPaw | Revenue Report & Analytics</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -255,35 +255,36 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
-                    <h1 class="text-2xl md:text-3xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium">| Báo cáo tài chính</span></h1>
-                    <p class="text-xs text-gray-400">Phân tích doanh thu, chi phí và lợi nhuận chi tiết</p>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium" data-i18n="report_subtitle">| Financial Report</span></h1>
+                    <p class="text-xs text-gray-400" data-i18n="report_subtitle_desc">Detailed revenue, expense and profit analysis</p>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
                 <button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded-full text-sm font-bold transition">
-                    <i class="fas fa-file-excel"></i> Xuất Excel
+                    <i class="fas fa-file-excel"></i> <span data-i18n="report_export_btn">Export Excel</span>
                 </button>
                 <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold transition">
-                    <i class="fas fa-home"></i> Dashboard
+                    <i class="fas fa-home"></i> <span data-i18n="report_dashboard_link">Dashboard</span>
                 </a>
             </div>
         </div>
 
-        <!-- Bộ lọc thời gian -->
+        <!-- Time filter -->
         <div class="glass-panel p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <span class="text-xs text-gray-400"><i class="fas fa-calendar-alt mr-1"></i> Kỳ báo cáo:</span>
+                <span class="text-xs text-gray-400"><i class="fas fa-calendar-alt mr-1"></i> <span data-i18n="report_period_label">Report Period:</span></span>
                 <select id="filterPeriod" class="filter-select text-sm">
-                    <option value="today">Hôm nay</option>
-                    <option value="yesterday">Hôm qua</option>
-                    <option value="week" selected>7 ngày qua</option>
-                    <option value="month">30 ngày qua</option>
-                    <option value="custom">Tuỳ chỉnh</option>
+                    <option value="today" data-i18n="report_period_today">Today</option>
+                    <option value="yesterday" data-i18n="report_period_yesterday">Yesterday</option>
+                    <option value="week" selected data-i18n="report_period_week">Last 7 days</option>
+                    <option value="month" data-i18n="report_period_month">Last 30 days</option>
+                    <option value="custom" data-i18n="report_period_custom">Custom</option>
                 </select>
                 <div id="customDateRange" class="hidden flex gap-2">
                     <input type="date" id="startDate" class="filter-select text-sm">
                     <input type="date" id="endDate" class="filter-select text-sm">
-                    <button id="applyCustomBtn" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 px-3 py-1 rounded-full text-xs">Áp dụng</button>
+                    <button id="applyCustomBtn" class="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 px-3 py-1 rounded-full text-xs" data-i18n="report_apply_btn">Apply</button>
                 </div>
             </div>
             <div class="flex gap-2">
@@ -291,67 +292,67 @@
             </div>
         </div>
 
-        <!-- 3 chỉ số chính -->
+        <!-- 3 main metrics -->
         <div class="stats-grid mb-8">
             <div class="glass-card p-5 text-center">
-                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-chart-line text-cyan-400"></i> Tổng doanh thu</div>
-                <div id="revenueValue" class="text-3xl md:text-4xl font-black text-cyan-400">0₫</div>
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-chart-line text-cyan-400"></i> <span data-i18n="report_metric_revenue">Total Revenue</span></div>
+                <div id="revenueValue" class="text-3xl md:text-4xl font-black text-cyan-400">{{ 0 | money(tenant_currency) }}</div>
             </div>
             <div class="glass-card p-5 text-center">
-                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-receipt text-rose-400"></i> Tổng chi tiêu</div>
-                <div id="expenseValue" class="text-3xl md:text-4xl font-black text-rose-400">0₫</div>
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-receipt text-rose-400"></i> <span data-i18n="report_metric_expense">Total Expenses</span></div>
+                <div id="expenseValue" class="text-3xl md:text-4xl font-black text-rose-400">{{ 0 | money(tenant_currency) }}</div>
             </div>
             <div class="glass-card p-5 text-center">
-                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-gem text-purple-400"></i> Lợi nhuận ròng</div>
-                <div id="profitValue" class="text-3xl md:text-4xl font-black text-purple-400">0₫</div>
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-center gap-2"><i class="fas fa-gem text-purple-400"></i> <span data-i18n="report_metric_profit">Net Profit</span></div>
+                <div id="profitValue" class="text-3xl md:text-4xl font-black text-purple-400">{{ 0 | money(tenant_currency) }}</div>
             </div>
         </div>
 
-        <!-- Biểu đồ + Top sản phẩm -->
+        <!-- Chart + Top products -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div class="lg:col-span-2 glass-panel p-5">
-                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-chart-simple mr-2"></i> Doanh thu theo ngày</h3>
+                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-chart-simple mr-2"></i> <span data-i18n="report_chart_heading">Revenue by Day</span></h3>
                 <canvas id="revenueChart" height="250" style="max-height: 250px; width: 100%"></canvas>
-                <p class="text-[10px] text-gray-500 text-center mt-3">* Dữ liệu cập nhật theo bộ lọc</p>
+                <p class="text-[10px] text-gray-500 text-center mt-3" data-i18n="report_chart_caption">* Data updates according to the filter</p>
             </div>
             <div class="glass-panel p-5">
-                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-fire mr-2"></i> Top sản phẩm bán chạy</h3>
+                <h3 class="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-4"><i class="fas fa-fire mr-2"></i> <span data-i18n="report_top_products_heading">Top Selling Products</span></h3>
                 <div id="topProductsList" class="space-y-3 max-h-[250px] overflow-y-auto pr-2">
-                    <div class="text-gray-500 text-center py-5">Đang tải...</div>
+                    <div class="text-gray-500 text-center py-5" data-i18n="report_loading">Loading...</div>
                 </div>
             </div>
         </div>
 
-        <!-- Phân tích theo ngành + Top khách hàng -->
+        <!-- Category breakdown + Top customers -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="glass-panel p-5">
-                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-chart-pie mr-2"></i> Doanh thu theo ngành</h3>
+                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="report_category_heading">Revenue by Category</span></h3>
                 <div id="categoryBreakdown" class="space-y-3">
-                    <div class="text-gray-500 text-center py-4">Đang tải...</div>
+                    <div class="text-gray-500 text-center py-4" data-i18n="report_loading">Loading...</div>
                 </div>
             </div>
             <div class="glass-panel p-5">
-                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-trophy mr-2"></i> Khách hàng thân thiết</h3>
+                <h3 class="font-bold text-sm uppercase tracking-wider text-purple-400 mb-4"><i class="fas fa-trophy mr-2"></i> <span data-i18n="report_top_customers_heading">Loyal Customers</span></h3>
                 <div id="topCustomersList" class="space-y-3 max-h-[300px] overflow-y-auto">
-                    <div class="text-gray-500 text-center py-5">Đang tải...</div>
+                    <div class="text-gray-500 text-center py-5" data-i18n="report_loading">Loading...</div>
                 </div>
             </div>
         </div>
 
-        <!-- Chi tiêu gần đây -->
+        <!-- Recent expenses -->
         <div class="glass-panel p-5">
-            <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400 mb-4"><i class="fas fa-history mr-2"></i> Khoản chi gần đây</h3>
+            <h3 class="font-bold text-sm uppercase tracking-wider text-rose-400 mb-4"><i class="fas fa-history mr-2"></i> <span data-i18n="report_recent_expenses_heading">Recent Expenses</span></h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="border-b border-white/10">
                         <tr class="text-gray-400 text-xs">
-                            <th class="text-left py-2">Lý do</th>
-                            <th class="text-left py-2">Số tiền</th>
-                            <th class="text-left py-2">Thời gian</th>
+                            <th class="text-left py-2" data-i18n="report_table_reason">Reason</th>
+                            <th class="text-left py-2" data-i18n="report_table_amount">Amount</th>
+                            <th class="text-left py-2" data-i18n="report_table_time">Time</th>
                         </tr>
                     </thead>
                     <tbody id="recentExpenses">
-                        <tr><td colspan="3" class="text-center py-5 text-gray-500">Đang tải...</td></tr>
+                        <tr><td colspan="3" class="text-center py-5 text-gray-500" data-i18n="report_loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -359,8 +360,136 @@
 
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="report_processing">Processing...</span></div></div>
     <div id="toast" class="toast"></div>
+
+    <script>
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                report_subtitle: '| Báo cáo Tài chính',
+                report_subtitle_desc: 'Phân tích chi tiết doanh thu, chi phí và lợi nhuận',
+                report_export_btn: 'Xuất Excel',
+                report_dashboard_link: 'Trang chủ',
+                report_period_label: 'Kỳ báo cáo:',
+                report_period_today: 'Hôm nay',
+                report_period_yesterday: 'Hôm qua',
+                report_period_week: '7 ngày qua',
+                report_period_month: '30 ngày qua',
+                report_period_custom: 'Tùy chỉnh',
+                report_apply_btn: 'Áp dụng',
+                report_metric_revenue: 'Tổng Doanh thu',
+                report_metric_expense: 'Tổng Chi phí',
+                report_metric_profit: 'Lợi nhuận Ròng',
+                report_chart_heading: 'Doanh thu theo Ngày',
+                report_chart_caption: '* Dữ liệu cập nhật theo bộ lọc',
+                report_top_products_heading: 'Sản phẩm Bán chạy',
+                report_loading: 'Đang tải...',
+                report_category_heading: 'Doanh thu theo Danh mục',
+                report_top_customers_heading: 'Khách hàng Thân thiết',
+                report_recent_expenses_heading: 'Chi phí Gần đây',
+                report_table_reason: 'Lý do',
+                report_table_amount: 'Số tiền',
+                report_table_time: 'Thời gian',
+                report_processing: 'Đang xử lý...',
+                report_sold_label: 'Đã bán:',
+                report_no_data_yet: 'Chưa có dữ liệu',
+                report_no_expenses_yet: 'Chưa có khoản chi nào',
+                report_toast_error_loading: 'Lỗi tải dữ liệu: {msg}',
+                report_toast_select_dates: 'Vui lòng chọn ngày bắt đầu và kết thúc',
+                report_excel_title: 'Báo cáo Doanh thu BitPaw OS',
+                report_excel_period: 'Kỳ báo cáo',
+                report_excel_profit: 'Lợi nhuận',
+                report_excel_category: 'Danh mục',
+                report_excel_revenue_col: 'Doanh thu',
+                report_excel_product: 'Sản phẩm',
+                report_excel_qty_sold: 'Số lượng bán',
+                report_excel_top_customers: 'Khách hàng Thân thiết Nhất',
+                report_excel_name: 'Tên',
+                report_excel_phone: 'Điện thoại',
+                report_excel_total_spent: 'Tổng chi tiêu',
+                report_excel_success: 'Xuất file Excel thành công!',
+                report_chart_revenue_label: 'Doanh thu',
+                report_toast_fill_all: 'Vui lòng điền đầy đủ thông tin',
+                report_toast_request_sent: '✅ Đã gửi yêu cầu! Chúng tôi sẽ liên hệ lại trong vòng 15 phút.',
+                report_toast_error_prefix: 'Lỗi: {msg}'
+            },
+            en: {
+                report_subtitle: '| Financial Report',
+                report_subtitle_desc: 'Detailed revenue, expense and profit analysis',
+                report_export_btn: 'Export Excel',
+                report_dashboard_link: 'Dashboard',
+                report_period_label: 'Report Period:',
+                report_period_today: 'Today',
+                report_period_yesterday: 'Yesterday',
+                report_period_week: 'Last 7 days',
+                report_period_month: 'Last 30 days',
+                report_period_custom: 'Custom',
+                report_apply_btn: 'Apply',
+                report_metric_revenue: 'Total Revenue',
+                report_metric_expense: 'Total Expenses',
+                report_metric_profit: 'Net Profit',
+                report_chart_heading: 'Revenue by Day',
+                report_chart_caption: '* Data updates according to the filter',
+                report_top_products_heading: 'Top Selling Products',
+                report_loading: 'Loading...',
+                report_category_heading: 'Revenue by Category',
+                report_top_customers_heading: 'Loyal Customers',
+                report_recent_expenses_heading: 'Recent Expenses',
+                report_table_reason: 'Reason',
+                report_table_amount: 'Amount',
+                report_table_time: 'Time',
+                report_processing: 'Processing...',
+                report_sold_label: 'Sold:',
+                report_no_data_yet: 'No data yet',
+                report_no_expenses_yet: 'No expenses yet',
+                report_toast_error_loading: 'Error loading data: {msg}',
+                report_toast_select_dates: 'Please select start and end dates',
+                report_excel_title: 'BitPaw OS Revenue Report',
+                report_excel_period: 'Period',
+                report_excel_profit: 'Profit',
+                report_excel_category: 'Category',
+                report_excel_revenue_col: 'Revenue',
+                report_excel_product: 'Product',
+                report_excel_qty_sold: 'Quantity Sold',
+                report_excel_top_customers: 'Top Loyal Customers',
+                report_excel_name: 'Name',
+                report_excel_phone: 'Phone',
+                report_excel_total_spent: 'Total Spent',
+                report_excel_success: 'Excel file exported successfully!',
+                report_chart_revenue_label: 'Revenue',
+                report_toast_fill_all: 'Please fill in all fields',
+                report_toast_request_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                report_toast_error_prefix: 'Error: {msg}'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof window.updateDashboard === 'function') window.updateDashboard();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+    </script>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -369,6 +498,17 @@
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
         let supabase = createClient(supabaseUrl, supabaseKey);
+
+        // ========== TENANT CURRENCY ==========
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatMoney(value) {
+            value = value || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(value).toLocaleString('vi-VN') + 'đ';
+        }
+        const currencySymbol = TENANT_CURRENCY === 'USD' ? '$' : '₫';
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
@@ -520,7 +660,7 @@
                     for (let item of orderItems) {
                         const prod = products.find(p => p.id === item.product_id);
                         if (prod) {
-                            const cat = prod.category || 'Khác';
+                            const cat = prod.category || 'Other';
                             const rev = (prod.price || 0) * (item.quantity || 0);
                             categoryRevenue.set(cat, (categoryRevenue.get(cat) || 0) + rev);
                         }
@@ -563,7 +703,7 @@
                 };
             } catch (err) {
                 console.error(err);
-                showToastMsg('Lỗi tải dữ liệu: ' + err.message, true);
+                showToastMsg(tf('report_toast_error_loading', { msg: err.message }), true);
                 return null;
             } finally {
                 showLoading(false);
@@ -577,7 +717,7 @@
                 start = startDateInput.value;
                 end = endDateInput.value;
                 if (!start || !end) {
-                    showToastMsg('Vui lòng chọn ngày bắt đầu và kết thúc', true);
+                    showToastMsg(t('report_toast_select_dates'), true);
                     return;
                 }
             }
@@ -585,20 +725,20 @@
             if (!data) return;
 
             // Cập nhật số liệu
-            revenueSpan.innerText = data.revenue.toLocaleString('vi-VN') + '₫';
-            expenseSpan.innerText = data.expense.toLocaleString('vi-VN') + '₫';
-            profitSpan.innerText = data.profit.toLocaleString('vi-VN') + '₫';
+            revenueSpan.innerText = formatMoney(data.revenue);
+            expenseSpan.innerText = formatMoney(data.expense);
+            profitSpan.innerText = formatMoney(data.profit);
 
             // Cập nhật phân tích theo ngành
             if (data.categoryData.length) {
                 categoryBreakdownDiv.innerHTML = data.categoryData.map(cat => `
                     <div class="flex justify-between items-center border-b border-white/5 pb-2">
                         <span class="text-gray-300 text-sm">${escapeHtml(cat.name)}</span>
-                        <span class="text-cyan-400 font-mono font-bold">${cat.total.toLocaleString('vi-VN')}₫</span>
+                        <span class="text-cyan-400 font-mono font-bold">${formatMoney(cat.total)}</span>
                     </div>
                 `).join('');
             } else {
-                categoryBreakdownDiv.innerHTML = '<div class="text-center text-gray-500 py-4">Chưa có dữ liệu</div>';
+                categoryBreakdownDiv.innerHTML = `<div class="text-center text-gray-500 py-4">${t('report_no_data_yet')}</div>`;
             }
 
             // Top sản phẩm
@@ -607,13 +747,13 @@
                     <div class="glass-card p-3">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-white">${escapeHtml(p.name)}</span>
-                            <span class="text-cyan-400 font-mono">${p.revenue.toLocaleString('vi-VN')}₫</span>
+                            <span class="text-cyan-400 font-mono">${formatMoney(p.revenue)}</span>
                         </div>
-                        <div class="text-xs text-gray-500">Đã bán: ${p.sold}</div>
+                        <div class="text-xs text-gray-500">${t('report_sold_label')} ${p.sold}</div>
                     </div>
                 `).join('');
             } else {
-                topProductsDiv.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có dữ liệu</div>';
+                topProductsDiv.innerHTML = `<div class="text-center text-gray-500 py-5">${t('report_no_data_yet')}</div>`;
             }
 
             // Top khách hàng
@@ -621,24 +761,24 @@
                 topCustomersDiv.innerHTML = data.topCustomers.map(c => `
                     <div class="flex justify-between items-center border-b border-white/5 pb-2">
                         <div><span class="font-medium text-white">${escapeHtml(c.name)}</span><div class="text-[10px] text-gray-500">${c.phone}</div></div>
-                        <span class="text-purple-300 font-mono">${c.spent.toLocaleString('vi-VN')}₫</span>
+                        <span class="text-purple-300 font-mono">${formatMoney(c.spent)}</span>
                     </div>
                 `).join('');
             } else {
-                topCustomersDiv.innerHTML = '<div class="text-center text-gray-500 py-5">Chưa có dữ liệu</div>';
+                topCustomersDiv.innerHTML = `<div class="text-center text-gray-500 py-5">${t('report_no_data_yet')}</div>`;
             }
 
-            // Chi tiêu gần đây
+            // Recent expenses
             if (data.recentExpenses.length) {
                 recentExpensesBody.innerHTML = data.recentExpenses.map(e => `
                     <tr class="border-b border-white/5">
                         <td class="py-2 text-gray-300">${escapeHtml(e.description)}</td>
-                        <td class="py-2 text-rose-300 font-mono">${e.amount.toLocaleString('vi-VN')}₫</td>
+                        <td class="py-2 text-rose-300 font-mono">${formatMoney(e.amount)}</td>
                         <td class="py-2 text-gray-500 text-xs">${new Date(e.expense_date).toLocaleDateString('vi-VN')}</td>
                     </tr>
                 `).join('');
             } else {
-                recentExpensesBody.innerHTML = '<tr><td colspan="3" class="text-center py-5 text-gray-500">Chưa có chi tiêu</td></tr>';
+                recentExpensesBody.innerHTML = `<tr><td colspan="3" class="text-center py-5 text-gray-500">${t('report_no_expenses_yet')}</td></tr>`;
             }
 
             // Biểu đồ
@@ -649,7 +789,7 @@
                 data: {
                     labels: data.labels,
                     datasets: [{
-                        label: 'Doanh thu (₫)',
+                        label: `${t('report_chart_revenue_label')} (${currencySymbol})`,
                         data: data.revenueByDay,
                         borderColor: '#06b6d4',
                         backgroundColor: 'rgba(6, 182, 212, 0.1)',
@@ -665,7 +805,7 @@
                     maintainAspectRatio: true,
                     plugins: {
                         legend: { labels: { color: '#ccc' } },
-                        tooltip: { callbacks: { label: (ctx) => ctx.raw.toLocaleString() + '₫' } }
+                        tooltip: { callbacks: { label: (ctx) => formatMoney(ctx.raw) } }
                     },
                     scales: {
                         y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#aaa', callback: (v) => v.toLocaleString() } },
@@ -674,6 +814,7 @@
                 }
             });
         }
+        window.updateDashboard = updateDashboard;
 
         // Xuất Excel
         async function exportToExcel() {
@@ -685,30 +826,31 @@
             }
             const data = await fetchReportData(period, start, end);
             if (!data) return;
+            const periodLabel = period === 'today' ? t('report_period_today') : period === 'yesterday' ? t('report_period_yesterday') : period === 'week' ? t('report_period_week') : period === 'month' ? t('report_period_month') : t('report_period_custom');
             const wsData = [
-                ['Báo cáo doanh thu BitPaw OS', ''],
-                ['Thời gian', period === 'today' ? 'Hôm nay' : period === 'yesterday' ? 'Hôm qua' : period === 'week' ? '7 ngày' : period === 'month' ? '30 ngày' : 'Tuỳ chỉnh'],
-                ['Tổng doanh thu', data.revenue],
-                ['Tổng chi tiêu', data.expense],
-                ['Lợi nhuận', data.profit],
+                [t('report_excel_title'), ''],
+                [t('report_excel_period'), periodLabel],
+                [t('report_metric_revenue'), data.revenue],
+                [t('report_metric_expense'), data.expense],
+                [t('report_excel_profit'), data.profit],
                 [],
-                ['Phân tích theo ngành'],
-                ['Ngành', 'Doanh thu (₫)'],
+                [t('report_category_heading')],
+                [t('report_excel_category'), `${t('report_excel_revenue_col')} (${currencySymbol})`],
                 ...data.categoryData.map(c => [c.name, c.total]),
                 [],
-                ['Top sản phẩm bán chạy'],
-                ['Sản phẩm', 'Số lượng bán', 'Doanh thu (₫)'],
+                [t('report_top_products_heading')],
+                [t('report_excel_product'), t('report_excel_qty_sold'), `${t('report_excel_revenue_col')} (${currencySymbol})`],
                 ...data.topProducts.map(p => [p.name, p.sold, p.revenue]),
                 [],
-                ['Top khách hàng thân thiết'],
-                ['Tên', 'SĐT', 'Tổng chi tiêu'],
+                [t('report_excel_top_customers')],
+                [t('report_excel_name'), t('report_excel_phone'), t('report_excel_total_spent')],
                 ...data.topCustomers.map(c => [c.name, c.phone, c.spent])
             ];
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoDoanhThu');
-            XLSX.writeFile(wb, `baocao_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToastMsg('Đã xuất file Excel thành công!');
+            XLSX.utils.book_append_sheet(wb, ws, 'RevenueReport');
+            XLSX.writeFile(wb, `report_${new Date().toISOString().slice(0,19)}.xlsx`);
+            showToastMsg(t('report_excel_success'));
         }
 
         // Xử lý bộ lọc
@@ -747,17 +889,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToastMsg('Vui lòng nhập đầy đủ thông tin', true);
+                showToastMsg(t('report_toast_fill_all'), true);
                 return;
             }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToastMsg('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToastMsg(t('report_toast_request_sent'));
                 supportForm.reset();
             } catch(err) {
-                showToastMsg('Lỗi: ' + err.message, true);
+                showToastMsg(tf('report_toast_error_prefix', { msg: err.message }), true);
             } finally {
                 showLoading(false);
             }

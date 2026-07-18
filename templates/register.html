@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw | Đăng ký tài khoản</title>
+    <title>BitPaw | Register Account</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -250,9 +250,9 @@
                 </div>
                 
                 <h1 class="text-3xl font-black text-center mb-2">
-                    Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-xl font-normal">| Đăng ký</span>
+                    Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-xl font-normal">| Register</span>
                 </h1>
-                <p class="text-center text-gray-400 text-sm mb-6">Đăng ký tài khoản doanh nghiệp của bạn</p>
+                <p class="text-center text-gray-400 text-sm mb-6">Register your business account</p>
                 
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
@@ -271,7 +271,7 @@
                 
                 <form id="registerForm" class="space-y-4" action="{{ url_for('register') }}" method="POST">
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Tài khoản Email</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Email Account</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-envelope text-gray-500 text-sm"></i></div>
                             <input type="email" id="email" name="email" required placeholder="owner@bitpaw.com" class="glass-input pl-11">
@@ -279,7 +279,7 @@
                     </div>
                     
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Mật khẩu</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Password</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-lock text-gray-500 text-sm"></i></div>
                             <input type="password" id="password" name="password" required placeholder="••••••••" class="glass-input pl-11">
@@ -290,7 +290,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Tên cửa hàng / Doanh nghiệp</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Store / Business Name</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-store text-gray-500 text-sm"></i></div>
                             <input type="text" id="business_name" name="business_name" required placeholder="BitPaw Store" class="glass-input pl-11">
@@ -298,7 +298,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ngành nghề kinh doanh</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Business Type</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-shapes text-cyan-400 text-sm"></i></div>
                             <select name="business_type" id="business_type" required class="glass-select pl-11">
@@ -310,7 +310,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Mã kích hoạt đăng ký (License Key)</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Registration Activation Code (License Key)</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-key text-gray-500 text-sm"></i></div>
                             <input type="text" id="license_key" name="license_key" required placeholder="KEY-XXXX-XXXX" class="glass-input pl-11">
@@ -318,12 +318,12 @@
                     </div>
                     
                     <button type="submit" id="registerBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] flex items-center justify-center gap-2 mt-5">
-                        <i class="fas fa-user-plus"></i> Đăng ký tài khoản
+                        <i class="fas fa-user-plus"></i> Register Account
                     </button>
                 </form>
-                
+
                 <div class="mt-6 text-center">
-                    <p class="text-xs text-gray-500">Đã có tài khoản? <a href="{{ url_for('login') }}" class="text-cyan-400 hover:underline font-bold">Đăng nhập ngay</a></p>
+                    <p class="text-xs text-gray-500">Already have an account? <a href="{{ url_for('login') }}" class="text-cyan-400 hover:underline font-bold">Log in now</a></p>
                 </div>
             </div>
         </div>
@@ -331,7 +331,7 @@
         <div class="w-full mt-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="cskh-widget">
-                    <h3 class="text-base font-bold text-cyan-400 mb-4 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> Hỗ trợ 24/7</h3>
+                    <h3 class="text-base font-bold text-cyan-400 mb-4 flex items-center gap-2 justify-center"><i class="fas fa-headset"></i> 24/7 Support</h3>
                     <div class="flex flex-col gap-3">
                         <a href="tel:0794678904" class="cskh-item" data-channel="hotline">
                             <i class="fas fa-phone-alt text-emerald-400 w-6 text-xl"></i>
@@ -357,28 +357,28 @@
                         <a href="mailto:hodinhsang30052003@gmail.com" class="cskh-item" data-channel="email">
                             <i class="fas fa-envelope text-rose-400 w-6 text-xl"></i>
                             <div class="cskh-info">
-                                <span class="cskh-label">Email hỗ trợ</span>
+                                <span class="cskh-label">Support Email</span>
                                 <span class="cskh-value">hodinhsang30052003@gmail.com</span>
                             </div>
                         </a>
                     </div>
                 </div>
-                
+
                 <div class="cskh-widget flex flex-col justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-cyan-400 mb-4 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                        <h3 class="text-base font-bold text-cyan-400 mb-4 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Send Support Request</h3>
                         <form id="supportForm" class="space-y-4">
-                            <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                            <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                            <textarea id="supportMessage" rows="3" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm resize-none" required></textarea>
-                            <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl text-sm transition mt-2 shadow-[0_0_10px_rgba(6,182,212,0.3)]">Gửi yêu cầu ngay</button>
+                            <input type="text" id="supportName" placeholder="Your name" class="glass-input-sm" required>
+                            <input type="text" id="supportPhone" placeholder="Phone number / Zalo" class="glass-input-sm" required>
+                            <textarea id="supportMessage" rows="3" placeholder="Message needing support..." class="glass-input-sm resize-none" required></textarea>
+                            <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl text-sm transition mt-2 shadow-[0_0_10px_rgba(6,182,212,0.3)]">Send Request Now</button>
                         </form>
                     </div>
                     <div id="supportStatus" class="text-xs text-center mt-3 text-gray-400"></div>
                 </div>
             </div>
             
-            <p class="text-center text-[11px] text-gray-500 mt-8 mb-4">Secured by BitPaw OS | Phiên bản 3.0</p>
+            <p class="text-center text-[11px] text-gray-500 mt-8 mb-4">Secured by BitPaw OS | Version 3.0</p>
         </div>
 
     </div>
@@ -386,7 +386,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
-            <span class="text-sm font-medium text-gray-200">Đang tạo tài khoản...</span>
+            <span class="text-sm font-medium text-gray-200">Creating account...</span>
         </div>
     </div>
     <div id="toast" class="toast"></div>
@@ -427,7 +427,7 @@
 
         form.addEventListener('submit', () => {
             registerBtn.disabled = true;
-            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo tài khoản...';
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
             loadingOverlay.classList.add('active');
         });
 
@@ -451,17 +451,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast('Please fill in all fields', true);
                 return;
             }
             loadingOverlay.classList.add('active');
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast('✅ Request sent! We will contact you back within 15 minutes.');
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast('Error: ' + err.message, true);
             } finally {
                 loadingOverlay.classList.remove('active');
             }

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPay | Cấu hình Cổng thanh toán & Thiết lập nhận tiền</title>
+    <title data-i18n="payment_gateway_title">BitPay | Cấu hình Cổng thanh toán & Thiết lập nhận tiền</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -294,24 +294,27 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Pay</span> <span class="text-gray-400 text-xs sm:text-sm font-medium">| Cấu hình Cổng thanh toán</span></h1>
-                    <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider">Thiết lập tài khoản nhận tiền đa quốc gia cho POS</p>
+                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Pay</span> <span class="text-gray-400 text-xs sm:text-sm font-medium" data-i18n="payment_gateway_header_title">| Cấu hình Cổng thanh toán</span></h1>
+                    <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider" data-i18n="payment_gateway_header_subtitle">Thiết lập tài khoản nhận tiền đa quốc gia cho POS</p>
                 </div>
             </div>
-            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold transition flex items-center gap-1 self-stretch sm:self-auto justify-center">
-                <i class="fas fa-home"></i> Dashboard
-            </a>
+            <div class="flex gap-2 self-stretch sm:self-auto justify-end items-center">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold transition flex items-center gap-1 justify-center">
+                    <i class="fas fa-home"></i> <span data-i18n="payment_gateway_dashboard_btn">Dashboard</span>
+                </a>
+            </div>
         </div>
 
         <!-- 3 tab phân loại quốc gia -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-6">
-            <button id="tabVN" class="tab-btn active font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2">
+            <button id="tabVN" class="tab-btn active font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2" data-i18n="payment_gateway_tab_vn">
                 🇻🇳 Việt Nam (VietQR)
             </button>
-            <button id="tabUS" class="tab-btn font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2">
+            <button id="tabUS" class="tab-btn font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2" data-i18n="payment_gateway_tab_us">
                 🇺🇸 United States (Nails & Salon)
             </button>
-            <button id="tabIntl" class="tab-btn font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2">
+            <button id="tabIntl" class="tab-btn font-bold py-3.5 rounded-xl text-center text-sm shadow flex items-center justify-center gap-2" data-i18n="payment_gateway_tab_intl">
                 🌐 Quốc tế (International)
             </button>
         </div>
@@ -324,42 +327,42 @@
 
                     <!-- PHẦN A: VIỆT NAM (VietQR) -->
                     <div id="sectionVN" class="space-y-4">
-                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-university mr-2"></i> Thiết lập tài khoản ngân hàng (VietQR/NAPAS)</h3>
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-university mr-2"></i> <span data-i18n="payment_gateway_vn_section_title">Thiết lập tài khoản ngân hàng (VietQR/NAPAS)</span></h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="bank-select-wrapper">
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Tìm/Chọn Ngân hàng *</label>
+                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_bank_search_label">Tìm/Chọn Ngân hàng *</label>
                                 <input type="text" id="bankSearch" class="glass-input" placeholder="e.g. MB, Vietcombank...">
                                 <input type="hidden" id="bankCode" value="">
                                 <input type="hidden" id="bankName" value="">
                                 <div id="bankSearchResults" class="bank-search-results"></div>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Mã ngân hàng (Bank Code) *</label>
-                                <input type="text" id="bankCodeManual" class="glass-input" placeholder="e.g. MB, VCB (Tự động hoặc nhập tay)">
+                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_bank_code_label">Mã ngân hàng (Bank Code) *</label>
+                                <input type="text" id="bankCodeManual" class="glass-input" placeholder="e.g. MB, VCB (Tự động hoặc nhập tay)" data-i18n-placeholder="payment_gateway_bank_code_placeholder">
                             </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Số tài khoản *</label>
-                                <input type="text" id="accountNumber" class="glass-input" placeholder="Nhập số tài khoản nhận tiền">
+                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_account_number_label">Số tài khoản *</label>
+                                <input type="text" id="accountNumber" class="glass-input" placeholder="Nhập số tài khoản nhận tiền" data-i18n-placeholder="payment_gateway_account_number_placeholder">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">Tên chủ tài khoản * (VIẾT HOA KHÔNG DẤU)</label>
+                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_account_holder_label">Tên chủ tài khoản * (VIẾT HOA KHÔNG DẤU)</label>
                                 <input type="text" id="accountHolder" class="glass-input" placeholder="e.g. NGUYEN VAN A">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-1">Nội dung chuyển khoản mặc định (Prefix) *</label>
+                            <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_transfer_prefix_label">Nội dung chuyển khoản mặc định (Prefix) *</label>
                             <input type="text" id="transferPrefix" class="glass-input" placeholder="e.g. BITPAW" value="BITPAW">
                         </div>
                     </div>
 
                     <!-- PHẦN B: HOA KỲ (Square, Clover, Stripe...) -->
                     <div id="sectionUS" class="space-y-4 hidden">
-                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-wallet mr-2"></i> Thiết lập Cổng thanh toán tiệm Nails / Salon tại Mỹ</h3>
-                        
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-wallet mr-2"></i> <span data-i18n="payment_gateway_us_section_title">Thiết lập Cổng thanh toán tiệm Nails / Salon tại Mỹ</span></h3>
+
                         <div class="mb-4">
-                            <label class="block text-xs font-bold text-gray-400 mb-1">Chọn Nhà cung cấp (US Payment Provider) *</label>
+                            <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_us_provider_label">Chọn Nhà cung cấp (US Payment Provider) *</label>
                             <select id="usProviderSelect" class="glass-input cursor-pointer">
                                 <option value="square_terminal">Square Terminal (Tap to Pay / Card Reader)</option>
                                 <option value="clover_terminal">Clover Terminal (Nail Salon POS Hardware)</option>
@@ -368,7 +371,7 @@
                                 <option value="ach">ACH / US Bank Wire Transfer</option>
                                 <option value="cash_app">Cash App Pay (Cashtag)</option>
                                 <option value="paypal_venmo">PayPal / Venmo Business</option>
-                                <option value="external_terminal">External Card Terminal (Thiết bị quẹt thẻ ngoài)</option>
+                                <option value="external_terminal" data-i18n="payment_gateway_option_external_terminal">External Card Terminal (Thiết bị quẹt thẻ ngoài)</option>
                             </select>
                         </div>
 

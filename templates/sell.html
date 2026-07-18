@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -251,10 +251,13 @@
         </div>
         
         <div class="glass-card p-6 md:p-8">
+            <div class="flex justify-end mb-2">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
+            </div>
             <h2 class="text-2xl md:text-3xl font-black text-center mb-6">
-                <span class="text-cyan-400">🛒 Chốt đơn</span> <span class="text-gray-300 text-xl">| Bán hàng nhanh</span>
+                <span class="text-cyan-400" data-i18n="sell_header_title">🛒 Chốt đơn</span> <span class="text-gray-300 text-xl" data-i18n="sell_header_subtitle">| Bán hàng nhanh</span>
             </h2>
-            
+
             <div class="product-preview mb-6">
                 <!-- Ảnh sản phẩm -->
                 <div class="product-img flex items-center justify-center text-3xl bg-black/50" id="productImgContainer">
@@ -264,47 +267,52 @@
                     <h3 class="text-lg font-bold text-white" id="productName">Loading...</h3>
                     <div class="flex justify-between items-center mt-1">
                         <span class="text-2xl font-black text-cyan-400" id="productPrice">0₫</span>
-                        <span class="text-xs text-gray-400 bg-black/30 px-2 py-1 rounded-full">📦 Tồn: <span id="productStock">0</span></span>
+                        <span class="text-xs text-gray-400 bg-black/30 px-2 py-1 rounded-full">📦 <span data-i18n="sell_stock_label">Tồn:</span> <span id="productStock">0</span></span>
                     </div>
                 </div>
             </div>
-            
+
             <form id="sellForm" class="space-y-5">
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Số lượng</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="sell_quantity_label">Số lượng</label>
                     <div class="flex gap-3 items-center">
                         <button type="button" id="decrQty" class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/40 transition">-</button>
                         <input type="number" name="quantity" id="quantityInput" required value="1" min="1" class="glass-input text-center text-xl font-bold w-24">
                         <button type="button" id="incrQty" class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/40 transition">+</button>
                     </div>
                 </div>
-                
+
                 <div class="bg-black/40 rounded-xl p-3 flex justify-between items-center border border-white/10">
-                    <span class="text-sm font-bold text-gray-400">Tổng thanh toán</span>
+                    <span class="text-sm font-bold text-gray-400" data-i18n="sell_total_label">Tổng thanh toán</span>
                     <span id="totalPreview" class="text-2xl font-black text-cyan-400">0₫</span>
                 </div>
-                
+
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Phương thức thanh toán</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="sell_payment_method_label">Phương thức thanh toán</label>
                     <select name="payment_method" id="paymentMethod" class="glass-select">
-                        <option value="cash">💵 Tiền mặt</option>
-                        <option value="bank">🏦 Chuyển khoản</option>
-                        <option value="momo">📱 Momo</option>
-                        <option value="card">💳 Thẻ ngân hàng</option>
+                        <option value="cash" data-i18n="sell_pm_cash">💵 Tiền mặt</option>
+                        <option value="bank" data-i18n="sell_pm_bank">🏦 Chuyển khoản</option>
+                        <option value="momo" data-i18n="sell_pm_momo">📱 Momo</option>
+                        <option value="card" data-i18n="sell_pm_card">💳 Thẻ ngân hàng</option>
                     </select>
                 </div>
-                
+
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ghi chú (tuỳ chọn)</label>
-                    <textarea name="note" id="note" rows="2" class="glass-input resize-none" placeholder="VD: Giao hàng, quà tặng, ..."></textarea>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="sell_note_label">Ghi chú (tuỳ chọn)</label>
+                    <textarea name="note" id="note" rows="2" class="glass-input resize-none" placeholder="VD: Giao hàng, quà tặng, ..." data-i18n-placeholder="sell_note_placeholder"></textarea>
                 </div>
-                
+
                 <div class="pt-3 space-y-3">
                     <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] flex items-center justify-center gap-2">
-                        <i class="fas fa-check-circle"></i> Xác nhận bán hàng
+                        <i class="fas fa-check-circle"></i> <span data-i18n="sell_submit_btn">Xác nhận bán hàng</span>
                     </button>
+                    {% if tenant_country == 'US' %}
+                    <button type="button" id="squareSellBtn" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)] flex items-center justify-center gap-2">
+                        <i class="fab fa-square"></i> <span data-i18n="sell_square_btn">Pay with Square / Credit Card</span>
+                    </button>
+                    {% endif %}
                     <a href="{{ url_for('index') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-                        <i class="fas fa-arrow-left"></i> Quay lại Dashboard
+                        <i class="fas fa-arrow-left"></i> <span data-i18n="sell_back_dashboard_btn">Quay lại Dashboard</span>
                     </a>
                 </div>
             </form>
@@ -315,10 +323,10 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
-            <span class="text-sm font-medium text-gray-200">Đang xử lý đơn hàng...</span>
+            <span class="text-sm font-medium text-gray-200" data-i18n="sell_processing">Đang xử lý đơn hàng...</span>
         </div>
     </div>
-    <div id="toast" class="toast">Thông báo</div>
+    <div id="toast" class="toast" data-i18n="sell_toast_default">Thông báo</div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -350,6 +358,113 @@
         let currentProduct = null;
         let maxStock = 0;
         let productPrice = 0;
+
+        // ========== MULTI-REGION: CURRENCY & LANGUAGE ==========
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        const TENANT_COUNTRY = "{{ tenant_country }}";
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+
+        function formatMoney(amount) {
+            const value = Number(amount) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(value).toLocaleString('vi-VN') + '₫';
+        }
+
+        const translations = {
+            vi: {
+                sell_header_title: '🛒 Chốt đơn',
+                sell_header_subtitle: '| Bán hàng nhanh',
+                sell_stock_label: 'Tồn:',
+                sell_quantity_label: 'Số lượng',
+                sell_total_label: 'Tổng thanh toán',
+                sell_payment_method_label: 'Phương thức thanh toán',
+                sell_pm_cash: '💵 Tiền mặt',
+                sell_pm_bank: '🏦 Chuyển khoản',
+                sell_pm_momo: '📱 Momo',
+                sell_pm_card: '💳 Thẻ ngân hàng',
+                sell_note_label: 'Ghi chú (tuỳ chọn)',
+                sell_note_placeholder: 'VD: Giao hàng, quà tặng, ...',
+                sell_submit_btn: 'Xác nhận bán hàng',
+                sell_square_btn: 'Thanh toán Square / Thẻ tín dụng',
+                sell_back_dashboard_btn: 'Quay lại Dashboard',
+                sell_processing: 'Đang xử lý đơn hàng...',
+                sell_submit_processing: 'Đang xử lý...',
+                sell_toast_default: 'Thông báo',
+                sell_toast_product_not_found: 'Sản phẩm không tồn tại',
+                sell_toast_load_error: 'Lỗi tải sản phẩm: ',
+                sell_toast_invalid_qty: 'Số lượng không hợp lệ!',
+                sell_toast_qty_exceeds_stock: 'Số lượng vượt quá tồn kho ({stock})',
+                sell_toast_sale_success: '✅ Bán hàng thành công! Đơn hàng đã được ghi nhận.',
+                sell_toast_error: '❌ Lỗi: ',
+                sell_toast_fill_all_fields: 'Vui lòng nhập đầy đủ thông tin',
+                sell_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                sell_toast_generic_error: 'Lỗi: '
+            },
+            en: {
+                sell_header_title: '🛒 Checkout',
+                sell_header_subtitle: '| Quick Sale',
+                sell_stock_label: 'Stock:',
+                sell_quantity_label: 'Quantity',
+                sell_total_label: 'Total',
+                sell_payment_method_label: 'Payment Method',
+                sell_pm_cash: '💵 Cash',
+                sell_pm_bank: '🏦 Bank Transfer',
+                sell_pm_momo: '📱 Momo',
+                sell_pm_card: '💳 Card',
+                sell_note_label: 'Note (optional)',
+                sell_note_placeholder: 'E.g.: Delivery, gift, ...',
+                sell_submit_btn: 'Confirm Sale',
+                sell_square_btn: 'Pay with Square / Credit Card',
+                sell_back_dashboard_btn: 'Back to Dashboard',
+                sell_processing: 'Processing order...',
+                sell_submit_processing: 'Processing...',
+                sell_toast_default: 'Notification',
+                sell_toast_product_not_found: 'Product not found',
+                sell_toast_load_error: 'Error loading product: ',
+                sell_toast_invalid_qty: 'Invalid quantity!',
+                sell_toast_qty_exceeds_stock: 'Quantity exceeds stock ({stock})',
+                sell_toast_sale_success: '✅ Sale successful! Order has been recorded.',
+                sell_toast_error: '❌ Error: ',
+                sell_toast_fill_all_fields: 'Please fill in all fields',
+                sell_toast_support_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                sell_toast_generic_error: 'Error: '
+            }
+        };
+
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.innerHTML = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+            });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         // DOM elements
         const productNameSpan = document.getElementById('productName');
@@ -388,7 +503,7 @@
                     .single();
                 if (error) throw error;
                 if (!data) {
-                    showToastMessage('Sản phẩm không tồn tại', true);
+                    showToastMessage(t('sell_toast_product_not_found'), true);
                     setTimeout(() => window.location.href = "{{ url_for('index') }}", 1500);
                     return;
                 }
@@ -396,7 +511,7 @@
                 productPrice = data.price;
                 maxStock = data.stock;
                 productNameSpan.innerText = data.name;
-                productPriceSpan.innerText = data.price.toLocaleString('vi-VN') + '₫';
+                productPriceSpan.innerText = formatMoney(data.price);
                 productStockSpan.innerText = data.stock;
                 if (data.image) {
                     productImgContainer.innerHTML = `<img src="${data.image}" class="product-img object-cover">`;
@@ -407,7 +522,7 @@
                 updateTotalPreview();
             } catch (err) {
                 console.error(err);
-                showToastMessage('Lỗi tải sản phẩm: ' + err.message, true);
+                showToastMessage(t('sell_toast_load_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -425,7 +540,7 @@
                 quantityInput.value = 1;
             }
             const total = qty * productPrice;
-            totalPreviewSpan.innerText = total.toLocaleString('vi-VN') + '₫';
+            totalPreviewSpan.innerText = formatMoney(total);
         }
 
         quantityInput.addEventListener('input', updateTotalPreview);
@@ -483,34 +598,78 @@
             e.preventDefault();
             const quantity = parseInt(quantityInput.value);
             if (isNaN(quantity) || quantity < 1) {
-                showToastMessage('Số lượng không hợp lệ!', true);
+                showToastMessage(t('sell_toast_invalid_qty'), true);
                 return;
             }
             if (quantity > maxStock) {
-                showToastMessage(`Số lượng vượt quá tồn kho (${maxStock})`, true);
+                showToastMessage(tf('sell_toast_qty_exceeds_stock', {stock: maxStock}), true);
                 return;
             }
             const paymentMethod = document.getElementById('paymentMethod').value;
             const note = document.getElementById('note').value.trim();
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('sell_submit_processing')}`;
             showLoading(true);
             try {
                 await createOrder(quantity, paymentMethod, note);
-                showToastMessage('✅ Bán hàng thành công! Đơn hàng đã được ghi nhận.');
+                showToastMessage(t('sell_toast_sale_success'));
                 setTimeout(() => {
                     window.location.href = "{{ url_for('index') }}";
                 }, 1500);
             } catch (err) {
                 console.error(err);
-                showToastMessage('❌ Lỗi: ' + err.message, true);
+                showToastMessage(t('sell_toast_error') + err.message, true);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Xác nhận bán hàng';
+                submitBtn.innerHTML = `<i class="fas fa-check-circle"></i> ${t('sell_submit_btn')}`;
                 showLoading(false);
             }
         });
+
+        // ========== US MARKET: SQUARE SANDBOX CHECKOUT ==========
+        const squareSellBtn = document.getElementById('squareSellBtn');
+        if (squareSellBtn) {
+            squareSellBtn.addEventListener('click', async () => {
+                const quantity = parseInt(quantityInput.value);
+                if (isNaN(quantity) || quantity < 1) {
+                    showToastMessage('Invalid quantity!', true);
+                    return;
+                }
+                if (quantity > maxStock) {
+                    showToastMessage(`Quantity exceeds stock (${maxStock})`, true);
+                    return;
+                }
+                const total = quantity * productPrice;
+
+                squareSellBtn.disabled = true;
+                showLoading(true);
+                try {
+                    const response = await fetch('/api/us-payment/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ amount: Math.round(total * 100) / 100 })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showToastMessage('✅ Redirecting to Square checkout...');
+                        if (result.checkout_url) {
+                            setTimeout(() => { window.location.href = result.checkout_url; }, 800);
+                        } else if (result.terminal_status) {
+                            showToastMessage(`Square Terminal checkout sent (status: ${result.terminal_status})`);
+                        }
+                    } else {
+                        showToastMessage('Square checkout error: ' + result.message, true);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToastMessage('Server connection error: ' + err.message, true);
+                } finally {
+                    squareSellBtn.disabled = false;
+                    showLoading(false);
+                }
+            });
+        }
 
         // CSKH: track click & gửi yêu cầu
         async function trackCSKHClick(channel) {
@@ -535,17 +694,17 @@
                 const phone = document.getElementById('supportPhone').value;
                 const message = document.getElementById('supportMessage').value;
                 if (!name || !phone || !message) {
-                    showToastMessage('Vui lòng nhập đầy đủ thông tin', true);
+                    showToastMessage(t('sell_toast_fill_all_fields'), true);
                     return;
                 }
                 showLoading(true);
                 try {
                     const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                     if (error) throw error;
-                    showToastMessage('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                    showToastMessage(t('sell_toast_support_sent'));
                     supportForm.reset();
                 } catch(err) {
-                    showToastMessage('Lỗi: ' + err.message, true);
+                    showToastMessage(t('sell_toast_generic_error') + err.message, true);
                 } finally {
                     showLoading(false);
                 }

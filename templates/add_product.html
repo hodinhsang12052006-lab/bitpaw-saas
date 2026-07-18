@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Thêm Sản Phẩm Mới - BitPaw</title>
+    <title>Add New Product - BitPaw</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -177,25 +177,26 @@
                 <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
             </div>
             <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-cyan-400">Paw</span></h1>
-            <p class="text-xs text-gray-400 mt-1">Quản lý kho hàng thông minh</p>
+            <p class="text-xs text-gray-400 mt-1" data-i18n="addproduct_subtitle">Quản lý kho hàng thông minh</p>
+            <button id="langToggleBtn" type="button" class="mt-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
         </div>
 
         <div class="glass-panel rounded-3xl p-6 sm:p-8">
             <div class="text-center mb-6">
                 <h2 class="text-xl font-bold text-cyan-400 flex items-center justify-center gap-2">
-                    <i class="fas fa-box-open"></i> Thêm Sản Phẩm / Món Mới
+                    <i class="fas fa-box-open"></i> <span data-i18n="addproduct_title">Thêm sản phẩm / mặt hàng mới</span>
                 </h2>
-                <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest">Cập nhật kho hàng vào hệ thống</p>
+                <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest" data-i18n="addproduct_desc">Cập nhật hàng hoá vào hệ thống</p>
             </div>
 
             <form id="productForm" enctype="multipart/form-data" class="space-y-5">
-                <!-- Upload ảnh có preview -->
+                <!-- Image upload with preview -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Hình ảnh (Tuỳ chọn)</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_image_label">Hình ảnh (Không bắt buộc)</label>
                     <div class="flex items-center gap-4">
                         <div class="flex-1 glass-input p-2 file-label border-dashed border-2 hover:border-cyan-400 transition-colors flex items-center gap-2">
                             <i class="fas fa-image text-gray-500"></i>
-                            <span id="fileName" class="text-gray-400 text-sm">Chưa có ảnh</span>
+                            <span id="fileName" class="text-gray-400 text-sm" data-i18n="addproduct_no_image_selected">Chưa chọn hình ảnh</span>
                             <input type="file" id="imageInput" name="image" accept="image/*" class="hidden">
                         </div>
                         <div class="w-16 h-16 flex-shrink-0 bg-black/30 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden">
@@ -205,38 +206,38 @@
                     </div>
                 </div>
 
-                <!-- Tên sản phẩm -->
+                <!-- Product name -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Tên Sản Phẩm / Món</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_name_label">Tên sản phẩm / mặt hàng</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-tag text-gray-500 text-sm"></i></div>
-                        <input type="text" name="name" id="productName" required placeholder="VD: Cà phê sữa đá, Áo thun..." class="glass-input pl-11">
+                        <input type="text" name="name" id="productName" required placeholder="VD: Cà phê sữa đá, Áo thun..." data-i18n-placeholder="addproduct_name_placeholder" class="glass-input pl-11">
                     </div>
                 </div>
-                
-                <!-- Danh mục mở rộng -->
+
+                <!-- Category -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Thuộc nhóm / Lĩnh vực</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_category_label">Danh mục / Ngành hàng</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-layer-group text-gray-500 text-sm"></i></div>
                         <select name="category" id="productCategory" required class="glass-select pl-11 appearance-none cursor-pointer">
-                            <optgroup label="🍻 Dịch Vụ F&B">
-                                <option value="Đồ Ăn">🍛 Đồ Ăn / Mồi Nhậu</option>
-                                <option value="Nước Uống">🍹 Nước Uống / Cà Phê</option>
-                                <option value="Bia & Rượu">🍻 Bia & Rượu</option>
+                            <optgroup label="🍻 Dịch vụ Ẩm thực" data-i18n-label="addproduct_optgroup_fnb">
+                                <option value="Đồ Ăn" data-i18n="addproduct_opt_food">🍛 Đồ ăn / Món nhắm</option>
+                                <option value="Nước Uống" data-i18n="addproduct_opt_drink">🍹 Đồ uống / Cà phê</option>
+                                <option value="Bia & Rượu" data-i18n="addproduct_opt_beer">🍻 Bia & Rượu</option>
                             </optgroup>
-                            <optgroup label="🛍️ Bán Lẻ">
-                                <option value="Thời Trang">👗 Thời Trang & Phụ Kiện</option>
-                                <option value="Mỹ Phẩm">💄 Mỹ Phẩm & Làm Đẹp</option>
-                                <option value="Đồ Gia Dụng">🏠 Đồ Gia Dụng</option>
+                            <optgroup label="🛍️ Bán lẻ" data-i18n-label="addproduct_optgroup_retail">
+                                <option value="Thời Trang" data-i18n="addproduct_opt_fashion">👗 Thời trang & Phụ kiện</option>
+                                <option value="Mỹ Phẩm" data-i18n="addproduct_opt_cosmetics">💄 Mỹ phẩm & Làm đẹp</option>
+                                <option value="Đồ Gia Dụng" data-i18n="addproduct_opt_household">🏠 Đồ gia dụng</option>
                             </optgroup>
-                            <optgroup label="💆 Spa & Làm Đẹp">
-                                <option value="Spa">💆 Dịch vụ Spa</option>
-                                <option value="Mỹ Phẩm Cao Cấp">✨ Mỹ phẩm cao cấp</option>
+                            <optgroup label="💆 Spa & Làm đẹp" data-i18n-label="addproduct_optgroup_spa">
+                                <option value="Spa" data-i18n="addproduct_opt_spa">💆 Dịch vụ Spa</option>
+                                <option value="Mỹ Phẩm Cao Cấp" data-i18n="addproduct_opt_premium_cosmetics">✨ Mỹ phẩm cao cấp</option>
                             </optgroup>
-                            <optgroup label="🎤 Karaoke & Giải Trí">
-                                <option value="Dịch Vụ Karaoke">🎤 Karaoke</option>
-                                <option value="Bida">🎱 Bida</option>
+                            <optgroup label="🎤 Karaoke & Giải trí" data-i18n-label="addproduct_optgroup_karaoke">
+                                <option value="Dịch Vụ Karaoke" data-i18n="addproduct_opt_karaoke">🎤 Karaoke</option>
+                                <option value="Bida" data-i18n="addproduct_opt_billiards">🎱 Bida</option>
                             </optgroup>
                         </select>
                         <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><i class="fas fa-chevron-down text-cyan-500 text-xs"></i></div>
@@ -245,14 +246,14 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Tồn kho</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_stock_label">Số lượng tồn</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-boxes text-gray-500 text-sm"></i></div>
                             <input type="number" name="stock" id="productStock" required value="999" min="0" class="glass-input pl-11 font-mono text-cyan-300">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Giá bán (VNĐ)</label>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_price_label">Giá bán (VNĐ)</label>
                         <div class="relative">
                             <input type="text" id="priceDisplay" placeholder="0" class="glass-input pr-8 font-mono text-emerald-400 text-right">
                             <input type="hidden" name="price" id="priceHidden">
@@ -263,11 +264,11 @@
 
                 <div class="pt-4 space-y-3">
                     <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                        <i class="fas fa-check-circle"></i> Thêm Vào Hệ Thống
+                        <i class="fas fa-check-circle"></i> <span data-i18n="addproduct_submit_btn">Thêm vào hệ thống</span>
                     </button>
-                    
+
                     <a href="javascript:history.back()" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-rose-400 hover:text-rose-300 font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
-                        <i class="fas fa-times"></i> Hủy Bỏ
+                        <i class="fas fa-times"></i> <span data-i18n="addproduct_cancel_btn">Hủy</span>
                     </a>
                 </div>
             </form>
@@ -275,7 +276,7 @@
 
     </div>
 
-    <div id="toast" class="toast">Thông báo</div>
+    <div id="toast" class="toast" data-i18n="addproduct_toast_default">Thông báo</div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -283,8 +284,103 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabaseClient = createClient(supabaseUrl, supabaseKey);
         const STORAGE_BUCKET = 'product_images';
+
+        // ========== I18N (Đa ngôn ngữ) ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                addproduct_subtitle: 'Quản lý kho hàng thông minh',
+                addproduct_title: 'Thêm sản phẩm / mặt hàng mới',
+                addproduct_desc: 'Cập nhật hàng hoá vào hệ thống',
+                addproduct_image_label: 'Hình ảnh (Không bắt buộc)',
+                addproduct_no_image_selected: 'Chưa chọn hình ảnh',
+                addproduct_name_label: 'Tên sản phẩm / mặt hàng',
+                addproduct_name_placeholder: 'VD: Cà phê sữa đá, Áo thun...',
+                addproduct_category_label: 'Danh mục / Ngành hàng',
+                addproduct_optgroup_fnb: '🍻 Dịch vụ Ẩm thực',
+                addproduct_optgroup_retail: '🛍️ Bán lẻ',
+                addproduct_optgroup_spa: '💆 Spa & Làm đẹp',
+                addproduct_optgroup_karaoke: '🎤 Karaoke & Giải trí',
+                addproduct_opt_food: '🍛 Đồ ăn / Món nhắm',
+                addproduct_opt_drink: '🍹 Đồ uống / Cà phê',
+                addproduct_opt_beer: '🍻 Bia & Rượu',
+                addproduct_opt_fashion: '👗 Thời trang & Phụ kiện',
+                addproduct_opt_cosmetics: '💄 Mỹ phẩm & Làm đẹp',
+                addproduct_opt_household: '🏠 Đồ gia dụng',
+                addproduct_opt_spa: '💆 Dịch vụ Spa',
+                addproduct_opt_premium_cosmetics: '✨ Mỹ phẩm cao cấp',
+                addproduct_opt_karaoke: '🎤 Karaoke',
+                addproduct_opt_billiards: '🎱 Bida',
+                addproduct_stock_label: 'Số lượng tồn',
+                addproduct_price_label: 'Giá bán (VNĐ)',
+                addproduct_submit_btn: 'Thêm vào hệ thống',
+                addproduct_cancel_btn: 'Hủy',
+                addproduct_toast_default: 'Thông báo',
+                addproduct_processing: 'Đang xử lý...',
+                addproduct_err_name: 'Vui lòng nhập tên sản phẩm',
+                addproduct_err_price: 'Vui lòng nhập giá bán hợp lệ',
+                addproduct_err_stock: 'Vui lòng nhập số lượng tồn hợp lệ',
+                addproduct_upload_error_prefix: 'Lỗi tải ảnh lên: ',
+                addproduct_success: '✅ Thêm sản phẩm thành công!',
+                addproduct_error_prefix: '❌ Lỗi: '
+            },
+            en: {
+                addproduct_subtitle: 'Smart inventory management',
+                addproduct_title: 'Add New Product / Item',
+                addproduct_desc: 'Update your inventory in the system',
+                addproduct_image_label: 'Image (Optional)',
+                addproduct_no_image_selected: 'No image selected',
+                addproduct_name_label: 'Product / Item Name',
+                addproduct_name_placeholder: 'E.g.: Iced milk coffee, T-shirt...',
+                addproduct_category_label: 'Category / Industry',
+                addproduct_optgroup_fnb: '🍻 F&B Services',
+                addproduct_optgroup_retail: '🛍️ Retail',
+                addproduct_optgroup_spa: '💆 Spa & Beauty',
+                addproduct_optgroup_karaoke: '🎤 Karaoke & Entertainment',
+                addproduct_opt_food: '🍛 Food / Bar Snacks',
+                addproduct_opt_drink: '🍹 Drinks / Coffee',
+                addproduct_opt_beer: '🍻 Beer & Liquor',
+                addproduct_opt_fashion: '👗 Fashion & Accessories',
+                addproduct_opt_cosmetics: '💄 Cosmetics & Beauty',
+                addproduct_opt_household: '🏠 Household Items',
+                addproduct_opt_spa: '💆 Spa Services',
+                addproduct_opt_premium_cosmetics: '✨ Premium Cosmetics',
+                addproduct_opt_karaoke: '🎤 Karaoke',
+                addproduct_opt_billiards: '🎱 Billiards',
+                addproduct_stock_label: 'Stock',
+                addproduct_price_label: 'Selling Price (VND)',
+                addproduct_submit_btn: 'Add To System',
+                addproduct_cancel_btn: 'Cancel',
+                addproduct_toast_default: 'Notification',
+                addproduct_processing: 'Processing...',
+                addproduct_err_name: 'Please enter a product name',
+                addproduct_err_price: 'Please enter a valid selling price',
+                addproduct_err_stock: 'Please enter a valid stock quantity',
+                addproduct_upload_error_prefix: 'Image upload error: ',
+                addproduct_success: '✅ Product added successfully!',
+                addproduct_error_prefix: '❌ Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            document.querySelectorAll('[data-i18n-label]').forEach(el => { el.label = t(el.getAttribute('data-i18n-label')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
         // DOM elements
         const imageInput = document.getElementById('imageInput');
@@ -310,7 +406,7 @@
                 };
                 reader.readAsDataURL(file);
             } else {
-                fileNameSpan.innerText = 'Chưa có ảnh';
+                fileNameSpan.innerText = t('addproduct_no_image_selected');
                 previewImg.classList.add('hidden');
                 previewPlaceholder.classList.remove('hidden');
                 previewImg.src = '';
@@ -342,7 +438,7 @@
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `products/${fileName}`;
-            const { data, error } = await supabase.storage
+            const { data, error } = await supabaseClient.storage
                 .from(STORAGE_BUCKET)
                 .upload(filePath, file, {
                     cacheControl: '3600',
@@ -350,10 +446,10 @@
                 });
             if (error) {
                 console.error('Upload error:', error);
-                showToast('Lỗi upload ảnh: ' + error.message, true);
+                showToast(t('addproduct_upload_error_prefix') + error.message, true);
                 return null;
             }
-            const { data: publicUrl } = supabase.storage
+            const { data: publicUrl } = supabaseClient.storage
                 .from(STORAGE_BUCKET)
                 .getPublicUrl(filePath);
             return publicUrl.publicUrl;
@@ -365,36 +461,36 @@
             
             const name = document.getElementById('productName').value.trim();
             if (!name) {
-                showToast('Vui lòng nhập tên sản phẩm', true);
+                showToast(t('addproduct_err_name'), true);
                 return;
             }
             const priceVal = priceHidden.value;
             if (!priceVal || parseInt(priceVal) <= 0) {
-                showToast('Vui lòng nhập giá bán hợp lệ', true);
+                showToast(t('addproduct_err_price'), true);
                 return;
             }
             const stock = document.getElementById('productStock').value;
             if (stock === '' || parseInt(stock) < 0) {
-                showToast('Vui lòng nhập tồn kho hợp lệ', true);
+                showToast(t('addproduct_err_stock'), true);
                 return;
             }
             const category = document.getElementById('productCategory').value;
-            
+
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('addproduct_processing');
             
             let imageUrl = null;
             if (imageInput.files.length > 0) {
                 imageUrl = await uploadImage(imageInput.files[0]);
                 if (!imageUrl && imageInput.files[0]) {
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Thêm Vào Hệ Thống';
+                    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> ' + t('addproduct_submit_btn');
                     return;
                 }
             }
-            
+
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('products')
                     .insert([{
                         name: name,
@@ -407,15 +503,13 @@
                         created_at: new Date().toISOString()
                     }]);
                 if (error) throw error;
-                showToast('✅ Thêm sản phẩm thành công!');
+                showToast(t('addproduct_success'));
                 setTimeout(() => {
                     window.location.href = "{{ url_for('index') }}";
                 }, 1500);
             } catch (err) {
-                console.error(err);
-                showToast('❌ Lỗi: ' + err.message, true);
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Thêm Vào Hệ Thống';
+                console.error("Client-side insert failed, falling back to Flask backend:", err);
+                form.submit();
             }
         });
 

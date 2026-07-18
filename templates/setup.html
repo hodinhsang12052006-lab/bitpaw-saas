@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw | Thiết lập mô hình kinh doanh</title>
+    <title>BitPaw | Business Model Setup</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -285,6 +285,9 @@
 
     <div class="w-full max-w-5xl mx-auto relative z-10 px-4">
         <!-- Logo BitPaw -->
+        <div class="flex justify-center mb-3">
+            <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+        </div>
         <div class="flex justify-center mb-6">
             <div class="relative w-20 h-20 logo-float">
                 <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
@@ -293,15 +296,15 @@
                 <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
             </div>
         </div>
-        
+
         <!-- Main content -->
         <div class="glass-panel p-6 md:p-8 text-center">
             <h1 class="text-3xl md:text-4xl font-black tracking-tight">
                 <span class="text-cyan-400">BitPaw</span> <span class="text-gray-300">OS</span>
             </h1>
-            <p class="text-gray-400 mt-2 mb-6 text-sm">Chào mừng đến với hệ sinh thái quản trị toàn diện</p>
-            <p class="text-gray-300 mb-2 font-medium">🚀 Sếp đang kinh doanh lĩnh vực nào?</p>
-            <p class="text-xs text-gray-500">Chọn mô hình để tối ưu giao diện và tính năng</p>
+            <p class="text-gray-400 mt-2 mb-6 text-sm" data-i18n="setup_subtitle">Chào mừng đến với hệ sinh thái quản lý toàn diện</p>
+            <p class="text-gray-300 mb-2 font-medium" data-i18n="setup_question">🚀 Bạn đang kinh doanh mô hình gì?</p>
+            <p class="text-xs text-gray-500" data-i18n="setup_hint">Chọn mô hình để tối ưu giao diện và tính năng</p>
             
             <form id="setupForm" method="POST" action="{{ url_for('setup') }}">
                 <div class="mode-grid" id="modeGrid">
@@ -317,19 +320,19 @@
             </form>
         </div>
 
-        <p class="text-center text-[10px] text-gray-600 mt-6">Secured by BitPaw OS | Chuyển đổi số doanh nghiệp</p>
+        <p class="text-center text-[10px] text-gray-600 mt-6" data-i18n="setup_footer">Bảo mật bởi BitPaw OS | Chuyển đổi số Doanh nghiệp</p>
     </div>
 
-    <!-- Modal xác nhận -->
+    <!-- Confirmation modal -->
     <div id="confirmModal" class="modal-overlay">
         <div class="modal-container">
             <i class="fas fa-question-circle text-5xl text-cyan-400 mb-3 block"></i>
-            <h3 class="text-xl font-bold mb-2">Xác nhận chuyển đổi mô hình</h3>
-            <p class="text-gray-400 text-sm mb-4">Thao tác này sẽ thay đổi giao diện và tính năng chính của hệ thống. Dữ liệu hiện tại sẽ được giữ nguyên (nếu có). Bạn có chắc chắn muốn tiếp tục?</p>
-            <p class="text-xs text-rose-400 mb-4"><i class="fas fa-exclamation-triangle"></i> Lưu ý: Một số cài đặt có thể bị đặt lại về mặc định.</p>
+            <h3 class="text-xl font-bold mb-2" data-i18n="setup_modal_title">Xác Nhận Chuyển Mô Hình</h3>
+            <p class="text-gray-400 text-sm mb-4" data-i18n="setup_modal_desc">Hành động này sẽ thay đổi giao diện và tính năng chính của hệ thống. Dữ liệu hiện tại sẽ được giữ nguyên (nếu có). Bạn có chắc chắn muốn tiếp tục?</p>
+            <p class="text-xs text-rose-400 mb-4"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="setup_modal_note">Lưu ý: Một số cài đặt có thể được đặt lại về mặc định.</span></p>
             <div class="flex gap-3">
-                <button id="confirmYesBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Xác nhận</button>
-                <button id="confirmCancelBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold">Hủy</button>
+                <button id="confirmYesBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold" data-i18n="setup_confirm_btn">Xác Nhận</button>
+                <button id="confirmCancelBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold" data-i18n="setup_cancel_btn">Hủy</button>
             </div>
         </div>
     </div>
@@ -338,7 +341,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
-            <span class="text-sm font-medium text-gray-200">Đang chuyển đổi giao diện...</span>
+            <span class="text-sm font-medium text-gray-200" data-i18n="setup_loading_text">Đang chuyển đổi giao diện...</span>
         </div>
     </div>
 
@@ -350,19 +353,79 @@
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
             .then(json => {
                 if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
                 } else {
                     console.error('Không lấy được tenant token:', json && json.error);
                 }
-                return supabase;
+                return supabaseClient;
             })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabaseClient; });
+
+        // ========================================================
+        // I18N (VI mặc định / EN chuyển đổi)
+        // ========================================================
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                setup_subtitle: 'Chào mừng đến với hệ sinh thái quản lý toàn diện',
+                setup_question: '🚀 Bạn đang kinh doanh mô hình gì?',
+                setup_hint: 'Chọn mô hình để tối ưu giao diện và tính năng',
+                setup_footer: 'Bảo mật bởi BitPaw OS | Chuyển đổi số Doanh nghiệp',
+                setup_modal_title: 'Xác Nhận Chuyển Mô Hình',
+                setup_modal_desc: "Hành động này sẽ thay đổi giao diện và tính năng chính của hệ thống. Dữ liệu hiện tại sẽ được giữ nguyên (nếu có). Bạn có chắc chắn muốn tiếp tục?",
+                setup_modal_note: 'Lưu ý: Một số cài đặt có thể được đặt lại về mặc định.',
+                setup_confirm_btn: 'Xác Nhận',
+                setup_cancel_btn: 'Hủy',
+                setup_loading_text: 'Đang chuyển đổi giao diện...',
+                setup_toast_switched_prefix: '✅ Đã chuyển sang chế độ ',
+                setup_toast_switched_suffix: '',
+                setup_toast_save_error_prefix: '❌ Lỗi khi lưu cài đặt: ',
+                setup_toast_fill_fields: 'Vui lòng điền đầy đủ thông tin',
+                setup_toast_request_sent: '✅ Đã gửi yêu cầu! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                setup_toast_error_prefix: 'Lỗi: '
+            },
+            en: {
+                setup_subtitle: 'Welcome to the all-in-one management ecosystem',
+                setup_question: '🚀 What business are you running?',
+                setup_hint: 'Choose a model to optimize the interface and features',
+                setup_footer: 'Secured by BitPaw OS | Business Digital Transformation',
+                setup_modal_title: 'Confirm Model Switch',
+                setup_modal_desc: "This action will change the system's main interface and features. Current data will be kept (if any). Are you sure you want to continue?",
+                setup_modal_note: 'Note: Some settings may be reset to default.',
+                setup_confirm_btn: 'Confirm',
+                setup_cancel_btn: 'Cancel',
+                setup_loading_text: 'Switching interface...',
+                setup_toast_switched_prefix: '✅ Switched to ',
+                setup_toast_switched_suffix: ' mode',
+                setup_toast_save_error_prefix: '❌ Error saving settings: ',
+                setup_toast_fill_fields: 'Please fill in all fields',
+                setup_toast_request_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                setup_toast_error_prefix: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
         // DOM elements
         const modeCards = document.querySelectorAll('.mode-card');
@@ -396,11 +459,11 @@
         async function saveBusinessMode(mode) {
             showLoading(true);
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('system_settings')
                     .upsert({ key: 'business_mode', value: mode, updated_at: new Date() }, { onConflict: 'key' });
                 if (error) throw error;
-                showToastMessage(`✅ Đã chuyển sang mô hình ${mode.toUpperCase()}`);
+                showToastMessage(`${t('setup_toast_switched_prefix')}${mode.toUpperCase()}${t('setup_toast_switched_suffix')}`);
                 // Chuyển hướng đến phân hệ tương ứng sau 1.5s
                 setTimeout(() => {
                     let targetUrl = "{{ url_for('index') }}";
@@ -415,7 +478,7 @@
                 }, 1500);
             } catch (err) {
                 console.error(err);
-                showToastMessage('❌ Lỗi lưu cài đặt: ' + err.message, true);
+                showToastMessage(t('setup_toast_save_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -467,9 +530,9 @@
         // ========== CSKH: track click & gửi yêu cầu ==========
         async function trackCSKHClick(channel) {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
                 }
             } catch(e) { console.warn('track click error', e); }
         }
@@ -478,23 +541,23 @@
         });
         
         const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
+        supportForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('supportName').value;
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToastMessage('Vui lòng nhập đầy đủ thông tin', true);
+                showToastMessage(t('setup_toast_fill_fields'), true);
                 return;
             }
             showLoading(true);
             try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToastMessage('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToastMessage(t('setup_toast_request_sent'));
                 supportForm.reset();
             } catch(err) {
-                showToastMessage('Lỗi: ' + err.message, true);
+                showToastMessage(t('setup_toast_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }

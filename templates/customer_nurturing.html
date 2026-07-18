@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trung Tâm Dữ Liệu Khách Hàng | BitPaw AI</title>
+    <title>Customer Data Center | BitPaw AI</title>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -87,32 +87,36 @@
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
 
+            <div class="flex justify-center pb-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col pb-6 space-y-2 px-5 mt-6">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Tổng quan</span>
+                    <span data-i18n="customer_nurturing_nav_overview">Overview</span>
                 </a>
                 <a href="/ai_bot" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-robot w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>AI Copilot Console</span>
+                    <span data-i18n="customer_nurturing_nav_ai_copilot">AI Copilot Console</span>
                 </a>
                 <a href="/ai/connect-platforms" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-network-wired w-5 text-xl"></i>
-                    <span>Kết nối kênh</span>
+                    <span data-i18n="customer_nurturing_nav_channels">Channel Connections</span>
                 </a>
                 <a href="/ai/customer-nurturing" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner px-4 py-2.5 rounded-r-xl transition-all group">
                     <i class="fas fa-users-cog w-5 text-xl"></i>
-                    <span>Dữ liệu khách hàng</span>
+                    <span data-i18n="customer_nurturing_nav_customer_data">Customer Data</span>
                 </a>
                 <a href="/ai/campaign-builder" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-bullhorn w-5 text-xl"></i>
-                    <span>Chiến dịch AI</span>
+                    <span data-i18n="customer_nurturing_nav_campaigns">AI Campaigns</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="customer_nurturing_logout">Log Out</span>
             </a>
         </div>
     </aside>
@@ -123,15 +127,15 @@
         <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
-                    <i class="fas fa-users-cog text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> Trung Tâm <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Dữ Liệu Khách Hàng</span>
+                    <i class="fas fa-users-cog text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> <span data-i18n="customer_nurturing_title_prefix">Customer</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500" data-i18n="customer_nurturing_title_suffix">Data Center</span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Chẩn đoán điểm tiềm năng & Chỉ số rời bỏ tự động
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> <span data-i18n="customer_nurturing_subtitle">Potential Score Diagnostics & Automatic Churn Index</span>
                 </p>
             </div>
             <div class="flex gap-3">
-                <button onclick="syncPOSData()" class="bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest shadow-lg">
-                    <i class="fas fa-sync"></i> Đồng bộ POS/CRM
+                <button id="syncPosBtn" onclick="syncPOSData()" class="bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest shadow-lg">
+                    <i class="fas fa-sync"></i> <span data-i18n="customer_nurturing_btn_sync">Sync POS/CRM</span>
                 </button>
             </div>
         </div>
@@ -140,32 +144,32 @@
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0 relative z-10" data-aos="fade-down">
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-cyan-500 shadow-md">
                 <div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Sức khỏe tệp khách</span>
-                    <strong class="text-base font-black text-white mt-1 block">Tốt (84/100)</strong>
+                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_health">Customer Base Health</span>
+                    <strong class="text-base font-black text-white mt-1 block">Good (84/100)</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-sm"><i class="fas fa-heartbeat animate-pulse"></i></div>
             </div>
-            
+
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-purple-500 shadow-md">
                 <div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Cần Chăm Sóc Ngay</span>
-                    <strong class="text-base font-black text-white mt-1 block">42 Khách Hàng</strong>
+                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_needs_care">Needs Care Now</span>
+                    <strong class="text-base font-black text-white mt-1 block">42 Customers</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-sm"><i class="fas fa-user-clock"></i></div>
             </div>
 
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500 shadow-md">
                 <div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Nguy cơ rời bỏ cao</span>
-                    <strong class="text-base font-black text-white mt-1 block">8.4% Tỷ lệ</strong>
+                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_churn_risk">High Churn Risk</span>
+                    <strong class="text-base font-black text-white mt-1 block">8.4% Rate</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center text-sm"><i class="fas fa-user-minus"></i></div>
             </div>
 
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-emerald-500 shadow-md">
                 <div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Dự kiến phục hồi</span>
-                    <strong class="text-base font-black text-white mt-1 block">+32 Khách/Tháng</strong>
+                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_recovery">Projected Recovery</span>
+                    <strong class="text-base font-black text-white mt-1 block">+32 Customers/Month</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm"><i class="fas fa-chart-line"></i></div>
             </div>
@@ -178,14 +182,14 @@
                 <div class="p-4 bg-black/40 border-b border-white/10 grid grid-cols-3 gap-4">
                     <div class="relative col-span-2">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
-                        <input type="text" id="custSearch" oninput="filterCustomers()" placeholder="Tìm kiếm theo Tên / SĐT / Email..." class="glass-input pl-10 w-full py-2.5 text-xs">
+                        <input type="text" id="custSearch" oninput="filterCustomers()" placeholder="Search by Name / Phone / Email..." data-i18n-placeholder="customer_nurturing_search_placeholder" class="glass-input pl-10 w-full py-2.5 text-xs">
                     </div>
                     <select id="statusFilter" onchange="filterCustomers()" class="glass-input py-2.5 text-xs cursor-pointer">
-                        <option value="ALL">-- Tất cả trạng thái --</option>
-                        <option value="REGULAR">Khách Quen (Regular)</option>
-                        <option value="NEEDS_CARE">Cần chăm sóc</option>
-                        <option value="HIBERNATING">Ngủ đông</option>
-                        <option value="CHURN_RISK">Nguy cơ rời bỏ</option>
+                        <option value="ALL" data-i18n="customer_nurturing_filter_all">-- All Statuses --</option>
+                        <option value="REGULAR" data-i18n="customer_nurturing_filter_regular">Regular</option>
+                        <option value="NEEDS_CARE" data-i18n="customer_nurturing_filter_needs_care">Needs Care</option>
+                        <option value="HIBERNATING" data-i18n="customer_nurturing_filter_hibernating">Hibernating</option>
+                        <option value="CHURN_RISK" data-i18n="customer_nurturing_filter_churn_risk">Churn Risk</option>
                     </select>
                 </div>
 
@@ -195,11 +199,11 @@
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-black/60 border-b border-white/10 text-gray-400 uppercase tracking-widest text-[10px] font-bold">
-                                <th class="p-4">Họ Tên</th>
-                                <th class="p-4">Nguồn</th>
-                                <th class="p-4">Tổng Chi Tiêu</th>
-                                <th class="p-4">Lần Cuối</th>
-                                <th class="p-4 text-center">Rời Bỏ</th>
+                                <th class="p-4" data-i18n="customer_nurturing_th_name">Full Name</th>
+                                <th class="p-4" data-i18n="customer_nurturing_th_source">Source</th>
+                                <th class="p-4" data-i18n="customer_nurturing_th_spend">Total Spend</th>
+                                <th class="p-4" data-i18n="customer_nurturing_th_last_purchase">Last Purchase</th>
+                                <th class="p-4 text-center" data-i18n="customer_nurturing_th_churn">Churn</th>
                             </tr>
                         </thead>
                         <tbody id="customerTableBody">
@@ -215,8 +219,8 @@
             <div class="w-5/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6 relative">
                 <div id="detailPanelEmpty" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[#0a0f25]/30">
                     <i class="fas fa-user-circle text-7xl text-cyan-400/20 mb-4 animate-pulse"></i>
-                    <h3 class="font-bold text-gray-400 text-sm">Chọn một khách hàng</h3>
-                    <p class="text-xs text-gray-500 mt-1 max-w-[240px]">Nhấp chuột vào danh sách bên trái để chẩn đoán lịch sử và tạo tin nhắn CSKH.</p>
+                    <h3 class="font-bold text-gray-400 text-sm" data-i18n="customer_nurturing_select_customer">Select a Customer</h3>
+                    <p class="text-xs text-gray-500 mt-1 max-w-[240px]" data-i18n="customer_nurturing_select_customer_desc">Click on the list on the left to view history diagnostics and generate care messages.</p>
                 </div>
 
                 <div id="detailPanelContent" class="flex flex-col h-full hidden">
@@ -237,11 +241,11 @@
                     <!-- Spending Statistics & Potential score -->
                     <div class="grid grid-cols-2 gap-4 mt-5 mb-4 shrink-0">
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block">Tổng chi tiêu</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_spend_label">Total Spend</span>
                             <strong id="detailTotalSpend" class="text-emerald-400 text-base font-black">0₫</strong>
                         </div>
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block">Điểm tiềm năng (AI)</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_score_label">Potential Score (AI)</span>
                             <strong id="detailPotentialScore" class="text-cyan-400 text-base font-black">—</strong>
                         </div>
                     </div>
@@ -249,14 +253,14 @@
                     <!-- Interactive AI Risk & Loyalty Indicators -->
                     <div class="grid grid-cols-2 gap-4 shrink-0 mb-4">
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl flex flex-col justify-between">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block">Khả năng rời bỏ (Heat)</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_heat_label">Churn Likelihood (Heat)</span>
                             <div class="flex items-center gap-2 mt-2">
                                 <div class="w-2.5 h-2.5 rounded-full bg-gray-600" id="heat-indicator"></div>
                                 <strong id="detailHeatIndex" class="text-gray-400 text-xs font-black">—</strong>
                             </div>
                         </div>
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl flex flex-col justify-between">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block">Hạng Thành Viên</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_tier_label">Membership Tier</span>
                             <div class="flex items-center gap-0.5 mt-2 text-yellow-400" id="detailStars">
                                 <i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="far fa-star text-[10px] text-gray-600"></i>
                             </div>
@@ -266,7 +270,7 @@
                     <!-- NEW: AI Recommended Actions Alert Bar -->
                     <div class="bg-gradient-to-r from-cyan-500/10 to-transparent border border-cyan-500/30 p-4 rounded-2xl relative overflow-hidden shrink-0 shadow-lg mb-4">
                         <div class="absolute -right-6 -bottom-6 w-16 h-16 bg-cyan-500/5 rounded-full blur-xl"></div>
-                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1"><i class="fas fa-bell text-xs animate-bounce"></i> AI Khuyến Nghị Hành Động</h4>
+                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1"><i class="fas fa-bell text-xs animate-bounce"></i> <span data-i18n="customer_nurturing_rec_header">AI Khuyến Nghị Hành Động</span></h4>
                         <p id="detailRecommendation" class="text-[11px] text-white leading-relaxed font-bold">Chọn một khách hàng ở danh sách bên trái để xem đề xuất AI.</p>
                     </div>
 

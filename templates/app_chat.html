@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -61,34 +61,37 @@
                         <div class="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-xl flex items-center justify-center border border-cyan-500/50 group-hover:rotate-12 transition-transform overflow-hidden shadow-inner">
                             <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover drop-shadow-[0_0_8px_#06b6d4]">
                         </div>
-                        <h1 class="text-xl font-black tracking-widest text-white">Trạm <span class="text-cyan-400">Liên Lạc</span></h1>
+                        <h1 class="text-xl font-black tracking-widest text-white" data-i18n="appchat_page_title">Trạm <span class="text-cyan-400">Liên Lạc</span></h1>
                     </div>
-                    <button onclick="window.history.back()" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 hover:bg-white/20 transition flex items-center justify-center text-gray-400 hover:text-rose-400"><i class="fas fa-times"></i></button>
+                    <div class="flex items-center gap-2">
+                        <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                        <button onclick="window.history.back()" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 hover:bg-white/20 transition flex items-center justify-center text-gray-400 hover:text-rose-400"><i class="fas fa-times"></i></button>
+                    </div>
                 </div>
                 <div class="relative">
-                    <input type="text" placeholder="Tìm kiếm đồng nghiệp..." class="w-full bg-black/50 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors shadow-inner">
+                    <input type="text" data-i18n-placeholder="appchat_search_placeholder" placeholder="Tìm kiếm đồng nghiệp..." class="w-full bg-black/50 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors shadow-inner">
                     <i class="fas fa-search absolute left-4 top-4 text-gray-500"></i>
                 </div>
             </div>
 
             <div class="flex-1 overflow-y-auto p-5 space-y-6 hide-scrollbar relative z-10">
                 <div>
-                    <p class="text-[10px] font-black text-cyan-500/70 uppercase tracking-widest mb-3 ml-2 flex items-center"><i class="fas fa-users mr-2"></i> Nhóm Tập Thể</p>
-                    <div onclick="openChat('KenhChung', 'Kênh Thông Báo Chung')" class="flex items-center gap-4 p-4 rounded-3xl bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border border-cyan-500/30 cursor-pointer active:scale-95 transition-all hover:border-cyan-400 shadow-[0_5px_20px_rgba(6,182,212,0.15)]">
+                    <p class="text-[10px] font-black text-cyan-500/70 uppercase tracking-widest mb-3 ml-2 flex items-center"><i class="fas fa-users mr-2"></i> <span data-i18n="appchat_group_label">Nhóm Tập Thể</span></p>
+                    <div onclick="openChat('KenhChung', t('appchat_general_channel_name'))" class="flex items-center gap-4 p-4 rounded-3xl bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border border-cyan-500/30 cursor-pointer active:scale-95 transition-all hover:border-cyan-400 shadow-[0_5px_20px_rgba(6,182,212,0.15)]">
                         <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center text-white text-2xl shadow-inner shrink-0 transform -rotate-6">
                             <i class="fas fa-bullhorn"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-center mb-1">
-                                <h4 class="font-black text-white truncate text-base">Công Ty BitPaw</h4>
+                                <h4 class="font-black text-white truncate text-base" data-i18n="appchat_company_name">Công Ty BitPaw</h4>
                             </div>
-                            <p class="text-xs text-cyan-300/80 truncate font-medium" id="last_msg_KenhChung">Đang đồng bộ vệ tinh...</p>
+                            <p class="text-xs text-cyan-300/80 truncate font-medium" id="last_msg_KenhChung" data-i18n="appchat_syncing">Đang đồng bộ vệ tinh...</p>
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 ml-2 flex items-center"><i class="fas fa-address-book mr-2"></i> Sơ đồ Nhân Sự</p>
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 ml-2 flex items-center"><i class="fas fa-address-book mr-2"></i> <span data-i18n="appchat_staff_directory_label">Sơ đồ Nhân Sự</span></p>
                     <div class="space-y-3" id="danh_ba_nhan_su">
                         <div class="animate-pulse flex items-center gap-4 p-3 rounded-3xl bg-white/5 border border-white/5">
                             <div class="w-12 h-12 rounded-full bg-white/10 shrink-0"></div>
@@ -117,8 +120,8 @@
                         <i class="fas fa-bullhorn text-sm"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h3 id="chat_title" class="font-black text-white text-base truncate pr-2">Đang tải...</h3>
-                        <p class="text-[10px] text-emerald-400 flex items-center gap-1.5 font-bold tracking-widest uppercase"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_5px_#34d399]"></span> <span id="chat_status">Connecting...</span></p>
+                        <h3 id="chat_title" class="font-black text-white text-base truncate pr-2" data-i18n="appchat_loading">Đang tải...</h3>
+                        <p class="text-[10px] text-emerald-400 flex items-center gap-1.5 font-bold tracking-widest uppercase"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_5px_#34d399]"></span> <span id="chat_status" data-i18n="appchat_connecting">Connecting...</span></p>
                     </div>
                 </div>
             </div>
@@ -127,10 +130,10 @@
             </div>
 
             <div class="flex items-center gap-4 px-4 py-2 bg-[#0a0f25]/90 backdrop-blur-md overflow-x-auto whitespace-nowrap hide-scrollbar border-t border-white/5 z-20">
-                <button onclick="showToast('Kho GIF Meme đang được kỹ sư tải lên! Chờ xíu nha Sếp!', 'warning')" class="px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg text-[10px] font-black tracking-widest hover:bg-cyan-500 hover:text-black transition-all flex items-center gap-1 shrink-0 text-cyan-400 uppercase">
+                <button onclick="showToast(t('appchat_gif_wip'), 'warning')" class="px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg text-[10px] font-black tracking-widest hover:bg-cyan-500 hover:text-black transition-all flex items-center gap-1 shrink-0 text-cyan-400 uppercase">
                     <i class="fas fa-photo-video"></i> GIF
                 </button>
-                <div class="w-px h-5 bg-white/10 shrink-0 mx-1"></div> 
+                <div class="w-px h-5 bg-white/10 shrink-0 mx-1"></div>
                 <button onclick="addEmoji('👍')" class="text-xl hover:scale-125 transition-transform shrink-0 drop-shadow-md">👍</button>
                 <button onclick="addEmoji('❤️')" class="text-xl hover:scale-125 transition-transform shrink-0 drop-shadow-md">❤️</button>
                 <button onclick="addEmoji('😂')" class="text-xl hover:scale-125 transition-transform shrink-0 drop-shadow-md">😂</button>
@@ -148,7 +151,7 @@
                 <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadImage(this)">
 
                 <form id="chatForm" class="flex-1 flex items-center gap-2 relative">
-                    <input type="text" id="msgInput" placeholder="Nhập tin nhắn..." autocomplete="off" class="flex-1 bg-black/60 border border-white/10 rounded-2xl py-3.5 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors shadow-inner">
+                    <input type="text" id="msgInput" data-i18n-placeholder="appchat_msg_placeholder" placeholder="Nhập tin nhắn..." autocomplete="off" class="flex-1 bg-black/60 border border-white/10 rounded-2xl py-3.5 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors shadow-inner">
                     <button type="submit" id="sendBtn" class="absolute right-1.5 top-1.5 bottom-1.5 w-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.4)] shrink-0 transition-transform active:scale-90">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -159,6 +162,81 @@
     </div>
 
     <script>
+        // ========================================================
+        // MULTI-LANGUAGE i18n (shared 'bitpaw_lang' key with dashboard.html etc.)
+        // ========================================================
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                appchat_page_title: 'Trạm <span class="text-cyan-400">Liên Lạc</span>',
+                appchat_search_placeholder: 'Tìm kiếm đồng nghiệp...',
+                appchat_group_label: 'Nhóm Tập Thể',
+                appchat_company_name: 'Công Ty BitPaw',
+                appchat_syncing: 'Đang đồng bộ vệ tinh...',
+                appchat_staff_directory_label: 'Sơ đồ Nhân Sự',
+                appchat_loading: 'Đang tải...',
+                appchat_connecting: 'Connecting...',
+                appchat_general_channel_name: 'Kênh Thông Báo Chung',
+                appchat_msg_placeholder: 'Nhập tin nhắn...',
+                appchat_gif_wip: 'Kho GIF Meme đang được kỹ sư tải lên! Chờ xíu nha Sếp!',
+                appchat_guest_name: 'Khách Vãng Lai',
+                appchat_click_to_chat: 'Nhấn để trò chuyện...',
+                appchat_sent_image: '[Đã gửi một hình ảnh]',
+                appchat_sent_image_short: '[Hình ảnh]',
+                appchat_you_prefix: 'Bạn: ',
+                appchat_syncing_satellite: 'Đang lấy dữ liệu vệ tinh...',
+                appchat_e2e_encrypted: 'Đoạn chat mã hóa 2 đầu',
+                appchat_status_syncing: 'Syncing...',
+                appchat_status_online: 'Online',
+                appchat_error_load_chat: 'Lỗi load đoạn chat!',
+                appchat_error_load_contacts: 'Lỗi tải danh bạ!',
+                appchat_error_upload_image: 'Lỗi up ảnh! Kiểm tra mạng.',
+            },
+            en: {
+                appchat_page_title: '<span class="text-cyan-400">Comms</span> Station',
+                appchat_search_placeholder: 'Search colleagues...',
+                appchat_group_label: 'Group Channels',
+                appchat_company_name: 'BitPaw Company',
+                appchat_syncing: 'Syncing satellite...',
+                appchat_staff_directory_label: 'Staff Directory',
+                appchat_loading: 'Loading...',
+                appchat_connecting: 'Connecting...',
+                appchat_general_channel_name: 'General Announcement Channel',
+                appchat_msg_placeholder: 'Type a message...',
+                appchat_gif_wip: 'The GIF/Meme library is being uploaded by engineers! Hang tight, boss!',
+                appchat_guest_name: 'Guest',
+                appchat_click_to_chat: 'Tap to chat...',
+                appchat_sent_image: '[Sent an image]',
+                appchat_sent_image_short: '[Image]',
+                appchat_you_prefix: 'You: ',
+                appchat_syncing_satellite: 'Fetching satellite data...',
+                appchat_e2e_encrypted: 'End-to-end encrypted chat',
+                appchat_status_syncing: 'Syncing...',
+                appchat_status_online: 'Online',
+                appchat_error_load_chat: 'Error loading chat!',
+                appchat_error_load_contacts: 'Error loading contacts!',
+                appchat_error_upload_image: 'Error uploading image! Check your connection.',
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof loadDanhBa === 'function' && document.getElementById('screen_contacts').classList.contains('active')) loadDanhBa();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========================================================
         // 🚀 UI/UX SYSTEM (TOAST & LIGHTBOX)
         // ========================================================
@@ -239,12 +317,12 @@
         // ========================================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
 
-        const myId = localStorage.getItem('bp_emp_code') || "GUEST"; 
-        const myName = localStorage.getItem('bp_emp_name') || "Khách Vãng Lai"; 
+        const myId = localStorage.getItem('bp_emp_code') || "GUEST";
+        const myName = localStorage.getItem('bp_emp_name') || t('appchat_guest_name');
         
         let currentRoom = ""; let realtimeChannel = null; let avatarMap = {};
         const chatBox = document.getElementById('chatBox');
@@ -267,14 +345,14 @@
         async function loadDanhBa() {
             try {
                 // Tải tin nhắn cuối của Kênh Chung
-                const { data: globalMsg } = await supabase.from('messages').select('content, sender_name').eq('room', 'KenhChung').order('timestamp', { ascending: false }).limit(1).maybeSingle();
+                const { data: globalMsg } = await supabaseClient.from('messages').select('content, sender_name').eq('room', 'KenhChung').order('timestamp', { ascending: false }).limit(1).maybeSingle();
                 if(globalMsg) {
-                    let preview = globalMsg.content.includes('/storage/v1/object/public/') ? '[Hình ảnh]' : globalMsg.content;
+                    let preview = globalMsg.content.includes('/storage/v1/object/public/') ? t('appchat_sent_image_short') : globalMsg.content;
                     document.getElementById('last_msg_KenhChung').innerHTML = `<span class="text-white">${globalMsg.sender_name}:</span> ${preview}`;
                 }
 
                 // Tải danh bạ
-                const { data: users, error } = await supabase.from('employees').select('ma_nv, ho_ten, linh_vuc, avatar_url');
+                const { data: users, error } = await supabaseClient.from('employees').select('ma_nv, ho_ten, linh_vuc, avatar_url');
                 if(!error && users) {
                     let html = '';
                     for (const u of users) {
@@ -282,18 +360,18 @@
                         if (u.ma_nv === myId) continue; 
 
                         const roomId = 'Room_' + getChatRoomId(myId, u.ma_nv);
-                        const { data: lastMsg } = await supabase.from('messages').select('content, sender_email').eq('room', roomId).order('timestamp', { ascending: false }).limit(1).maybeSingle();
+                        const { data: lastMsg } = await supabaseClient.from('messages').select('content, sender_email').eq('room', roomId).order('timestamp', { ascending: false }).limit(1).maybeSingle();
                         
-                        let previewText = "Nhấn để trò chuyện...";
+                        let previewText = t('appchat_click_to_chat');
                         let unreadDot = "";
 
                         if (lastMsg) {
-                            previewText = lastMsg.content.includes('/storage/v1/object/public/') ? '[Đã gửi một hình ảnh]' : lastMsg.content;
+                            previewText = lastMsg.content.includes('/storage/v1/object/public/') ? t('appchat_sent_image') : lastMsg.content;
                             if (lastMsg.sender_email !== myId) {
                                 previewText = `<span class="text-white font-bold drop-shadow-md">${previewText}</span>`;
                                 unreadDot = `<div class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse"></div>`;
                             } else {
-                                previewText = `Bạn: ${previewText}`;
+                                previewText = `${t('appchat_you_prefix')}${previewText}`;
                             }
                         }
 
@@ -316,7 +394,7 @@
                     }
                     document.getElementById('danh_ba_nhan_su').innerHTML = html;
                 }
-            } catch(e) { showToast("Lỗi tải danh bạ!", "error"); }
+            } catch(e) { showToast(t('appchat_error_load_contacts'), "error"); }
         }
 
         // ==========================================
@@ -337,19 +415,19 @@
 
             document.getElementById('screen_contacts').classList.remove('active');
             document.getElementById('screen_chat').classList.add('active');
-            document.getElementById('chat_status').innerText = 'Syncing...';
-            
-            chatBox.innerHTML = '<div class="text-center text-xs text-cyan-500/70 my-6 font-bold uppercase tracking-widest animate-pulse"><i class="fas fa-satellite fa-spin mr-2"></i>Đang lấy dữ liệu vệ tinh...</div>';
+            document.getElementById('chat_status').innerText = t('appchat_status_syncing');
+
+            chatBox.innerHTML = `<div class="text-center text-xs text-cyan-500/70 my-6 font-bold uppercase tracking-widest animate-pulse"><i class="fas fa-satellite fa-spin mr-2"></i>${t('appchat_syncing_satellite')}</div>`;
 
             try {
-                const { data: messages, error } = await supabase.from('messages').select('*').eq('room', currentRoom).order('timestamp', { ascending: true }).limit(100);
-                
+                const { data: messages, error } = await supabaseClient.from('messages').select('*').eq('room', currentRoom).order('timestamp', { ascending: true }).limit(100);
+
                 if (!error && messages) {
-                    chatBox.innerHTML = '<div class="text-center text-[9px] font-black text-gray-500 my-6 uppercase tracking-[0.2em] bg-white/5 inline-block px-4 py-1.5 rounded-full mx-auto border border-white/5 flex justify-center w-fit"><i class="fas fa-lock text-cyan-500 mr-2"></i> Đoạn chat mã hóa 2 đầu</div>';
+                    chatBox.innerHTML = `<div class="text-center text-[9px] font-black text-gray-500 my-6 uppercase tracking-[0.2em] bg-white/5 inline-block px-4 py-1.5 rounded-full mx-auto border border-white/5 flex justify-center w-fit"><i class="fas fa-lock text-cyan-500 mr-2"></i> ${t('appchat_e2e_encrypted')}</div>`;
                     messages.forEach(msg => renderMessage(msg));
                     forceScrollToBottom();
                 }
-            } catch (err) { showToast("Lỗi load đoạn chat!", "error"); }
+            } catch (err) { showToast(t('appchat_error_load_chat'), "error"); }
 
             setupRealtime();
         }
@@ -357,7 +435,7 @@
         function closeChat() {
             document.getElementById('screen_chat').classList.remove('active');
             document.getElementById('screen_contacts').classList.add('active');
-            if(realtimeChannel) supabase.removeChannel(realtimeChannel);
+            if(realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
             loadDanhBa(); 
         }
 
@@ -365,8 +443,8 @@
         // 3. KÊNH REALTIME
         // ==========================================
         function setupRealtime() {
-            document.getElementById('chat_status').innerText = 'Online';
-            realtimeChannel = supabase.channel('chat_phong_' + currentRoom)
+            document.getElementById('chat_status').innerText = t('appchat_status_online');
+            realtimeChannel = supabaseClient.channel('chat_phong_' + currentRoom)
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room=eq.${currentRoom}` }, (payload) => {
                     if(payload.new.sender_email !== myId) {
                         renderMessage(payload.new); forceScrollToBottom();
@@ -387,7 +465,7 @@
             const newMsgObj = { room: currentRoom, sender_email: myId, sender_name: myName, content: msgText, timestamp: new Date().toISOString() };
             
             renderMessage(newMsgObj); forceScrollToBottom();
-            await supabase.from('messages').insert([newMsgObj]);
+            await supabaseClient.from('messages').insert([newMsgObj]);
         });
 
         // ==========================================
@@ -404,19 +482,19 @@
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${myId}_${Date.now()}.${fileExt}`;
 
-                const { data, error } = await supabase.storage.from('chat_images').upload(fileName, file);
+                const { data, error } = await supabaseClient.storage.from('chat_images').upload(fileName, file);
                 if (error) throw error;
 
-                const { data: publicUrlData } = supabase.storage.from('chat_images').getPublicUrl(fileName);
+                const { data: publicUrlData } = supabaseClient.storage.from('chat_images').getPublicUrl(fileName);
                 const imageUrl = publicUrlData.publicUrl;
 
                 const newMsgObj = { room: currentRoom, sender_email: myId, sender_name: myName, content: imageUrl, timestamp: new Date().toISOString() };
-                await supabase.from('messages').insert([newMsgObj]);
+                await supabaseClient.from('messages').insert([newMsgObj]);
                 
                 document.getElementById(tempId).remove();
                 renderMessage(newMsgObj); forceScrollToBottom();
             } catch (error) {
-                document.getElementById(tempId).innerHTML = `<div class="text-rose-400 text-[10px] bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/30">Lỗi up ảnh! Kiểm tra mạng.</div>`;
+                document.getElementById(tempId).innerHTML = `<div class="text-rose-400 text-[10px] bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/30">${t('appchat_error_upload_image')}</div>`;
             }
             input.value = '';
         }

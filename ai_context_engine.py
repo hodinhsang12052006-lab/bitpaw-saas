@@ -32,13 +32,19 @@ class AIContextEngine:
             return []
 
     @staticmethod
-    def build_context_prompt(business_id, industry_code, customer_phone=None):
+    def build_context_prompt(business_id, industry_code, customer_phone=None, include_private_data=True):
         """Constructs an intelligent, tenant-aware system prompt.
 
         Đa doanh nghiệp (multi-tenant): tra business_id ra ĐÚNG tên cửa hàng, danh mục
         sản phẩm/dịch vụ và bảng giá thật của tenant đó, không fix cứng kịch bản cho
         bất kỳ ngành nào. Nếu không có business_id (vd: bot tư vấn marketing chung của
         BitPaw trên trang landing), trả về persona chung theo industry_code như cũ.
+
+        include_private_data: chỉ True khi caller đã xác thực (session đăng nhập) và
+        business_id đến từ session đó. Khi False (khách ẩn danh gọi widget công khai,
+        business_id do client tự khai), TUYỆT ĐỐI không nhúng doanh thu hay thông tin
+        khách hàng (PII, hạng thành viên, lịch sử mua hàng, ảnh mẫu dịch vụ) vào prompt
+        — chỉ được phép nhúng dữ liệu công khai (tên cửa hàng, bảng giá/danh mục dịch vụ).
 
         Returns: {"prompt": str, "business_name": str|None}
         """
@@ -72,9 +78,9 @@ class AIContextEngine:
 
         custom_prompt = industry_prompts.get(industry_code.lower(), "Bạn là chuyên gia tư vấn tăng trưởng.")
 
-        # Load business metrics if connected
+        # Load business metrics if connected — dữ liệu nhạy cảm, chỉ nhúng khi caller đã xác thực.
         revenue_sum = 0
-        if SUPABASE_STATUS == "CONNECTED" and business_id:
+        if include_private_data and SUPABASE_STATUS == "CONNECTED" and business_id:
             try:
                 res = supabase.table('orders').select('total_amount').eq('business_id', business_id).execute()
                 if res.data:
@@ -82,7 +88,9 @@ class AIContextEngine:
             except:
                 pass
 
-        details = f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise\n- Báo cáo doanh thu hiện tại: {revenue_sum} VNĐ."
+        details = f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise"
+        if include_private_data:
+            details += f"\n- Báo cáo doanh thu hiện tại: {revenue_sum} VNĐ."
 
         # Nhúng menu/sản phẩm thật của tenant để AI gợi ý upsell/cross-sell đúng mặt hàng đang bán,
         # không bịa ra sản phẩm không tồn tại.
@@ -108,8 +116,10 @@ class AIContextEngine:
 
         # Nhúng thông tin khách hàng (hạng thành viên, tổng chi tiêu = proxy cho lịch sử mua hàng)
         # nếu tra được theo SĐT, để AI cá nhân hoá lời tư vấn và ưu tiên gợi ý xứng tầm khách VIP.
+        # PII/lịch sử mua hàng chỉ được nhúng khi caller đã xác thực (include_private_data=True) —
+        # khách ẩn danh gọi widget công khai tuyệt đối không được thấy dữ liệu này.
         customer_snippet = ""
-        if SUPABASE_STATUS == "CONNECTED" and business_id and customer_phone:
+        if include_private_data and SUPABASE_STATUS == "CONNECTED" and business_id and customer_phone:
             try:
                 cust = supabase.table('customers').select('name, tier, loyalty_points, total_spent') \
                     .eq('business_id', business_id).eq('phone', customer_phone).limit(1).execute()

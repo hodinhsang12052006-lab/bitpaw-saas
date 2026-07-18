@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw CRM | Quản lý khách hàng thông minh</title>
+    <title>BitPaw CRM | Smart Customer Management</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -100,65 +100,66 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">CRM</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý khách hàng & chăm sóc thông minh</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="crm_title_suffix">CRM</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="crm_subtitle">Smart customer management & care</p>
                 </div>
             </div>
             <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <button id="addCustomerBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-user-plus"></i> Thêm khách</button>
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="crm_home_btn">Home</span></a>
+                <button id="addCustomerBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-user-plus"></i> <span data-i18n="crm_add_customer_btn">Add Customer</span></button>
             </div>
         </div>
 
-        <!-- Thống kê nhanh -->
+        <!-- Quick stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng khách hàng</div><div class="text-2xl font-bold text-cyan-400" id="totalCustomers">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Khách VIP (Gold/Platinum)</div><div class="text-2xl font-bold text-yellow-400" id="totalVip">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng chi tiêu (VND)</div><div class="text-2xl font-bold text-emerald-400" id="totalSpent">0₫</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tích điểm thưởng</div><div class="text-2xl font-bold text-purple-400" id="totalPoints">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_total_customers">Total Customers</div><div class="text-2xl font-bold text-cyan-400" id="totalCustomers">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_vip_customers">VIP Customers (Gold/Platinum)</div><div class="text-2xl font-bold text-yellow-400" id="totalVip">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_total_spend">Total Spend (VND)</div><div class="text-2xl font-bold text-emerald-400" id="totalSpent">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_loyalty_points">Loyalty Points</div><div class="text-2xl font-bold text-purple-400" id="totalPoints">0</div></div>
         </div>
 
-        <!-- Bộ lọc -->
+        <!-- Filters -->
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên, SĐT, email..."></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Phân hạng</label><select id="tierFilter" class="filter-input"><option value="all">Tất cả</option><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Platinum">Platinum</option><option value="Normal">Normal</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Ngày tham gia từ</label><input type="date" id="startDate" class="filter-input"></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Đến ngày</label><input type="date" id="endDate" class="filter-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_filter_search_label">Search</label><input type="text" id="searchInput" class="filter-input" placeholder="Name, phone, email..." data-i18n-placeholder="crm_filter_search_ph"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_filter_tier_label">Tier</label><select id="tierFilter" class="filter-input"><option value="all" data-i18n="crm_tier_all">All</option><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Platinum">Platinum</option><option value="Normal">Normal</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_filter_joined_from">Joined from</label><input type="date" id="startDate" class="filter-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_filter_to_date">To date</label><input type="date" id="endDate" class="filter-input"></div>
             </div>
-            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="crm_reset_btn">Reset</span></button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="crm_export_btn">Export Excel</span></button></div>
         </div>
 
-        <!-- Bảng khách hàng -->
+        <!-- Customer table -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-users mr-2"></i> Danh sách khách hàng</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-users mr-2"></i> <span data-i18n="crm_customer_list_title">Customer List</span></h2><div class="text-sm text-gray-400" id="recordCount" data-i18n="crm_loading">Loading...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table">
-                    <thead><tr><th>ID</th><th>Khách hàng</th><th>SĐT</th><th>Email</th><th>Phân hạng</th><th>Tổng chi tiêu</th><th>Điểm thưởng</th><th>Thao tác</th></tr></thead>
-                    <tbody id="customerTableBody"><tr><td colspan="8" class="text-center py-10 text-gray-500">Đang tải...</td></tr></tbody>
+                    <thead><tr><th data-i18n="crm_col_id">ID</th><th data-i18n="crm_col_customer">Customer</th><th data-i18n="crm_col_phone">Phone</th><th data-i18n="crm_col_email">Email</th><th data-i18n="crm_col_tier">Tier</th><th data-i18n="crm_col_spend">Total Spend</th><th data-i18n="crm_col_points">Points</th><th data-i18n="crm_col_actions">Actions</th></tr></thead>
+                    <tbody id="customerTableBody"><tr><td colspan="8" class="text-center py-10 text-gray-500" data-i18n="crm_loading">Loading...</td></tr></tbody>
                 </table>
                 </div>
             </div>
-            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="crm_prev_btn">Previous</span></button><span class="text-sm text-gray-400" id="pageInfo" data-i18n="crm_page_default">Page 1 / 1</span><button id="nextPage" class="pagination-btn"><span data-i18n="crm_next_btn">Next</span> <i class="fas fa-chevron-right ml-1"></i></button></div>
         </div>
 
-        <!-- Biểu đồ & gửi tin hàng loạt -->
+        <!-- Chart & bulk messaging -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Phân bố theo phân hạng</h3><canvas id="tierChart" height="200" style="max-height: 200px;"></canvas></div>
-            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-envelope mr-2"></i> Gửi tin nhắn hàng loạt</h3><textarea id="broadcastMsg" rows="3" class="glass-textarea w-full mb-3" placeholder="Nhập nội dung tin nhắn (SMS/Zalo)..."></textarea><button id="sendBroadcastBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold"><i class="fas fa-paper-plane mr-1"></i> Gửi cho khách đã chọn</button><p class="text-[10px] text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i> Lưu ý: Tích chọn checkbox ở bảng để gửi cho nhiều khách</p></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="crm_chart_title">Distribution by Tier</span></h3><canvas id="tierChart" height="200" style="max-height: 200px;"></canvas></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-envelope mr-2"></i> <span data-i18n="crm_broadcast_title">Send Bulk Message</span></h3><textarea id="broadcastMsg" rows="3" class="glass-textarea w-full mb-3" placeholder="Enter message content (SMS/Zalo)..." data-i18n-placeholder="crm_broadcast_ph"></textarea><button id="sendBroadcastBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold"><i class="fas fa-paper-plane mr-1"></i> <span data-i18n="crm_broadcast_send_btn">Send to Selected Customers</span></button><p class="text-[10px] text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i> <span data-i18n="crm_broadcast_note">Note: Check the boxes in the table to send to multiple customers</span></p></div>
         </div>
 
     </div>
 
-    <!-- Modal thêm/sửa khách hàng -->
-    <div id="customerModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> Thêm khách hàng</h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
-    <form id="customerForm"><input type="hidden" id="customerId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1">Họ tên</label><input type="text" id="fullName" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Số điện thoại</label><input type="tel" id="phone" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Email</label><input type="email" id="email" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Phân hạng</label><select id="tier" class="glass-input w-full"><option value="Normal">Normal</option><option value="Silver">Silver</option><option value="Gold">Gold</option><option value="Platinum">Platinum</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1">Điểm thưởng (Loyalty Points)</label><input type="number" id="points" class="glass-input w-full" value="0"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Lưu</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></form></div></div>
+    <!-- Add/edit customer modal -->
+    <div id="customerModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> <span data-i18n="crm_modal_add_title">Add Customer</span></h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+    <form id="customerForm"><input type="hidden" id="customerId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_fullname">Full Name</label><input type="text" id="fullName" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_phone">Phone Number</label><input type="tel" id="phone" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_email">Email</label><input type="email" id="email" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_tier">Tier</label><select id="tier" class="glass-input w-full"><option value="Normal">Normal</option><option value="Silver">Silver</option><option value="Gold">Gold</option><option value="Platinum">Platinum</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_points">Loyalty Points</label><input type="number" id="points" class="glass-input w-full" value="0"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="crm_save_btn">Save</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="crm_cancel_btn">Cancel</button></div></form></div></div>
 
-    <!-- Modal chi tiết & gửi tin nhắn riêng -->
-    <div id="detailModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400">Chi tiết khách hàng</h3><button id="closeDetailModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div><div id="detailContent" class="space-y-2 text-sm mb-4"></div><textarea id="personalMsg" rows="2" class="glass-textarea w-full mb-2" placeholder="Nhập tin nhắn riêng..."></textarea><button id="sendPersonalMsgBtn" class="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 py-2 rounded-xl font-bold"><i class="fas fa-sms"></i> Gửi tin nhắn riêng</button></div></div>
+    <!-- Detail & personal message modal -->
+    <div id="detailModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" data-i18n="crm_detail_title">Customer Details</h3><button id="closeDetailModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div><div id="detailContent" class="space-y-2 text-sm mb-4"></div><textarea id="personalMsg" rows="2" class="glass-textarea w-full mb-2" placeholder="Enter a personal message..." data-i18n-placeholder="crm_personal_msg_ph"></textarea><button id="sendPersonalMsgBtn" class="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 py-2 rounded-xl font-bold"><i class="fas fa-sms"></i> <span data-i18n="crm_send_personal_btn">Send Personal Message</span></button></div></div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="crm_processing">Processing...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -166,19 +167,205 @@
 
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
             .then(json => {
                 if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
                 } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
+                    console.error('Failed to retrieve tenant token:', json && json.error);
                 }
-                return supabase;
+                return supabaseClient;
             })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+            .catch(e => { console.error('Error calling /api/session/supabase_token:', e); return supabaseClient; });
+
+        // ========== i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                crm_title_suffix: 'CRM',
+                crm_subtitle: 'Quản lý & chăm sóc khách hàng thông minh',
+                crm_home_btn: 'Trang chủ',
+                crm_add_customer_btn: 'Thêm khách hàng',
+                crm_stat_total_customers: 'Tổng khách hàng',
+                crm_stat_vip_customers: 'Khách VIP (Vàng/Bạch kim)',
+                crm_stat_total_spend: 'Tổng chi tiêu (VND)',
+                crm_stat_loyalty_points: 'Điểm tích lũy',
+                crm_filter_search_label: 'Tìm kiếm',
+                crm_filter_search_ph: 'Tên, số điện thoại, email...',
+                crm_filter_tier_label: 'Hạng',
+                crm_tier_all: 'Tất cả',
+                crm_filter_joined_from: 'Từ ngày tham gia',
+                crm_filter_to_date: 'Đến ngày',
+                crm_reset_btn: 'Đặt lại',
+                crm_export_btn: 'Xuất Excel',
+                crm_customer_list_title: 'Danh sách khách hàng',
+                crm_loading: 'Đang tải...',
+                crm_col_id: 'ID',
+                crm_col_customer: 'Khách hàng',
+                crm_col_phone: 'Điện thoại',
+                crm_col_email: 'Email',
+                crm_col_tier: 'Hạng',
+                crm_col_spend: 'Tổng chi tiêu',
+                crm_col_points: 'Điểm',
+                crm_col_actions: 'Hành động',
+                crm_prev_btn: 'Trước',
+                crm_next_btn: 'Sau',
+                crm_page_default: 'Trang 1 / 1',
+                crm_chart_title: 'Phân bố theo hạng',
+                crm_broadcast_title: 'Gửi thông báo hàng loạt',
+                crm_broadcast_ph: 'Nhập nội dung thông báo (SMS/Zalo)...',
+                crm_broadcast_send_btn: 'Gửi đến khách hàng đã chọn',
+                crm_broadcast_note: 'Lưu ý: Chọn các ô trong bảng để gửi cho nhiều khách hàng',
+                crm_modal_add_title: 'Thêm khách hàng',
+                crm_modal_edit_title: 'Sửa khách hàng',
+                crm_form_fullname: 'Họ và tên',
+                crm_form_phone: 'Số điện thoại',
+                crm_form_email: 'Email',
+                crm_form_tier: 'Hạng',
+                crm_form_points: 'Điểm tích lũy',
+                crm_save_btn: 'Lưu',
+                crm_cancel_btn: 'Hủy',
+                crm_detail_title: 'Chi tiết khách hàng',
+                crm_personal_msg_ph: 'Nhập tin nhắn cá nhân...',
+                crm_send_personal_btn: 'Gửi tin nhắn cá nhân',
+                crm_processing: 'Đang xử lý...',
+                crm_toast_load_error: 'Lỗi tải dữ liệu: ',
+                crm_no_customers: 'Không có khách hàng',
+                crm_record_count: 'Tổng: {count} khách hàng',
+                crm_page_info: 'Trang {page} / {total}',
+                crm_details_btn: 'Chi tiết',
+                crm_toast_fill_info: 'Vui lòng nhập đầy đủ thông tin',
+                crm_toast_updated: 'Cập nhật thành công',
+                crm_toast_added: 'Thêm khách hàng thành công',
+                crm_toast_generic_error: 'Lỗi: ',
+                crm_toast_no_export_data: 'Không có dữ liệu để xuất',
+                crm_export_col_id: 'ID',
+                crm_export_col_name: 'Họ và tên',
+                crm_export_col_phone: 'Điện thoại',
+                crm_export_col_email: 'Email',
+                crm_export_col_tier: 'Hạng',
+                crm_export_col_spend: 'Tổng chi tiêu',
+                crm_export_col_points: 'Điểm tích lũy',
+                crm_export_col_joindate: 'Ngày tham gia',
+                crm_toast_export_success: 'Xuất Excel thành công',
+                crm_toast_enter_message: 'Vui lòng nhập nội dung tin nhắn',
+                crm_toast_select_customer: 'Vui lòng chọn ít nhất một khách hàng',
+                crm_toast_broadcast_sent: 'Đã gửi tin nhắn đến {count} khách hàng: {msg}',
+                crm_toast_personal_sent: 'Đã gửi tin nhắn cá nhân đến {name}: {msg}',
+                crm_detail_name: 'Họ và tên:',
+                crm_detail_phone: 'Điện thoại:',
+                crm_detail_email: 'Email:',
+                crm_detail_tier: 'Hạng:',
+                crm_detail_spend: 'Tổng chi tiêu:',
+                crm_detail_points: 'Điểm tích lũy:',
+                crm_detail_joindate: 'Ngày tham gia:'
+            },
+            en: {
+                crm_title_suffix: 'CRM',
+                crm_subtitle: 'Smart customer management & care',
+                crm_home_btn: 'Home',
+                crm_add_customer_btn: 'Add Customer',
+                crm_stat_total_customers: 'Total Customers',
+                crm_stat_vip_customers: 'VIP Customers (Gold/Platinum)',
+                crm_stat_total_spend: 'Total Spend (VND)',
+                crm_stat_loyalty_points: 'Loyalty Points',
+                crm_filter_search_label: 'Search',
+                crm_filter_search_ph: 'Name, phone, email...',
+                crm_filter_tier_label: 'Tier',
+                crm_tier_all: 'All',
+                crm_filter_joined_from: 'Joined from',
+                crm_filter_to_date: 'To date',
+                crm_reset_btn: 'Reset',
+                crm_export_btn: 'Export Excel',
+                crm_customer_list_title: 'Customer List',
+                crm_loading: 'Loading...',
+                crm_col_id: 'ID',
+                crm_col_customer: 'Customer',
+                crm_col_phone: 'Phone',
+                crm_col_email: 'Email',
+                crm_col_tier: 'Tier',
+                crm_col_spend: 'Total Spend',
+                crm_col_points: 'Points',
+                crm_col_actions: 'Actions',
+                crm_prev_btn: 'Previous',
+                crm_next_btn: 'Next',
+                crm_page_default: 'Page 1 / 1',
+                crm_chart_title: 'Distribution by Tier',
+                crm_broadcast_title: 'Send Bulk Message',
+                crm_broadcast_ph: 'Enter message content (SMS/Zalo)...',
+                crm_broadcast_send_btn: 'Send to Selected Customers',
+                crm_broadcast_note: 'Note: Check the boxes in the table to send to multiple customers',
+                crm_modal_add_title: 'Add Customer',
+                crm_modal_edit_title: 'Edit Customer',
+                crm_form_fullname: 'Full Name',
+                crm_form_phone: 'Phone Number',
+                crm_form_email: 'Email',
+                crm_form_tier: 'Tier',
+                crm_form_points: 'Loyalty Points',
+                crm_save_btn: 'Save',
+                crm_cancel_btn: 'Cancel',
+                crm_detail_title: 'Customer Details',
+                crm_personal_msg_ph: 'Enter a personal message...',
+                crm_send_personal_btn: 'Send Personal Message',
+                crm_processing: 'Processing...',
+                crm_toast_load_error: 'Error loading data: ',
+                crm_no_customers: 'No customers',
+                crm_record_count: 'Total: {count} customers',
+                crm_page_info: 'Page {page} / {total}',
+                crm_details_btn: 'Details',
+                crm_toast_fill_info: 'Please fill in all information',
+                crm_toast_updated: 'Updated successfully',
+                crm_toast_added: 'Customer added successfully',
+                crm_toast_generic_error: 'Error: ',
+                crm_toast_no_export_data: 'No data to export',
+                crm_export_col_id: 'ID',
+                crm_export_col_name: 'Full Name',
+                crm_export_col_phone: 'Phone',
+                crm_export_col_email: 'Email',
+                crm_export_col_tier: 'Tier',
+                crm_export_col_spend: 'Total Spend',
+                crm_export_col_points: 'Loyalty Points',
+                crm_export_col_joindate: 'Join Date',
+                crm_toast_export_success: 'Excel exported successfully',
+                crm_toast_enter_message: 'Please enter a message',
+                crm_toast_select_customer: 'Please select at least one customer',
+                crm_toast_broadcast_sent: 'Message sent to {count} customers: {msg}',
+                crm_toast_personal_sent: 'Personal message sent to {name}: {msg}',
+                crm_detail_name: 'Full Name:',
+                crm_detail_phone: 'Phone:',
+                crm_detail_email: 'Email:',
+                crm_detail_tier: 'Tier:',
+                crm_detail_spend: 'Total Spend:',
+                crm_detail_points: 'Loyalty Points:',
+                crm_detail_joindate: 'Join Date:'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            try { loadCustomers(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
         // DOM elements
         const tbody = document.getElementById('customerTableBody');
@@ -238,7 +425,7 @@
 
         async function loadCustomers() {
             loadingOverlay.classList.add('active');
-            let query = supabase.from('customers').select('*', { count: 'exact' });
+            let query = supabaseClient.from('customers').select('*', { count: 'exact' });
             const search = searchInput.value.trim();
             if (search) {
                 query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
@@ -250,7 +437,7 @@
             const from = (currentPage - 1) * rowsPerPage;
             const to = from + rowsPerPage - 1;
             const { data, error, count } = await query.order('id', { ascending: false }).range(from, to);
-            if (error) { showToast('Lỗi tải dữ liệu: ' + error.message, true); loadingOverlay.classList.remove('active'); return; }
+            if (error) { showToast(t('crm_toast_load_error') + error.message, true); loadingOverlay.classList.remove('active'); return; }
             totalRecords = count || 0;
             currentCustomers = data || [];
             renderTable();
@@ -260,9 +447,9 @@
 
         function renderTable() {
             if (currentCustomers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-500">Không có khách hàng</td></tr>';
-                pageInfo.innerText = `Trang 0 / 0`;
-                recordCountSpan.innerText = `Tổng: ${totalRecords} khách`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-gray-500">${t('crm_no_customers')}</td></tr>`;
+                pageInfo.innerText = tf('crm_page_info', { page: 0, total: 0 });
+                recordCountSpan.innerText = tf('crm_record_count', { count: totalRecords });
                 return;
             }
             tbody.innerHTML = currentCustomers.map(c => `
@@ -274,21 +461,21 @@
                     <td>${getTierBadge(c.tier)}</td>
                     <td class="font-mono text-emerald-400">${formatCurrency(c.total_spent || 0)}</td>
                     <td class="text-purple-400">${c.loyalty_points || 0}</td>
-                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300" data-id="${c.id}"><i class="fas fa-eye mr-1"></i> Chi tiết</button> <button class="edit-customer text-yellow-400 hover:text-yellow-300 ml-2" data-id="${c.id}"><i class="fas fa-edit"></i></button></td>
+                    <td><button class="view-detail text-cyan-400 hover:text-cyan-300" data-id="${c.id}"><i class="fas fa-eye mr-1"></i> ${t('crm_details_btn')}</button> <button class="edit-customer text-yellow-400 hover:text-yellow-300 ml-2" data-id="${c.id}"><i class="fas fa-edit"></i></button></td>
                 </tr>
             `).join('');
             document.querySelectorAll('.view-detail').forEach(btn => btn.addEventListener('click', () => showDetail(parseInt(btn.dataset.id))));
             document.querySelectorAll('.edit-customer').forEach(btn => btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.id))));
             document.querySelectorAll('.customer-checkbox').forEach(cb => cb.addEventListener('change', (e) => { const id = parseInt(cb.value); if(cb.checked) selectedCustomerIds.add(id); else selectedCustomerIds.delete(id); }));
             const totalPages = Math.ceil(totalRecords / rowsPerPage);
-            pageInfo.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfo.innerText = tf('crm_page_info', { page: currentPage, total: totalPages || 1 });
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-            recordCountSpan.innerText = `Tổng: ${totalRecords} khách`;
+            recordCountSpan.innerText = tf('crm_record_count', { count: totalRecords });
         }
 
         async function updateStatsAndChart() {
-            let query = supabase.from('customers').select('*');
+            let query = supabaseClient.from('customers').select('*');
             const search = searchInput.value.trim();
             if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
             const tier = tierFilter.value;
@@ -318,22 +505,22 @@
         }
 
         async function showDetail(id) {
-            const { data: c } = await supabase.from('customers').select('*').eq('id', id).single();
+            const { data: c } = await supabaseClient.from('customers').select('*').eq('id', id).single();
             if (!c) return;
             detailContent.innerHTML = `
-                <div class="flex justify-between border-b border-white/10 pb-1"><span class="text-gray-400">Họ tên:</span><span class="font-bold">${escapeHtml(c.name)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">SĐT:</span><span>${c.phone}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Email:</span><span>${c.email || ''}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Phân hạng:</span>${getTierBadge(c.tier)}</div>
-                <div class="flex justify-between"><span class="text-gray-400">Tổng chi tiêu:</span><span class="text-emerald-400">${formatCurrency(c.total_spent || 0)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Điểm thưởng:</span><span class="text-purple-400">${c.loyalty_points || 0}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Ngày tham gia:</span><span>${c.join_date || new Date().toISOString().slice(0,10)}</span></div>
+                <div class="flex justify-between border-b border-white/10 pb-1"><span class="text-gray-400">${t('crm_detail_name')}</span><span class="font-bold">${escapeHtml(c.name)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_phone')}</span><span>${c.phone}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_email')}</span><span>${c.email || ''}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_tier')}</span>${getTierBadge(c.tier)}</div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_spend')}</span><span class="text-emerald-400">${formatCurrency(c.total_spent || 0)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_points')}</span><span class="text-purple-400">${c.loyalty_points || 0}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_joindate')}</span><span>${c.join_date || new Date().toISOString().slice(0,10)}</span></div>
             `;
             detailModal.classList.add('active');
             personalMsg.value = '';
             sendPersonalMsgBtn.onclick = () => {
-                if(personalMsg.value.trim()) showToast(`Đã gửi tin nhắn riêng đến ${c.name}: ${personalMsg.value}`);
-                else showToast('Vui lòng nhập nội dung', true);
+                if(personalMsg.value.trim()) showToast(tf('crm_toast_personal_sent', { name: c.name, msg: personalMsg.value }));
+                else showToast(t('crm_toast_enter_message'), true);
             };
         }
 
@@ -346,7 +533,7 @@
                 emailInput.value = c.email || '';
                 tierSelect.value = c.tier;
                 pointsInput.value = c.loyalty_points || 0;
-                modalTitle.innerHTML = '<i class="fas fa-user-edit mr-2"></i> Chỉnh sửa khách hàng';
+                modalTitle.innerHTML = `<i class="fas fa-user-edit mr-2"></i> ${t('crm_modal_edit_title')}`;
                 customerModal.classList.add('active');
             }
         }
@@ -357,7 +544,7 @@
             emailInput.value = '';
             tierSelect.value = 'Normal';
             pointsInput.value = '0';
-            modalTitle.innerHTML = '<i class="fas fa-user-plus mr-2"></i> Thêm khách hàng';
+            modalTitle.innerHTML = `<i class="fas fa-user-plus mr-2"></i> ${t('crm_modal_add_title')}`;
             customerModal.classList.add('active');
         }
         function closeModals() { customerModal.classList.remove('active'); detailModal.classList.remove('active'); }
@@ -370,28 +557,28 @@
             const email = emailInput.value.trim();
             const tier = tierSelect.value;
             const points = parseInt(pointsInput.value) || 0;
-            if (!name || !phone || !email) { showToast('Vui lòng nhập đủ thông tin', true); return; }
+            if (!name || !phone || !email) { showToast(t('crm_toast_fill_info'), true); return; }
             loadingOverlay.classList.add('active');
             try {
                 if (id) {
-                    const { error } = await supabase.from('customers').update({ name, phone, email, tier, loyalty_points: points }).eq('id', id);
+                    const { error } = await supabaseClient.from('customers').update({ name, phone, email, tier, loyalty_points: points }).eq('id', id);
                     if (error) throw error;
-                    showToast('Cập nhật thành công');
+                    showToast(t('crm_toast_updated'));
                 } else {
-                    const { error } = await supabase.from('customers').insert([{ name, phone, email, tier, loyalty_points: points, total_spent: 0, join_date: new Date().toISOString().slice(0,10) }]);
+                    const { error } = await supabaseClient.from('customers').insert([{ name, phone, email, tier, loyalty_points: points, total_spent: 0, join_date: new Date().toISOString().slice(0,10) }]);
                     if (error) throw error;
-                    showToast('Thêm khách hàng thành công');
+                    showToast(t('crm_toast_added'));
                 }
                 await loadCustomers();
                 closeModals();
-            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            } catch(err) { showToast(t('crm_toast_generic_error') + err.message, true); }
             finally { loadingOverlay.classList.remove('active'); }
         });
 
         function applyFilters() { currentPage = 1; loadCustomers(); }
         function resetFilters() { searchInput.value = ''; tierFilter.value = 'all'; startDate.value = ''; endDate.value = ''; applyFilters(); }
         async function exportToExcel() {
-            let query = supabase.from('customers').select('*');
+            let query = supabaseClient.from('customers').select('*');
             const search = searchInput.value.trim();
             if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
             const tier = tierFilter.value;
@@ -399,17 +586,17 @@
             if (startDate.value) query = query.gte('join_date', startDate.value);
             if (endDate.value) query = query.lte('join_date', endDate.value);
             const { data } = await query;
-            if (!data || data.length === 0) { showToast('Không có dữ liệu để xuất', true); return; }
-            const wsData = [['ID','Họ tên','SĐT','Email','Phân hạng','Tổng chi tiêu','Điểm thưởng','Ngày tham gia']];
+            if (!data || data.length === 0) { showToast(t('crm_toast_no_export_data'), true); return; }
+            const wsData = [[t('crm_export_col_id'), t('crm_export_col_name'), t('crm_export_col_phone'), t('crm_export_col_email'), t('crm_export_col_tier'), t('crm_export_col_spend'), t('crm_export_col_points'), t('crm_export_col_joindate')]];
             data.forEach(c => wsData.push([c.id, c.name, c.phone, c.email, c.tier, c.total_spent || 0, c.loyalty_points || 0, c.join_date]));
             const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb, ws, 'Customers'); XLSX.writeFile(wb, `crm_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast('Xuất Excel thành công');
+            showToast(t('crm_toast_export_success'));
         }
         function sendBroadcast() {
             const msg = broadcastMsg.value.trim();
-            if (!msg) { showToast('Vui lòng nhập nội dung tin nhắn', true); return; }
-            if (selectedCustomerIds.size === 0) { showToast('Vui lòng chọn ít nhất một khách hàng', true); return; }
-            showToast(`Đã gửi tin nhắn đến ${selectedCustomerIds.size} khách: ${msg}`);
+            if (!msg) { showToast(t('crm_toast_enter_message'), true); return; }
+            if (selectedCustomerIds.size === 0) { showToast(t('crm_toast_select_customer'), true); return; }
+            showToast(tf('crm_toast_broadcast_sent', { count: selectedCustomerIds.size, msg }));
         }
 
         addCustomerBtn.addEventListener('click', openAddModal);
@@ -433,8 +620,8 @@
         // CSKH: track click & gửi yêu cầu
         async function trackCSKHClick(channel) {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
             } catch(e) { console.warn(e); }
         }
         document.querySelectorAll('[data-channel]').forEach(link => link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel'))));

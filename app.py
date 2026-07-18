@@ -206,7 +206,10 @@ def inject_industry_config():
     # Multi-region (US market pivot): mỗi tenant tự có country/currency riêng (mặc định
     # VN/VND, không đổi hành vi cho tenant hiện tại nào). default_lang chỉ set gợi ý ngôn
     # ngữ ban đầu theo quốc gia tenant — người dùng vẫn bấm nút toggle đổi ngôn ngữ được.
-    region = TenantEngine.get_region_config(session.get('business_id'))
+    if hasattr(TenantEngine, 'get_region_config'):
+        region = TenantEngine.get_region_config(session.get('business_id'))
+    else:
+        region = {"country": "VN", "currency": "VND"}
     tenant_country = region['country']
     tenant_currency = region['currency']
     default_lang = 'en' if tenant_country == 'US' else 'vi'
@@ -2479,7 +2482,10 @@ def api_us_payment_start():
         # nguyên tắc chống IDOR đã áp dụng cho /api/payment/start.
         business_id = session.get('business_id') or session['user_id']
 
-        region = TenantEngine.get_region_config(business_id)
+        if hasattr(TenantEngine, 'get_region_config'):
+            region = TenantEngine.get_region_config(business_id)
+        else:
+            region = {"country": "VN", "currency": "VND"}
         if region['country'] != 'US' or region['currency'] != 'USD':
             return jsonify({'success': False, 'message': 'Tenant này không thuộc thị trường US (Square chỉ áp dụng cho country=US).'}), 403
 

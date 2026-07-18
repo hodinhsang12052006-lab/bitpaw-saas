@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -96,79 +96,205 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Nhật ký hệ thống</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Theo dõi mọi hoạt động & thay đổi</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="userlogs_header_title">| Nhật ký hệ thống</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="userlogs_header_subtitle">Theo dõi mọi hoạt động & thay đổi</p>
                 </div>
             </div>
             <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <button id="refreshLogsBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-sync-alt"></i> Làm mới</button>
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="userlogs_home">Trang chủ</span></a>
+                <button id="refreshLogsBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-sync-alt"></i> <span data-i18n="userlogs_refresh">Làm mới</span></button>
             </div>
         </div>
 
         <!-- Thống kê nhanh -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng số logs</div><div class="text-2xl font-bold text-cyan-400" id="totalLogs">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Hoạt động hôm nay</div><div class="text-2xl font-bold text-emerald-400" id="todayLogs">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Người dùng active</div><div class="text-2xl font-bold text-purple-400" id="activeUsers">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Thao tác gần đây</div><div class="text-2xl font-bold text-yellow-400" id="recentActions">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="userlogs_stat_total">Tổng số logs</div><div class="text-2xl font-bold text-cyan-400" id="totalLogs">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="userlogs_stat_today">Hoạt động hôm nay</div><div class="text-2xl font-bold text-emerald-400" id="todayLogs">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="userlogs_stat_active_users">Người dùng active</div><div class="text-2xl font-bold text-purple-400" id="activeUsers">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="userlogs_stat_recent">Thao tác gần đây</div><div class="text-2xl font-bold text-yellow-400" id="recentActions">0</div></div>
         </div>
 
         <!-- Bộ lọc -->
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Mô tả, người dùng, IP..."></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Loại hành động</label><select id="actionFilter" class="filter-input"><option value="all">Tất cả</option><option value="login">Đăng nhập</option><option value="logout">Đăng xuất</option><option value="create">Thêm mới</option><option value="update">Cập nhật</option><option value="delete">Xóa</option><option value="payment">Thanh toán</option><option value="export">Xuất dữ liệu</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Người dùng</label><input type="text" id="userFilter" class="filter-input" placeholder="Tên đăng nhập"></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Từ ngày – Đến ngày</label><div class="flex gap-2"><input type="date" id="startDate" class="filter-input w-1/2"><input type="date" id="endDate" class="filter-input w-1/2"></div></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="userlogs_filter_search">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Mô tả, người dùng, IP..." data-i18n-placeholder="userlogs_placeholder_search"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="userlogs_filter_action_type">Loại hành động</label><select id="actionFilter" class="filter-input"><option value="all" data-i18n="userlogs_action_all">Tất cả</option><option value="login" data-i18n="userlogs_action_login">Đăng nhập</option><option value="logout" data-i18n="userlogs_action_logout">Đăng xuất</option><option value="create" data-i18n="userlogs_action_create">Thêm mới</option><option value="update" data-i18n="userlogs_action_update">Cập nhật</option><option value="delete" data-i18n="userlogs_action_delete">Xóa</option><option value="payment" data-i18n="userlogs_action_payment">Thanh toán</option><option value="export" data-i18n="userlogs_action_export">Xuất dữ liệu</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="userlogs_filter_user">Người dùng</label><input type="text" id="userFilter" class="filter-input" placeholder="Tên đăng nhập" data-i18n-placeholder="userlogs_placeholder_username"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="userlogs_filter_date_range">Từ ngày – Đến ngày</label><div class="flex gap-2"><input type="date" id="startDate" class="filter-input w-1/2"><input type="date" id="endDate" class="filter-input w-1/2"></div></div>
             </div>
-            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="userlogs_reset">Đặt lại</span></button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="userlogs_export_excel">Xuất Excel</span></button></div>
         </div>
 
         <!-- Bảng logs -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-history mr-2"></i> Nhật ký hoạt động chi tiết</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-history mr-2"></i> <span data-i18n="userlogs_table_title">Nhật ký hoạt động chi tiết</span></h2><div class="text-sm text-gray-400" id="recordCount" data-i18n="userlogs_loading">Đang tải...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table">
-                    <thead><tr><th>ID</th><th>Thời gian</th><th>Người dùng</th><th>Hành động</th><th>Chi tiết / Mô tả</th><th>IP Address</th></tr></thead>
-                    <tbody id="logTableBody"><tr><td colspan="6" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr></tbody>
+                    <thead><tr><th data-i18n="userlogs_th_id">ID</th><th data-i18n="userlogs_th_time">Thời gian</th><th data-i18n="userlogs_th_user">Người dùng</th><th data-i18n="userlogs_th_action">Hành động</th><th data-i18n="userlogs_th_detail">Chi tiết / Mô tả</th><th data-i18n="userlogs_th_ip">IP Address</th></tr></thead>
+                    <tbody id="logTableBody"><tr><td colspan="6" class="text-center py-10 text-gray-500" data-i18n="userlogs_loading_data">Đang tải dữ liệu...</td></tr></tbody>
                 </table>
                 </div>
             </div>
-            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="userlogs_prev">Trước</span></button><span class="text-sm text-gray-400"><span data-i18n="userlogs_page_label">Trang</span> <span id="pageInfo">1 / 1</span></span><button id="nextPage" class="pagination-btn"><span data-i18n="userlogs_next">Sau</span> <i class="fas fa-chevron-right ml-1"></i></button></div>
         </div>
 
         <!-- Biểu đồ hoạt động theo giờ -->
         <div class="glass-panel p-5 mt-6">
-            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Tần suất hoạt động theo khung giờ (24h gần nhất)</h3>
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="userlogs_hourly_chart_title">Tần suất hoạt động theo khung giờ (24h gần nhất)</span></h3>
             <canvas id="hourlyChart" height="150" style="max-height: 200px;"></canvas>
         </div>
 
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang tải dữ liệu...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="userlogs_loading_data">Đang tải dữ liệu...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
+        // ========================================================
+        // I18N (VI/EN)
+        // ========================================================
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                userlogs_header_title: '| Nhật ký hệ thống',
+                userlogs_header_subtitle: 'Theo dõi mọi hoạt động & thay đổi',
+                userlogs_home: 'Trang chủ',
+                userlogs_refresh: 'Làm mới',
+                userlogs_stat_total: 'Tổng số logs',
+                userlogs_stat_today: 'Hoạt động hôm nay',
+                userlogs_stat_active_users: 'Người dùng active',
+                userlogs_stat_recent: 'Thao tác gần đây',
+                userlogs_filter_search: 'Tìm kiếm',
+                userlogs_placeholder_search: 'Mô tả, người dùng, IP...',
+                userlogs_filter_action_type: 'Loại hành động',
+                userlogs_action_all: 'Tất cả',
+                userlogs_action_login: 'Đăng nhập',
+                userlogs_action_logout: 'Đăng xuất',
+                userlogs_action_create: 'Thêm mới',
+                userlogs_action_update: 'Cập nhật',
+                userlogs_action_delete: 'Xóa',
+                userlogs_action_payment: 'Thanh toán',
+                userlogs_action_export: 'Xuất dữ liệu',
+                userlogs_filter_user: 'Người dùng',
+                userlogs_placeholder_username: 'Tên đăng nhập',
+                userlogs_filter_date_range: 'Từ ngày – Đến ngày',
+                userlogs_reset: 'Đặt lại',
+                userlogs_export_excel: 'Xuất Excel',
+                userlogs_table_title: 'Nhật ký hoạt động chi tiết',
+                userlogs_loading: 'Đang tải...',
+                userlogs_loading_data: 'Đang tải dữ liệu...',
+                userlogs_th_id: 'ID',
+                userlogs_th_time: 'Thời gian',
+                userlogs_th_user: 'Người dùng',
+                userlogs_th_action: 'Hành động',
+                userlogs_th_detail: 'Chi tiết / Mô tả',
+                userlogs_th_ip: 'IP Address',
+                userlogs_prev: 'Trước',
+                userlogs_next: 'Sau',
+                userlogs_page_label: 'Trang',
+                userlogs_hourly_chart_title: 'Tần suất hoạt động theo khung giờ (24h gần nhất)',
+                userlogs_hourly_dataset_label: 'Số hoạt động',
+                userlogs_no_logs: 'Không có nhật ký nào',
+                userlogs_record_count_prefix: 'Tổng: ',
+                userlogs_record_count_suffix: ' bản ghi',
+                userlogs_toast_load_error: 'Lỗi tải nhật ký: ',
+                userlogs_toast_export_success: 'Xuất Excel thành công',
+                userlogs_toast_fill_required: 'Vui lòng nhập đầy đủ thông tin',
+                userlogs_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                userlogs_toast_error_prefix: 'Lỗi: ',
+                userlogs_console_token_error: 'Không lấy được tenant token:',
+                userlogs_console_token_fetch_error: 'Lỗi khi gọi /api/session/supabase_token:'
+            },
+            en: {
+                userlogs_header_title: '| System Activity Log',
+                userlogs_header_subtitle: 'Track every action & change',
+                userlogs_home: 'Home',
+                userlogs_refresh: 'Refresh',
+                userlogs_stat_total: 'Total Logs',
+                userlogs_stat_today: "Today's Activity",
+                userlogs_stat_active_users: 'Active Users',
+                userlogs_stat_recent: 'Recent Actions',
+                userlogs_filter_search: 'Search',
+                userlogs_placeholder_search: 'Description, user, IP...',
+                userlogs_filter_action_type: 'Action Type',
+                userlogs_action_all: 'All',
+                userlogs_action_login: 'Login',
+                userlogs_action_logout: 'Logout',
+                userlogs_action_create: 'Create',
+                userlogs_action_update: 'Update',
+                userlogs_action_delete: 'Delete',
+                userlogs_action_payment: 'Payment',
+                userlogs_action_export: 'Export Data',
+                userlogs_filter_user: 'User',
+                userlogs_placeholder_username: 'Username',
+                userlogs_filter_date_range: 'From date – To date',
+                userlogs_reset: 'Reset',
+                userlogs_export_excel: 'Export Excel',
+                userlogs_table_title: 'Detailed Activity Log',
+                userlogs_loading: 'Loading...',
+                userlogs_loading_data: 'Loading data...',
+                userlogs_th_id: 'ID',
+                userlogs_th_time: 'Time',
+                userlogs_th_user: 'User',
+                userlogs_th_action: 'Action',
+                userlogs_th_detail: 'Details / Description',
+                userlogs_th_ip: 'IP Address',
+                userlogs_prev: 'Previous',
+                userlogs_next: 'Next',
+                userlogs_page_label: 'Page',
+                userlogs_hourly_chart_title: 'Activity Frequency by Hour (Last 24h)',
+                userlogs_hourly_dataset_label: 'Number of Activities',
+                userlogs_no_logs: 'No logs found',
+                userlogs_record_count_prefix: 'Total: ',
+                userlogs_record_count_suffix: ' records',
+                userlogs_toast_load_error: 'Failed to load logs: ',
+                userlogs_toast_export_success: 'Excel exported successfully',
+                userlogs_toast_fill_required: 'Please fill in all required information',
+                userlogs_toast_support_sent: "✅ Request sent! We'll contact you back within 15 minutes.",
+                userlogs_toast_error_prefix: 'Error: ',
+                userlogs_console_token_error: 'Could not get tenant token:',
+                userlogs_console_token_fetch_error: 'Error calling /api/session/supabase_token:'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            try { applyFilters(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
             .then(json => {
                 if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
                 } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
+                    console.error(t('userlogs_console_token_error'), json && json.error);
                 }
-                return supabase;
+                return supabaseClient;
             })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+            .catch(e => { console.error(t('userlogs_console_token_fetch_error'), e); return supabaseClient; });
 
         // Global variables
         let logs = [];
@@ -211,13 +337,13 @@
 
         function getActionBadge(action) {
             const map = {
-                login: '<span class="action-badge action-login"><i class="fas fa-sign-in-alt mr-1"></i> Đăng nhập</span>',
-                logout: '<span class="action-badge action-login"><i class="fas fa-sign-out-alt mr-1"></i> Đăng xuất</span>',
-                create: '<span class="action-badge action-create"><i class="fas fa-plus-circle mr-1"></i> Thêm mới</span>',
-                update: '<span class="action-badge action-update"><i class="fas fa-edit mr-1"></i> Cập nhật</span>',
-                delete: '<span class="action-badge action-delete"><i class="fas fa-trash-alt mr-1"></i> Xóa</span>',
-                payment: '<span class="action-badge action-payment"><i class="fas fa-credit-card mr-1"></i> Thanh toán</span>',
-                export: '<span class="action-badge action-payment"><i class="fas fa-file-excel mr-1"></i> Xuất dữ liệu</span>'
+                login: `<span class="action-badge action-login"><i class="fas fa-sign-in-alt mr-1"></i> ${t('userlogs_action_login')}</span>`,
+                logout: `<span class="action-badge action-login"><i class="fas fa-sign-out-alt mr-1"></i> ${t('userlogs_action_logout')}</span>`,
+                create: `<span class="action-badge action-create"><i class="fas fa-plus-circle mr-1"></i> ${t('userlogs_action_create')}</span>`,
+                update: `<span class="action-badge action-update"><i class="fas fa-edit mr-1"></i> ${t('userlogs_action_update')}</span>`,
+                delete: `<span class="action-badge action-delete"><i class="fas fa-trash-alt mr-1"></i> ${t('userlogs_action_delete')}</span>`,
+                payment: `<span class="action-badge action-payment"><i class="fas fa-credit-card mr-1"></i> ${t('userlogs_action_payment')}</span>`,
+                export: `<span class="action-badge action-payment"><i class="fas fa-file-excel mr-1"></i> ${t('userlogs_action_export')}</span>`
             };
             return map[action] || `<span class="action-badge action-login">${action}</span>`;
         }
@@ -226,7 +352,7 @@
         async function loadLogs() {
             showLoading(true);
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('user_logs')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -235,7 +361,7 @@
                 applyFilters();
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi tải nhật ký: ' + err.message, true);
+                showToast(t('userlogs_toast_load_error') + err.message, true);
                 logs = [];
                 applyFilters();
             } finally {
@@ -276,7 +402,7 @@
             renderTable();
             updateStats();
             updateHourlyChart();
-            recordCountSpan.innerText = `Tổng: ${filteredLogs.length} bản ghi`;
+            recordCountSpan.innerText = `${t('userlogs_record_count_prefix')}${filteredLogs.length}${t('userlogs_record_count_suffix')}`;
         }
 
         function renderTable() {
@@ -284,8 +410,8 @@
             const end = start + rowsPerPage;
             const pageData = filteredLogs.slice(start, end);
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">Không có nhật ký nào</td></tr>';
-                pageInfoSpan.innerText = 'Trang 0 / 0';
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-500">${t('userlogs_no_logs')}</td></tr>`;
+                pageInfoSpan.innerText = '0 / 0';
                 return;
             }
             tbody.innerHTML = pageData.map(l => `
@@ -299,7 +425,7 @@
                 </tr>
             `).join('');
             const totalPages = Math.ceil(filteredLogs.length / rowsPerPage);
-            pageInfoSpan.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfoSpan.innerText = `${currentPage} / ${totalPages || 1}`;
             prevBtn.disabled = currentPage === 1;
             nextBtn.disabled = currentPage === totalPages || totalPages === 0;
         }
@@ -316,7 +442,7 @@
             const ctx = document.getElementById('hourlyChart').getContext('2d');
             hourlyChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: Array.from({length:24}, (_,i)=>i+'h'), datasets: [{ label: 'Số hoạt động', data: hourMap, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', fill: true, tension: 0.3 }] },
+                data: { labels: Array.from({length:24}, (_,i)=>i+'h'), datasets: [{ label: t('userlogs_hourly_dataset_label'), data: hourMap, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', fill: true, tension: 0.3 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } } }
             });
         }
@@ -331,7 +457,7 @@
         }
 
         function exportToExcel() {
-            const wsData = [['ID','Thời gian','Người dùng','Hành động','Mô tả','IP Address']];
+            const wsData = [[t('userlogs_th_id'), t('userlogs_th_time'), t('userlogs_th_user'), t('userlogs_th_action'), t('userlogs_th_detail'), t('userlogs_th_ip')]];
             filteredLogs.forEach(l => {
                 wsData.push([
                     l.id,
@@ -346,7 +472,7 @@
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'UserLogs');
             XLSX.writeFile(wb, `user_logs_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast('Xuất Excel thành công');
+            showToast(t('userlogs_toast_export_success'));
         }
 
         function refreshLogs() {
@@ -356,9 +482,9 @@
         // CSKH: track click & send support request
         async function trackCSKHClick(channel) {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
                 } else {
                     console.log('Anonymous click tracked:', channel);
                 }
@@ -371,17 +497,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('userlogs_toast_fill_required'), true);
                 return;
             }
             showLoading(true);
             try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
+                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('userlogs_toast_support_sent'));
                 document.getElementById('supportForm').reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('userlogs_toast_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -407,7 +533,7 @@
         document.querySelectorAll('[data-channel]').forEach(link => {
             link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
         });
-        document.getElementById('supportForm').addEventListener('submit', sendSupportRequest);
+        document.getElementById('supportForm')?.addEventListener('submit', sendSupportRequest);
 
         // Initial load
         supabaseReady.then(() => { loadLogs(); });

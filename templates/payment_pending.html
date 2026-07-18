@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPay | Chờ thanh toán - Payment Pending</title>
+    <title>BitPay | Awaiting Payment - Payment Pending</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -141,7 +141,10 @@
                     <p class="text-gray-400 text-[10px] uppercase tracking-wider">Payment Pending</p>
                 </div>
             </div>
-            <a href="/pos" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> Trở về POS</a>
+            <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
+                <a href="/pos" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_header_back_to_pos">Trở về POS</span></a>
+            </div>
         </div>
 
         <!-- Pending Status Card -->
@@ -151,23 +154,23 @@
             </div>
             
             <h2 class="text-3xl font-black text-white mb-2">
-                <span class="text-yellow-400">Chờ thanh toán...</span>
+                <span class="text-yellow-400" data-i18n="payment_pending_awaiting">Chờ thanh toán...</span>
             </h2>
-            <p class="text-gray-300 text-sm mb-6 max-w-md mx-auto">
+            <p class="text-gray-300 text-sm mb-6 max-w-md mx-auto" data-i18n="payment_pending_info_para">
                 Khách chưa được ghi nhận thanh toán thành công. Nhân viên thu ngân chỉ được bấm xác nhận sau khi đã nhận đủ tiền mặt hoặc tài khoản ngân hàng báo có tiền.
             </p>
-            
+
             <!-- Box POS đối soát -->
             <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-6 text-left max-w-md mx-auto mb-6">
                 <h3 class="text-sm font-bold text-yellow-400 mb-4 border-b border-yellow-500/20 pb-2 flex items-center gap-2">
-                    <i class="fas fa-cash-register"></i> CHI TIẾT ĐỐI SOÁT THANH TOÁN (DEMO MODE)
+                    <i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_recon_title">CHI TIẾT ĐỐI SOÁT THANH TOÁN (DEMO MODE)</span>
                 </h3>
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between"><span class="text-gray-400">Mã giao dịch / Trans ID:</span><span class="font-mono text-yellow-300 font-bold" id="pendingTxnId">FNB-PENDING</span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Bàn / Table:</span><span class="font-bold text-white" id="pendingTable">Bàn 1</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Phương thức / Method:</span><span class="font-medium text-white" id="pendingMethod">POS (Thanh toán tại quầy)</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Phương thức / Method:</span><span class="font-medium text-white" id="pendingMethod" data-i18n="payment_pending_method_default">POS (Thanh toán tại quầy)</span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Số tiền cần thu / Amount:</span><span class="text-yellow-400 font-bold text-xl" id="pendingAmount">35.200₫</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Trạng thái / Status:</span><span class="text-yellow-400 font-bold"><i class="fas fa-circle-notch fa-spin text-xs mr-1"></i> Đang chờ xác nhận...</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Trạng thái / Status:</span><span class="text-yellow-400 font-bold"><i class="fas fa-circle-notch fa-spin text-xs mr-1"></i> <span data-i18n="payment_pending_status_default">Đang chờ xác nhận...</span></span></div>
                 </div>
             </div>
 
@@ -177,17 +180,17 @@
                 <!-- VietQR Việt Nam -->
                 <div id="vietqrBlock" class="bg-black/40 rounded-2xl p-6 text-center max-w-md mx-auto mb-6 border border-white/5">
                     <h4 class="text-xs font-bold text-cyan-400 mb-3 tracking-wider uppercase flex items-center justify-center gap-2">
-                        <i class="fas fa-qrcode"></i> Quét mã VietQR chuyển khoản nhanh
+                        <i class="fas fa-qrcode"></i> <span data-i18n="payment_pending_vietqr_title">Quét mã VietQR chuyển khoản nhanh</span>
                     </h4>
                     <div class="bg-white p-3 rounded-xl inline-block shadow-lg mb-3">
                         <img id="qrImage" src="" class="w-48 h-48 mx-auto">
                     </div>
                     <div class="space-y-1 text-xs mb-3 text-left max-w-[280px] mx-auto bg-black/40 p-3 rounded-xl border border-white/5">
-                        <div class="flex justify-between"><span class="text-gray-400">Ngân hàng:</span><span class="font-bold text-white">{{ config.bank_name }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Số tài khoản:</span><span class="font-mono font-bold text-white">{{ config.account_number }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Chủ tài khoản:</span><span class="font-bold text-cyan-300">{{ config.account_holder }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400" data-i18n="payment_pending_vietqr_bank">Ngân hàng:</span><span class="font-bold text-white">{{ config.bank_name }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400" data-i18n="payment_pending_vietqr_account_number">Số tài khoản:</span><span class="font-mono font-bold text-white">{{ config.account_number }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400" data-i18n="payment_pending_vietqr_account_holder">Chủ tài khoản:</span><span class="font-bold text-cyan-300">{{ config.account_holder }}</span></div>
                     </div>
-                    <p class="text-[10px] text-gray-400">
+                    <p class="text-[10px] text-gray-400" data-i18n="payment_pending_vietqr_note">
                         * Lưu ý: Đây là mã QR demo chế độ UAT. Nhân viên kiểm tra app ngân hàng rồi bấm nút Xác nhận thủ công bên dưới.
                     </p>
                 </div>
@@ -207,27 +210,29 @@
                     <div class="text-left space-y-2">
                         <h4 class="text-sm font-black text-cyan-400 text-center uppercase tracking-widest">
                             {% if config.type == 'square_terminal' %}
-                                Square Terminal
+                                <span data-i18n="payment_pending_term_title_square">Square Terminal</span>
                             {% elif config.type == 'clover_terminal' %}
-                                Clover Terminal
+                                <span data-i18n="payment_pending_term_title_clover">Clover Terminal</span>
                             {% elif config.type == 'stripe_terminal' %}
-                                Stripe Terminal
+                                <span data-i18n="payment_pending_term_title_stripe">Stripe Terminal</span>
                             {% elif config.type == 'zelle' %}
-                                Zelle Business
+                                <span data-i18n="payment_pending_term_title_zelle">Zelle Business</span>
                             {% elif config.type == 'ach' %}
-                                ACH Bank Wire
+                                <span data-i18n="payment_pending_term_title_ach">ACH Bank Wire</span>
                             {% elif config.type == 'cash_app' %}
-                                Cash App Pay
+                                <span data-i18n="payment_pending_term_title_cashapp">Cash App Pay</span>
                             {% elif config.type == 'paypal_venmo' %}
-                                PayPal / Venmo
+                                <span data-i18n="payment_pending_term_title_paypalvenmo">PayPal / Venmo</span>
                             {% elif config.type == 'external_terminal' %}
-                                External Card Terminal
+                                <span data-i18n="payment_pending_term_title_external">External Card Terminal</span>
                             {% else %}
-                                Wise / International Gateway
+                                <span data-i18n="payment_pending_term_title_intl">Wise / International Gateway</span>
                             {% endif %}
                         </h4>
-                        
-                        <p class="text-xs text-gray-300 leading-relaxed bg-black/40 p-4 rounded-xl border border-white/5 text-center">
+
+                        <!-- Nội dung hướng dẫn chứa dữ liệu cấu hình thật (tên NH, số TK...) nên được
+                             JS render lại qua renderTerminalInstructions() để vừa đổi ngôn ngữ vừa giữ dữ liệu -->
+                        <p id="terminalTypeInstructions" class="text-xs text-gray-300 leading-relaxed bg-black/40 p-4 rounded-xl border border-white/5 text-center" data-config-type="{{ config.type }}">
                             {% if config.type == 'square_terminal' %}
                                 Vui lòng sạc thẻ hoặc yêu cầu khách Tap to Pay trên thiết bị <strong>Square Terminal</strong> (Thiết bị: {{ config.device_name or 'Default Counter' }}). Đợi máy báo Approved rồi bấm "Xác nhận đã nhận tiền".
                             {% elif config.type == 'clover_terminal' %}
@@ -260,8 +265,8 @@
                             {% endif %}
                         </p>
                     </div>
-                    
-                    <p class="text-[9px] text-gray-500 text-center">
+
+                    <p class="text-[9px] text-gray-500 text-center" data-i18n="payment_pending_term_footnote">
                         * Chế độ UAT: Thu ngân xác nhận nhận tiền thủ công từ app/terminal của doanh nghiệp. Không tự động chốt đơn khi chưa nhấn Xác nhận.
                     </p>
                 </div>
@@ -269,12 +274,12 @@
             {% else %}
             <div class="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center max-w-md mx-auto mb-6">
                 <i class="fas fa-exclamation-triangle text-4xl text-rose-500 mb-3 block"></i>
-                <h3 class="text-sm font-bold text-rose-400 mb-2">Chưa cấu hình tài khoản nhận thanh toán</h3>
-                <p class="text-xs text-gray-300 mb-4 leading-relaxed">
+                <h3 class="text-sm font-bold text-rose-400 mb-2" data-i18n="payment_pending_noconfig_title">Chưa cấu hình tài khoản nhận thanh toán</h3>
+                <p class="text-xs text-gray-300 mb-4 leading-relaxed" data-i18n="payment_pending_noconfig_desc">
                     Vui lòng truy cập <strong>Cấu hình thanh toán</strong> trong trang quản trị/dashboard để thiết lập tài khoản ngân hàng nhận tiền riêng của doanh nghiệp.
                 </p>
                 <a href="/payment_gateway" class="inline-block bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/50 px-4 py-2 rounded-full text-xs font-semibold transition">
-                    <i class="fas fa-cog mr-1"></i> Đến trang Cấu hình
+                    <i class="fas fa-cog mr-1"></i> <span data-i18n="payment_pending_noconfig_link">Đến trang Cấu hình</span>
                 </a>
             </div>
             {% endif %}
@@ -282,7 +287,7 @@
             <!-- Tích điểm khách hàng thân thiết (không bắt buộc) -->
             <div class="max-w-md mx-auto mb-4">
                 <label class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1 block">
-                    <i class="fas fa-star text-yellow-400 mr-1"></i> SĐT khách hàng (không bắt buộc — để tự động tích điểm/lên hạng)
+                    <i class="fas fa-star text-yellow-400 mr-1"></i> <span data-i18n="payment_pending_loyalty_label">SĐT khách hàng (không bắt buộc — để tự động tích điểm/lên hạng)</span>
                 </label>
                 <input type="tel" id="loyaltyCustomerPhone" placeholder="090xxxxxxx" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-yellow-500/50">
             </div>
@@ -290,19 +295,19 @@
             <!-- Cụm nút Cashier -->
             <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
                 <button id="confirmPaymentBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
-                    <i class="fas fa-check-double"></i> Xác nhận đã nhận tiền
+                    <i class="fas fa-check-double"></i> <span data-i18n="payment_pending_btn_confirm">Xác nhận đã nhận tiền</span>
                 </button>
                 <button id="backToPosBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-arrow-left"></i> Quay lại POS
+                    <i class="fas fa-arrow-left"></i> <span data-i18n="payment_pending_btn_back_to_pos">Quay lại POS</span>
                 </button>
                 <button id="cancelPaymentBtn" class="bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-400 font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-times-circle"></i> Hủy giao dịch
+                    <i class="fas fa-times-circle"></i> <span data-i18n="payment_pending_btn_cancel">Hủy giao dịch</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/90 rounded-2xl p-6 flex flex-col items-center gap-3 border border-yellow-500/30"><i class="fas fa-spinner fa-spin text-3xl text-yellow-400"></i><span class="text-sm font-bold">Đang xử lý nghiệp vụ...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/90 rounded-2xl p-6 flex flex-col items-center gap-3 border border-yellow-500/30"><i class="fas fa-spinner fa-spin text-3xl text-yellow-400"></i><span class="text-sm font-bold" data-i18n="payment_pending_processing">Đang xử lý nghiệp vụ...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -312,27 +317,147 @@
         const amount = urlParams.get('amount') || '0';
         const method = urlParams.get('method') || 'POS';
         const ind = urlParams.get('industry') || 'fnb';
-        
-        const storedAddress = localStorage.getItem('customerAddress') || 'Bàn ăn';
-        
-        const amountDisplay = parseInt(amount).toLocaleString('vi-VN') + '₫';
-        
+
+        // ========== MULTI-REGION i18n (declared early so it's available to every helper below) ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                payment_pending_header_back_to_pos: 'Trở về POS',
+                payment_pending_awaiting: 'Chờ thanh toán...',
+                payment_pending_info_para: 'Khách chưa được ghi nhận thanh toán thành công. Nhân viên thu ngân chỉ được bấm xác nhận sau khi đã nhận đủ tiền mặt hoặc tài khoản ngân hàng báo có tiền.',
+                payment_pending_recon_title: 'CHI TIẾT ĐỐI SOÁT THANH TOÁN (DEMO MODE)',
+                payment_pending_method_default: 'POS (Thanh toán tại quầy)',
+                payment_pending_status_default: 'Đang chờ xác nhận...',
+                payment_pending_default_table: 'Bàn ăn',
+                payment_pending_vietqr_title: 'Quét mã VietQR chuyển khoản nhanh',
+                payment_pending_vietqr_bank: 'Ngân hàng:',
+                payment_pending_vietqr_account_number: 'Số tài khoản:',
+                payment_pending_vietqr_account_holder: 'Chủ tài khoản:',
+                payment_pending_vietqr_note: '* Lưu ý: Đây là mã QR demo chế độ UAT. Nhân viên kiểm tra app ngân hàng rồi bấm nút Xác nhận thủ công bên dưới.',
+                payment_pending_term_title_square: 'Square Terminal',
+                payment_pending_term_title_clover: 'Clover Terminal',
+                payment_pending_term_title_stripe: 'Stripe Terminal',
+                payment_pending_term_title_zelle: 'Zelle Business',
+                payment_pending_term_title_ach: 'ACH Bank Wire',
+                payment_pending_term_title_cashapp: 'Cash App Pay',
+                payment_pending_term_title_paypalvenmo: 'PayPal / Venmo',
+                payment_pending_term_title_external: 'External Card Terminal',
+                payment_pending_term_title_intl: 'Wise / International Gateway',
+                payment_pending_term_instr_square: 'Vui lòng sạc thẻ hoặc yêu cầu khách Tap to Pay trên thiết bị <strong>Square Terminal</strong> (Thiết bị: {device}). Đợi máy báo Approved rồi bấm "Xác nhận đã nhận tiền".',
+                payment_pending_term_instr_clover: 'Vui lòng thực hiện thanh toán trên thiết bị <strong>Clover</strong> (Thiết bị: {device}). Đợi máy Clover hiển thị <strong>Approved</strong> rồi nhấn nút Xác nhận bên dưới.',
+                payment_pending_term_instr_stripe: 'Vui lòng cho khách chèn/quẹt thẻ trên thiết bị <strong>Stripe Reader</strong> (Tên: {reader}). Nhấn nút Xác nhận sau khi Stripe báo giao dịch thành công.',
+                payment_pending_term_instr_zelle: 'Hướng dẫn khách chuyển khoản Zelle qua thông tin:<br>• Email/Phone: <strong>{phone}</strong><br>• Tên doanh nghiệp: <strong>{business}</strong><br>• Nội dung: <strong>{prefix} <span class="font-mono text-yellow-400 font-bold" id="zelleTxnId"></span></strong>',
+                payment_pending_term_instr_ach: 'Hướng dẫn khách chuyển khoản an toàn vào tài khoản Mỹ:<br>• Ngân hàng: <strong>{bank}</strong><br>• Routing (9-digit): <strong>{routing}</strong><br>• Account che: <strong>{last4}</strong><br>• Chủ tài khoản: <strong>{holder}</strong>',
+                payment_pending_term_instr_cashapp: 'Yêu cầu khách gửi tiền qua Cash App tới Cashtag:<br>• Cashtag: <strong class="text-emerald-400">{cashtag}</strong><br>• Doanh nghiệp: <strong>{business}</strong>',
+                payment_pending_term_instr_paypalvenmo: 'Yêu cầu khách gửi tiền qua:<br>• Venmo Handle: <strong>{venmo}</strong><br>• PayPal Email: <strong>{paypal}</strong>',
+                payment_pending_term_instr_external: 'Quẹt thẻ khách trên thiết bị quẹt thẻ ngoài tiệm <strong>{provider}</strong> (ID: {terminalid}). Sau khi in biên lai thành công, nhấn nút Xác nhận.',
+                payment_pending_term_instr_intl: 'Khách chuyển khoản quốc tế qua tài khoản Wise/PayPal: <strong>{email}</strong> (Thụ hưởng: <strong>{beneficiary}</strong>).',
+                payment_pending_term_footnote: '* Chế độ UAT: Thu ngân xác nhận nhận tiền thủ công từ app/terminal của doanh nghiệp. Không tự động chốt đơn khi chưa nhấn Xác nhận.',
+                payment_pending_noconfig_title: 'Chưa cấu hình tài khoản nhận thanh toán',
+                payment_pending_noconfig_desc: 'Vui lòng truy cập <strong>Cấu hình thanh toán</strong> trong trang quản trị/dashboard để thiết lập tài khoản ngân hàng nhận tiền riêng của doanh nghiệp.',
+                payment_pending_noconfig_link: 'Đến trang Cấu hình',
+                payment_pending_loyalty_label: 'SĐT khách hàng (không bắt buộc — để tự động tích điểm/lên hạng)',
+                payment_pending_btn_confirm: 'Xác nhận đã nhận tiền',
+                payment_pending_btn_back_to_pos: 'Quay lại POS',
+                payment_pending_btn_cancel: 'Hủy giao dịch',
+                payment_pending_processing: 'Đang xử lý nghiệp vụ...',
+                payment_pending_confirm_dialog: 'Sếp đã kiểm tra kỹ tài khoản/tiền mặt và muốn Xác nhận giao dịch thành công?',
+                payment_pending_toast_confirmed: '✅ Đã xác nhận thành công! Đang xuất hóa đơn...',
+                payment_pending_toast_error: 'Lỗi: {msg}',
+                payment_pending_toast_server_error: 'Lỗi kết nối server: {msg}',
+                payment_pending_cancel_dialog: 'Hủy giao dịch thanh toán này? Món ăn vẫn sẽ treo tại bàn POS.',
+                payment_pending_toast_canceled: '🔴 Đã hủy giao dịch tạm thời. Quay lại POS...',
+                payment_pending_toast_cancel_error: 'Lỗi hủy: {msg}'
+            },
+            en: {
+                payment_pending_header_back_to_pos: 'Back to POS',
+                payment_pending_awaiting: 'Awaiting payment...',
+                payment_pending_info_para: "The customer's payment has not yet been recorded as successful. Cashiers should only confirm after receiving full cash payment or a bank account credit notification.",
+                payment_pending_recon_title: 'PAYMENT RECONCILIATION DETAILS (DEMO MODE)',
+                payment_pending_method_default: 'POS (Payment at counter)',
+                payment_pending_status_default: 'Awaiting confirmation...',
+                payment_pending_default_table: 'Table',
+                payment_pending_vietqr_title: 'Scan the VietQR code for a quick transfer',
+                payment_pending_vietqr_bank: 'Bank:',
+                payment_pending_vietqr_account_number: 'Account Number:',
+                payment_pending_vietqr_account_holder: 'Account Holder:',
+                payment_pending_vietqr_note: '* Note: This is a demo QR code in UAT mode. Staff should check the banking app, then click the manual Confirm button below.',
+                payment_pending_term_title_square: 'Square Terminal',
+                payment_pending_term_title_clover: 'Clover Terminal',
+                payment_pending_term_title_stripe: 'Stripe Terminal',
+                payment_pending_term_title_zelle: 'Zelle Business',
+                payment_pending_term_title_ach: 'ACH Bank Wire',
+                payment_pending_term_title_cashapp: 'Cash App Pay',
+                payment_pending_term_title_paypalvenmo: 'PayPal / Venmo',
+                payment_pending_term_title_external: 'External Card Terminal',
+                payment_pending_term_title_intl: 'Wise / International Gateway',
+                payment_pending_term_instr_square: 'Please charge the card or ask the customer to Tap to Pay on the <strong>Square Terminal</strong> device (Device: {device}). Wait for the device to show Approved, then click "Confirm payment received".',
+                payment_pending_term_instr_clover: 'Please process the payment on the <strong>Clover</strong> device (Device: {device}). Wait for the Clover device to show <strong>Approved</strong>, then click the Confirm button below.',
+                payment_pending_term_instr_stripe: 'Please have the customer insert/swipe their card on the <strong>Stripe Reader</strong> device (Name: {reader}). Click the Confirm button after Stripe reports the transaction as successful.',
+                payment_pending_term_instr_zelle: 'Guide the customer to transfer via Zelle using the following details:<br>• Email/Phone: <strong>{phone}</strong><br>• Business name: <strong>{business}</strong><br>• Memo: <strong>{prefix} <span class="font-mono text-yellow-400 font-bold" id="zelleTxnId"></span></strong>',
+                payment_pending_term_instr_ach: 'Guide the customer to make a secure transfer to the US bank account:<br>• Bank: <strong>{bank}</strong><br>• Routing (9-digit): <strong>{routing}</strong><br>• Masked account: <strong>{last4}</strong><br>• Account holder: <strong>{holder}</strong>',
+                payment_pending_term_instr_cashapp: 'Ask the customer to send money via Cash App to the Cashtag:<br>• Cashtag: <strong class="text-emerald-400">{cashtag}</strong><br>• Business: <strong>{business}</strong>',
+                payment_pending_term_instr_paypalvenmo: 'Ask the customer to send money via:<br>• Venmo Handle: <strong>{venmo}</strong><br>• PayPal Email: <strong>{paypal}</strong>',
+                payment_pending_term_instr_external: "Charge the customer's card on the external card terminal <strong>{provider}</strong> (ID: {terminalid}). After printing the receipt successfully, click Confirm.",
+                payment_pending_term_instr_intl: 'The customer transfers internationally via Wise/PayPal account: <strong>{email}</strong> (Beneficiary: <strong>{beneficiary}</strong>).',
+                payment_pending_term_footnote: "* UAT mode: Cashiers manually confirm receipt of funds from the business's app/terminal. The order is not automatically closed until Confirm is clicked.",
+                payment_pending_noconfig_title: 'Payment receiving account not configured',
+                payment_pending_noconfig_desc: "Please go to <strong>Payment Configuration</strong> in the admin/dashboard page to set up your business's own bank account for receiving payments.",
+                payment_pending_noconfig_link: 'Go to Configuration page',
+                payment_pending_loyalty_label: 'Customer phone number (optional — for automatic loyalty points/tier upgrade)',
+                payment_pending_btn_confirm: 'Confirm payment received',
+                payment_pending_btn_back_to_pos: 'Back to POS',
+                payment_pending_btn_cancel: 'Cancel transaction',
+                payment_pending_processing: 'Processing...',
+                payment_pending_confirm_dialog: 'Have you carefully checked the account/cash and want to confirm this transaction as successful?',
+                payment_pending_toast_confirmed: '✅ Confirmed successfully! Generating invoice...',
+                payment_pending_toast_error: 'Error: {msg}',
+                payment_pending_toast_server_error: 'Server connection error: {msg}',
+                payment_pending_cancel_dialog: 'Cancel this payment transaction? The order will remain pending at the POS table.',
+                payment_pending_toast_canceled: '🔴 Transaction canceled. Returning to POS...',
+                payment_pending_toast_cancel_error: 'Cancel error: {msg}'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatMoney(value) {
+            const num = parseFloat(value) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(num).toLocaleString('vi-VN') + 'đ';
+        }
+        function esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+
+        const storedAddress = localStorage.getItem('customerAddress') || t('payment_pending_default_table');
+
+        const amountDisplay = formatMoney(amount);
+
         document.getElementById('pendingTxnId').innerText = txnId;
         document.getElementById('pendingTable').innerText = storedAddress;
         document.getElementById('pendingAmount').innerText = amountDisplay;
-        
-        const zelleTxnIdEl = document.getElementById('zelleTxnId');
-        if (zelleTxnIdEl) {
-            zelleTxnIdEl.innerText = txnId;
+
+        function applyZelleTxnId() {
+            const zelleTxnIdEl = document.getElementById('zelleTxnId');
+            if (zelleTxnIdEl) zelleTxnIdEl.innerText = txnId;
         }
-        
+        applyZelleTxnId();
+
         {% if config and config.active %}
         // Generate dynamic VietQR image link from merchant configurations
         const bankCode = '{{ config.bank_code }}';
         const accountNumber = '{{ config.account_number }}';
         const accountHolder = '{{ config.account_holder }}';
         const transferPrefix = '{{ config.transfer_prefix }}';
-        
+
         if (bankCode && accountNumber && accountHolder) {
             const vietQRLink = `https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferPrefix + ' ' + txnId)}&accountName=${encodeURIComponent(accountHolder)}`;
             const qrImageEl = document.getElementById('qrImage');
@@ -340,6 +465,61 @@
                 qrImageEl.src = vietQRLink;
             }
         }
+
+        // Dữ liệu cấu hình cổng thanh toán terminal/chuyển khoản (US market) — dùng để
+        // render lại khối hướng dẫn thanh toán mỗi khi đổi ngôn ngữ mà vẫn giữ đúng dữ liệu thật.
+        const configType = '{{ config.type or "" }}';
+        const cfgDeviceName = '{{ config.device_name or "" }}';
+        const cfgReaderLabel = '{{ config.reader_label or "" }}';
+        const cfgZellePhone = '{{ config.zelle_email_or_phone or "" }}';
+        const cfgBusinessName = '{{ config.business_name or "" }}';
+        const cfgBankName = '{{ config.bank_name or "" }}';
+        const cfgRoutingNumber = '{{ config.routing_number or "" }}';
+        const cfgAccountLast4 = '{{ config.account_last4_or_masked or "" }}';
+        const cfgCashtag = '{{ config.cashtag or "" }}';
+        const cfgVenmoHandle = '{{ config.venmo_handle or "" }}';
+        const cfgPaypalEmail = '{{ config.paypal_email or "" }}';
+        const cfgProviderName = '{{ config.provider_name or "" }}';
+        const cfgTerminalId = '{{ config.terminal_id or "" }}';
+        const cfgIntlEmailAccount = '{{ config.intl_email_account or "" }}';
+        const cfgIntlBeneficiary = '{{ config.intl_beneficiary or "" }}';
+
+        function renderTerminalInstructions() {
+            const el = document.getElementById('terminalTypeInstructions');
+            if (!el) return;
+            let html = '';
+            switch (configType) {
+                case 'square_terminal':
+                    html = tf('payment_pending_term_instr_square', { device: esc(cfgDeviceName || 'Default Counter') });
+                    break;
+                case 'clover_terminal':
+                    html = tf('payment_pending_term_instr_clover', { device: esc(cfgDeviceName || 'Clover Flex') });
+                    break;
+                case 'stripe_terminal':
+                    html = tf('payment_pending_term_instr_stripe', { reader: esc(cfgReaderLabel || 'Stripe BBP Reader') });
+                    break;
+                case 'zelle':
+                    html = tf('payment_pending_term_instr_zelle', { phone: esc(cfgZellePhone), business: esc(cfgBusinessName), prefix: esc(transferPrefix) });
+                    break;
+                case 'ach':
+                    html = tf('payment_pending_term_instr_ach', { bank: esc(cfgBankName), routing: esc(cfgRoutingNumber), last4: esc(cfgAccountLast4), holder: esc(accountHolder) });
+                    break;
+                case 'cash_app':
+                    html = tf('payment_pending_term_instr_cashapp', { cashtag: esc(cfgCashtag), business: esc(cfgBusinessName) });
+                    break;
+                case 'paypal_venmo':
+                    html = tf('payment_pending_term_instr_paypalvenmo', { venmo: esc(cfgVenmoHandle || 'N/A'), paypal: esc(cfgPaypalEmail || 'N/A') });
+                    break;
+                case 'external_terminal':
+                    html = tf('payment_pending_term_instr_external', { provider: esc(cfgProviderName), terminalid: esc(cfgTerminalId || 'N/A') });
+                    break;
+                default:
+                    html = tf('payment_pending_term_instr_intl', { email: esc(cfgIntlEmailAccount), beneficiary: esc(cfgIntlBeneficiary) });
+            }
+            el.innerHTML = html;
+            applyZelleTxnId();
+        }
+        renderTerminalInstructions();
         {% endif %}
 
         function showToast(msg, isError = false) {
@@ -357,8 +537,8 @@
 
         // 1. Xác nhận đã nhận tiền (POST /api/payment/confirm)
         document.getElementById('confirmPaymentBtn').addEventListener('click', async () => {
-            if (!confirm("Sếp đã kiểm tra kỹ tài khoản/tiền mặt và muốn Xác nhận giao dịch thành công?")) return;
-            
+            if (!confirm(t('payment_pending_confirm_dialog'))) return;
+
             showLoading(true);
             try {
                 const response = await fetch('/api/payment/confirm', {
@@ -375,29 +555,29 @@
                 });
                 const result = await response.json();
                 if (result.success) {
-                    showToast('✅ Đã xác nhận thành công! Đang xuất hóa đơn...');
+                    showToast(t('payment_pending_toast_confirmed'));
                     setTimeout(() => {
                         window.location.href = result.redirect_url;
                     }, 1000);
                 } else {
-                    showToast('Lỗi: ' + result.message, true);
+                    showToast(tf('payment_pending_toast_error', { msg: result.message }), true);
                 }
             } catch(e) {
-                showToast('Lỗi kết nối server: ' + e.message, true);
+                showToast(tf('payment_pending_toast_server_error', { msg: e.message }), true);
             } finally {
                 showLoading(false);
             }
         });
 
-        // 2. Quay lại POS (Giữ nguyên giỏ hàng và bàn ăn)
+        // 2. Back to POS (keep the cart and table)
         document.getElementById('backToPosBtn').addEventListener('click', () => {
             window.location.href = `/pos?industry=${ind}`;
         });
 
-        // 3. Hủy giao dịch (POST /api/payment/cancel)
+        // 3. Cancel transaction (POST /api/payment/cancel)
         document.getElementById('cancelPaymentBtn').addEventListener('click', async () => {
-            if (!confirm("Hủy giao dịch thanh toán này? Món ăn vẫn sẽ treo tại bàn POS.")) return;
-            
+            if (!confirm(t('payment_pending_cancel_dialog'))) return;
+
             showLoading(true);
             try {
                 const response = await fetch('/api/payment/cancel', {
@@ -409,21 +589,40 @@
                 });
                 const result = await response.json();
                 if (result.success) {
-                    showToast('🔴 Đã hủy giao dịch tạm thời. Quay lại POS...');
+                    showToast(t('payment_pending_toast_canceled'));
                     setTimeout(() => {
                         window.location.href = `/pos?industry=${ind}`;
                     }, 1000);
                 } else {
-                    showToast('Lỗi hủy: ' + result.message, true);
+                    showToast(tf('payment_pending_toast_cancel_error', { msg: result.message }), true);
                 }
             } catch(e) {
-                showToast('Lỗi kết nối server: ' + e.message, true);
+                showToast(tf('payment_pending_toast_server_error', { msg: e.message }), true);
             } finally {
                 showLoading(false);
             }
         });
 
-        // 3D Particles Background (giữ nguyên phong cách BitPaw)
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render dynamic blocks that mix translated text with real business data
+            if (typeof renderTerminalInstructions === 'function') renderTerminalInstructions();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
+        // 3D Particles Background (keep BitPaw styling)
         (function init3D() {
             const canvas = document.getElementById('bg-canvas');
             if (!canvas) return;

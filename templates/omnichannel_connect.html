@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,7 +90,7 @@
             <nav class="flex flex-col pb-6 space-y-2 px-5 mt-6">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span>Tổng quan</span>
+                    <span data-i18n="omni_nav_overview">Tổng quan</span>
                 </a>
                 <a href="/ai_bot" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-robot w-5 text-xl group-hover:scale-110 transition-transform"></i>
@@ -98,21 +98,21 @@
                 </a>
                 <a href="/ai/connect-platforms" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner px-4 py-2.5 rounded-r-xl transition-all group">
                     <i class="fas fa-network-wired w-5 text-xl"></i>
-                    <span>Kết nối kênh</span>
+                    <span data-i18n="omni_nav_channels">Kết nối kênh</span>
                 </a>
                 <a href="/ai/customer-nurturing" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-users-cog w-5 text-xl"></i>
-                    <span>Dữ liệu khách hàng</span>
+                    <span data-i18n="omni_nav_customer_data">Dữ liệu khách hàng</span>
                 </a>
                 <a href="/ai/campaign-builder" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
                     <i class="fas fa-bullhorn w-5 text-xl"></i>
-                    <span>Chiến dịch AI</span>
+                    <span data-i18n="omni_nav_campaigns">Chiến dịch AI</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="omni_nav_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -123,13 +123,14 @@
         <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
-                    <i class="fas fa-network-wired text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> Kết Nối <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Đa Kênh Omnichannel</span>
+                    <i class="fas fa-network-wired text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> <span data-i18n="omni_header_title">Kết Nối <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Đa Kênh Omnichannel</span></span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Đồng bộ Inbox, Comment, CRM & POS tự động
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> <span data-i18n="omni_header_subtitle">Đồng bộ Inbox, Comment, CRM & POS tự động</span>
                 </p>
             </div>
-            <div>
+            <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl text-xs font-bold transition">EN</button>
                 <span class="text-xs bg-[#0a192f] text-cyan-400 px-4 py-2 rounded-xl border border-cyan-500/30 font-bold"><i class="fas fa-shield-alt mr-1"></i> SSL 256-bit Secured</span>
             </div>
         </div>
@@ -140,19 +141,19 @@
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-cyan-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
                 <div class="flex justify-between items-center">
                     <div>
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Tổng khách đồng bộ</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_total_label">Tổng khách đồng bộ</span>
                         <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-total-synced">10,480</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg"><i class="fas fa-users-viewfinder"></i></div>
                 </div>
-                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> +12% tuần này</div>
+                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> <span data-i18n="omni_stat_total_trend">+12% tuần này</span></div>
             </div>
-            
+
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group shadow-lg">
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-purple-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
                 <div class="flex justify-between items-center">
                     <div>
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Kênh kết nối</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_channels_label">Kênh kết nối</span>
                         <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-connected-channels">3 / 5</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg"><i class="fas fa-network-wired"></i></div>
@@ -164,24 +165,24 @@
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
                 <div class="flex justify-between items-center">
                     <div>
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">AI CSKH hôm nay</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_ai_label">AI CSKH hôm nay</span>
                         <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-ai-nurtures">342</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg"><i class="fas fa-brain"></i></div>
                 </div>
-                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-circle animate-pulse text-[7px]"></i> 100% tự động hóa</div>
+                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-circle animate-pulse text-[7px]"></i> <span data-i18n="omni_stat_ai_trend">100% tự động hóa</span></div>
             </div>
 
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-rose-500 relative overflow-hidden group shadow-lg">
                 <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-rose-500/5 rounded-full blur-xl transition-all group-hover:scale-150"></div>
                 <div class="flex justify-between items-center">
                     <div>
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Tỷ lệ quay lại (LTV)</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_retention_label">Tỷ lệ quay lại (LTV)</span>
                         <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-retention-rate">45.2%</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center text-lg"><i class="fas fa-chart-line"></i></div>
                 </div>
-                <div class="text-[9px] text-rose-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> +14.6% vs tháng trước</div>
+                <div class="text-[9px] text-rose-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> <span data-i18n="omni_stat_retention_trend">+14.6% vs tháng trước</span></div>
             </div>
         </div>
 
@@ -189,7 +190,7 @@
         <div class="glass-panel p-6 rounded-3xl border border-white/10 mb-6 shrink-0 relative z-10 overflow-hidden shadow-2xl">
             <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 opacity-50"></div>
             <div class="flex justify-between items-center mb-4 relative z-10">
-                <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-route text-sm"></i> Sơ Đồ Quy Trình Thu Thập & Chăm Sóc Đa Kênh Tự Động</h4>
+                <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-route text-sm"></i> <span data-i18n="omni_pipeline_title">Sơ Đồ Quy Trình Thu Thập & Chăm Sóc Đa Kênh Tự Động</span></h4>
                 <span class="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-black uppercase"><i class="fas fa-bolt mr-1"></i> Realtime engine active</span>
             </div>
             
@@ -199,7 +200,7 @@
                     <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-xl text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]">
                         <i class="fab fa-facebook-messenger"></i>
                     </div>
-                    <span class="text-white font-bold text-xs mt-2 block">1. Nhận Inbox Đa Kênh</span>
+                    <span class="text-white font-bold text-xs mt-2 block" data-i18n="omni_node1_title">1. Nhận Inbox Đa Kênh</span>
                     <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Facebook / Zalo / WhatsApp</p>
                 </div>
                 
@@ -212,8 +213,8 @@
                     <div class="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-xl text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]">
                         <i class="fas fa-cloud-arrow-down"></i>
                     </div>
-                    <span class="text-white font-bold text-xs mt-2 block">2. AI Gom Dữ Liệu</span>
-                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Đồng bộ POS / Booking tự động</p>
+                    <span class="text-white font-bold text-xs mt-2 block" data-i18n="omni_node2_title">2. AI Gom Dữ Liệu</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed" data-i18n="omni_node2_desc">Đồng bộ POS / Booking tự động</p>
                 </div>
 
                 <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
@@ -225,8 +226,8 @@
                     <div class="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-xl text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(168,85,247,0.5)]">
                         <i class="fas fa-brain"></i>
                     </div>
-                    <span class="text-white font-bold text-xs mt-2 block">3. AI Phân Tích & Kịch Bản</span>
-                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Tính toán Churn Risk & Soạn tin</p>
+                    <span class="text-white font-bold text-xs mt-2 block" data-i18n="omni_node3_title">3. AI Phân Tích & Kịch Bản</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed" data-i18n="omni_node3_desc">Tính toán Churn Risk & Soạn tin</p>
                 </div>
 
                 <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
@@ -238,8 +239,8 @@
                     <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)] transition duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]">
                         <i class="fas fa-user-check"></i>
                     </div>
-                    <span class="text-white font-bold text-xs mt-2 block">4. Chủ Tiệm Phê Duyệt</span>
-                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Chốt gửi an toàn sau 1-Click</p>
+                    <span class="text-white font-bold text-xs mt-2 block" data-i18n="omni_node4_title">4. Chủ Tiệm Phê Duyệt</span>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed" data-i18n="omni_node4_desc">Chốt gửi an toàn sau 1-Click</p>
                 </div>
             </div>
         </div>
@@ -252,14 +253,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center text-blue-400 text-2xl"><i class="fab fa-facebook-messenger"></i></div>
-                        <span id="status-messenger" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-messenger" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">Facebook Messenger</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tin nhắn trực tiếp từ khách hàng gửi tới Fanpage, tự động phân tích & phản hồi qua AI.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_messenger_desc">Đồng bộ tin nhắn trực tiếp từ khách hàng gửi tới Fanpage, tự động phân tích & phản hồi qua AI.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Khách hàng đồng bộ:</span><strong class="text-white" id="leads-messenger">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-messenger">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_messenger_stat1">Khách hàng đồng bộ:</span><strong class="text-white" id="leads-messenger">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-messenger" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -267,8 +268,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_messenger_guide">
                             <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Meta.</p>
                             <p><strong>Bước 2:</strong> Cấp quyền Send/Receive API cho Messenger App của BitPaw.</p>
                             <p><strong>Bước 3:</strong> Trạng thái chuyển sang "ĐÃ KẾT NỐI" và tự động gom tin.</p>
@@ -276,7 +277,7 @@
                     </details>
                 </div>
                 <div id="actions-container-messenger" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('messenger')" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Facebook Messenger</button>
+                    <button onclick="connectPlatformDirect('messenger')" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg" data-i18n="omni_card_messenger_btn">Kết nối Facebook Messenger</button>
                 </div>
             </div>
 
@@ -286,14 +287,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-indigo-400 text-2xl"><i class="fab fa-facebook"></i></div>
-                        <span id="status-fb_page" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-fb_page" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">Facebook Page Comments</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Gom tất cả bình luận bài viết Fanpage và bài chạy quảng cáo, tự động trả lời tự động hoặc inbox ẩn giá.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_fbpage_desc">Gom tất cả bình luận bài viết Fanpage và bài chạy quảng cáo, tự động trả lời tự động hoặc inbox ẩn giá.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Số bình luận đã quét:</span><strong class="text-white" id="leads-fb_page">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-fb_page">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_fbpage_stat1">Số bình luận đã quét:</span><strong class="text-white" id="leads-fb_page">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-fb_page" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -301,8 +302,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_fbpage_guide">
                             <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Facebook Page.</p>
                             <p><strong>Bước 2:</strong> Chọn Fanpage cần cấp quyền lắng nghe bình luận.</p>
                             <p><strong>Bước 3:</strong> AI tự động thu thập & trả lời hoặc tự động gửi inbox.</p>
@@ -310,7 +311,7 @@
                     </details>
                 </div>
                 <div id="actions-container-fb_page" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('fb_page')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Facebook Page</button>
+                    <button onclick="connectPlatformDirect('fb_page')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg" data-i18n="omni_card_fbpage_btn">Kết nối Facebook Page</button>
                 </div>
             </div>
 
@@ -320,14 +321,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-center text-cyan-400 text-xl font-black">Zalo</div>
-                        <span id="status-zalo_oa" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-zalo_oa" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">Zalo Official Account</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tin nhắn Zalo OA, tự động phân nhóm và gửi tin nhắn chăm sóc lại khách hàng Việt Nam cực kỳ hiệu quả.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_zalo_desc">Đồng bộ tin nhắn Zalo OA, tự động phân nhóm và gửi tin nhắn chăm sóc lại khách hàng Việt Nam cực kỳ hiệu quả.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Quan tâm OA:</span><strong class="text-white" id="leads-zalo_oa">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-zalo_oa">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_zalo_stat1">Quan tâm OA:</span><strong class="text-white" id="leads-zalo_oa">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-zalo_oa" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -335,8 +336,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_zalo_guide">
                             <p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng liên kết Zalo Cloud.</p>
                             <p><strong>Bước 2:</strong> Đồng ý liên kết ứng dụng với tài khoản Zalo OA.</p>
                             <p><strong>Bước 3:</strong> AI kích hoạt webhook lắng nghe tin nhắn tức thời.</p>
@@ -344,7 +345,7 @@
                     </details>
                 </div>
                 <div id="actions-container-zalo_oa" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('zalo_oa')" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg glow-btn-cyan">Kết nối Zalo OA</button>
+                    <button onclick="connectPlatformDirect('zalo_oa')" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg glow-btn-cyan" data-i18n="omni_card_zalo_btn">Kết nối Zalo OA</button>
                 </div>
             </div>
 
@@ -354,14 +355,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-400 text-2xl"><i class="fab fa-whatsapp"></i></div>
-                        <span id="status-whatsapp" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-whatsapp" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">WhatsApp Business</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Gửi tin nhắc lịch hẹn, chăm sóc tự động và chốt đơn lại tập khách hàng cũ nước ngoài siêu mượt mà.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_whatsapp_desc">Gửi tin nhắc lịch hẹn, chăm sóc tự động và chốt đơn lại tập khách hàng cũ nước ngoài siêu mượt mà.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Số điện thoại:</span><strong class="text-white" id="leads-whatsapp">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-whatsapp">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_whatsapp_stat1">Số điện thoại:</span><strong class="text-white" id="leads-whatsapp">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-whatsapp" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -369,8 +370,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_whatsapp_guide">
                             <p><strong>Bước 1:</strong> Đăng ký tài khoản WhatsApp Business Cloud API qua Meta Developer.</p>
                             <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token cấu hình của sếp.</p>
                             <p><strong>Bước 3:</strong> Kích hoạt chiến dịch nuôi dưỡng tự động an toàn.</p>
@@ -378,7 +379,7 @@
                     </details>
                 </div>
                 <div id="actions-container-whatsapp" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('whatsapp')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối WhatsApp</button>
+                    <button onclick="connectPlatformDirect('whatsapp')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg" data-i18n="omni_card_whatsapp_btn">Kết nối WhatsApp</button>
                 </div>
             </div>
 
@@ -388,14 +389,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-purple-500/10 border border-purple-500/30 rounded-2xl flex items-center justify-center text-purple-400 text-2xl"><i class="fas fa-globe"></i></div>
-                        <span id="status-mascot_chat" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-mascot_chat" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">Website Mascot Chat</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Tích hợp AI Mascot Chatbot trực tiếp vào Website hoặc Landing Page của bạn để đón chào và tự động gom lead.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_mascot_desc">Tích hợp AI Mascot Chatbot trực tiếp vào Website hoặc Landing Page của bạn để đón chào và tự động gom lead.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Leads thu thập:</span><strong class="text-white" id="leads-mascot_chat">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-mascot_chat">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_mascot_stat1">Leads thu thập:</span><strong class="text-white" id="leads-mascot_chat">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-mascot_chat" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -403,8 +404,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_mascot_guide">
                             <p><strong>Bước 1:</strong> Chèn đoạn mã script Mascot Chat widget vào thẻ &lt;head&gt; của Website.</p>
                             <p><strong>Bước 2:</strong> Mascot AI tự động chào hỏi, tư vấn sản phẩm và ghi nhận SĐT.</p>
                             <p><strong>Bước 3:</strong> Dữ liệu khách tự động đồng bộ thẳng về CRM cục bộ.</p>
@@ -412,7 +413,7 @@
                     </details>
                 </div>
                 <div id="actions-container-mascot_chat" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('mascot_chat')" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kết nối Mascot Chat</button>
+                    <button onclick="connectPlatformDirect('mascot_chat')" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg" data-i18n="omni_card_mascot_btn">Kết nối Mascot Chat</button>
                 </div>
             </div>
 
@@ -422,14 +423,14 @@
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center text-orange-400 text-2xl"><i class="fas fa-sync"></i></div>
-                        <span id="status-pos_sync" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full">CHƯA KẾT NỐI</span>
+                        <span id="status-pos_sync" class="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full" data-i18n="omni_status_not_connected">CHƯA KẾT NỐI</span>
                     </div>
                     <h3 class="text-lg font-black text-white mb-2">QR / POS Customer Source</h3>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4">Đồng bộ tức thời toàn bộ danh sách khách hàng cũ từ dữ liệu bán hàng tại quầy (POS) và lịch hẹn (Booking) để AI lập kịch bản nuôi dưỡng.</p>
-                    
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4" data-i18n="omni_card_possync_desc">Đồng bộ tức thời toàn bộ danh sách khách hàng cũ từ dữ liệu bán hàng tại quầy (POS) và lịch hẹn (Booking) để AI lập kịch bản nuôi dưỡng.</p>
+
                     <div class="text-[11px] text-gray-400 space-y-1 mb-4">
-                        <div class="flex justify-between"><span>Khách hàng POS:</span><strong class="text-white" id="leads-pos_sync">0</strong></div>
-                        <div class="flex justify-between"><span>Đồng bộ lần cuối:</span><strong class="text-white" id="sync-pos_sync">Chưa có</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_card_possync_stat1">Khách hàng POS:</span><strong class="text-white" id="leads-pos_sync">0</strong></div>
+                        <div class="flex justify-between"><span data-i18n="omni_last_sync_label">Đồng bộ lần cuối:</span><strong class="text-white" id="sync-pos_sync" data-i18n="omni_never_synced">Chưa có</strong></div>
                     </div>
 
                     <!-- Config / Error Info Box -->
@@ -437,8 +438,8 @@
 
                     <!-- Collapsible Setup Guide -->
                     <details class="text-[11px] text-gray-500 mb-4 cursor-pointer group">
-                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> Hướng dẫn cài đặt</summary>
-                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5">
+                        <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
+                        <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_possync_guide">
                             <p><strong>Bước 1:</strong> Bật chế độ "Đồng bộ QR/POS" để kết nối database thanh toán bán hàng.</p>
                             <p><strong>Bước 2:</strong> AI tự động ánh xạ thông tin chi tiêu, ngày mua cuối sang hồ sơ khách.</p>
                             <p><strong>Bước 3:</strong> Kịch bản CSKH tự động kích hoạt dựa trên lịch sử mua hàng.</p>
@@ -446,7 +447,7 @@
                     </details>
                 </div>
                 <div id="actions-container-pos_sync" class="space-y-2 pt-2">
-                    <button onclick="connectPlatformDirect('pos_sync')" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg">Kích hoạt POS Sync</button>
+                    <button onclick="connectPlatformDirect('pos_sync')" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg" data-i18n="omni_card_possync_btn">Kích hoạt POS Sync</button>
                 </div>
             </div>
         </div>
@@ -455,11 +456,11 @@
             <!-- Terminal Live Logs -->
             <div class="glass-panel p-5 rounded-3xl border border-white/10 mt-8">
                 <div class="flex justify-between items-center mb-4">
-                    <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-terminal text-sm"></i> Bảng Nhật Ký Kết Nối Kênh</h4>
-                    <button onclick="clearLogs()" class="text-[10px] text-gray-500 hover:text-white transition">Xóa nhật ký</button>
+                    <h4 class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-terminal text-sm"></i> <span data-i18n="omni_log_title">Bảng Nhật Ký Kết Nối Kênh</span></h4>
+                    <button onclick="clearLogs()" class="text-[10px] text-gray-500 hover:text-white transition" data-i18n="omni_log_clear_btn">Xóa nhật ký</button>
                 </div>
                 <div id="log-console" class="bg-black/60 border border-white/5 rounded-2xl p-4 h-36 overflow-y-auto text-xs font-mono text-gray-400 space-y-2">
-                    <p class="text-cyan-500 font-bold">[SYSTEM] Sẵn sàng thiết lập kết nối đa kênh cho BitPaw OS.</p>
+                    <p class="text-cyan-500 font-bold" data-i18n="omni_log_initial">[SYSTEM] Sẵn sàng thiết lập kết nối đa kênh cho BitPaw OS.</p>
                 </div>
             </div>
         </div>
@@ -470,36 +471,36 @@
         <div class="bg-[#0b0c24]/95 border border-cyan-500/40 rounded-3xl w-full max-w-md p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative transition-all duration-300">
             <div class="flex justify-between items-center mb-5 pb-3 border-b border-white/10">
                 <h3 id="modalConfigTitle" class="text-base font-black uppercase text-cyan-400 tracking-widest flex items-center gap-2">
-                    <i class="fas fa-network-wired"></i> Cấu hình tài khoản
+                    <i class="fas fa-network-wired"></i> <span data-i18n="omni_modal_title_default">Cấu hình tài khoản</span>
                 </h3>
                 <button onclick="closeConfigModal()" class="text-gray-400 hover:text-rose-500 text-xl transition"><i class="fas fa-times"></i></button>
             </div>
-            
-            <div id="configSetupGuide" class="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-gray-400 leading-relaxed mb-4 space-y-1">
+
+            <div id="configSetupGuide" class="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-gray-400 leading-relaxed mb-4 space-y-1" data-i18n="omni_modal_guide_loading">
                 Đang tải hướng dẫn...
             </div>
-            
+
             <form id="channelConfigForm" onsubmit="saveChannelConfig(event)" class="space-y-4 text-xs">
                 <input type="hidden" id="config-platform">
-                
+
                 <div>
-                    <label class="text-cyan-400 font-bold block mb-1">Tên tài khoản / Shop Owner Name:</label>
-                    <input type="text" id="config-account-name" placeholder="Tên tài khoản / cửa hàng" required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                    <label class="text-cyan-400 font-bold block mb-1" data-i18n="omni_modal_label_account">Tên tài khoản / Shop Owner Name:</label>
+                    <input type="text" id="config-account-name" placeholder="Tên tài khoản / cửa hàng" data-i18n-placeholder="omni_modal_ph_account" required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
                 </div>
                 <div>
-                    <label class="text-cyan-400 font-bold block mb-1">ID Kênh (Channel ID / Phone Number):</label>
-                    <input type="text" id="config-channel-id" placeholder="ID Kênh hoặc Số điện thoại kết nối..." required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                    <label class="text-cyan-400 font-bold block mb-1" data-i18n="omni_modal_label_channel_id">ID Kênh (Channel ID / Phone Number):</label>
+                    <input type="text" id="config-channel-id" placeholder="ID Kênh hoặc Số điện thoại kết nối..." data-i18n-placeholder="omni_modal_ph_channel_id" required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
                 </div>
                 <div>
-                    <label class="text-cyan-400 font-bold block mb-1">Mã Access Token / API Key:</label>
-                    <input type="password" id="config-access-token" placeholder="Nhập API Access Token chính chủ..." required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
-                    <p class="text-[9px] text-gray-500 mt-1">Token sẽ được mã hóa an toàn SSL 256-bit trước khi lưu.</p>
+                    <label class="text-cyan-400 font-bold block mb-1" data-i18n="omni_modal_label_token">Mã Access Token / API Key:</label>
+                    <input type="password" id="config-access-token" placeholder="Nhập API Access Token chính chủ..." data-i18n-placeholder="omni_modal_ph_token" required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400 transition placeholder-gray-600">
+                    <p class="text-[9px] text-gray-500 mt-1" data-i18n="omni_modal_token_note">Token sẽ được mã hóa an toàn SSL 256-bit trước khi lưu.</p>
                 </div>
-                
+
                 <div class="flex flex-col gap-2.5 pt-3">
-                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-black uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">Lưu cấu hình</button>
-                    <button type="button" onclick="testChannelConfig()" class="w-full py-2.5 bg-transparent border border-cyan-500/50 hover:bg-cyan-500/10 text-cyan-400 font-bold uppercase tracking-wider rounded-xl transition">Kiểm tra kết nối</button>
-                    <button type="button" onclick="disconnectChannel()" id="btn-config-disconnect" class="w-full py-2 bg-rose-600/20 border border-rose-500/50 hover:bg-rose-600 hover:text-white text-rose-400 font-bold uppercase tracking-wider rounded-xl transition hidden">Hủy & Ngắt kết nối</button>
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-black uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]" data-i18n="omni_modal_btn_save">Lưu cấu hình</button>
+                    <button type="button" onclick="testChannelConfig()" class="w-full py-2.5 bg-transparent border border-cyan-500/50 hover:bg-cyan-500/10 text-cyan-400 font-bold uppercase tracking-wider rounded-xl transition" data-i18n="omni_modal_btn_test">Kiểm tra kết nối</button>
+                    <button type="button" onclick="disconnectChannel()" id="btn-config-disconnect" class="w-full py-2 bg-rose-600/20 border border-rose-500/50 hover:bg-rose-600 hover:text-white text-rose-400 font-bold uppercase tracking-wider rounded-xl transition hidden" data-i18n="omni_modal_btn_disconnect">Hủy & Ngắt kết nối</button>
                 </div>
             </form>
         </div>
@@ -509,8 +510,307 @@
         // Global variables to store existing config cache
         let channelCache = {};
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                omni_nav_overview: 'Tổng quan',
+                omni_nav_channels: 'Kết nối kênh',
+                omni_nav_customer_data: 'Dữ liệu khách hàng',
+                omni_nav_campaigns: 'Chiến dịch AI',
+                omni_nav_logout: 'Đăng xuất',
+                omni_header_title: 'Kết Nối <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Đa Kênh Omnichannel</span>',
+                omni_header_subtitle: 'Đồng bộ Inbox, Comment, CRM & POS tự động',
+                omni_stat_total_label: 'Tổng khách đồng bộ',
+                omni_stat_total_trend: '+12% tuần này',
+                omni_stat_channels_label: 'Kênh kết nối',
+                omni_stat_ai_label: 'AI CSKH hôm nay',
+                omni_stat_ai_trend: '100% tự động hóa',
+                omni_stat_retention_label: 'Tỷ lệ quay lại (LTV)',
+                omni_stat_retention_trend: '+14.6% vs tháng trước',
+                omni_pipeline_title: 'Sơ Đồ Quy Trình Thu Thập & Chăm Sóc Đa Kênh Tự Động',
+                omni_node1_title: '1. Nhận Inbox Đa Kênh',
+                omni_node2_title: '2. AI Gom Dữ Liệu',
+                omni_node2_desc: 'Đồng bộ POS / Booking tự động',
+                omni_node3_title: '3. AI Phân Tích & Kịch Bản',
+                omni_node3_desc: 'Tính toán Churn Risk & Soạn tin',
+                omni_node4_title: '4. Chủ Tiệm Phê Duyệt',
+                omni_node4_desc: 'Chốt gửi an toàn sau 1-Click',
+                omni_status_not_connected: 'CHƯA KẾT NỐI',
+                omni_last_sync_label: 'Đồng bộ lần cuối:',
+                omni_never_synced: 'Chưa có',
+                omni_setup_guide: 'Hướng dẫn cài đặt',
+                omni_card_messenger_desc: 'Đồng bộ tin nhắn trực tiếp từ khách hàng gửi tới Fanpage, tự động phân tích & phản hồi qua AI.',
+                omni_card_messenger_stat1: 'Khách hàng đồng bộ:',
+                omni_card_messenger_guide: `<p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Meta.</p>
+                            <p><strong>Bước 2:</strong> Cấp quyền Send/Receive API cho Messenger App của BitPaw.</p>
+                            <p><strong>Bước 3:</strong> Trạng thái chuyển sang "ĐÃ KẾT NỐI" và tự động gom tin.</p>`,
+                omni_card_messenger_btn: 'Kết nối Facebook Messenger',
+                omni_card_fbpage_desc: 'Gom tất cả bình luận bài viết Fanpage và bài chạy quảng cáo, tự động trả lời tự động hoặc inbox ẩn giá.',
+                omni_card_fbpage_stat1: 'Số bình luận đã quét:',
+                omni_card_fbpage_guide: `<p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng ủy quyền Facebook Page.</p>
+                            <p><strong>Bước 2:</strong> Chọn Fanpage cần cấp quyền lắng nghe bình luận.</p>
+                            <p><strong>Bước 3:</strong> AI tự động thu thập & trả lời hoặc tự động gửi inbox.</p>`,
+                omni_card_fbpage_btn: 'Kết nối Facebook Page',
+                omni_card_zalo_desc: 'Đồng bộ tin nhắn Zalo OA, tự động phân nhóm và gửi tin nhắn chăm sóc lại khách hàng Việt Nam cực kỳ hiệu quả.',
+                omni_card_zalo_stat1: 'Quan tâm OA:',
+                omni_card_zalo_guide: `<p><strong>Bước 1:</strong> Nhấn "Kết nối (OAuth)" để mở cổng liên kết Zalo Cloud.</p>
+                            <p><strong>Bước 2:</strong> Đồng ý liên kết ứng dụng với tài khoản Zalo OA.</p>
+                            <p><strong>Bước 3:</strong> AI kích hoạt webhook lắng nghe tin nhắn tức thời.</p>`,
+                omni_card_zalo_btn: 'Kết nối Zalo OA',
+                omni_card_whatsapp_desc: 'Gửi tin nhắc lịch hẹn, chăm sóc tự động và chốt đơn lại tập khách hàng cũ nước ngoài siêu mượt mà.',
+                omni_card_whatsapp_stat1: 'Số điện thoại:',
+                omni_card_whatsapp_guide: `<p><strong>Bước 1:</strong> Đăng ký tài khoản WhatsApp Business Cloud API qua Meta Developer.</p>
+                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token cấu hình của sếp.</p>
+                            <p><strong>Bước 3:</strong> Kích hoạt chiến dịch nuôi dưỡng tự động an toàn.</p>`,
+                omni_card_whatsapp_btn: 'Kết nối WhatsApp',
+                omni_card_mascot_desc: 'Tích hợp AI Mascot Chatbot trực tiếp vào Website hoặc Landing Page của bạn để đón chào và tự động gom lead.',
+                omni_card_mascot_stat1: 'Leads thu thập:',
+                omni_card_mascot_guide: `<p><strong>Bước 1:</strong> Chèn đoạn mã script Mascot Chat widget vào thẻ &lt;head&gt; của Website.</p>
+                            <p><strong>Bước 2:</strong> Mascot AI tự động chào hỏi, tư vấn sản phẩm và ghi nhận SĐT.</p>
+                            <p><strong>Bước 3:</strong> Dữ liệu khách tự động đồng bộ thẳng về CRM cục bộ.</p>`,
+                omni_card_mascot_btn: 'Kết nối Mascot Chat',
+                omni_card_possync_desc: 'Đồng bộ tức thời toàn bộ danh sách khách hàng cũ từ dữ liệu bán hàng tại quầy (POS) và lịch hẹn (Booking) để AI lập kịch bản nuôi dưỡng.',
+                omni_card_possync_stat1: 'Khách hàng POS:',
+                omni_card_possync_guide: `<p><strong>Bước 1:</strong> Bật chế độ "Đồng bộ QR/POS" để kết nối database thanh toán bán hàng.</p>
+                            <p><strong>Bước 2:</strong> AI tự động ánh xạ thông tin chi tiêu, ngày mua cuối sang hồ sơ khách.</p>
+                            <p><strong>Bước 3:</strong> Kịch bản CSKH tự động kích hoạt dựa trên lịch sử mua hàng.</p>`,
+                omni_card_possync_btn: 'Kích hoạt POS Sync',
+                omni_log_title: 'Bảng Nhật Ký Kết Nối Kênh',
+                omni_log_clear_btn: 'Xóa nhật ký',
+                omni_log_initial: '[SYSTEM] Sẵn sàng thiết lập kết nối đa kênh cho BitPaw OS.',
+                omni_modal_title_default: 'Cấu hình tài khoản',
+                omni_modal_guide_loading: 'Đang tải hướng dẫn...',
+                omni_modal_label_account: 'Tên tài khoản / Shop Owner Name:',
+                omni_modal_ph_account: 'Tên tài khoản / cửa hàng',
+                omni_modal_label_channel_id: 'ID Kênh (Channel ID / Phone Number):',
+                omni_modal_ph_channel_id: 'ID Kênh hoặc Số điện thoại kết nối...',
+                omni_modal_label_token: 'Mã Access Token / API Key:',
+                omni_modal_ph_token: 'Nhập API Access Token chính chủ...',
+                omni_modal_token_note: 'Token sẽ được mã hóa an toàn SSL 256-bit trước khi lưu.',
+                omni_modal_btn_save: 'Lưu cấu hình',
+                omni_modal_btn_test: 'Kiểm tra kết nối',
+                omni_modal_btn_disconnect: 'Hủy & Ngắt kết nối',
+                omni_log_oauth_connecting: '[OAUTH] Đang kết nối tới cổng cấp quyền giả lập {platform}...',
+                omni_log_popup_blocked: '[WARNING] Popup blocked! Vui lòng cho phép trình duyệt hiển thị popup để kết nối.',
+                omni_alert_allow_popup: 'Vui lòng cho phép hiển thị cửa sổ bật lên (popup) để chạy Cổng ủy quyền.',
+                omni_log_oauth_pending: '[PENDING] Vui lòng hoàn tất biểu mẫu cấp quyền trong cửa sổ mới...',
+                omni_log_oauth_closed: '[SYSTEM] Cửa sổ OAuth đã đóng. Đang kiểm tra lại trạng thái...',
+                omni_confirm_disconnect: 'Sếp có chắc chắn muốn ngắt kết nối cổng {platform} không?',
+                omni_log_disconnecting: '[DISCONNECT] Đang ngắt kết nối cổng {platform}...',
+                omni_log_disconnect_success: '[SUCCESS] Đã ngắt kết nối thành công kênh {platform}.',
+                omni_log_disconnect_error: '[ERROR] Không thể ngắt kết nối: {msg}',
+                omni_log_system_error: '[ERROR] Lỗi hệ thống: {msg}',
+                omni_log_test_ping: '[TEST] Đang gửi yêu cầu ping thử nghiệm tới {platform} Provider API...',
+                omni_log_test_failed: '[ERROR] Kiểm thử thất bại: {msg}',
+                omni_alert_connection_error: '❌ Lỗi kết nối: {msg}',
+                omni_log_api_error: '[ERROR] Lỗi kết nối API: {msg}',
+                omni_guide_facebook: `<p><strong>Hướng dẫn cấu hình Facebook:</strong></p>
+                    <p>1. Điền Tên Trang Facebook chính chủ của sếp.</p>
+                    <p>2. Điền ID Trang (Page ID) tương ứng.</p>
+                    <p>3. Điền API Access Token lấy từ Facebook Developers Console.</p>`,
+                omni_guide_zalo: `<p><strong>Hướng dẫn cấu hình Zalo OA:</strong></p>
+                    <p>1. Điền Tên Official Account tương ứng.</p>
+                    <p>2. Điền Zalo OA ID nhận từ trang quản trị.</p>
+                    <p>3. Điền API Access Token được cấp bởi Zalo Developers.</p>`,
+                omni_guide_whatsapp: `<p><strong>Hướng dẫn cấu hình WhatsApp Business:</strong></p>
+                    <p>1. Điền Tên doanh nghiệp đăng ký WhatsApp.</p>
+                    <p>2. Điền số điện thoại đăng ký (định dạng quốc tế).</p>
+                    <p>3. Điền API Access Token / System User Token từ Meta.</p>`,
+                omni_guide_mascot: `<p><strong>Hướng dẫn cấu hình Website Mascot Chat:</strong></p>
+                    <p>1. Điền Tên Website của sếp cần cài đặt.</p>
+                    <p>2. Điền Mã ID Kịch bản AI Mascot.</p>
+                    <p>3. Điền API Access Token của BitPaw Platform.</p>`,
+                omni_guide_default: `<p>Điền thông tin cấu hình đồng bộ cục bộ SQLite POS / Booking.</p>`,
+                omni_modal_title_manual: 'Cấu hình thủ công {platform}',
+                omni_log_saving_config: '[CONFIG] Đang lưu cấu hình thủ công cho cổng {platform}...',
+                omni_log_save_success: '[SUCCESS] Đã lưu cấu hình và kích hoạt thành công cổng {platform}!',
+                omni_log_save_error: '[ERROR] Không thể lưu cấu hình: {msg}',
+                omni_log_connection_error: '[ERROR] Lỗi kết nối: {msg}',
+                omni_log_manual_test: '[TEST] Đang gửi gói tin kiểm thử API cho cấu hình thủ công {platform}...',
+                omni_log_manual_test_failed: '[ERROR] Kiểm thử thủ công thất bại: {msg}',
+                omni_log_api_error_generic: '[ERROR] Lỗi API: {msg}',
+                omni_not_synced_yet: 'Chưa đồng bộ',
+                omni_status_connected: 'ĐÃ KẾT NỐI',
+                omni_info_linked_success: 'Liên kết thành công',
+                omni_info_account_label: 'Tài khoản:',
+                omni_info_channel_id_label: 'ID kênh:',
+                omni_btn_disconnect_short: 'Hủy kết nối',
+                omni_status_setup_required: 'YÊU CẦU CẤU HÌNH',
+                omni_info_missing_credential: 'Thiếu API Credential',
+                omni_info_missing_credential_desc: 'Ứng dụng chưa được nhập API Access Token hợp lệ từ sếp quản trị.',
+                omni_btn_oauth_connect: 'Kết nối (OAuth)',
+                omni_btn_manual_config: 'Cấu hình thủ công',
+                omni_import_syncing: 'Đang đồng bộ dữ liệu...',
+                omni_log_pos_sync_start: '[POS-SYNC] Khởi chạy bộ đồng bộ API dữ liệu bán hàng POS và lịch hẹn Booking...',
+                omni_import_btn_default: 'Đồng bộ dữ liệu POS/Booking',
+                omni_log_import_failed: '[ERROR] Đồng bộ thất bại: {msg}',
+                omni_log_cleared: '[SYSTEM] Nhật ký đã được dọn dẹp sạch sẽ.'
+            },
+            en: {
+                omni_nav_overview: 'Overview',
+                omni_nav_channels: 'Connect Channels',
+                omni_nav_customer_data: 'Customer Data',
+                omni_nav_campaigns: 'AI Campaigns',
+                omni_nav_logout: 'Logout',
+                omni_header_title: 'Connect <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Omnichannel</span>',
+                omni_header_subtitle: 'Automatically sync Inbox, Comments, CRM & POS',
+                omni_stat_total_label: 'Total Synced Customers',
+                omni_stat_total_trend: '+12% this week',
+                omni_stat_channels_label: 'Connected Channels',
+                omni_stat_ai_label: 'AI Nurtures Today',
+                omni_stat_ai_trend: '100% automated',
+                omni_stat_retention_label: 'Retention Rate (LTV)',
+                omni_stat_retention_trend: '+14.6% vs last month',
+                omni_pipeline_title: 'Automated Multi-Channel Collection & Nurturing Pipeline',
+                omni_node1_title: '1. Receive Multi-Channel Inbox',
+                omni_node2_title: '2. AI Gathers Data',
+                omni_node2_desc: 'Auto-sync POS / Booking data',
+                omni_node3_title: '3. AI Analysis & Scripting',
+                omni_node3_desc: 'Calculate Churn Risk & draft message',
+                omni_node4_title: '4. Owner Approval',
+                omni_node4_desc: 'Safely send after 1-Click confirm',
+                omni_status_not_connected: 'NOT CONNECTED',
+                omni_last_sync_label: 'Last synced:',
+                omni_never_synced: 'None yet',
+                omni_setup_guide: 'Setup guide',
+                omni_card_messenger_desc: "Sync direct messages sent by customers to your Fanpage, auto-analyzed & answered by AI.",
+                omni_card_messenger_stat1: 'Synced customers:',
+                omni_card_messenger_guide: `<p><strong>Step 1:</strong> Click "Connect (OAuth)" to open the Meta authorization gateway.</p>
+                            <p><strong>Step 2:</strong> Grant Send/Receive API access to BitPaw's Messenger App.</p>
+                            <p><strong>Step 3:</strong> Status switches to "CONNECTED" and messages are gathered automatically.</p>`,
+                omni_card_messenger_btn: 'Connect Facebook Messenger',
+                omni_card_fbpage_desc: 'Gather all comments from Fanpage posts and ad campaigns, auto-reply or send a private price quote via inbox.',
+                omni_card_fbpage_stat1: 'Comments scanned:',
+                omni_card_fbpage_guide: `<p><strong>Step 1:</strong> Click "Connect (OAuth)" to open the Facebook Page authorization gateway.</p>
+                            <p><strong>Step 2:</strong> Choose the Fanpage you want to grant comment-listening access to.</p>
+                            <p><strong>Step 3:</strong> AI automatically collects & replies or sends an inbox message.</p>`,
+                omni_card_fbpage_btn: 'Connect Facebook Page',
+                omni_card_zalo_desc: 'Sync Zalo OA messages, automatically segment and re-engage your Vietnamese customer base extremely effectively.',
+                omni_card_zalo_stat1: 'OA followers:',
+                omni_card_zalo_guide: `<p><strong>Step 1:</strong> Click "Connect (OAuth)" to open the Zalo Cloud linking gateway.</p>
+                            <p><strong>Step 2:</strong> Agree to link the app with your Zalo OA account.</p>
+                            <p><strong>Step 3:</strong> AI activates the webhook to listen for messages instantly.</p>`,
+                omni_card_zalo_btn: 'Connect Zalo OA',
+                omni_card_whatsapp_desc: 'Send appointment reminders, automated care and re-close deals with your existing overseas customers extremely smoothly.',
+                omni_card_whatsapp_stat1: 'Phone number:',
+                omni_card_whatsapp_guide: `<p><strong>Step 1:</strong> Register a WhatsApp Business Cloud API account via Meta Developer.</p>
+                            <p><strong>Step 2:</strong> Enter your registered phone number and API Token.</p>
+                            <p><strong>Step 3:</strong> Activate the automated nurturing campaign safely.</p>`,
+                omni_card_whatsapp_btn: 'Connect WhatsApp',
+                omni_card_mascot_desc: 'Embed the AI Mascot Chatbot directly on your Website or Landing Page to greet visitors and automatically collect leads.',
+                omni_card_mascot_stat1: 'Leads collected:',
+                omni_card_mascot_guide: `<p><strong>Step 1:</strong> Insert the Mascot Chat widget script into your Website's &lt;head&gt; tag.</p>
+                            <p><strong>Step 2:</strong> Mascot AI automatically greets, advises on products and records phone numbers.</p>
+                            <p><strong>Step 3:</strong> Customer data automatically syncs straight to your local CRM.</p>`,
+                omni_card_mascot_btn: 'Connect Mascot Chat',
+                omni_card_possync_desc: 'Instantly sync your entire existing customer list from in-store POS sales data and Booking appointments so AI can build nurturing scripts.',
+                omni_card_possync_stat1: 'POS customers:',
+                omni_card_possync_guide: `<p><strong>Step 1:</strong> Turn on "QR/POS Sync" mode to connect to the sales payment database.</p>
+                            <p><strong>Step 2:</strong> AI automatically maps spending info and last purchase date to customer profiles.</p>
+                            <p><strong>Step 3:</strong> Customer care scripts activate automatically based on purchase history.</p>`,
+                omni_card_possync_btn: 'Activate POS Sync',
+                omni_log_title: 'Channel Connection Log',
+                omni_log_clear_btn: 'Clear log',
+                omni_log_initial: '[SYSTEM] Ready to set up multi-channel connections for BitPaw OS.',
+                omni_modal_title_default: 'Account Configuration',
+                omni_modal_guide_loading: 'Loading guide...',
+                omni_modal_label_account: 'Account Name / Shop Owner Name:',
+                omni_modal_ph_account: 'Account / shop name',
+                omni_modal_label_channel_id: 'Channel ID / Phone Number:',
+                omni_modal_ph_channel_id: 'Channel ID or phone number to connect...',
+                omni_modal_label_token: 'Access Token / API Key:',
+                omni_modal_ph_token: "Enter your own API Access Token...",
+                omni_modal_token_note: 'The token will be securely encrypted with SSL 256-bit before saving.',
+                omni_modal_btn_save: 'Save Configuration',
+                omni_modal_btn_test: 'Test Connection',
+                omni_modal_btn_disconnect: 'Cancel & Disconnect',
+                omni_log_oauth_connecting: '[OAUTH] Connecting to the simulated authorization gateway {platform}...',
+                omni_log_popup_blocked: '[WARNING] Popup blocked! Please allow your browser to show popups to connect.',
+                omni_alert_allow_popup: 'Please allow pop-up windows to run the authorization gateway.',
+                omni_log_oauth_pending: '[PENDING] Please complete the authorization form in the new window...',
+                omni_log_oauth_closed: '[SYSTEM] OAuth window closed. Re-checking status...',
+                omni_confirm_disconnect: 'Are you sure you want to disconnect the {platform} channel?',
+                omni_log_disconnecting: '[DISCONNECT] Disconnecting the {platform} channel...',
+                omni_log_disconnect_success: '[SUCCESS] Successfully disconnected the {platform} channel.',
+                omni_log_disconnect_error: '[ERROR] Could not disconnect: {msg}',
+                omni_log_system_error: '[ERROR] System error: {msg}',
+                omni_log_test_ping: '[TEST] Sending a test ping request to the {platform} Provider API...',
+                omni_log_test_failed: '[ERROR] Test failed: {msg}',
+                omni_alert_connection_error: '❌ Connection error: {msg}',
+                omni_log_api_error: '[ERROR] API connection error: {msg}',
+                omni_guide_facebook: `<p><strong>Facebook Configuration Guide:</strong></p>
+                    <p>1. Enter your own Facebook Page name.</p>
+                    <p>2. Enter the corresponding Page ID.</p>
+                    <p>3. Enter the API Access Token from Facebook Developers Console.</p>`,
+                omni_guide_zalo: `<p><strong>Zalo OA Configuration Guide:</strong></p>
+                    <p>1. Enter the corresponding Official Account name.</p>
+                    <p>2. Enter the Zalo OA ID from the admin page.</p>
+                    <p>3. Enter the API Access Token issued by Zalo Developers.</p>`,
+                omni_guide_whatsapp: `<p><strong>WhatsApp Business Configuration Guide:</strong></p>
+                    <p>1. Enter the business name registered with WhatsApp.</p>
+                    <p>2. Enter the registered phone number (international format).</p>
+                    <p>3. Enter the API Access Token / System User Token from Meta.</p>`,
+                omni_guide_mascot: `<p><strong>Website Mascot Chat Configuration Guide:</strong></p>
+                    <p>1. Enter your Website name to set up.</p>
+                    <p>2. Enter the AI Mascot Script ID.</p>
+                    <p>3. Enter the BitPaw Platform API Access Token.</p>`,
+                omni_guide_default: `<p>Enter configuration info for local SQLite POS / Booking sync.</p>`,
+                omni_modal_title_manual: 'Manual Configuration {platform}',
+                omni_log_saving_config: '[CONFIG] Saving manual configuration for the {platform} channel...',
+                omni_log_save_success: '[SUCCESS] Successfully saved and activated the {platform} channel!',
+                omni_log_save_error: '[ERROR] Could not save configuration: {msg}',
+                omni_log_connection_error: '[ERROR] Connection error: {msg}',
+                omni_log_manual_test: '[TEST] Sending a test API packet for the manual {platform} configuration...',
+                omni_log_manual_test_failed: '[ERROR] Manual test failed: {msg}',
+                omni_log_api_error_generic: '[ERROR] API error: {msg}',
+                omni_not_synced_yet: 'Not synced yet',
+                omni_status_connected: 'CONNECTED',
+                omni_info_linked_success: 'Successfully linked',
+                omni_info_account_label: 'Account:',
+                omni_info_channel_id_label: 'Channel ID:',
+                omni_btn_disconnect_short: 'Disconnect',
+                omni_status_setup_required: 'SETUP REQUIRED',
+                omni_info_missing_credential: 'Missing API Credential',
+                omni_info_missing_credential_desc: 'The app has not yet been given a valid API Access Token by the admin.',
+                omni_btn_oauth_connect: 'Connect (OAuth)',
+                omni_btn_manual_config: 'Manual Configuration',
+                omni_import_syncing: 'Syncing data...',
+                omni_log_pos_sync_start: '[POS-SYNC] Launching the API sync engine for POS sales data and Booking appointments...',
+                omni_import_btn_default: 'Sync POS/Booking Data',
+                omni_log_import_failed: '[ERROR] Sync failed: {msg}',
+                omni_log_cleared: '[SYSTEM] Log has been cleared.'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render dynamic connection cards so their status/labels re-localize too
+            if (typeof reloadConnectionStatus === 'function') reloadConnectionStatus();
+        }
+
         // Load connection status on page load
         document.addEventListener("DOMContentLoaded", () => {
+            applyStaticTranslations();
+            const langToggleBtn = document.getElementById('langToggleBtn');
+            if (langToggleBtn) {
+                langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+            }
             reloadConnectionStatus();
             // Expose reloadConnectionStatus to window so popups can call it
             window.reloadConnectionStatus = reloadConnectionStatus;
@@ -518,30 +818,30 @@
 
         // Triggered when clicks OAuth Connect button
         function connectPlatformDirect(platform) {
-            logToConsole(`[OAUTH] Đang kết nối tới cổng cấp quyền giả lập ${platform.toUpperCase()}...`);
-            
+            logToConsole(tf('omni_log_oauth_connecting', { platform: platform.toUpperCase() }));
+
             // Define standard popup configuration
             const width = 550;
             const height = 680;
             const left = (window.innerWidth - width) / 2;
             const top = (window.innerHeight - height) / 2;
             const popupOptions = `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`;
-            
+
             const oauthUrl = `/omnichannel/connect/${platform}`;
-            
+
             // Open simulated OAuth window
             const oauthWindow = window.open(oauthUrl, `BitPawOAuth_${platform}`, popupOptions);
-            
+
             if (!oauthWindow) {
-                logToConsole(`[WARNING] Popup blocked! Vui lòng cho phép trình duyệt hiển thị popup để kết nối.`, 'rose');
-                alert("Vui lòng cho phép hiển thị cửa sổ bật lên (popup) để chạy Cổng ủy quyền.");
+                logToConsole(t('omni_log_popup_blocked'), 'rose');
+                alert(t('omni_alert_allow_popup'));
             } else {
-                logToConsole(`[PENDING] Vui lòng hoàn tất biểu mẫu cấp quyền trong cửa sổ mới...`);
+                logToConsole(t('omni_log_oauth_pending'));
                 // Poll check for window closing if window.opener fails
                 const timer = setInterval(() => {
                     if (oauthWindow.closed) {
                         clearInterval(timer);
-                        logToConsole(`[SYSTEM] Cửa sổ OAuth đã đóng. Đang kiểm tra lại trạng thái...`);
+                        logToConsole(t('omni_log_oauth_closed'));
                         reloadConnectionStatus();
                     }
                 }, 1000);
@@ -550,9 +850,9 @@
 
         // Triggered when clicks Disconnect button
         function disconnectPlatformDirect(platform) {
-            if (confirm(`Sếp có chắc chắn muốn ngắt kết nối cổng ${platform.toUpperCase()} không?`)) {
-                logToConsole(`[DISCONNECT] Đang ngắt kết nối cổng ${platform.toUpperCase()}...`);
-                
+            if (confirm(tf('omni_confirm_disconnect', { platform: platform.toUpperCase() }))) {
+                logToConsole(tf('omni_log_disconnecting', { platform: platform.toUpperCase() }));
+
                 fetch(`/omnichannel/disconnect/${platform}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
@@ -561,21 +861,21 @@
                 .then(res => {
                     if (res.success) {
                         reloadConnectionStatus();
-                        logToConsole(`[SUCCESS] Đã ngắt kết nối thành công kênh ${platform.toUpperCase()}.`, 'rose');
+                        logToConsole(tf('omni_log_disconnect_success', { platform: platform.toUpperCase() }), 'rose');
                     } else {
-                        logToConsole(`[ERROR] Không thể ngắt kết nối: ${res.message}`, 'rose');
+                        logToConsole(tf('omni_log_disconnect_error', { msg: res.message }), 'rose');
                     }
                 })
                 .catch(err => {
-                    logToConsole(`[ERROR] Lỗi hệ thống: ${err.message}`, 'rose');
+                    logToConsole(tf('omni_log_system_error', { msg: err.message }), 'rose');
                 });
             }
         }
 
         // Triggered when clicks Test Connection button
         function testConnectionDirect(platform) {
-            logToConsole(`[TEST] Đang gửi yêu cầu ping thử nghiệm tới ${platform.toUpperCase()} Provider API...`);
-            
+            logToConsole(tf('omni_log_test_ping', { platform: platform.toUpperCase() }));
+
             fetch(`/omnichannel/test/${platform}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" }
@@ -586,13 +886,13 @@
                     logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
                     alert(res.message);
                 } else {
-                    logToConsole(`[ERROR] Kiểm thử thất bại: ${res.message}`, 'rose');
-                    alert(`❌ Lỗi kết nối: ${res.message}`);
+                    logToConsole(tf('omni_log_test_failed', { msg: res.message }), 'rose');
+                    alert(tf('omni_alert_connection_error', { msg: res.message }));
                 }
             })
             .catch(err => {
-                logToConsole(`[ERROR] Lỗi kết nối API: ${err.message}`, 'rose');
-                alert(`❌ Lỗi kết nối: ${err.message}`);
+                logToConsole(tf('omni_log_api_error', { msg: err.message }), 'rose');
+                alert(tf('omni_alert_connection_error', { msg: err.message }));
             });
         }
 
@@ -600,35 +900,15 @@
         function openManualConfig(platform) {
             let guideHtml = "";
             if (platform === 'messenger' || platform === 'fb_page') {
-                guideHtml = `
-                    <p><strong>Hướng dẫn cấu hình Facebook:</strong></p>
-                    <p>1. Điền Tên Trang Facebook chính chủ của sếp.</p>
-                    <p>2. Điền ID Trang (Page ID) tương ứng.</p>
-                    <p>3. Điền API Access Token lấy từ Facebook Developers Console.</p>
-                `;
+                guideHtml = t('omni_guide_facebook');
             } else if (platform === 'zalo_oa') {
-                guideHtml = `
-                    <p><strong>Hướng dẫn cấu hình Zalo OA:</strong></p>
-                    <p>1. Điền Tên Official Account tương ứng.</p>
-                    <p>2. Điền Zalo OA ID nhận từ trang quản trị.</p>
-                    <p>3. Điền API Access Token được cấp bởi Zalo Developers.</p>
-                `;
+                guideHtml = t('omni_guide_zalo');
             } else if (platform === 'whatsapp') {
-                guideHtml = `
-                    <p><strong>Hướng dẫn cấu hình WhatsApp Business:</strong></p>
-                    <p>1. Điền Tên doanh nghiệp đăng ký WhatsApp.</p>
-                    <p>2. Điền số điện thoại đăng ký (định dạng quốc tế).</p>
-                    <p>3. Điền API Access Token / System User Token từ Meta.</p>
-                `;
+                guideHtml = t('omni_guide_whatsapp');
             } else if (platform === 'mascot_chat') {
-                guideHtml = `
-                    <p><strong>Hướng dẫn cấu hình Website Mascot Chat:</strong></p>
-                    <p>1. Điền Tên Website của sếp cần cài đặt.</p>
-                    <p>2. Điền Mã ID Kịch bản AI Mascot.</p>
-                    <p>3. Điền API Access Token của BitPaw Platform.</p>
-                `;
+                guideHtml = t('omni_guide_mascot');
             } else {
-                guideHtml = `<p>Điền thông tin cấu hình đồng bộ cục bộ SQLite POS / Booking.</p>`;
+                guideHtml = t('omni_guide_default');
             }
 
             const modal = document.getElementById("channelConfigModal");
@@ -644,7 +924,7 @@
             document.getElementById("config-access-token").value = cache.access_token || "";
 
             platformInput.value = platform;
-            titleEl.innerHTML = `<i class="fas fa-sliders text-cyan-400 animate-pulse"></i> Cấu hình thủ công ${platform.toUpperCase()}`;
+            titleEl.innerHTML = `<i class="fas fa-sliders text-cyan-400 animate-pulse"></i> ${tf('omni_modal_title_manual', { platform: platform.toUpperCase() })}`;
             guideEl.innerHTML = guideHtml;
             
             if (cache.status === 'CONNECTED') {
@@ -667,7 +947,7 @@
             const channel_id = document.getElementById("config-channel-id").value;
             const access_token = document.getElementById("config-access-token").value;
 
-            logToConsole(`[CONFIG] Đang lưu cấu hình thủ công cho cổng ${platform.toUpperCase()}...`);
+            logToConsole(tf('omni_log_saving_config', { platform: platform.toUpperCase() }));
 
             fetch("/api/ai/nurture/toggle-connection", {
                 method: "POST",
@@ -684,15 +964,15 @@
             .then(res => {
                 if (res.success) {
                     reloadConnectionStatus();
-                    logToConsole(`[SUCCESS] Đã lưu cấu hình và kích hoạt thành công cổng ${platform.toUpperCase()}!`, 'emerald');
+                    logToConsole(tf('omni_log_save_success', { platform: platform.toUpperCase() }), 'emerald');
                     closeConfigModal();
                 } else {
-                    logToConsole(`[ERROR] Không thể lưu cấu hình: ${res.message}`, 'rose');
+                    logToConsole(tf('omni_log_save_error', { msg: res.message }), 'rose');
                     alert(res.message);
                 }
             })
             .catch(err => {
-                logToConsole(`[ERROR] Lỗi kết nối: ${err.message}`, 'rose');
+                logToConsole(tf('omni_log_connection_error', { msg: err.message }), 'rose');
             });
         }
 
@@ -702,7 +982,7 @@
             const channel_id = document.getElementById("config-channel-id").value;
             const access_token = document.getElementById("config-access-token").value;
 
-            logToConsole(`[TEST] Đang gửi gói tin kiểm thử API cho cấu hình thủ công ${platform.toUpperCase()}...`);
+            logToConsole(tf('omni_log_manual_test', { platform: platform.toUpperCase() }));
 
             fetch("/api/ai/nurture/test-connection", {
                 method: "POST",
@@ -720,12 +1000,12 @@
                     logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
                     alert(res.message);
                 } else {
-                    logToConsole(`[ERROR] Kiểm thử thủ công thất bại: ${res.message}`, 'rose');
+                    logToConsole(tf('omni_log_manual_test_failed', { msg: res.message }), 'rose');
                     alert(res.message);
                 }
             })
             .catch(err => {
-                logToConsole(`[ERROR] Lỗi API: ${err.message}`, 'rose');
+                logToConsole(tf('omni_log_api_error_generic', { msg: err.message }), 'rose');
             });
         }
 
@@ -761,7 +1041,7 @@
                 });
         }
 
-        function updateUIState(platform, status, last_sync = 'Chưa đồng bộ', leads_count = 0, dataObj = {}) {
+        function updateUIState(platform, status, last_sync = t('omni_not_synced_yet'), leads_count = 0, dataObj = {}) {
             const cardEl = document.getElementById(`card-${platform}`);
             const statusEl = document.getElementById(`status-${platform}`);
             const actionsContainerEl = document.getElementById(`actions-container-${platform}`);
@@ -789,9 +1069,9 @@
             statusEl.classList.remove("bg-rose-500/10", "text-rose-400", "border-rose-500/30", "bg-emerald-500/10", "text-emerald-400", "border-emerald-500/30", "bg-yellow-500/10", "text-yellow-400", "border-yellow-500/30");
 
             if (status === 'CONNECTED') {
-                statusEl.innerText = "ĐÃ KẾT NỐI";
+                statusEl.innerText = t('omni_status_connected');
                 statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.2)]";
-                
+
                 if (cardEl) {
                     cardEl.classList.add("border-emerald-500/40", "shadow-[0_0_20px_rgba(16,185,129,0.15)]");
                 }
@@ -801,9 +1081,9 @@
                     infoBoxEl.classList.remove("hidden");
                     infoBoxEl.innerHTML = `
                         <div class="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 text-gray-300 space-y-1 mb-2">
-                            <p class="font-bold text-emerald-400"><i class="fas fa-check-circle mr-1"></i> Liên kết thành công</p>
-                            <p>Tài khoản: <strong class="text-white">${dataObj.account_name}</strong></p>
-                            <p>ID kênh: <strong class="text-white">${dataObj.channel_id}</strong></p>
+                            <p class="font-bold text-emerald-400"><i class="fas fa-check-circle mr-1"></i> ${t('omni_info_linked_success')}</p>
+                            <p>${t('omni_info_account_label')} <strong class="text-white">${dataObj.account_name}</strong></p>
+                            <p>${t('omni_info_channel_id_label')} <strong class="text-white">${dataObj.channel_id}</strong></p>
                         </div>
                     `;
                 }
@@ -815,14 +1095,14 @@
                             <i class="fas fa-network-wired mr-1 animate-pulse"></i> Test API
                         </button>
                         <button onclick="disconnectPlatformDirect('${platform}')" class="py-2.5 bg-rose-600/15 border border-rose-500/50 hover:bg-rose-600 hover:text-white text-rose-400 font-bold text-[10px] uppercase tracking-wider rounded-xl transition shadow-md">
-                            <i class="fas fa-unlink mr-1"></i> Hủy kết nối
+                            <i class="fas fa-unlink mr-1"></i> ${t('omni_btn_disconnect_short')}
                         </button>
                     </div>
                 `;
             } else if (status === 'SETUP_REQUIRED') {
-                statusEl.innerText = "YÊU CẦU CẤU HÌNH";
+                statusEl.innerText = t('omni_status_setup_required');
                 statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 px-3 py-1 rounded-full";
-                
+
                 if (cardEl) {
                     cardEl.classList.add("border-yellow-500/35", "shadow-[0_0_15px_rgba(234,179,8,0.1)]");
                 }
@@ -832,8 +1112,8 @@
                     infoBoxEl.classList.remove("hidden");
                     infoBoxEl.innerHTML = `
                         <div class="bg-yellow-950/20 border border-yellow-500/20 rounded-xl p-2.5 text-gray-300 space-y-1 mb-2">
-                            <p class="font-bold text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i> Thiếu API Credential</p>
-                            <p class="text-[10px] leading-normal text-gray-400">Ứng dụng chưa được nhập API Access Token hợp lệ từ sếp quản trị.</p>
+                            <p class="font-bold text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i> ${t('omni_info_missing_credential')}</p>
+                            <p class="text-[10px] leading-normal text-gray-400">${t('omni_info_missing_credential_desc')}</p>
                         </div>
                     `;
                 }
@@ -842,16 +1122,16 @@
                 let btnColorClass = "bg-yellow-600 hover:bg-yellow-500 text-black";
                 actionsContainerEl.innerHTML = `
                     <button onclick="connectPlatformDirect('${platform}')" class="w-full py-3 ${btnColorClass} font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">
-                        <i class="fas fa-plug mr-1"></i> Kết nối (OAuth)
+                        <i class="fas fa-plug mr-1"></i> ${t('omni_btn_oauth_connect')}
                     </button>
                     <button onclick="openManualConfig('${platform}')" class="w-full py-2 bg-transparent border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition mt-2">
-                        Cấu hình thủ công
+                        ${t('omni_btn_manual_config')}
                     </button>
                 `;
             } else {
-                statusEl.innerText = "CHƯA KẾT NỐI";
+                statusEl.innerText = t('omni_status_not_connected');
                 statusEl.className = "text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full";
-                
+
                 if (cardEl) {
                     cardEl.classList.add("border-white/5");
                 }
@@ -867,10 +1147,10 @@
 
                 actionsContainerEl.innerHTML = `
                     <button onclick="connectPlatformDirect('${platform}')" class="w-full py-3 ${btnColorClass} font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg hover:scale-[1.02]">
-                        <i class="fas fa-plug mr-1"></i> Kết nối (OAuth)
+                        <i class="fas fa-plug mr-1"></i> ${t('omni_btn_oauth_connect')}
                     </button>
                     <button onclick="openManualConfig('${platform}')" class="w-full py-2 bg-transparent border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition mt-2">
-                        Cấu hình thủ công
+                        ${t('omni_btn_manual_config')}
                     </button>
                 `;
             }
@@ -878,11 +1158,11 @@
 
         function triggerImport() {
             const btn = document.getElementById("btn-import");
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang đồng bộ dữ liệu...';
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${t('omni_import_syncing')}`;
             btn.classList.add("opacity-50", "cursor-not-allowed");
-            
-            logToConsole("[POS-SYNC] Khởi chạy bộ đồng bộ API dữ liệu bán hàng POS và lịch hẹn Booking...");
-            
+
+            logToConsole(t('omni_log_pos_sync_start'));
+
             fetch("/api/ai/nurture/import-data", { method: "POST" })
                 .then(res => res.json())
                 .then(res => {
@@ -890,11 +1170,11 @@
                         logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
                         alert(res.message);
                     } else {
-                        logToConsole(`[ERROR] Đồng bộ thất bại: ${res.message}`, 'rose');
+                        logToConsole(tf('omni_log_import_failed', { msg: res.message }), 'rose');
                     }
                 })
                 .finally(() => {
-                    btn.innerHTML = '<i class="fas fa-sync"></i> Đồng bộ dữ liệu POS/Booking';
+                    btn.innerHTML = `<i class="fas fa-sync"></i> ${t('omni_import_btn_default')}`;
                     btn.classList.remove("opacity-50", "cursor-not-allowed");
                 });
         }
@@ -909,7 +1189,7 @@
         }
 
         function clearLogs() {
-            document.getElementById("log-console").innerHTML = '<p class="text-cyan-500 font-bold">[SYSTEM] Nhật ký đã được dọn dẹp sạch sẽ.</p>';
+            document.getElementById("log-console").innerHTML = `<p class="text-cyan-500 font-bold">${t('omni_log_cleared')}</p>`;
         }
 
         // Three.js Background particles

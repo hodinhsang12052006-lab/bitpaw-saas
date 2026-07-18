@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -93,7 +93,7 @@
             <nav class="flex flex-col py-2 space-y-1.5 px-4 overflow-y-auto max-h-[30vh] custom-scrollbar border-b border-white/5">
                 <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-3 py-2 rounded-r-xl transition-all group">
                     <i class="fas fa-chart-pie w-4 text-sm group-hover:scale-110 transition-transform"></i>
-                    <span class="hidden lg:inline text-xs">Tổng quan</span>
+                    <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_overview">Overview</span>
                 </a>
 
                 <!-- F&B (Smart POS, QR Menu) -->
@@ -112,11 +112,11 @@
                 {% if 'spa_services' in active_industry_cfg.modules or 'nail_services' in active_industry_cfg.modules %}
                     <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-3 py-2 rounded-xl transition-all group">
                         <i class="fas fa-spa w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">POS Dịch vụ</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_pos_service">Service POS</span>
                     </a>
                     <a href="/booking" class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-3 py-2 rounded-xl transition-all group">
                         <i class="fas fa-calendar-alt w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">Đặt lịch hẹn</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_booking">Book Appointment</span>
                     </a>
                 {% endif %}
 
@@ -124,7 +124,7 @@
                 {% if 'sales' in active_industry_cfg.modules and 'ordering' not in active_industry_cfg.modules and 'spa_services' not in active_industry_cfg.modules %}
                     <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-shopping-cart w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">Bán hàng</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_sell">Sales</span>
                     </a>
                 {% endif %}
 
@@ -142,25 +142,25 @@
                 {% if 'attendance' in active_industry_cfg.modules or 'payroll' in active_industry_cfg.modules %}
                     <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-users w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">Quản lý Nhân sự</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_hr">HR Management</span>
                     </a>
                     <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-calendar-check w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">Chấm công</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_attendance">Attendance</span>
                     </a>
                     <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-file-invoice-dollar w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
-                        <span class="hidden lg:inline text-xs">Bảng lương</span>
+                        <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_payroll">Payroll</span>
                     </a>
                 {% endif %}
             </nav>
 
             <!-- MENU DÀNH RIÊNG AI STUDIO -->
             <div class="p-4 flex-shrink-0 border-b border-white/5 hidden lg:block">
-                <p class="text-[10px] uppercase font-bold text-gray-500 mb-3 tracking-widest">Workspace AI Tools</p>
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-3 tracking-widest" data-i18n="ai_studio_workspace_tools_label">Workspace AI Tools</p>
                 <div class="space-y-1">
                     <button class="w-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold py-2 px-3 rounded-lg text-xs transition flex items-center gap-2 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                        <i class="fas fa-magic w-4"></i> Xưởng Chế Tác AI
+                        <i class="fas fa-magic w-4"></i> <span data-i18n="ai_studio_sidebar_workshop">AI Content Workshop</span>
                     </button>
                     <!-- BRAND BRAIN -->
                     <button onclick="openBrandModal()" class="w-full hover:bg-white/5 text-yellow-400 hover:text-yellow-300 font-bold py-2 px-3 rounded-lg text-xs transition flex items-center gap-2 border border-transparent hover:border-yellow-500/30">
@@ -168,30 +168,30 @@
                     </button>
                     <!-- MA TRẬN CONTENT -->
                     <button onclick="openMatrixModal()" class="w-full hover:bg-white/5 text-purple-400 hover:text-purple-300 font-bold py-2 px-3 rounded-lg text-xs transition flex items-center gap-2 border border-transparent hover:border-purple-500/30">
-                        <i class="fas fa-table w-4"></i> Ma Trận 30 Ngày
+                        <i class="fas fa-table w-4"></i> <span data-i18n="ai_studio_sidebar_matrix">30-Day Matrix</span>
                     </button>
                     <!-- TRẠM DI ĐỘNG MỚI -->
                     <button onclick="openMobileOptimizerModal()" class="w-full hover:bg-white/5 text-emerald-400 hover:text-emerald-300 font-bold py-2 px-3 rounded-lg text-xs transition flex items-center gap-2 border border-transparent hover:border-emerald-500/30">
-                        <i class="fas fa-mobile-alt w-4"></i> Tối Ưu Trên Di Động
+                        <i class="fas fa-mobile-alt w-4"></i> <span data-i18n="ai_studio_sidebar_mobile_optimizer">Mobile Optimizer</span>
                     </button>
                     <!-- BÁC SĨ KHÁM KÊNH -->
                     <button onclick="openDoctorModal()" class="w-full hover:bg-white/5 text-rose-400 hover:text-rose-300 font-bold py-2 px-3 rounded-lg text-xs transition flex items-center gap-2 border border-transparent hover:border-rose-500/30">
-                        <i class="fas fa-stethoscope w-4"></i> Bác Sĩ Khám Kênh
+                        <i class="fas fa-stethoscope w-4"></i> <span data-i18n="ai_studio_sidebar_doctor">Channel Doctor</span>
                     </button>
                 </div>
             </div>
 
             <div class="p-4 flex-shrink-0">
                 <button onclick="createNewProject()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2 transition-transform active:scale-95">
-                    <i class="fas fa-plus"></i> <span class="hidden lg:inline text-sm">Dự Án Mới</span>
+                    <i class="fas fa-plus"></i> <span class="hidden lg:inline text-sm" data-i18n="ai_studio_new_project_btn">New Project</span>
                 </button>
             </div>
 
             <!-- LỊCH SỬ ĐƯỢC LOAD TỪ LOCALSTORAGE -->
             <div class="px-4 py-2 hidden lg:flex flex-col flex-1 overflow-hidden">
                 <div class="flex justify-between items-center mb-3 flex-shrink-0">
-                    <p class="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Pipeline Của Sếp</p>
-                    <button onclick="clearHistory()" class="text-[10px] text-rose-500 hover:text-rose-400"><i class="fas fa-trash"></i> Xóa</button>
+                    <p class="text-[10px] uppercase font-bold text-gray-500 tracking-widest" data-i18n="ai_studio_pipeline_label">Your Pipeline</p>
+                    <button onclick="clearHistory()" class="text-[10px] text-rose-500 hover:text-rose-400"><i class="fas fa-trash"></i> <span data-i18n="ai_studio_clear_btn">Clear</span></button>
                 </div>
                 <ul id="historyList" class="space-y-2 text-xs overflow-y-auto pr-2 pb-4 flex-1 hide-scrollbar">
                     <!-- Javascript sẽ tự động nhét <li> vào đây -->
@@ -202,8 +202,8 @@
         <div class="p-4 border-t border-white/5 flex items-center justify-center lg:justify-start gap-3 flex-shrink-0">
             <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold">S</div>
             <div class="hidden lg:block">
-                <p class="text-xs font-bold text-white">Sếp Lớn</p>
-                <p class="text-[9px] text-green-400"><i class="fas fa-circle text-[6px]"></i> Đã kết nối Hệ Sinh Thái</p>
+                <p class="text-xs font-bold text-white" data-i18n="ai_studio_user_name">Boss</p>
+                <p class="text-[9px] text-green-400"><i class="fas fa-circle text-[6px]"></i> <span data-i18n="ai_studio_ecosystem_connected">Ecosystem Connected</span></p>
             </div>
         </div>
     </aside>
@@ -214,7 +214,7 @@
         <!-- HEADER -->
         <header class="h-16 glass-panel border-b border-white/5 flex items-center justify-between px-6 z-20 flex-shrink-0">
             <div class="flex items-center gap-2 text-sm font-bold text-gray-300 overflow-x-auto hide-scrollbar">
-                <span class="mr-2 md:mr-4 text-[10px] md:text-xs uppercase tracking-widest text-gray-500 whitespace-nowrap">Nạp Thuật Toán:</span>
+                <span class="mr-2 md:mr-4 text-[10px] md:text-xs uppercase tracking-widest text-gray-500 whitespace-nowrap">Load Algorithm:</span>
                 
                 <button class="algo-tab algo-tt active flex items-center gap-2 px-3 md:px-4 py-2 bg-white/5 rounded-t-lg whitespace-nowrap" onclick="switchAlgo('tt', this)">
                     <i class="fab fa-tiktok text-white"></i> <span class="hidden sm:inline">TikTok SEO</span>
@@ -242,17 +242,17 @@
                 
                 <div class="glass-panel p-5 rounded-2xl relative flex-shrink-0 border-t-2 border-t-purple-500/50">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-sm font-black text-purple-400 flex items-center gap-2"><span class="step-badge bg-purple-500 text-white">BƯỚC 1</span> Bóc Băng Nguồn (Extract)</h3>
+                        <h3 class="text-sm font-black text-purple-400 flex items-center gap-2"><span class="step-badge bg-purple-500 text-white">STEP 1</span> Source Extraction (Extract)</h3>
                         <span class="text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded">Whisper AI v2.0</span>
                     </div>
                     
                     <div class="flex flex-col sm:flex-row gap-2 mb-4">
                         <div class="relative flex-1">
                             <i class="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                            <input type="text" id="videoLinkInput" class="w-full glass-input rounded-xl pl-10 pr-4 py-3 text-xs" placeholder="Dán link Video TikTok / Reels cần bóc kịch bản...">
+                            <input type="text" id="videoLinkInput" class="w-full glass-input rounded-xl pl-10 pr-4 py-3 text-xs" placeholder="Paste a TikTok / Reels video link to extract the script...">
                         </div>
                         <button onclick="extractScript(this)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-[0_0_15px_rgba(168,85,247,0.4)] whitespace-nowrap">
-                            <i class="fas fa-closed-captioning mr-1"></i> BÓC TÁCH
+                            <i class="fas fa-closed-captioning mr-1"></i> EXTRACT
                         </button>
                     </div>
 
@@ -272,12 +272,12 @@
                         <!-- Lời thoại Text -->
                         <div class="flex-1 flex flex-col overflow-hidden">
                             <p class="text-xs text-gray-400 mb-2 font-bold flex items-center">
-                                <i class="fas fa-align-left mr-2"></i> Lời thoại Gốc:
+                                <i class="fas fa-align-left mr-2"></i> Original Transcript:
                             </p>
                             <div class="flex-1 overflow-y-auto pr-2 text-xs text-gray-300 leading-relaxed font-mono opacity-50" id="originalScript">
                                 <div class="h-full flex flex-col items-center justify-center text-gray-600 text-center">
                                     <i class="fas fa-paste text-3xl mb-2 opacity-50"></i>
-                                    <p>Dán link Video để xem & bóc text.</p>
+                                    <p>Paste a video link to view & extract the text.</p>
                                 </div>
                             </div>
                         </div>
@@ -285,12 +285,12 @@
                 </div>
 
                 <div class="glass-panel p-5 rounded-2xl relative flex-1 border-t-2 border-t-cyan-500/50 flex flex-col">
-                    <h3 class="text-sm font-black text-cyan-400 mb-3 flex items-center gap-2"><span class="step-badge">BƯỚC 2</span> Chỉ thị AI (Prompt Master)</h3>
-                    
+                    <h3 class="text-sm font-black text-cyan-400 mb-3 flex items-center gap-2"><span class="step-badge">STEP 2</span> AI Instructions (Prompt Master)</h3>
+
                     <!-- Quick Tools Panel -->
                     <div class="mb-4">
                         <p class="text-[10px] text-gray-400 uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-                            <i class="fas fa-toolbox text-cyan-400"></i> Phím Tắt Công Cụ AI Studio:
+                            <i class="fas fa-toolbox text-cyan-400"></i> AI Studio Quick Tools:
                         </p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             <button type="button" onclick="populatePrompt('facebook')" class="bg-blue-500/10 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 justify-start">
@@ -300,13 +300,13 @@
                                 <i class="fab fa-tiktok text-sm"></i> TikTok Caption
                             </button>
                             <button type="button" onclick="populatePrompt('promo')" class="bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 justify-start">
-                                <i class="fas fa-percentage text-sm"></i> Kịch bản Khuyến mãi
+                                <i class="fas fa-percentage text-sm"></i> Promo Script
                             </button>
                             <button type="button" onclick="populatePrompt('service')" class="bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 justify-start">
-                                <i class="fas fa-concierge-bell text-sm"></i> Mô tả Dịch vụ
+                                <i class="fas fa-concierge-bell text-sm"></i> Service Description
                             </button>
                             <button type="button" onclick="populatePrompt('report')" class="bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 justify-start">
-                                <i class="fas fa-chart-line text-sm"></i> Báo cáo AI Lợi nhuận
+                                <i class="fas fa-chart-line text-sm"></i> AI Profit Report
                             </button>
                             <button type="button" onclick="populatePrompt('retention')" class="bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 justify-start">
                                 <i class="fas fa-heart text-sm"></i> CSKH & Giữ chân

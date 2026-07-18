@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BitPaw | Báo cáo lợi nhuận theo sản phẩm</title>
+    <title>BitPaw | Profit Report by Product</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -100,51 +100,52 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Lợi nhuận theo sản phẩm</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Phân tích doanh thu – chi phí – lợi nhuận thực tế</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="profit_header_subtitle">| Profit by Product</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="profit_header_desc">Revenue - cost - actual profit analysis</p>
                 </div>
             </div>
-            <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <button id="addCostBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-dollar-sign"></i> Cập nhật giá vốn</button>
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="profit_home_link">Home</span></a>
+                <button id="addCostBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-dollar-sign"></i> <span data-i18n="profit_update_cost_btn">Update Cost Price</span></button>
             </div>
         </div>
 
         <!-- Thống kê nhanh -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng doanh thu</div><div class="text-2xl font-bold text-cyan-400" id="totalRevenue">0₫</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng giá vốn</div><div class="text-2xl font-bold text-rose-400" id="totalCost">0₫</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Lợi nhuận gộp</div><div class="text-2xl font-bold text-emerald-400" id="totalProfit">0₫</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Biên lợi nhuận TB</div><div class="text-2xl font-bold text-purple-400" id="avgMargin">0%</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="profit_stat_revenue">Total Revenue</div><div class="text-2xl font-bold text-cyan-400" id="totalRevenue">{{ 0 | money(tenant_currency) }}</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="profit_stat_cost">Total Cost</div><div class="text-2xl font-bold text-rose-400" id="totalCost">{{ 0 | money(tenant_currency) }}</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="profit_stat_profit">Gross Profit</div><div class="text-2xl font-bold text-emerald-400" id="totalProfit">{{ 0 | money(tenant_currency) }}</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="profit_stat_margin">Avg. Profit Margin</div><div class="text-2xl font-bold text-purple-400" id="avgMargin">0%</div></div>
         </div>
 
         <!-- Bộ lọc -->
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm sản phẩm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên, mã sản phẩm..."></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Danh mục</label><select id="categoryFilter" class="filter-input"><option value="all">Tất cả</option><option value="F&B">F&B</option><option value="Spa">Spa</option><option value="Bán lẻ">Bán lẻ</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Biên lợi nhuận</label><select id="marginFilter" class="filter-input"><option value="all">Tất cả</option><option value="high">Cao (>50%)</option><option value="medium">Trung bình (20-50%)</option><option value="low">Thấp (<20%)</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="profit_search_label">Search Product</label><input type="text" id="searchInput" class="filter-input" placeholder="Name, product code..." data-i18n-placeholder="profit_search_placeholder"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="profit_category_label">Category</label><select id="categoryFilter" class="filter-input"><option value="all" data-i18n="profit_filter_all">All</option><option value="F&B">F&B</option><option value="Spa">Spa</option><option value="Bán lẻ" data-i18n="profit_category_retail">Retail</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="profit_margin_label">Profit Margin</label><select id="marginFilter" class="filter-input"><option value="all" data-i18n="profit_filter_all">All</option><option value="high" data-i18n="profit_margin_opt_high">High (>50%)</option><option value="medium" data-i18n="profit_margin_opt_medium">Medium (20-50%)</option><option value="low" data-i18n="profit_margin_opt_low">Low (<20%)</option></select></div>
             </div>
-            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="profit_reset_btn">Reset</span></button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="profit_export_btn">Export Excel</span></button></div>
         </div>
 
         <!-- Bảng sản phẩm & lợi nhuận -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-chart-line mr-2"></i> Phân tích lợi nhuận chi tiết</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="profit_table_heading">Detailed Profit Analysis</span></h2><div class="text-sm text-gray-400" id="recordCount" data-i18n="profit_loading">Loading...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table">
-                    <thead><tr><th>ID</th><th>Sản phẩm</th><th>Danh mục</th><th>Đã bán</th><th>Doanh thu</th><th>Giá vốn TB</th><th>Tổng giá vốn</th><th>Lợi nhuận</th><th>Biên LN</th><th>Thao tác</th></tr></thead>
-                    <tbody id="profitTableBody"><tr><td colspan="10" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr></tbody>
+                    <thead><tr><th data-i18n="profit_th_id">ID</th><th data-i18n="profit_th_product">Product</th><th data-i18n="profit_category_label">Category</th><th data-i18n="profit_th_sold">Sold</th><th data-i18n="profit_th_revenue">Revenue</th><th data-i18n="profit_th_avg_cost">Avg. Cost</th><th data-i18n="profit_stat_cost">Total Cost</th><th data-i18n="profit_th_profit">Profit</th><th data-i18n="profit_th_margin">Margin</th><th data-i18n="profit_th_actions">Actions</th></tr></thead>
+                    <tbody id="profitTableBody"><tr><td colspan="10" class="text-center py-10 text-gray-500" data-i18n="profit_loading_data">Loading data...</td></tr></tbody>
                 </table>
                 </div>
             </div>
-            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> Trước</button><span class="text-sm text-gray-400" id="pageInfo">Trang 1 / 1</span><button id="nextPage" class="pagination-btn">Sau <i class="fas fa-chevron-right ml-1"></i></button></div>
+            <div class="flex justify-center items-center gap-3 mt-6"><button id="prevPage" class="pagination-btn"><i class="fas fa-chevron-left mr-1"></i> <span data-i18n="profit_prev_btn">Previous</span></button><span class="text-sm text-gray-400" id="pageInfo">Page 1 / 1</span><button id="nextPage" class="pagination-btn"><span data-i18n="profit_next_btn">Next</span> <i class="fas fa-chevron-right ml-1"></i></button></div>
         </div>
 
         <!-- Biểu đồ lợi nhuận theo danh mục -->
         <div class="glass-panel p-5 mt-6">
-            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> Lợi nhuận theo danh mục sản phẩm</h3>
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="profit_chart_heading">Profit by Product Category</span></h3>
             <canvas id="categoryProfitChart" height="150" style="max-height: 220px;"></canvas>
         </div>
 
@@ -153,17 +154,167 @@
     <!-- Modal cập nhật giá vốn -->
     <div id="costModal" class="modal-overlay">
         <div class="modal-container">
-            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-dollar-sign mr-2"></i> Cập nhật giá vốn</h3><button id="closeCostModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-dollar-sign mr-2"></i> <span data-i18n="profit_modal_title">Update Cost Price</span></h3><button id="closeCostModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
             <input type="hidden" id="costProductId">
-            <div><label class="block text-xs font-bold text-gray-400 mb-1">Tên sản phẩm</label><div id="costProductName" class="glass-input bg-black/30">---</div></div>
-            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1">Giá vốn hiện tại</label><div id="currentCostDisplay" class="glass-input bg-black/30">---</div></div>
-            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1">Giá vốn mới (VNĐ)</label><input type="number" id="newCost" class="glass-input" placeholder="Nhập giá vốn"></div>
-            <div class="flex gap-3 mt-4"><button id="saveCostBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Lưu</button><button id="cancelCostBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div>
+            <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="profit_modal_product_name">Product Name</label><div id="costProductName" class="glass-input bg-black/30">---</div></div>
+            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="profit_modal_current_cost">Current Cost Price</label><div id="currentCostDisplay" class="glass-input bg-black/30">---</div></div>
+            <div class="mt-3"><label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="profit_modal_new_cost_label">New Cost Price</span> ({{ tenant_currency }})</label><input type="number" id="newCost" class="glass-input" placeholder="Enter cost price" data-i18n-placeholder="profit_modal_new_cost_placeholder"></div>
+            <div class="flex gap-3 mt-4"><button id="saveCostBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="profit_save_btn">Save</button><button id="cancelCostBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="profit_cancel_btn">Cancel</button></div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="profit_processing">Processing...</span></div></div>
     <div id="toast" class="toast"></div>
+
+    <script>
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                profit_header_subtitle: '| Lợi nhuận theo Sản phẩm',
+                profit_header_desc: 'Phân tích doanh thu - chi phí - lợi nhuận thực tế',
+                profit_home_link: 'Trang chủ',
+                profit_update_cost_btn: 'Cập nhật Giá vốn',
+                profit_stat_revenue: 'Tổng Doanh thu',
+                profit_stat_cost: 'Tổng Chi phí',
+                profit_stat_profit: 'Lợi nhuận Gộp',
+                profit_stat_margin: 'Tỷ suất LN TB',
+                profit_search_label: 'Tìm Sản phẩm',
+                profit_search_placeholder: 'Tên, mã sản phẩm...',
+                profit_category_label: 'Danh mục',
+                profit_filter_all: 'Tất cả',
+                profit_category_retail: 'Bán lẻ',
+                profit_margin_label: 'Tỷ suất Lợi nhuận',
+                profit_margin_opt_high: 'Cao (>50%)',
+                profit_margin_opt_medium: 'Trung bình (20-50%)',
+                profit_margin_opt_low: 'Thấp (<20%)',
+                profit_reset_btn: 'Đặt lại',
+                profit_export_btn: 'Xuất Excel',
+                profit_table_heading: 'Phân tích Lợi nhuận Chi tiết',
+                profit_loading: 'Đang tải...',
+                profit_th_id: 'ID',
+                profit_th_product: 'Sản phẩm',
+                profit_th_sold: 'Đã bán',
+                profit_th_revenue: 'Doanh thu',
+                profit_th_avg_cost: 'Giá vốn TB',
+                profit_th_profit: 'Lợi nhuận',
+                profit_th_margin: 'Tỷ suất',
+                profit_th_actions: 'Thao tác',
+                profit_loading_data: 'Đang tải dữ liệu...',
+                profit_prev_btn: 'Trước',
+                profit_next_btn: 'Sau',
+                profit_page_info: 'Trang {current} / {total}',
+                profit_chart_heading: 'Lợi nhuận theo Danh mục Sản phẩm',
+                profit_modal_title: 'Cập nhật Giá vốn',
+                profit_modal_product_name: 'Tên Sản phẩm',
+                profit_modal_current_cost: 'Giá vốn Hiện tại',
+                profit_modal_new_cost_label: 'Giá vốn Mới',
+                profit_modal_new_cost_placeholder: 'Nhập giá vốn',
+                profit_save_btn: 'Lưu',
+                profit_cancel_btn: 'Hủy',
+                profit_processing: 'Đang xử lý...',
+                profit_toast_error_loading: 'Lỗi tải dữ liệu: {msg}',
+                profit_record_count: 'Tổng: {count} sản phẩm',
+                profit_no_products_found: 'Không tìm thấy sản phẩm',
+                profit_margin_text_high: 'Cao (≥50%)',
+                profit_margin_text_medium: 'Trung bình (20-50%)',
+                profit_margin_text_low: 'Thấp (<20%)',
+                profit_update_cost_row_btn: 'Cập nhật Giá vốn',
+                profit_toast_invalid_cost: 'Vui lòng nhập giá vốn hợp lệ',
+                profit_toast_update_error: 'Lỗi cập nhật: {msg}',
+                profit_toast_update_success: 'Cập nhật giá vốn thành công',
+                profit_toast_no_products: 'Chưa có sản phẩm nào',
+                profit_excel_th_cost_unit: 'Giá vốn/đơn vị',
+                profit_excel_th_margin_pct: 'Tỷ suất Lợi nhuận (%)',
+                profit_excel_success: 'Xuất Excel thành công',
+                profit_chart_profit_label: 'Lợi nhuận'
+            },
+            en: {
+                profit_header_subtitle: '| Profit by Product',
+                profit_header_desc: 'Revenue - cost - actual profit analysis',
+                profit_home_link: 'Home',
+                profit_update_cost_btn: 'Update Cost Price',
+                profit_stat_revenue: 'Total Revenue',
+                profit_stat_cost: 'Total Cost',
+                profit_stat_profit: 'Gross Profit',
+                profit_stat_margin: 'Avg. Profit Margin',
+                profit_search_label: 'Search Product',
+                profit_search_placeholder: 'Name, product code...',
+                profit_category_label: 'Category',
+                profit_filter_all: 'All',
+                profit_category_retail: 'Retail',
+                profit_margin_label: 'Profit Margin',
+                profit_margin_opt_high: 'High (>50%)',
+                profit_margin_opt_medium: 'Medium (20-50%)',
+                profit_margin_opt_low: 'Low (<20%)',
+                profit_reset_btn: 'Reset',
+                profit_export_btn: 'Export Excel',
+                profit_table_heading: 'Detailed Profit Analysis',
+                profit_loading: 'Loading...',
+                profit_th_id: 'ID',
+                profit_th_product: 'Product',
+                profit_th_sold: 'Sold',
+                profit_th_revenue: 'Revenue',
+                profit_th_avg_cost: 'Avg. Cost',
+                profit_th_profit: 'Profit',
+                profit_th_margin: 'Margin',
+                profit_th_actions: 'Actions',
+                profit_loading_data: 'Loading data...',
+                profit_prev_btn: 'Previous',
+                profit_next_btn: 'Next',
+                profit_page_info: 'Page {current} / {total}',
+                profit_chart_heading: 'Profit by Product Category',
+                profit_modal_title: 'Update Cost Price',
+                profit_modal_product_name: 'Product Name',
+                profit_modal_current_cost: 'Current Cost Price',
+                profit_modal_new_cost_label: 'New Cost Price',
+                profit_modal_new_cost_placeholder: 'Enter cost price',
+                profit_save_btn: 'Save',
+                profit_cancel_btn: 'Cancel',
+                profit_processing: 'Processing...',
+                profit_toast_error_loading: 'Error loading data: {msg}',
+                profit_record_count: 'Total: {count} products',
+                profit_no_products_found: 'No products found',
+                profit_margin_text_high: 'High (≥50%)',
+                profit_margin_text_medium: 'Medium (20-50%)',
+                profit_margin_text_low: 'Low (<20%)',
+                profit_update_cost_row_btn: 'Update Cost',
+                profit_toast_invalid_cost: 'Please enter a valid cost price',
+                profit_toast_update_error: 'Update error: {msg}',
+                profit_toast_update_success: 'Cost price updated successfully',
+                profit_toast_no_products: 'No products yet',
+                profit_excel_th_cost_unit: 'Cost/unit',
+                profit_excel_th_margin_pct: 'Profit Margin (%)',
+                profit_excel_success: 'Excel exported successfully',
+                profit_chart_profit_label: 'Profit'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof window.applyFilters === 'function') window.applyFilters();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+    </script>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -217,16 +368,23 @@
             if (show) loadingOverlay.classList.add('active');
             else loadingOverlay.classList.remove('active');
         }
-        function formatCurrency(amount) { return amount.toLocaleString('vi-VN') + '₫'; }
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatCurrency(amount) {
+            amount = amount || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(amount).toLocaleString('vi-VN') + 'đ';
+        }
         function getMarginClass(margin) {
             if (margin >= 50) return 'profit-high';
             if (margin >= 20) return 'profit-medium';
             return 'profit-low';
         }
         function getMarginText(margin) {
-            if (margin >= 50) return 'Cao (≥50%)';
-            if (margin >= 20) return 'Trung bình (20-50%)';
-            return 'Thấp (<20%)';
+            if (margin >= 50) return t('profit_margin_text_high');
+            if (margin >= 20) return t('profit_margin_text_medium');
+            return t('profit_margin_text_low');
         }
 
         // Tải dữ liệu từ Supabase: products (đã bán, giá bán, giá vốn) và order_items để tính số lượng bán
@@ -257,7 +415,7 @@
                 products = (productsData || []).map(p => ({
                     id: p.id,
                     name: p.name,
-                    category: p.category || 'Khác',
+                    category: p.category || 'Other',
                     sold: soldMap.get(p.id) || 0,
                     price: p.price || 0,
                     cost: p.cost_price || 0
@@ -265,7 +423,7 @@
                 applyFilters(); // sẽ render và thống kê
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+                showToast(tf('profit_toast_error_loading', { msg: err.message }), true);
             } finally {
                 showLoading(false);
             }
@@ -307,8 +465,9 @@
             renderTable();
             updateStats();
             updateCategoryChart();
-            recordCountSpan.innerText = `Tổng: ${filteredProducts.length} sản phẩm`;
+            recordCountSpan.innerText = tf('profit_record_count', { count: filteredProducts.length });
         }
+        window.applyFilters = applyFilters;
 
         // Render bảng
         function renderTable() {
@@ -316,8 +475,8 @@
             const end = start + rowsPerPage;
             const pageData = filteredProducts.slice(start, end);
             if (pageData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-gray-500">Không có sản phẩm nào</td></tr>';
-                pageInfoSpan.innerText = 'Trang 0 / 0';
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-gray-500">${t('profit_no_products_found')}</td></tr>`;
+                pageInfoSpan.innerText = tf('profit_page_info', { current: 0, total: 0 });
                 return;
             }
             tbody.innerHTML = pageData.map(p => {
@@ -336,7 +495,7 @@
                         <td class="font-mono text-rose-400">${formatCurrency(totalCostVal)}</td>
                         <td class="font-mono text-emerald-400 font-bold">${formatCurrency(profit)}</td>
                         <td><span class="profit-badge ${getMarginClass(margin)}">${margin.toFixed(1)}%<br>${getMarginText(margin)}</span></td>
-                        <td><button class="edit-cost-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-cost="${p.cost}"><i class="fas fa-edit"></i> Cập nhật giá vốn</button></td>
+                        <td><button class="edit-cost-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-cost="${p.cost}"><i class="fas fa-edit"></i> ${t('profit_update_cost_row_btn')}</button></td>
                     </tr>
                 `;
             }).join('');
@@ -349,7 +508,7 @@
                 });
             });
             const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
-            pageInfoSpan.innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            pageInfoSpan.innerText = tf('profit_page_info', { current: currentPage, total: totalPages || 1 });
             prevPageBtn.disabled = currentPage === 1;
             nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
         }
@@ -368,7 +527,7 @@
             const ctx = document.getElementById('categoryProfitChart').getContext('2d');
             categoryChart = new Chart(ctx, {
                 type: 'bar',
-                data: { labels, datasets: [{ label: 'Lợi nhuận (VNĐ)', data, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
+                data: { labels, datasets: [{ label: `${t('profit_chart_profit_label')} (${TENANT_CURRENCY})`, data, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa', callback: (v) => v.toLocaleString() } }, x: { ticks: { color: '#aaa' } } } }
             });
         }
@@ -388,7 +547,7 @@
             const id = parseInt(costProductId.value);
             const newCostVal = parseInt(newCostInput.value);
             if (isNaN(newCostVal) || newCostVal < 0) {
-                showToast('Vui lòng nhập giá vốn hợp lệ', true);
+                showToast(t('profit_toast_invalid_cost'), true);
                 return;
             }
             showLoading(true);
@@ -397,13 +556,13 @@
                 .update({ cost_price: newCostVal })
                 .eq('id', id);
             if (error) {
-                showToast('Lỗi cập nhật: ' + error.message, true);
+                showToast(tf('profit_toast_update_error', { msg: error.message }), true);
             } else {
                 // Cập nhật trong mảng products
                 const product = products.find(p => p.id === id);
                 if (product) product.cost = newCostVal;
                 applyFilters(); // reload bảng và biểu đồ
-                showToast('Đã cập nhật giá vốn thành công');
+                showToast(t('profit_toast_update_success'));
                 closeCostModal();
             }
             showLoading(false);
@@ -419,7 +578,7 @@
 
         // Xuất Excel
         function exportToExcel() {
-            const wsData = [['ID','Sản phẩm','Danh mục','Đã bán','Doanh thu','Giá vốn/đơn vị','Tổng giá vốn','Lợi nhuận','Biên lợi nhuận (%)']];
+            const wsData = [[t('profit_th_id'), t('profit_th_product'), t('profit_category_label'), t('profit_th_sold'), t('profit_th_revenue'), t('profit_excel_th_cost_unit'), t('profit_stat_cost'), t('profit_th_profit'), t('profit_excel_th_margin_pct')]];
             filteredProducts.forEach(p => {
                 const revenue = p.sold * p.price;
                 const totalCostVal = p.sold * p.cost;
@@ -431,7 +590,7 @@
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'ProfitByProduct');
             XLSX.writeFile(wb, `profit_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast('Xuất Excel thành công');
+            showToast(t('profit_excel_success'));
         }
 
         // Event listeners
@@ -442,7 +601,7 @@
         exportBtn.addEventListener('click', exportToExcel);
         addCostBtn.addEventListener('click', () => {
             if (products.length) openCostModal(products[0].id, products[0].name, products[0].cost);
-            else showToast('Chưa có sản phẩm', true);
+            else showToast(t('profit_toast_no_products'), true);
         });
         closeCostModalBtn.addEventListener('click', closeCostModal);
         cancelCostBtn.addEventListener('click', closeCostModal);
@@ -501,10 +660,10 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                const elapsed = clock.getElapsedTime();
+                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

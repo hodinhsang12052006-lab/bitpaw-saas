@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -91,65 +91,68 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Đồng bộ đa sàn</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Shopee, TikTok Shop, Lazada | Tự động cập nhật đơn & tồn kho</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="ecommerce_sync_header_suffix">| Đồng bộ đa sàn</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="ecommerce_sync_header_subtitle">Shopee, TikTok Shop, Lazada | Tự động cập nhật đơn & tồn kho</p>
                 </div>
             </div>
-            <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
+            <div class="flex items-center gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="ecommerce_sync_home">Trang chủ</span></a>
+            </div>
         </div>
 
         <!-- Cấu hình kết nối -->
         <div class="glass-panel p-5 mb-6">
-            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-plug mr-2"></i> Kết nối sàn thương mại điện tử</h2>
+            <h2 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-plug mr-2"></i> <span data-i18n="ecommerce_sync_connect_heading">Kết nối sàn thương mại điện tử</span></h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Shopee -->
                 <div class="glass-card p-4">
-                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-shopee text-3xl text-orange-500"></i><h3 class="font-bold text-white">Shopee</h3><span class="text-xs text-gray-400 ml-auto" id="shopeeStatus">Chưa kết nối</span></div>
+                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-shopee text-3xl text-orange-500"></i><h3 class="font-bold text-white">Shopee</h3><span class="text-xs text-gray-400 ml-auto" id="shopeeStatus" data-i18n="ecommerce_sync_status_disconnected">Chưa kết nối</span></div>
                     <div class="space-y-2">
                         <input type="text" id="shopeeKey" placeholder="API Key" class="glass-input text-sm">
                         <input type="text" id="shopeeSecret" placeholder="API Secret" class="glass-input text-sm">
-                        <button class="connect-shopee w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                        <button class="connect-shopee w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> <span data-i18n="ecommerce_sync_connect_btn1">Kết nối</span></button>
                     </div>
                 </div>
                 <!-- TikTok Shop -->
                 <div class="glass-card p-4">
-                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-tiktok text-3xl text-white"></i><h3 class="font-bold text-white">TikTok Shop</h3><span class="text-xs text-gray-400 ml-auto" id="tiktokStatus">Chưa kết nối</span></div>
+                    <div class="flex items-center gap-3 mb-3"><i class="fab fa-tiktok text-3xl text-white"></i><h3 class="font-bold text-white">TikTok Shop</h3><span class="text-xs text-gray-400 ml-auto" id="tiktokStatus" data-i18n="ecommerce_sync_status_disconnected2">Chưa kết nối</span></div>
                     <div class="space-y-2">
                         <input type="text" id="tiktokAppId" placeholder="App ID" class="glass-input text-sm">
                         <input type="text" id="tiktokSecret" placeholder="App Secret" class="glass-input text-sm">
-                        <button class="connect-tiktok w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                        <button class="connect-tiktok w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> <span data-i18n="ecommerce_sync_connect_btn2">Kết nối</span></button>
                     </div>
                 </div>
                 <!-- Lazada -->
                 <div class="glass-card p-4">
-                    <div class="flex items-center gap-3 mb-3"><i class="fas fa-shopping-cart text-3xl text-blue-500"></i><h3 class="font-bold text-white">Lazada</h3><span class="text-xs text-gray-400 ml-auto" id="lazadaStatus">Chưa kết nối</span></div>
+                    <div class="flex items-center gap-3 mb-3"><i class="fas fa-shopping-cart text-3xl text-blue-500"></i><h3 class="font-bold text-white">Lazada</h3><span class="text-xs text-gray-400 ml-auto" id="lazadaStatus" data-i18n="ecommerce_sync_status_disconnected3">Chưa kết nối</span></div>
                     <div class="space-y-2">
                         <input type="text" id="lazadaKey" placeholder="API Key" class="glass-input text-sm">
                         <input type="text" id="lazadaSecret" placeholder="API Secret" class="glass-input text-sm">
-                        <button class="connect-lazada w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> Kết nối</button>
+                        <button class="connect-lazada w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-full text-sm transition"><i class="fas fa-link mr-1"></i> <span data-i18n="ecommerce_sync_connect_btn3">Kết nối</span></button>
                     </div>
                 </div>
             </div>
             <div class="flex justify-end gap-3 mt-4">
-                <button id="syncAllBtn" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold transition"><i class="fas fa-sync-alt mr-1"></i> Đồng bộ tất cả</button>
-                <button id="syncProductsBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-boxes mr-1"></i> Đồng bộ sản phẩm</button>
-                <button id="syncOrdersBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-shopping-cart mr-1"></i> Đồng bộ đơn hàng</button>
+                <button id="syncAllBtn" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold transition"><i class="fas fa-sync-alt mr-1"></i> <span data-i18n="ecommerce_sync_sync_all_btn">Đồng bộ tất cả</span></button>
+                <button id="syncProductsBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-boxes mr-1"></i> <span data-i18n="ecommerce_sync_sync_products_btn">Đồng bộ sản phẩm</span></button>
+                <button id="syncOrdersBtn" class="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-sm transition"><i class="fas fa-shopping-cart mr-1"></i> <span data-i18n="ecommerce_sync_sync_orders_btn">Đồng bộ đơn hàng</span></button>
             </div>
         </div>
 
         <!-- Thống kê đồng bộ -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đơn hàng từ sàn</div><div class="text-2xl font-bold text-cyan-400" id="syncOrderCount">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm đã đồng bộ</div><div class="text-2xl font-bold text-emerald-400" id="syncProductCount">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Đồng bộ lần cuối</div><div class="text-sm font-medium text-white" id="lastSyncTime">Chưa có</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="ecommerce_sync_stat_orders">Đơn hàng từ sàn</div><div class="text-2xl font-bold text-cyan-400" id="syncOrderCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="ecommerce_sync_stat_products">Sản phẩm đã đồng bộ</div><div class="text-2xl font-bold text-emerald-400" id="syncProductCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="ecommerce_sync_stat_last_sync">Đồng bộ lần cuối</div><div class="text-sm font-medium text-white" id="lastSyncTime" data-i18n="ecommerce_sync_no_sync_yet">Chưa có</div></div>
         </div>
 
         <!-- Danh sách đơn hàng từ sàn -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-list-alt mr-2"></i> Đơn hàng từ sàn TMĐT</h2><div class="text-sm text-gray-400" id="orderRecordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-list-alt mr-2"></i> <span data-i18n="ecommerce_sync_orders_heading">Đơn hàng từ sàn TMĐT</span></h2><div class="text-sm text-gray-400" id="orderRecordCount" data-i18n="ecommerce_sync_loading">Đang tải...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
-                <table class="custom-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sàn</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody id="orderTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải...</td></tr></tbody>
+                <table class="custom-table"><thead><tr><th data-i18n="ecommerce_sync_th_order_id">Mã đơn</th><th data-i18n="ecommerce_sync_th_customer">Khách hàng</th><th data-i18n="ecommerce_sync_th_platform">Sàn</th><th data-i18n="ecommerce_sync_th_total">Tổng tiền</th><th data-i18n="ecommerce_sync_th_status">Trạng thái</th><th data-i18n="ecommerce_sync_th_time">Thời gian</th><th data-i18n="ecommerce_sync_th_action">Thao tác</th></tr></thead><tbody id="orderTableBody"><tr><td colspan="7" class="text-center py-10 text-gray-500" data-i18n="ecommerce_sync_loading2">Đang tải...</td></tr></tbody>
                 </table>
                 </div>
             </div>
@@ -157,26 +160,26 @@
 
         <!-- Biểu đồ & log -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Đơn hàng theo sàn</h3><canvas id="platformChart" height="200" style="max-height: 200px;"></canvas></div>
-            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-history mr-2"></i> Nhật ký đồng bộ</h3><div id="syncLog" class="h-48 overflow-y-auto text-xs space-y-1 font-mono text-gray-400"></div></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="ecommerce_sync_chart_heading">Đơn hàng theo sàn</span></h3><canvas id="platformChart" height="200" style="max-height: 200px;"></canvas></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-history mr-2"></i> <span data-i18n="ecommerce_sync_log_heading">Nhật ký đồng bộ</span></h3><div id="syncLog" class="h-48 overflow-y-auto text-xs space-y-1 font-mono text-gray-400"></div></div>
         </div>
 
         <!-- CSKH Widget đầy đủ (thêm mới) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
             <div class="cskh-widget">
-                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> Gửi yêu cầu hỗ trợ</h3>
+                <h3 class="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots"></i> <span data-i18n="ecommerce_sync_support_heading">Gửi yêu cầu hỗ trợ</span></h3>
                 <form id="supportForm" class="space-y-2">
-                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required>
-                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required>
-                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required></textarea>
-                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition">Gửi yêu cầu</button>
+                    <input type="text" id="supportName" placeholder="Tên của bạn" class="glass-input-sm" required data-i18n-placeholder="ecommerce_sync_placeholder_name">
+                    <input type="text" id="supportPhone" placeholder="Số điện thoại / Zalo" class="glass-input-sm" required data-i18n-placeholder="ecommerce_sync_placeholder_phone">
+                    <textarea id="supportMessage" rows="2" placeholder="Nội dung cần hỗ trợ..." class="glass-input-sm" required data-i18n-placeholder="ecommerce_sync_placeholder_message"></textarea>
+                    <button type="submit" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-sm transition" data-i18n="ecommerce_sync_submit_btn">Gửi yêu cầu</button>
                 </form>
                 <div id="supportStatus" class="text-xs text-center mt-2 text-gray-400"></div>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="ecommerce_sync_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -234,11 +237,11 @@
 
                 document.getElementById('syncOrderCount').innerText = syncOrders.length;
                 document.getElementById('syncProductCount').innerText = syncProducts.length;
-                document.getElementById('orderRecordCount').innerText = `Tổng: ${syncOrders.length} đơn`;
+                document.getElementById('orderRecordCount').innerText = tf('ecommerce_sync_record_count', { count: syncOrders.length });
 
                 const tbody = document.getElementById('orderTableBody');
                 if (syncOrders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Chưa có đơn hàng từ sàn</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-500">${t('ecommerce_sync_no_orders')}</td></tr>`;
                 } else {
                     tbody.innerHTML = syncOrders.map(o => `
                         <tr>
@@ -246,12 +249,12 @@
                             <td>${o.customer_name || 'N/A'}</td>
                             <td><span class="platform-badge ${o.platform.toLowerCase()}">${o.platform}</span></td>
                             <td class="font-mono text-emerald-400">${(o.amount || 0).toLocaleString('vi-VN')}₫</td>
-                            <td>${o.status === 'pending' ? '<span class="text-yellow-400">Chờ xử lý</span>' : '<span class="text-emerald-400">Đã hoàn thành</span>'}</td>
+                            <td>${o.status === 'pending' ? `<span class="text-yellow-400">${t('ecommerce_sync_status_pending')}</span>` : `<span class="text-emerald-400">${t('ecommerce_sync_status_completed')}</span>`}</td>
                             <td class="text-xs text-gray-400">${new Date(o.created_at).toLocaleString()}</td>
-                            <td><button class="text-cyan-400 hover:text-cyan-300 text-sm view-order" data-id="${o.id}"><i class="fas fa-eye"></i> Xem</button></td>
+                            <td><button class="text-cyan-400 hover:text-cyan-300 text-sm view-order" data-id="${o.id}"><i class="fas fa-eye"></i> ${t('ecommerce_sync_view_btn')}</button></td>
                         </tr>
                     `).join('');
-                    document.querySelectorAll('.view-order').forEach(btn => btn.addEventListener('click', () => showToast(`Xem chi tiết đơn ${btn.getAttribute('data-id')}`)));
+                    document.querySelectorAll('.view-order').forEach(btn => btn.addEventListener('click', () => showToast(tf('ecommerce_sync_toast_view_order', { id: btn.getAttribute('data-id') }))));
                 }
 
                 const platformCount = { Shopee:0, TikTok:0, Lazada:0 };
@@ -265,7 +268,7 @@
                 });
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi tải dữ liệu: ' + err.message, true);
+                showToast(t('ecommerce_sync_toast_load_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -278,7 +281,7 @@
 
         async function syncAll(platformsList, type = 'all') {
             showLoading(true);
-            addLog(`Bắt đầu đồng bộ ${type === 'all' ? 'tất cả' : type}...`);
+            addLog(tf('ecommerce_sync_log_start', { type: type === 'all' ? t('ecommerce_sync_all_word') : type }));
             try {
                 // Ghi vào hàng đợi đồng bộ
                 for (const platform of platformsList) {
@@ -287,16 +290,16 @@
                 }
                 // Giả lập đồng bộ (thực tế sẽ có worker xử lý)
                 setTimeout(() => {
-                    addLog('Đồng bộ sản phẩm: ' + syncProducts.length + ' sản phẩm được cập nhật');
-                    addLog('Đồng bộ đơn hàng: ' + syncOrders.length + ' đơn hàng mới');
+                    addLog(tf('ecommerce_sync_log_products', { count: syncProducts.length }));
+                    addLog(tf('ecommerce_sync_log_orders', { count: syncOrders.length }));
                     document.getElementById('lastSyncTime').innerText = new Date().toLocaleString();
-                    showToast('Đồng bộ hoàn tất!');
+                    showToast(t('ecommerce_sync_toast_sync_complete'));
                     loadSyncData(); // reload
                     showLoading(false);
                 }, 1500);
             } catch (err) {
-                addLog('Lỗi: ' + err.message);
-                showToast('Lỗi đồng bộ: ' + err.message, true);
+                addLog(t('ecommerce_sync_toast_error_prefix') + err.message);
+                showToast(t('ecommerce_sync_toast_sync_error_prefix') + err.message, true);
                 showLoading(false);
             }
         }
@@ -319,15 +322,15 @@
                     key = document.getElementById('lazadaKey').value;
                     secret = document.getElementById('lazadaSecret').value;
                 }
-                if (!key || !secret) { showToast('Vui lòng nhập API Key và Secret', true); return; }
+                if (!key || !secret) { showToast(t('ecommerce_sync_toast_missing_keys'), true); return; }
                 showLoading(true);
                 try {
                     await saveConnection(platform, key, secret);
-                    addLog(`Kết nối ${platform} thành công!`);
-                    showToast(`Đã kết nối ${platform}`);
-                    document.getElementById(`${platform.toLowerCase()}Status`).innerText = 'Đã kết nối';
+                    addLog(tf('ecommerce_sync_log_connected', { platform }));
+                    showToast(tf('ecommerce_sync_toast_connected', { platform }));
+                    document.getElementById(`${platform.toLowerCase()}Status`).innerText = t('ecommerce_sync_status_connected');
                 } catch (err) {
-                    showToast('Lỗi kết nối: ' + err.message, true);
+                    showToast(t('ecommerce_sync_toast_connect_error_prefix') + err.message, true);
                 } finally {
                     showLoading(false);
                 }
@@ -347,16 +350,164 @@
         supportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('supportName').value, phone = document.getElementById('supportPhone').value, message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            if (!name || !phone || !message) { showToast(t('ecommerce_sync_toast_fill_all'), true); return; }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(`✅ ${t('ecommerce_sync_toast_request_sent')}`);
                 supportForm.reset();
-            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            } catch(err) { showToast(t('ecommerce_sync_toast_error_prefix2') + err.message, true); }
             finally { showLoading(false); }
         });
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                ecommerce_sync_header_suffix: '| Đồng bộ đa sàn',
+                ecommerce_sync_header_subtitle: 'Shopee, TikTok Shop, Lazada | Tự động cập nhật đơn & tồn kho',
+                ecommerce_sync_home: 'Trang chủ',
+                ecommerce_sync_connect_heading: 'Kết nối sàn thương mại điện tử',
+                ecommerce_sync_status_disconnected: 'Chưa kết nối',
+                ecommerce_sync_connect_btn1: 'Kết nối',
+                ecommerce_sync_status_disconnected2: 'Chưa kết nối',
+                ecommerce_sync_connect_btn2: 'Kết nối',
+                ecommerce_sync_status_disconnected3: 'Chưa kết nối',
+                ecommerce_sync_connect_btn3: 'Kết nối',
+                ecommerce_sync_sync_all_btn: 'Đồng bộ tất cả',
+                ecommerce_sync_sync_products_btn: 'Đồng bộ sản phẩm',
+                ecommerce_sync_sync_orders_btn: 'Đồng bộ đơn hàng',
+                ecommerce_sync_stat_orders: 'Đơn hàng từ sàn',
+                ecommerce_sync_stat_products: 'Sản phẩm đã đồng bộ',
+                ecommerce_sync_stat_last_sync: 'Đồng bộ lần cuối',
+                ecommerce_sync_no_sync_yet: 'Chưa có',
+                ecommerce_sync_orders_heading: 'Đơn hàng từ sàn TMĐT',
+                ecommerce_sync_loading: 'Đang tải...',
+                ecommerce_sync_loading2: 'Đang tải...',
+                ecommerce_sync_th_order_id: 'Mã đơn',
+                ecommerce_sync_th_customer: 'Khách hàng',
+                ecommerce_sync_th_platform: 'Sàn',
+                ecommerce_sync_th_total: 'Tổng tiền',
+                ecommerce_sync_th_status: 'Trạng thái',
+                ecommerce_sync_th_time: 'Thời gian',
+                ecommerce_sync_th_action: 'Thao tác',
+                ecommerce_sync_chart_heading: 'Đơn hàng theo sàn',
+                ecommerce_sync_log_heading: 'Nhật ký đồng bộ',
+                ecommerce_sync_support_heading: 'Gửi yêu cầu hỗ trợ',
+                ecommerce_sync_placeholder_name: 'Tên của bạn',
+                ecommerce_sync_placeholder_phone: 'Số điện thoại / Zalo',
+                ecommerce_sync_placeholder_message: 'Nội dung cần hỗ trợ...',
+                ecommerce_sync_submit_btn: 'Gửi yêu cầu',
+                ecommerce_sync_processing: 'Đang xử lý...',
+                ecommerce_sync_record_count: 'Tổng: {count} đơn',
+                ecommerce_sync_no_orders: 'Chưa có đơn hàng từ sàn',
+                ecommerce_sync_status_pending: 'Chờ xử lý',
+                ecommerce_sync_status_completed: 'Đã hoàn thành',
+                ecommerce_sync_view_btn: 'Xem',
+                ecommerce_sync_toast_view_order: 'Xem chi tiết đơn {id}',
+                ecommerce_sync_toast_load_error_prefix: 'Lỗi tải dữ liệu: ',
+                ecommerce_sync_log_start: 'Bắt đầu đồng bộ {type}...',
+                ecommerce_sync_all_word: 'tất cả',
+                ecommerce_sync_log_products: 'Đồng bộ sản phẩm: {count} sản phẩm được cập nhật',
+                ecommerce_sync_log_orders: 'Đồng bộ đơn hàng: {count} đơn hàng mới',
+                ecommerce_sync_toast_sync_complete: 'Đồng bộ hoàn tất!',
+                ecommerce_sync_toast_error_prefix: 'Lỗi: ',
+                ecommerce_sync_toast_sync_error_prefix: 'Lỗi đồng bộ: ',
+                ecommerce_sync_toast_missing_keys: 'Vui lòng nhập API Key và Secret',
+                ecommerce_sync_log_connected: 'Kết nối {platform} thành công!',
+                ecommerce_sync_toast_connected: 'Đã kết nối {platform}',
+                ecommerce_sync_status_connected: 'Đã kết nối',
+                ecommerce_sync_toast_connect_error_prefix: 'Lỗi kết nối: ',
+                ecommerce_sync_toast_fill_all: 'Vui lòng nhập đầy đủ',
+                ecommerce_sync_toast_request_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                ecommerce_sync_toast_error_prefix2: 'Lỗi: '
+            },
+            en: {
+                ecommerce_sync_header_suffix: '| Marketplace Sync',
+                ecommerce_sync_header_subtitle: 'Shopee, TikTok Shop, Lazada | Auto-sync orders & inventory',
+                ecommerce_sync_home: 'Home',
+                ecommerce_sync_connect_heading: 'Connect E-commerce Marketplaces',
+                ecommerce_sync_status_disconnected: 'Not connected',
+                ecommerce_sync_connect_btn1: 'Connect',
+                ecommerce_sync_status_disconnected2: 'Not connected',
+                ecommerce_sync_connect_btn2: 'Connect',
+                ecommerce_sync_status_disconnected3: 'Not connected',
+                ecommerce_sync_connect_btn3: 'Connect',
+                ecommerce_sync_sync_all_btn: 'Sync All',
+                ecommerce_sync_sync_products_btn: 'Sync Products',
+                ecommerce_sync_sync_orders_btn: 'Sync Orders',
+                ecommerce_sync_stat_orders: 'Orders from Marketplaces',
+                ecommerce_sync_stat_products: 'Products Synced',
+                ecommerce_sync_stat_last_sync: 'Last Sync',
+                ecommerce_sync_no_sync_yet: 'Not yet',
+                ecommerce_sync_orders_heading: 'Marketplace Orders',
+                ecommerce_sync_loading: 'Loading...',
+                ecommerce_sync_loading2: 'Loading...',
+                ecommerce_sync_th_order_id: 'Order ID',
+                ecommerce_sync_th_customer: 'Customer',
+                ecommerce_sync_th_platform: 'Platform',
+                ecommerce_sync_th_total: 'Total',
+                ecommerce_sync_th_status: 'Status',
+                ecommerce_sync_th_time: 'Time',
+                ecommerce_sync_th_action: 'Action',
+                ecommerce_sync_chart_heading: 'Orders by Platform',
+                ecommerce_sync_log_heading: 'Sync Log',
+                ecommerce_sync_support_heading: 'Send a Support Request',
+                ecommerce_sync_placeholder_name: 'Your name',
+                ecommerce_sync_placeholder_phone: 'Phone / Zalo number',
+                ecommerce_sync_placeholder_message: 'What do you need help with...',
+                ecommerce_sync_submit_btn: 'Send Request',
+                ecommerce_sync_processing: 'Processing...',
+                ecommerce_sync_record_count: 'Total: {count} orders',
+                ecommerce_sync_no_orders: 'No orders from marketplaces yet',
+                ecommerce_sync_status_pending: 'Pending',
+                ecommerce_sync_status_completed: 'Completed',
+                ecommerce_sync_view_btn: 'View',
+                ecommerce_sync_toast_view_order: 'Viewing order details {id}',
+                ecommerce_sync_toast_load_error_prefix: 'Error loading data: ',
+                ecommerce_sync_log_start: 'Starting sync for {type}...',
+                ecommerce_sync_all_word: 'all',
+                ecommerce_sync_log_products: 'Product sync: {count} products updated',
+                ecommerce_sync_log_orders: 'Order sync: {count} new orders',
+                ecommerce_sync_toast_sync_complete: 'Sync complete!',
+                ecommerce_sync_toast_error_prefix: 'Error: ',
+                ecommerce_sync_toast_sync_error_prefix: 'Sync error: ',
+                ecommerce_sync_toast_missing_keys: 'Please enter the API Key and Secret',
+                ecommerce_sync_log_connected: '{platform} connected successfully!',
+                ecommerce_sync_toast_connected: '{platform} connected',
+                ecommerce_sync_status_connected: 'Connected',
+                ecommerce_sync_toast_connect_error_prefix: 'Connection error: ',
+                ecommerce_sync_toast_fill_all: 'Please fill in all information',
+                ecommerce_sync_toast_request_sent: 'Request sent! We will contact you within 15 minutes.',
+                ecommerce_sync_toast_error_prefix2: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            loadSyncData();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         supabaseReady.then(() => loadSyncData());
 
@@ -402,10 +553,10 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                const elapsed = clock.getElapsedTime();
+                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

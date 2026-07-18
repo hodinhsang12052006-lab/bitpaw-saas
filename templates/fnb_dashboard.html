@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -314,20 +314,21 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-                        Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg font-medium">| Module Dịch Vụ</span>
+                        Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg font-medium" data-i18n="fnb_dashboard_header_suffix">| Module Dịch Vụ</span>
                     </h1>
-                    <p class="text-sm text-gray-400">Lựa chọn phân hệ tương ứng với nghiệp vụ cửa hàng</p>
+                    <p class="text-sm text-gray-400" data-i18n="fnb_dashboard_header_subtitle">Lựa chọn phân hệ tương ứng với nghiệp vụ cửa hàng</p>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 items-center">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
                 <a href="{{ url_for('report') }}" class="btn-cyan text-sm">
-                    <i class="fas fa-chart-line"></i> Báo cáo doanh thu
+                    <i class="fas fa-chart-line"></i> <span data-i18n="fnb_dashboard_revenue_report">Báo cáo doanh thu</span>
                 </a>
                 <a href="{{ url_for('setup') }}" class="btn-outline text-sm">
-                    <i class="fas fa-sliders-h"></i> Đổi mô hình
+                    <i class="fas fa-sliders-h"></i> <span data-i18n="fnb_dashboard_change_model">Đổi mô hình</span>
                 </a>
                 <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-sm font-semibold transition">
-                    <i class="fas fa-home"></i> Dashboard
+                    <i class="fas fa-home"></i> <span data-i18n="fnb_dashboard_dashboard_link">Dashboard</span>
                 </a>
             </div>
         </div>
@@ -339,10 +340,10 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-4xl text-cyan-400 transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]">
                     🍻
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2">Quán Nhậu & Cafe</h3>
-                <p class="text-sm text-gray-400">Quản lý sơ đồ bàn, order món, in bill và tạm tính tiền theo giờ.</p>
+                <h3 class="text-xl font-bold text-white mb-2" data-i18n="fnb_dashboard_card_bar_title">Quán Nhậu & Cafe</h3>
+                <p class="text-sm text-gray-400" data-i18n="fnb_dashboard_card_bar_desc">Quản lý sơ đồ bàn, order món, in bill và tạm tính tiền theo giờ.</p>
                 <div class="mt-4 inline-block text-xs text-cyan-400 font-semibold bg-white/5 px-3 py-1 rounded-full border border-cyan-500/30">
-                    <i class="fas fa-arrow-right mr-1"></i> Truy cập
+                    <i class="fas fa-arrow-right mr-1"></i> <span data-i18n="fnb_dashboard_access">Truy cập</span>
                 </div>
             </a>
 
@@ -351,10 +352,10 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-pink-500/20 flex items-center justify-center text-4xl text-pink-400 transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(232,121,249,0.4)]">
                     🌸
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2">Spa & Beauty</h3>
-                <p class="text-sm text-gray-400">Quản lý liệu trình, hoa hồng kỹ thuật viên, đặt lịch khách hàng.</p>
+                <h3 class="text-xl font-bold text-white mb-2" data-i18n="fnb_dashboard_card_spa_title">Spa & Beauty</h3>
+                <p class="text-sm text-gray-400" data-i18n="fnb_dashboard_card_spa_desc">Quản lý liệu trình, hoa hồng kỹ thuật viên, đặt lịch khách hàng.</p>
                 <div class="mt-4 inline-block text-xs text-pink-400 font-semibold bg-white/5 px-3 py-1 rounded-full border border-pink-500/30">
-                    <i class="fas fa-arrow-right mr-1"></i> Truy cập
+                    <i class="fas fa-arrow-right mr-1"></i> <span data-i18n="fnb_dashboard_access2">Truy cập</span>
                 </div>
             </a>
 
@@ -363,10 +364,10 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-blue-500/20 flex items-center justify-center text-4xl text-blue-400 transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]">
                     🏨
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2">Khách Sạn & Homestay</h3>
-                <p class="text-sm text-gray-400">Quản lý phòng trống, check-in, check-out, dịch vụ phòng.</p>
+                <h3 class="text-xl font-bold text-white mb-2" data-i18n="fnb_dashboard_card_hotel_title">Khách Sạn & Homestay</h3>
+                <p class="text-sm text-gray-400" data-i18n="fnb_dashboard_card_hotel_desc">Quản lý phòng trống, check-in, check-out, dịch vụ phòng.</p>
                 <div class="mt-4 inline-block text-xs text-gray-400 font-semibold bg-white/5 px-3 py-1 rounded-full border border-gray-500/30">
-                    <i class="fas fa-clock mr-1"></i> Sắp ra mắt
+                    <i class="fas fa-clock mr-1"></i> <span data-i18n="fnb_dashboard_coming_soon">Sắp ra mắt</span>
                 </div>
             </div>
 
@@ -375,17 +376,17 @@
                 <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-4xl text-emerald-400 transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]">
                     🎤
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2">Karaoke & Bida</h3>
-                <p class="text-sm text-gray-400">Tính tiền tự động theo block giờ, quản lý menu đồ ăn kèm.</p>
+                <h3 class="text-xl font-bold text-white mb-2" data-i18n="fnb_dashboard_card_karaoke_title">Karaoke & Bida</h3>
+                <p class="text-sm text-gray-400" data-i18n="fnb_dashboard_card_karaoke_desc">Tính tiền tự động theo block giờ, quản lý menu đồ ăn kèm.</p>
                 <div class="mt-4 inline-block text-xs text-emerald-400 font-semibold bg-white/5 px-3 py-1 rounded-full border border-emerald-500/30">
-                    <i class="fas fa-arrow-right mr-1"></i> Truy cập
+                    <i class="fas fa-arrow-right mr-1"></i> <span data-i18n="fnb_dashboard_access3">Truy cập</span>
                 </div>
             </a>
         </div>
 
         <!-- Footer nhỏ -->
         <div class="text-center text-xs text-gray-600 mt-10">
-            <i class="fas fa-shield-alt"></i> Secured by BitPaw OS | Hệ thống quản lý đa ngành
+            <i class="fas fa-shield-alt"></i> <span data-i18n="fnb_dashboard_footer">Secured by BitPaw OS | Hệ thống quản lý đa ngành</span>
         </div>
     </div>
 
@@ -393,13 +394,13 @@
     <div id="comingSoonModal" class="modal-overlay" onclick="hideComingSoonModal()">
         <div class="modal-container" onclick="event.stopPropagation()">
             <i class="fas fa-tools"></i>
-            <h3>Đang phát triển</h3>
-            <p>Module Khách Sạn & Homestay sẽ sớm ra mắt!<br>Cảm ơn bạn đã quan tâm.</p>
-            <button onclick="hideComingSoonModal()">Đã hiểu</button>
+            <h3 data-i18n="fnb_dashboard_modal_title">Đang phát triển</h3>
+            <p data-i18n="fnb_dashboard_modal_desc">Module Khách Sạn & Homestay sẽ sớm ra mắt!<br>Cảm ơn bạn đã quan tâm.</p>
+            <button onclick="hideComingSoonModal()" data-i18n="fnb_dashboard_modal_btn">Đã hiểu</button>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="fnb_dashboard_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -455,17 +456,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('fnb_dashboard_toast_fill_all'), true);
                 return;
             }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(`✅ ${t('fnb_dashboard_toast_request_sent')}`);
                 supportForm.reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('fnb_dashboard_toast_error_prefix') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -481,6 +482,89 @@
         }
         window.showComingSoonModal = showComingSoonModal;
         window.hideComingSoonModal = hideComingSoonModal;
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                fnb_dashboard_header_suffix: '| Module Dịch Vụ',
+                fnb_dashboard_header_subtitle: 'Lựa chọn phân hệ tương ứng với nghiệp vụ cửa hàng',
+                fnb_dashboard_revenue_report: 'Báo cáo doanh thu',
+                fnb_dashboard_change_model: 'Đổi mô hình',
+                fnb_dashboard_dashboard_link: 'Dashboard',
+                fnb_dashboard_card_bar_title: 'Quán Nhậu & Cafe',
+                fnb_dashboard_card_bar_desc: 'Quản lý sơ đồ bàn, order món, in bill và tạm tính tiền theo giờ.',
+                fnb_dashboard_access: 'Truy cập',
+                fnb_dashboard_card_spa_title: 'Spa & Beauty',
+                fnb_dashboard_card_spa_desc: 'Quản lý liệu trình, hoa hồng kỹ thuật viên, đặt lịch khách hàng.',
+                fnb_dashboard_access2: 'Truy cập',
+                fnb_dashboard_card_hotel_title: 'Khách Sạn & Homestay',
+                fnb_dashboard_card_hotel_desc: 'Quản lý phòng trống, check-in, check-out, dịch vụ phòng.',
+                fnb_dashboard_coming_soon: 'Sắp ra mắt',
+                fnb_dashboard_card_karaoke_title: 'Karaoke & Bida',
+                fnb_dashboard_card_karaoke_desc: 'Tính tiền tự động theo block giờ, quản lý menu đồ ăn kèm.',
+                fnb_dashboard_access3: 'Truy cập',
+                fnb_dashboard_footer: 'Secured by BitPaw OS | Hệ thống quản lý đa ngành',
+                fnb_dashboard_modal_title: 'Đang phát triển',
+                fnb_dashboard_modal_desc: 'Module Khách Sạn & Homestay sẽ sớm ra mắt!<br>Cảm ơn bạn đã quan tâm.',
+                fnb_dashboard_modal_btn: 'Đã hiểu',
+                fnb_dashboard_processing: 'Đang xử lý...',
+                fnb_dashboard_toast_fill_all: 'Vui lòng nhập đầy đủ thông tin',
+                fnb_dashboard_toast_request_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                fnb_dashboard_toast_error_prefix: 'Lỗi: '
+            },
+            en: {
+                fnb_dashboard_header_suffix: '| Services Module',
+                fnb_dashboard_header_subtitle: 'Select the module matching your business operations',
+                fnb_dashboard_revenue_report: 'Revenue Report',
+                fnb_dashboard_change_model: 'Change Model',
+                fnb_dashboard_dashboard_link: 'Dashboard',
+                fnb_dashboard_card_bar_title: 'Bar & Cafe',
+                fnb_dashboard_card_bar_desc: 'Manage table layouts, order items, print bills and calculate hourly charges.',
+                fnb_dashboard_access: 'Access',
+                fnb_dashboard_card_spa_title: 'Spa & Beauty',
+                fnb_dashboard_card_spa_desc: 'Manage treatments, technician commissions, and customer bookings.',
+                fnb_dashboard_access2: 'Access',
+                fnb_dashboard_card_hotel_title: 'Hotel & Homestay',
+                fnb_dashboard_card_hotel_desc: 'Manage room availability, check-in, check-out, and room service.',
+                fnb_dashboard_coming_soon: 'Coming Soon',
+                fnb_dashboard_card_karaoke_title: 'Karaoke & Billiards',
+                fnb_dashboard_card_karaoke_desc: 'Auto-charge by time block, manage the accompanying food menu.',
+                fnb_dashboard_access3: 'Access',
+                fnb_dashboard_footer: 'Secured by BitPaw OS | Multi-industry management system',
+                fnb_dashboard_modal_title: 'In Development',
+                fnb_dashboard_modal_desc: 'The Hotel & Homestay module is coming soon!<br>Thank you for your interest.',
+                fnb_dashboard_modal_btn: 'Got it',
+                fnb_dashboard_processing: 'Processing...',
+                fnb_dashboard_toast_fill_all: 'Please fill in all information',
+                fnb_dashboard_toast_request_sent: 'Request sent! We will contact you within 15 minutes.',
+                fnb_dashboard_toast_error_prefix: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
 
         // 3D Background (giữ nguyên)
         (function init3D() {
@@ -536,11 +620,11 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.03) % 1;
+                const elapsed = clock.getElapsedTime();
+                const hue = (elapsed * 0.03) % 1;
                 material.color.setHSL(hue, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

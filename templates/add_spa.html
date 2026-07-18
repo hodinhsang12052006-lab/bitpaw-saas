@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Thêm Liệu Trình Spa - BitPaw OS</title>
+    <title>Add Spa Treatment - BitPaw OS</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -177,25 +177,26 @@
                 <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
             </div>
             <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-fuchsia-400">Paw</span></h1>
-            <p class="text-xs text-gray-400 mt-1">Quản lý liệu trình spa chuyên nghiệp</p>
+            <p class="text-xs text-gray-400 mt-1" data-i18n="addspa_tagline">Professional spa treatment management</p>
+            <button id="langToggleBtn" type="button" class="mt-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
         </div>
 
         <div class="glass-panel rounded-3xl p-6 sm:p-8">
             <div class="text-center mb-6">
                 <h2 class="text-xl font-bold text-fuchsia-400 flex items-center justify-center gap-2">
-                    <i class="fas fa-spa"></i> Thêm Liệu Trình Mới
+                    <i class="fas fa-spa"></i> <span data-i18n="addspa_title">Add New Treatment</span>
                 </h2>
-                <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest">Setup dịch vụ chuyên nghiệp cho Spa</p>
+                <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest" data-i18n="addspa_subtitle">Set up a professional Spa service</p>
             </div>
 
             <form id="spaForm" enctype="multipart/form-data" class="space-y-5">
-                <!-- Preview ảnh -->
+                <!-- Image preview -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Hình ảnh mô tả (Tuỳ chọn)</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_image">Description Image (Optional)</label>
                     <div class="flex items-center gap-4">
                         <div class="flex-1 glass-input file-label border-dashed border-2 hover:border-fuchsia-400 transition-colors flex items-center gap-2">
                             <i class="fas fa-camera text-gray-500"></i>
-                            <span id="fileName" class="text-gray-400 text-sm">Chưa có ảnh</span>
+                            <span id="fileName" class="text-gray-400 text-sm" data-i18n="addspa_no_image">No image selected</span>
                             <input type="file" id="imageInput" name="image" accept="image/*" class="hidden">
                         </div>
                         <div class="w-16 h-16 flex-shrink-0 bg-black/30 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden">
@@ -205,34 +206,34 @@
                     </div>
                 </div>
 
-                <!-- Tên liệu trình -->
+                <!-- Treatment name -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Tên Liệu Trình / Gói Dịch Vụ</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_name">Treatment / Service Package Name</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-leaf text-fuchsia-500/70 text-sm"></i></div>
-                        <input type="text" name="name" id="spaName" required placeholder="VD: Gội Đầu Dưỡng Sinh 60p..." class="glass-input pl-11">
+                        <input type="text" name="name" id="spaName" required placeholder="E.g.: Therapeutic Hair Wash 60min..." data-i18n-placeholder="addspa_placeholder_name" class="glass-input pl-11">
                     </div>
                 </div>
 
-                <!-- Danh mục liệu trình -->
+                <!-- Treatment category -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Danh mục liệu trình</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_category">Treatment category</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-tags text-gray-500 text-sm"></i></div>
                         <select name="category" id="spaCategory" class="glass-select pl-11 appearance-none cursor-pointer">
-                            <option value="Chăm sóc da mặt">✨ Chăm sóc da mặt</option>
-                            <option value="Massage cơ thể">💆 Massage cơ thể</option>
-                            <option value="Chăm sóc tóc">💇 Chăm sóc tóc</option>
-                            <option value="Liệu trình đặc biệt">🌿 Liệu trình đặc biệt</option>
-                            <option value="Combo tiết kiệm">🎁 Combo tiết kiệm</option>
+                            <option value="Chăm sóc da mặt" data-i18n="addspa_opt_facial">✨ Facial care</option>
+                            <option value="Massage cơ thể" data-i18n="addspa_opt_massage">💆 Body massage</option>
+                            <option value="Chăm sóc tóc" data-i18n="addspa_opt_hair">💇 Hair care</option>
+                            <option value="Liệu trình đặc biệt" data-i18n="addspa_opt_special">🌿 Special treatment</option>
+                            <option value="Combo tiết kiệm" data-i18n="addspa_opt_combo">🎁 Value combo</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><i class="fas fa-chevron-down text-fuchsia-500 text-xs"></i></div>
                     </div>
                 </div>
 
-                <!-- Giá dịch vụ có format -->
+                <!-- Formatted service price -->
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Giá dịch vụ (VNĐ)</label>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_price">Service Price (VND)</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-money-bill-wave text-gray-500 text-sm"></i></div>
                         <input type="text" id="priceDisplay" placeholder="0" class="glass-input pl-11 font-mono text-fuchsia-300 text-right">
@@ -241,14 +242,14 @@
                     </div>
                 </div>
 
-                <!-- Nút submit -->
+                <!-- Submit button -->
                 <div class="pt-4 space-y-3">
                     <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-fuchsia-500 to-pink-600 hover:from-fuchsia-400 hover:to-pink-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(232,121,249,0.4)] hover:shadow-[0_0_25px_rgba(232,121,249,0.6)] hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                        <i class="fas fa-magic"></i> Lưu Liệu Trình
+                        <i class="fas fa-magic"></i> <span data-i18n="addspa_btn_save">Save Treatment</span>
                     </button>
-                    
+
                     <a href="{{ url_for('spa') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-pink-400 hover:text-pink-300 font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
-                        <i class="fas fa-arrow-left"></i> Quay lại Danh sách
+                        <i class="fas fa-arrow-left"></i> <span data-i18n="addspa_btn_back">Back to List</span>
                     </a>
                 </div>
             </form>
@@ -256,27 +257,101 @@
 
     </div>
 
-    <div id="toast" class="toast">Thông báo</div>
+    <div id="toast" class="toast">Notification</div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
+        // ========== i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                addspa_tagline: 'Quản lý dịch vụ Spa chuyên nghiệp',
+                addspa_title: 'Thêm Liệu Trình Mới',
+                addspa_subtitle: 'Thiết lập một dịch vụ Spa chuyên nghiệp',
+                addspa_label_image: 'Hình ảnh minh họa (Không bắt buộc)',
+                addspa_no_image: 'Chưa chọn hình ảnh',
+                addspa_label_name: 'Tên Liệu Trình / Gói Dịch Vụ',
+                addspa_placeholder_name: 'VD: Gội đầu dưỡng sinh 60 phút...',
+                addspa_label_category: 'Danh mục liệu trình',
+                addspa_opt_facial: '✨ Chăm sóc da mặt',
+                addspa_opt_massage: '💆 Massage cơ thể',
+                addspa_opt_hair: '💇 Chăm sóc tóc',
+                addspa_opt_special: '🌿 Liệu trình đặc biệt',
+                addspa_opt_combo: '🎁 Combo tiết kiệm',
+                addspa_label_price: 'Giá Dịch Vụ (VNĐ)',
+                addspa_btn_save: 'Lưu Liệu Trình',
+                addspa_btn_saving: 'Đang lưu...',
+                addspa_btn_back: 'Quay Lại Danh Sách',
+                addspa_toast_no_name: 'Vui lòng nhập tên liệu trình',
+                addspa_toast_invalid_price: 'Vui lòng nhập giá hợp lệ',
+                addspa_toast_upload_error_prefix: 'Lỗi tải ảnh lên: ',
+                addspa_toast_success: '✅ Thêm liệu trình thành công!',
+                addspa_toast_error_prefix: '❌ Lỗi: ',
+                addspa_console_token_error: 'Không lấy được tenant token:',
+                addspa_console_supabase_token_error: 'Lỗi khi gọi /api/session/supabase_token:'
+            },
+            en: {
+                addspa_tagline: 'Professional spa treatment management',
+                addspa_title: 'Add New Treatment',
+                addspa_subtitle: 'Set up a professional Spa service',
+                addspa_label_image: 'Description Image (Optional)',
+                addspa_no_image: 'No image selected',
+                addspa_label_name: 'Treatment / Service Package Name',
+                addspa_placeholder_name: 'E.g.: Therapeutic Hair Wash 60min...',
+                addspa_label_category: 'Treatment category',
+                addspa_opt_facial: '✨ Facial care',
+                addspa_opt_massage: '💆 Body massage',
+                addspa_opt_hair: '💇 Hair care',
+                addspa_opt_special: '🌿 Special treatment',
+                addspa_opt_combo: '🎁 Value combo',
+                addspa_label_price: 'Service Price (VND)',
+                addspa_btn_save: 'Save Treatment',
+                addspa_btn_saving: 'Saving...',
+                addspa_btn_back: 'Back to List',
+                addspa_toast_no_name: 'Please enter a treatment name',
+                addspa_toast_invalid_price: 'Please enter a valid price',
+                addspa_toast_upload_error_prefix: 'Image upload error: ',
+                addspa_toast_success: '✅ Treatment added successfully!',
+                addspa_toast_error_prefix: '❌ Error: ',
+                addspa_console_token_error: 'Failed to get tenant token:',
+                addspa_console_supabase_token_error: 'Error calling /api/session/supabase_token:'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========== SUPABASE CONFIG ==========
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
         const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
             .then(res => res.json())
             .then(json => {
                 if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
+                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
                 } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
+                    console.error(t('addspa_console_token_error'), json && json.error);
                 }
-                return supabase;
+                return supabaseClient;
             })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+            .catch(e => { console.error(t('addspa_console_supabase_token_error'), e); return supabaseClient; });
         const STORAGE_BUCKET = 'product_images';
 
         // DOM elements
@@ -303,7 +378,7 @@
                 };
                 reader.readAsDataURL(file);
             } else {
-                fileNameSpan.innerText = 'Chưa có ảnh';
+                fileNameSpan.innerText = t('addspa_no_image');
                 previewImg.classList.add('hidden');
                 previewPlaceholder.classList.remove('hidden');
                 previewImg.src = '';
@@ -335,7 +410,7 @@
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `spa/${fileName}`;
-            const { data, error } = await supabase.storage
+            const { data, error } = await supabaseClient.storage
                 .from(STORAGE_BUCKET)
                 .upload(filePath, file, {
                     cacheControl: '3600',
@@ -343,10 +418,10 @@
                 });
             if (error) {
                 console.error('Upload error:', error);
-                showToast('Lỗi upload ảnh: ' + error.message, true);
+                showToast(t('addspa_toast_upload_error_prefix') + error.message, true);
                 return null;
             }
-            const { data: publicUrl } = supabase.storage
+            const { data: publicUrl } = supabaseClient.storage
                 .from(STORAGE_BUCKET)
                 .getPublicUrl(filePath);
             return publicUrl.publicUrl;
@@ -356,9 +431,9 @@
         async function trackCSKHClick(channel) {
             // Lấy user hiện tại nếu có (có thể dùng auth, nhưng ở đây tùy chọn)
             try {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
+                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
                 } else {
                     // Nếu chưa login, lưu anonymous (có thể bỏ qua)
                     console.log('Anonymous click tracked:', channel);
@@ -375,50 +450,50 @@
             
             const name = document.getElementById('spaName').value.trim();
             if (!name) {
-                showToast('Vui lòng nhập tên liệu trình', true);
+                showToast(t('addspa_toast_no_name'), true);
                 return;
             }
             const priceVal = priceHidden.value;
             if (!priceVal || parseInt(priceVal) <= 0) {
-                showToast('Vui lòng nhập giá hợp lệ', true);
+                showToast(t('addspa_toast_invalid_price'), true);
                 return;
             }
             const category = document.getElementById('spaCategory').value;
-            
+
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
-            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('addspa_btn_saving');
+
             let imageUrl = null;
             if (imageInput.files.length > 0) {
                 imageUrl = await uploadImage(imageInput.files[0]);
                 if (!imageUrl && imageInput.files[0]) {
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-magic"></i> Lưu Liệu Trình';
+                    submitBtn.innerHTML = '<i class="fas fa-magic"></i> ' + t('addspa_btn_save');
                     return;
                 }
             }
-            
+
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('products')
                     .insert([{
                         name: name,
                         category: category,
                         channel_type: 'spa',
-                        stock: 9999, // Spa không cần số lượng cứng
+                        stock: 9999, // Spa doesn't need a hard quantity count
                         price: parseFloat(priceVal),
                         image: imageUrl,
                         is_active: true,
                         created_at: new Date().toISOString()
                     }]);
                 if (error) throw error;
-                showToast('✅ Thêm liệu trình thành công!');
+                showToast(t('addspa_toast_success'));
                 // Reset form
                 document.getElementById('spaName').value = '';
                 priceDisplay.value = '';
                 priceHidden.value = '';
                 imageInput.value = '';
-                fileNameSpan.innerText = 'Chưa có ảnh';
+                fileNameSpan.innerText = t('addspa_no_image');
                 previewImg.classList.add('hidden');
                 previewPlaceholder.classList.remove('hidden');
                 setTimeout(() => {
@@ -426,9 +501,9 @@
                 }, 1500);
             } catch (err) {
                 console.error(err);
-                showToast('❌ Lỗi: ' + err.message, true);
+                showToast(t('addspa_toast_error_prefix') + err.message, true);
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-magic"></i> Lưu Liệu Trình';
+                submitBtn.innerHTML = '<i class="fas fa-magic"></i> ' + t('addspa_btn_save');
             }
         });
 

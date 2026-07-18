@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -65,19 +65,20 @@
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl gap-5">
             <h2 class="text-3xl lg:text-4xl font-black flex items-center gap-3 drop-shadow-md text-white tracking-wide">
-                <i class="fas fa-layer-group text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]"></i> Quản Lý <span class="text-cyan-400">Điều Phối</span>
+                <i class="fas fa-layer-group text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]"></i> <span data-i18n="qld_header_prefix">Quản Lý</span> <span class="text-cyan-400" data-i18n="qld_header_suffix">Điều Phối</span>
             </h2>
             <div class="flex flex-wrap gap-4 items-center w-full md:w-auto">
                 <div class="bg-black/60 border border-white/10 p-1.5 rounded-2xl flex shadow-inner">
                     <button onclick="switchTab('menu')" id="btnTabMenu" class="px-6 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.3)] uppercase tracking-widest">
-                        <i class="fas fa-book-open text-base"></i> Quản Lý Menu (Bảng Giá)
+                        <i class="fas fa-book-open text-base"></i> <span data-i18n="qld_tab_menu">Quản Lý Menu (Bảng Giá)</span>
                     </button>
                     <button onclick="switchTab('radar')" id="btnTabRadar" class="px-6 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 text-gray-500 hover:text-cyan-400 uppercase tracking-widest border border-transparent">
-                        <i class="fas fa-satellite-dish text-base"></i> Chợ Điều Phối (Kanban)
+                        <i class="fas fa-satellite-dish text-base"></i> <span data-i18n="qld_tab_radar">Chợ Điều Phối (Kanban)</span>
                     </button>
                 </div>
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-xs font-black transition uppercase tracking-widest border border-white/10">EN</button>
                 <a href="{{ url_for('chamcong') }}" class="flex-1 md:flex-none bg-white/5 border border-white/10 hover:bg-white/10 px-6 py-3.5 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest text-gray-300 hover:text-white backdrop-blur-md shadow-lg">
-                    <i class="fas fa-home text-base"></i> Thoát
+                    <i class="fas fa-home text-base"></i> <span data-i18n="qld_exit">Thoát</span>
                 </a>
             </div>
         </div>
@@ -86,33 +87,33 @@
             <div class="glass-panel border-t border-white/10 p-8 rounded-3xl mb-8 shadow-[0_0_40px_rgba(0,0,0,0.5)] shrink-0 relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 text-9xl text-white/5 pointer-events-none transform rotate-12"><i class="fas fa-plus-circle"></i></div>
                 <h3 class="text-pink-400 font-black mb-6 uppercase tracking-widest text-sm flex items-center gap-2 relative z-10 border-b border-white/10 pb-4">
-                    <i class="fas fa-plus-circle text-glow-pink text-lg"></i> THÊM MÓN / DỊCH VỤ MỚI
+                    <i class="fas fa-plus-circle text-glow-pink text-lg"></i> <span data-i18n="qld_add_title">THÊM MÓN / DỊCH VỤ MỚI</span>
                 </h3>
-                
+
                 <div class="flex gap-5 items-end flex-wrap lg:flex-nowrap relative z-10">
                     <div class="flex-1 min-w-[250px]">
-                        <label class="text-gray-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1">Tên Dịch Vụ / Gói</label>
-                        <input type="text" id="tenDV" placeholder="VD: Gội đầu dưỡng sinh 60p, Vệ sinh máy lạnh..." class="glass-input font-medium text-sm">
+                        <label class="text-gray-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1" data-i18n="qld_label_name">Tên Dịch Vụ / Gói</label>
+                        <input type="text" id="tenDV" placeholder="VD: Gội đầu dưỡng sinh 60p, Vệ sinh máy lạnh..." data-i18n-placeholder="qld_placeholder_name" class="glass-input font-medium text-sm">
                     </div>
-                    
+
                     <div class="w-full lg:w-56">
-                        <label class="text-emerald-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1" title="Số tiền sẽ thu của khách hàng"><i class="fas fa-money-bill-wave mr-1"></i> Giá Thu Khách (₫)</label>
+                        <label class="text-emerald-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1" title="Số tiền sẽ thu của khách hàng"><i class="fas fa-money-bill-wave mr-1"></i> <span data-i18n="qld_label_price">Giá Thu Khách (₫)</span></label>
                         <div class="relative">
                             <input type="number" id="giaDichVu" placeholder="VD: 200000" class="glass-input text-emerald-400 focus:border-emerald-500 font-mono font-black text-lg bg-emerald-900/10 border-emerald-500/30 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] pr-12">
-                            <span class="absolute right-4 top-3.5 text-emerald-600 font-bold text-sm">VNĐ</span>
+                            <span class="absolute right-4 top-3.5 text-emerald-600 font-bold text-sm" data-i18n="qld_currency_unit">VNĐ</span>
                         </div>
                     </div>
 
                     <div class="w-full lg:w-56">
-                        <label class="text-pink-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1" title="Tiền hoa hồng chiết khấu cho nhân viên thực hiện"><i class="fas fa-gift mr-1"></i> Chiết Khấu Thợ (₫)</label>
+                        <label class="text-pink-400 text-[10px] font-black mb-2 block uppercase tracking-widest ml-1" title="Tiền hoa hồng chiết khấu cho nhân viên thực hiện"><i class="fas fa-gift mr-1"></i> <span data-i18n="qld_label_commission">Chiết Khấu Thợ (₫)</span></label>
                         <div class="relative">
                             <input type="number" id="tienTua" placeholder="VD: 50000" class="glass-input text-pink-400 focus:border-pink-500 font-mono font-black text-lg bg-pink-900/10 border-pink-500/30 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] pr-12">
-                            <span class="absolute right-4 top-3.5 text-pink-600 font-bold text-sm">VNĐ</span>
+                            <span class="absolute right-4 top-3.5 text-pink-600 font-bold text-sm" data-i18n="qld_currency_unit">VNĐ</span>
                         </div>
                     </div>
 
                     <button onclick="addDichVu()" id="btnAddMenu" class="w-full lg:w-auto bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-black py-[18px] px-8 rounded-xl transition-transform hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(219,39,119,0.4)] whitespace-nowrap uppercase tracking-widest text-xs border border-pink-400/50 flex items-center justify-center gap-2">
-                        <i class="fas fa-save text-base"></i> LƯU VÀO MENU
+                        <i class="fas fa-save text-base"></i> <span data-i18n="qld_save_btn">LƯU VÀO MENU</span>
                     </button>
                 </div>
             </div>
@@ -122,15 +123,15 @@
                     <table class="w-full text-left border-collapse relative z-10 whitespace-nowrap">
                         <thead class="bg-black/60 border-b border-pink-500/30 text-pink-400 text-xs uppercase tracking-widest sticky top-0 backdrop-blur-xl z-20 shadow-md">
                             <tr>
-                                <th class="p-5 font-black border-r border-white/5 w-24 text-center">Mã Số</th>
-                                <th class="p-5 font-black border-r border-white/5 w-96">Tên Món / Dịch Vụ</th>
-                                <th class="p-5 font-black text-emerald-400 border-r border-white/5 w-48 text-center"><i class="fas fa-money-bill-wave"></i> Giá Thu Khách</th>
-                                <th class="p-5 font-black text-purple-400 border-r border-white/5 w-48 text-center"><i class="fas fa-gift"></i> Hoa Hồng Thợ</th>
-                                <th class="p-5 font-black text-center w-32">Thao Tác</th>
+                                <th class="p-5 font-black border-r border-white/5 w-24 text-center" data-i18n="qld_th_id">Mã Số</th>
+                                <th class="p-5 font-black border-r border-white/5 w-96" data-i18n="qld_th_name">Tên Món / Dịch Vụ</th>
+                                <th class="p-5 font-black text-emerald-400 border-r border-white/5 w-48 text-center"><i class="fas fa-money-bill-wave"></i> <span data-i18n="qld_th_price">Giá Thu Khách</span></th>
+                                <th class="p-5 font-black text-purple-400 border-r border-white/5 w-48 text-center"><i class="fas fa-gift"></i> <span data-i18n="qld_th_commission">Hoa Hồng Thợ</span></th>
+                                <th class="p-5 font-black text-center w-32" data-i18n="qld_th_action">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="listDV" class="text-gray-300 text-sm">
-                            <tr><td colspan="5" class="text-center py-20 text-pink-500 font-bold uppercase tracking-widest animate-pulse"><i class="fas fa-network-wired text-4xl mb-4 block"></i> Đang đồng bộ Menu từ Đám mây...</td></tr>
+                            <tr><td colspan="5" class="text-center py-20 text-pink-500 font-bold uppercase tracking-widest animate-pulse"><i class="fas fa-network-wired text-4xl mb-4 block"></i> <span data-i18n="qld_loading">Đang đồng bộ Menu từ Đám mây...</span></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -140,11 +141,11 @@
         <div id="tabRadar" class="tab-content flex-1 flex flex-col min-h-0 h-full">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 shrink-0 gap-4 glass-panel p-5 rounded-3xl border-t border-white/5 shadow-lg">
                 <button onclick="openJobModal()" class="w-full md:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black px-8 py-3.5 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-95 transition-transform flex items-center justify-center gap-2 uppercase tracking-widest text-xs border border-cyan-400/50">
-                    <i class="fas fa-bullhorn text-base"></i> PHÁT LỆNH ĐIỀU PHỐI (TẠO JOB)
+                    <i class="fas fa-bullhorn text-base"></i> <span data-i18n="qld_new_job_btn">PHÁT LỆNH ĐIỀU PHỐI (TẠO JOB)</span>
                 </button>
-                
+
                 <button onclick="cleanUpDoneJobs()" class="w-full md:w-auto text-emerald-500 hover:text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/10 px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-inner">
-                    <i class="fas fa-broom text-base"></i> Dọn Dẹp Job Đã Xong
+                    <i class="fas fa-broom text-base"></i> <span data-i18n="qld_cleanup_btn">Dọn Dẹp Job Đã Xong</span>
                 </button>
             </div>
 
@@ -152,7 +153,7 @@
                 <div class="glass-panel rounded-[2rem] flex flex-col overflow-hidden border-t-[5px] border-t-amber-500 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative group">
                     <div class="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent pointer-events-none"></div>
                     <div class="p-5 border-b border-white/5 bg-black/60 flex justify-between items-center shrink-0 relative z-10 shadow-inner backdrop-blur-md">
-                        <h3 class="font-black text-amber-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]"><i class="fas fa-exclamation-circle animate-pulse"></i> Chờ Thợ Nhận</h3>
+                        <h3 class="font-black text-amber-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]"><i class="fas fa-exclamation-circle animate-pulse"></i> <span data-i18n="qld_col_pending">Chờ Thợ Nhận</span></h3>
                         <span class="bg-amber-500/20 text-amber-400 px-3 py-1 rounded-lg text-xs font-black border border-amber-500/30 shadow-inner" id="count_pending">0</span>
                     </div>
                     <div id="col_pending" class="flex-1 p-4 space-y-4 kanban-col custom-scrollbar relative z-10" ondragover="allowDrop(event)" ondrop="drop(event, 'Chờ Nhận')"></div>
@@ -161,7 +162,7 @@
                 <div class="glass-panel rounded-[2rem] flex flex-col overflow-hidden border-t-[5px] border-t-cyan-500 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative group">
                     <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none"></div>
                     <div class="p-5 border-b border-white/5 bg-black/60 flex justify-between items-center shrink-0 relative z-10 shadow-inner backdrop-blur-md">
-                        <h3 class="font-black text-cyan-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]"><i class="fas fa-tools"></i> Đang Xử Lý</h3>
+                        <h3 class="font-black text-cyan-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]"><i class="fas fa-tools"></i> <span data-i18n="qld_col_doing">Đang Xử Lý</span></h3>
                         <span class="bg-cyan-500/20 text-cyan-400 px-3 py-1 rounded-lg text-xs font-black border border-cyan-500/30 shadow-inner" id="count_doing">0</span>
                     </div>
                     <div id="col_doing" class="flex-1 p-4 space-y-4 kanban-col custom-scrollbar relative z-10" ondragover="allowDrop(event)" ondrop="drop(event, 'Đã Nhận')"></div>
@@ -170,7 +171,7 @@
                 <div class="glass-panel rounded-[2rem] flex flex-col overflow-hidden border-t-[5px] border-t-emerald-500 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative group">
                     <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none"></div>
                     <div class="p-5 border-b border-white/5 bg-black/60 flex justify-between items-center shrink-0 relative z-10 shadow-inner backdrop-blur-md">
-                        <h3 class="font-black text-emerald-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]"><i class="fas fa-check-double"></i> Đã Hoàn Thành</h3>
+                        <h3 class="font-black text-emerald-400 text-sm uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]"><i class="fas fa-check-double"></i> <span data-i18n="qld_col_done">Đã Hoàn Thành</span></h3>
                         <span class="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg text-xs font-black border border-emerald-500/30 shadow-inner" id="count_done">0</span>
                     </div>
                     <div id="col_done" class="flex-1 p-4 space-y-4 kanban-col custom-scrollbar relative z-10" ondragover="allowDrop(event)" ondrop="drop(event, 'Hoàn Thành')"></div>
@@ -185,40 +186,40 @@
             <div class="absolute -right-10 -bottom-10 text-9xl text-cyan-500/5 pointer-events-none transform -rotate-12"><i class="fas fa-satellite-dish"></i></div>
             
             <div class="flex justify-between items-center mb-6 relative z-10 border-b border-white/10 pb-5">
-                <h2 class="text-2xl font-black text-cyan-400 tracking-widest uppercase drop-shadow-md flex items-center gap-2"><i class="fas fa-bolt text-glow-cyan"></i> TẠO LỆNH (JOB)</h2>
+                <h2 class="text-2xl font-black text-cyan-400 tracking-widest uppercase drop-shadow-md flex items-center gap-2"><i class="fas fa-bolt text-glow-cyan"></i> <span data-i18n="qld_modal_job_title">TẠO LỆNH (JOB)</span></h2>
                 <button onclick="document.getElementById('modalAddJob').classList.add('hidden'); document.getElementById('modalAddJob').classList.remove('flex');" class="text-gray-500 hover:text-rose-500 transition-colors text-3xl"><i class="fas fa-times"></i></button>
             </div>
             
             <div class="space-y-5 relative z-10">
                 <div class="grid grid-cols-2 gap-5">
                     <div>
-                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Tên Khách Hàng</label>
-                        <input type="text" id="job_khach" class="glass-input text-sm" placeholder="VD: Anh Minh">
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1" data-i18n="qld_label_customer">Tên Khách Hàng</label>
+                        <input type="text" id="job_khach" class="glass-input text-sm" placeholder="VD: Anh Minh" data-i18n-placeholder="qld_placeholder_customer">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Số Điện Thoại</label>
-                        <input type="text" id="job_sdt" class="glass-input text-sm font-mono tracking-wider" placeholder="VD: 0909 123 456">
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1" data-i18n="qld_label_phone">Số Điện Thoại</label>
+                        <input type="text" id="job_sdt" class="glass-input text-sm font-mono tracking-wider" placeholder="VD: 0909 123 456" data-i18n-placeholder="qld_placeholder_phone">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Địa chỉ thi công / Phục vụ</label>
-                    <input type="text" id="job_diachi" class="glass-input text-sm" placeholder="VD: 123 Lê Lợi, Quận 1">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1" data-i18n="qld_label_address">Địa chỉ thi công / Phục vụ</label>
+                    <input type="text" id="job_diachi" class="glass-input text-sm" placeholder="VD: 123 Lê Lợi, Quận 1" data-i18n-placeholder="qld_placeholder_address">
                 </div>
-                
+
                 <div class="bg-pink-900/10 p-5 rounded-2xl border border-pink-500/30 shadow-inner">
-                    <label class="block text-[10px] font-black text-pink-400 uppercase tracking-widest mb-3"><i class="fas fa-tags mr-1"></i> Chọn Gói Dịch Vụ (Menu)</label>
+                    <label class="block text-[10px] font-black text-pink-400 uppercase tracking-widest mb-3"><i class="fas fa-tags mr-1"></i> <span data-i18n="qld_label_service_select">Chọn Gói Dịch Vụ (Menu)</span></label>
                     <select id="job_service_select" class="glass-input font-medium text-sm bg-black/60 shadow-inner border-pink-500/50 text-white cursor-pointer">
-                        <option value="" class="bg-gray-900">-- Click để chọn dịch vụ có sẵn --</option>
+                        <option value="" class="bg-gray-900" data-i18n="qld_option_no_service">-- Click để chọn dịch vụ có sẵn --</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Yêu cầu bổ sung (Tùy chọn)</label>
-                    <textarea id="job_noidung" rows="2" class="glass-input text-sm resize-none" placeholder="Ghi chú thêm..."></textarea>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1" data-i18n="qld_label_extra_note">Yêu cầu bổ sung (Tùy chọn)</label>
+                    <textarea id="job_noidung" rows="2" class="glass-input text-sm resize-none" placeholder="Ghi chú thêm..." data-i18n-placeholder="qld_placeholder_note"></textarea>
                 </div>
-                
+
                 <button onclick="submitNewJob()" id="btn_submit_job" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black py-4 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-95 transition-transform mt-5 tracking-widest uppercase text-sm border border-cyan-400/50 flex items-center justify-center gap-2">
-                    <i class="fas fa-paper-plane text-lg"></i> PHÁT LỆNH NGAY
+                    <i class="fas fa-paper-plane text-lg"></i> <span data-i18n="qld_submit_job_btn">PHÁT LỆNH NGAY</span>
                 </button>
             </div>
         </div>
@@ -227,12 +228,12 @@
     <div id="modalAssignWorker" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] hidden flex items-center justify-center p-4">
         <div class="bg-[#050510] border border-cyan-500/50 rounded-[2rem] p-8 w-full max-w-sm shadow-[0_0_50px_rgba(6,182,212,0.3)] transform transition-all text-center">
             <i class="fas fa-hard-hat text-5xl text-cyan-400 mb-4 animate-bounce"></i>
-            <h2 class="text-xl font-black text-white tracking-widest uppercase mb-6">Chỉ định Người Nhận Lệnh</h2>
+            <h2 class="text-xl font-black text-white tracking-widest uppercase mb-6" data-i18n="qld_modal_assign_title">Chỉ định Người Nhận Lệnh</h2>
             <input type="hidden" id="dragTaskId">
-            <input type="text" id="dragWorkerName" class="glass-input text-center text-lg mb-6" placeholder="Tên nhân viên">
+            <input type="text" id="dragWorkerName" class="glass-input text-center text-lg mb-6" placeholder="Tên nhân viên" data-i18n-placeholder="qld_placeholder_worker">
             <div class="flex gap-4">
-                <button onclick="cancelAssign()" class="flex-1 bg-white/10 text-white font-bold py-3 rounded-xl hover:bg-white/20 transition">Hủy</button>
-                <button onclick="confirmAssign()" class="flex-1 bg-cyan-500 text-black font-black py-3 rounded-xl hover:bg-cyan-400 transition shadow-[0_0_15px_rgba(6,182,212,0.4)]">Xác Nhận</button>
+                <button onclick="cancelAssign()" class="flex-1 bg-white/10 text-white font-bold py-3 rounded-xl hover:bg-white/20 transition" data-i18n="qld_btn_cancel">Hủy</button>
+                <button onclick="confirmAssign()" class="flex-1 bg-cyan-500 text-black font-black py-3 rounded-xl hover:bg-cyan-400 transition shadow-[0_0_15px_rgba(6,182,212,0.4)]" data-i18n="qld_btn_confirm">Xác Nhận</button>
             </div>
         </div>
     </div>
@@ -340,7 +341,7 @@
                 if (error) throw error;
 
                 if(!data || data.length === 0) {
-                    list.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold uppercase tracking-widest text-xs">Chưa có Món / Dịch vụ nào. Vui lòng thêm mới ở trên.</td></tr>';
+                    list.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold uppercase tracking-widest text-xs">${t('qld_empty_menu')}</td></tr>`;
                     return;
                 }
                 
@@ -363,7 +364,7 @@
                 `}).join('');
 
             } catch (err) {
-                list.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-rose-500 font-bold uppercase tracking-widest text-xs">Lỗi kết nối CSDL Supabase! (Lưu ý: Cần tạo cột gia_dich_vu kiểu int8)</td></tr>';
+                list.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-rose-500 font-bold uppercase tracking-widest text-xs">${t('qld_load_error')}</td></tr>`;
             }
         }
 
@@ -371,8 +372,8 @@
             const ten = document.getElementById('tenDV').value.trim();
             const gia = document.getElementById('giaDichVu').value;
             const tua = document.getElementById('tienTua').value;
-            
-            if(!ten || !tua || !gia) return showToast('Vui lòng nhập Tên, Giá Thu Khách và Hoa Hồng!', 'error');
+
+            if(!ten || !tua || !gia) return showToast(t('qld_toast_fill_required'), 'error');
             
             const btn = document.getElementById('btnAddMenu');
             const origHTML = btn.innerHTML;
@@ -387,19 +388,19 @@
                 document.getElementById('tenDV').value = '';
                 document.getElementById('giaDichVu').value = '';
                 document.getElementById('tienTua').value = '';
-                showToast('Đã thêm Menu thành công!', 'success');
-                loadDichVu(); 
-            } catch(err) { 
-                showToast("Cần tạo cột 'gia_dich_vu' kiểu int8 trên Supabase trước!", 'error'); 
+                showToast(t('qld_toast_add_success'), 'success');
+                loadDichVu();
+            } catch(err) {
+                showToast(t('qld_toast_add_error'), 'error');
             }
-            
+
             btn.innerHTML = origHTML; btn.disabled = false;
         }
 
         async function deleteDichVu(id) {
-            if(confirm("Sếp có chắc muốn XÓA VĨNH VIỄN món này khỏi Menu?")) {
+            if(confirm(t('qld_confirm_delete_menu'))) {
                 await supabase.from('dichvu').delete().eq('id', id);
-                showToast('Đã xóa món khỏi Menu!', 'success');
+                showToast(t('qld_toast_delete_success'), 'success');
                 loadDichVu();
             }
         }
@@ -410,10 +411,10 @@
             document.getElementById('modalAddJob').classList.add('flex');
             
             const selectBox = document.getElementById('job_service_select');
-            let options = '<option value="" class="bg-gray-900 text-gray-500">-- Không chọn / Gõ tay Ghi chú --</option>';
+            let options = `<option value="" class="bg-gray-900 text-gray-500">${t('qld_option_manual_note')}</option>`;
             globalMenuData.forEach(dv => {
                 const giaThu = dv.gia_dich_vu ? Number(dv.gia_dich_vu).toLocaleString('vi-VN') : '0';
-                options += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - Thu khách: ${giaThu}đ</option>`;
+                options += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - ${t('qld_label_collect')}: ${giaThu}đ</option>`;
             });
             selectBox.innerHTML = options;
         }
@@ -442,9 +443,9 @@
                 setTimeout(() => document.getElementById('dragWorkerName').focus(), 100);
             } else {
                 // Cập nhật luôn
-                showToast("Đang đồng bộ lệnh...", "info");
+                showToast(t('qld_toast_syncing'), "info");
                 await supabase.from('tasks').update({ trang_thai: newStatus }).eq('id', taskId);
-                showToast("Chuyển trạng thái thành công!", "success");
+                showToast(t('qld_toast_status_success'), "success");
                 fetchJobs();
             }
         }
@@ -457,12 +458,12 @@
         async function confirmAssign() {
             const taskId = document.getElementById('dragTaskId').value;
             const workerName = document.getElementById('dragWorkerName').value.trim();
-            if(!workerName) return showToast('Bắt buộc phải có tên thợ nhận lệnh!', 'error');
+            if(!workerName) return showToast(t('qld_toast_worker_required'), 'error');
 
             cancelAssign();
-            showToast("Đang bàn giao lệnh...", "info");
+            showToast(t('qld_toast_handover'), "info");
             await supabase.from('tasks').update({ trang_thai: 'Đã Nhận', nguoi_nhan: workerName }).eq('id', taskId);
-            showToast(`Đã giao cho ${workerName}`, "success");
+            showToast(tf('qld_toast_assigned', { name: workerName }), "success");
             fetchJobs();
         }
 
@@ -482,9 +483,9 @@
                 let countP = 0, countDo = 0, countD = 0;
 
                 if (!tasks || tasks.length === 0) {
-                    colPending.innerHTML = '<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">Radar trống.</div>';
-                    colDoing.innerHTML = '<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">Radar trống.</div>';
-                    colDone.innerHTML = '<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">Radar trống.</div>';
+                    colPending.innerHTML = `<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">${t('qld_radar_empty')}</div>`;
+                    colDoing.innerHTML = `<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">${t('qld_radar_empty')}</div>`;
+                    colDone.innerHTML = `<div class="text-center text-gray-600 text-xs font-bold uppercase tracking-widest mt-10">${t('qld_radar_empty')}</div>`;
                     return;
                 }
 
@@ -496,9 +497,9 @@
                     if(isDoing) alertClass = 'border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.2)] bg-cyan-900/10';
                     if(!isPending && !isDoing) alertClass = 'border-emerald-500/30 opacity-70 bg-black/40'; 
 
-                    let formattedContent = task.noi_dung.replace(/\[DỊCH VỤ\]/g, '<strong class="text-pink-400 text-[10px] uppercase tracking-widest"><i class="fas fa-tag mr-1"></i> [DỊCH VỤ]</strong>');
-                    formattedContent = formattedContent.replace(/\[Giá Thu\]:/g, '<br><span class="text-emerald-400 font-bold mt-1 inline-block"><i class="fas fa-money-bill-wave mr-1"></i> Giá Thu:</span>');
-                    formattedContent = formattedContent.replace(/\[Hoa Hồng\]:/g, '<br><span class="text-purple-400 font-bold mt-1 inline-block"><i class="fas fa-gift mr-1"></i> Chiết khấu thợ:</span>');
+                    let formattedContent = task.noi_dung.replace(/\[DỊCH VỤ\]/g, `<strong class="text-pink-400 text-[10px] uppercase tracking-widest"><i class="fas fa-tag mr-1"></i> ${t('qld_tag_service')}</strong>`);
+                    formattedContent = formattedContent.replace(/\[Giá Thu\]:/g, `<br><span class="text-emerald-400 font-bold mt-1 inline-block"><i class="fas fa-money-bill-wave mr-1"></i> ${t('qld_label_collect')}:</span>`);
+                    formattedContent = formattedContent.replace(/\[Hoa Hồng\]:/g, `<br><span class="text-purple-400 font-bold mt-1 inline-block"><i class="fas fa-gift mr-1"></i> ${t('qld_label_commission_short')}:</span>`);
 
                     const card = `
                     <div draggable="true" ondragstart="drag(event, ${task.id})" ondragend="dragEnd(event)" class="${alertClass} border rounded-2xl p-5 hover:border-white/50 transition-all relative group cursor-grab active:cursor-grabbing backdrop-blur-sm" onclick="viewJobDetail(${task.id}, '${task.ten_khach}', '${task.nguoi_nhan}')">
@@ -512,16 +513,16 @@
                         </div>
                         <div class="bg-black/60 p-3 rounded-xl text-xs text-gray-300 border border-white/5 mb-4 leading-relaxed shadow-inner font-medium">${formattedContent}</div>
                         
-                        ${isPending ? 
-                            `<div class="bg-amber-500/20 text-amber-400 text-[10px] font-black text-center py-2 rounded-xl border border-amber-500/50 uppercase tracking-widest animate-pulse shadow-inner pointer-events-none"><i class="fas fa-hand-paper mr-1.5 text-sm"></i> Kéo thẻ để giao việc</div>` 
-                        : isDoing ? 
+                        ${isPending ?
+                            `<div class="bg-amber-500/20 text-amber-400 text-[10px] font-black text-center py-2 rounded-xl border border-amber-500/50 uppercase tracking-widest animate-pulse shadow-inner pointer-events-none"><i class="fas fa-hand-paper mr-1.5 text-sm"></i> ${t('qld_drag_hint')}</div>`
+                        : isDoing ?
                             `<div class="bg-cyan-500/20 text-cyan-300 text-[11px] font-black flex items-center justify-between p-2.5 rounded-xl border border-cyan-500/50 shadow-inner uppercase tracking-widest">
-                                <span><i class="fas fa-hard-hat mr-1.5 text-sm"></i>Đang xử lý:</span>
+                                <span><i class="fas fa-hard-hat mr-1.5 text-sm"></i>${t('qld_status_doing')}:</span>
                                 <span class="bg-black/50 px-2.5 py-1 rounded-lg truncate max-w-[100px] text-right border border-white/5 shadow-inner">${task.nguoi_nhan}</span>
                             </div>`
-                        : 
+                        :
                             `<div class="bg-emerald-500/10 text-emerald-500 text-[11px] font-black flex items-center justify-between p-2.5 rounded-xl border border-emerald-500/30 uppercase tracking-widest">
-                                <span><i class="fas fa-check-double mr-1.5 text-sm"></i>Hoàn tất:</span>
+                                <span><i class="fas fa-check-double mr-1.5 text-sm"></i>${t('qld_status_done')}:</span>
                                 <span class="truncate max-w-[100px] text-right">${task.nguoi_nhan}</span>
                             </div>`
                         }
@@ -555,15 +556,15 @@
                 if (selectedService) {
                     const giaThu = selectedService.gia_dich_vu ? Number(selectedService.gia_dich_vu).toLocaleString('vi-VN') : '0';
                     const hoaHong = selectedService.tien_tua ? Number(selectedService.tien_tua).toLocaleString('vi-VN') : '0';
-                    finalNoiDung = `[DỊCH VỤ] ${selectedService.ten_dich_vu} [Giá Thu]: ${giaThu}đ [Hoa Hồng]: ${hoaHong}đ \n--- Ghi chú: ${noteExtra}`;
+                    finalNoiDung = `[DỊCH VỤ] ${selectedService.ten_dich_vu} [Giá Thu]: ${giaThu}đ [Hoa Hồng]: ${hoaHong}đ \n--- ${t('qld_note_prefix')}: ${noteExtra}`;
                 }
             }
 
-            if(!ten || !diachi || !finalNoiDung) return showToast("Vui lòng nhập đủ Khách, Địa chỉ và Dịch vụ!", "error");
+            if(!ten || !diachi || !finalNoiDung) return showToast(t('qld_toast_job_required'), "error");
 
             const btn = document.getElementById('btn_submit_job');
             const origHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> ĐANG PHÁT TÍN HIỆU...';
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin text-lg"></i> ${t('qld_sending')}`;
             btn.disabled = true;
 
             try {
@@ -579,27 +580,27 @@
                 document.getElementById('job_diachi').value = ''; document.getElementById('job_noidung').value = '';
                 document.getElementById('job_service_select').value = '';
 
-                showToast("Đã phát lệnh thành công!", "success");
+                showToast(t('qld_toast_job_success'), "success");
                 fetchJobs();
-            } catch (error) { showToast("Lỗi tải lên máy chủ Cloud!", "error"); }
-            
+            } catch (error) { showToast(t('qld_toast_upload_error'), "error"); }
+
             btn.innerHTML = origHTML; btn.disabled = false;
         }
 
         async function xoaJob(id) {
-            if(confirm("Sếp muốn HỦY và XÓA vĩnh viễn Job này khỏi Radar?")) {
+            if(confirm(t('qld_confirm_delete_job'))) {
                 await supabase.from('tasks').delete().eq('id', id);
-                showToast("Đã hủy lệnh thành công", "success");
+                showToast(t('qld_toast_job_deleted'), "success");
             }
         }
 
         async function cleanUpDoneJobs() {
-            if(confirm("Xóa Sạch tất cả các Lệnh (Job) ở cột 'Đã Hoàn Thành' để làm gọn bảng điều khiển. Đồng ý?")) {
+            if(confirm(t('qld_confirm_cleanup'))) {
                 try {
                     await supabase.from('tasks').delete().eq('trang_thai', 'Hoàn Thành');
-                    showToast("Dọn dẹp thành công!", "success");
-                    fetchJobs(); 
-                } catch(e) { showToast("Lỗi dọn dẹp!", "error"); }
+                    showToast(t('qld_toast_cleanup_success'), "success");
+                    fetchJobs();
+                } catch(e) { showToast(t('qld_toast_cleanup_error'), "error"); }
             }
         }
 
@@ -618,6 +619,179 @@
             loadDichVu();
             fetchJobs();
         });
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                qld_header_prefix: 'Quản Lý',
+                qld_header_suffix: 'Điều Phối',
+                qld_tab_menu: 'Quản Lý Menu (Bảng Giá)',
+                qld_tab_radar: 'Chợ Điều Phối (Kanban)',
+                qld_exit: 'Thoát',
+                qld_add_title: 'THÊM MÓN / DỊCH VỤ MỚI',
+                qld_label_name: 'Tên Dịch Vụ / Gói',
+                qld_placeholder_name: 'VD: Gội đầu dưỡng sinh 60p, Vệ sinh máy lạnh...',
+                qld_label_price: 'Giá Thu Khách (₫)',
+                qld_currency_unit: 'VNĐ',
+                qld_label_commission: 'Chiết Khấu Thợ (₫)',
+                qld_save_btn: 'LƯU VÀO MENU',
+                qld_th_id: 'Mã Số',
+                qld_th_name: 'Tên Món / Dịch Vụ',
+                qld_th_price: 'Giá Thu Khách',
+                qld_th_commission: 'Hoa Hồng Thợ',
+                qld_th_action: 'Thao Tác',
+                qld_loading: 'Đang đồng bộ Menu từ Đám mây...',
+                qld_new_job_btn: 'PHÁT LỆNH ĐIỀU PHỐI (TẠO JOB)',
+                qld_cleanup_btn: 'Dọn Dẹp Job Đã Xong',
+                qld_col_pending: 'Chờ Thợ Nhận',
+                qld_col_doing: 'Đang Xử Lý',
+                qld_col_done: 'Đã Hoàn Thành',
+                qld_modal_job_title: 'TẠO LỆNH (JOB)',
+                qld_label_customer: 'Tên Khách Hàng',
+                qld_placeholder_customer: 'VD: Anh Minh',
+                qld_label_phone: 'Số Điện Thoại',
+                qld_placeholder_phone: 'VD: 0909 123 456',
+                qld_label_address: 'Địa chỉ thi công / Phục vụ',
+                qld_placeholder_address: 'VD: 123 Lê Lợi, Quận 1',
+                qld_label_service_select: 'Chọn Gói Dịch Vụ (Menu)',
+                qld_option_no_service: '-- Click để chọn dịch vụ có sẵn --',
+                qld_label_extra_note: 'Yêu cầu bổ sung (Tùy chọn)',
+                qld_placeholder_note: 'Ghi chú thêm...',
+                qld_submit_job_btn: 'PHÁT LỆNH NGAY',
+                qld_modal_assign_title: 'Chỉ định Người Nhận Lệnh',
+                qld_placeholder_worker: 'Tên nhân viên',
+                qld_btn_cancel: 'Hủy',
+                qld_btn_confirm: 'Xác Nhận',
+                qld_empty_menu: 'Chưa có Món / Dịch vụ nào. Vui lòng thêm mới ở trên.',
+                qld_load_error: 'Lỗi kết nối CSDL Supabase! (Lưu ý: Cần tạo cột gia_dich_vu kiểu int8)',
+                qld_toast_fill_required: 'Vui lòng nhập Tên, Giá Thu Khách và Hoa Hồng!',
+                qld_toast_add_success: 'Đã thêm Menu thành công!',
+                qld_toast_add_error: "Cần tạo cột 'gia_dich_vu' kiểu int8 trên Supabase trước!",
+                qld_confirm_delete_menu: 'Sếp có chắc muốn XÓA VĨNH VIỄN món này khỏi Menu?',
+                qld_toast_delete_success: 'Đã xóa món khỏi Menu!',
+                qld_option_manual_note: '-- Không chọn / Gõ tay Ghi chú --',
+                qld_label_collect: 'Thu khách',
+                qld_toast_syncing: 'Đang đồng bộ lệnh...',
+                qld_toast_status_success: 'Chuyển trạng thái thành công!',
+                qld_toast_worker_required: 'Bắt buộc phải có tên thợ nhận lệnh!',
+                qld_toast_handover: 'Đang bàn giao lệnh...',
+                qld_toast_assigned: 'Đã giao cho {name}',
+                qld_radar_empty: 'Radar trống.',
+                qld_tag_service: '[DỊCH VỤ]',
+                qld_label_commission_short: 'Chiết khấu thợ',
+                qld_drag_hint: 'Kéo thẻ để giao việc',
+                qld_status_doing: 'Đang xử lý',
+                qld_status_done: 'Hoàn tất',
+                qld_note_prefix: 'Ghi chú',
+                qld_toast_job_required: 'Vui lòng nhập đủ Khách, Địa chỉ và Dịch vụ!',
+                qld_sending: 'ĐANG PHÁT TÍN HIỆU...',
+                qld_toast_job_success: 'Đã phát lệnh thành công!',
+                qld_toast_upload_error: 'Lỗi tải lên máy chủ Cloud!',
+                qld_confirm_delete_job: 'Sếp muốn HỦY và XÓA vĩnh viễn Job này khỏi Radar?',
+                qld_toast_job_deleted: 'Đã hủy lệnh thành công',
+                qld_confirm_cleanup: "Xóa Sạch tất cả các Lệnh (Job) ở cột 'Đã Hoàn Thành' để làm gọn bảng điều khiển. Đồng ý?",
+                qld_toast_cleanup_success: 'Dọn dẹp thành công!',
+                qld_toast_cleanup_error: 'Lỗi dọn dẹp!'
+            },
+            en: {
+                qld_header_prefix: 'Manage',
+                qld_header_suffix: 'Dispatch',
+                qld_tab_menu: 'Menu Management (Price List)',
+                qld_tab_radar: 'Dispatch Board (Kanban)',
+                qld_exit: 'Exit',
+                qld_add_title: 'ADD NEW ITEM / SERVICE',
+                qld_label_name: 'Service / Package Name',
+                qld_placeholder_name: 'e.g. 60-min hair wash, AC cleaning...',
+                qld_label_price: 'Customer Price (₫)',
+                qld_currency_unit: 'VND',
+                qld_label_commission: 'Staff Commission (₫)',
+                qld_save_btn: 'SAVE TO MENU',
+                qld_th_id: 'ID',
+                qld_th_name: 'Item / Service Name',
+                qld_th_price: 'Customer Price',
+                qld_th_commission: 'Staff Commission',
+                qld_th_action: 'Action',
+                qld_loading: 'Syncing Menu from the Cloud...',
+                qld_new_job_btn: 'DISPATCH ORDER (CREATE JOB)',
+                qld_cleanup_btn: 'Clean Up Finished Jobs',
+                qld_col_pending: 'Awaiting Staff',
+                qld_col_doing: 'In Progress',
+                qld_col_done: 'Completed',
+                qld_modal_job_title: 'CREATE JOB',
+                qld_label_customer: 'Customer Name',
+                qld_placeholder_customer: 'e.g. Mr. Minh',
+                qld_label_phone: 'Phone Number',
+                qld_placeholder_phone: 'e.g. 0909 123 456',
+                qld_label_address: 'Service Address',
+                qld_placeholder_address: 'e.g. 123 Le Loi St, District 1',
+                qld_label_service_select: 'Select Service Package (Menu)',
+                qld_option_no_service: '-- Click to select an available service --',
+                qld_label_extra_note: 'Additional Request (Optional)',
+                qld_placeholder_note: 'Extra notes...',
+                qld_submit_job_btn: 'DISPATCH NOW',
+                qld_modal_assign_title: 'Assign Staff Member',
+                qld_placeholder_worker: 'Staff name',
+                qld_btn_cancel: 'Cancel',
+                qld_btn_confirm: 'Confirm',
+                qld_empty_menu: 'No items / services yet. Please add one above.',
+                qld_load_error: 'Supabase connection error! (Note: the gia_dich_vu column must be int8)',
+                qld_toast_fill_required: 'Please enter Name, Customer Price and Commission!',
+                qld_toast_add_success: 'Menu item added successfully!',
+                qld_toast_add_error: "The 'gia_dich_vu' column (int8) must be created on Supabase first!",
+                qld_confirm_delete_menu: 'Are you sure you want to PERMANENTLY DELETE this item from the Menu?',
+                qld_toast_delete_success: 'Item removed from Menu!',
+                qld_option_manual_note: '-- None / Type note manually --',
+                qld_label_collect: 'Customer pays',
+                qld_toast_syncing: 'Syncing job...',
+                qld_toast_status_success: 'Status changed successfully!',
+                qld_toast_worker_required: 'Staff name is required!',
+                qld_toast_handover: 'Handing over job...',
+                qld_toast_assigned: 'Assigned to {name}',
+                qld_radar_empty: 'Board is empty.',
+                qld_tag_service: '[SERVICE]',
+                qld_label_commission_short: 'Staff commission',
+                qld_drag_hint: 'Drag card to assign',
+                qld_status_doing: 'In progress',
+                qld_status_done: 'Done',
+                qld_note_prefix: 'Note',
+                qld_toast_job_required: 'Please fill in Customer, Address and Service!',
+                qld_sending: 'SENDING SIGNAL...',
+                qld_toast_job_success: 'Job dispatched successfully!',
+                qld_toast_upload_error: 'Error uploading to the Cloud server!',
+                qld_confirm_delete_job: 'Cancel and PERMANENTLY DELETE this Job from the Board?',
+                qld_toast_job_deleted: 'Job cancelled successfully',
+                qld_confirm_cleanup: "Clear all Jobs in the 'Completed' column to tidy up the board. Continue?",
+                qld_toast_cleanup_success: 'Cleanup successful!',
+                qld_toast_cleanup_error: 'Cleanup error!'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof loadDichVu === 'function') loadDichVu();
+            if (typeof fetchJobs === 'function') fetchJobs();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
     </script>
 </body>
 </html>

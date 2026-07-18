@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -101,28 +101,29 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium">| Cảnh báo tồn kho</span></h1>
-                    <p class="text-gray-400 text-[10px] uppercase tracking-wider">Quản lý ngưỡng tồn, nhập hàng thông minh</p>
+                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-sm font-medium" data-i18n="inventory_alert_header_suffix">| Cảnh báo tồn kho</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="inventory_alert_header_subtitle">Quản lý ngưỡng tồn, nhập hàng thông minh</p>
                 </div>
             </div>
             <div class="flex gap-3">
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> Trang chủ</a>
-                <button id="settingsBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-sliders-h"></i> Ngưỡng tồn</button>
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="inventory_alert_home">Trang chủ</span></a>
+                <button id="settingsBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-sliders-h"></i> <span data-i18n="inventory_alert_thresholds_btn">Ngưỡng tồn</span></button>
             </div>
         </div>
 
         <!-- Thống kê nhanh -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm sắp hết</div><div class="text-2xl font-bold text-rose-400" id="criticalCount">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Sản phẩm dưới ngưỡng</div><div class="text-2xl font-bold text-yellow-400" id="warningCount">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Tổng sản phẩm</div><div class="text-2xl font-bold text-cyan-400" id="totalProducts">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1">Giá trị tồn kho</div><div class="text-2xl font-bold text-emerald-400" id="totalInventoryValue">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="inventory_alert_stat_critical">Sản phẩm sắp hết</div><div class="text-2xl font-bold text-rose-400" id="criticalCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="inventory_alert_stat_warning">Sản phẩm dưới ngưỡng</div><div class="text-2xl font-bold text-yellow-400" id="warningCount">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="inventory_alert_stat_total">Tổng sản phẩm</div><div class="text-2xl font-bold text-cyan-400" id="totalProducts">0</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="inventory_alert_stat_value">Giá trị tồn kho</div><div class="text-2xl font-bold text-emerald-400" id="totalInventoryValue">0₫</div></div>
         </div>
 
         <!-- Đề xuất nhập hàng do AI tự động phân tích tốc độ bán (chạy cron hàng ngày) -->
         <div class="glass-panel p-5 mb-6" id="restockProposalsPanel" style="display:none;">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-purple-400"><i class="fas fa-robot mr-2"></i> Đề xuất nhập hàng (AI)</h2>
+                <h2 class="text-lg font-bold text-purple-400"><i class="fas fa-robot mr-2"></i> <span data-i18n="inventory_alert_ai_proposals_heading">Đề xuất nhập hàng (AI)</span></h2>
                 <div class="text-sm text-gray-400" id="restockProposalCount"></div>
             </div>
             <div id="restockProposalsList" class="space-y-3"></div>
@@ -131,21 +132,21 @@
         <!-- Bộ lọc -->
         <div class="glass-panel p-5 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên sản phẩm..."></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Danh mục</label><select id="categoryFilter" class="filter-input"><option value="all">Tất cả</option><option value="Đồ Ăn">F&B</option><option value="Spa">Spa</option><option value="Thời Trang">Bán lẻ</option></select></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Mức độ</label><select id="alertFilter" class="filter-input"><option value="all">Tất cả</option><option value="critical">Nguy cấp (≤5)</option><option value="warning">Dưới ngưỡng (≤10)</option><option value="normal">Bình thường</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_search">Tìm kiếm</label><input type="text" id="searchInput" class="filter-input" placeholder="Tên sản phẩm..." data-i18n-placeholder="inventory_alert_placeholder_search"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_category">Danh mục</label><select id="categoryFilter" class="filter-input"><option value="all" data-i18n="inventory_alert_opt_all">Tất cả</option><option value="Đồ Ăn" data-i18n="inventory_alert_opt_fnb">F&B</option><option value="Spa" data-i18n="inventory_alert_opt_spa">Spa</option><option value="Thời Trang" data-i18n="inventory_alert_opt_retail">Bán lẻ</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_level">Mức độ</label><select id="alertFilter" class="filter-input"><option value="all" data-i18n="inventory_alert_opt_all2">Tất cả</option><option value="critical" data-i18n="inventory_alert_opt_critical">Nguy cấp (≤5)</option><option value="warning" data-i18n="inventory_alert_opt_warning">Dưới ngưỡng (≤10)</option><option value="normal" data-i18n="inventory_alert_opt_normal">Bình thường</option></select></div>
             </div>
-            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> Đặt lại</button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> Xuất Excel</button></div>
+            <div class="flex justify-between mt-4"><button id="resetFilterBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-undo-alt mr-1"></i> <span data-i18n="inventory_alert_reset_btn">Đặt lại</span></button><button id="exportExcelBtn" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-file-excel mr-1"></i> <span data-i18n="inventory_alert_export_btn">Xuất Excel</span></button></div>
         </div>
 
         <!-- Bảng sản phẩm tồn kho -->
         <div class="glass-panel p-5">
-            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-boxes mr-2"></i> Danh sách sản phẩm & tồn kho</h2><div class="text-sm text-gray-400" id="recordCount">Đang tải...</div></div>
+            <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-cyan-400"><i class="fas fa-boxes mr-2"></i> <span data-i18n="inventory_alert_table_heading">Danh sách sản phẩm & tồn kho</span></h2><div class="text-sm text-gray-400" id="recordCount" data-i18n="inventory_alert_loading">Đang tải...</div></div>
             <div class="table-wrapper">
                 <div class="overflow-x-auto">
                 <table class="custom-table">
-                    <thead><tr><th>ID</th><th>Sản phẩm</th><th>Danh mục</th><th>Tồn kho</th><th>Ngưỡng</th><th>Trạng thái</th><th>Giá trị</th><th>Thao tác</th></tr></thead>
-                    <tbody id="inventoryTableBody"><tr><td colspan="8" class="text-center py-10 text-gray-500">Đang tải...</td></tr></tbody>
+                    <thead><tr><th data-i18n="inventory_alert_th_id">ID</th><th data-i18n="inventory_alert_th_product">Sản phẩm</th><th data-i18n="inventory_alert_th_category">Danh mục</th><th data-i18n="inventory_alert_th_stock">Tồn kho</th><th data-i18n="inventory_alert_th_threshold">Ngưỡng</th><th data-i18n="inventory_alert_th_status">Trạng thái</th><th data-i18n="inventory_alert_th_value">Giá trị</th><th data-i18n="inventory_alert_th_action">Thao tác</th></tr></thead>
+                    <tbody id="inventoryTableBody"><tr><td colspan="8" class="text-center py-10 text-gray-500" data-i18n="inventory_alert_loading2">Đang tải...</td></tr></tbody>
                 </table>
                 </div>
             </div>
@@ -153,7 +154,7 @@
 
         <!-- Biểu đồ dự báo nhu cầu -->
         <div class="glass-panel p-5 mt-6">
-            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> Dự báo nhu cầu & xu hướng nhập hàng</h3>
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="inventory_alert_chart_heading">Dự báo nhu cầu & xu hướng nhập hàng</span></h3>
             <canvas id="demandChart" height="150" style="max-height: 200px;"></canvas>
         </div>
 
@@ -162,22 +163,22 @@
     <!-- Modal cài đặt ngưỡng tồn kho -->
     <div id="thresholdModal" class="modal-overlay">
         <div class="modal-container">
-            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-sliders-h mr-2"></i> Cài đặt ngưỡng tồn kho mặc định</h3><button id="closeThresholdBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-sliders-h mr-2"></i> <span data-i18n="inventory_alert_modal_threshold_title">Cài đặt ngưỡng tồn kho mặc định</span></h3><button id="closeThresholdBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
             <div class="space-y-4">
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Ngưỡng cảnh báo (dưới ngưỡng)</label><input type="number" id="warningThreshold" class="glass-input" placeholder="Ví dụ: 10"></div>
-                <div><label class="block text-xs font-bold text-gray-400 mb-1">Ngưỡng nguy cấp (cần nhập gấp)</label><input type="number" id="criticalThreshold" class="glass-input" placeholder="Ví dụ: 5"></div>
-                <button id="saveThresholdBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Lưu cài đặt</button>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_warning_threshold">Ngưỡng cảnh báo (dưới ngưỡng)</label><input type="number" id="warningThreshold" class="glass-input" placeholder="Ví dụ: 10" data-i18n-placeholder="inventory_alert_placeholder_e10"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_critical_threshold">Ngưỡng nguy cấp (cần nhập gấp)</label><input type="number" id="criticalThreshold" class="glass-input" placeholder="Ví dụ: 5" data-i18n-placeholder="inventory_alert_placeholder_e5"></div>
+                <button id="saveThresholdBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold" data-i18n="inventory_alert_save_threshold_btn">Lưu cài đặt</button>
             </div>
         </div>
     </div>
 
     <!-- Modal nhập hàng nhanh -->
     <div id="restockModal" class="modal-overlay">
-        <div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-truck mr-2"></i> Nhập thêm hàng</h3><button id="closeRestockBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
-        <input type="hidden" id="restockProductId"><div><label class="block text-xs font-bold text-gray-400 mb-1">Số lượng nhập thêm</label><input type="number" id="restockQuantity" class="glass-input" placeholder="Nhập số lượng"></div><div class="flex gap-3 mt-4"><button id="confirmRestockBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold">Nhập hàng</button><button id="cancelRestockBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button></div></div>
+        <div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400"><i class="fas fa-truck mr-2"></i> <span data-i18n="inventory_alert_modal_restock_title">Nhập thêm hàng</span></h3><button id="closeRestockBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+        <input type="hidden" id="restockProductId"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_restock_qty">Số lượng nhập thêm</label><input type="number" id="restockQuantity" class="glass-input" placeholder="Nhập số lượng" data-i18n-placeholder="inventory_alert_placeholder_qty"></div><div class="flex gap-3 mt-4"><button id="confirmRestockBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="inventory_alert_confirm_restock_btn">Nhập hàng</button><button id="cancelRestockBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="inventory_alert_cancel_btn">Hủy</button></div></div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm">Đang xử lý...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="inventory_alert_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
     <script type="module">
@@ -232,6 +233,15 @@
         const totalProductsSpan = document.getElementById('totalProducts');
         const totalInventoryValueSpan = document.getElementById('totalInventoryValue');
 
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatMoney(value) {
+            const v = Number(value) || 0;
+            if (TENANT_CURRENCY === 'USD') {
+                return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(v).toLocaleString('vi-VN') + '₫';
+        }
+
         function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -267,8 +277,8 @@
                 const payload = { warning: globalWarningThreshold, critical: globalCriticalThreshold };
                 const { error } = await supabase.from('system_settings').upsert({ key: 'inventory_thresholds', value: JSON.stringify(payload), updated_at: new Date() });
                 if (error) throw error;
-                showToast('Đã lưu ngưỡng tồn kho');
-            } catch (err) { showToast('Lỗi lưu: ' + err.message, true); }
+                showToast(t('inventory_alert_toast_threshold_saved'));
+            } catch (err) { showToast(t('inventory_alert_toast_save_error_prefix') + err.message, true); }
             finally { showLoading(false); }
         }
 
@@ -281,7 +291,7 @@
                 products = data || [];
                 applyFilters();
                 await loadThresholds();
-            } catch (err) { showToast('Lỗi tải sản phẩm: ' + err.message, true); }
+            } catch (err) { showToast(t('inventory_alert_toast_load_error_prefix') + err.message, true); }
             finally { showLoading(false); }
         }
 
@@ -294,13 +304,13 @@
             totalProductsSpan.innerText = total;
             criticalCountSpan.innerText = critical;
             warningCountSpan.innerText = warning;
-            totalInventoryValueSpan.innerText = totalValue.toLocaleString('vi-VN') + '₫';
+            totalInventoryValueSpan.innerText = formatMoney(totalValue);
         }
 
         function getStatusBadge(stock) {
-            if (stock <= globalCriticalThreshold) return '<span class="alert-badge critical"><i class="fas fa-exclamation-triangle mr-1"></i> Cần nhập gấp</span>';
-            if (stock <= globalWarningThreshold) return '<span class="alert-badge warning"><i class="fas fa-exclamation-circle mr-1"></i> Sắp hết</span>';
-            return '<span class="alert-badge normal"><i class="fas fa-check-circle mr-1"></i> Bình thường</span>';
+            if (stock <= globalCriticalThreshold) return `<span class="alert-badge critical"><i class="fas fa-exclamation-triangle mr-1"></i> ${t('inventory_alert_status_critical')}</span>`;
+            if (stock <= globalWarningThreshold) return `<span class="alert-badge warning"><i class="fas fa-exclamation-circle mr-1"></i> ${t('inventory_alert_status_warning')}</span>`;
+            return `<span class="alert-badge normal"><i class="fas fa-check-circle mr-1"></i> ${t('inventory_alert_status_normal')}</span>`;
         }
 
         function applyFilters() {
@@ -320,24 +330,24 @@
             renderTable();
             updateStats();
             updateChart();
-            recordCountSpan.innerText = `Tổng: ${filteredProducts.length} sản phẩm`;
+            recordCountSpan.innerText = tf('inventory_alert_record_count', { count: filteredProducts.length });
         }
 
         function renderTable() {
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage;
             const pageData = filteredProducts.slice(start, end);
-            if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-500">Không có sản phẩm nào</td></tr>'; return; }
+            if (pageData.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-gray-500">${t('inventory_alert_no_products')}</td></tr>`; return; }
             tbody.innerHTML = pageData.map(p => `
                 <tr>
                     <td class="text-gray-400">#${p.id}</td>
                     <td class="font-medium">${escapeHtml(p.name)}</td>
-                    <td>${escapeHtml(p.category || 'Khác')}</td>
+                    <td>${escapeHtml(p.category) || t('inventory_alert_other_category')}</td>
                     <td class="${p.stock <= globalCriticalThreshold ? 'text-rose-400 font-bold' : (p.stock <= globalWarningThreshold ? 'text-yellow-400' : 'text-white')}">${p.stock}</td>
                     <td class="text-gray-400">${globalWarningThreshold} / ${globalCriticalThreshold}</td>
                     <td>${getStatusBadge(p.stock)}</td>
-                    <td class="font-mono text-emerald-400">${((p.stock || 0) * (p.price || 0)).toLocaleString('vi-VN')}₫</td>
-                    <td><button class="restock-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-truck"></i> Nhập hàng</button></td>
+                    <td class="font-mono text-emerald-400">${formatMoney((p.stock || 0) * (p.price || 0))}</td>
+                    <td><button class="restock-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-truck"></i> ${t('inventory_alert_restock_btn')}</button></td>
                 </tr>
             `).join('');
             document.querySelectorAll('.restock-btn').forEach(btn => {
@@ -368,12 +378,12 @@
         function resetFilters() { searchInput.value = ''; categoryFilter.value = 'all'; alertFilter.value = 'all'; applyFilters(); }
 
         function exportToExcel() {
-            const wsData = [['ID','Tên sản phẩm','Danh mục','Tồn kho','Ngưỡng cảnh báo','Ngưỡng nguy cấp','Trạng thái','Giá trị tồn']];
+            const wsData = [[t('inventory_alert_th_id'), t('inventory_alert_th_product'), t('inventory_alert_th_category'), t('inventory_alert_th_stock'), t('inventory_alert_xl_warning_threshold'), t('inventory_alert_xl_critical_threshold'), t('inventory_alert_th_status'), t('inventory_alert_xl_stock_value')]];
             filteredProducts.forEach(p => {
-                const status = p.stock <= globalCriticalThreshold ? 'Cần nhập gấp' : (p.stock <= globalWarningThreshold ? 'Sắp hết' : 'Bình thường');
+                const status = p.stock <= globalCriticalThreshold ? t('inventory_alert_status_critical') : (p.stock <= globalWarningThreshold ? t('inventory_alert_status_warning') : t('inventory_alert_status_normal'));
                 wsData.push([p.id, p.name, p.category, p.stock, globalWarningThreshold, globalCriticalThreshold, status, (p.stock * (p.price||0))]);
             });
-            const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb, ws, 'Inventory'); XLSX.writeFile(wb, `inventory_${new Date().toISOString().slice(0,19)}.xlsx`); showToast('Xuất Excel thành công');
+            const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb, ws, 'Inventory'); XLSX.writeFile(wb, `inventory_${new Date().toISOString().slice(0,19)}.xlsx`); showToast(t('inventory_alert_toast_export_success'));
         }
 
         // Restock
@@ -387,19 +397,19 @@
                 product.stock = newStock;
                 await supabase.from('inventory_logs').insert([{ product_id: id, quantity_change: quantity, type: 'restock', created_at: new Date() }]);
                 return true;
-            } catch (err) { showToast('Lỗi nhập hàng: ' + err.message, true); return false; }
+            } catch (err) { showToast(t('inventory_alert_toast_restock_error_prefix') + err.message, true); return false; }
         }
 
         // Confirm restock
         confirmRestockBtn.addEventListener('click', async () => {
             const id = parseInt(restockProductId.value);
             const qty = parseInt(restockQuantity.value);
-            if (isNaN(qty) || qty <= 0) { showToast('Vui lòng nhập số lượng hợp lệ', true); return; }
+            if (isNaN(qty) || qty <= 0) { showToast(t('inventory_alert_toast_invalid_qty'), true); return; }
             showLoading(true);
             const success = await restockProduct(id, qty);
             if (success) {
                 applyFilters();
-                showToast(`Đã nhập thêm ${qty} sản phẩm`);
+                showToast(tf('inventory_alert_toast_restocked', { qty }));
             }
             restockModal.classList.remove('active');
             showLoading(false);
@@ -416,13 +426,13 @@
         saveThresholdBtn.addEventListener('click', async () => {
             const newWarning = parseInt(warningThresholdInput.value);
             const newCritical = parseInt(criticalThresholdInput.value);
-            if (isNaN(newWarning) || isNaN(newCritical) || newCritical >= newWarning) { showToast('Ngưỡng không hợp lệ!', true); return; }
+            if (isNaN(newWarning) || isNaN(newCritical) || newCritical >= newWarning) { showToast(t('inventory_alert_toast_invalid_threshold'), true); return; }
             globalWarningThreshold = newWarning;
             globalCriticalThreshold = newCritical;
             await saveThresholds();
             applyFilters();
             thresholdModal.classList.remove('active');
-            showToast('Cập nhật ngưỡng thành công');
+            showToast(t('inventory_alert_toast_threshold_updated'));
         });
         closeRestockBtn.addEventListener('click', () => restockModal.classList.remove('active'));
         cancelRestockBtn.addEventListener('click', () => restockModal.classList.remove('active'));
@@ -438,14 +448,14 @@
         supportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('supportName').value, phone = document.getElementById('supportPhone').value, message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) { showToast('Vui lòng nhập đầy đủ', true); return; }
+            if (!name || !phone || !message) { showToast(t('inventory_alert_toast_fill_all'), true); return; }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(`✅ ${t('inventory_alert_toast_request_sent')}`);
                 supportForm.reset();
-            } catch(err) { showToast('Lỗi: ' + err.message, true); }
+            } catch(err) { showToast(t('inventory_alert_toast_error_prefix') + err.message, true); }
             finally { showLoading(false); }
         });
 
@@ -461,16 +471,16 @@
                 if (error) throw error;
                 if (!data || data.length === 0) { panel.style.display = 'none'; return; }
                 panel.style.display = 'block';
-                countEl.innerText = `${data.length} đề xuất đang chờ`;
+                countEl.innerText = tf('inventory_alert_ai_proposal_count', { count: data.length });
                 list.innerHTML = data.map(p => `
                     <div class="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between">
                         <div>
-                            <p class="font-bold text-white">${escapeHtml(p.product_name || '')} <span class="text-purple-300 text-xs font-normal">(còn ${p.current_stock}, đề xuất nhập +${p.suggested_qty})</span></p>
+                            <p class="font-bold text-white">${escapeHtml(p.product_name || '')} <span class="text-purple-300 text-xs font-normal">${tf('inventory_alert_ai_proposal_detail', { stock: p.current_stock, qty: p.suggested_qty })}</span></p>
                             <p class="text-xs text-gray-400 mt-1">${escapeHtml(p.reason || '')}</p>
                         </div>
                         <div class="flex gap-2 shrink-0">
-                            <button class="restock-approve-btn bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${p.id}"><i class="fas fa-check mr-1"></i> Đã nhập hàng</button>
-                            <button class="restock-dismiss-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${p.id}"><i class="fas fa-times mr-1"></i> Bỏ qua</button>
+                            <button class="restock-approve-btn bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${p.id}"><i class="fas fa-check mr-1"></i> ${t('inventory_alert_ai_approve_btn')}</button>
+                            <button class="restock-dismiss-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${p.id}"><i class="fas fa-times mr-1"></i> ${t('inventory_alert_ai_dismiss_btn')}</button>
                         </div>
                     </div>
                 `).join('');
@@ -485,11 +495,196 @@
             try {
                 const { error } = await supabase.from('restock_proposals').update({ status }).eq('id', id);
                 if (error) throw error;
-                showToast(status === 'approved' ? '✅ Đã đánh dấu đã nhập hàng' : 'Đã bỏ qua đề xuất');
+                showToast(status === 'approved' ? `✅ ${t('inventory_alert_toast_marked_restocked')}` : t('inventory_alert_toast_proposal_dismissed'));
                 loadRestockProposals();
             } catch (err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('inventory_alert_toast_error_prefix') + err.message, true);
             }
+        }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                inventory_alert_header_suffix: '| Cảnh báo tồn kho',
+                inventory_alert_header_subtitle: 'Quản lý ngưỡng tồn, nhập hàng thông minh',
+                inventory_alert_home: 'Trang chủ',
+                inventory_alert_thresholds_btn: 'Ngưỡng tồn',
+                inventory_alert_stat_critical: 'Sản phẩm sắp hết',
+                inventory_alert_stat_warning: 'Sản phẩm dưới ngưỡng',
+                inventory_alert_stat_total: 'Tổng sản phẩm',
+                inventory_alert_stat_value: 'Giá trị tồn kho',
+                inventory_alert_ai_proposals_heading: 'Đề xuất nhập hàng (AI)',
+                inventory_alert_label_search: 'Tìm kiếm',
+                inventory_alert_placeholder_search: 'Tên sản phẩm...',
+                inventory_alert_label_category: 'Danh mục',
+                inventory_alert_opt_all: 'Tất cả',
+                inventory_alert_opt_fnb: 'F&B',
+                inventory_alert_opt_spa: 'Spa',
+                inventory_alert_opt_retail: 'Bán lẻ',
+                inventory_alert_label_level: 'Mức độ',
+                inventory_alert_opt_all2: 'Tất cả',
+                inventory_alert_opt_critical: 'Nguy cấp (≤5)',
+                inventory_alert_opt_warning: 'Dưới ngưỡng (≤10)',
+                inventory_alert_opt_normal: 'Bình thường',
+                inventory_alert_reset_btn: 'Đặt lại',
+                inventory_alert_export_btn: 'Xuất Excel',
+                inventory_alert_table_heading: 'Danh sách sản phẩm & tồn kho',
+                inventory_alert_loading: 'Đang tải...',
+                inventory_alert_loading2: 'Đang tải...',
+                inventory_alert_th_id: 'ID',
+                inventory_alert_th_product: 'Sản phẩm',
+                inventory_alert_th_category: 'Danh mục',
+                inventory_alert_th_stock: 'Tồn kho',
+                inventory_alert_th_threshold: 'Ngưỡng',
+                inventory_alert_th_status: 'Trạng thái',
+                inventory_alert_th_value: 'Giá trị',
+                inventory_alert_th_action: 'Thao tác',
+                inventory_alert_chart_heading: 'Dự báo nhu cầu & xu hướng nhập hàng',
+                inventory_alert_modal_threshold_title: 'Cài đặt ngưỡng tồn kho mặc định',
+                inventory_alert_label_warning_threshold: 'Ngưỡng cảnh báo (dưới ngưỡng)',
+                inventory_alert_placeholder_e10: 'Ví dụ: 10',
+                inventory_alert_label_critical_threshold: 'Ngưỡng nguy cấp (cần nhập gấp)',
+                inventory_alert_placeholder_e5: 'Ví dụ: 5',
+                inventory_alert_save_threshold_btn: 'Lưu cài đặt',
+                inventory_alert_modal_restock_title: 'Nhập thêm hàng',
+                inventory_alert_label_restock_qty: 'Số lượng nhập thêm',
+                inventory_alert_placeholder_qty: 'Nhập số lượng',
+                inventory_alert_confirm_restock_btn: 'Nhập hàng',
+                inventory_alert_cancel_btn: 'Hủy',
+                inventory_alert_processing: 'Đang xử lý...',
+                inventory_alert_toast_threshold_saved: 'Đã lưu ngưỡng tồn kho',
+                inventory_alert_toast_save_error_prefix: 'Lỗi lưu: ',
+                inventory_alert_toast_load_error_prefix: 'Lỗi tải sản phẩm: ',
+                inventory_alert_status_critical: 'Cần nhập gấp',
+                inventory_alert_status_warning: 'Sắp hết',
+                inventory_alert_status_normal: 'Bình thường',
+                inventory_alert_record_count: 'Tổng: {count} sản phẩm',
+                inventory_alert_no_products: 'Không có sản phẩm nào',
+                inventory_alert_other_category: 'Khác',
+                inventory_alert_restock_btn: 'Nhập hàng',
+                inventory_alert_xl_warning_threshold: 'Ngưỡng cảnh báo',
+                inventory_alert_xl_critical_threshold: 'Ngưỡng nguy cấp',
+                inventory_alert_xl_stock_value: 'Giá trị tồn',
+                inventory_alert_toast_export_success: 'Xuất Excel thành công',
+                inventory_alert_toast_restock_error_prefix: 'Lỗi nhập hàng: ',
+                inventory_alert_toast_invalid_qty: 'Vui lòng nhập số lượng hợp lệ',
+                inventory_alert_toast_restocked: 'Đã nhập thêm {qty} sản phẩm',
+                inventory_alert_toast_invalid_threshold: 'Ngưỡng không hợp lệ!',
+                inventory_alert_toast_threshold_updated: 'Cập nhật ngưỡng thành công',
+                inventory_alert_toast_fill_all: 'Vui lòng nhập đầy đủ',
+                inventory_alert_toast_request_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                inventory_alert_toast_error_prefix: 'Lỗi: ',
+                inventory_alert_ai_proposal_count: '{count} đề xuất đang chờ',
+                inventory_alert_ai_proposal_detail: '(còn {stock}, đề xuất nhập +{qty})',
+                inventory_alert_ai_approve_btn: 'Đã nhập hàng',
+                inventory_alert_ai_dismiss_btn: 'Bỏ qua',
+                inventory_alert_toast_marked_restocked: 'Đã đánh dấu đã nhập hàng',
+                inventory_alert_toast_proposal_dismissed: 'Đã bỏ qua đề xuất'
+            },
+            en: {
+                inventory_alert_header_suffix: '| Inventory Alerts',
+                inventory_alert_header_subtitle: 'Manage stock thresholds and smart restocking',
+                inventory_alert_home: 'Home',
+                inventory_alert_thresholds_btn: 'Thresholds',
+                inventory_alert_stat_critical: 'Low Stock Items',
+                inventory_alert_stat_warning: 'Below Threshold Items',
+                inventory_alert_stat_total: 'Total Products',
+                inventory_alert_stat_value: 'Inventory Value',
+                inventory_alert_ai_proposals_heading: 'Restock Suggestions (AI)',
+                inventory_alert_label_search: 'Search',
+                inventory_alert_placeholder_search: 'Product name...',
+                inventory_alert_label_category: 'Category',
+                inventory_alert_opt_all: 'All',
+                inventory_alert_opt_fnb: 'F&B',
+                inventory_alert_opt_spa: 'Spa',
+                inventory_alert_opt_retail: 'Retail',
+                inventory_alert_label_level: 'Level',
+                inventory_alert_opt_all2: 'All',
+                inventory_alert_opt_critical: 'Critical (≤5)',
+                inventory_alert_opt_warning: 'Below threshold (≤10)',
+                inventory_alert_opt_normal: 'Normal',
+                inventory_alert_reset_btn: 'Reset',
+                inventory_alert_export_btn: 'Export Excel',
+                inventory_alert_table_heading: 'Product & Inventory List',
+                inventory_alert_loading: 'Loading...',
+                inventory_alert_loading2: 'Loading...',
+                inventory_alert_th_id: 'ID',
+                inventory_alert_th_product: 'Product',
+                inventory_alert_th_category: 'Category',
+                inventory_alert_th_stock: 'Stock',
+                inventory_alert_th_threshold: 'Threshold',
+                inventory_alert_th_status: 'Status',
+                inventory_alert_th_value: 'Value',
+                inventory_alert_th_action: 'Action',
+                inventory_alert_chart_heading: 'Demand Forecast & Restock Trends',
+                inventory_alert_modal_threshold_title: 'Default Inventory Threshold Settings',
+                inventory_alert_label_warning_threshold: 'Warning threshold (below)',
+                inventory_alert_placeholder_e10: 'e.g. 10',
+                inventory_alert_label_critical_threshold: 'Critical threshold (urgent restock)',
+                inventory_alert_placeholder_e5: 'e.g. 5',
+                inventory_alert_save_threshold_btn: 'Save Settings',
+                inventory_alert_modal_restock_title: 'Restock Product',
+                inventory_alert_label_restock_qty: 'Restock quantity',
+                inventory_alert_placeholder_qty: 'Enter quantity',
+                inventory_alert_confirm_restock_btn: 'Restock',
+                inventory_alert_cancel_btn: 'Cancel',
+                inventory_alert_processing: 'Processing...',
+                inventory_alert_toast_threshold_saved: 'Thresholds saved',
+                inventory_alert_toast_save_error_prefix: 'Save error: ',
+                inventory_alert_toast_load_error_prefix: 'Error loading products: ',
+                inventory_alert_status_critical: 'Urgent restock',
+                inventory_alert_status_warning: 'Running low',
+                inventory_alert_status_normal: 'Normal',
+                inventory_alert_record_count: 'Total: {count} products',
+                inventory_alert_no_products: 'No products found',
+                inventory_alert_other_category: 'Other',
+                inventory_alert_restock_btn: 'Restock',
+                inventory_alert_xl_warning_threshold: 'Warning Threshold',
+                inventory_alert_xl_critical_threshold: 'Critical Threshold',
+                inventory_alert_xl_stock_value: 'Stock Value',
+                inventory_alert_toast_export_success: 'Excel export successful',
+                inventory_alert_toast_restock_error_prefix: 'Restock error: ',
+                inventory_alert_toast_invalid_qty: 'Please enter a valid quantity',
+                inventory_alert_toast_restocked: 'Restocked {qty} units',
+                inventory_alert_toast_invalid_threshold: 'Invalid threshold!',
+                inventory_alert_toast_threshold_updated: 'Thresholds updated successfully',
+                inventory_alert_toast_fill_all: 'Please fill in all information',
+                inventory_alert_toast_request_sent: 'Request sent! We will contact you within 15 minutes.',
+                inventory_alert_toast_error_prefix: 'Error: ',
+                inventory_alert_ai_proposal_count: '{count} pending suggestions',
+                inventory_alert_ai_proposal_detail: '(in stock {stock}, suggested +{qty})',
+                inventory_alert_ai_approve_btn: 'Restocked',
+                inventory_alert_ai_dismiss_btn: 'Dismiss',
+                inventory_alert_toast_marked_restocked: 'Marked as restocked',
+                inventory_alert_toast_proposal_dismissed: 'Suggestion dismissed'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            renderTable();
+            updateStats();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
         // Initial load
@@ -539,10 +734,10 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                material.color.setHSL((t * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                const elapsed = clock.getElapsedTime();
+                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

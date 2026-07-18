@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cấu Hình Lương - BitPaw</title>
+    <title>Salary Configuration - BitPaw</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -109,25 +109,29 @@
                 </div>
                 <h1 class="text-2xl font-black tracking-widest drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] text-white">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_overview">Tổng quan</span>
                 </a>
                 <a href="/nhanvien" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="/chamcong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_attendance">Chấm công</span>
                 </a>
                 <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_payroll">Bảng lương</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10">
             <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="cauhinhluong_nav_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -137,12 +141,12 @@
         <div class="w-full max-w-4xl mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3 text-white">
-                    Cấu Hình <span class="text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Lương</span> <i class="fas fa-hand-holding-usd text-cyan-400 text-3xl"></i>
+                    <span data-i18n="cauhinhluong_title_part1">Cấu hình</span> <span class="text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" data-i18n="cauhinhluong_title_part2">Lương</span> <i class="fas fa-hand-holding-usd text-cyan-400 text-3xl"></i>
                 </h2>
-                <p class="text-gray-400 mt-2 font-medium text-sm">Thiết lập cơ chế tính lương linh hoạt cho nhân viên POS (bảng staff). Khác với lương chấm công ở trang Quản lý Nhân viên (nhanvien.html) — 2 hệ nhân sự riêng biệt. Có thể liên kết 2 bên ở dropdown dưới đây.</p>
+                <p class="text-gray-400 mt-2 font-medium text-sm" data-i18n="cauhinhluong_subtitle">Thiết lập cơ chế tính lương linh hoạt cho nhân viên POS (bảng staff). Đây là hệ thống tách biệt với lương tính theo chấm công ở trang Quản lý Nhân sự (nhanvien.html) — hai hệ thống nhân sự độc lập. Bạn có thể liên kết hai bên qua danh sách chọn bên dưới.</p>
             </div>
             <a href="/staff" class="glass-panel px-5 py-2.5 hover:border-cyan-500/50 rounded-xl transition-all text-gray-300 hover:text-cyan-400 flex items-center gap-2 font-bold shadow-lg active:scale-95">
-                <i class="fas fa-arrow-left"></i> Quay lại
+                <i class="fas fa-arrow-left"></i> <span data-i18n="cauhinhluong_back_btn">Quay lại</span>
             </a>
         </div>
 
@@ -168,10 +172,10 @@
 
             <form id="salarySetupForm" class="space-y-6 relative z-10">
                 <div class="bg-white/5 p-5 rounded-2xl border border-white/5 shadow-inner">
-                    <label class="block text-xs text-gray-400 font-bold uppercase tracking-widest mb-3"><i class="fas fa-link mr-1 text-cyan-500"></i> Liên kết với hồ sơ Chấm công (employees)</label>
+                    <label class="block text-xs text-gray-400 font-bold uppercase tracking-widest mb-3"><i class="fas fa-link mr-1 text-cyan-500"></i> <span data-i18n="cauhinhluong_link_label">Liên kết với hồ sơ Chấm công (nhân viên)</span></label>
                     <div class="relative">
                         <select id="linkedMaNv" class="w-full bg-black/60 border border-white/10 text-white font-bold px-5 py-4 rounded-xl outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all cursor-pointer appearance-none shadow-inner">
-                            <option value="" class="bg-gray-900">Không liên kết</option>
+                            <option value="" class="bg-gray-900" data-i18n="cauhinhluong_not_linked">Chưa liên kết</option>
                             {% for e in employees_list %}
                             <option value="{{ e.ma_nv }}" class="bg-gray-900" {% if e.ma_nv == linked_ma_nv %}selected{% endif %}>{{ e.ho_ten }} ({{ e.ma_nv }})</option>
                             {% endfor %}
@@ -180,16 +184,16 @@
                             <i class="fas fa-chevron-down text-cyan-400"></i>
                         </div>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-2 leading-relaxed"><i class="fas fa-info-circle mr-1"></i> Liên kết để cấu hình lương ở đây tự động đồng bộ vào hồ sơ chấm công, giúp bảng lương (bangluong.html) tính đúng số. Không bắt buộc.</p>
+                    <p class="text-[10px] text-gray-500 mt-2 leading-relaxed"><i class="fas fa-info-circle mr-1"></i> <span data-i18n="cauhinhluong_link_hint">Việc liên kết giúp cấu hình lương tại đây tự động đồng bộ với hồ sơ chấm công, để bảng lương (bangluong.html) tính đúng số tiền. Không bắt buộc.</span></p>
                 </div>
 
                 <div class="bg-white/5 p-5 rounded-2xl border border-white/5 shadow-inner">
-                    <label class="block text-xs text-gray-400 font-bold uppercase tracking-widest mb-3"><i class="fas fa-cogs mr-1 text-cyan-500"></i> Engine tính lương chính</label>
+                    <label class="block text-xs text-gray-400 font-bold uppercase tracking-widest mb-3"><i class="fas fa-cogs mr-1 text-cyan-500"></i> <span data-i18n="cauhinhluong_engine_label">Cơ chế tính lương chính</span></label>
                     <div class="relative">
                         <select id="salaryType" onchange="toggleSalaryFields()" class="w-full bg-black/60 border border-white/10 text-white font-bold px-5 py-4 rounded-xl outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all cursor-pointer appearance-none shadow-inner">
-                            <option value="thang" class="bg-gray-900">Lương cứng cố định theo tháng (Khối VP, Kỹ thuật)</option>
-                            <option value="gio" class="bg-gray-900">Lương khoán theo giờ làm (F&B, Nhà hàng, Part-time)</option>
-                            <option value="hoahong" class="bg-gray-900">Lương cơ bản + Hoa hồng dịch vụ (Spa, Nails, Salon)</option>
+                            <option value="thang" class="bg-gray-900" data-i18n="cauhinhluong_opt_thang">Lương cố định theo tháng (Nhân viên văn phòng, Kỹ thuật)</option>
+                            <option value="gio" class="bg-gray-900" data-i18n="cauhinhluong_opt_gio">Lương theo giờ (F&B, Nhà hàng, Bán thời gian)</option>
+                            <option value="hoahong" class="bg-gray-900" data-i18n="cauhinhluong_opt_hoahong">Lương cơ bản + Hoa hồng dịch vụ (Spa, Nail, Salon)</option>
                         </select>
                         <div class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center pointer-events-none">
                             <i class="fas fa-chevron-down text-cyan-400"></i>
@@ -201,38 +205,38 @@
                     
                     <div id="field_luongcung" class="col-span-1 md:col-span-2 floating-input input-cyan transition-all duration-300">
                         <input type="number" id="inp_luong_cung" placeholder=" ">
-                        <label><i class="fas fa-money-check-alt mr-1"></i> Lương Cơ Bản Cố Định</label>
-                        <span class="input-unit text-cyan-500">VNĐ/Tháng</span>
+                        <label><i class="fas fa-money-check-alt mr-1"></i> <span data-i18n="cauhinhluong_field_luongcung">Lương cơ bản cố định</span></label>
+                        <span class="input-unit text-cyan-500" data-i18n="cauhinhluong_unit_month">VNĐ/Tháng</span>
                     </div>
 
                     <div id="field_luonggio" class="col-span-1 md:col-span-2 floating-input input-orange transition-all duration-300 hidden">
                         <input type="number" id="inp_luong_gio" placeholder=" ">
-                        <label><i class="fas fa-clock mr-1"></i> Mức Lương Khoán Theo Giờ</label>
-                        <span class="input-unit text-orange-500">VNĐ/Giờ</span>
+                        <label><i class="fas fa-clock mr-1"></i> <span data-i18n="cauhinhluong_field_luonggio">Mức lương theo giờ</span></label>
+                        <span class="input-unit text-orange-500" data-i18n="cauhinhluong_unit_hour">VNĐ/Giờ</span>
                     </div>
 
                     <div id="field_hoahong" class="col-span-1 md:col-span-2 floating-input input-pink transition-all duration-300 hidden">
                         <input type="number" id="inp_hoa_hong" placeholder=" ">
-                        <label><i class="fas fa-percent mr-1"></i> Tỉ Lệ Hoa Hồng (Doanh thu DV)</label>
+                        <label><i class="fas fa-percent mr-1"></i> <span data-i18n="cauhinhluong_field_hoahong">Tỷ lệ hoa hồng (Doanh thu dịch vụ)</span></label>
                         <span class="input-unit text-pink-500">%</span>
                     </div>
 
                     <div class="floating-input input-cyan">
                         <input type="number" id="inp_tang_ca" placeholder=" ">
-                        <label><i class="fas fa-business-time mr-1"></i> Tiền Tăng Ca (OT)</label>
-                        <span class="input-unit text-gray-500">VNĐ/Giờ</span>
+                        <label><i class="fas fa-business-time mr-1"></i> <span data-i18n="cauhinhluong_field_tangca">Lương tăng ca (OT)</span></label>
+                        <span class="input-unit text-gray-500" data-i18n="cauhinhluong_unit_hour">VNĐ/Giờ</span>
                     </div>
 
                     <div class="floating-input input-cyan">
                         <input type="number" id="inp_phu_cap" placeholder=" ">
-                        <label><i class="fas fa-gas-pump mr-1"></i> Phụ Cấp (Ăn trưa, Xăng xe)</label>
-                        <span class="input-unit text-gray-500">VNĐ/Tháng</span>
+                        <label><i class="fas fa-gas-pump mr-1"></i> <span data-i18n="cauhinhluong_field_phucap">Phụ cấp (Ăn trưa, Xăng xe)</span></label>
+                        <span class="input-unit text-gray-500" data-i18n="cauhinhluong_unit_month">VNĐ/Tháng</span>
                     </div>
                 </div>
 
                 <div class="pt-6 mt-2 border-t border-white/10 flex justify-end">
                     <button type="button" onclick="saveConfig()" id="btnSave" class="w-full md:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black tracking-widest uppercase py-4 px-10 rounded-xl transition-all shadow-[0_10px_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-3 active:scale-95">
-                        <i class="fas fa-save text-xl"></i> CHỐT CẤU HÌNH LƯƠNG
+                        <i class="fas fa-save text-xl"></i> <span data-i18n="cauhinhluong_save_btn">XÁC NHẬN CẤU HÌNH LƯƠNG</span>
                     </button>
                 </div>
             </form>
@@ -240,6 +244,90 @@
     </main>
 
     <script>
+    // ========================================================
+    // 🌐 I18N (Đa ngôn ngữ)
+    // ========================================================
+    let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+    const translations = {
+        vi: {
+            cauhinhluong_nav_overview: 'Tổng quan',
+            cauhinhluong_nav_hr: 'Quản lý Nhân sự',
+            cauhinhluong_nav_attendance: 'Chấm công',
+            cauhinhluong_nav_payroll: 'Bảng lương',
+            cauhinhluong_nav_logout: 'Đăng xuất',
+            cauhinhluong_title_part1: 'Cấu hình',
+            cauhinhluong_title_part2: 'Lương',
+            cauhinhluong_subtitle: 'Thiết lập cơ chế tính lương linh hoạt cho nhân viên POS (bảng staff). Đây là hệ thống tách biệt với lương tính theo chấm công ở trang Quản lý Nhân sự (nhanvien.html) — hai hệ thống nhân sự độc lập. Bạn có thể liên kết hai bên qua danh sách chọn bên dưới.',
+            cauhinhluong_back_btn: 'Quay lại',
+            cauhinhluong_link_label: 'Liên kết với hồ sơ Chấm công (nhân viên)',
+            cauhinhluong_not_linked: 'Chưa liên kết',
+            cauhinhluong_link_hint: 'Việc liên kết giúp cấu hình lương tại đây tự động đồng bộ với hồ sơ chấm công, để bảng lương (bangluong.html) tính đúng số tiền. Không bắt buộc.',
+            cauhinhluong_engine_label: 'Cơ chế tính lương chính',
+            cauhinhluong_opt_thang: 'Lương cố định theo tháng (Nhân viên văn phòng, Kỹ thuật)',
+            cauhinhluong_opt_gio: 'Lương theo giờ (F&B, Nhà hàng, Bán thời gian)',
+            cauhinhluong_opt_hoahong: 'Lương cơ bản + Hoa hồng dịch vụ (Spa, Nail, Salon)',
+            cauhinhluong_field_luongcung: 'Lương cơ bản cố định',
+            cauhinhluong_field_luonggio: 'Mức lương theo giờ',
+            cauhinhluong_field_hoahong: 'Tỷ lệ hoa hồng (Doanh thu dịch vụ)',
+            cauhinhluong_field_tangca: 'Lương tăng ca (OT)',
+            cauhinhluong_field_phucap: 'Phụ cấp (Ăn trưa, Xăng xe)',
+            cauhinhluong_unit_month: 'VNĐ/Tháng',
+            cauhinhluong_unit_hour: 'VNĐ/Giờ',
+            cauhinhluong_save_btn: 'XÁC NHẬN CẤU HÌNH LƯƠNG',
+            cauhinhluong_saving: 'ĐANG MÃ HÓA & LƯU...',
+            cauhinhluong_save_success: 'Đã chốt cấu hình lương thành công vào Database!',
+            cauhinhluong_server_error: 'Có lỗi từ phía Máy chủ!',
+            cauhinhluong_conn_error: 'Lỗi kết nối đến máy chủ! Kiểm tra lại mạng.'
+        },
+        en: {
+            cauhinhluong_nav_overview: 'Overview',
+            cauhinhluong_nav_hr: 'HR Management',
+            cauhinhluong_nav_attendance: 'Attendance',
+            cauhinhluong_nav_payroll: 'Payroll',
+            cauhinhluong_nav_logout: 'Logout',
+            cauhinhluong_title_part1: 'Salary',
+            cauhinhluong_title_part2: 'Configuration',
+            cauhinhluong_subtitle: 'Set up a flexible salary calculation mechanism for POS staff (staff table). This is separate from the attendance-based salary on the Employee Management page (nhanvien.html) — two independent HR systems. You can link the two via the dropdown below.',
+            cauhinhluong_back_btn: 'Back',
+            cauhinhluong_link_label: 'Link to Attendance profile (employees)',
+            cauhinhluong_not_linked: 'Not linked',
+            cauhinhluong_link_hint: 'Linking makes the salary configuration here automatically sync to the attendance profile, so payroll (bangluong.html) calculates the correct amount. Optional.',
+            cauhinhluong_engine_label: 'Main Salary Engine',
+            cauhinhluong_opt_thang: 'Fixed monthly salary (Office staff, Technical)',
+            cauhinhluong_opt_gio: 'Hourly wage (F&B, Restaurant, Part-time)',
+            cauhinhluong_opt_hoahong: 'Base salary + Service commission (Spa, Nails, Salon)',
+            cauhinhluong_field_luongcung: 'Fixed Base Salary',
+            cauhinhluong_field_luonggio: 'Hourly Wage Rate',
+            cauhinhluong_field_hoahong: 'Commission Rate (Service Revenue)',
+            cauhinhluong_field_tangca: 'Overtime Pay (OT)',
+            cauhinhluong_field_phucap: 'Allowance (Lunch, Fuel)',
+            cauhinhluong_unit_month: 'VND/Month',
+            cauhinhluong_unit_hour: 'VND/Hour',
+            cauhinhluong_save_btn: 'CONFIRM SALARY CONFIGURATION',
+            cauhinhluong_saving: 'SAVING...',
+            cauhinhluong_save_success: 'Salary configuration saved successfully to the Database!',
+            cauhinhluong_server_error: 'Server error occurred!',
+            cauhinhluong_conn_error: 'Connection error! Please check your network.'
+        }
+    };
+    function t(key) {
+        return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+    }
+    function applyStaticTranslations() {
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+        const langBtn = document.getElementById('langToggleBtn');
+        if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+    }
+    function changeLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem('bitpaw_lang', lang);
+        applyStaticTranslations();
+    }
+    applyStaticTranslations();
+    document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
     // ========================================================
     // 🚀 UI/UX SYSTEM (TOAST, CONFETTI, 3D BACKGROUND)
     // ========================================================
@@ -354,7 +442,7 @@
         const btn = document.getElementById('btnSave');
         const origText = btn.innerHTML;
         
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> ĐANG MÃ HÓA & LƯU...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> ' + t('cauhinhluong_saving');
         btn.disabled = true;
         
         const payload = {
@@ -378,14 +466,14 @@
                 if (data.warning) {
                     showToast(data.warning, "error");
                 } else {
-                    showToast("Đã chốt cấu hình lương thành công vào Database!", "success");
+                    showToast(t('cauhinhluong_save_success'), "success");
                     triggerConfetti();
                 }
             } else {
-                showToast(data.message || "Có lỗi từ phía Máy chủ!", "error");
+                showToast(data.message || t('cauhinhluong_server_error'), "error");
             }
         } catch (error) {
-            showToast("Lỗi kết nối đến máy chủ! Kiểm tra lại mạng.", "error");
+            showToast(t('cauhinhluong_conn_error'), "error");
         } finally {
             btn.innerHTML = origText;
             btn.disabled = false;

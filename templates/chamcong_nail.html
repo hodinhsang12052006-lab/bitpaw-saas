@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -111,34 +111,38 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_overview">Tổng quan</span>
                 </a>
                 <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_hr">Quản lý Nhân sự</span>
                 </a>
                 <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_attendance">Chấm công</span>
                 </a>
                 <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_payroll">Bảng lương</span>
                 </a>
                 <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Trạm Liên Lạc</span>
+                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_comm">Trạm Liên Lạc</span>
                 </a>
                 <a href="/map_dashboard" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_gps">Radar GPS Thợ</span>
                 </a>
                 <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Công nợ</span>
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_debt">Quản lý Công nợ</span>
                 </a>
                 <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Quản lý Thu Chi</span>
+                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_revenue">Quản lý Thu Chi</span>
                 </a>
                 <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Báo cáo lợi nhuận</span>
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cnl_nav_profit">Báo cáo lợi nhuận</span>
                 </a>
                 <a href="#" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
                     <i class="fas fa-spa w-5 text-xl group-hover:scale-110 transition-transform"></i><span>POS Nails</span>
@@ -148,7 +152,7 @@
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="cnl_logout">Đăng xuất</span>
             </a>
         </div>
     </aside>
@@ -162,18 +166,18 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 shrink-0 gap-4">
                 <div>
                     <h2 class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-md flex items-center gap-3">
-                        <i class="fas fa-users-cog text-rose-500 drop-shadow-[0_0_8px_currentColor]"></i> Quản Lý Thợ Salon
+                        <i class="fas fa-users-cog text-rose-500 drop-shadow-[0_0_8px_currentColor]"></i> <span data-i18n="cnl_page_title">Quản Lý Thợ Salon</span>
                     </h2>
-                    <p class="text-gray-400 mt-2 text-sm font-medium">Bảng tính Tua, chia Supply và Tips tự động.</p>
+                    <p class="text-gray-400 mt-2 text-sm font-medium" data-i18n="cnl_page_subtitle">Bảng tính Tua, chia Supply và Tips tự động.</p>
                 </div>
                 <a href="{{ url_for('chamcong') }}" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-rose-400 flex items-center gap-2 shadow-lg active:scale-95">
-                    <i class="fas fa-arrow-left"></i> Trở về Menu
+                    <i class="fas fa-arrow-left"></i> <span data-i18n="cnl_back_to_menu">Trở về Menu</span>
                 </a>
             </div>
-            
+
             <div class="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
                 <i class="fas fa-spa text-gray-400"></i>
-                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs">Danh Sách Thợ Nails / KTV</h3>
+                <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs" data-i18n="cnl_employee_list_title">Danh Sách Thợ Nails / KTV</h3>
             </div>
 
             <div id="employeeGrid" class="flex flex-col gap-4 overflow-y-auto pb-10 custom-scrollbar pr-2">
@@ -192,14 +196,14 @@
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <div>
-                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md">Tính Tua: <span id="pos_worker_name" class="text-rose-400">---</span></h2>
-                        <p class="text-xs text-gray-400 mt-1 font-mono tracking-widest uppercase">Mã NV: <span id="pos_worker_id" class="font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">---</span></p>
+                        <h2 class="text-xl lg:text-2xl font-black text-white uppercase tracking-widest drop-shadow-md"><span data-i18n="cnl_pos_title">Tính Tua:</span> <span id="pos_worker_name" class="text-rose-400">---</span></h2>
+                        <p class="text-xs text-gray-400 mt-1 font-mono tracking-widest uppercase"><span data-i18n="cnl_pos_worker_id_label">Mã NV:</span> <span id="pos_worker_id" class="font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">---</span></p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 bg-black/50 border border-white/10 px-5 py-3 rounded-2xl shadow-inner w-full md:w-auto">
                     <i class="far fa-calendar-alt text-emerald-400 text-lg"></i>
                     <div class="flex flex-col flex-1">
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Ngày Thực Hiện</span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5" data-i18n="cnl_pos_date_label">Ngày Thực Hiện</span>
                         <input type="date" id="pos_date" class="bg-transparent border-none outline-none text-white text-sm font-bold cursor-pointer font-mono">
                     </div>
                 </div>
@@ -210,27 +214,27 @@
                     <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-bl-full pointer-events-none blur-md"></div>
                     
                     <div class="mb-6 border-b border-white/10 pb-6 relative z-10">
-                        <label class="block text-rose-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-paint-brush mr-2 text-lg"></i> Tên Dịch Vụ</label>
-                        <input type="text" id="ten_dv" placeholder="VD: Fullset Acrylic + Design..." class="pos-input text-white focus:border-rose-400 text-lg" value="Làm Nail">
+                        <label class="block text-rose-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-paint-brush mr-2 text-lg"></i> <span data-i18n="cnl_label_service">Tên Dịch Vụ</span></label>
+                        <input type="text" id="ten_dv" placeholder="VD: Fullset Acrylic + Design..." data-i18n-placeholder="cnl_placeholder_service" class="pos-input text-white focus:border-rose-400 text-lg" value="Làm Nail">
                     </div>
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-6 border-b border-white/10 pb-6 relative z-10">
                         <div class="col-span-2">
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">1. Tổng Giá Bill</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_total_bill">1. Tổng Giá Bill</label>
                             <div class="relative">
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-black text-xl">$</span>
                                 <input type="number" id="val_total" value="100" oninput="calculatePos()" class="pos-input pl-10 text-3xl h-16 text-emerald-400 border-emerald-500/30 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-emerald-900/10">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">2. Tỉ Lệ Chia</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_split_rate">2. Tỉ Lệ Chia</label>
                             <div class="relative">
                                 <input type="number" id="val_split" value="60" oninput="calculatePos()" class="pos-input text-center text-cyan-400 text-2xl h-16 bg-cyan-900/10 border-cyan-500/30 pr-8">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500/50 font-black text-lg">%</span>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest">3. Phí Supply</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_supply_fee">3. Phí Supply</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-black text-lg">$</span>
                                 <input type="number" id="val_supply" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-400 text-2xl h-16 bg-rose-900/10 border-rose-500/30">
@@ -240,21 +244,21 @@
 
                     <div class="grid grid-cols-3 gap-5 mb-8 relative z-10">
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip tiền mặt khách đưa">4. Tip Mặt</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip tiền mặt khách đưa" data-i18n="cnl_label_cash_tip">4. Tip Mặt</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-bold">$</span>
                                 <input type="number" id="val_cash_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-emerald-300 font-mono">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip khách quẹt thẻ">5. Tip Thẻ</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip khách quẹt thẻ" data-i18n="cnl_label_cc_tip">5. Tip Thẻ</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500/50 font-bold">$</span>
                                 <input type="number" id="val_cc_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-purple-300 font-mono">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Phí quẹt thẻ trừ vào Tip">6. Phí C/C Tip</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Phí quẹt thẻ trừ vào Tip" data-i18n="cnl_label_cc_fee">6. Phí C/C Tip</label>
                             <div class="relative">
                                 <input type="number" id="val_cc_fee" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-300 font-mono pr-6">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-bold">%</span>
@@ -264,7 +268,7 @@
 
                     <div class="mt-auto relative z-10">
                         <button onclick="submitPos()" id="btnSubmitPos" class="w-full bg-gradient-to-r from-rose-500 to-pink-600 font-black p-5 rounded-2xl text-xl hover:scale-[1.02] transition-transform shadow-[0_10px_30px_rgba(244,63,94,0.4)] tracking-widest uppercase flex items-center justify-center gap-3 active:scale-95">
-                            <i class="fas fa-check-double"></i> LƯU PHIẾU TÍNH TUA
+                            <i class="fas fa-check-double"></i> <span data-i18n="cnl_submit_btn">LƯU PHIẾU TÍNH TUA</span>
                         </button>
                     </div>
                 </div>
@@ -274,34 +278,34 @@
                         <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-cyan-500"></div>
                         <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] opacity-[0.03] pointer-events-none"></div>
                         
-                        <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-700 pb-4 flex justify-center items-center gap-2"><i class="fas fa-receipt"></i> Tạm Tính Biên Lai</h3>
-                        
+                        <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-700 pb-4 flex justify-center items-center gap-2"><i class="fas fa-receipt"></i> <span data-i18n="cnl_receipt_estimate_title">Tạm Tính Biên Lai</span></h3>
+
                         <div class="space-y-1.5 mb-5 text-gray-400 font-mono text-sm border-b border-dashed border-gray-700 pb-5">
-                            <div class="receipt-line"><span>Tổng thu:</span> <span class="text-white font-bold" id="r_total">$100.00</span></div>
-                            <div class="receipt-line text-rose-400"><span>- Supply:</span> <span id="r_supply">-$3.00</span></div>
-                            <div class="receipt-line pt-2 mt-2 border-t border-gray-800"><span>Doanh thu chia %:</span> <span class="text-cyan-300 font-bold text-base" id="r_net">$97.00</span></div>
+                            <div class="receipt-line"><span data-i18n="cnl_line_total">Tổng thu:</span> <span class="text-white font-bold" id="r_total">$100.00</span></div>
+                            <div class="receipt-line text-rose-400"><span data-i18n="cnl_line_supply">- Supply:</span> <span id="r_supply">-$3.00</span></div>
+                            <div class="receipt-line pt-2 mt-2 border-t border-gray-800"><span data-i18n="cnl_line_net_revenue">Doanh thu chia %:</span> <span class="text-cyan-300 font-bold text-base" id="r_net">$97.00</span></div>
                         </div>
 
                         <div class="space-y-1.5 mb-5 text-gray-400 font-mono text-sm">
-                            <div class="receipt-line"><span>Tua Thợ (<span id="r_split_rate">60</span>%):</span> <span class="text-white font-bold" id="r_worker_tua">$58.20</span></div>
-                            <div class="receipt-line text-emerald-400"><span>Tip Mặt:</span> <span id="r_cash_tip">+$0.00</span></div>
-                            <div class="receipt-line text-purple-400"><span>Tip Thẻ (-3%):</span> <span id="r_net_cc_tip">+$0.00</span></div>
+                            <div class="receipt-line"><span><span data-i18n="cnl_line_worker_pay">Tua Thợ</span> (<span id="r_split_rate">60</span>%):</span> <span class="text-white font-bold" id="r_worker_tua">$58.20</span></div>
+                            <div class="receipt-line text-emerald-400"><span data-i18n="cnl_line_cash_tip">Tip Mặt:</span> <span id="r_cash_tip">+$0.00</span></div>
+                            <div class="receipt-line text-purple-400"><span data-i18n="cnl_line_cc_tip">Tip Thẻ (-3%):</span> <span id="r_net_cc_tip">+$0.00</span></div>
                         </div>
 
                         <div class="mt-2 pt-4 bg-black/50 p-4 rounded-2xl border border-white/5 shadow-inner">
                             <div class="flex justify-between items-center mb-3">
-                                <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Thợ Cầm Về</span>
+                                <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest" data-i18n="cnl_final_worker_label">Thợ Cầm Về</span>
                                 <span class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-md" id="final_worker">$58.20</span>
                             </div>
                             <div class="flex justify-between items-center border-t border-white/5 pt-3">
-                                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tiệm Giữ Lại</span>
+                                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" data-i18n="cnl_final_salon_label">Tiệm Giữ Lại</span>
                                 <span class="text-lg font-black text-rose-400" id="final_salon">$41.80</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="glass-panel rounded-[2rem] p-5 flex-1 flex flex-col min-h-0 border border-white/5">
-                        <h3 class="font-black text-gray-300 mb-4 text-xs uppercase tracking-widest flex items-center border-b border-white/10 pb-3"><i class="fas fa-history text-cyan-400 mr-2 text-lg"></i>Lịch sử vừa nhập</h3>
+                        <h3 class="font-black text-gray-300 mb-4 text-xs uppercase tracking-widest flex items-center border-b border-white/10 pb-3"><i class="fas fa-history text-cyan-400 mr-2 text-lg"></i><span data-i18n="cnl_recent_history_title">Lịch sử vừa nhập</span></h3>
                         <div id="historyBox" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar"></div>
                     </div>
                 </div>
@@ -503,7 +507,7 @@
                 const grid = document.getElementById('employeeGrid');
                 grid.innerHTML = '';
                 if(!emps || emps.length === 0) {
-                    grid.innerHTML = '<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Chưa có nhân sự nào trong hệ thống.</div>';
+                    grid.innerHTML = `<div class="text-center py-10 text-gray-500 font-bold border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">${t('cnl_no_staff')}</div>`;
                     return;
                 }
 
@@ -523,7 +527,7 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 z-10">
-                                <button class="flex-1 md:flex-none bg-gradient-to-r from-rose-500 to-pink-600 text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-calculator text-lg"></i> Tính Tua</button>
+                                <button class="flex-1 md:flex-none bg-gradient-to-r from-rose-500 to-pink-600 text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-calculator text-lg"></i> ${t('cnl_calc_pay_btn')}</button>
                                 <button id="btn-export-${emp.ma_nv}" onclick="event.stopPropagation(); exportSalary('${emp.ma_nv}', '${emp.ho_ten}')" class="bg-black/50 border border-white/10 hover:border-emerald-400 hover:text-emerald-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-file-invoice-dollar"></i></button>
                             </div>
                         </div>
@@ -531,12 +535,12 @@
                     grid.innerHTML += card;
                 });
                 setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
-            } catch(e) { showToast("Lỗi tải danh sách thợ!", "error"); }
+            } catch(e) { showToast(t('cnl_toast_load_error'), "error"); }
         }
 
         // Hàm xuất báo cáo lương (từ Supabase)
         async function exportSalary(ma_nv, ho_ten) {
-            showToast("Đang kết xuất báo cáo lương...", "warning");
+            showToast(t('cnl_toast_exporting'), "warning");
             const btn = document.getElementById(`btn-export-${ma_nv}`);
             const originalHTML = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin text-emerald-400"></i>';
@@ -553,19 +557,19 @@
                 if (error) throw error;
                 
                 if(!records || records.length === 0) {
-                    showToast("Thợ này chưa làm bill nào để xuất!", "error");
+                    showToast(t('cnl_toast_no_bills'), "error");
                     btn.innerHTML = originalHTML; btn.disabled = false; return;
                 }
 
                 let totalTua = 0; let totalTip = 0;
                 let csvContent = "\uFEFF"; 
-                csvContent += `BẢNG TỔNG KẾT LƯƠNG - BITPAW OS\nNhân viên:,${ho_ten}\nMã NV:,${ma_nv}\nNgày xuất:,${new Date().toLocaleDateString('vi-VN')}\n\n`;
-                csvContent += "Ngày,Trạng Thái,Tiền Tua ($),Tiền Tips ($),Chi tiết Bill\n";
+                csvContent += `${t('cnl_csv_title')}\n${t('cnl_csv_employee')}:,${ho_ten}\n${t('cnl_csv_worker_id')}:,${ma_nv}\n${t('cnl_csv_export_date')}:,${new Date().toLocaleDateString('vi-VN')}\n\n`;
+                csvContent += `${t('cnl_csv_date')},${t('cnl_csv_status')},${t('cnl_csv_pay')},${t('cnl_csv_tips')},${t('cnl_csv_bill_detail')}\n`;
 
                 let receiptRows = '';
 
                 records.forEach(row => {
-                    let date = row.ngay_cham || ''; let status = row.trang_thai || 'Hoàn thành';
+                    let date = row.ngay_cham || ''; let status = row.trang_thai || t('cnl_status_done');
                     let tua = parseFloat(row.tien_tua) || 0; let tip = parseFloat(row.tien_tips) || 0; let note = row.ghi_chu || '';
                     totalTua += tua; totalTip += tip;
                     let safeNote = note.replace(/"/g, '""');
@@ -580,7 +584,7 @@
                     `;
                 });
                 
-                csvContent += `\nTổng Cộng:,,,${totalTua},${totalTip},Take-home: $${(totalTua + totalTip).toFixed(2)}`;
+                csvContent += `\n${t('cnl_csv_grand_total')}:,,,${totalTua},${totalTip},Take-home: $${(totalTua + totalTip).toFixed(2)}`;
 
                 // Xuất CSV
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -606,11 +610,11 @@
                     imgLink.click(); 
                     receiptDiv.style.display = 'none'; 
                     btn.innerHTML = '<i class="fas fa-check text-emerald-400"></i>';
-                    showToast("Xuất bảng lương thành công!", "success");
+                    showToast(t('cnl_toast_export_success'), "success");
                     setTimeout(() => { btn.innerHTML = originalHTML; btn.disabled = false; }, 2000);
                 });
             } catch(e) {
-                showToast("Lỗi khi kết nối để xuất dữ liệu!", "error");
+                showToast(t('cnl_toast_export_conn_error'), "error");
                 btn.innerHTML = originalHTML; btn.disabled = false;
             }
         }
@@ -644,7 +648,7 @@
         // Tải lịch sử gần đây
         async function loadHistory(ma_nv) {
             const box = document.getElementById('historyBox');
-            box.innerHTML = '<div class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+            box.innerHTML = `<div class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin"></i> ${t('cnl_loading')}</div>`;
             try {
                 if (!bitpawSupabaseClient) throw new Error('Supabase client is not initialized.');
                 const { data: records, error } = await bitpawSupabaseClient
@@ -656,7 +660,7 @@
                     .limit(10);
                 if (error) throw error;
                 if(!records || records.length === 0) {
-                    box.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">Chưa có giao dịch nào</div>';
+                    box.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">${t('cnl_no_transactions')}</div>`;
                     return;
                 }
                 let html = '';
@@ -665,18 +669,18 @@
                     html += `
                         <div class="bg-black/60 p-4 rounded-xl border border-white/5 flex justify-between items-center mb-3 border-l-4 border-l-emerald-500 shadow-inner cascade-item">
                             <div>
-                                <p class="font-black text-emerald-400 text-sm tracking-widest uppercase">${rec.ghi_chu?.substring(0, 30) || 'Dịch vụ'}</p>
+                                <p class="font-black text-emerald-400 text-sm tracking-widest uppercase">${rec.ghi_chu?.substring(0, 30) || t('cnl_default_service')}</p>
                                 <p class="text-[10px] font-mono text-gray-500 mt-1">${rec.ngay_cham}</p>
                             </div>
                             <div class="text-right">
                                 <p class="font-black text-white text-base">$${pay.toFixed(2)}</p>
-                                <p class="text-[10px] text-gray-400 font-mono mt-0.5">Tua: $${rec.tien_tua||0} | Tip: $${rec.tien_tips||0}</p>
+                                <p class="text-[10px] text-gray-400 font-mono mt-0.5">${t('cnl_history_pay')}: $${rec.tien_tua||0} | ${t('cnl_history_tip')}: $${rec.tien_tips||0}</p>
                             </div>
                         </div>
                     `;
                 });
                 box.innerHTML = html;
-            } catch(e) { box.innerHTML = '<div class="text-center text-rose-500 text-sm py-4">Lỗi tải lịch sử</div>'; }
+            } catch(e) { box.innerHTML = `<div class="text-center text-rose-500 text-sm py-4">${t('cnl_toast_history_error')}</div>`; }
         }
 
         function calculatePos() {
@@ -717,7 +721,7 @@
         async function submitPos() {
             const tendv = document.getElementById('ten_dv').value.trim();
             const chosenDate = getFormattedDate();
-            if(!tendv) return showToast("Vui lòng nhập tên dịch vụ!", "warning");
+            if(!tendv) return showToast(t('cnl_toast_service_required'), "warning");
             
             const total = parseFloat(document.getElementById('val_total').value) || 0;
             const split = parseFloat(document.getElementById('val_split').value) || 0;
@@ -747,7 +751,7 @@
 
             const btn = document.getElementById('btnSubmitPos');
             const origHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ĐANG TÍNH TUA...';
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${t('cnl_calculating')}`;
             btn.disabled = true;
 
             try {
@@ -761,12 +765,174 @@
                 document.getElementById('val_cash_tip').value = "0";
                 document.getElementById('val_cc_tip').value = "0";
                 calculatePos();
-                showToast("Đã chốt bill và tính Tua thành công!", "success");
+                showToast(t('cnl_toast_submit_success'), "success");
                 triggerConfetti();
             } catch(e) {
-                showToast("Lỗi lưu dữ liệu: " + e.message, "error");
+                showToast(t('cnl_toast_save_error_prefix') + e.message, "error");
             }
             btn.innerHTML = origHtml; btn.disabled = false;
+        }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                cnl_nav_overview: 'Tổng quan',
+                cnl_nav_hr: 'Quản lý Nhân sự',
+                cnl_nav_attendance: 'Chấm công',
+                cnl_nav_payroll: 'Bảng lương',
+                cnl_nav_comm: 'Trạm Liên Lạc',
+                cnl_nav_gps: 'Radar GPS Thợ',
+                cnl_nav_debt: 'Quản lý Công nợ',
+                cnl_nav_revenue: 'Quản lý Thu Chi',
+                cnl_nav_profit: 'Báo cáo lợi nhuận',
+                cnl_logout: 'Đăng xuất',
+                cnl_page_title: 'Quản Lý Thợ Salon',
+                cnl_page_subtitle: 'Bảng tính Tua, chia Supply và Tips tự động.',
+                cnl_back_to_menu: 'Trở về Menu',
+                cnl_employee_list_title: 'Danh Sách Thợ Nails / KTV',
+                cnl_pos_title: 'Tính Tua:',
+                cnl_pos_worker_id_label: 'Mã NV:',
+                cnl_pos_date_label: 'Ngày Thực Hiện',
+                cnl_label_service: 'Tên Dịch Vụ',
+                cnl_placeholder_service: 'VD: Fullset Acrylic + Design...',
+                cnl_label_total_bill: '1. Tổng Giá Bill',
+                cnl_label_split_rate: '2. Tỉ Lệ Chia',
+                cnl_label_supply_fee: '3. Phí Supply',
+                cnl_label_cash_tip: '4. Tip Mặt',
+                cnl_label_cc_tip: '5. Tip Thẻ',
+                cnl_label_cc_fee: '6. Phí C/C Tip',
+                cnl_submit_btn: 'LƯU PHIẾU TÍNH TUA',
+                cnl_receipt_estimate_title: 'Tạm Tính Biên Lai',
+                cnl_line_total: 'Tổng thu:',
+                cnl_line_supply: '- Supply:',
+                cnl_line_net_revenue: 'Doanh thu chia %:',
+                cnl_line_worker_pay: 'Tua Thợ',
+                cnl_line_cash_tip: 'Tip Mặt:',
+                cnl_line_cc_tip: 'Tip Thẻ (-3%):',
+                cnl_final_worker_label: 'Thợ Cầm Về',
+                cnl_final_salon_label: 'Tiệm Giữ Lại',
+                cnl_recent_history_title: 'Lịch sử vừa nhập',
+                cnl_no_staff: 'Chưa có nhân sự nào trong hệ thống.',
+                cnl_calc_pay_btn: 'Tính Tua',
+                cnl_toast_load_error: 'Lỗi tải danh sách thợ!',
+                cnl_toast_exporting: 'Đang kết xuất báo cáo lương...',
+                cnl_toast_no_bills: 'Thợ này chưa làm bill nào để xuất!',
+                cnl_csv_title: 'BẢNG TỔNG KẾT LƯƠNG - BITPAW OS',
+                cnl_csv_employee: 'Nhân viên',
+                cnl_csv_worker_id: 'Mã NV',
+                cnl_csv_export_date: 'Ngày xuất',
+                cnl_csv_date: 'Ngày',
+                cnl_csv_status: 'Trạng Thái',
+                cnl_csv_pay: 'Tiền Tua ($)',
+                cnl_csv_tips: 'Tiền Tips ($)',
+                cnl_csv_bill_detail: 'Chi tiết Bill',
+                cnl_csv_grand_total: 'Tổng Cộng',
+                cnl_status_done: 'Hoàn thành',
+                cnl_toast_export_success: 'Xuất bảng lương thành công!',
+                cnl_toast_export_conn_error: 'Lỗi khi kết nối để xuất dữ liệu!',
+                cnl_loading: 'Đang tải...',
+                cnl_no_transactions: 'Chưa có giao dịch nào',
+                cnl_default_service: 'Dịch vụ',
+                cnl_history_pay: 'Tua',
+                cnl_history_tip: 'Tip',
+                cnl_toast_history_error: 'Lỗi tải lịch sử',
+                cnl_toast_service_required: 'Vui lòng nhập tên dịch vụ!',
+                cnl_calculating: 'ĐANG TÍNH TUA...',
+                cnl_toast_submit_success: 'Đã chốt bill và tính Tua thành công!',
+                cnl_toast_save_error_prefix: 'Lỗi lưu dữ liệu: '
+            },
+            en: {
+                cnl_nav_overview: 'Overview',
+                cnl_nav_hr: 'Staff Management',
+                cnl_nav_attendance: 'Attendance',
+                cnl_nav_payroll: 'Payroll',
+                cnl_nav_comm: 'Communication Hub',
+                cnl_nav_gps: 'Staff GPS Radar',
+                cnl_nav_debt: 'Debt Management',
+                cnl_nav_revenue: 'Revenue & Expenses',
+                cnl_nav_profit: 'Profit Report',
+                cnl_logout: 'Log Out',
+                cnl_page_title: 'Salon Staff Management',
+                cnl_page_subtitle: 'Auto-calculate worker pay, supply split and tips.',
+                cnl_back_to_menu: 'Back to Menu',
+                cnl_employee_list_title: 'Nail Tech / Staff List',
+                cnl_pos_title: 'Calculate Pay:',
+                cnl_pos_worker_id_label: 'Staff ID:',
+                cnl_pos_date_label: 'Service Date',
+                cnl_label_service: 'Service Name',
+                cnl_placeholder_service: 'e.g. Fullset Acrylic + Design...',
+                cnl_label_total_bill: '1. Total Bill',
+                cnl_label_split_rate: '2. Split Rate',
+                cnl_label_supply_fee: '3. Supply Fee',
+                cnl_label_cash_tip: '4. Cash Tip',
+                cnl_label_cc_tip: '5. Card Tip',
+                cnl_label_cc_fee: '6. C/C Tip Fee',
+                cnl_submit_btn: 'SAVE PAY TICKET',
+                cnl_receipt_estimate_title: 'Receipt Estimate',
+                cnl_line_total: 'Total:',
+                cnl_line_supply: '- Supply:',
+                cnl_line_net_revenue: 'Net Revenue Split %:',
+                cnl_line_worker_pay: 'Staff Pay',
+                cnl_line_cash_tip: 'Cash Tip:',
+                cnl_line_cc_tip: 'Card Tip (-3%):',
+                cnl_final_worker_label: 'Staff Take-Home',
+                cnl_final_salon_label: 'Salon Keeps',
+                cnl_recent_history_title: 'Recent History',
+                cnl_no_staff: 'No staff in the system yet.',
+                cnl_calc_pay_btn: 'Calculate Pay',
+                cnl_toast_load_error: 'Error loading staff list!',
+                cnl_toast_exporting: 'Exporting salary report...',
+                cnl_toast_no_bills: 'This staff member has no bills to export!',
+                cnl_csv_title: 'SALARY SUMMARY - BITPAW OS',
+                cnl_csv_employee: 'Employee',
+                cnl_csv_worker_id: 'Staff ID',
+                cnl_csv_export_date: 'Export Date',
+                cnl_csv_date: 'Date',
+                cnl_csv_status: 'Status',
+                cnl_csv_pay: 'Pay ($)',
+                cnl_csv_tips: 'Tips ($)',
+                cnl_csv_bill_detail: 'Bill Detail',
+                cnl_csv_grand_total: 'Grand Total',
+                cnl_status_done: 'Completed',
+                cnl_toast_export_success: 'Salary report exported successfully!',
+                cnl_toast_export_conn_error: 'Error connecting to export data!',
+                cnl_loading: 'Loading...',
+                cnl_no_transactions: 'No transactions yet',
+                cnl_default_service: 'Service',
+                cnl_history_pay: 'Pay',
+                cnl_history_tip: 'Tip',
+                cnl_toast_history_error: 'Error loading history',
+                cnl_toast_service_required: 'Please enter a service name!',
+                cnl_calculating: 'CALCULATING PAY...',
+                cnl_toast_submit_success: 'Bill closed and pay calculated successfully!',
+                cnl_toast_save_error_prefix: 'Error saving data: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (document.getElementById('screen_list').classList.contains('active') && typeof loadWorkers === 'function') loadWorkers();
+            if (currentWorkerId && typeof loadHistory === 'function') loadHistory(currentWorkerId);
+        }
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
         // Khởi tạo
@@ -774,6 +940,7 @@
             supabaseReady.then(() => loadWorkers());
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
             document.getElementById('pos_date').valueAsDate = new Date();
+            applyStaticTranslations();
         };
     </script>
 </body>

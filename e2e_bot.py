@@ -195,8 +195,98 @@ def main():
         log_info(f"Tiêu đề trang đích: '{page_title}'")
         
         # Kiểm tra xem có trỏ tới đúng phân hệ F&B (POS / pos.html) không
-        if "/pos" in current_url or "f&b" in page_title.lower() or "sơ đồ bàn" in page_title.lower():
+        is_pos = "/pos" in current_url or "f&b" in page_title.lower() or "sơ đồ bàn" in page_title.lower()
+        if is_pos:
             log_success("XÁC MINH THÀNH CÔNG: Hệ thống tự động thiết lập ngành F&B dựa trên License Key và chuyển thẳng về màn hình POS!")
+            
+            # ==========================================
+            # PHẦN 4: GIẢ LẬP LUỒNG CHỌN BÀN VÀ GỌI MÓN (ADD ITEM)
+            # ==========================================
+            log_info("\n=== BƯỚC 4: GIẢ LẬP LUỒNG CHỌN BÀN VÀ GỌI MÓN POS F&B ===")
+            
+            # 1. Đảm bảo có ít nhất một món ăn trong menu
+            products_elements = driver.find_elements(By.CSS_SELECTOR, "#menuGrid .glass-card")
+            if len(products_elements) == 0:
+                log_info("Menu đang trống. Tiến hành tạo món ăn mới qua trang /add...")
+                driver.get(f"{URL}/add")
+                time.sleep(1.5)
+                
+                # Điền thông tin món ăn
+                driver.find_element(By.ID, "productName").send_keys("Lẩu Thái Thập Cẩm")
+                time.sleep(0.5)
+                
+                select_cat = Select(driver.find_element(By.ID, "productCategory"))
+                select_cat.select_by_value("Đồ Ăn")
+                time.sleep(0.5)
+                
+                driver.find_element(By.ID, "productStock").clear()
+                driver.find_element(By.ID, "productStock").send_keys("99")
+                time.sleep(0.5)
+                
+                driver.find_element(By.ID, "priceDisplay").send_keys("150000")
+                time.sleep(0.5)
+                
+                log_info("Gửi biểu mẫu thêm sản phẩm...")
+                submit_btn = driver.find_element(By.ID, "submitBtn")
+                driver.execute_script("arguments[0].click();", submit_btn)
+                time.sleep(4)
+                
+                log_success("Thêm món mới thành công. Đã được tự động chuyển hướng lại về màn hình POS.")
+                # Cập nhật danh sách món ăn
+                products_elements = driver.find_elements(By.CSS_SELECTOR, "#menuGrid .glass-card")
+            
+            # 2. Click chọn 'Bàn 1'
+            log_info("Đang click chọn 'Bàn 1' trên Floor Plan...")
+            table_1 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-table-name='Bàn 1']")))
+            table_1.click()
+            time.sleep(1.5)
+            
+            # Xác minh bàn được chọn hiển thị đúng tên
+            selected_table_name = driver.find_element(By.ID, "selectedTableName").text
+            log_info(f"Tên bàn được chọn: '{selected_table_name}'")
+            if "Bàn 1" in selected_table_name:
+                log_success("Xác nhận Bàn 1 đã được chọn thành công trên giao diện!")
+            else:
+                log_error("LỖI: Bàn 1 không hiển thị trạng thái đã chọn!")
+                errors_found += 1
+                
+            # 3. Chọn món ăn từ menu
+            if len(products_elements) > 0:
+                first_product_name = products_elements[0].get_attribute("data-product-name")
+                log_info(f"Đang click chọn món đầu tiên: '{first_product_name}'...")
+                products_elements[0].click()
+                time.sleep(1.5)
+                
+                # Tăng số lượng lên
+                log_info("Tăng số lượng món ăn trong modal đặt món...")
+                driver.find_element(By.ID, "increaseQty").click()
+                time.sleep(0.5)
+                
+                # Xác nhận đặt món
+                log_info("Bấm Xác nhận đặt món...")
+                driver.find_element(By.ID, "confirmOrderBtn").click()
+                time.sleep(2.0)
+                
+                # 4. Kiểm tra panel Current Order có hiển thị đúng thông tin và layout
+                checkout_section = driver.find_element(By.ID, "orderCheckoutSection")
+                if checkout_section.is_displayed():
+                    log_success("XÁC MINH THÀNH CÔNG: Panel Current Order được kích hoạt và hiển thị thông tin hóa đơn!")
+                    
+                    # Xác minh tổng tiền hiển thị lớn hơn 0
+                    order_total_text = driver.find_element(By.ID, "orderTotal").text
+                    log_info(f"Tổng tiền thanh toán hiển thị: {order_total_text}")
+                    if "0₫" not in order_total_text and len(order_total_text) > 0:
+                        log_success("Xác nhận tổng tiền hóa đơn được cập nhật chính xác!")
+                    else:
+                        log_error("LỖI: Tổng tiền hóa đơn không được tính toán chính xác!")
+                        errors_found += 1
+                else:
+                    log_error("LỖI: Panel checkout không hiển thị sau khi xác nhận đặt món!")
+                    errors_found += 1
+            else:
+                log_error("LỖI: Thực đơn (menu) trống, không thể thực hiện luồng gọi món!")
+                errors_found += 1
+                
         else:
             log_error("LỖI THIẾT LẬP: Không tự động chuyển hướng về phân hệ F&B tương ứng!")
             errors_found += 1
@@ -233,6 +323,23 @@ def main():
         import traceback
         log_error("Gặp lỗi trong quá trình chạy E2E:")
         traceback.print_exc()
+        try:
+            # Chụp ảnh màn hình lỗi
+            screenshot_dir = "static/test_screenshots"
+            os.makedirs(screenshot_dir, exist_ok=True)
+            screenshot_path = os.path.join(screenshot_dir, "customer_signup_fb_verification.png")
+            driver.save_screenshot(screenshot_path)
+            log_info(f"Đã chụp ảnh màn hình lỗi tại: {screenshot_path}")
+            
+            # Đọc lỗi console
+            console_logs = driver.get_log('browser')
+            js_errors = [log for log in console_logs if log['level'] == 'SEVERE']
+            if js_errors:
+                log_warn(f"Phát hiện {len(js_errors)} lỗi Javascript mức SEVERE khi gặp sự cố:")
+                for entry in js_errors:
+                    print(f"   -> {entry['message']}")
+        except Exception as err:
+            print(f"Không thể thu thập log/screenshot lỗi: {err}")
     finally:
         try:
             driver.quit()

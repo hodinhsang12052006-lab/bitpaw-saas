@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chấm Công Khách Sạn - BitPaw OS</title>
-    
+    <title>Hotel Attendance - BitPaw OS</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -17,10 +17,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
-        
+
         /* 3D Background Canvas */
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
-        
+
         /* Hiệu ứng scanline và laser dọc */
         .scan-line {
             position: fixed; top: 0; left: 0; width: 100%; height: 2px;
@@ -39,7 +39,7 @@
 
         /* Tia sáng chéo */
         .light-ray { position: absolute; background: linear-gradient(90deg, transparent, rgba(168,85,247,0.3), transparent); height: 2px; width: 150%; transform: rotate(-35deg); transform-origin: left; pointer-events: none; }
-        
+
         /* Khối mờ */
         .absolute-blur {
             position: absolute;
@@ -54,10 +54,10 @@
             z-index: 0;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; } 
-        ::-webkit-scrollbar-track { background: transparent; } 
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.5); border-radius: 10px; }
-        
+
         .glass-panel { background: rgba(11, 7, 16, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-sidebar { background: rgba(8, 6, 26, 0.6); backdrop-filter: blur(30px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
 
@@ -82,7 +82,7 @@
         /* Room Matrix Animations */
         .room-dirty { animation: pulseRed 1.5s infinite; border-color: rgba(244,63,94,0.6) !important; box-shadow: 0 0 20px rgba(244,63,94,0.3); }
         @keyframes pulseRed { 0% { opacity: 1; box-shadow: 0 0 10px rgba(244,63,94,0.2); } 50% { opacity: 0.7; box-shadow: 0 0 30px rgba(244,63,94,0.6); } 100% { opacity: 1; box-shadow: 0 0 10px rgba(244,63,94,0.2); } }
-        
+
         /* Table Row Cascade */
         @keyframes fadeInRow { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .tr-cascade { opacity: 0; animation: fadeInRow 0.4s ease forwards; }
@@ -113,41 +113,45 @@
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-purple-400">Paw</span></h1>
             </div>
-            
+
+            <div class="flex justify-center pb-2 pt-2">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
+            </div>
+
             <nav class="flex flex-col py-6 space-y-3 px-5">
                 <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Tổng quan</span>
+                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_overview">Overview</span>
                 </a>
                 <a href="nhanvien.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Quản lý Nhân sự</span>
+                    <i class="fas fa-users w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_hr">Staff Management</span>
                 </a>
                 <a href="chamcong.html" class="flex items-center space-x-4 bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-purple-300 group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Chấm công</span>
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_attendance">Attendance</span>
                 </a>
                 <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Bảng lương</span>
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_payroll">Payroll</span>
                 </a>
                 <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Trạm Liên Lạc</span>
+                    <i class="fas fa-comments w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="chamcongkhachsan_nav_comm">Comm Station</span>
                 </a>
                 <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span>Radar GPS Thợ</span>
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_gps">Staff GPS Radar</span>
                 </a>
                 <!-- === CÁC MỤC MỚI THÊM === -->
                 <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Quản lý Công nợ</span>
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_debt">Debt Management</span>
                 </a>
                 <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Quản lý Thu Chi</span>
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_revenue">Revenue & Expenses</span>
                 </a>
                 <a href="baocaoloinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span>Báo cáo lợi nhuận</span>
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-purple-400 transition-colors"></i><span data-i18n="dashboard_nav_profit">Profit Report</span>
                 </a>
             </nav>
         </div>
         <div class="p-6 border-t border-white/10 shrink-0">
             <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span>Đăng xuất</span>
+                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="dashboard_logout">Log Out</span>
             </a>
         </div>
     </aside>
@@ -156,32 +160,32 @@
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 shrink-0">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-md">
-                    Chấm Công Khách Sạn <i class="fas fa-hotel text-pink-400 text-3xl drop-shadow-[0_0_10px_currentColor]"></i>
+                    <span data-i18n="chamcongkhachsan_page_title">Hotel Attendance</span> <i class="fas fa-hotel text-pink-400 text-3xl drop-shadow-[0_0_10px_currentColor]"></i>
                 </h2>
                 <p class="text-gray-400 mt-2 flex items-center gap-2 text-sm font-medium bg-black/40 w-fit px-3 py-1.5 rounded-lg border border-white/5">
-                    <i class="far fa-calendar-alt text-purple-400"></i> Trạm ghi nhận: <strong id="currentDate" class="text-white tracking-widest font-mono">--/--/----</strong>
+                    <i class="far fa-calendar-alt text-purple-400"></i> <span data-i18n="chamcongkhachsan_recording_station">Recording station:</span> <strong id="currentDate" class="text-white tracking-widest font-mono">--/--/----</strong>
                 </p>
             </div>
             <a href="chamcong.html" class="glass-panel px-5 py-2.5 hover:border-purple-500/50 rounded-xl transition-all font-bold text-gray-300 hover:text-purple-400 flex items-center gap-2 shadow-lg active:scale-95">
-                <i class="fas fa-arrow-left"></i> Quay lại
+                <i class="fas fa-arrow-left"></i> <span data-i18n="chamcongkhachsan_back">Back</span>
             </a>
         </div>
 
         <div class="mb-8 glass-panel border border-purple-500/30 rounded-[2rem] p-6 shadow-[0_15px_40px_rgba(168,85,247,0.15)] relative overflow-hidden shrink-0">
             <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
-            
+
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 relative z-10 gap-4">
                 <h3 class="font-black text-white uppercase tracking-widest text-lg flex items-center gap-2 drop-shadow-md">
-                    <i class="fas fa-th text-purple-400"></i> Ma Trận Buồng Phòng
+                    <i class="fas fa-th text-purple-400"></i> <span data-i18n="chamcongkhachsan_room_matrix">Room Matrix</span>
                 </h3>
                 <div class="flex flex-wrap gap-4 text-[10px] font-bold font-mono tracking-widest uppercase bg-black/50 px-4 py-2 rounded-xl border border-white/5">
-                    <span class="flex items-center gap-1.5 text-emerald-400"><div class="w-3 h-3 bg-emerald-500/20 border border-emerald-500 shadow-[0_0_5px_currentColor] rounded"></div> Sẵn Sàng</span>
-                    <span class="flex items-center gap-1.5 text-blue-400"><div class="w-3 h-3 bg-blue-500/20 border border-blue-500 shadow-[0_0_5px_currentColor] rounded"></div> Đang Lưu Trú</span>
-                    <span class="flex items-center gap-1.5 text-rose-400"><div class="w-3 h-3 bg-rose-500/20 border border-rose-500 shadow-[0_0_5px_currentColor] rounded animate-pulse"></div> Cần Dọn</span>
-                    <span class="flex items-center gap-1.5 text-yellow-400"><div class="w-3 h-3 bg-yellow-500/20 border border-yellow-500 shadow-[0_0_5px_currentColor] rounded"></div> Đang Dọn</span>
+                    <span class="flex items-center gap-1.5 text-emerald-400"><div class="w-3 h-3 bg-emerald-500/20 border border-emerald-500 shadow-[0_0_5px_currentColor] rounded"></div> <span data-i18n="chamcongkhachsan_legend_ready">Ready</span></span>
+                    <span class="flex items-center gap-1.5 text-blue-400"><div class="w-3 h-3 bg-blue-500/20 border border-blue-500 shadow-[0_0_5px_currentColor] rounded"></div> <span data-i18n="chamcongkhachsan_legend_occupied">Occupied</span></span>
+                    <span class="flex items-center gap-1.5 text-rose-400"><div class="w-3 h-3 bg-rose-500/20 border border-rose-500 shadow-[0_0_5px_currentColor] rounded animate-pulse"></div> <span data-i18n="chamcongkhachsan_legend_dirty">Needs Cleaning</span></span>
+                    <span class="flex items-center gap-1.5 text-yellow-400"><div class="w-3 h-3 bg-yellow-500/20 border border-yellow-500 shadow-[0_0_5px_currentColor] rounded"></div> <span data-i18n="chamcongkhachsan_legend_cleaning">Cleaning in Progress</span></span>
                 </div>
             </div>
-            
+
             <div id="roomMatrix" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-4 relative z-10">
                 </div>
         </div>
@@ -191,17 +195,17 @@
                 <table class="min-w-full text-left border-collapse whitespace-nowrap">
                     <thead class="bg-black/60 backdrop-blur-md border-b border-purple-500/30 text-purple-300 text-[10px] xl:text-xs uppercase tracking-widest font-black sticky top-0 z-20">
                         <tr>
-                            <th class="px-6 py-5 border-r border-white/5 w-64"><i class="fas fa-users mr-1"></i> Thông tin Nhân sự</th>
-                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-sign-in-alt text-cyan-400 mr-1"></i> Giờ IN</th>
-                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-sign-out-alt text-rose-400 mr-1"></i> Giờ OUT</th>
-                            <th class="px-3 py-5 w-40 text-center border-r border-white/5"><i class="fas fa-clock text-purple-400 mr-1"></i> Phân Ca Trực</th>
-                            <th class="px-3 py-5 w-32 text-center border-r border-white/5" title="Service Charge / Phụ Cấp"><i class="fas fa-concierge-bell text-yellow-400 mr-1"></i> SVC (₫)</th>
-                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-coins text-emerald-400 mr-1"></i> Tips (₫)</th>
-                            <th class="px-6 py-5 w-36 text-center"><i class="fas fa-bolt text-pink-400 mr-1"></i> Thao tác</th>
+                            <th class="px-6 py-5 border-r border-white/5 w-64"><i class="fas fa-users mr-1"></i> <span data-i18n="chamcongkhachsan_th_staff_info">Staff Info</span></th>
+                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-sign-in-alt text-cyan-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_time_in">Time IN</span></th>
+                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-sign-out-alt text-rose-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_time_out">Time OUT</span></th>
+                            <th class="px-3 py-5 w-40 text-center border-r border-white/5"><i class="fas fa-clock text-purple-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_shift">Shift Assignment</span></th>
+                            <th class="px-3 py-5 w-32 text-center border-r border-white/5" title="Service Charge / Allowance" data-i18n-title="chamcongkhachsan_svc_title"><i class="fas fa-concierge-bell text-yellow-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_svc">SVC (₫)</span></th>
+                            <th class="px-3 py-5 w-32 text-center border-r border-white/5"><i class="fas fa-coins text-emerald-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_tips">Tips (₫)</span></th>
+                            <th class="px-6 py-5 w-36 text-center"><i class="fas fa-bolt text-pink-400 mr-1"></i> <span data-i18n="chamcongkhachsan_th_actions">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody id="hotelTable" class="text-gray-300 text-sm bg-black/20">
-                        <tr><td colspan="7" class="text-center py-12 text-gray-500 animate-pulse font-bold tracking-widest uppercase text-xs"><i class="fas fa-satellite fa-spin mr-2"></i> Đang đồng bộ vệ tinh...</td></tr>
+                        <tr><td colspan="7" class="text-center py-12 text-gray-500 animate-pulse font-bold tracking-widest uppercase text-xs"><i class="fas fa-satellite fa-spin mr-2"></i> <span data-i18n="chamcongkhachsan_syncing">Syncing with satellite...</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -209,6 +213,129 @@
     </main>
 
     <script>
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                chamcongkhachsan_nav_comm: 'Trạm liên lạc',
+                chamcongkhachsan_page_title: 'Chấm công Khách sạn',
+                chamcongkhachsan_recording_station: 'Trạm ghi nhận:',
+                chamcongkhachsan_back: 'Quay lại',
+                chamcongkhachsan_room_matrix: 'Ma trận Phòng',
+                chamcongkhachsan_legend_ready: 'Sẵn sàng',
+                chamcongkhachsan_legend_occupied: 'Đang sử dụng',
+                chamcongkhachsan_legend_dirty: 'Cần dọn dẹp',
+                chamcongkhachsan_legend_cleaning: 'Đang dọn dẹp',
+                chamcongkhachsan_th_staff_info: 'Thông tin Nhân viên',
+                chamcongkhachsan_th_time_in: 'Giờ Vào',
+                chamcongkhachsan_th_time_out: 'Giờ Ra',
+                chamcongkhachsan_th_shift: 'Phân ca',
+                chamcongkhachsan_th_svc: 'Phụ cấp (₫)',
+                chamcongkhachsan_svc_title: 'Phụ cấp dịch vụ / Trợ cấp',
+                chamcongkhachsan_th_tips: 'Tiền Tip (₫)',
+                chamcongkhachsan_th_actions: 'Hành động',
+                chamcongkhachsan_syncing: 'Đang đồng bộ vệ tinh...',
+                chamcongkhachsan_title_checkout: 'Nhấn để trả phòng',
+                chamcongkhachsan_title_assign_cleaning: 'Chỉ định dọn phòng',
+                chamcongkhachsan_title_confirm_clean: 'Xác nhận đã dọn xong',
+                chamcongkhachsan_demo_housekeeper: 'Cô Hoa',
+                chamcongkhachsan_toast_checkout: 'Phòng {id} đã trả phòng. Đã gửi cảnh báo dọn phòng!',
+                chamcongkhachsan_prompt_assign_cleaner: 'Chỉ định người dọn phòng {id} (nhập tên):',
+                chamcongkhachsan_prompt_default_name: 'Nhân viên dọn phòng ',
+                chamcongkhachsan_toast_cleaning_assigned: 'Đã gửi lệnh dọn phòng đến PDA của {staff} cho phòng {id}.',
+                chamcongkhachsan_toast_room_ready: 'Phòng {id} đã sẵn sàng đón khách!',
+                chamcongkhachsan_no_staff: 'Chưa có nhân sự nào trong hệ thống!',
+                chamcongkhachsan_toast_load_failed: 'Tải danh sách từ máy chủ thất bại!',
+                chamcongkhachsan_department_prefix: 'BỘ PHẬN:',
+                chamcongkhachsan_staff_count_suffix: 'nhân viên',
+                chamcongkhachsan_unassigned: 'Chưa phân bổ',
+                chamcongkhachsan_confirmed: 'Đã xác nhận',
+                chamcongkhachsan_save_shift: 'Lưu ca làm',
+                chamcongkhachsan_select_shift_default: '-- Chọn ca làm --',
+                chamcongkhachsan_shift_morning: '🌅 Ca Sáng',
+                chamcongkhachsan_shift_afternoon: '🌇 Ca Chiều',
+                chamcongkhachsan_shift_night: '🌙 Ca Đêm (Kiểm toán đêm)',
+                chamcongkhachsan_shift_office: '🏢 Hành chính',
+                chamcongkhachsan_shift_leave: '❌ Nghỉ phép',
+                chamcongkhachsan_toast_select_shift: 'Vui lòng chọn ca làm việc trước khi xác nhận!',
+                chamcongkhachsan_saving: 'ĐANG LƯU...',
+                chamcongkhachsan_toast_shift_confirmed: '✅ Đã xác nhận ca làm cho nhân viên: {id}',
+                chamcongkhachsan_toast_db_error: 'Lỗi kết nối cơ sở dữ liệu!'
+            },
+            en: {
+                chamcongkhachsan_nav_comm: 'Comm Station',
+                chamcongkhachsan_page_title: 'Hotel Attendance',
+                chamcongkhachsan_recording_station: 'Recording station:',
+                chamcongkhachsan_back: 'Back',
+                chamcongkhachsan_room_matrix: 'Room Matrix',
+                chamcongkhachsan_legend_ready: 'Ready',
+                chamcongkhachsan_legend_occupied: 'Occupied',
+                chamcongkhachsan_legend_dirty: 'Needs Cleaning',
+                chamcongkhachsan_legend_cleaning: 'Cleaning in Progress',
+                chamcongkhachsan_th_staff_info: 'Staff Info',
+                chamcongkhachsan_th_time_in: 'Time IN',
+                chamcongkhachsan_th_time_out: 'Time OUT',
+                chamcongkhachsan_th_shift: 'Shift Assignment',
+                chamcongkhachsan_th_svc: 'SVC (₫)',
+                chamcongkhachsan_svc_title: 'Service Charge / Allowance',
+                chamcongkhachsan_th_tips: 'Tips (₫)',
+                chamcongkhachsan_th_actions: 'Actions',
+                chamcongkhachsan_syncing: 'Syncing with satellite...',
+                chamcongkhachsan_title_checkout: 'Click to Check-out',
+                chamcongkhachsan_title_assign_cleaning: 'Assign Cleaning',
+                chamcongkhachsan_title_confirm_clean: 'Confirm Cleaning Done',
+                chamcongkhachsan_demo_housekeeper: 'Ms. Hoa',
+                chamcongkhachsan_toast_checkout: 'Room {id} checked out. Cleaning alert sent!',
+                chamcongkhachsan_prompt_assign_cleaner: 'Assign a cleaner for room {id} (enter name):',
+                chamcongkhachsan_prompt_default_name: 'Housekeeper ',
+                chamcongkhachsan_toast_cleaning_assigned: "Cleaning order sent to {staff}'s PDA for room {id}.",
+                chamcongkhachsan_toast_room_ready: 'Room {id} is ready for guests!',
+                chamcongkhachsan_no_staff: 'No staff in the system yet!',
+                chamcongkhachsan_toast_load_failed: 'Failed to load list from the cloud!',
+                chamcongkhachsan_department_prefix: 'DEPARTMENT:',
+                chamcongkhachsan_staff_count_suffix: 'staff',
+                chamcongkhachsan_unassigned: 'Unassigned',
+                chamcongkhachsan_confirmed: 'Confirmed',
+                chamcongkhachsan_save_shift: 'Save Shift',
+                chamcongkhachsan_select_shift_default: '-- Assign Shift --',
+                chamcongkhachsan_shift_morning: '🌅 Morning Shift',
+                chamcongkhachsan_shift_afternoon: '🌇 Afternoon Shift',
+                chamcongkhachsan_shift_night: '🌙 Night Shift (Night Audit)',
+                chamcongkhachsan_shift_office: '🏢 Office Hours',
+                chamcongkhachsan_shift_leave: '❌ Leave / Day Off',
+                chamcongkhachsan_toast_select_shift: 'Please select a shift assignment before confirming!',
+                chamcongkhachsan_saving: 'SAVING...',
+                chamcongkhachsan_toast_shift_confirmed: '✅ Shift confirmed for employee: {id}',
+                chamcongkhachsan_toast_db_error: 'Database connection error!'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            // Re-render các phần do JS tạo ra (ma trận phòng, bảng nhân sự) để cập nhật
+            // text (title, option, toast...) đã "bake" sẵn ngôn ngữ cũ.
+            try { renderRooms(); } catch(e) {}
+            try { loadHotel(); } catch(e) {}
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         // ========================================================
         // THREE.JS BACKGROUND NÂNG CẤP (giống chamcong_spa)
         // ========================================================
@@ -263,7 +390,7 @@
                 const t = clock.getElapsedTime();
                 const hue = (t * 0.04) % 1;
                 material.color.setHSL(hue, 0.9, 0.65);
-                
+
                 particles.rotation.y = t * 0.03;
                 particles.rotation.x = t * 0.01;
                 targetX = mouseX * 0.5;
@@ -333,9 +460,9 @@
         // ========================================================
         const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
 
         const rawDate = new Date();
         const formattedDate = `${String(rawDate.getDate()).padStart(2, '0')}/${String(rawDate.getMonth() + 1).padStart(2, '0')}/${rawDate.getFullYear()}`;
@@ -352,39 +479,40 @@
         // ========================================================
         let rooms = [
             { id: '101', status: 'clean' }, { id: '102', status: 'occupied' }, { id: '103', status: 'dirty' }, { id: '104', status: 'clean' }, { id: '105', status: 'clean' },
-            { id: '201', status: 'occupied' }, { id: '202', status: 'dirty' }, { id: '203', status: 'cleaning', staff: 'Cô Hoa' }, { id: '204', status: 'occupied' }, { id: '205', status: 'clean' }
+            { id: '201', status: 'occupied' }, { id: '202', status: 'dirty' }, { id: '203', status: 'cleaning', staffKey: 'chamcongkhachsan_demo_housekeeper' }, { id: '204', status: 'occupied' }, { id: '205', status: 'clean' }
         ];
 
         function renderRooms() {
             const matrix = document.getElementById('roomMatrix');
             matrix.innerHTML = '';
-            
+
             rooms.forEach(room => {
                 let colorClass = ''; let icon = ''; let action = '';
-                
+
                 if (room.status === 'clean') {
                     colorClass = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
                     icon = '<i class="fas fa-check-circle drop-shadow-[0_0_5px_currentColor]"></i>';
                 } else if (room.status === 'occupied') {
                     colorClass = 'bg-blue-500/10 border-blue-500/30 text-blue-400 cursor-pointer hover:bg-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.1)]';
                     icon = '<i class="fas fa-bed drop-shadow-[0_0_5px_currentColor]"></i>';
-                    action = `onclick="checkoutRoom('${room.id}')" title="Bấm để Check-out"`;
+                    action = `onclick="checkoutRoom('${room.id}')" title="${t('chamcongkhachsan_title_checkout')}"`;
                 } else if (room.status === 'dirty') {
                     colorClass = 'bg-rose-500/10 text-rose-400 room-dirty cursor-pointer hover:bg-rose-500/20';
                     icon = '<i class="fas fa-exclamation-triangle drop-shadow-[0_0_5px_currentColor]"></i>';
-                    action = `onclick="assignCleaning('${room.id}')" title="Điều phối dọn dẹp"`;
+                    action = `onclick="assignCleaning('${room.id}')" title="${t('chamcongkhachsan_title_assign_cleaning')}"`;
                 } else if (room.status === 'cleaning') {
                     colorClass = 'bg-yellow-500/10 border-yellow-500/50 text-yellow-400 cursor-pointer hover:bg-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.2)]';
                     icon = '<i class="fas fa-broom animate-bounce drop-shadow-[0_0_5px_currentColor]"></i>';
-                    action = `onclick="markClean('${room.id}')" title="Xác nhận dọn xong"`;
+                    action = `onclick="markClean('${room.id}')" title="${t('chamcongkhachsan_title_confirm_clean')}"`;
                 }
 
+                const staffLabel = room.staffKey ? t(room.staffKey) : (room.staff || '');
                 matrix.innerHTML += `
                     <div ${action} class="flex flex-col items-center justify-center p-4 rounded-2xl border transition-all ${colorClass} backdrop-blur-sm relative overflow-hidden group" data-tilt data-tilt-max="15" data-tilt-glare="true" data-tilt-max-glare="0.3">
                         <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                         <div class="text-2xl mb-2 relative z-10 transition-transform group-hover:scale-125">${icon}</div>
                         <div class="font-black font-mono text-sm tracking-widest relative z-10">${room.id}</div>
-                        ${room.status === 'cleaning' ? `<div class="text-[9px] mt-1.5 truncate w-full text-center bg-black/50 rounded px-1 py-0.5 border border-white/5 uppercase tracking-widest font-bold">${room.staff}</div>` : ''}
+                        ${room.status === 'cleaning' ? `<div class="text-[9px] mt-1.5 truncate w-full text-center bg-black/50 rounded px-1 py-0.5 border border-white/5 uppercase tracking-widest font-bold">${staffLabel}</div>` : ''}
                     </div>
                 `;
             });
@@ -394,23 +522,24 @@
         function checkoutRoom(id) {
             rooms.find(r => r.id === id).status = 'dirty';
             renderRooms();
-            showToast(`Phòng ${id} đã Check-out. Hệ thống báo dọn dẹp!`, 'warning');
+            showToast(tf('chamcongkhachsan_toast_checkout', { id }), 'warning');
         }
 
         function assignCleaning(id) {
-            let staff = prompt(`Điều phối người dọn phòng ${id} (Nhập tên):`, "Tạp vụ ");
+            let staff = prompt(tf('chamcongkhachsan_prompt_assign_cleaner', { id }), t('chamcongkhachsan_prompt_default_name'));
             if (staff) {
                 rooms.find(r => r.id === id).status = 'cleaning';
                 rooms.find(r => r.id === id).staff = staff;
+                delete rooms.find(r => r.id === id).staffKey;
                 renderRooms();
-                showToast(`Đã bắn lệnh dọn phòng ${id} sang PDA của ${staff}.`, 'success');
+                showToast(tf('chamcongkhachsan_toast_cleaning_assigned', { staff, id }), 'success');
             }
         }
 
         function markClean(id) {
             rooms.find(r => r.id === id).status = 'clean';
             renderRooms();
-            showToast(`Phòng ${id} đã sẵn sàng đón khách!`, 'success');
+            showToast(tf('chamcongkhachsan_toast_room_ready', { id }), 'success');
             triggerConfetti();
         }
 
@@ -419,20 +548,20 @@
         // ========================================================
         async function loadHotel() {
             try {
-                const { data: emps, error: err1 } = await supabase.from('employees').select('*').order('chuc_vu', { ascending: true });
+                const { data: emps, error: err1 } = await supabaseClient.from('employees').select('*').order('chuc_vu', { ascending: true });
                 if (err1) throw err1;
 
-                const { data: records, error: err2 } = await supabase.from('chamcong').select('*').eq('ngay_cham', formattedDate);
-                
+                const { data: records, error: err2 } = await supabaseClient.from('chamcong').select('*').eq('ngay_cham', formattedDate);
+
                 const tbody = document.getElementById('hotelTable');
                 if(emps.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-purple-400 font-bold uppercase tracking-widest text-xs">Chưa có nhân sự nào trong hệ thống!</td</tr>';
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-purple-400 font-bold uppercase tracking-widest text-xs">${t('chamcongkhachsan_no_staff')}</td></tr>`;
                     return;
                 }
 
                 const groupedEmployees = {};
                 emps.forEach(emp => {
-                    const viTri = emp.chuc_vu || 'Chưa phân bổ vị trí';
+                    const viTri = emp.chuc_vu || t('chamcongkhachsan_unassigned');
                     if(!groupedEmployees[viTri]) groupedEmployees[viTri] = [];
                     groupedEmployees[viTri].push(emp);
                 });
@@ -444,9 +573,9 @@
                     html += `
                         <tr class="bg-gradient-to-r from-purple-900/40 to-transparent border-y border-purple-500/30">
                             <td colspan="7" class="px-6 py-3 font-black text-purple-300 uppercase tracking-widest text-xs shadow-inner">
-                                <i class="fas fa-layer-group mr-2 text-pink-400"></i> BỘ PHẬN: ${viTri} <span class="ml-2 text-gray-400 font-medium lowercase">(${empList.length} nhân sự)</span>
+                                <i class="fas fa-layer-group mr-2 text-pink-400"></i> ${t('chamcongkhachsan_department_prefix')} ${viTri} <span class="ml-2 text-gray-400 font-medium lowercase">(${empList.length} ${t('chamcongkhachsan_staff_count_suffix')})</span>
                             </td>
-                        </table>
+                        </tr>
                     `;
 
                     empList.forEach((emp) => {
@@ -454,13 +583,13 @@
                         const caLam = todayRecord ? todayRecord.trang_thai : '';
                         const gioIn = todayRecord ? todayRecord.gio_den : '';
                         const gioOut = todayRecord ? todayRecord.gio_ve : '';
-                        const svc = todayRecord ? todayRecord.phu_cap : ''; 
+                        const svc = todayRecord ? todayRecord.phu_cap : '';
                         const tips = todayRecord ? todayRecord.tien_tips : '';
-                        
+
                         const isSaved = todayRecord ? true : false;
-                        const btnUI = isSaved 
-                            ? `<button class="bg-emerald-500/10 text-emerald-400 font-black p-2.5 rounded-xl w-full flex items-center justify-center gap-2 cursor-not-allowed opacity-50 border border-emerald-500/20 uppercase tracking-widest text-[10px] shadow-inner"><i class="fas fa-check-double"></i> Đã Chốt</button>`
-                            : `<button id="btn_${emp.ma_nv}" onclick="saveHotel('${emp.ma_nv}')" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black p-2.5 rounded-xl transition-all w-full flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(168,85,247,0.4)] hover:shadow-[0_5px_20px_rgba(236,72,153,0.6)] uppercase tracking-widest text-[10px] active:scale-95"><i class="fas fa-save text-sm"></i> Lưu Ca</button>`;
+                        const btnUI = isSaved
+                            ? `<button class="bg-emerald-500/10 text-emerald-400 font-black p-2.5 rounded-xl w-full flex items-center justify-center gap-2 cursor-not-allowed opacity-50 border border-emerald-500/20 uppercase tracking-widest text-[10px] shadow-inner"><i class="fas fa-check-double"></i> ${t('chamcongkhachsan_confirmed')}</button>`
+                            : `<button id="btn_${emp.ma_nv}" onclick="saveHotel('${emp.ma_nv}')" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black p-2.5 rounded-xl transition-all w-full flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(168,85,247,0.4)] hover:shadow-[0_5px_20px_rgba(236,72,153,0.6)] uppercase tracking-widest text-[10px] active:scale-95"><i class="fas fa-save text-sm"></i> ${t('chamcongkhachsan_save_shift')}</button>`;
 
                         const avatarContent = emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0);
 
@@ -481,12 +610,12 @@
                             <td class="px-3 py-4 border-r border-white/5"><input type="time" id="out_${emp.ma_nv}" value="${gioOut}" class="excel-input text-rose-300" ${isSaved?'disabled':''}></td>
                             <td class="px-3 py-4 border-r border-white/5">
                                 <select id="ca_${emp.ma_nv}" class="excel-input text-xs appearance-none cursor-pointer text-gray-300" ${isSaved?'disabled':''}>
-                                    <option value="" class="bg-gray-900">-- Phân Ca --</option>
-                                    <option value="Ca Sáng" class="bg-gray-900 text-blue-300" ${caLam === 'Ca Sáng' ? 'selected' : ''}>🌅 Ca Sáng</option>
-                                    <option value="Ca Chiều" class="bg-gray-900 text-orange-300" ${caLam === 'Ca Chiều' ? 'selected' : ''}>🌇 Ca Chiều</option>
-                                    <option value="Ca Đêm" class="bg-gray-900 text-purple-300" ${caLam === 'Ca Đêm' ? 'selected' : ''}>🌙 Ca Đêm (Night Audit)</option>
-                                    <option value="Hành chính" class="bg-gray-900 text-emerald-300" ${caLam === 'Hành chính' ? 'selected' : ''}>🏢 Hành chính</option>
-                                    <option value="Nghỉ Phép" class="bg-gray-900 text-rose-500" ${caLam === 'Nghỉ Phép' ? 'selected' : ''}>❌ Nghỉ Phép</option>
+                                    <option value="" class="bg-gray-900">${t('chamcongkhachsan_select_shift_default')}</option>
+                                    <option value="Ca Sáng" class="bg-gray-900 text-blue-300" ${caLam === 'Ca Sáng' ? 'selected' : ''}>${t('chamcongkhachsan_shift_morning')}</option>
+                                    <option value="Ca Chiều" class="bg-gray-900 text-orange-300" ${caLam === 'Ca Chiều' ? 'selected' : ''}>${t('chamcongkhachsan_shift_afternoon')}</option>
+                                    <option value="Ca Đêm" class="bg-gray-900 text-purple-300" ${caLam === 'Ca Đêm' ? 'selected' : ''}>${t('chamcongkhachsan_shift_night')}</option>
+                                    <option value="Hành chính" class="bg-gray-900 text-emerald-300" ${caLam === 'Hành chính' ? 'selected' : ''}>${t('chamcongkhachsan_shift_office')}</option>
+                                    <option value="Nghỉ Phép" class="bg-gray-900 text-rose-500" ${caLam === 'Nghỉ Phép' ? 'selected' : ''}>${t('chamcongkhachsan_shift_leave')}</option>
                                 </select>
                             </td>
                             <td class="px-3 py-4 border-r border-white/5">
@@ -498,12 +627,12 @@
                             <td class="px-5 py-4 text-center">
                                 ${btnUI}
                             </td>
-                        </table>`;
+                        </tr>`;
                         rowDelay += 50;
                     });
                 }
                 tbody.innerHTML = html;
-            } catch(e) { showToast("Lỗi tải danh sách từ Đám mây!", "error"); }
+            } catch(e) { showToast(t('chamcongkhachsan_toast_load_failed'), "error"); }
         }
 
         async function saveHotel(ma_nv) {
@@ -513,11 +642,11 @@
             const svc = document.getElementById(`svc_${ma_nv}`).value;
             const tips = document.getElementById(`tips_${ma_nv}`).value;
 
-            if(!ca_lam) return showToast("Vui lòng chọn Phân Ca Trực trước khi chốt!", "error");
+            if(!ca_lam) return showToast(t('chamcongkhachsan_toast_select_shift'), "error");
 
             const btn = document.getElementById(`btn_${ma_nv}`);
             const origHTML = btn.innerHTML;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> LƯU...`;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('chamcongkhachsan_saving')}`;
 
             let so_gio = 0;
             if(gio_den && gio_ve) {
@@ -535,22 +664,22 @@
             };
 
             try {
-                const { error } = await supabase.from('chamcong').insert([payload]);
+                const { error } = await supabaseClient.from('chamcong').insert([payload]);
                 if (error) throw error;
-                
-                showToast(`✅ Đã chốt ca cho nhân sự: ${ma_nv}`, "success");
+
+                showToast(tf('chamcongkhachsan_toast_shift_confirmed', { id: ma_nv }), "success");
                 triggerConfetti();
-                
+
                 btn.className = "bg-emerald-500/10 text-emerald-400 font-black p-2.5 rounded-xl w-full flex items-center justify-center gap-2 cursor-not-allowed opacity-50 border border-emerald-500/20 uppercase tracking-widest text-[10px] shadow-inner transition-all";
-                btn.innerHTML = `<i class="fas fa-check-double"></i> Đã Chốt`; btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-check-double"></i> ${t('chamcongkhachsan_confirmed')}`; btn.disabled = true;
                 document.getElementById(`in_${ma_nv}`).disabled = true;
                 document.getElementById(`out_${ma_nv}`).disabled = true;
                 document.getElementById(`ca_${ma_nv}`).disabled = true;
                 document.getElementById(`svc_${ma_nv}`).disabled = true;
                 document.getElementById(`tips_${ma_nv}`).disabled = true;
 
-            } catch(e) { 
-                showToast("Lỗi kết nối vệ tinh CSDL!", "error"); 
+            } catch(e) {
+                showToast(t('chamcongkhachsan_toast_db_error'), "error");
                 btn.innerHTML = origHTML;
             }
         }

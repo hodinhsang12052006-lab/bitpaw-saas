@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -359,17 +359,18 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-                        Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg font-medium">| Quản lý Nhân viên</span>
+                        Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 text-lg font-medium">| <span data-i18n="staff_management_title_suffix">Quản lý Nhân viên</span></span>
                     </h1>
-                    <p class="text-sm text-gray-400">Quản lý thông tin, phân quyền và hoa hồng</p>
+                    <p class="text-sm text-gray-400" data-i18n="staff_management_subtitle">Quản lý thông tin, phân quyền và hoa hồng</p>
                 </div>
             </div>
             <div class="flex gap-3">
+                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold transition">EN</button>
                 <button id="addStaffBtn" class="btn-primary text-sm">
-                    <i class="fas fa-plus-circle"></i> Thêm nhân viên
+                    <i class="fas fa-plus-circle"></i> <span data-i18n="staff_management_btn_add">Thêm nhân viên</span>
                 </button>
                 <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold transition">
-                    <i class="fas fa-home"></i> Dashboard
+                    <i class="fas fa-home"></i> <span data-i18n="staff_management_nav_dashboard">Dashboard</span>
                 </a>
             </div>
         </div>
@@ -377,10 +378,10 @@
         <!-- Danh sách nhân viên -->
         <div class="glass-panel p-5">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
-                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-users text-cyan-400"></i> Danh sách nhân viên</h2>
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-users text-cyan-400"></i> <span data-i18n="staff_management_list_title">Danh sách nhân viên</span></h2>
                 <div class="relative">
                     <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                    <input type="text" id="searchStaff" placeholder="Tìm theo tên, số điện thoại..." class="pl-9 pr-4 py-2 bg-black/50 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400 w-64">
+                    <input type="text" id="searchStaff" placeholder="Tìm theo tên, số điện thoại..." class="pl-9 pr-4 py-2 bg-black/50 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400 w-64" data-i18n-placeholder="staff_management_placeholder_search">
                 </div>
             </div>
             <div class="table-wrapper">
@@ -389,16 +390,16 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Họ tên</th>
-                            <th>Số điện thoại</th>
-                            <th>Vai trò</th>
-                            <th>Hoa hồng (%)</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
+                            <th data-i18n="staff_management_th_name">Họ tên</th>
+                            <th data-i18n="staff_management_th_phone">Số điện thoại</th>
+                            <th data-i18n="staff_management_th_role">Vai trò</th>
+                            <th data-i18n="staff_management_th_commission">Hoa hồng (%)</th>
+                            <th data-i18n="staff_management_th_status">Trạng thái</th>
+                            <th data-i18n="staff_management_th_actions">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="staffTableBody">
-                        <tr><td colspan="7" class="text-center py-10 text-gray-500">Đang tải dữ liệu...</td></tr>
+                        <tr><td colspan="7" class="text-center py-10 text-gray-500" data-i18n="staff_management_loading">Đang tải dữ liệu...</td></tr>
                     </tbody>
                 </table>
                 </div>
@@ -411,43 +412,43 @@
     <div id="staffModal" class="modal-overlay">
         <div class="modal-container">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> Thêm nhân viên</h3>
+                <h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> <span data-i18n="staff_management_btn_add">Thêm nhân viên</span></h3>
                 <button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
             </div>
             <form id="staffForm" class="space-y-4">
                 <input type="hidden" id="staffId" value="">
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Họ và tên</label>
-                    <input type="text" id="staffName" required class="glass-input" placeholder="Họ và tên nhân viên">
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1" data-i18n="staff_management_label_fullname">Họ và tên</label>
+                    <input type="text" id="staffName" required class="glass-input" placeholder="Họ và tên nhân viên" data-i18n-placeholder="staff_management_placeholder_fullname">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Số điện thoại</label>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1" data-i18n="staff_management_label_phone">Số điện thoại</label>
                     <input type="tel" id="staffPhone" required class="glass-input" placeholder="090xxxxxxx">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Vai trò</label>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1" data-i18n="staff_management_label_role">Vai trò</label>
                     <select id="staffRole" class="glass-input">
-                        <option value="staff">Nhân viên (Staff)</option>
-                        <option value="admin">Quản trị viên (Admin)</option>
-                        <option value="manager">Quản lý (Manager)</option>
-                        <option value="karaoke">Nhân viên Karaoke</option>
-                        <option value="spa">Kỹ thuật viên Spa</option>
+                        <option value="staff" data-i18n="staff_management_role_staff">Nhân viên (Staff)</option>
+                        <option value="admin" data-i18n="staff_management_role_admin">Quản trị viên (Admin)</option>
+                        <option value="manager" data-i18n="staff_management_role_manager">Quản lý (Manager)</option>
+                        <option value="karaoke" data-i18n="staff_management_role_karaoke">Nhân viên Karaoke</option>
+                        <option value="spa" data-i18n="staff_management_role_spa">Kỹ thuật viên Spa</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Hoa hồng (%)</label>
-                    <input type="number" id="staffCommission" step="0.5" value="0" class="glass-input" placeholder="VD: 10.5">
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1" data-i18n="staff_management_label_commission">Hoa hồng (%)</label>
+                    <input type="number" id="staffCommission" step="0.5" value="0" class="glass-input" placeholder="VD: 10.5" data-i18n-placeholder="staff_management_placeholder_commission">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">Trạng thái</label>
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1" data-i18n="staff_management_label_status">Trạng thái</label>
                     <select id="staffStatus" class="glass-input">
-                        <option value="active">Đang hoạt động</option>
-                        <option value="inactive">Tạm nghỉ</option>
+                        <option value="active" data-i18n="staff_management_status_active_opt">Đang hoạt động</option>
+                        <option value="inactive" data-i18n="staff_management_tam_nghi">Tạm nghỉ</option>
                     </select>
                 </div>
                 <div class="flex gap-3 pt-2">
-                    <button type="submit" id="saveStaffBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold">Lưu</button>
-                    <button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold">Hủy</button>
+                    <button type="submit" id="saveStaffBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold" data-i18n="staff_management_btn_save">Lưu</button>
+                    <button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold" data-i18n="staff_management_btn_cancel">Hủy</button>
                 </div>
             </form>
         </div>
@@ -457,11 +458,11 @@
     <div id="deleteModal" class="modal-overlay">
         <div class="modal-container text-center">
             <i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-3 block"></i>
-            <h3 class="text-xl font-bold mb-2">Xác nhận xóa</h3>
-            <p class="text-gray-400 mb-4">Bạn có chắc chắn muốn xóa nhân viên <span id="deleteStaffName" class="text-cyan-400"></span>?</p>
+            <h3 class="text-xl font-bold mb-2" data-i18n="staff_management_confirm_delete_title">Xác nhận xóa</h3>
+            <p class="text-gray-400 mb-4"><span data-i18n="staff_management_confirm_delete_prefix">Bạn có chắc chắn muốn xóa nhân viên</span> <span id="deleteStaffName" class="text-cyan-400"></span>?</p>
             <div class="flex gap-3">
-                <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 py-2 rounded-full font-bold">Xóa</button>
-                <button id="cancelDeleteBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold">Hủy</button>
+                <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 py-2 rounded-full font-bold" data-i18n="staff_management_btn_delete">Xóa</button>
+                <button id="cancelDeleteBtn" class="flex-1 bg-white/10 py-2 rounded-full font-bold" data-i18n="staff_management_btn_cancel">Hủy</button>
             </div>
         </div>
     </div>
@@ -470,7 +471,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
-            <span class="text-sm font-medium">Đang xử lý...</span>
+            <span class="text-sm font-medium" data-i18n="staff_management_loading_processing">Đang xử lý...</span>
         </div>
     </div>
     <div id="toast" class="toast"></div>
@@ -517,6 +518,144 @@
         const toast = document.getElementById('toast');
         const loadingOverlay = document.getElementById('loadingOverlay');
 
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                staff_management_title_suffix: 'Quản lý Nhân viên',
+                staff_management_subtitle: 'Quản lý thông tin, phân quyền và hoa hồng',
+                staff_management_btn_add: 'Thêm nhân viên',
+                staff_management_nav_dashboard: 'Dashboard',
+                staff_management_list_title: 'Danh sách nhân viên',
+                staff_management_placeholder_search: 'Tìm theo tên, số điện thoại...',
+                staff_management_th_name: 'Họ tên',
+                staff_management_th_phone: 'Số điện thoại',
+                staff_management_th_role: 'Vai trò',
+                staff_management_th_commission: 'Hoa hồng (%)',
+                staff_management_th_status: 'Trạng thái',
+                staff_management_th_actions: 'Thao tác',
+                staff_management_loading: 'Đang tải dữ liệu...',
+                staff_management_label_fullname: 'Họ và tên',
+                staff_management_placeholder_fullname: 'Họ và tên nhân viên',
+                staff_management_label_phone: 'Số điện thoại',
+                staff_management_label_role: 'Vai trò',
+                staff_management_role_staff: 'Nhân viên (Staff)',
+                staff_management_role_admin: 'Quản trị viên (Admin)',
+                staff_management_role_manager: 'Quản lý (Manager)',
+                staff_management_role_karaoke: 'Nhân viên Karaoke',
+                staff_management_role_spa: 'Kỹ thuật viên Spa',
+                staff_management_label_commission: 'Hoa hồng (%)',
+                staff_management_placeholder_commission: 'VD: 10.5',
+                staff_management_label_status: 'Trạng thái',
+                staff_management_status_active_opt: 'Đang hoạt động',
+                staff_management_tam_nghi: 'Tạm nghỉ',
+                staff_management_btn_save: 'Lưu',
+                staff_management_btn_cancel: 'Hủy',
+                staff_management_confirm_delete_title: 'Xác nhận xóa',
+                staff_management_confirm_delete_prefix: 'Bạn có chắc chắn muốn xóa nhân viên',
+                staff_management_btn_delete: 'Xóa',
+                staff_management_loading_processing: 'Đang xử lý...',
+                staff_management_badge_admin: 'Quản trị viên',
+                staff_management_badge_manager: 'Quản lý',
+                staff_management_badge_staff: 'Nhân viên',
+                staff_management_badge_karaoke: 'Karaoke',
+                staff_management_badge_spa: 'Kỹ thuật viên Spa',
+                staff_management_badge_active: 'Hoạt động',
+                staff_management_err_load_list: 'Lỗi tải danh sách nhân viên: ',
+                staff_management_no_results: 'Không tìm thấy nhân viên',
+                staff_management_action_salary: 'Lương',
+                staff_management_action_edit: 'Sửa',
+                staff_management_modal_edit_title: 'Chỉnh sửa nhân viên',
+                staff_management_err_missing_fields: 'Vui lòng nhập đầy đủ thông tin',
+                staff_management_msg_update_success: 'Cập nhật nhân viên thành công',
+                staff_management_msg_add_success: 'Thêm nhân viên thành công',
+                staff_management_err_save: 'Lỗi lưu dữ liệu: ',
+                staff_management_msg_delete_success: 'Xóa nhân viên thành công',
+                staff_management_err_delete: 'Lỗi xóa: ',
+                staff_management_msg_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                staff_management_err_generic: 'Lỗi: '
+            },
+            en: {
+                staff_management_title_suffix: 'Staff Management',
+                staff_management_subtitle: 'Manage staff info, permissions, and commissions',
+                staff_management_btn_add: 'Add Staff',
+                staff_management_nav_dashboard: 'Dashboard',
+                staff_management_list_title: 'Staff List',
+                staff_management_placeholder_search: 'Search by name, phone number...',
+                staff_management_th_name: 'Full Name',
+                staff_management_th_phone: 'Phone Number',
+                staff_management_th_role: 'Role',
+                staff_management_th_commission: 'Commission (%)',
+                staff_management_th_status: 'Status',
+                staff_management_th_actions: 'Actions',
+                staff_management_loading: 'Loading data...',
+                staff_management_label_fullname: 'Full Name',
+                staff_management_placeholder_fullname: 'Staff full name',
+                staff_management_label_phone: 'Phone Number',
+                staff_management_label_role: 'Role',
+                staff_management_role_staff: 'Staff',
+                staff_management_role_admin: 'Administrator (Admin)',
+                staff_management_role_manager: 'Manager',
+                staff_management_role_karaoke: 'Karaoke Staff',
+                staff_management_role_spa: 'Spa Technician',
+                staff_management_label_commission: 'Commission (%)',
+                staff_management_placeholder_commission: 'E.g.: 10.5',
+                staff_management_label_status: 'Status',
+                staff_management_status_active_opt: 'Active',
+                staff_management_tam_nghi: 'Inactive',
+                staff_management_btn_save: 'Save',
+                staff_management_btn_cancel: 'Cancel',
+                staff_management_confirm_delete_title: 'Confirm Deletion',
+                staff_management_confirm_delete_prefix: 'Are you sure you want to delete staff member',
+                staff_management_btn_delete: 'Delete',
+                staff_management_loading_processing: 'Processing...',
+                staff_management_badge_admin: 'Administrator',
+                staff_management_badge_manager: 'Manager',
+                staff_management_badge_staff: 'Staff',
+                staff_management_badge_karaoke: 'Karaoke',
+                staff_management_badge_spa: 'Spa Technician',
+                staff_management_badge_active: 'Active',
+                staff_management_err_load_list: 'Error loading staff list: ',
+                staff_management_no_results: 'No staff found',
+                staff_management_action_salary: 'Salary',
+                staff_management_action_edit: 'Edit',
+                staff_management_modal_edit_title: 'Edit Staff',
+                staff_management_err_missing_fields: 'Please fill in all required information',
+                staff_management_msg_update_success: 'Staff updated successfully',
+                staff_management_msg_add_success: 'Staff added successfully',
+                staff_management_err_save: 'Error saving data: ',
+                staff_management_msg_delete_success: 'Staff deleted successfully',
+                staff_management_err_delete: 'Error deleting: ',
+                staff_management_msg_support_sent: '✅ Request sent! We will contact you within 15 minutes.',
+                staff_management_err_generic: 'Error: '
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            if (typeof loadStaff === 'function') loadStaff();
+        }
+        applyStaticTranslations();
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+        }
+
         let currentDeleteId = null;
 
         // Helper functions
@@ -539,19 +678,19 @@
 
         function getRoleBadge(role) {
             const roleMap = {
-                admin: { class: 'role-admin', text: 'Quản trị viên' },
-                manager: { class: 'role-manager', text: 'Quản lý' },
-                staff: { class: 'role-staff', text: 'Nhân viên' },
-                karaoke: { class: 'role-karaoke', text: 'Karaoke' },
-                spa: { class: 'role-staff', text: 'Kỹ thuật viên Spa' }
+                admin: { class: 'role-admin', text: t('staff_management_badge_admin') },
+                manager: { class: 'role-manager', text: t('staff_management_badge_manager') },
+                staff: { class: 'role-staff', text: t('staff_management_badge_staff') },
+                karaoke: { class: 'role-karaoke', text: t('staff_management_badge_karaoke') },
+                spa: { class: 'role-staff', text: t('staff_management_badge_spa') }
             };
             const r = roleMap[role] || roleMap.staff;
             return `<span class="role-badge ${r.class}">${r.text}</span>`;
         }
 
         function getStatusBadge(status) {
-            if (status === 'active') return '<span class="text-emerald-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> Hoạt động</span>';
-            return '<span class="text-rose-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> Tạm nghỉ</span>';
+            if (status === 'active') return '<span class="text-emerald-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> ' + t('staff_management_badge_active') + '</span>';
+            return '<span class="text-rose-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> ' + t('staff_management_tam_nghi') + '</span>';
         }
 
         // Load staff list from Supabase
@@ -566,19 +705,19 @@
                 renderStaffTable(data || []);
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi tải danh sách nhân viên: ' + err.message, true);
+                showToast(t('staff_management_err_load_list') + err.message, true);
             } finally {
                 showLoading(false);
             }
         }
 
         function renderStaffTable(staffList, filter = '') {
-            const filtered = staffList.filter(s => 
-                s.name.toLowerCase().includes(filter.toLowerCase()) || 
+            const filtered = staffList.filter(s =>
+                s.name.toLowerCase().includes(filter.toLowerCase()) ||
                 s.phone.includes(filter)
             );
             if (filtered.length === 0) {
-                staffTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">Không tìm thấy nhân viên</td></tr>';
+                staffTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-500">' + t('staff_management_no_results') + '</td></tr>';
                 return;
             }
             staffTableBody.innerHTML = filtered.map(s => `
@@ -590,9 +729,9 @@
                     <td class="font-mono">${s.commission_rate}%</td>
                     <td>${getStatusBadge(s.is_active ? 'active' : 'inactive')}</td>
                     <td class="flex gap-2">
-                        <a href="/cauhinh_luong?staff_id=${s.id}" class="btn-outline text-xs px-3 py-1"><i class="fas fa-hand-holding-usd"></i> Lương</a>
-                        <button class="edit-staff btn-outline text-xs px-3 py-1" data-id="${s.id}"><i class="fas fa-edit"></i> Sửa</button>
-                        <button class="delete-staff btn-danger text-xs px-3 py-1" data-id="${s.id}" data-name="${escapeHtml(s.name)}"><i class="fas fa-trash-alt"></i> Xóa</button>
+                        <a href="/cauhinh_luong?staff_id=${s.id}" class="btn-outline text-xs px-3 py-1"><i class="fas fa-hand-holding-usd"></i> ${t('staff_management_action_salary')}</a>
+                        <button class="edit-staff btn-outline text-xs px-3 py-1" data-id="${s.id}"><i class="fas fa-edit"></i> ${t('staff_management_action_edit')}</button>
+                        <button class="delete-staff btn-danger text-xs px-3 py-1" data-id="${s.id}" data-name="${escapeHtml(s.name)}"><i class="fas fa-trash-alt"></i> ${t('staff_management_btn_delete')}</button>
                     </td>
                 </tr>
             `).join('');
@@ -622,7 +761,7 @@
             staffRoleSelect.value = 'staff';
             staffCommissionInput.value = '0';
             staffStatusSelect.value = 'active';
-            modalTitle.innerHTML = '<i class="fas fa-user-plus mr-2"></i> Thêm nhân viên';
+            modalTitle.innerHTML = '<i class="fas fa-user-plus mr-2"></i> ' + t('staff_management_btn_add');
             staffModal.classList.add('active');
         }
 
@@ -633,7 +772,7 @@
             staffRoleSelect.value = staff.role;
             staffCommissionInput.value = staff.commission_rate;
             staffStatusSelect.value = staff.is_active ? 'active' : 'inactive';
-            modalTitle.innerHTML = '<i class="fas fa-user-edit mr-2"></i> Chỉnh sửa nhân viên';
+            modalTitle.innerHTML = '<i class="fas fa-user-edit mr-2"></i> ' + t('staff_management_modal_edit_title');
             staffModal.classList.add('active');
         }
 
@@ -652,7 +791,7 @@
             const is_active = staffStatusSelect.value === 'active';
 
             if (!name || !phone) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('staff_management_err_missing_fields'), true);
                 return;
             }
 
@@ -665,20 +804,20 @@
                         .update({ name, phone, role, commission_rate, is_active })
                         .eq('id', id);
                     if (error) throw error;
-                    showToast('Cập nhật nhân viên thành công');
+                    showToast(t('staff_management_msg_update_success'));
                 } else {
                     // Insert
                     const { error } = await supabase
                         .from('staff')
                         .insert([{ name, phone, role, commission_rate, is_active, created_at: new Date() }]);
                     if (error) throw error;
-                    showToast('Thêm nhân viên thành công');
+                    showToast(t('staff_management_msg_add_success'));
                 }
                 closeModal();
                 await loadStaff(); // refresh list
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi lưu dữ liệu: ' + err.message, true);
+                showToast(t('staff_management_err_save') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -700,12 +839,12 @@
                     .delete()
                     .eq('id', currentDeleteId);
                 if (error) throw error;
-                showToast('Xóa nhân viên thành công');
+                showToast(t('staff_management_msg_delete_success'));
                 deleteModal.classList.remove('active');
                 await loadStaff();
             } catch (err) {
                 console.error(err);
-                showToast('Lỗi xóa: ' + err.message, true);
+                showToast(t('staff_management_err_delete') + err.message, true);
             } finally {
                 showLoading(false);
                 currentDeleteId = null;
@@ -751,17 +890,17 @@
             const phone = document.getElementById('supportPhone').value;
             const message = document.getElementById('supportMessage').value;
             if (!name || !phone || !message) {
-                showToast('Vui lòng nhập đầy đủ thông tin', true);
+                showToast(t('staff_management_err_missing_fields'), true);
                 return;
             }
             showLoading(true);
             try {
                 const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
                 if (error) throw error;
-                showToast('✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.');
+                showToast(t('staff_management_msg_support_sent'));
                 document.getElementById('supportForm').reset();
             } catch(err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast(t('staff_management_err_generic') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -832,11 +971,11 @@
             const clock = new THREE.Clock();
             function animate() {
                 requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.03) % 1;
+                const elapsed = clock.getElapsedTime();
+                const hue = (elapsed * 0.03) % 1;
                 material.color.setHSL(hue, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
+                particles.rotation.y = elapsed * 0.02;
+                particles.rotation.x = elapsed * 0.01;
                 targetX = mouseX * 0.5;
                 targetY = mouseY * 0.5;
                 particles.rotation.y += 0.5 * (targetX - particles.rotation.y);

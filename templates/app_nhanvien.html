@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#08061a">
     
-    <title>BitPaw | App Nhân Viên</title>
+    <title data-i18n="app_nhanvien_page_title">BitPaw | Employee App</title>
     
     <!-- Thư viện -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -67,11 +67,11 @@
             <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/50">
                 <i class="fas fa-question-circle text-3xl text-cyan-400"></i>
             </div>
-            <h3 class="text-lg font-bold text-white mb-2">Xác nhận</h3>
-            <p id="confirm-msg" class="text-sm text-gray-400 mb-6 leading-relaxed">Bạn có chắc chắn muốn thực hiện?</p>
+            <h3 class="text-lg font-bold text-white mb-2" data-i18n="app_nhanvien_confirm_title">Confirm</h3>
+            <p id="confirm-msg" class="text-sm text-gray-400 mb-6 leading-relaxed" data-i18n="app_nhanvien_confirm_default_msg">Are you sure you want to do this?</p>
             <div class="grid grid-cols-2 gap-3">
-                <button id="btn-confirm-no" class="py-3 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors">HỦY BỎ</button>
-                <button id="btn-confirm-yes" class="py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg active:scale-95 transition-transform">ĐỒNG Ý</button>
+                <button id="btn-confirm-no" class="py-3 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors" data-i18n="app_nhanvien_confirm_no">CANCEL</button>
+                <button id="btn-confirm-yes" class="py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg active:scale-95 transition-transform" data-i18n="app_nhanvien_confirm_yes">CONFIRM</button>
             </div>
         </div>
     </div>
@@ -96,43 +96,43 @@
                     </div>
                 </div>
                 <h1 class="text-4xl font-black tracking-widest text-white drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Bit<span class="text-cyan-400">Paw</span></h1>
-                <p class="text-cyan-400/70 text-xs mt-2 uppercase tracking-widest font-bold border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 rounded-full inline-block">Dành Cho Nhân Viên</p>
+                <p class="text-cyan-400/70 text-xs mt-2 uppercase tracking-widest font-bold border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 rounded-full inline-block">For Employees</p>
             </div>
 
             <div class="flex bg-black/40 backdrop-blur-md p-1 rounded-xl mb-6 border border-white/10">
-                <button onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all">Đăng Nhập</button>
-                <button onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 py-2 text-sm font-bold text-gray-500 hover:text-white rounded-lg transition-all">Đăng Ký Mới</button>
+                <button onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all">Sign In</button>
+                <button onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 py-2 text-sm font-bold text-gray-500 hover:text-white rounded-lg transition-all">New Account</button>
             </div>
 
             <div id="formLogin" class="space-y-4">
                 <div class="relative">
                     <i class="fas fa-fingerprint absolute top-1/2 left-4 -translate-y-1/2 text-cyan-500/50"></i>
-                    <input type="text" id="login_manv" placeholder="Nhập Mã Nhân Viên (VD: NV001)" class="w-full bg-black/60 border border-white/10 py-4 pl-12 pr-4 rounded-xl text-white outline-none focus:border-cyan-500 font-mono uppercase tracking-widest shadow-inner transition-colors">
+                    <input type="text" id="login_manv" placeholder="Enter Employee Code (e.g. NV001)" class="w-full bg-black/60 border border-white/10 py-4 pl-12 pr-4 rounded-xl text-white outline-none focus:border-cyan-500 font-mono uppercase tracking-widest shadow-inner transition-colors">
                 </div>
                 <button onclick="xuLyDangNhap()" id="btn_login_submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 font-black tracking-widest p-4 rounded-xl text-white shadow-[0_10px_20px_rgba(6,182,212,0.3)] mt-2 active:scale-95 transition-transform">
-                    VÀO CA LÀM VIỆC <i class="fas fa-arrow-right ml-2"></i>
+                    START SHIFT <i class="fas fa-arrow-right ml-2"></i>
                 </button>
             </div>
 
             <div id="formRegister" class="space-y-4 hidden">
-                <input type="text" id="reg_name" placeholder="Họ và Tên nhân viên" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-cyan-500 shadow-inner transition-colors">
+                <input type="text" id="reg_name" placeholder="Employee full name" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-cyan-500 shadow-inner transition-colors">
                 <div class="relative">
                     <select id="reg_linhvuc" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-cyan-500 appearance-none shadow-inner transition-colors">
-                        <option value="Kỹ Thuật">🔧 Kỹ Thuật</option>
-                        <option value="F&B">🍔 F&B / Nhà Hàng</option>
+                        <option value="Kỹ Thuật">🔧 Technical</option>
+                        <option value="F&B">🍔 F&B / Restaurant</option>
                         <option value="Spa">💅 Spa & Nails</option>
-                        <option value="Sản xuất">🏭 Sản Xuất</option>
-                        <option value="Khách sạn">🏨 Khách Sạn</option>
-                        <option value="Văn Phòng">💻 Văn Phòng</option>
+                        <option value="Sản xuất">🏭 Manufacturing</option>
+                        <option value="Khách sạn">🏨 Hotel</option>
+                        <option value="Văn Phòng">💻 Office</option>
                     </select>
                     <i class="fas fa-chevron-down absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
                 </div>
                 <div class="relative mt-2 p-4 rounded-xl border border-rose-500/30 bg-rose-500/5">
-                    <label class="block text-rose-400 text-xs font-bold mb-2 uppercase"><i class="fas fa-key mr-1"></i> Mã Code Công ty</label>
-                    <input type="text" id="reg_admin_code" placeholder="VD: BITPAW2026" class="w-full bg-black/60 border border-rose-500/50 p-3 rounded-lg text-white outline-none focus:border-rose-400 font-mono uppercase tracking-widest text-center shadow-inner">
+                    <label class="block text-rose-400 text-xs font-bold mb-2 uppercase"><i class="fas fa-key mr-1"></i> Company Code</label>
+                    <input type="text" id="reg_admin_code" placeholder="e.g. BITPAW2026" class="w-full bg-black/60 border border-rose-500/50 p-3 rounded-lg text-white outline-none focus:border-rose-400 font-mono uppercase tracking-widest text-center shadow-inner">
                 </div>
                 <button onclick="xuLyDangKy()" id="btn_reg_submit" class="w-full bg-gradient-to-r from-rose-500 to-orange-500 font-black tracking-widest p-4 rounded-xl text-white shadow-[0_10px_20px_rgba(244,63,94,0.3)] mt-4 active:scale-95 transition-transform">
-                    GIA NHẬP <i class="fas fa-rocket ml-2"></i>
+                    JOIN <i class="fas fa-rocket ml-2"></i>
                 </button>
             </div>
         </div>
@@ -142,8 +142,8 @@
             
             <div class="bg-black/60 backdrop-blur-xl border border-cyan-500/30 rounded-3xl p-6 w-full max-w-sm shadow-[0_0_40px_rgba(6,182,212,0.2)] relative z-10 flex flex-col items-center text-center">
                 <img id="checkin_avatar" src="/static/cho.png" class="w-20 h-20 rounded-full mx-auto mb-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] bg-black object-cover border-2 border-cyan-400">
-                <h2 class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Xin chào,</h2>
-                <h1 class="text-2xl font-black text-white mb-6 drop-shadow-md" id="checkin_name">Đang tải...</h1>
+                <h2 class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Hello,</h2>
+                <h1 class="text-2xl font-black text-white mb-6 drop-shadow-md" id="checkin_name">Loading...</h1>
 
                 <div class="bg-[#0a0f25] border border-cyan-500/30 rounded-2xl w-full py-5 mb-8 shadow-inner relative overflow-hidden">
                     <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
@@ -154,9 +154,9 @@
                 <div id="step1_Start" class="relative w-full flex flex-col items-center justify-center mb-2">
                     <button onclick="startCameraAndGPS()" class="btn-glow w-32 h-32 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-[6px] border-[#08061a] text-white font-black text-xl flex flex-col items-center justify-center gap-2 shadow-[0_0_40px_rgba(6,182,212,0.6)] hover:scale-105 transition-transform z-10">
                         <i class="fas fa-fingerprint text-4xl mb-1"></i>
-                        <span class="tracking-widest">IN CA</span>
+                        <span class="tracking-widest">CLOCK IN</span>
                     </button>
-                    <p class="text-[10px] text-cyan-400/60 mt-8 uppercase tracking-widest font-bold"><i class="fas fa-shield-alt mr-1"></i> Bắt buộc xác thực GPS/FaceID</p>
+                    <p class="text-[10px] text-cyan-400/60 mt-8 uppercase tracking-widest font-bold"><i class="fas fa-shield-alt mr-1"></i> GPS/FaceID verification required</p>
                 </div>
 
                 <div id="step2_Camera" class="w-full hidden flex-col items-center">
@@ -168,14 +168,14 @@
                         <video id="cameraFeed" class="w-full h-[240px] object-cover relative z-0" autoplay playsinline></video>
                         
                         <div id="gpsStatus" class="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30 z-20 font-bold uppercase tracking-widest">
-                            <i class="fas fa-satellite fa-spin"></i> Đang định vị...
+                            <i class="fas fa-satellite fa-spin"></i> Locating...
                         </div>
                     </div>
 
                     <button id="captureBtn" onclick="captureAndSubmit()" disabled class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black py-4 rounded-xl shadow-[0_10px_20px_rgba(16,185,129,0.3)] transition-all opacity-50 cursor-not-allowed flex justify-center items-center gap-2 tracking-widest">
-                        <i class="fas fa-camera text-xl"></i> CHỤP & LƯU BẰNG CHỨNG
+                        <i class="fas fa-camera text-xl"></i> CAPTURE & SAVE PROOF
                     </button>
-                    <button onclick="cancelCheckin()" class="mt-4 text-xs text-gray-500 hover:text-rose-400 font-bold uppercase tracking-widest transition-colors"><i class="fas fa-times mr-1"></i> Hủy bỏ</button>
+                    <button onclick="cancelCheckin()" class="mt-4 text-xs text-gray-500 hover:text-rose-400 font-bold uppercase tracking-widest transition-colors"><i class="fas fa-times mr-1"></i> Cancel</button>
                 </div>
             </div>
             <canvas id="snapshotCanvas" class="hidden"></canvas>
@@ -203,7 +203,7 @@
                         <img id="ui_avatar_img" src="/static/cho.png" class="w-full h-full rounded-full object-cover bg-[#08061a] border-2 border-transparent">
                     </div>
                     <div class="flex-1 truncate">
-                        <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1" id="header_greeting">Xin chào,</p>
+                        <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1" id="header_greeting">Hello,</p>
                         <h2 class="text-lg font-black text-white truncate drop-shadow" id="ui_name">...</h2>
                         <div class="flex items-center gap-2 mt-1">
                             <span class="text-[10px] font-mono bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30" id="ui_code">...</span>
@@ -223,67 +223,67 @@
                         <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl shadow-lg relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-bl-full -z-10 blur-xl"></div>
                             <div class="flex justify-between items-center mb-4">
-                                <h3 class="font-bold text-white text-sm uppercase tracking-widest"><i class="fas fa-satellite text-cyan-400 mr-2"></i> Trạng Thái GPS</h3>
+                                <h3 class="font-bold text-white text-sm uppercase tracking-widest"><i class="fas fa-satellite text-cyan-400 mr-2"></i> GPS Status</h3>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="gpsToggle" class="sr-only peer" onchange="toggleGPS()">
                                     <div class="w-11 h-6 bg-gray-700 border border-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-checked:border-emerald-400"></div>
                                 </label>
                             </div>
-                            <p id="gpsStatusText" class="text-xs text-gray-400 mb-5 font-medium">Đang tắt. Bật GPS để hệ thống Radar nhận diện.</p>
-                            
+                            <p id="gpsStatusText" class="text-xs text-gray-400 mb-5 font-medium">Off. Turn on GPS for the Radar system to detect you.</p>
+
                             <div class="grid grid-cols-2 gap-3" id="workStatusBox" style="display:none; pointer-events: none; opacity: 0.5;">
-                                <button onclick="setWorkStatus('Rảnh')" id="btn_ranh" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-transform active:scale-95">🟢 ĐANG RẢNH</button>
-                                <button onclick="setWorkStatus('Bận')" id="btn_ban" class="bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10">🔴 ĐANG LÀM VIỆC</button>
+                                <button onclick="setWorkStatus('Rảnh')" id="btn_ranh" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-transform active:scale-95">🟢 AVAILABLE</button>
+                                <button onclick="setWorkStatus('Bận')" id="btn_ban" class="bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10">🔴 BUSY</button>
                             </div>
                         </div>
 
-                        <!-- Báo cáo nhanh -->
+                        <!-- Quick report -->
                         <div class="bg-[#0a192f]/80 backdrop-blur-xl border border-blue-500/30 p-5 rounded-3xl shadow-[0_10px_30px_rgba(59,130,246,0.15)] relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
                             <h3 class="text-blue-400 font-black mb-5 flex items-center gap-2 uppercase tracking-widest text-sm">
-                                <i class="fas fa-file-invoice-dollar text-lg"></i> Lập Phiếu Nghiệm Thu
+                                <i class="fas fa-file-invoice-dollar text-lg"></i> Create Completion Report
                             </h3>
                             <div class="space-y-4">
                                 <div class="relative">
                                     <i class="fas fa-map-marker-alt absolute top-1/2 left-3 -translate-y-1/2 text-gray-500"></i>
-                                    <input type="text" id="work_address" placeholder="Tọa độ / Tên KH (Không bắt buộc)..." class="w-full bg-black/50 border border-white/10 py-3 pl-9 pr-3 rounded-xl text-white outline-none focus:border-blue-500 text-sm shadow-inner transition-colors">
+                                    <input type="text" id="work_address" placeholder="Location / Customer name (optional)..." class="w-full bg-black/50 border border-white/10 py-3 pl-9 pr-3 rounded-xl text-white outline-none focus:border-blue-500 text-sm shadow-inner transition-colors">
                                 </div>
                                 <div class="relative">
                                     <i class="fas fa-edit absolute top-3 left-3 text-gray-500"></i>
-                                    <textarea id="work_content" rows="3" placeholder="Ghi chú chi tiết công việc, vật tư..." class="w-full bg-black/50 border border-white/10 py-3 pl-9 pr-3 rounded-xl text-white outline-none focus:border-blue-500 text-sm shadow-inner transition-colors"></textarea>
+                                    <textarea id="work_content" rows="3" placeholder="Job details, materials used..." class="w-full bg-black/50 border border-white/10 py-3 pl-9 pr-3 rounded-xl text-white outline-none focus:border-blue-500 text-sm shadow-inner transition-colors"></textarea>
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div class="relative">
                                         <i class="fas fa-money-bill-wave absolute top-1/2 left-3 -translate-y-1/2 text-emerald-500/50"></i>
-                                        <input type="number" id="work_money" placeholder="Doanh Thu" class="w-full bg-emerald-500/5 border border-emerald-500/30 py-3 pl-9 pr-3 rounded-xl text-emerald-400 font-bold outline-none focus:border-emerald-500 text-sm shadow-inner transition-colors">
+                                        <input type="number" id="work_money" placeholder="Revenue" class="w-full bg-emerald-500/5 border border-emerald-500/30 py-3 pl-9 pr-3 rounded-xl text-emerald-400 font-bold outline-none focus:border-emerald-500 text-sm shadow-inner transition-colors">
                                     </div>
                                     <div class="relative">
                                         <i class="fas fa-coins absolute top-1/2 left-3 -translate-y-1/2 text-rose-500/50"></i>
-                                        <input type="number" id="work_tip" placeholder="Tiền Tips" class="w-full bg-rose-500/5 border border-rose-500/30 py-3 pl-9 pr-3 rounded-xl text-rose-400 font-bold outline-none focus:border-rose-500 text-sm shadow-inner transition-colors">
+                                        <input type="number" id="work_tip" placeholder="Tips" class="w-full bg-rose-500/5 border border-rose-500/30 py-3 pl-9 pr-3 rounded-xl text-rose-400 font-bold outline-none focus:border-rose-500 text-sm shadow-inner transition-colors">
                                     </div>
                                 </div>
-                                
+
                                 <div id="evidence_zone" class="bg-black/60 border border-white/10 p-4 rounded-2xl hidden space-y-5">
                                     <div id="photo_evidence_box" class="hidden">
-                                        <label class="block text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2"><i class="fas fa-camera mr-1"></i> Bằng Chứng Hình Ảnh</label>
+                                        <label class="block text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2"><i class="fas fa-camera mr-1"></i> Photo Evidence</label>
                                         <div class="relative border-2 border-dashed border-cyan-500/30 rounded-xl p-4 text-center hover:border-cyan-400 transition-colors bg-cyan-500/5 cursor-pointer">
                                             <input type="file" id="work_photo" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                                             <i class="fas fa-cloud-upload-alt text-2xl text-cyan-500 mb-2"></i>
-                                            <p class="text-xs text-gray-400 font-medium" id="photo_name_display">Bấm để tải ảnh lên</p>
+                                            <p class="text-xs text-gray-400 font-medium" id="photo_name_display">Tap to upload photo</p>
                                         </div>
                                     </div>
-                                    
+
                                     <div id="signature_evidence_box" class="hidden">
-                                        <label class="block text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2"><i class="fas fa-file-signature mr-1"></i> Khách Hàng Ký Nghiệm Thu</label>
+                                        <label class="block text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2"><i class="fas fa-file-signature mr-1"></i> Customer Sign-off</label>
                                         <div class="bg-white rounded-xl overflow-hidden border-4 border-amber-500/30 relative shadow-inner">
                                             <canvas id="signaturePad" class="w-full h-32 touch-none cursor-crosshair bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')]"></canvas>
-                                            <button type="button" onclick="clearSignature()" class="absolute top-2 right-2 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-500/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow">Xóa Ký Lại</button>
+                                            <button type="button" onclick="clearSignature()" class="absolute top-2 right-2 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-500/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow">Clear & Redo</button>
                                         </div>
                                     </div>
                                 </div>
 
                                 <button onclick="submitWorkReport()" id="btn_submit_report" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 font-black tracking-widest p-4 rounded-xl text-white shadow-[0_10px_20px_rgba(59,130,246,0.3)] active:scale-95 transition-transform mt-2">
-                                    <i class="fas fa-paper-plane mr-2"></i> CHỐT BÁO CÁO
+                                    <i class="fas fa-paper-plane mr-2"></i> SUBMIT REPORT
                                 </button>
                             </div>
                         </div>
@@ -293,9 +293,9 @@
                 <!-- TAB RADAR (JOBS) -->
                 <div id="tab_jobs" class="hidden space-y-6">
                     <h3 class="font-black text-xl text-white mb-2 border-b border-white/10 pb-4 flex items-center gap-3">
-                        <i class="fas fa-satellite-dish text-cyan-400 text-2xl"></i> Radar Điều Phối
+                        <i class="fas fa-satellite-dish text-cyan-400 text-2xl"></i> Dispatch Radar
                     </h3>
-                    
+
                     <!-- Visual Radar Element -->
                     <div class="bg-black/60 backdrop-blur-md border border-cyan-500/20 rounded-3xl p-6 shadow-lg mb-6 flex justify-center items-center">
                         <div class="radar-box">
@@ -303,13 +303,13 @@
                             <div class="radar-ping"></div>
                         </div>
                         <div class="ml-4">
-                            <p class="text-xs text-cyan-400 font-bold uppercase tracking-widest mb-1">Trạm Phát Sóng</p>
-                            <p class="text-[10px] text-gray-500">Đang quét khu vực xung quanh...</p>
+                            <p class="text-xs text-cyan-400 font-bold uppercase tracking-widest mb-1">Broadcast Station</p>
+                            <p class="text-[10px] text-gray-500">Scanning the surrounding area...</p>
                         </div>
                     </div>
-                    
+
                     <div>
-                        <h4 class="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center"><i class="fas fa-hammer mr-2"></i> Lệnh Đang Nhận</h4>
+                        <h4 class="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center"><i class="fas fa-hammer mr-2"></i> Jobs Assigned to You</h4>
                         <div id="my_jobs_container" class="space-y-4">
                             <!-- Skeleton Template -->
                             <div class="animate-pulse flex space-x-4 bg-white/5 p-4 rounded-2xl border border-white/5">
@@ -322,7 +322,7 @@
                     </div>
 
                     <div class="border-t border-white/10 pt-6">
-                        <h4 class="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center"><i class="fas fa-store mr-2"></i> Chợ Việc Trống</h4>
+                        <h4 class="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center"><i class="fas fa-store mr-2"></i> Open Job Marketplace</h4>
                         <div id="available_jobs_container" class="space-y-4">
                              <!-- Skeleton Template -->
                              <div class="animate-pulse flex space-x-4 bg-white/5 p-4 rounded-2xl border border-white/5">
@@ -338,50 +338,50 @@
                 <!-- TAB APPS -->
                 <div id="tab_apps" class="hidden space-y-5">
                     <h3 class="font-black text-xl text-white mb-4 border-b border-white/10 pb-4 flex items-center gap-3">
-                        <i class="fas fa-th-large text-cyan-400 text-2xl"></i> Kho Tiện Ích
+                        <i class="fas fa-th-large text-cyan-400 text-2xl"></i> Utilities
                     </h3>
 
                     <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl hover:border-pink-500/30 transition-colors group">
-                        <h4 class="text-pink-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-calendar-times"></i> Đơn Xin Phép</h4>
+                        <h4 class="text-pink-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-calendar-times"></i> Leave Request</h4>
                         <div class="flex gap-3 mb-3">
                             <input type="date" id="app_leave_date" class="bg-black/80 border border-white/10 text-gray-300 p-3 rounded-xl text-xs outline-none flex-1 focus:border-pink-500">
                             <select id="app_leave_type" class="bg-black/80 border border-white/10 text-gray-300 p-3 rounded-xl text-xs outline-none w-28 focus:border-pink-500 appearance-none text-center">
-                                <option value="Nghỉ Ốm">Ốm</option>
-                                <option value="Nghỉ Phép">Phép</option>
-                                <option value="Nửa Ngày">Nửa ngày</option>
+                                <option value="Nghỉ Ốm">Sick</option>
+                                <option value="Nghỉ Phép">Leave</option>
+                                <option value="Nửa Ngày">Half day</option>
                             </select>
                         </div>
-                        <input type="text" id="app_leave_reason" placeholder="Lý do chi tiết..." class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs mb-3 outline-none focus:border-pink-500">
-                        <button onclick="sendLeaveRequest()" class="w-full bg-pink-500/10 text-pink-400 hover:bg-pink-500 hover:text-white transition-all border border-pink-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-pink-500/20"><i class="fas fa-paper-plane mr-2"></i> Gửi HR Duyệt</button>
+                        <input type="text" id="app_leave_reason" placeholder="Detailed reason..." class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs mb-3 outline-none focus:border-pink-500">
+                        <button onclick="sendLeaveRequest()" class="w-full bg-pink-500/10 text-pink-400 hover:bg-pink-500 hover:text-white transition-all border border-pink-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-pink-500/20"><i class="fas fa-paper-plane mr-2"></i> Send to HR</button>
                     </div>
 
                     <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl hover:border-yellow-500/30 transition-colors group">
-                        <h4 class="text-yellow-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-star"></i> Tặng Sao Kudo</h4>
+                        <h4 class="text-yellow-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-star"></i> Give a Kudos Star</h4>
                         <div class="relative mb-3">
                             <select id="app_kudo_receiver" class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs outline-none appearance-none focus:border-yellow-500">
-                                <option value="">-- Chọn đồng nghiệp xuất sắc --</option>
+                                <option value="">-- Choose an outstanding colleague --</option>
                             </select>
                             <i class="fas fa-chevron-down absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
                         </div>
-                        <button onclick="sendKudo()" class="w-full bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-all border border-yellow-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-yellow-500/20"><i class="fas fa-gift mr-2"></i> Tặng 1 Sao BitPaw</button>
+                        <button onclick="sendKudo()" class="w-full bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-all border border-yellow-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-yellow-500/20"><i class="fas fa-gift mr-2"></i> Give a BitPaw Star</button>
                     </div>
 
                     <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl hover:border-emerald-500/30 transition-colors group" id="box_swap" style="display: none;">
-                        <h4 class="text-emerald-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-exchange-alt"></i> Chợ Đổi Ca (F&B)</h4>
+                        <h4 class="text-emerald-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-exchange-alt"></i> Shift Swap Market (F&B)</h4>
                         <div class="relative mb-3">
                             <select id="app_swap_receiver" class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs outline-none appearance-none focus:border-emerald-500">
-                                <option value="">-- Chọn người muốn nhờ đi làm thay --</option>
+                                <option value="">-- Choose who to ask to cover your shift --</option>
                             </select>
                             <i class="fas fa-chevron-down absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
                         </div>
-                        <button onclick="sendSwapRequest()" class="w-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all border border-emerald-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-emerald-500/20"><i class="fas fa-handshake mr-2"></i> Bắn Lệnh Nhờ Vả</button>
+                        <button onclick="sendSwapRequest()" class="w-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all border border-emerald-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-emerald-500/20"><i class="fas fa-handshake mr-2"></i> Send Swap Request</button>
                     </div>
                 </div>
 
                 <!-- TAB PROFILE -->
                 <div id="tab_profile" class="hidden space-y-6">
                     <h3 class="font-black text-xl text-white mb-4 border-b border-white/10 pb-4 flex items-center gap-3">
-                        <i class="fas fa-address-card text-cyan-400 text-2xl"></i> Hồ Sơ Nhân Sự
+                        <i class="fas fa-address-card text-cyan-400 text-2xl"></i> Employee Profile
                     </h3>
                     
                     <div class="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
@@ -394,21 +394,21 @@
                                 <i class="fas fa-pencil-alt text-xs"></i>
                             </div>
                         </div>
-                        <p class="text-center text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-6">Bấm vào ảnh để đổi Avatar</p>
+                        <p class="text-center text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-6">Tap the photo to change avatar</p>
                         <input type="file" id="avatarInput" accept="image/*" class="hidden" onchange="xuLyUploadAvatar(this)">
-                        
+
                         <div class="space-y-4 text-sm bg-white/5 p-5 rounded-2xl border border-white/5">
                             <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Họ và Tên</span>
+                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Full Name</span>
                                 <span class="text-white font-black" id="profile_name">...</span>
                             </div>
                             <div class="flex justify-between items-center border-b border-white/5 pb-3">
-                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Mã NV</span>
-                                <span class="text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2 py-1 rounded" id="profile_code">...</span> 
+                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Employee Code</span>
+                                <span class="text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2 py-1 rounded" id="profile_code">...</span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Ngành</span>
-                                <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded" id="profile_linhvuc">...</span> 
+                                <span class="text-gray-400 text-xs uppercase tracking-widest font-bold">Field</span>
+                                <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded" id="profile_linhvuc">...</span>
                             </div>
                         </div>
                     </div>
@@ -432,7 +432,7 @@
                     <div class="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-[0_5px_15px_rgba(6,182,212,0.4)] transform -translate-y-4 group-hover:scale-110 group-active:scale-95 transition-all">
                         <i class="fas fa-layer-group text-xl"></i>
                     </div>
-                    <span class="text-[9px] font-black uppercase tracking-widest -mt-2">Tiện Ích</span>
+                    <span class="text-[9px] font-black uppercase tracking-widest -mt-2">Utilities</span>
                 </button>
                 <a href="/chat" class="flex flex-col items-center gap-1 text-gray-500 hover:text-cyan-400 transition-colors w-1/5 group">
                     <div class="p-2 rounded-xl group-hover:bg-white/5 transition"><i class="fas fa-comment-dots text-[22px]"></i></div>
@@ -440,7 +440,7 @@
                 </a>
                 <button onclick="switchAppTab('profile')" id="nav_profile" class="flex flex-col items-center gap-1 text-gray-500 hover:text-cyan-400 transition-colors w-1/5 group">
                     <div class="p-2 rounded-xl group-hover:bg-white/5 transition"><i class="fas fa-user-circle text-[22px]"></i></div>
-                    <span class="text-[9px] font-black uppercase tracking-widest">Hồ Sơ</span>
+                    <span class="text-[9px] font-black uppercase tracking-widest">Profile</span>
                 </button>
             </div>
         </div>
@@ -511,7 +511,7 @@
             if(this.files && this.files[0]) {
                 display.innerHTML = `<span class="text-cyan-400 font-bold">${this.files[0].name}</span>`;
             } else {
-                display.innerHTML = 'Bấm để tải ảnh lên';
+                display.innerHTML = 'Tap to upload photo';
             }
         });
 
@@ -581,14 +581,14 @@
                         localStorage.setItem('bp_emp_avatar', emp.avatar_url || '');
                         
                         currentUser = { name: emp.ho_ten, code: emp.ma_nv, linhVuc: emp.linh_vuc, avatar: emp.avatar_url };
-                        showToast(`Chào mừng ${emp.ho_ten} truy cập từ PawBook!`, 'success');
+                        showToast(`Welcome ${emp.ho_ten}, signed in from PawBook!`, 'success');
                         vaoAppNgay();
                         isAutoLoggedIn = true;
                     } else {
-                        showToast("Mã Nhân Viên từ PawBook không hợp lệ!", 'error');
+                        showToast("Invalid employee code from PawBook!", 'error');
                     }
                 } catch (e) {
-                    console.error("Lỗi tự động đăng nhập:", e);
+                    console.error("Auto sign-in error:", e);
                 }
             }
             
@@ -627,15 +627,15 @@
             const linhVuc = document.getElementById('reg_linhvuc').value;
             const adminCode = document.getElementById('reg_admin_code').value.trim();
 
-            if(!name || !adminCode) return showToast("Vui lòng nhập đủ thông tin!", 'error');
+            if(!name || !adminCode) return showToast("Please fill in all the info!", 'error');
 
             const btn = document.getElementById('btn_reg_submit');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> KHỞI TẠO...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CREATING...'; btn.disabled = true;
 
             try {
                 if(adminCode !== "BITPAW2026") {
-                    showToast("Mã Công Ty không hợp lệ hoặc đã hết hạn!", 'error');
-                    btn.innerHTML = 'GIA NHẬP <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false; return;
+                    showToast("Invalid or expired company code!", 'error');
+                    btn.innerHTML = 'JOIN <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false; return;
                 }
 
                 const ma_nv_moi = "NV" + Math.floor(1000 + Math.random() * 9000);
@@ -644,45 +644,45 @@
 
                 localStorage.setItem('bp_emp_name', name); localStorage.setItem('bp_emp_code', ma_nv_moi);
                 localStorage.setItem('bp_emp_linhvuc', linhVuc); localStorage.setItem('bp_emp_avatar', '');
-                
+
                 currentUser = { name, code: ma_nv_moi, linhVuc, avatar: '' };
-                showToast(`Đăng ký thành công! Mã của bạn là: ${ma_nv_moi}`, 'success');
+                showToast(`Registration successful! Your code is: ${ma_nv_moi}`, 'success');
                 setTimeout(vaoAppNgay, 1500);
             } catch(e) {
-                showToast("Lỗi kết nối Máy chủ Đám mây!", 'error'); 
-                btn.innerHTML = 'GIA NHẬP <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false;
+                showToast("Cloud server connection error!", 'error');
+                btn.innerHTML = 'JOIN <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false;
             }
         }
 
         async function xuLyDangNhap() {
             const ma_nv = document.getElementById('login_manv').value.trim().toUpperCase();
-            if(!ma_nv) return showToast("Vui lòng nhập Mã Nhân Viên!", 'error');
+            if(!ma_nv) return showToast("Please enter your employee code!", 'error');
 
             const btn = document.getElementById('btn_login_submit');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ĐANG KIỂM TRA...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CHECKING...'; btn.disabled = true;
 
             try {
                 const { data: emp, error } = await supabase.from('employees').select('*').eq('ma_nv', ma_nv).maybeSingle();
                 if(!emp) {
-                    showToast("Mã Nhân Viên không tồn tại!", 'error');
-                    btn.innerHTML = 'VÀO CA LÀM VIỆC <i class="fas fa-arrow-right ml-2"></i>'; btn.disabled = false; return;
+                    showToast("Employee code not found!", 'error');
+                    btn.innerHTML = 'START SHIFT <i class="fas fa-arrow-right ml-2"></i>'; btn.disabled = false; return;
                 }
 
                 localStorage.setItem('bp_emp_name', emp.ho_ten); localStorage.setItem('bp_emp_code', emp.ma_nv);
                 localStorage.setItem('bp_emp_linhvuc', emp.linh_vuc || ''); localStorage.setItem('bp_emp_avatar', emp.avatar_url || '');
 
                 currentUser = { name: emp.ho_ten, code: emp.ma_nv, linhVuc: emp.linh_vuc, avatar: emp.avatar_url };
-                showToast("Đăng nhập thành công!", 'success');
+                showToast("Signed in successfully!", 'success');
                 setTimeout(vaoAppNgay, 1000);
             } catch(e) {
-                showToast("Lỗi kết nối Máy chủ!", 'error'); 
-                btn.innerHTML = 'VÀO CA LÀM VIỆC <i class="fas fa-arrow-right ml-2"></i>'; btn.disabled = false;
+                showToast("Server connection error!", 'error');
+                btn.innerHTML = 'START SHIFT <i class="fas fa-arrow-right ml-2"></i>'; btn.disabled = false;
             }
         }
 
         function vaoAppNgay() {
-            document.getElementById('ui_name').innerText = currentUser.name; document.getElementById('ui_code').innerText = currentUser.code; document.getElementById('ui_linhvuc').innerText = currentUser.linhVuc || "Chưa phân bổ";
-            document.getElementById('profile_name').innerText = currentUser.name; document.getElementById('profile_code').innerText = currentUser.code; document.getElementById('profile_linhvuc').innerText = currentUser.linhVuc || "Chưa rõ";
+            document.getElementById('ui_name').innerText = currentUser.name; document.getElementById('ui_code').innerText = currentUser.code; document.getElementById('ui_linhvuc').innerText = currentUser.linhVuc || "Unassigned";
+            document.getElementById('profile_name').innerText = currentUser.name; document.getElementById('profile_code').innerText = currentUser.code; document.getElementById('profile_linhvuc').innerText = currentUser.linhVuc || "Unknown";
 
             const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=0D8ABC&color=fff&size=128&bold=true';
             const finalAvatar = currentUser.avatar || defaultAvatar;
@@ -709,7 +709,7 @@
                     
                     setInterval(() => {
                         const now = new Date();
-                        document.getElementById('currentDate').innerText = now.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        document.getElementById('currentDate').innerText = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                         document.getElementById('clockText').innerText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     }, 1000);
                 }, 500);
@@ -813,19 +813,19 @@
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                 document.getElementById('cameraFeed').srcObject = videoStream;
-            } catch (err) { showToast("Không thể truy cập Camera. Vui lòng cấp quyền!", 'error'); cancelCheckin(); return; }
+            } catch (err) { showToast("Cannot access the camera. Please grant permission!", 'error'); cancelCheckin(); return; }
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         currentLat = position.coords.latitude; currentLng = position.coords.longitude;
                         const gpsUI = document.getElementById('gpsStatus');
-                        gpsUI.innerHTML = `<i class="fas fa-map-marker-check"></i> Đã khóa mục tiêu GPS`;
+                        gpsUI.innerHTML = `<i class="fas fa-map-marker-check"></i> GPS target locked`;
                         gpsUI.className = "absolute bottom-2 left-2 right-2 bg-[#0a0f25]/90 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-emerald-400 flex items-center justify-center gap-2 border border-emerald-400/50 z-20 font-bold uppercase tracking-widest";
                         const capBtn = document.getElementById('captureBtn');
                         capBtn.disabled = false; capBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                     },
-                    (error) => { showToast("Không lấy được GPS. Vui lòng bật Vị trí!", 'error'); cancelCheckin(); },
+                    (error) => { showToast("Could not get GPS location. Please enable Location!", 'error'); cancelCheckin(); },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             }

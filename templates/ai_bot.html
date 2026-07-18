@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPaw AI Copilot | Trợ Lý Chỉ Huy</title>
+    <title data-i18n="ai_bot_title">BitPaw AI Copilot | Trợ Lý Chỉ Huy</title>
     
     <script>
         // Suppress Tailwind CSS CDN warning in the developer console
@@ -114,6 +114,7 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
                 </div>
                 <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
+                <button type="button" id="langToggleBtn" class="mt-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
             </div>
 
             {% if profile.has_profile %}
@@ -125,7 +126,7 @@
                     <div class="overflow-hidden">
                         <h3 class="text-white font-bold text-[13px] truncate">{{ profile.name }}</h3>
                         <p class="text-cyan-400 text-[9px] uppercase tracking-widest font-bold mt-0.5">
-                            Doanh Nghiệp
+                            <span data-i18n="ai_bot_profile_business_label">Doanh Nghiệp</span>
                         </p>
                     </div>
                 </div>
@@ -136,20 +137,20 @@
                     
                     <div class="pt-2 border-t border-white/5 flex items-start gap-2.5">
                         <i class="fas fa-briefcase text-gray-500 w-3 text-center mt-0.5"></i>
-                        <span class="leading-relaxed"><span class="text-gray-500 uppercase text-[9px]">Ngành nghề KD:</span><br><span>{{ profile.industry }}</span></span>
+                        <span class="leading-relaxed"><span class="text-gray-500 uppercase text-[9px]" data-i18n="ai_bot_profile_industry_label">Ngành nghề KD:</span><br><span>{{ profile.industry }}</span></span>
                     </div>
                     <div class="pt-2 border-t border-white/5 space-y-2">
-                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-crown text-yellow-500 w-3 text-center"></i> Gói dịch vụ:</span><span class="text-emerald-400 font-bold">{{ profile.tier }}</span></div>
-                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-users text-gray-500 w-3 text-center"></i> NV quản lý:</span><span class="text-white font-bold">{{ profile.staff }}</span></div>
-                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-calendar-check text-gray-500 w-3 text-center"></i> Tham gia:</span><span class="text-white font-bold">{{ profile.joined }}</span></div>
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-crown text-yellow-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_tier_label">Gói dịch vụ:</span></span><span class="text-emerald-400 font-bold">{{ profile.tier }}</span></div>
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-users text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_staff_label">NV quản lý:</span></span><span class="text-white font-bold">{{ profile.staff }}</span></div>
+                        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-calendar-check text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_joined_label">Tham gia:</span></span><span class="text-white font-bold">{{ profile.joined }}</span></div>
                     </div>
                 </div>
             </div>
             {% else %}
             <div class="mx-4 my-4 bg-[#0a0f25]/40 backdrop-blur-md border border-dashed border-white/10 rounded-xl p-4 text-center">
                 <i class="fas fa-briefcase text-gray-600 text-lg mb-2 block"></i>
-                <p class="text-xs text-gray-500 font-bold">Chưa có dữ liệu doanh nghiệp</p>
-                <p class="text-[9px] text-gray-600 mt-1">Vui lòng thiết lập thông tin hoặc kích hoạt license.</p>
+                <p class="text-xs text-gray-500 font-bold" data-i18n="ai_bot_profile_missing_title">Chưa có dữ liệu doanh nghiệp</p>
+                <p class="text-[9px] text-gray-600 mt-1" data-i18n="ai_bot_profile_missing_desc">Vui lòng thiết lập thông tin hoặc kích hoạt license.</p>
             </div>
             {% endif %}
 
