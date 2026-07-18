@@ -519,11 +519,11 @@ def login():
 
             flash('Đăng nhập thành công', 'success')
 
-            # Tài khoản Admin/Super Admin (email nằm trong SUPERADMIN_EMAILS) luôn vào thẳng
-            # trang Super Admin, bất kể đã cấu hình business_mode hay chưa — không đẩy qua
-            # /setup như user thường. Check này đặt trước mọi logic redirect theo ngành nghề.
-            if _is_superadmin():
-                return redirect(url_for('super_admin'))
+            # Hardcode duy nhất 1 tài khoản trùm: email này luôn vào thẳng Super Admin, bất kể
+            # business_mode đã cấu hình hay chưa — không đẩy qua /setup như user thường. Check
+            # này đặt trước mọi logic redirect theo ngành nghề.
+            if email.strip().lower() == 'hodinhsang30052003@gmail.com':
+                return redirect('/super_admin')
 
             if mode in INDUSTRY_CONFIG:
                 target_url = INDUSTRY_CONFIG[mode]['redirect_after_login']
