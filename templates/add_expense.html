@@ -720,38 +720,8 @@
             }
         });
 
-        // ========== CSKH: TRACK CLICK ==========
-        async function trackCSKHClick(channel) {
-            if(!currentUser) return;
-            try {
-                await supabaseClient.from('cskh_clicks').insert([{ user_id: currentUser.id, channel, clicked_at: new Date() }]);
-            } catch(e) { console.warn('track click error', e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-
-        // ========== GỬI YÊU CẦU HỖ TRỢ ==========
-        const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if(!name || !phone || !message) { showToast(t('addexpense_toast_fill_all'), true); return; }
-            try {
-                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if(error) throw error;
-                showToast(t('addexpense_toast_support_sent'));
-                supportForm.reset();
-                // Gửi email thông báo nếu có EmailJS (cần cấu hình key thật)
-                if(window.emailjs) {
-                    emailjs.init('YOUR_PUBLIC_KEY'); // thay bằng key thật nếu muốn
-                    emailjs.send('service_demo', 'template_demo', { to_name: 'BitPaw Support', user_name: name, user_phone: phone, message: message })
-                        .catch(() => console.log('EmailJS not configured'));
-                }
-            } catch(err) { showToast(t('addexpense_toast_generic_error_prefix') + err.message, true); }
-        });
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // ========== XUẤT PDF ==========
         document.getElementById('exportPdfBtn').addEventListener('click', () => {
@@ -851,5 +821,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

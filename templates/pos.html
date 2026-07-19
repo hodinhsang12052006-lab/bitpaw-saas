@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -388,7 +387,7 @@
                     </div>
                 </div>
                 <div class="menu-grid" id="menuGrid">
-                    <!-- Sẽ load từ Supabase -->
+                    <!-- Sẽ load từ Flask API (fetch) -->
                     <div class="col-span-full text-center py-10 text-gray-500" data-i18n="pos_loading_menu">Đang tải thực đơn...</div>
                 </div>
             </div>
@@ -404,7 +403,7 @@
                     <button type="submit" id="addTableBtn" data-i18n="pos_add_table_btn_fnb" class="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition">+ Thêm</button>
                 </form>
                 <div class="table-grid" id="tableGrid">
-                    <!-- Sẽ load từ Supabase -->
+                    <!-- Sẽ load từ Flask API (fetch) -->
                     <div class="col-span-full text-center py-5 text-gray-500" data-i18n="pos_loading_tables">Đang tải danh sách bàn...</div>
                 </div>
             </div>
@@ -487,26 +486,11 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" id="loadingOverlayText" data-i18n="pos_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast" data-i18n="pos_toast_default">Thông báo</div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = '{{ supabase_url }}';
-        const supabaseKey = '{{ supabase_key }}';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        const businessId = '{{ session.get("business_id", "") }}';
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+    <script>
+        // ========== BACKEND API (Flask + MongoDB) ==========
+        // Đã gỡ bỏ hoàn toàn Supabase JS client-side — mọi truy vấn giờ đi qua các endpoint
+        // JSON /api/pos/... của Flask (xem app.py), server tự xác định business_id từ session,
+        // không còn tin business_id do trình duyệt tự khai như khi gọi thẳng Supabase trước đây.
 
         // State
         let selectedTableId = null;
@@ -837,20 +821,13 @@
             else if (ind === 'spa') channelType = 'spa';
 
             try {
-                let query = supabase
-                    .from('products')
-                    .select('id, name, price, stock, image, channel_type')
-                    .eq('is_active', true)
-                    .eq('channel_type', channelType);
-                if (businessId) {
-                    query = query.eq('business_id', businessId);
-                }
-                const { data, error } = await query.order('name');
-                if (error) {
-                    showToast(t('pos_toast_menu_load_error') + error.message, true);
+                const res = await fetch('/api/pos/products?channel_type=' + encodeURIComponent(channelType), { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) {
+                    showToast(t('pos_toast_menu_load_error') + json.message, true);
                     return [];
                 }
-                return data || [];
+                return json.data || [];
             } catch (err) {
                 console.error('loadProducts fetch failed:', err);
                 showToast(t('pos_toast_menu_load_error') + err.message, true);
@@ -867,16 +844,13 @@
 
             let dbTables = [];
             try {
-                let query = supabase.from('dining_tables').select('*');
-                if (businessId) {
-                    query = query.eq('business_id', businessId);
-                }
-                const { data, error } = await query.order('id', { ascending: true });
-                if (!error && data) {
-                    dbTables = data;
+                const res = await fetch('/api/pos/tables', { credentials: 'same-origin' });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    dbTables = json.data;
                 }
             } catch (e) {
-                console.warn("Supabase load failed, using local storage", e);
+                console.warn("Flask API load failed, using local storage", e);
             }
 
             // Load from local storage draft tables
@@ -944,8 +918,11 @@
                     const productName = btn.getAttribute('data-name');
                     if (!confirm(tf('pos_confirm_delete_product', {name: productName}))) return;
                     showLoading(true);
-                    const { error } = await supabase.from('products').update({ is_active: false }).eq('id', productId);
-                    if (error) showToast(t('pos_toast_delete_error') + error.message, true);
+                    const res = await fetch('/api/pos/products/' + encodeURIComponent(productId) + '/deactivate', {
+                        method: 'POST', credentials: 'same-origin'
+                    });
+                    const json = await res.json();
+                    if (!json.success) showToast(t('pos_toast_delete_error') + json.message, true);
                     else {
                         showToast(tf('pos_toast_deleted', {name: productName}));
                         await loadAndRender();
@@ -1041,32 +1018,14 @@
                 return JSON.parse(localStorage.getItem('pos_orders_' + tableId) || '[]');
             }
             try {
-                const { data, error } = await supabase
-                    .from('table_orders')
-                    .select('id, quantity, product_id')
-                    .eq('table_id', tableId);
-                if (error) throw error;
-                
-                const list = [];
-                for (let item of (data || [])) {
-                    const { data: prod } = await supabase
-                        .from('products')
-                        .select('name, price')
-                        .eq('id', item.product_id)
-                        .maybeSingle();
-                    if (prod) {
-                        list.push({
-                            id: item.id,
-                            product_id: item.product_id,
-                            name: prod.name,
-                            price: prod.price,
-                            quantity: item.quantity
-                        });
-                    }
-                }
-                return list;
+                // 1 lần gọi API duy nhất — Flask đã $lookup nối product name/price ngay trong
+                // aggregation, không còn N+1 query rời cho từng món như khi gọi Supabase trực tiếp.
+                const res = await fetch('/api/pos/tables/' + encodeURIComponent(tableId) + '/orders', { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message);
+                return json.data || [];
             } catch (err) {
-                console.warn("Supabase order load failed, falling back to local storage", err);
+                console.warn("Flask API order load failed, falling back to local storage", err);
                 return JSON.parse(localStorage.getItem('pos_orders_' + tableId) || '[]');
             }
         }
@@ -1131,16 +1090,20 @@
                             renderActiveOrders();
                         }
                     } else {
-                        const { error } = await supabase.from('table_orders').delete().eq('id', orderItemId);
-                        if (error) {
-                            showToast(t('pos_toast_cancel_item_error') + error.message, true);
+                        const res = await fetch('/api/pos/order_items/' + encodeURIComponent(orderItemId), {
+                            method: 'DELETE', credentials: 'same-origin'
+                        });
+                        const json = await res.json();
+                        if (!json.success) {
+                            showToast(t('pos_toast_cancel_item_error') + json.message, true);
                         } else {
                             showToast(tf('pos_toast_cancelled_item', {name: orderItemName}));
-                            activeOrders = await loadActiveTableOrders(selectedTableId);
-                            if (activeOrders.length === 0) {
-                                await supabase.from('dining_tables').update({ status: 'Còn trống' }).eq('id', selectedTableId);
+                            // Flask đã tự trừ đơn + tự trả bàn 'Còn trống' nếu hết món trong 1 lần gọi
+                            // (table_emptied) — không cần gọi thêm request riêng để cập nhật trạng thái bàn.
+                            if (json.table_emptied) {
                                 await loadAndRender();
                             } else {
+                                activeOrders = await loadActiveTableOrders(selectedTableId);
                                 renderActiveOrders();
                             }
                         }
@@ -1223,9 +1186,9 @@
             };
 
             showLoading(true);
-            let supabaseSaved = false;
-            
-            // 1. Try Backend Flask API First (Most reliable, handles server-side credentials/session)
+            let backendSaved = false;
+
+            // 1. Try Backend Flask API (MongoDB) — nguồn duy nhất, không còn fallback Supabase.
             try {
                 const formData = new FormData();
                 formData.append('table_name', formattedName);
@@ -1234,28 +1197,15 @@
                     body: formData
                 });
                 if (response.ok) {
-                    supabaseSaved = true;
+                    backendSaved = true;
                     showToast(tf('pos_toast_added_success', {name: formattedName}));
                 }
             } catch (e) {
-                console.warn("Backend add_table failed, trying client-side Supabase...", e);
+                console.warn("Backend add_table failed, falling back to local draft...", e);
             }
 
-            // 2. Try Client-side Supabase client directly
-            if (!supabaseSaved) {
-                try {
-                    const { error } = await supabase.from('dining_tables').insert([{ name: formattedName, status: 'Còn trống', qr_token: token, business_id: businessId }]);
-                    if (!error) {
-                        supabaseSaved = true;
-                        showToast(tf('pos_toast_added_success', {name: formattedName}));
-                    }
-                } catch (e) {
-                    console.warn("Client-side Supabase insert failed...", e);
-                }
-            }
-
-            // 3. Fallback to LocalStorage Draft if both cloud options fail (offline resilient)
-            if (!supabaseSaved) {
+            // 2. Fallback to LocalStorage Draft if backend fails (offline resilient)
+            if (!backendSaved) {
                 let drafts = JSON.parse(localStorage.getItem('pos_local_tables') || '[]');
                 drafts.push(newTableObj);
                 localStorage.setItem('pos_local_tables', JSON.stringify(drafts));
@@ -1312,34 +1262,25 @@
             }
 
             try {
-                const { data: existing, error: checkErr } = await supabase
-                    .from('table_orders')
-                    .select('id, quantity')
-                    .eq('table_id', tableId)
-                    .eq('product_id', productId)
-                    .maybeSingle();
-                if (checkErr) throw checkErr;
-                
-                if (existing) {
-                    const newQty = existing.quantity + quantity;
-                    await supabase.from('table_orders').update({ quantity: newQty }).eq('id', existing.id);
-                } else {
-                    await supabase.from('table_orders').insert([{
-                        table_id: tableId,
-                        product_id: productId,
-                        quantity: quantity,
-                        created_at: new Date()
-                    }]);
-                }
-                
-                await supabase.from('dining_tables').update({ status: 'Đang phục vụ' }).eq('id', tableId);
+                // 1 request duy nhất — Flask tự lo việc tăng số lượng nếu món đã có trên bàn hay
+                // tạo dòng mới, và tự chuyển trạng thái bàn sang 'Đang phục vụ' (atomic ở server,
+                // tránh race condition nếu 2 trình duyệt cùng thêm món vào 1 bàn cùng lúc).
+                const res = await fetch('/api/pos/tables/' + encodeURIComponent(tableId) + '/orders', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId, quantity: quantity })
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message);
+
                 showToast(tf('pos_toast_item_added', {qty: quantity, table: selectedTableName}));
-                
+
                 activeOrders = await loadActiveTableOrders(tableId);
                 renderActiveOrders();
                 await loadAndRender();
             } catch (err) {
-                console.warn("Supabase save failed, falling back to local storage", err);
+                console.warn("Flask API save failed, falling back to local storage", err);
                 let localOrders = JSON.parse(localStorage.getItem('pos_orders_' + tableId) || '[]');
                 const existing = localOrders.find(item => item.product_id == productId);
                 if (existing) {
@@ -1545,8 +1486,11 @@
                         localStorage.setItem('pos_local_tables', JSON.stringify(localTables));
                     }
                 } else {
-                    await supabase.from('table_orders').delete().eq('table_id', selectedTableId);
-                    await supabase.from('dining_tables').update({ status: 'Còn trống' }).eq('id', selectedTableId);
+                    const res = await fetch('/api/pos/tables/' + encodeURIComponent(selectedTableId) + '/orders', {
+                        method: 'DELETE', credentials: 'same-origin'
+                    });
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
                 }
                 
                 showToast(tf('pos_toast_cleared_all', {table: selectedTableName}));
@@ -1673,7 +1617,7 @@
         // Khởi tạo
         applyStaticTranslations();
         initializeIndustryUI();
-        supabaseReady.then(() => loadAndRender());
+        loadAndRender();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

@@ -22,8 +22,6 @@
     </script>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -98,131 +96,7 @@
     <div class="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-700/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
     <div class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
 
-    <!-- Sidebar đã được bổ sung đầy đủ menu -->
-    <aside class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
-        <div>
-            <div class="h-40 flex flex-col items-center justify-center border-b border-white/10 pt-6 pb-4">
-                <div class="hologram-mini w-full h-24 mb-2" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.5">
-                    <div class="relative w-20 h-20 rounded-full border-2 border-cyan-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)]">
-                        <div class="absolute w-full h-full border-t-2 border-purple-400/50 rounded-full animate-spin" style="animation-duration: 3s;"></div>
-                        <div class="absolute w-[110%] h-[110%] border-b-2 border-cyan-400/50 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                        <div class="relative animated-mini-3d w-14 h-14 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
-                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="Logo">
-                            <div class="scanner-line"></div>
-                        </div>
-                    </div>
-                </div>
-                <h1 class="text-2xl font-black tracking-widest drop-shadow-md">Bit<span class="text-cyan-400">Paw</span></h1>
-            </div>
-
-            <div class="flex justify-center pb-2 pt-2">
-                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-            </div>
-
-            <nav class="flex flex-col py-2 space-y-1.5 px-5 overflow-y-auto max-h-[60vh] custom-scrollbar">
-                <!-- CORE NAVIGATION -->
-                <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                    <span data-i18n="dashboard_nav_overview">Tổng quan</span>
-                </a>
-
-                <!-- DYNAMIC CORE MODULES PER INDUSTRY -->
-                <!-- F&B (Smart POS, QR Menu) -->
-                {% if 'ordering' in active_industry_cfg.modules or 'tables' in active_industry_cfg.modules %}
-                    <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                        <i class="fas fa-cash-register w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>Smart POS</span>
-                    </a>
-                    <a href="/qr_menu/demo" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-qrcode w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span>QR Menu</span>
-                    </a>
-                {% endif %}
-
-                <!-- Spa & Nails (POS Dịch vụ, Đặt lịch hẹn) -->
-                {% if 'spa_services' in active_industry_cfg.modules or 'nail_services' in active_industry_cfg.modules %}
-                    <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                        <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_pos_service">POS Dịch vụ</span>
-                    </a>
-                    <a href="/booking" class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                        <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_booking">Đặt lịch hẹn</span>
-                    </a>
-                {% endif %}
-
-                <!-- Retail / Generic sell (Bán hàng) -->
-                {% if 'sales' in active_industry_cfg.modules and 'ordering' not in active_industry_cfg.modules and 'spa_services' not in active_industry_cfg.modules %}
-                    <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_sales">Bán hàng</span>
-                    </a>
-                {% endif %}
-
-                <!-- AI MODULES -->
-                <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 {% if request.path == url_for('ai_bot') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                    <i class="fas fa-robot w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                    <span>AI Copilot</span>
-                </a>
-                <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 {% if request.path == url_for('ai_studio') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                    <i class="fas fa-magic w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                    <span>AI Studio</span>
-                </a>
-
-                <!-- STAFF & ATTENDANCE -->
-                {% if 'attendance' in active_industry_cfg.modules or 'payroll' in active_industry_cfg.modules %}
-                    <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_hr">Quản lý Nhân sự</span>
-                    </a>
-                    <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_attendance">Chấm công</span>
-                    </a>
-                    <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_payroll">Bảng lương</span>
-                    </a>
-                {% endif %}
-
-                <!-- Radar GPS Thợ -->
-                {% if 'dispatch_gps' in active_industry_cfg.modules %}
-                    <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                        <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
-                        <span data-i18n="dashboard_nav_gps">Radar GPS Thợ</span>
-                    </a>
-                {% endif %}
-
-                <!-- ERP OPERATIONS (Expenses / Inventory) -->
-                {% if 'expenses' in active_industry_cfg.modules or 'inventory' in active_industry_cfg.modules %}
-                    <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_debt">Quản lý Công nợ</span>
-                    </a>
-                    <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_revenue">Quản lý Thu Chi</span>
-                    </a>
-                    <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                        <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
-                        <span data-i18n="dashboard_nav_profit">Báo cáo lợi nhuận</span>
-                    </a>
-                {% endif %}
-
-                <!-- MULTI-BRANCH -->
-                <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-sitemap w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
-                    <span data-i18n="dashboard_nav_consolidated">Báo cáo Tổng hợp toàn chuỗi</span>
-                </a>
-            </nav>
-        </div>
-        <div class="p-6 border-t border-white/10 shrink-0">
-            <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i>
-                <span data-i18n="dashboard_logout">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
+    {% include 'components/app_sidebar.html' %}
 
     <main class="flex-1 p-8 lg:p-10 relative z-10 h-screen overflow-y-auto" id="scroll-container">
         
@@ -521,14 +395,8 @@
         VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
 
         // ========================================================
-        // 3. SUPABASE & LOGIC DỮ LIỆU CHÍNH XÁC
+        // 3. DỮ LIỆU DASHBOARD (Flask API + MongoDB — đã gỡ Supabase JS client-side)
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
-
         let myChart = null;
 
         // ========== MULTI-REGION i18n ==========
@@ -536,6 +404,27 @@
         const translations = {
             vi: {
                 dashboard_nav_overview: 'Tổng quan',
+                menu_dashboard: 'Tổng quan',
+                menu_smart_pos: 'Smart POS',
+                menu_kitchen_display: 'Màn Hình Bếp (KDS)',
+                menu_qr_menu: 'QR Menu',
+                menu_pos_service: 'POS Dịch vụ',
+                menu_booking: 'Đặt lịch hẹn',
+                menu_sales: 'Bán hàng',
+                menu_ai_copilot: 'AI Copilot',
+                menu_ai_studio: 'AI Studio',
+                menu_hr: 'Quản lý Nhân sự',
+                menu_attendance: 'Chấm công',
+                menu_payroll: 'Bảng lương',
+                menu_gps_radar: 'Radar GPS Thợ',
+                menu_debt: 'Quản lý Công nợ',
+                menu_cashflow: 'Quản lý Thu Chi',
+                menu_profit_report: 'Báo cáo lợi nhuận',
+                menu_consolidated_report: 'Báo cáo Tổng hợp toàn chuỗi',
+                menu_settings: 'Cài đặt',
+                menu_my_attendance: 'Chấm công cá nhân',
+                menu_my_commission: 'Hoa hồng & Tip của tôi',
+                menu_logout: 'Đăng xuất',
                 dashboard_nav_pos_service: 'POS Dịch vụ',
                 dashboard_nav_booking: 'Đặt lịch hẹn',
                 dashboard_nav_sales: 'Bán hàng',
@@ -724,73 +613,24 @@
             const [year, month] = targetMonth.split('-');
 
             try {
-                // Tổng nhân sự
-                const { count: totalEmp } = await supabase.from('employees').select('*', { count: 'exact', head: true });
-                animateValue(document.getElementById('stat_tong_nv'), 0, totalEmp || 0, '');
+                // 1 request duy nhất — Flask đã tự tính tổng nhân sự, số người đi làm trong
+                // tháng, quỹ lương, dữ liệu biểu đồ 10 ngày và đếm task, thay vì trước đây
+                // frontend tự kéo nguyên bảng chamcong về rồi tự tổng hợp bằng JS.
+                const res = await fetch('/api/dashboard/stats?month=' + encodeURIComponent(month) + '&year=' + encodeURIComponent(year), { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message);
 
-                // Nhân viên đi làm trong tháng (distinct employee_id)
-                const { data: attendanceData } = await supabase.from('chamcong').select('employee_id, ngay_cham, trang_thai, tien_tua, tien_tips, phu_cap');
-                let uniqueEmployees = new Set();
-                let totalPayroll = 0;
-                let leaveDataThisMonth = [];
-                let chartLabels = [];
-                let chartDataCong = [];
-                let chartDataTien = [];
+                animateValue(document.getElementById('stat_tong_nv'), 0, json.total_employees || 0, '');
+                animateValue(document.getElementById('stat_di_lam'), 0, json.employees_worked_this_month || 0, '');
+                animateValue(document.getElementById('stat_tong_quy'), 0, json.total_payroll_this_month || 0, '', formatMoney);
 
-                // Tạo 10 ngày gần nhất
-                for (let i = 9; i >= 0; i--) {
-                    let d = new Date(); d.setDate(d.getDate() - i);
-                    chartLabels.push(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
-                    chartDataCong.push(0);
-                    chartDataTien.push(0);
-                }
-
-                if (attendanceData) {
-                    attendanceData.forEach(rec => {
-                        if (!rec.ngay_cham) return;
-                        const parts = rec.ngay_cham.split('/');
-                        if (parts.length === 3 && parts[1] === month && parts[2] === year) {
-                            // Đếm unique employee
-                            uniqueEmployees.add(rec.employee_id);
-                            // Tính lương (giả sử lương cơ bản lấy từ employees, ở đây tạm tính từ các khoản)
-                            const salary = (Number(rec.tien_tua) || 0) + (Number(rec.tien_tips) || 0) + (Number(rec.phu_cap) || 0);
-                            totalPayroll += salary;
-
-                            // Nghỉ phép
-                            if (rec.trang_thai && (rec.trang_thai.includes('Nghỉ') || rec.trang_thai.includes('ốm') || rec.trang_thai.includes('Chờ duyệt'))) {
-                                leaveDataThisMonth.push({ day: parseInt(parts[0]), note: rec.ghi_chu || t('dashboard_leave_default_note') });
-                            }
-
-                            const shortDate = `${parts[0]}/${parts[1]}`;
-                            const idx = chartLabels.indexOf(shortDate);
-                            if (idx !== -1) {
-                                chartDataCong[idx]++;
-                                chartDataTien[idx] += salary;
-                            }
-                        }
-                    });
-                }
-
-                const employeeCount = uniqueEmployees.size;
-                animateValue(document.getElementById('stat_di_lam'), 0, employeeCount, '');
-                animateValue(document.getElementById('stat_tong_quy'), 0, totalPayroll, '', formatMoney);
-
-                drawChart(chartLabels, chartDataCong, chartDataTien);
+                const leaveDataThisMonth = (json.leaves || []).map(l => ({ day: l.day, note: l.note || t('dashboard_leave_default_note') }));
+                drawChart(json.chart.labels, json.chart.cong, json.chart.tien);
                 generateCalendar(year, month, leaveDataThisMonth);
 
-                // Thống kê tasks
-                const { data: tasks } = await supabase.from('tasks').select('trang_thai');
-                let pending = 0, doing = 0, done = 0;
-                if (tasks) {
-                    tasks.forEach(task => {
-                        if (task.trang_thai === 'Chờ Nhận') pending++;
-                        else if (task.trang_thai === 'Đã Nhận') doing++;
-                        else if (task.trang_thai === 'Hoàn Thành') done++;
-                    });
-                }
-                animateValue(document.getElementById('stat_pending'), 0, pending, '');
-                animateValue(document.getElementById('stat_doing'), 0, doing, '');
-                animateValue(document.getElementById('stat_done'), 0, done, '');
+                animateValue(document.getElementById('stat_pending'), 0, json.tasks.pending || 0, '');
+                animateValue(document.getElementById('stat_doing'), 0, json.tasks.doing || 0, '');
+                animateValue(document.getElementById('stat_done'), 0, json.tasks.done || 0, '');
 
                 // Kudo leaderboard
                 await loadKudoLeaderboard();
@@ -800,11 +640,10 @@
 
         async function loadKudoLeaderboard() {
             try {
-                const { data: topEmps, error } = await supabase.from('employees')
-                    .select('ho_ten, diem_kudo, avatar_url')
-                    .order('diem_kudo', { ascending: false, nullsFirst: false })
-                    .limit(3);
-                if (error) throw error;
+                const res = await fetch('/api/dashboard/kudo_leaderboard', { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message);
+                const topEmps = json.data;
                 const board = document.getElementById('kudoBoard');
                 if (!topEmps || topEmps.length === 0 || !topEmps[0].diem_kudo) {
                     board.innerHTML = `<div class="text-center text-xs text-yellow-500/50 py-4 border border-dashed border-yellow-500/20 rounded-xl">${t('dashboard_no_kudo_yet')}</div>`;
@@ -914,15 +753,16 @@
             grid.innerHTML = html;
         }
 
-        // Realtime cho tasks
-        supabaseReady.then(() => {
-            supabase.channel('dashboard_tasks_tracking')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadStats())
-                .subscribe();
+        // Realtime cho tasks — dùng Server-Sent Events (SSE) thay cho Supabase Realtime
+        // (postgres_changes). Server tự đóng kết nối định kỳ (xem app.py, tránh bị nền tảng
+        // serverless ngắt giữa chừng) — EventSource tự động reconnect lại, không cần code gì
+        // thêm ở đây để xử lý việc đó.
+        const taskStream = new EventSource('/api/stream/dashboard_tasks');
+        taskStream.onmessage = () => loadStats();
+        taskStream.onerror = (e) => console.warn('Mất kết nối SSE dashboard_tasks, trình duyệt sẽ tự reconnect:', e);
 
-            loadStats();
-            loadReconciliationAlerts();
-        });
+        loadStats();
+        loadReconciliationAlerts();
 
         // ========================================================
         // MULTI-BRANCH: chuyển đổi / thêm chi nhánh
@@ -988,8 +828,10 @@
             const list = document.getElementById('reconciliationAlertsList');
             const countEl = document.getElementById('reconciliationAlertCount');
             try {
-                const { data, error } = await supabase.from('reconciliation_alerts').select('*').eq('status', 'pending').order('created_at', { ascending: false });
-                if (error) throw error;
+                const res = await fetch('/api/dashboard/reconciliation_alerts', { credentials: 'same-origin' });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message);
+                const data = json.data;
                 if (!data || data.length === 0) { panel.style.display = 'none'; return; }
                 panel.style.display = 'block';
                 countEl.innerText = tf('dashboard_reconciliation_count', { count: data.length });
@@ -1004,7 +846,11 @@
                     </div>
                 `).join('');
                 list.querySelectorAll('.reconciliation-resolve-btn').forEach(btn => btn.addEventListener('click', async () => {
-                    await supabase.from('reconciliation_alerts').update({ status: 'resolved' }).eq('id', btn.dataset.id);
+                    const resolveRes = await fetch('/api/dashboard/reconciliation_alerts/' + encodeURIComponent(btn.dataset.id) + '/resolve', {
+                        method: 'POST', credentials: 'same-origin'
+                    });
+                    const resolveJson = await resolveRes.json();
+                    if (!resolveJson.success) { console.error('Lỗi resolve cảnh báo:', resolveJson.message); return; }
                     loadReconciliationAlerts();
                 }));
             } catch (err) {

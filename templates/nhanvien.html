@@ -7,8 +7,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -75,60 +73,7 @@
     <canvas id="bg-canvas"></canvas>
 
     <!-- SIDEBAR - GIỐNG HỆT DASHBOARD (có đầy đủ các mục) -->
-    <aside class="w-64 glass-panel border-r border-white/5 flex flex-col justify-between z-20 shrink-0 transition-all duration-300 h-screen">
-        <div>
-            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
-                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
-                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
-                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
-                </div>
-                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
-            </div>
-
-            <div class="flex justify-center pb-2">
-                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-            </div>
-
-            <nav class="flex flex-col py-6 space-y-3 px-5">
-                <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_overview">Tổng quan</span>
-                </a>
-                <a href="nhanvien.html" class="flex items-center space-x-4 bg-cyan-500/10 border border-cyan-500/40 px-4 py-3 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold text-cyan-400 group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-105 transition-transform"></i><span class="tracking-wide" data-i18n="nhanvien_nav_hr">Quản lý Nhân sự</span>
-                </a>
-                <a href="chamcong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_attendance">Chấm công</span>
-                </a>
-                <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_payroll">Bảng lương</span>
-                </a>
-                <!-- Thêm mới các mục từ dashboard -->
-                <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_comm">Trạm Liên Lạc</span>
-                </a>
-                <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="nhanvien_nav_gps">Radar GPS Thợ</span>
-                </a>
-                <!-- === CÁC MỤC MỚI THÊM === -->
-                <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_debt">Quản lý Công nợ</span>
-                </a>
-                <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_revenue">Quản lý Thu Chi</span>
-                </a>
-                <a href="baocao_loinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i><span data-i18n="nhanvien_nav_profit">Báo cáo lợi nhuận</span>
-                </a>
-            </nav>
-
-        </div>
-        <div class="p-6 border-t border-white/10 shrink-0">
-            <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="nhanvien_logout">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
+    {% include 'components/app_sidebar.html' %}
 
     <!-- MAIN CONTENT (giữ nguyên toàn bộ chức năng quản lý nhân sự) -->
     <main class="flex-1 p-8 lg:p-10 overflow-y-auto relative z-10 custom-scrollbar flex flex-col h-screen">
@@ -363,14 +308,21 @@
         })();
 
         // ==========================================
-        // SUPABASE + LOGIC QUẢN LÝ NHÂN SỰ
+        // LOGIC QUẢN LÝ NHÂN SỰ — Flask API nội bộ (db.employees/db.chamcong), thay Supabase
+        // JS client-side. business_id lấy từ session ở backend, không cần client tự lọc.
+        // TODO: Tech Debt - Merge db.chamcong (ma_nv) into db.attendance (staff_id) in Phase 5
         // ==========================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        // Client tạm (chỉ anon key) dùng trong lúc chờ nâng cấp lên tenant client bên dưới.
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let currentDept = 'all';
         let searchTerm = '';
@@ -423,10 +375,11 @@
         }
 
         async function loadEmployees() {
-            const { data, error } = await supabase.from('employees').select('*').order('id', { ascending: false });
-            if (error) { showToast("Lỗi tải dữ liệu", "error"); return; }
-            allEmployees = data || [];
-            renderTable();
+            try {
+                const body = await hrApi('/api/hr/employees?sort=id_desc');
+                allEmployees = body.data || [];
+                renderTable();
+            } catch (e) { showToast("Lỗi tải dữ liệu", "error"); }
         }
 
         function renderTable() {
@@ -525,8 +478,7 @@
                 luong_cb: 0, luong_gio: 0, phu_cap: 0, diem_kudo: 0
             };
             try {
-                const { error } = await supabase.from('employees').insert([payload]);
-                if (error) throw error;
+                await hrApi('/api/hr/employees', { method: 'POST', body: JSON.stringify(payload) });
                 showToast("✅ Thêm nhân viên thành công");
                 document.getElementById('ma_nv').value = '';
                 document.getElementById('ho_ten').value = '';
@@ -538,8 +490,7 @@
         async function deleteEmployee(ma_nv) {
             if (!confirm(`Xóa nhân viên ${ma_nv} và toàn bộ dữ liệu liên quan? Hành động không thể hoàn tác!`)) return;
             try {
-                await supabase.from('employees').delete().eq('ma_nv', ma_nv);
-                await supabase.from('chamcong').delete().eq('ma_nv', ma_nv);
+                await hrApi(`/api/hr/employees/${encodeURIComponent(ma_nv)}`, { method: 'DELETE' });
                 showToast("Đã xóa nhân sự");
                 loadEmployees();
             } catch(e) { showToast("Lỗi khi xóa", "error"); }
@@ -551,8 +502,12 @@
             document.getElementById('modalEmpName').innerText = ho_ten;
             const tbody = document.getElementById('historyTableBody');
             tbody.innerHTML = '<td><td colspan="5" class="text-center py-10 text-cyan-500"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
-            const { data, error } = await supabase.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30);
-            if (error || !data || data.length === 0) {
+            let data = [];
+            try {
+                const body = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&limit=30`);
+                data = body.data || [];
+            } catch (e) { /* fallthrough: khối check bên dưới hiện thông báo trống */ }
+            if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Chưa có dữ liệu chấm công</td</td>';
                 return;
             }
@@ -593,8 +548,10 @@
             const btn = document.getElementById('btnSaveSalary');
             if (btn) btn.disabled = true;
             try {
-                const { error } = await supabase.from('employees').update({ luong_cb, luong_gio, phu_cap }).eq('ma_nv', ma_nv);
-                if (error) throw error;
+                await hrApi(`/api/hr/employees/${encodeURIComponent(ma_nv)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ luong_cb, luong_gio, phu_cap }),
+                });
                 showToast("Cập nhật lương thành công");
                 closeModal('salaryModal');
                 loadEmployees();
@@ -607,14 +564,13 @@
             document.getElementById(id).classList.remove('flex');
         }
 
-        supabaseReady.then(() => {
-            loadEmployees();
+        loadEmployees();
 
-            // Realtime subscription để tự động cập nhật khi có thay đổi từ database
-            supabase.channel('hr_realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => loadEmployees())
-                .subscribe();
-        });
+        // Layer 2: thay kênh Supabase Realtime `hr_realtime` bằng SSE (MongoDB Change Stream ở
+        // /api/stream/hr_employees) — mỗi lần server báo "changed" thì gọi lại loadEmployees().
+        // Stream tự đóng sau ~25s để tránh timeout serverless; EventSource tự reconnect ngay
+        // sau đó nên không cần xử lý thủ công trong onerror.
+        new EventSource('/api/stream/hr_employees').onmessage = () => loadEmployees();
     </script>
 </body>
 </html>

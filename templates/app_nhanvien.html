@@ -14,8 +14,6 @@
     <!-- Thư viện -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -550,20 +548,43 @@
         }
 
         // ========================================================
-        // 🚀 1. CẤU HÌNH SUPABASE & BIẾN TOÀN CỤC
+        // 🚀 1. LOGIC CHÍNH — Flask API nội bộ (employees/chamcong/tasks/cho_doi_ca/GridFS
+        // storage), thay Supabase JS hoàn toàn.
+        // TODO: Tech Debt - Merge db.chamcong (ma_nv) into db.attendance (staff_id) in Phase 5
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
+
+        // Upload ảnh (multipart) — KHÔNG dùng hrApi() ở trên vì nó ép Content-Type: application/
+        // json, sẽ phá mất boundary multipart/form-data mà trình duyệt tự gắn cho FormData.
+        // `filename` truyền tay vì Blob (canvas.toBlob, chữ ký, ảnh offline trong IndexedDB)
+        // không có thuộc tính .name như File.
+        async function hrUpload(fileOrBlob, kind, filename) {
+            const formData = new FormData();
+            formData.append('file', fileOrBlob, filename || fileOrBlob.name || 'upload.jpg');
+            formData.append('kind', kind);
+            const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi upload (${res.status})`);
+            }
+            return body.url;
+        }
 
         let currentUser = { name: null, code: null, linhVuc: null, avatar: null };
         let videoStream = null; let currentLat = null; let currentLng = null;
         let watchId = null; let db;
 
         window.onload = async () => {
-            await supabaseReady;
             init3DBackground();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
 
@@ -573,7 +594,8 @@
             let isAutoLoggedIn = false;
             if (token) {
                 try {
-                    const { data: emp, error } = await supabase.from('employees').select('*').eq('ma_nv', token.trim().toUpperCase()).maybeSingle();
+                    const emp = await hrApi(`/api/hr/employees/${encodeURIComponent(token.trim().toUpperCase())}`)
+                        .then(b => b.data).catch(() => null);
                     if (emp) {
                         localStorage.setItem('bp_emp_name', emp.ho_ten); 
                         localStorage.setItem('bp_emp_code', emp.ma_nv);
@@ -639,8 +661,10 @@
                 }
 
                 const ma_nv_moi = "NV" + Math.floor(1000 + Math.random() * 9000);
-                const { error: err2 } = await supabase.from('employees').insert([{ ma_nv: ma_nv_moi, ho_ten: name, linh_vuc: linhVuc, chuc_vu: 'Nhân viên mới' }]);
-                if (err2) throw err2;
+                await hrApi('/api/hr/employees', {
+                    method: 'POST',
+                    body: JSON.stringify({ ma_nv: ma_nv_moi, ho_ten: name, linh_vuc: linhVuc, chuc_vu: 'Nhân viên mới' }),
+                });
 
                 localStorage.setItem('bp_emp_name', name); localStorage.setItem('bp_emp_code', ma_nv_moi);
                 localStorage.setItem('bp_emp_linhvuc', linhVuc); localStorage.setItem('bp_emp_avatar', '');
@@ -662,7 +686,7 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CHECKING...'; btn.disabled = true;
 
             try {
-                const { data: emp, error } = await supabase.from('employees').select('*').eq('ma_nv', ma_nv).maybeSingle();
+                const emp = await hrApi(`/api/hr/employees/${encodeURIComponent(ma_nv)}`).then(b => b.data).catch(() => null);
                 if(!emp) {
                     showToast("Employee code not found!", 'error');
                     btn.innerHTML = 'START SHIFT <i class="fas fa-arrow-right ml-2"></i>'; btn.disabled = false; return;
@@ -855,12 +879,12 @@
                 }
 
                 try {
-                    const { error: uploadErr } = await supabase.storage.from('checkin_images').upload(fileName, blob, { contentType: 'image/jpeg' });
-                    if (uploadErr) throw uploadErr;
-                    const { data: publicUrlData } = supabase.storage.from('checkin_images').getPublicUrl(fileName);
-                    
-                    const { error: dbErr } = await supabase.from('chamcong').insert([{ ma_nv: currentUser.code, ngay_cham: todayStr, gio_den: timeStr, trang_thai: 'Có mặt', nganh_nghe: currentUser.linhVuc, toa_do: toa_do, anh_checkin: publicUrlData.publicUrl }]);
-                    if (dbErr) throw dbErr;
+                    const anh_checkin = await hrUpload(blob, 'checkin', fileName);
+
+                    await hrApi('/api/hr/chamcong', {
+                        method: 'POST',
+                        body: JSON.stringify({ ma_nv: currentUser.code, ngay_cham: todayStr, gio_den: timeStr, trang_thai: 'Có mặt', nganh_nghe: currentUser.linhVuc, toa_do: toa_do, anh_checkin: anh_checkin }),
+                    });
 
                     window.parent.postMessage({ type: 'CHECKIN_SUCCESS', message: 'Đã chấm công thành công' }, '*');
                     hoanTatCheckin(`In-ca thành công lúc ${timeStr}! Chúc Sếp một ngày năng suất!`, 'success');
@@ -931,14 +955,12 @@
                 let photoUrl = ""; let signatureUrl = "";
                 if (hasPhoto) {
                     const file = photoInput.files[0]; const photoName = `evd_${currentUser.code}_${Date.now()}.jpg`;
-                    await supabase.storage.from('checkin_images').upload(photoName, file);
-                    photoUrl = supabase.storage.from('checkin_images').getPublicUrl(photoName).data.publicUrl;
+                    photoUrl = await hrUpload(file, 'evidence', photoName);
                 }
                 if (hasSignature) {
                     const blob = await new Promise(resolve => sigCanvas.toBlob(resolve, 'image/png'));
                     const sigName = `sig_${currentUser.code}_${Date.now()}.png`;
-                    await supabase.storage.from('checkin_images').upload(sigName, blob, { contentType: 'image/png' });
-                    signatureUrl = supabase.storage.from('checkin_images').getPublicUrl(sigName).data.publicUrl;
+                    signatureUrl = await hrUpload(blob, 'evidence', sigName);
                 }
 
                 let finalContent = `[App Báo cáo] ${content} - Tại: ${address}`;
@@ -946,8 +968,8 @@
                 if (signatureUrl) finalContent += ` \n[✍️ Chữ Ký]: ${signatureUrl}`;
 
                 const payload = { ma_nv: currentUser.code, ngay_cham: new Date().toLocaleDateString('en-GB'), ghi_chu: finalContent, tien_tua: parseFloat(money), tien_tips: parseFloat(tip), nganh_nghe: currentUser.linhVuc };
-                await supabase.from('chamcong').insert([payload]);
-                
+                await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
+
                 showToast("Báo cáo nghiệm thu đã đẩy lên hệ thống!", 'success');
                 triggerConfetti();
                 resetReportForm(btn); setWorkStatus('Rảnh'); 
@@ -982,7 +1004,8 @@
             myJobsDiv.innerHTML = skeletonHTML; availJobsDiv.innerHTML = skeletonHTML;
 
             try {
-                const { data: tasks } = await supabase.from('tasks').select('*').order('id', { ascending: false });
+                const tasksBody = await hrApi('/api/tasks');
+                const tasks = tasksBody.data || [];
                 myJobsDiv.innerHTML = ''; availJobsDiv.innerHTML = ''; let hasMyJobs = false, hasAvailJobs = false;
 
                 if(tasks) tasks.forEach(t => {
@@ -1006,14 +1029,17 @@
         
         async function nhanViec(id) {
             if(await showConfirm("Bạn chắc chắn muốn chốt nhận Job này?")) {
-                await supabase.from('tasks').update({ trang_thai: 'Đã Nhận', nguoi_nhan: currentUser.name }).eq('id', id);
+                await hrApi(`/api/tasks/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ trang_thai: 'Đã Nhận', nguoi_nhan: currentUser.name }),
+                });
                 showToast("Đã chốt Job! Bắt đầu phi hành thôi.", "success"); loadJobMarket(); setWorkStatus('Bận', `Xử lý Job #${id}`);
             }
         }
-        
+
         async function hoanThanhViec(id, dia_chi, noi_dung) {
             if(await showConfirm("Xác nhận hoàn thành? Hệ thống sẽ chuyển sang Phiếu Nghiệm Thu.")) {
-                await supabase.from('tasks').update({ trang_thai: 'Hoàn Thành' }).eq('id', id);
+                await hrApi(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ trang_thai: 'Hoàn Thành' }) });
                 loadJobMarket(); document.getElementById('work_address').value = dia_chi; document.getElementById('work_content').value = `Hoàn thành Job #${id}: ` + noi_dung; switchAppTab('home');
             }
         }
@@ -1045,7 +1071,10 @@
                 btnRanh.className = "bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10";
             }
             if(navigator.onLine && currentLat) {
-                supabase.from('employees').update({ toa_do_lat: currentLat, toa_do_lng: currentLng, trang_thai_gps: currentStatus, nhiem_vu_hien_tai: currentTask }).eq('ma_nv', currentUser.code).then();
+                hrApi(`/api/hr/employees/${encodeURIComponent(currentUser.code)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ toa_do_lat: currentLat, toa_do_lng: currentLng, trang_thai_gps: currentStatus, nhiem_vu_hien_tai: currentTask }),
+                }).catch(() => {});
             }
         }
 
@@ -1053,8 +1082,11 @@
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition(async (position) => {
                     currentLat = position.coords.latitude; currentLng = position.coords.longitude;
-                    if(!navigator.onLine) return; 
-                    await supabase.from('employees').update({ toa_do_lat: currentLat, toa_do_lng: currentLng, trang_thai_gps: currentStatus, nhiem_vu_hien_tai: currentTask }).eq('ma_nv', currentUser.code);
+                    if(!navigator.onLine) return;
+                    await hrApi(`/api/hr/employees/${encodeURIComponent(currentUser.code)}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ toa_do_lat: currentLat, toa_do_lng: currentLng, trang_thai_gps: currentStatus, nhiem_vu_hien_tai: currentTask }),
+                    });
                 }, (error) => {
                     document.getElementById('gpsStatusText').innerHTML = '<span class="text-rose-400 font-bold">Mất tín hiệu GPS! Hãy kiểm tra cài đặt.</span>';
                 }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
@@ -1066,12 +1098,11 @@
         // ========================================================
         async function loadColleaguesList() {
             try {
-                const { data } = await supabase.from('employees').select('ma_nv, ho_ten').neq('ma_nv', currentUser.code);
+                const body = await hrApi('/api/hr/employees');
+                const data = (body.data || []).filter(e => e.ma_nv !== currentUser.code);
                 let options = '<option value="">-- Chọn đồng nghiệp --</option>';
-                if(data) {
-                    data.forEach(e => options += `<option value="${e.ma_nv}">${e.ho_ten}</option>`);
-                    document.getElementById('app_kudo_receiver').innerHTML = options; document.getElementById('app_swap_receiver').innerHTML = options;
-                }
+                data.forEach(e => options += `<option value="${e.ma_nv}">${e.ho_ten}</option>`);
+                document.getElementById('app_kudo_receiver').innerHTML = options; document.getElementById('app_swap_receiver').innerHTML = options;
             } catch(e) {}
         }
         
@@ -1084,7 +1115,7 @@
                     await saveToIndexedDB('reports', payload);
                     showToast("Mất mạng! Đã lưu nháp Đơn xin phép.", 'warning'); document.getElementById('app_leave_reason').value = ''; return;
                 }
-                await supabase.from('chamcong').insert([payload]);
+                await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
                 showToast("Đã bắn tín hiệu Xin Phép lên HR!", 'success'); document.getElementById('app_leave_reason').value = '';
             } catch(e) { showToast("Lỗi gửi đơn!", 'error'); }
         }
@@ -1093,8 +1124,10 @@
             const receiverId = document.getElementById('app_kudo_receiver').value;
             if(!receiverId) return showToast("Chọn người nhận Kudo đã sếp!", 'warning');
             try {
-                const { data } = await supabase.from('employees').select('diem_kudo').eq('ma_nv', receiverId).single();
-                await supabase.from('employees').update({ diem_kudo: (data.diem_kudo || 0) + 1 }).eq('ma_nv', receiverId);
+                await hrApi(`/api/hr/employees/${encodeURIComponent(receiverId)}/kudo`, {
+                    method: 'POST',
+                    body: JSON.stringify({ points: 1 }),
+                });
                 showToast("⭐ Bắn tim BitPaw thành công!", 'success'); triggerConfetti();
             } catch(e) { showToast("Lỗi tặng quà!", 'error'); }
         }
@@ -1103,7 +1136,10 @@
             const receiverId = document.getElementById('app_swap_receiver').value;
             if(!receiverId) return showToast("Chọn người chốt kèo làm thay!", 'warning');
             try {
-                await supabase.from('cho_doi_ca').insert([{ ma_nv_xin: currentUser.code, ma_nv_nhan: receiverId, ngay_ca: new Date().toLocaleDateString('en-GB'), trang_thai: 'Chờ chốt' }]);
+                await hrApi('/api/shift_swaps', {
+                    method: 'POST',
+                    body: JSON.stringify({ ma_nv_xin: currentUser.code, ma_nv_nhan: receiverId, ngay_ca: new Date().toLocaleDateString('en-GB'), trang_thai: 'Chờ chốt' }),
+                });
                 showToast("Đã ném thiệp nhờ vả. Chờ Rep!", 'success');
             } catch(e) { showToast("Lỗi gửi yêu cầu!", 'error'); }
         }
@@ -1114,16 +1150,27 @@
             document.getElementById('profile_avatar_img').src = URL.createObjectURL(file);
             try {
                 const fileName = `avatar_${currentUser.code}_${Date.now()}.jpg`;
-                await supabase.storage.from('avatars').upload(fileName, file);
-                const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-                await supabase.from('employees').update({ avatar_url: data.publicUrl }).eq('ma_nv', currentUser.code);
-                currentUser.avatar = data.publicUrl; localStorage.setItem('bp_emp_avatar', data.publicUrl);
-                document.getElementById('ui_avatar_img').src = data.publicUrl; 
+                const avatarUrl = await hrUpload(file, 'avatar', fileName);
+                await hrApi(`/api/hr/employees/${encodeURIComponent(currentUser.code)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ avatar_url: avatarUrl }),
+                });
+                currentUser.avatar = avatarUrl; localStorage.setItem('bp_emp_avatar', avatarUrl);
+                document.getElementById('ui_avatar_img').src = avatarUrl;
                 showToast("Giao diện mới xịn xò!", 'success'); triggerConfetti();
             } catch(e) { showToast("Lỗi up ảnh!", 'error'); }
         }
 
-        function setupJobRealtime() { supabase.channel('public:tasks_app').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => { loadJobMarket(); }).subscribe(); }
+        // Layer 2: thay kênh Supabase Realtime `public:tasks_app` bằng SSE (MongoDB Change
+        // Stream ở /api/stream/job_market). setupJobRealtime() được gọi ở nhiều nơi (sau đăng
+        // nhập, sau check-in...) nên phải giữ 1 kết nối duy nhất — tạo mới mỗi lần gọi sẽ rò
+        // rỉ kết nối (nhiều EventSource cùng chạy song song, mỗi cái tự poll riêng).
+        let jobMarketStream = null;
+        function setupJobRealtime() {
+            if (jobMarketStream) return;
+            jobMarketStream = new EventSource('/api/stream/job_market');
+            jobMarketStream.onmessage = () => loadJobMarket();
+        }
 
         // ========================================================
         // 🚀 SYNC OFFLINE DATA
@@ -1133,8 +1180,8 @@
             if(!db) return;
             const reports = await getAllFromIndexedDB('reports');
             if (reports.length > 0) {
-                for (let i=0; i<reports.length; i++) { 
-                    try { let payload = reports[i]; delete payload.id; await supabase.from('chamcong').insert([payload]); await deleteFromIndexedDB('reports', reports[i].id); } catch(e) {} 
+                for (let i=0; i<reports.length; i++) {
+                    try { let payload = reports[i]; delete payload.id; await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) }); await deleteFromIndexedDB('reports', reports[i].id); } catch(e) {}
                 }
                 showToast("Đã đồng bộ Nháp Text lên Đám mây.", 'success');
             }
@@ -1143,13 +1190,13 @@
                 let syncedCount = 0;
                 for (let i=0; i<images.length; i++) {
                     try {
-                        let record = images[i]; await supabase.storage.from('checkin_images').upload(record.fileName, record.blob);
-                        const { data } = supabase.storage.from('checkin_images').getPublicUrl(record.fileName);
+                        let record = images[i];
+                        const publicUrl = await hrUpload(record.blob, record.type, record.fileName);
                         let payload = record.metadata;
-                        if(record.type === 'checkin') payload.anh_checkin = data.publicUrl;
-                        else if(record.type === 'evidence') payload.ghi_chu += ` \n[📸 KQ Offline]: ${data.publicUrl}`;
-                        else if(record.type === 'signature') payload.ghi_chu += ` \n[✍️ Ký Offline]: ${data.publicUrl}`;
-                        await supabase.from('chamcong').insert([payload]); await deleteFromIndexedDB('images', record.id); syncedCount++;
+                        if(record.type === 'checkin') payload.anh_checkin = publicUrl;
+                        else if(record.type === 'evidence') payload.ghi_chu += ` \n[📸 KQ Offline]: ${publicUrl}`;
+                        else if(record.type === 'signature') payload.ghi_chu += ` \n[✍️ Ký Offline]: ${publicUrl}`;
+                        await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) }); await deleteFromIndexedDB('images', record.id); syncedCount++;
                     } catch(e) {}
                 }
                 if(syncedCount > 0) showToast(`Đã Sync ${syncedCount} Ảnh/File kẹt mạng lên Máy chủ!`, 'success');

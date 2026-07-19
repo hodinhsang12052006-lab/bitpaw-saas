@@ -98,43 +98,7 @@
     <div class="absolute top-[-10%] right-[10%] w-[500px] h-[500px] bg-cyan-700/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
     <div class="absolute bottom-[-10%] left-[10%] w-[400px] h-[400px] bg-blue-700/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
 
-    <aside class="w-64 glass-sidebar flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.8)] z-20 shrink-0">
-        <div>
-            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4 cursor-pointer group hologram-container" data-tilt data-tilt-scale="1.05" data-tilt-glare="true" data-tilt-max-glare="0.2">
-                <div class="relative w-12 h-12 rounded-xl flex items-center justify-center border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] bg-gradient-to-br from-cyan-900/40 to-blue-900/20 mb-2">
-                    <div class="absolute w-[110%] h-[110%] border-t-2 border-r-2 border-cyan-400/50 rounded-xl animate-spin" style="animation-duration: 4s;"></div>
-                    <div class="relative animated-logo-3d w-full h-full flex items-center justify-center overflow-hidden rounded-lg bg-[#08061a]">
-                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="w-8 h-8 object-contain drop-shadow-[0_0_8px_#06b6d4]">
-                    </div>
-                </div>
-                <h1 class="text-2xl font-black tracking-widest drop-shadow-[0_0_10px_rgba(6,182,212,0.5)] text-white">Bit<span class="text-cyan-400">Paw</span></h1>
-            </div>
-
-            <div class="flex justify-center pb-2 pt-2">
-                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-            </div>
-
-            <nav class="flex flex-col py-6 space-y-3 px-5">
-                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_overview">Tổng quan</span>
-                </a>
-                <a href="/nhanvien" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_hr">Quản lý Nhân sự</span>
-                </a>
-                <a href="/chamcong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_attendance">Chấm công</span>
-                </a>
-                <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="cauhinhluong_nav_payroll">Bảng lương</span>
-                </a>
-            </nav>
-        </div>
-        <div class="p-6 border-t border-white/10">
-            <a href="/logout" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="cauhinhluong_nav_logout">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
+    {% include 'components/app_sidebar.html' %}
 
     <main class="flex-1 p-8 lg:p-10 overflow-y-auto relative z-10 flex flex-col items-center">
         

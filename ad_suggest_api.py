@@ -5,11 +5,9 @@
 
 from flask import Blueprint, request, jsonify
 
-# Nếu bạn muốn tích hợp với Supabase để log, hãy thêm import bên dưới
-# from supabase import create_client, Client
-# SUPABASE_URL = "..."
-# SUPABASE_KEY = "..."
-# supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Nếu bạn muốn tích hợp log, hãy thêm import bên dưới (dùng chung MongoDB với phần còn lại
+# của app, xem mongo_client.py):
+# from mongo_client import db, next_mongo_id
 
 # Tạo Blueprint để dễ dàng gắn vào app chính
 ad_suggest_bp = Blueprint('ad_suggest', __name__, url_prefix='/api')
@@ -80,14 +78,15 @@ def ad_suggest():
     
     suggestions = generate_suggestions(product_name, product_desc, target_audience, budget, platform)
     
-    # (Tuỳ chọn) Ghi log vào Supabase
+    # (Tuỳ chọn) Ghi log vào MongoDB
     # try:
-    #     supabase.table('ad_suggestions_log').insert({
+    #     db.ad_suggestions_log.insert_one({
+    #         'id': next_mongo_id('ad_suggestions_log'),
     #         'product_name': product_name,
     #         'platform': platform,
     #         'suggestions': suggestions,
     #         'created_at': datetime.now().isoformat()
-    #     }).execute()
+    #     })
     # except:
     #     pass
     

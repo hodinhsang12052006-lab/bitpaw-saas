@@ -617,14 +617,8 @@
 
         supabaseReady.then(() => { loadCustomers(); });
 
-        // CSKH: track click & gửi yêu cầu
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-            } catch(e) { console.warn(e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel'))));
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
 
 
@@ -676,5 +670,6 @@
             window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

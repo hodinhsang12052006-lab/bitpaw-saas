@@ -4,7 +4,7 @@ import os
 # Bind workspace path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from supabase_client import supabase, SUPABASE_STATUS
+from mongo_client import db, MONGO_STATUS
 from app import INDUSTRY_CONFIG
 
 # --- STATIC REGISTRY DATA CONFIGURATIONS ---
@@ -46,7 +46,7 @@ DEFAULT_MODULES = [
     {"code": "ai_bot", "name": "AI Copilot Assistant", "description": "Trợ lý ảo AI trực chat và tư vấn tăng trưởng doanh số", "is_active": True},
     {"code": "ai_studio", "name": "AI Content Studio", "description": "Phòng chế tác content video viral bùng nổ view marketing", "is_active": True},
     {"code": "cskh", "name": "Kết Nối CSKH", "description": "Kênh liên lạc hỗ trợ kỹ thuật trực tiếp 24/7", "is_active": True},
-    {"code": "backup", "name": "Sao Lưu & Phục Hồi", "description": "Hệ thống backup dữ liệu an toàn lên Supabase Storage", "is_active": True}
+    {"code": "backup", "name": "Sao Lưu & Phục Hồi", "description": "Hệ thống backup dữ liệu an toàn lên MongoDB GridFS", "is_active": True}
 ]
 
 TEMPLATE_METADATA_MAP = {
@@ -206,35 +206,35 @@ TEMPLATE_METADATA_MAP = {
 }
 
 # --- SYSTEM SEED EXECUTION LOGIC ---
-def seed_supabase():
+def seed_registry():
     print("=" * 60)
     print("STARTING DYNAMIC SAAS REGISTRY SEED")
-    print(f"   -> Connection Status: {SUPABASE_STATUS}")
+    print(f"   -> Connection Status: {MONGO_STATUS}")
     print("=" * 60)
-    
-    if SUPABASE_STATUS != "CONNECTED":
-        print("[!] Warning: Supabase is offline or unconfigured. Skipping seed execution.")
+
+    if MONGO_STATUS != "CONNECTED":
+        print("[!] Warning: MongoDB is offline or unconfigured. Skipping seed execution.")
         return
-        
+
     try:
         # 1. Seed Permissions
         print("[*] Seeding System Permissions...")
         for p in DEFAULT_PERMISSIONS:
             try:
-                supabase.table('permissions').upsert(p).execute()
+                db.permissions.update_one({'code': p['code']}, {'$set': p}, upsert=True)
             except Exception as e:
                 print(f"    - Failed seeding permission '{p['code']}': {str(e)}")
         print("    -> Permissions seeded cleanly.")
-        
+
         # 2. Seed Modules
         print("\n[*] Seeding Business Modules...")
         for m in DEFAULT_MODULES:
             try:
-                supabase.table('business_modules').upsert(m).execute()
+                db.business_modules.update_one({'code': m['code']}, {'$set': m}, upsert=True)
             except Exception as e:
                 print(f"    - Failed seeding module '{m['code']}': {str(e)}")
         print("    -> Modules seeded cleanly.")
-        
+
         # 3. Seed Industries from INDUSTRY_CONFIG
         print("\n[*] Seeding Merchant Industries (Dynamic)...")
         for code, cfg in INDUSTRY_CONFIG.items():
@@ -246,16 +246,16 @@ def seed_supabase():
                 "redirect_after_login": cfg.get("redirect_after_login", "/dashboard")
             }
             try:
-                supabase.table('industries').upsert(ind).execute()
+                db.industries.update_one({'code': code}, {'$set': ind}, upsert=True)
                 print(f"    - Seeded Industry '{code}': {ind['name']}")
-                
+
                 # Seed Navigation items for this industry dynamically
                 sort_ord = 1
                 for mod_code in cfg.get("modules", []):
                     # Fetch matching module name
                     matched_mod = next((m for m in DEFAULT_MODULES if m['code'] == mod_code), None)
                     mod_name = matched_mod['name'] if matched_mod else "Tính năng"
-                    
+
                     nav = {
                         "module_code": mod_code,
                         "industry_code": code,
@@ -265,25 +265,25 @@ def seed_supabase():
                         "sort_order": sort_ord
                     }
                     try:
-                        supabase.table('navigation_items').insert(nav).execute()
+                        db.navigation_items.insert_one(nav)
                     except:
-                        pass # Ignore if duplicate entries exist in this log run
+                        pass  # Ignore if duplicate entries exist in this log run
                     sort_ord += 1
             except Exception as e:
                 print(f"    - Failed seeding industry '{code}': {str(e)}")
-                
+
         # 4. Seed Templates Registry
         print("\n[*] Seeding Templates & Views Registry...")
-        
-        # Cleanup potential garbage/backup records in Templates Registry on Supabase
+
+        # Cleanup potential garbage/backup records in Templates Registry
         print("[*] Cleaning up potential backup/garbage records in Templates Registry...")
         for garbage_name in ['landing_nail.current_ai_bad_backup.html', 'transcript.jsonl']:
             try:
-                supabase.table('templates_registry').delete().eq('template_name', garbage_name).execute()
+                db.templates_registry.delete_many({'template_name': garbage_name})
                 print(f"    - Cleaned up registry record for '{garbage_name}' if existed.")
             except Exception as clean_err:
                 print(f"    - Skip cleaning for '{garbage_name}': {str(clean_err)}")
-                
+
         templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
         if os.path.exists(templates_dir):
             for file in os.listdir(templates_dir):
@@ -298,7 +298,7 @@ def seed_supabase():
                         "required_permission": "view_dashboard",
                         "sort_order": 99
                     })
-                    
+
                     reg = {
                         "template_name": file,
                         "file_path": f"templates/{file}",
@@ -312,17 +312,17 @@ def seed_supabase():
                         "sort_order": meta.get("sort_order", 99)
                     }
                     try:
-                        supabase.table('templates_registry').upsert(reg).execute()
+                        db.templates_registry.update_one({'template_name': file}, {'$set': reg}, upsert=True)
                         print(f"    - Mapped View '{file}': {reg['display_name']}")
                     except Exception as e:
                         print(f"    - Failed seeding template '{file}': {str(e)}")
-        
+
         print("\n" + "=" * 60)
         print("DYNAMIC SAAS REGISTRY SEED COMPLETED SUCCESSFULLY!")
         print("=" * 60)
-        
+
     except Exception as e:
         print(f"[!] Critical error during seed operation loop: {str(e)}")
 
 if __name__ == '__main__':
-    seed_supabase()
+    seed_registry()

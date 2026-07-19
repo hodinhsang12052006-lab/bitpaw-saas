@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -103,59 +101,7 @@
     <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Sidebar đồng bộ với dashboard (đã bổ sung đầy đủ menu) -->
-    <aside class="w-64 glass-sidebar flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.8)] z-20 shrink-0 overflow-y-auto h-screen">
-        <div>
-            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
-                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
-                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
-                    <div class="absolute w-[120%] h-[120%] border-b-2 border-yellow-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
-                </div>
-                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-yellow-400">Paw</span></h1>
-            </div>
-
-            <div class="flex justify-center pb-2 pt-2">
-                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-            </div>
-
-            <nav class="flex flex-col py-6 space-y-3 px-5">
-                <a href="dashboard.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_overview">Tổng quan</span>
-                </a>
-                <a href="nhanvien.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_hr">Quản lý Nhân sự</span>
-                </a>
-                <a href="chamcong.html" class="flex items-center space-x-4 bg-gradient-to-r from-yellow-500/20 to-transparent border-l-4 border-yellow-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-yellow-300 group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_attendance">Chấm công</span>
-                </a>
-                <a href="bangluong.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_payroll">Bảng lương</span>
-                </a>
-                <a href="chat.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="chamcongkythuat_nav_comm">Trạm Liên Lạc</span>
-                </a>
-                <a href="map_dashboard.html" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="dashboard_nav_gps">Radar GPS Thợ</span>
-                </a>
-                <!-- === CÁC MỤC MỚI THÊM === -->
-                <a href="quanly_congno.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_debt">Quản lý Công nợ</span>
-                </a>
-                <a href="quanly_thuchi.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_revenue">Quản lý Thu Chi</span>
-                </a>
-                <a href="baocaoloinhuan.html" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-yellow-400 transition-colors"></i><span data-i18n="dashboard_nav_profit">Báo cáo lợi nhuận</span>
-                </a>
-            </nav>
-
-        </div>
-        <div class="p-6 border-t border-white/10 shrink-0">
-            <a href="index.html" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="dashboard_logout">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
+    {% include 'components/app_sidebar.html' %}
 
     <main class="flex-1 p-4 md:p-8 overflow-y-auto relative z-10 flex flex-col">
         <!-- Screen 1: Danh sách kỹ thuật viên -->
@@ -603,13 +549,21 @@
         }
 
         // ========================================================
-        // SUPABASE & LOGIC CHÍNH
+        // LOGIC CHÍNH — Flask API nội bộ (employees/chamcong/tasks/kho_vat_tu), thay
+        // Supabase JS hoàn toàn. TODO: Tech Debt - Merge db.chamcong (ma_nv) into
+        // db.attendance (staff_id) in Phase 5
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         document.getElementById('pos_date').valueAsDate = new Date();
         let currentWorkerId = ""; let currentWorkerName = ""; let activeTasksData = []; let globalInventory = [];
@@ -622,7 +576,7 @@
         }
 
         window.onload = () => {
-            supabaseReady.then(() => { loadInventory(); loadWorkers(); });
+            loadInventory(); loadWorkers();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
         };
 
@@ -633,8 +587,8 @@
             const container = document.getElementById('tu_do_nghe');
             container.innerHTML = `<div class="animate-pulse text-gray-500 text-xs font-bold uppercase tracking-widest"><i class="fas fa-spinner fa-spin mr-2"></i>${t('chamcongkythuat_scanning_inventory')}</div>`;
             try {
-                const { data, error } = await supabaseClient.from('kho_vat_tu').select('*').order('id', { ascending: true });
-                if(error) throw error;
+                const invBody = await hrApi('/api/inventory');
+                const data = invBody.data || [];
                 if(!data || data.length === 0) {
                     container.innerHTML = `<span class="text-[10px] text-rose-500 font-bold uppercase tracking-widest border border-rose-500/30 p-2 rounded bg-rose-500/10">${t('chamcongkythuat_inventory_empty')}</span>`;
                     return;
@@ -681,8 +635,8 @@
         // ========================================================
         async function loadWorkers() {
             try {
-                const { data, error } = await supabaseClient.from('employees').select('*').ilike('linh_vuc', '%Kỹ Thuật%').order('id', { ascending: true });
-                if (error) throw error;
+                const body = await hrApi('/api/hr/employees?sort=id');
+                const data = (body.data || []).filter(e => (e.linh_vuc || '').toLowerCase().includes('kỹ thuật'));
                 const grid = document.getElementById('employeeGrid');
                 grid.innerHTML = '';
                 if(!data || data.length === 0) {
@@ -720,10 +674,8 @@
             try {
                 const selectEl = document.getElementById('link_task_id');
                 selectEl.innerHTML = `<option value="">${t('chamcongkythuat_loading_jobs')}</option>`;
-                const { data, error } = await supabaseClient.from('tasks').select('*')
-                    .or(`trang_thai.eq.Chờ Nhận,and(trang_thai.eq.Đã Nhận,nguoi_nhan.eq.${workerName})`)
-                    .order('id', { ascending: false });
-                if (error) throw error;
+                const taskBody = await hrApi(`/api/tasks?worker=${encodeURIComponent(workerName)}`);
+                const data = taskBody.data || [];
                 activeTasksData = data;
                 let options = `<option value="" class="bg-gray-900">${t('chamcongkythuat_attendance_only')}</option>`;
                 if(data && data.length > 0) {
@@ -798,16 +750,21 @@
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${t('chamcongkythuat_syncing_data')}`; btn.disabled = true;
 
             try {
-                const { error } = await supabaseClient.from('chamcong').insert([payload]);
-                if (error) throw error;
+                await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
                 if (taskIdToLink) {
-                    await supabaseClient.from('tasks').update({ trang_thai: 'Hoàn Thành', nguoi_nhan: currentWorkerName }).eq('id', taskIdToLink);
+                    await hrApi(`/api/tasks/${taskIdToLink}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ trang_thai: 'Hoàn Thành', nguoi_nhan: currentWorkerName }),
+                    });
                 }
                 if (checkedNodes.length > 0) {
                     for (let node of checkedNodes) {
                         const matId = node.getAttribute('data-id');
                         const currentStock = parseInt(node.getAttribute('data-stock'));
-                        await supabaseClient.from('kho_vat_tu').update({ ton_kho: currentStock - 1 }).eq('id', matId);
+                        await hrApi(`/api/inventory/${matId}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ ton_kho: currentStock - 1 }),
+                        });
                     }
                 }
                 showToast(t('chamcongkythuat_toast_submit_success'), "success");
@@ -829,8 +786,8 @@
             const box = document.getElementById('historyBox');
             box.innerHTML = `<div class="animate-pulse text-gray-500 mt-4 text-center font-bold tracking-widest uppercase text-[10px]"><i class="fas fa-satellite fa-spin text-yellow-500 text-lg mb-2"></i><br>${t('chamcongkythuat_fetching_data')}</div>`;
             try {
-                const { data, error } = await supabaseClient.from('chamcong').select('*').eq('ma_nv', ma_nv).order('id', { ascending: false }).limit(30);
-                if (error) throw error;
+                const body = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&limit=30`);
+                const data = body.data || [];
                 box.innerHTML = '';
                 if(!data || data.length === 0) {
                     box.innerHTML = `<p class="text-gray-500 text-[11px] font-bold uppercase tracking-widest text-center mt-8 border-2 border-dashed border-gray-700/50 p-4 rounded-xl">${t('chamcongkythuat_no_reports')}</p>`;

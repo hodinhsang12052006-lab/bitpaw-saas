@@ -1,11 +1,21 @@
+import os
 from flask import session
-from supabase_client import supabase, SUPABASE_STATUS
+from pymongo import MongoClient
+
+# 1. Khởi tạo kết nối MongoDB từ biến môi trường (Chuẩn Vercel)
+MONGO_URI = os.environ.get('MONGO_URI')
+db = None
+
+if MONGO_URI:
+    try:
+        # Cài đặt timeout ngắn để phù hợp với môi trường Serverless
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Tự động lấy database mặc định từ chuỗi kết nối
+        db = client.get_default_database(default='bitpaw_db') 
+    except Exception as e:
+        print(f"[!] MongoDB Connection failed: {e}")
 
 class TenantEngine:
-    @classmethod
-    def get_region_config(cls, business_id=None):
-        # Fallback an toàn để không bị lỗi 500
-        return {"country": "VN", "currency": "VND"}
     @staticmethod
     def resolve_tenant(user_id):
         """Resolves tenant business_id and details based on user_id."""
@@ -20,23 +30,23 @@ class TenantEngine:
                 "industry_code": session.get('business_mode', 'retail')
             }
 
-        if SUPABASE_STATUS == "CONNECTED":
+        # 2. Xử lý query bằng MongoDB thay cho Supabase
+        if db is not None:
             try:
-                # Query profiles associated with auth user
-                res = supabase.table('profiles').select('business_id, role').eq('id', user_id).execute()
-                if res.data:
-                    prof = res.data[0]
-                    b_id = prof['business_id']
-                    role = prof['role']
+                # Tìm profile dựa trên user_id
+                # Lưu ý: Giả định key trong collection là 'id' để khớp với code cũ
+                prof = db.profiles.find_one({'id': user_id})
+                if prof:
+                    b_id = prof.get('business_id')
+                    role = prof.get('role')
                     
-                    # Query business details
-                    bus_res = supabase.table('businesses').select('*').eq('id', b_id).execute()
-                    if bus_res.data:
-                        bus = bus_res.data[0]
+                    # Tìm thông tin business
+                    bus = db.businesses.find_one({'id': b_id})
+                    if bus:
                         return {
                             "business_id": b_id,
-                            "business_name": bus['name'],
-                            "industry_code": bus['industry_code'],
+                            "business_name": bus.get('name'),
+                            "industry_code": bus.get('industry_code'),
                             "role": role
                         }
             except Exception as e:
@@ -45,27 +55,22 @@ class TenantEngine:
         return None
 
     @staticmethod
-    def get_region_config(business_id):
-        """Returns {'country': 'VN'|'US', 'currency': 'VND'|'USD'} for a tenant.
-
-        Multi-region: each business row carries its own country/currency (see
-        supabase_schema_patch_us_market_multiregion.sql) — there is no global
-        default beyond VN/VND, and no FX conversion happens here or anywhere else.
-        Defaults to VN/VND whenever the business can't be resolved (unknown
-        business_id, disconnected DB, mock/test session) so existing behavior for
-        every current tenant is unchanged.
-        """
+    def get_region_config(business_id=None):
+        """Returns {'country': 'VN'|'US', 'currency': 'VND'|'USD'} for a tenant."""
         default = {"country": "VN", "currency": "VND"}
-        if not business_id or SUPABASE_STATUS != "CONNECTED":
+        
+        if not business_id or db is None:
             return default
+            
         try:
-            res = supabase.table('businesses').select('country, currency').eq('id', business_id).limit(1).execute()
-            if res.data:
-                row = res.data[0]
+            # Chỉ query đúng 2 trường country và currency để tối ưu tốc độ
+            row = db.businesses.find_one({'id': business_id}, {'country': 1, 'currency': 1, '_id': 0})
+            if row:
                 return {
                     "country": row.get('country') or 'VN',
                     "currency": row.get('currency') or 'VND'
                 }
         except Exception as e:
             print(f"[!] get_region_config failed for business_id={business_id}: {str(e)}")
+            
         return default

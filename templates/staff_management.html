@@ -872,39 +872,8 @@
             });
         }
 
-        // CSKH: track click & send support request
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-                } else {
-                    console.log('Anonymous click tracked:', channel);
-                }
-            } catch(e) { console.warn('track click error', e); }
-        }
-
-        async function sendSupportRequest(e) {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) {
-                showToast(t('staff_management_err_missing_fields'), true);
-                return;
-            }
-            showLoading(true);
-            try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToast(t('staff_management_msg_support_sent'));
-                document.getElementById('supportForm').reset();
-            } catch(err) {
-                showToast(t('staff_management_err_generic') + err.message, true);
-            } finally {
-                showLoading(false);
-            }
-        }
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // Event listeners
         addStaffBtn.addEventListener('click', openAddModal);
@@ -916,11 +885,6 @@
         cancelDeleteBtn.addEventListener('click', closeDeleteModal);
         deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
         searchInput.addEventListener('input', filterStaff);
-
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-        document.getElementById('supportForm').addEventListener('submit', sendSupportRequest);
 
         // Initial load
         supabaseReady.then(() => { loadStaff(); });
@@ -1002,5 +966,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

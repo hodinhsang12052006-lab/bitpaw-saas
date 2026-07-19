@@ -439,25 +439,8 @@
         thresholdModal.addEventListener('click', (e) => { if (e.target === thresholdModal) thresholdModal.classList.remove('active'); });
         restockModal.addEventListener('click', (e) => { if (e.target === restockModal) restockModal.classList.remove('active'); });
 
-        // CSKH track click
-        async function trackCSKHClick(channel) {
-            try { const { data: { user } } = await supabase.auth.getUser(); if (user) await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]); } catch(e) { console.warn(e); } }
-        document.querySelectorAll('[data-channel]').forEach(link => link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel'))));
-
-        const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value, phone = document.getElementById('supportPhone').value, message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) { showToast(t('inventory_alert_toast_fill_all'), true); return; }
-            showLoading(true);
-            try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToast(`✅ ${t('inventory_alert_toast_request_sent')}`);
-                supportForm.reset();
-            } catch(err) { showToast(t('inventory_alert_toast_error_prefix') + err.message, true); }
-            finally { showLoading(false); }
-        });
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
@@ -764,5 +747,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

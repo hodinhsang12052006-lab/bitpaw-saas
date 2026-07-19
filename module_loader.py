@@ -1,4 +1,4 @@
-from supabase_client import supabase, SUPABASE_STATUS
+from mongo_client import db, MONGO_STATUS
 
 class ModuleLoader:
     @staticmethod
@@ -7,25 +7,26 @@ class ModuleLoader:
         if not business_id or not module_code:
             return False
 
-        if SUPABASE_STATUS == "CONNECTED":
+        if MONGO_STATUS == "CONNECTED":
             try:
                 # Query dynamic module registry allocations
-                res = supabase.table('business_modules').select('is_active').eq('code', module_code).execute()
-                if res.data:
-                    return res.data[0]['is_active']
+                doc = db.business_modules.find_one({'code': module_code}, {'is_active': 1, '_id': 0})
+                if doc:
+                    return doc['is_active']
             except Exception as e:
                 print(f"[!] Module access check failed: {str(e)}")
-                
+
         return False
 
     @staticmethod
     def load_active_modules(industry_code):
         """Loads default modules list for an industry from registry catalog."""
-        if SUPABASE_STATUS == "CONNECTED":
+        if MONGO_STATUS == "CONNECTED":
             try:
-                res = supabase.table('template_registry').select('module_code').execute()
-                if res.data:
-                    return list(set([item['module_code'] for item in res.data if item['module_code']]))
+                docs = db.template_registry.find({}, {'module_code': 1, '_id': 0})
+                codes = {item['module_code'] for item in docs if item.get('module_code')}
+                if codes:
+                    return list(codes)
             except Exception as e:
                 print(f"[!] Registry module query failed: {str(e)}")
         return ["dashboard", "ai_bot"]

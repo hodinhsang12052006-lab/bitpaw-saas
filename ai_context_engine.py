@@ -1,18 +1,26 @@
-from supabase_client import supabase, SUPABASE_STATUS
+from mongo_client import db, MONGO_STATUS
 
 class AIContextEngine:
     @staticmethod
     def _load_purchase_history(business_id, customer_phone, limit=5):
         """Trí nhớ dài hạn: các lần mua hàng/dùng dịch vụ gần nhất của ĐÚNG khách này
-        (không phải tổng doanh thu chung), để AI biết khách từng mua gì, khi nào."""
-        if SUPABASE_STATUS != "CONNECTED" or not business_id or not customer_phone:
+        (không phải tổng doanh thu chung), để AI biết khách từng mua gì, khi nào.
+        Dùng $lookup nối order_items -> products ngay trong 1 aggregation, tương đương
+        embedded-join "products(name, category)" của Postgres/PostgREST cũ."""
+        if MONGO_STATUS != "CONNECTED" or not business_id or not customer_phone:
             return []
         try:
-            res = supabase.table('order_items') \
-                .select('quantity, total_price, created_at, products(name, category)') \
-                .eq('business_id', business_id).eq('customer_phone', customer_phone) \
-                .order('created_at', desc=True).limit(limit).execute()
-            return res.data or []
+            pipeline = [
+                {'$match': {'business_id': business_id, 'customer_phone': customer_phone}},
+                {'$sort': {'created_at': -1}},
+                {'$limit': limit},
+                {'$lookup': {'from': 'products', 'localField': 'product_id', 'foreignField': 'id', 'as': '_product'}},
+                {'$addFields': {'products': {'$arrayElemAt': [{'$map': {
+                    'input': '_product', 'as': 'p', 'in': {'name': '$$p.name', 'category': '$$p.category'}
+                }}, 0]}}},
+                {'$project': {'quantity': 1, 'total_price': 1, 'created_at': 1, 'products': 1, '_id': 0}}
+            ]
+            return list(db.order_items.aggregate(pipeline))
         except Exception:
             return []
 
@@ -20,14 +28,15 @@ class AIContextEngine:
     def _load_recent_service_photos(business_id, customer_phone, limit=3):
         """Ảnh mẫu dịch vụ cũ (vd: mẫu nail đã làm tháng trước) của ĐÚNG khách này,
         để AI có thể nhắc lại/gợi ý làm lại khi khách quay lại chat."""
-        if SUPABASE_STATUS != "CONNECTED" or not business_id or not customer_phone:
+        if MONGO_STATUS != "CONNECTED" or not business_id or not customer_phone:
             return []
         try:
-            res = supabase.table('service_photos') \
-                .select('image_url, note, created_at') \
-                .eq('business_id', business_id).eq('customer_phone', customer_phone) \
-                .order('created_at', desc=True).limit(limit).execute()
-            return res.data or []
+            return list(
+                db.service_photos.find(
+                    {'business_id': business_id, 'customer_phone': customer_phone},
+                    {'image_url': 1, 'note': 1, 'created_at': 1, '_id': 0}
+                ).sort('created_at', -1).limit(limit)
+            )
         except Exception:
             return []
 
@@ -64,12 +73,12 @@ class AIContextEngine:
 
         # Tra tên cửa hàng thật + industry_code chính thức của tenant (nếu có business_id thật)
         business_name = None
-        if SUPABASE_STATUS == "CONNECTED" and business_id:
+        if MONGO_STATUS == "CONNECTED" and business_id:
             try:
-                biz = supabase.table('businesses').select('name, industry_code').eq('id', business_id).limit(1).execute()
-                if biz.data:
-                    business_name = biz.data[0].get('name') or None
-                    industry_code = industry_code or biz.data[0].get('industry_code')
+                biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'industry_code': 1, '_id': 0})
+                if biz:
+                    business_name = biz.get('name') or None
+                    industry_code = industry_code or biz.get('industry_code')
             except:
                 pass
 
@@ -80,11 +89,10 @@ class AIContextEngine:
 
         # Load business metrics if connected — dữ liệu nhạy cảm, chỉ nhúng khi caller đã xác thực.
         revenue_sum = 0
-        if include_private_data and SUPABASE_STATUS == "CONNECTED" and business_id:
+        if include_private_data and MONGO_STATUS == "CONNECTED" and business_id:
             try:
-                res = supabase.table('orders').select('total_amount').eq('business_id', business_id).execute()
-                if res.data:
-                    revenue_sum = sum([o.get('total_amount') or 0 for o in res.data])
+                orders_data = list(db.orders.find({'business_id': business_id}, {'total_amount': 1, '_id': 0}))
+                revenue_sum = sum(o.get('total_amount') or 0 for o in orders_data)
             except:
                 pass
 
@@ -96,15 +104,16 @@ class AIContextEngine:
         # không bịa ra sản phẩm không tồn tại.
         menu_snippet = ""
         has_catalog = False
-        if SUPABASE_STATUS == "CONNECTED" and business_id:
+        if MONGO_STATUS == "CONNECTED" and business_id:
             try:
-                prods = supabase.table('products').select('name, price, category') \
-                    .eq('business_id', business_id).eq('is_active', 1).limit(40).execute()
-                if prods.data:
+                prods = list(db.products.find(
+                    {'business_id': business_id, 'is_active': 1}, {'name': 1, 'price': 1, 'category': 1, '_id': 0}
+                ).limit(40))
+                if prods:
                     has_catalog = True
                     lines = [
                         f"- {p.get('name')} ({p.get('category') or 'khác'}): {int(p.get('price') or 0):,}đ".replace(',', '.')
-                        for p in prods.data
+                        for p in prods
                     ]
                     menu_snippet = (
                         "\n\nBẢNG GIÁ & DANH MỤC SẢN PHẨM/DỊCH VỤ ĐANG BÁN THẬT (chỉ được tư vấn/gợi ý đúng các "
@@ -119,12 +128,13 @@ class AIContextEngine:
         # PII/lịch sử mua hàng chỉ được nhúng khi caller đã xác thực (include_private_data=True) —
         # khách ẩn danh gọi widget công khai tuyệt đối không được thấy dữ liệu này.
         customer_snippet = ""
-        if include_private_data and SUPABASE_STATUS == "CONNECTED" and business_id and customer_phone:
+        if include_private_data and MONGO_STATUS == "CONNECTED" and business_id and customer_phone:
             try:
-                cust = supabase.table('customers').select('name, tier, loyalty_points, total_spent') \
-                    .eq('business_id', business_id).eq('phone', customer_phone).limit(1).execute()
-                if cust.data:
-                    c = cust.data[0]
+                c = db.customers.find_one(
+                    {'business_id': business_id, 'phone': customer_phone},
+                    {'name': 1, 'tier': 1, 'loyalty_points': 1, 'total_spent': 1, '_id': 0}
+                )
+                if c:
                     spent = int(c.get('total_spent') or 0)
                     customer_snippet = (
                         f"\n\nTHÔNG TIN KHÁCH ĐANG CHAT: Tên {c.get('name') or 'chưa rõ'}, "

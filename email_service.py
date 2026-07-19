@@ -3,7 +3,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from supabase_client import load_env_file
+from mongo_client import load_env_file
 
 load_env_file()
 

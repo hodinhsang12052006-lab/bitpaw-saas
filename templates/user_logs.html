@@ -479,39 +479,8 @@
             loadLogs();
         }
 
-        // CSKH: track click & send support request
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) {
-                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-                } else {
-                    console.log('Anonymous click tracked:', channel);
-                }
-            } catch(e) { console.warn('track click error', e); }
-        }
-
-        async function sendSupportRequest(e) {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) {
-                showToast(t('userlogs_toast_fill_required'), true);
-                return;
-            }
-            showLoading(true);
-            try {
-                const { error } = await supabaseClient.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToast(t('userlogs_toast_support_sent'));
-                document.getElementById('supportForm').reset();
-            } catch(err) {
-                showToast(t('userlogs_toast_error_prefix') + err.message, true);
-            } finally {
-                showLoading(false);
-            }
-        }
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -529,11 +498,6 @@
         refreshBtn.addEventListener('click', refreshLogs);
         prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
         nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredLogs.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); } });
-
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-        document.getElementById('supportForm')?.addEventListener('submit', sendSupportRequest);
 
         // Initial load
         supabaseReady.then(() => { loadLogs(); });
@@ -610,5 +574,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

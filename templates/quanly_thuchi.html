@@ -81,58 +81,7 @@
     <canvas id="bg-canvas"></canvas>
 
     <!-- Sidebar (đã bổ sung Facebook và thêm Báo cáo lợi nhuận) -->
-    <aside class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
-        <div>
-            <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4">
-                <div class="relative w-14 h-14 flex items-center justify-center logo-float mb-2">
-                    <div class="absolute w-full h-full border-t-2 border-purple-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
-                    <div class="absolute w-[120%] h-[120%] border-b-2 border-cyan-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Logo" class="relative w-10 h-10 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
-                </div>
-                <h1 class="text-xl font-black tracking-widest">Bit<span class="text-cyan-400">Paw</span></h1>
-            </div>
-
-            <div class="flex justify-center pb-2">
-                <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-            </div>
-
-            <nav class="flex flex-col py-6 space-y-3 px-5">
-                <a href="/dashboard" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_overview">Tổng quan</span>
-                </a>
-                <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_hr">Quản lý Nhân sự</span>
-                </a>
-                <a href="{{ url_for('chamcong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_attendance">Chấm công</span>
-                </a>
-                <a href="{{ url_for('bangluong') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_payroll">Bảng lương</span>
-                </a>
-                <a href="{{ url_for('chat') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group mt-2">
-                    <i class="fas fa-comments w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_comm">Trạm Liên Lạc</span>
-                </a>
-                <a href="/map_dashboard" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-3 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_gps">Radar GPS Thợ</span>
-                </a>
-                <a href="{{ url_for('quanly_congno') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_debt">Quản lý Công nợ</span>
-                </a>
-                <a href="{{ url_for('quanly_thuchi') }}" class="flex items-center space-x-4 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 px-4 py-3 rounded-r-xl transition-all shadow-inner font-bold text-cyan-300 group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_revenue">Quản lý Thu Chi</span>
-                </a>
-                <!-- Thêm mục Báo cáo lợi nhuận -->
-                <a href="{{ url_for('baocao_loinhuan') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-3 rounded-xl transition-all text-gray-400 hover:text-cyan-300 font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:scale-110 transition-transform"></i><span data-i18n="qtc_nav_profit">Báo cáo lợi nhuận</span>
-                </a>
-            </nav>
-        </div>
-        <div class="p-6 border-t border-white/10 shrink-0">
-            <a href="{{ url_for('home') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-                <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i><span data-i18n="qtc_logout">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
+    {% include 'components/app_sidebar.html' %}
 
     <!-- Main Content (giữ nguyên toàn bộ) -->
     <main class="flex-1 p-6 lg:p-8 overflow-y-auto relative z-10">

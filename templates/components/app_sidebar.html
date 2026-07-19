@@ -1,0 +1,211 @@
+{# Sidebar dùng chung toàn hệ thống (Phase 4 - Bước 3).
+   Text lấy từ menu_i18n (namespace "menu" trong translations/en.json + vi.json, đã được
+   context processor inject_industry_config nạp sẵn theo default_lang/cookie bitpaw_lang).
+   Ẩn/hiện theo 2 trục:
+     - Vai trò (session.role == 'staff'): chỉ giữ POS/Booking (nếu ngành có) + Chấm công cá
+       nhân + Hoa hồng/Tip. Các route tương ứng của mục bị ẩn đã tự chặn bằng
+       _deny_if_staff_page() ở app.py — sidebar chỉ là lớp UI, không phải lớp bảo mật.
+     - Ngành nghề (active_industry_cfg.modules): Nails/Spa nổi bật Booking, giấu Kitchen
+       Display; F&B nổi bật Kitchen Display, giấu Booking — theo đúng modules đã khai báo
+       trong INDUSTRY_CONFIG (app.py), không cần thêm biến mới.
+   data-i18n="menu_xxx" được giữ lại cho các trang đã có sẵn cơ chế t()/changeLanguage()
+   riêng (vd dashboard.html) để nút đổi ngôn ngữ tại chỗ vẫn cập nhật được sidebar tức thì;
+   với các trang chưa có cơ chế đó, các span này chỉ đơn thuần hiển thị đúng ngôn ngữ mặc
+   định server-side (default_lang), không có gì bị hỏng cả. #}
+{% set is_staff = session.get('role') == 'staff' %}
+{% set modules = (active_industry_cfg.modules if active_industry_cfg else []) %}
+
+<aside class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
+    <div>
+        <div class="h-40 flex flex-col items-center justify-center border-b border-white/10 pt-6 pb-4">
+            <div class="relative w-20 h-20 rounded-full border-2 border-cyan-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-14 h-14 object-cover rounded-full" alt="Logo">
+            </div>
+            <h1 class="text-2xl font-black tracking-widest drop-shadow-md mt-2">Bit<span class="text-cyan-400">Paw</span></h1>
+        </div>
+
+        <div class="flex justify-center pb-2 pt-2">
+            <button id="langToggleBtn" type="button" onclick="__bitpawToggleLang()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">{{ 'VI' if default_lang == 'en' else 'EN' }}</button>
+        </div>
+
+        {# Thẻ hồ sơ doanh nghiệp: chỉ ai_bot.html truyền biến `profile` vào context nên chỉ
+           trang đó hiện thẻ này; các trang khác không truyền `profile` nên khối này ẩn. #}
+        {% if profile %}
+        {% if profile.has_profile %}
+        <div class="mx-4 my-4 bg-[#0a0f25]/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
+            <div class="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-black text-lg shadow-[0_0_10px_rgba(6,182,212,0.5)] shrink-0">
+                    {{ profile.name[0] | upper if profile.name else '?' }}
+                </div>
+                <div class="overflow-hidden">
+                    <h3 class="text-white font-bold text-[13px] truncate">{{ profile.name }}</h3>
+                    <p class="text-cyan-400 text-[9px] uppercase tracking-widest font-bold mt-0.5">
+                        <span data-i18n="ai_bot_profile_business_label">Doanh Nghiệp</span>
+                    </p>
+                </div>
+            </div>
+            <div class="space-y-2.5 text-[11px] text-gray-300 font-medium">
+                <div class="flex items-center gap-2.5"><i class="fas fa-envelope text-gray-500 w-3 text-center"></i><span class="truncate">{{ profile.email }}</span></div>
+                <div class="flex items-center gap-2.5"><i class="fas fa-phone-alt text-gray-500 w-3 text-center"></i><span>{{ profile.phone }}</span></div>
+                <div class="flex items-center gap-2.5"><span class="text-blue-400 font-bold w-3 text-center text-[10px]">Zalo</span><span>{{ profile.zalo }}</span></div>
+
+                <div class="pt-2 border-t border-white/5 flex items-start gap-2.5">
+                    <i class="fas fa-briefcase text-gray-500 w-3 text-center mt-0.5"></i>
+                    <span class="leading-relaxed"><span class="text-gray-500 uppercase text-[9px]" data-i18n="ai_bot_profile_industry_label">Ngành nghề KD:</span><br><span>{{ profile.industry }}</span></span>
+                </div>
+                <div class="pt-2 border-t border-white/5 space-y-2">
+                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-crown text-yellow-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_tier_label">Gói dịch vụ:</span></span><span class="text-emerald-400 font-bold">{{ profile.tier }}</span></div>
+                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-users text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_staff_label">NV quản lý:</span></span><span class="text-white font-bold">{{ profile.staff }}</span></div>
+                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-calendar-check text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_joined_label">Tham gia:</span></span><span class="text-white font-bold">{{ profile.joined }}</span></div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="mx-4 my-4 bg-[#0a0f25]/40 backdrop-blur-md border border-dashed border-white/10 rounded-xl p-4 text-center">
+            <i class="fas fa-briefcase text-gray-600 text-lg mb-2 block"></i>
+            <p class="text-xs text-gray-500 font-bold" data-i18n="ai_bot_profile_missing_title">Chưa có dữ liệu doanh nghiệp</p>
+            <p class="text-[9px] text-gray-600 mt-1" data-i18n="ai_bot_profile_missing_desc">Vui lòng thiết lập thông tin hoặc kích hoạt license.</p>
+        </div>
+        {% endif %}
+        {% endif %}
+        <script>
+            // Toggle ngôn ngữ dùng chung mọi trang: lưu cookie + localStorage rồi gọi
+            // changeLanguage() của TRANG (nếu trang đó đã có sẵn cơ chế t()/translations
+            // riêng, vd dashboard.html) để đổi tức thì không cần reload; nếu trang chưa có
+            // cơ chế đó thì reload để server render lại đúng ngôn ngữ theo cookie mới.
+            function __bitpawToggleLang() {
+                var cur = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || "{{ default_lang }}";
+                var next = cur === 'vi' ? 'en' : 'vi';
+                try { localStorage.setItem('bitpaw_lang', next); } catch (e) { /* localStorage bị chặn */ }
+                document.cookie = 'bitpaw_lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
+                if (typeof changeLanguage === 'function') {
+                    changeLanguage(next);
+                    var btn = document.getElementById('langToggleBtn');
+                    if (btn) btn.innerText = (next === 'vi' ? 'EN' : 'VI');
+                } else {
+                    location.reload();
+                }
+            }
+        </script>
+
+        <nav class="flex flex-col py-2 space-y-1.5 px-5 overflow-y-auto max-h-[65vh] custom-scrollbar">
+            {% if not is_staff %}
+            <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
+                <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                <span data-i18n="menu_dashboard">{{ menu_i18n.dashboard }}</span>
+            </a>
+            {% endif %}
+
+            {# F&B: Smart POS + QR Menu + Kitchen Display (KDS) nổi bật, không có Booking #}
+            {% if 'ordering' in modules or 'tables' in modules %}
+            <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-cash-register w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span data-i18n="menu_smart_pos">{{ menu_i18n.smart_pos }}</span>
+            </a>
+            <a href="{{ url_for('kitchen_display') }}" class="flex items-center space-x-4 {% if request.path == url_for('kitchen_display') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-kitchen-set w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span data-i18n="menu_kitchen_display">{{ menu_i18n.kitchen_display }}</span>
+            </a>
+            {% if not is_staff %}
+            <a href="/qr_menu/demo" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                <i class="fas fa-qrcode w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span data-i18n="menu_qr_menu">{{ menu_i18n.qr_menu }}</span>
+            </a>
+            {% endif %}
+            {% endif %}
+
+            {# Nails/Spa: POS Dịch vụ + Booking nổi bật, không có Kitchen/Tables #}
+            {% if 'spa_services' in modules or 'nail_services' in modules %}
+            <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span data-i18n="menu_pos_service">{{ menu_i18n.pos_service }}</span>
+            </a>
+            <a href="/booking" class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span data-i18n="menu_booking">{{ menu_i18n.booking }}</span>
+            </a>
+            {% endif %}
+
+            {% if not is_staff %}
+                {# Retail / bán lẻ đơn giản #}
+                {% if 'sales' in modules and 'ordering' not in modules and 'spa_services' not in modules and 'nail_services' not in modules %}
+                <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_sales">{{ menu_i18n.sales }}</span>
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-robot w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>
+                </a>
+                <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-magic w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>
+                </a>
+
+                {% if 'attendance' in modules or 'payroll' in modules %}
+                <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_hr">{{ menu_i18n.hr }}</span>
+                </a>
+                <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_attendance">{{ menu_i18n.attendance }}</span>
+                </a>
+                <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_payroll">{{ menu_i18n.payroll }}</span>
+                </a>
+                {% endif %}
+
+                {% if 'dispatch_gps' in modules %}
+                <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
+                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>
+                </a>
+                {% endif %}
+
+                {% if 'expenses' in modules or 'inventory' in modules %}
+                <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_debt">{{ menu_i18n.debt }}</span>
+                </a>
+                <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_cashflow">{{ menu_i18n.cashflow }}</span>
+                </a>
+                <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_profit_report">{{ menu_i18n.profit_report }}</span>
+                </a>
+                {% endif %}
+
+                <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-sitemap w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                    <span data-i18n="menu_consolidated_report">{{ menu_i18n.consolidated_report }}</span>
+                </a>
+                <a href="/brand_settings" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-cog w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_settings">{{ menu_i18n.settings }}</span>
+                </a>
+            {% else %}
+                {# Vai trò staff: chỉ giữ Chấm công cá nhân + Hoa hồng/Tip (POS/Booking đã hiện ở trên nếu ngành có) #}
+                <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_my_attendance">{{ menu_i18n.my_attendance }}</span>
+                </a>
+                <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_my_commission">{{ menu_i18n.my_commission }}</span>
+                </a>
+            {% endif %}
+        </nav>
+    </div>
+    <div class="p-6 border-t border-white/10 shrink-0">
+        <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
+            <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i>
+            <span data-i18n="menu_logout">{{ menu_i18n.logout }}</span>
+        </a>
+    </div>
+</aside>

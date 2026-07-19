@@ -557,39 +557,8 @@
             coverFileNameSpan.innerText = file ? file.name : t('brand_settings_no_image_selected');
         });
 
-        // CSKH: track click
-        async function trackCSKHClick(channel) {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    await supabase.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-                }
-            } catch(e) { console.warn(e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
-
-        // CSKH: gửi yêu cầu
-        const supportForm = document.getElementById('supportForm');
-        supportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('supportName').value;
-            const phone = document.getElementById('supportPhone').value;
-            const message = document.getElementById('supportMessage').value;
-            if (!name || !phone || !message) {
-                showToast(t('brand_settings_fill_all_info'), true);
-                return;
-            }
-            try {
-                const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                if (error) throw error;
-                showToast(t('brand_settings_support_sent'));
-                supportForm.reset();
-            } catch(err) {
-                showToast(t('brand_settings_toast_error_prefix') + err.message, true);
-            }
-        });
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // Khởi tạo
         supabaseReady.then(() => { loadSettings(); });
@@ -673,5 +642,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

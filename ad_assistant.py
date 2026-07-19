@@ -1,19 +1,16 @@
 # File: ad_assistant.py
 # Đặt trong cùng thư mục với app.py
 # Cung cấp các route: /ad-assistant, /ad-assistant/api/suggest, /ad-assistant/api/create-campaign, /ad-assistant/api/campaigns
-# Tích hợp Supabase để lưu log gợi ý và quản lý chiến dịch quảng cáo
+# Lưu log gợi ý và quản lý chiến dịch quảng cáo qua MongoDB Atlas (đã gỡ Supabase — file này
+# trước đây tự tạo 1 client Supabase RIÊNG, độc lập với supabase_client.py, kèm fallback
+# hardcode URL/anon-key ngay trong source — cả 2 vấn đề đó đều biến mất khi chuyển sang dùng
+# chung mongo_client.py với phần còn lại của app).
 
-import os
 import uuid
 import requests
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session
-from supabase import create_client, Client
-
-# ========== CẤU HÌNH SUPABASE ==========
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://iojtglaxgdwsxxalhubx.supabase.co')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM')
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+from mongo_client import db, next_mongo_id
 
 # Tạo Blueprint
 ad_assistant_bp = Blueprint('ad_assistant', __name__, url_prefix='/ad-assistant')
@@ -119,14 +116,15 @@ def suggest():
     
     suggestions = generate_suggestions(product_name, product_desc, target_audience, budget, platform)
     
-    # Ghi log vào bảng ad_suggestions_log (nếu có)
+    # Ghi log vào collection ad_suggestions_log (nếu có)
     try:
-        supabase.table('ad_suggestions_log').insert({
+        db.ad_suggestions_log.insert_one({
+            'id': next_mongo_id('ad_suggestions_log'),
             'product_name': product_name,
             'platform': platform,
             'suggestions': suggestions,
             'created_at': datetime.now().isoformat()
-        }).execute()
+        })
     except Exception as e:
         print("Loi ghi log:", e)
     
@@ -162,9 +160,10 @@ def create_campaign():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-    # Lưu chiến dịch vào bảng ad_campaigns
+    # Lưu chiến dịch vào collection ad_campaigns
     try:
-        supabase.table('ad_campaigns').insert({
+        db.ad_campaigns.insert_one({
+            'id': next_mongo_id('ad_campaigns'),
             'user_id': user_id,
             'platform': platform,
             'name': campaign_name,
@@ -173,10 +172,10 @@ def create_campaign():
             'campaign_id': campaign_id,
             'status': 'created',
             'created_at': datetime.now().isoformat()
-        }).execute()
+        })
     except Exception as e:
         print("Loi luu chien dich:", e)
-    
+
     return jsonify({"success": True, "campaign_id": campaign_id})
 
 # ========== API: DANH SÁCH CHIẾN DỊCH CỦA NGƯỜI DÙNG ==========
@@ -186,8 +185,8 @@ def list_campaigns():
     if not user_id:
         return jsonify([])
     try:
-        res = supabase.table('ad_campaigns').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
-        return jsonify(res.data)
+        campaigns = list(db.ad_campaigns.find({'user_id': user_id}, {'_id': 0}).sort('created_at', -1))
+        return jsonify(campaigns)
     except Exception as e:
         print("Loi lay danh sach:", e)
         return jsonify([])

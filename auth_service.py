@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import session, redirect, url_for, flash
-from supabase_client import supabase, SUPABASE_STATUS
+from mongo_client import db, MONGO_STATUS
 
 class AuthService:
     @staticmethod
@@ -30,19 +30,20 @@ class AuthService:
 
     @staticmethod
     def verify_license_code(license_key, industry_code):
-        """Verifies license code validity in Supabase or SQLite."""
+        """Verifies license code validity in MongoDB (license_codes collection)."""
         if not license_key:
             return False, "Vui lòng nhập mã kích hoạt!"
 
-        if SUPABASE_STATUS == "CONNECTED":
+        if MONGO_STATUS == "CONNECTED":
             try:
-                res = supabase.table('license_codes').select('*').eq('license_key', license_key).eq('trang_thai', 'Sẵn sàng').execute()
-                if res.data:
-                    lic = res.data[0]
+                lic = db.license_codes.find_one(
+                    {'license_key': license_key, 'trang_thai': 'Sẵn sàng'}, {'_id': 0}
+                )
+                if lic:
                     if lic['nganh_nghe'].lower() != 'all' and lic['nganh_nghe'].lower() != industry_code.lower():
                         return False, f"Mã kích hoạt chỉ dành cho ngành nghề: {lic['nganh_nghe'].upper()}"
                     return True, lic
             except Exception as e:
-                print(f"[!] License validation failed in Supabase: {str(e)}")
-        
+                print(f"[!] License validation failed in MongoDB: {str(e)}")
+
         return False, "Mã kích hoạt không hợp lệ hoặc đã qua sử dụng."

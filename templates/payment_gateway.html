@@ -1148,32 +1148,8 @@
 
         populateFields();
 
-        // Support Requests
-        const supportForm = document.getElementById('supportForm');
-        if (supportForm) {
-            supportForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const supportNameEl = document.getElementById('supportName');
-                const supportPhoneEl = document.getElementById('supportPhone');
-                const supportMessageEl = document.getElementById('supportMessage');
-                
-                const name = supportNameEl ? supportNameEl.value : '';
-                const phone = supportPhoneEl ? supportPhoneEl.value : '';
-                const message = supportMessageEl ? supportMessageEl.value : '';
-                
-                showLoading(true);
-                try {
-                    const { error } = await supabase.from('cskh_requests').insert([{ name, phone, message, status: 'pending', created_at: new Date() }]);
-                    if (error) throw error;
-                    showToast('✅ Yêu cầu đã gửi! Kỹ thuật viên sẽ hỗ trợ trong 15 phút.');
-                    supportForm.reset();
-                } catch(err) {
-                    showToast('Lỗi: ' + err.message, true);
-                } finally {
-                    showLoading(false);
-                }
-            });
-        }
+        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
+        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // 3D Particles background
         (function init3D() {
@@ -1307,5 +1283,6 @@
         }
     })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

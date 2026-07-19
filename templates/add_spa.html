@@ -427,22 +427,8 @@
             return publicUrl.publicUrl;
         }
 
-        // ========== Track click CSKH (log lên bảng) ==========
-        async function trackCSKHClick(channel) {
-            // Lấy user hiện tại nếu có (có thể dùng auth, nhưng ở đây tùy chọn)
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) {
-                    await supabaseClient.from('cskh_clicks').insert([{ user_id: user.id, channel, clicked_at: new Date() }]);
-                } else {
-                    // Nếu chưa login, lưu anonymous (có thể bỏ qua)
-                    console.log('Anonymous click tracked:', channel);
-                }
-            } catch(e) { console.warn('track click error', e); }
-        }
-        document.querySelectorAll('[data-channel]').forEach(link => {
-            link.addEventListener('click', () => trackCSKHClick(link.getAttribute('data-channel')));
-        });
+        // Track click CSKH + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung, gọi
+        // /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp ở cuối trang.
 
         // ========== Submit form: lưu vào Supabase (bảng products, channel_type='spa') ==========
         form.addEventListener('submit', async (e) => {
@@ -587,5 +573,6 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>
