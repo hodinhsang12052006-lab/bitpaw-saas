@@ -490,6 +490,17 @@
     <!-- UI Toast Alert -->
     <div id="toast" class="toast"></div>
 
+    <!-- Jinja2 Bridge: bơm config server (env-driven, không hardcode/không fetch API) sang
+         window.ENV cho JS tĩnh phía dưới đọc. asset_version đổi mỗi lần server khởi động/deploy
+         nên trình duyệt luôn tải lại tenant_supabase_client.js mới, không dính cache cũ. -->
+    <script>
+        window.ENV = {
+            SUPABASE_URL: "{{ supabase_url }}",
+            SUPABASE_KEY: "{{ supabase_key }}"
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}?v={{ asset_version }}"></script>
+
     <script>
         // Realtime Clock Function
         function updateRuntimeClock() {
@@ -698,11 +709,13 @@
         })();
 
         // === SUPABASE DATABASE CONNECT ===
-        // Dùng đúng URL/anon key cấu hình qua biến môi trường (giống mọi template khác),
-        // không hardcode project/key demo cũ nữa.
-        const supabaseUrl = '{{ supabase_url }}';
-        const supabaseKey = '{{ supabase_key }}';
-        window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // URL/key lấy từ window.ENV (bơm bởi Jinja2 ở cuối <body>, xem bridge phía dưới),
+        // không hardcode và không tự fetch key qua API nào — chỉ 1 nguồn duy nhất, đúng biến
+        // môi trường server đang chạy, tránh lệch giữa các trang khi đổi project Supabase.
+        window.supabaseClient = window.supabase.createClient(window.ENV.SUPABASE_URL, window.ENV.SUPABASE_KEY);
+        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant (dùng chung helper
+        // static/js/tenant_supabase_client.js — không cần truyền tham số, hàm tự đọc window.ENV).
+        const supabaseReady = createTenantSupabaseClient().then(c => { window.supabaseClient = c; return c; });
 
         // ==========================================
         // MODULE 1: LICENSE KEY LOGIC (ORIGINAL)

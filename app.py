@@ -85,6 +85,12 @@ if not _flask_secret_key:
     )
 app.secret_key = _flask_secret_key
 
+# Version cache-bust cho static JS chứa config nhạy cảm với deploy (vd: tenant_supabase_client.js
+# đọc window.ENV) — tính 1 lần lúc process khởi động (không phải mỗi request, tránh mất tác dụng
+# cache), nên mỗi lần Vercel redeploy/cold start sẽ ra version mới, buộc trình duyệt tải lại JS
+# thay vì dùng bản cache cũ.
+_ASSET_VERSION = str(int(time.time()))
+
 
 @app.after_request
 def _disable_html_caching(response):
@@ -238,7 +244,8 @@ def inject_industry_config():
         supabase_key=SUPABASE_KEY,
         tenant_country=tenant_country,
         tenant_currency=tenant_currency,
-        default_lang=default_lang
+        default_lang=default_lang,
+        asset_version=_ASSET_VERSION
     )
 
 
