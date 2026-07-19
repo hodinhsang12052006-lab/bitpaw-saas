@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -189,7 +188,7 @@
                 <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest" data-i18n="addproduct_desc">Cập nhật hàng hoá vào hệ thống</p>
             </div>
 
-            <form id="productForm" enctype="multipart/form-data" class="space-y-5">
+            <form id="productForm" method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data" class="space-y-5">
                 <!-- Image upload with preview -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_image_label">Hình ảnh (Không bắt buộc)</label>
@@ -279,14 +278,6 @@
     <div id="toast" class="toast" data-i18n="addproduct_toast_default">Thông báo</div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabaseClient = createClient(supabaseUrl, supabaseKey);
-        const STORAGE_BUCKET = 'product_images';
-
         // ========== I18N (Đa ngôn ngữ) ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
@@ -432,86 +423,7 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // ========== Upload ảnh lên Supabase Storage ==========
-        async function uploadImage(file) {
-            if (!file) return null;
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-            const { data, error } = await supabaseClient.storage
-                .from(STORAGE_BUCKET)
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
-            if (error) {
-                console.error('Upload error:', error);
-                showToast(t('addproduct_upload_error_prefix') + error.message, true);
-                return null;
-            }
-            const { data: publicUrl } = supabaseClient.storage
-                .from(STORAGE_BUCKET)
-                .getPublicUrl(filePath);
-            return publicUrl.publicUrl;
-        }
-
-        // ========== Submit form: lưu vào Supabase ==========
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('productName').value.trim();
-            if (!name) {
-                showToast(t('addproduct_err_name'), true);
-                return;
-            }
-            const priceVal = priceHidden.value;
-            if (!priceVal || parseInt(priceVal) <= 0) {
-                showToast(t('addproduct_err_price'), true);
-                return;
-            }
-            const stock = document.getElementById('productStock').value;
-            if (stock === '' || parseInt(stock) < 0) {
-                showToast(t('addproduct_err_stock'), true);
-                return;
-            }
-            const category = document.getElementById('productCategory').value;
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('addproduct_processing');
-            
-            let imageUrl = null;
-            if (imageInput.files.length > 0) {
-                imageUrl = await uploadImage(imageInput.files[0]);
-                if (!imageUrl && imageInput.files[0]) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> ' + t('addproduct_submit_btn');
-                    return;
-                }
-            }
-
-            try {
-                const { data, error } = await supabaseClient
-                    .from('products')
-                    .insert([{
-                        name: name,
-                        category: category,
-                        channel_type: 'retail',
-                        stock: parseInt(stock),
-                        price: parseFloat(priceVal),
-                        image: imageUrl,
-                        is_active: true,
-                        created_at: new Date().toISOString()
-                    }]);
-                if (error) throw error;
-                showToast(t('addproduct_success'));
-                setTimeout(() => {
-                    window.location.href = "{{ url_for('index') }}";
-                }, 1500);
-            } catch (err) {
-                console.error("Client-side insert failed, falling back to Flask backend:", err);
-                form.submit();
-            }
-        });
+        // Submit: form gửi trực tiếp lên Flask (POST /add), không can thiệp JS.
 
         // ========== 3D Background (giữ nguyên) ==========
         (function init3D() {

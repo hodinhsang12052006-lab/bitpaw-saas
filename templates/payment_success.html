@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -509,8 +508,8 @@
     </script>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
+        // Client Supabase đã gỡ — không có lời gọi .from()/.channel()/.storage/.auth nào
+        // trong file này, trang chỉ đọc txn_id từ URL query string.
         function escapeHtml(text) {
             if (!text) return '';
             return text
@@ -521,11 +520,6 @@
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = '{{ supabase_url }}';
-        const supabaseKey = '{{ supabase_key }}';
-        const supabase = createClient(supabaseUrl, supabaseKey);
 
         // Lấy dữ liệu từ URL params hoặc localStorage
         const urlParams = new URLSearchParams(window.location.search);

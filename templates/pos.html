@@ -7,96 +7,53 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ========== PRO UI BACKGROUND ==========
+           Enterprise dark theme: static layered gradient (no animated particles/scan-lines/
+           lasers — those read as "gamer HUD", not a professional POS). Two soft, fixed radial
+           accents give depth without motion or glow-spam, on a flat near-black slate base. */
         body {
             font-family: 'Inter', system-ui, sans-serif;
-            background-color: #08061a;
-            color: white;
+            color: #f1f5f9;
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
-        }
-        
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-            opacity: 0.85;
-            pointer-events: none;
-        }
-
-        .scan-line {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
-            pointer-events: none;
-            opacity: 0.5;
-            animation: scanMove 8s linear infinite;
-        }
-        .laser-vertical {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 1px;
-            height: 100%;
-            background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
-            pointer-events: none;
-            opacity: 0.3;
-            animation: laserVertical 12s ease-in-out infinite;
-        }
-        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
-        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
-
-        .absolute-blur {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80vw;
-            height: 500px;
-            background: rgba(6, 182, 212, 0.15);
-            border-radius: 50%;
-            filter: blur(150px);
-            pointer-events: none;
-            z-index: 0;
+            background-color: #0a0e17;
+            background-image:
+                radial-gradient(circle at 15% 0%, rgba(8, 145, 178, 0.10), transparent 45%),
+                radial-gradient(circle at 100% 30%, rgba(79, 70, 229, 0.08), transparent 45%),
+                linear-gradient(180deg, #0b0f19 0%, #090c14 100%);
+            background-attachment: fixed;
         }
 
         .glass-panel {
-            background: rgba(15, 25, 45, 0.65);
+            background: rgba(17, 24, 39, 0.72);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            border-radius: 1.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 1.25rem;
+            box-shadow: 0 4px 28px rgba(0, 0, 0, 0.35);
         }
         .glass-card {
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 23, 42, 0.55);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(6, 182, 212, 0.25);
-            border-radius: 1.2rem;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 1rem;
             transition: all 0.2s;
         }
         .glass-card:hover {
-            border-color: #06b6d4;
-            transform: translateY(-3px);
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+            border-color: rgba(6, 182, 212, 0.45);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes float-logo {
-            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
-            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(168, 85, 247, 0.5)); }
-            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0px); }
         }
         .logo-float {
             animation: float-logo 4s ease-in-out infinite;
@@ -160,6 +117,28 @@
             font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
+        }
+
+        .tip-btn {
+            padding: 0.4rem 0.25rem;
+            border-radius: 0.6rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.15s;
+            text-align: center;
+        }
+        .tip-btn:hover {
+            border-color: #06b6d4;
+            color: white;
+        }
+        .tip-btn-active {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            color: #06b6d4;
         }
 
         .toast {
@@ -342,11 +321,6 @@
     </style>
 </head>
 <body class="antialiased">
-    
-    <!-- <div class="scan-line"></div> -->
-    <!-- <div class="laser-vertical"></div> -->
-    <div class="absolute-blur"></div>
-    <canvas id="bg-canvas"></canvas>
 
     <div class="relative z-10 max-w-full w-full mx-auto px-4 md:px-8 py-6 min-h-screen">
         
@@ -355,7 +329,7 @@
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10 logo-float shrink-0">
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400/70 object-cover shadow-md">
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-xs sm:text-lg font-medium" data-i18n="pos_header_title">| POS Bán hàng</span></h1>
@@ -424,7 +398,7 @@
                     </div>
 
                     <div class="border-t border-white/10 pt-4 mt-auto" id="orderCheckoutSection" style="display: none;">
-                        <div class="space-y-2 mb-4">
+                        <div class="space-y-2 mb-3">
                             <div class="flex justify-between text-xs text-gray-400">
                                 <span data-i18n="pos_subtotal_label">Tạm tính:</span>
                                 <span id="orderSubtotal" class="font-mono text-white">0₫</span>
@@ -434,22 +408,39 @@
                                 <input type="number" id="orderDiscount" value="0" min="0" max="100" class="w-14 bg-black/50 border border-white/10 rounded px-1.5 py-0.5 text-right text-xs text-white outline-none focus:border-cyan-400 font-mono">
                             </div>
                             <div class="flex justify-between text-xs text-gray-400">
-                                <span data-i18n="pos_vat_label">Thuế VAT (10%):</span>
+                                <span id="orderTaxLabel">Sales Tax (10%):</span>
                                 <span id="orderTax" class="font-mono text-white">0₫</span>
                             </div>
-                            <div class="flex justify-between font-bold text-white text-sm border-t border-white/5 pt-2 mt-2">
-                                <span data-i18n="pos_total_label">Tổng cộng:</span>
-                                <span id="orderTotal" class="text-cyan-400 font-mono text-base">0₫</span>
+                        </div>
+
+                        <div class="border-t border-white/5 pt-3 mb-3">
+                            <div class="flex justify-between text-xs text-gray-400 mb-2">
+                                <span data-i18n="pos_tip_label">Tip:</span>
+                                <span id="orderTipAmount" class="font-mono text-white">0₫</span>
                             </div>
+                            <div class="grid grid-cols-4 gap-1.5" id="tipButtonGroup">
+                                <button type="button" class="tip-btn" data-tip-percent="15">15%</button>
+                                <button type="button" class="tip-btn" data-tip-percent="18">18%</button>
+                                <button type="button" class="tip-btn" data-tip-percent="20">20%</button>
+                                <button type="button" class="tip-btn" id="tipCustomBtn" data-i18n="pos_tip_custom_btn">Custom</button>
+                            </div>
+                            <div id="tipCustomInputWrap" class="mt-2" style="display: none;">
+                                <input type="number" id="tipCustomInput" min="0" step="0.01" value="0" placeholder="0.00" class="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono" data-i18n-placeholder="pos_tip_custom_placeholder">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between font-bold text-white text-sm border-t border-white/5 pt-2 mb-4">
+                            <span data-i18n="pos_total_label">Tổng cộng:</span>
+                            <span id="orderTotal" class="text-cyan-400 font-mono text-base">0₫</span>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             {% if tenant_country == 'US' %}
-                            <button id="squareCheckoutBtn" class="col-span-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                            <button id="squareCheckoutBtn" class="col-span-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-md">
                                 <i class="fab fa-square"></i> <span data-i18n="pos_square_checkout_btn">Pay with Square / Credit Card</span>
                             </button>
                             {% else %}
-                            <button id="posCheckoutBtn" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                            <button id="posCheckoutBtn" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-md">
                                 <i class="fas fa-check-circle"></i> <span data-i18n="pos_checkout_btn">Thanh toán</span>
                             </button>
                             {% endif %}
@@ -530,10 +521,21 @@
         const orderSubtotal = document.getElementById('orderSubtotal');
         const orderDiscount = document.getElementById('orderDiscount');
         const orderTax = document.getElementById('orderTax');
+        const orderTaxLabel = document.getElementById('orderTaxLabel');
+        const orderTipAmount = document.getElementById('orderTipAmount');
+        const tipCustomBtn = document.getElementById('tipCustomBtn');
+        const tipCustomInputWrap = document.getElementById('tipCustomInputWrap');
+        const tipCustomInput = document.getElementById('tipCustomInput');
         const orderTotal = document.getElementById('orderTotal');
         const posCheckoutBtn = document.getElementById('posCheckoutBtn');
         const posClearBtn = document.getElementById('posClearBtn');
         const squareCheckoutBtn = document.getElementById('squareCheckoutBtn');
+
+        // Tip state — chỉ 1 trong 2 có giá trị tại 1 thời điểm: chọn % preset (15/18/20) hoặc
+        // gõ tay 1 số tiền cụ thể (Custom). Reset về null mỗi khi đổi bàn hoặc sau khi checkout.
+        const TAX_RATE = 0.10; // Sales tax / VAT — áp dụng trên (subtotal - discount)
+        let selectedTipPercent = null; // 15 | 18 | 20 | null
+        let customTipAmount = null; // number | null — ưu tiên hơn selectedTipPercent nếu có
 
         // ========== MULTI-REGION: CURRENCY & LANGUAGE ==========
         // Mỗi tenant tự có currency/country riêng (US: USD, VN: VND) — không có FX convert ở
@@ -578,6 +580,10 @@
                 pos_subtotal_label: 'Tạm tính:',
                 pos_discount_label: 'Giảm giá (%):',
                 pos_vat_label: 'Thuế VAT (10%):',
+                pos_tax_label_us: 'Thuế bán hàng (10%):',
+                pos_tip_label: 'Tiền tip:',
+                pos_tip_custom_btn: 'Tự nhập',
+                pos_tip_custom_placeholder: 'Nhập số tiền tip',
                 pos_total_label: 'Tổng cộng:',
                 pos_checkout_btn: 'Thanh toán',
                 pos_clear_order_btn: 'Hủy đơn',
@@ -631,7 +637,10 @@
                 pos_walkin_customer: 'Khách vãng lai',
                 pos_copy_link_success: 'Đã sao chép đường dẫn thực đơn thành công!',
                 pos_qr_label: 'Mã QR:',
-                pos_qr_print_instruction: 'Quét mã để đặt món & thanh toán tự động'
+                pos_qr_print_instruction: 'Quét mã để đặt món & thanh toán tự động',
+                pos_toast_redirecting_square: '✅ Đang chuyển đến trang thanh toán Square...',
+                pos_toast_square_terminal_sent: 'Đã gửi lệnh tới máy Square Terminal (trạng thái: {status})',
+                pos_toast_square_error: 'Lỗi thanh toán Square: '
             },
             en: {
                 pos_header_title: '| POS Checkout',
@@ -660,6 +669,10 @@
                 pos_subtotal_label: 'Subtotal:',
                 pos_discount_label: 'Discount (%):',
                 pos_vat_label: 'VAT (10%):',
+                pos_tax_label_us: 'Sales Tax (10%):',
+                pos_tip_label: 'Tip:',
+                pos_tip_custom_btn: 'Custom',
+                pos_tip_custom_placeholder: 'Enter tip amount',
                 pos_total_label: 'Total:',
                 pos_checkout_btn: 'Checkout',
                 pos_clear_order_btn: 'Clear Order',
@@ -713,7 +726,10 @@
                 pos_walkin_customer: 'Walk-in Customer',
                 pos_copy_link_success: 'Menu link copied successfully!',
                 pos_qr_label: 'QR Code:',
-                pos_qr_print_instruction: 'Scan to order & pay automatically'
+                pos_qr_print_instruction: 'Scan to order & pay automatically',
+                pos_toast_redirecting_square: '✅ Redirecting to Square checkout...',
+                pos_toast_square_terminal_sent: 'Square Terminal checkout sent (status: {status})',
+                pos_toast_square_error: 'Square checkout error: '
             }
         };
 
@@ -747,6 +763,13 @@
             });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+            updateTaxLabel();
+        }
+
+        // US tenants dùng thuật ngữ "Sales Tax" (đúng chuẩn Mỹ), các tenant khác giữ "VAT" —
+        // label này không dùng data-i18n tĩnh vì key phụ thuộc TENANT_COUNTRY, không chỉ currentLang.
+        function updateTaxLabel() {
+            if (orderTaxLabel) orderTaxLabel.innerText = t(TENANT_COUNTRY === 'US' ? 'pos_tax_label_us' : 'pos_vat_label');
         }
 
         function changeLanguage(lang) {
@@ -1116,23 +1139,77 @@
             calculateTotals();
         }
 
-        function calculateTotals() {
+        // Nguồn tính toán DUY NHẤT cho subtotal/discount/tax/tip/total — dùng chung giữa
+        // calculateTotals() (hiển thị realtime) và cả 2 checkout handler (POS/Square) để tránh
+        // 3 nơi tự tính riêng rồi lệch nhau (bug cũ: mỗi handler tự copy công thức).
+        function computeOrderTotals() {
             let subtotal = 0;
             activeOrders.forEach(item => {
                 subtotal += item.price * item.quantity;
             });
-            
+
             const discPercent = parseFloat(orderDiscount.value) || 0;
             const discountVal = subtotal * (discPercent / 100);
-            
-            // VAT 10%
-            const vatVal = (subtotal - discountVal) * 0.1;
-            const grandTotal = (subtotal - discountVal) + vatVal;
-            
-            orderSubtotal.innerText = formatMoney(subtotal);
-            orderTax.innerText = formatMoney(Math.round(vatVal));
-            orderTotal.innerText = formatMoney(Math.round(grandTotal));
+            const taxableBase = subtotal - discountVal;
+
+            const vatVal = taxableBase * TAX_RATE;
+            // Tip tính trên (subtotal - discount) TRƯỚC thuế — quy ước POS phổ biến nhất
+            // (Square/Toast), độc lập với cách tính VAT/Sales Tax ở trên.
+            let tipVal = 0;
+            if (customTipAmount !== null && !isNaN(customTipAmount) && customTipAmount >= 0) {
+                tipVal = customTipAmount;
+            } else if (selectedTipPercent !== null) {
+                tipVal = taxableBase * (selectedTipPercent / 100);
+            }
+
+            const grandTotal = taxableBase + vatVal + tipVal;
+            return { subtotal, discPercent, discountVal, taxableBase, vatVal, tipVal, grandTotal };
         }
+
+        function calculateTotals() {
+            const totals = computeOrderTotals();
+            orderSubtotal.innerText = formatMoney(totals.subtotal);
+            orderTax.innerText = formatMoney(Math.round(totals.vatVal));
+            orderTipAmount.innerText = formatMoney(Math.round(totals.tipVal));
+            orderTotal.innerText = formatMoney(Math.round(totals.grandTotal));
+        }
+
+        function resetTipSelection() {
+            selectedTipPercent = null;
+            customTipAmount = null;
+            tipCustomInput.value = '0';
+            tipCustomInputWrap.style.display = 'none';
+            document.querySelectorAll('#tipButtonGroup .tip-btn').forEach(b => b.classList.remove('tip-btn-active'));
+        }
+
+        function setActiveTipButton(activeBtn) {
+            document.querySelectorAll('#tipButtonGroup .tip-btn').forEach(b => b.classList.remove('tip-btn-active'));
+            if (activeBtn) activeBtn.classList.add('tip-btn-active');
+        }
+
+        document.querySelectorAll('#tipButtonGroup .tip-btn[data-tip-percent]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedTipPercent = parseInt(btn.getAttribute('data-tip-percent'));
+                customTipAmount = null;
+                tipCustomInputWrap.style.display = 'none';
+                setActiveTipButton(btn);
+                calculateTotals();
+            });
+        });
+
+        tipCustomBtn.addEventListener('click', () => {
+            selectedTipPercent = null;
+            customTipAmount = parseFloat(tipCustomInput.value) || 0;
+            tipCustomInputWrap.style.display = 'block';
+            setActiveTipButton(tipCustomBtn);
+            tipCustomInput.focus();
+            calculateTotals();
+        });
+
+        tipCustomInput.addEventListener('input', () => {
+            customTipAmount = parseFloat(tipCustomInput.value) || 0;
+            calculateTotals();
+        });
 
         // Listen to discount changes
         orderDiscount.addEventListener('input', calculateTotals);
@@ -1150,7 +1227,8 @@
                 }
             });
             showToast(tf('pos_toast_selected', {name: tableName}), false);
-            
+            resetTipSelection();
+
             showLoading(true);
             activeOrders = await loadActiveTableOrders(tableId);
             renderActiveOrders();
@@ -1341,15 +1419,7 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const ind = urlParams.get('industry') || 'fnb';
 
-                let subtotal = 0;
-                activeOrders.forEach(item => {
-                    subtotal += item.price * item.quantity;
-                });
-
-                const discPercent = parseFloat(orderDiscount.value) || 0;
-                const discountVal = subtotal * (discPercent / 100);
-                const vatVal = (subtotal - discountVal) * 0.1;
-                const grandTotal = (subtotal - discountVal) + vatVal;
+                const totals = computeOrderTotals();
 
                 const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
 
@@ -1363,6 +1433,7 @@
                         localStorage.setItem('pos_local_tables', JSON.stringify(localTables));
                     }
                     showToast(t('pos_toast_local_cleared'));
+                    resetTipSelection();
                     await loadAndRender();
                     showLoading(false);
                     return;
@@ -1376,7 +1447,7 @@
                     },
                     body: JSON.stringify({
                         table_id: selectedTableId,
-                        amount: Math.round(grandTotal),
+                        amount: Math.round(totals.grandTotal),
                         method: 'POS',
                         industry: ind
                     })
@@ -1391,8 +1462,8 @@
                     localStorage.setItem('customerAddress', selectedTableName);
                     localStorage.setItem('lastTransactionId', result.txn_id);
                     localStorage.setItem('lastPaymentMethod', 'POS');
-                    localStorage.setItem('lastPaymentAmount', Math.round(grandTotal).toString());
-                    localStorage.setItem('lastPaymentCurrency', 'VND');
+                    localStorage.setItem('lastPaymentAmount', Math.round(totals.grandTotal).toString());
+                    localStorage.setItem('lastPaymentCurrency', TENANT_CURRENCY);
 
                     const invoiceItems = activeOrders.map(i => ({
                         name: i.name,
@@ -1401,11 +1472,13 @@
                         total: i.price * i.quantity
                     }));
                     localStorage.setItem('lastInvoiceItems', JSON.stringify(invoiceItems));
-                    localStorage.setItem('lastDiscountValue', Math.round(discountVal).toString());
-                    localStorage.setItem('lastDiscountPercent', discPercent.toString());
-                    localStorage.setItem('lastVatValue', Math.round(vatVal).toString());
+                    localStorage.setItem('lastDiscountValue', Math.round(totals.discountVal).toString());
+                    localStorage.setItem('lastDiscountPercent', totals.discPercent.toString());
+                    localStorage.setItem('lastVatValue', Math.round(totals.vatVal).toString());
+                    localStorage.setItem('lastTipValue', Math.round(totals.tipVal).toString());
 
                     showToast(t('pos_toast_redirecting_payment'));
+                    resetTipSelection();
                     setTimeout(() => {
                         window.location.href = result.redirect_url;
                     }, 1000);
@@ -1429,14 +1502,7 @@
 
             showLoading(true);
             try {
-                let subtotal = 0;
-                activeOrders.forEach(item => {
-                    subtotal += item.price * item.quantity;
-                });
-                const discPercent = parseFloat(orderDiscount.value) || 0;
-                const discountVal = subtotal * (discPercent / 100);
-                const vatVal = (subtotal - discountVal) * 0.1;
-                const grandTotal = (subtotal - discountVal) + vatVal;
+                const totals = computeOrderTotals();
 
                 const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
 
@@ -1445,24 +1511,25 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         table_id: isLocal ? null : selectedTableId,
-                        amount: Math.round(grandTotal * 100) / 100
+                        amount: Math.round(totals.grandTotal * 100) / 100
                     })
                 });
                 const result = await response.json();
 
                 if (result.success) {
-                    showToast('✅ Redirecting to Square checkout...');
+                    showToast(t('pos_toast_redirecting_square'));
+                    resetTipSelection();
                     if (result.checkout_url) {
                         setTimeout(() => { window.location.href = result.checkout_url; }, 800);
                     } else if (result.terminal_status) {
-                        showToast(`Square Terminal checkout sent (status: ${result.terminal_status})`);
+                        showToast(tf('pos_toast_square_terminal_sent', {status: result.terminal_status}));
                     }
                 } else {
-                    showToast('Square checkout error: ' + result.message, true);
+                    showToast(t('pos_toast_square_error') + result.message, true);
                 }
             } catch (err) {
                 console.error(err);
-                showToast('Server connection error: ' + err.message, true);
+                showToast(t('pos_toast_server_conn_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -1494,6 +1561,7 @@
                 }
                 
                 showToast(tf('pos_toast_cleared_all', {table: selectedTableName}));
+                resetTipSelection();
                 await loadAndRender();
             } catch (err) {
                 showToast(t('pos_toast_clear_table_error') + err.message, true);
@@ -1559,7 +1627,7 @@
                 <div class="modal-container relative">
                     <button onclick="document.getElementById('qrViewModal').classList.remove('active')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg"><i class="fas fa-times"></i></button>
                     <h3 class="text-lg font-bold text-cyan-400 mb-3"><i class="fas fa-qrcode mr-2"></i>${t('pos_qr_label')} ${escapeHtml(tableName)}</h3>
-                    <div class="bg-white p-4 rounded-2xl inline-block mb-3 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                    <div class="bg-white p-4 rounded-2xl inline-block mb-3 shadow-md">
                         <img src="${qrImgUrl}" class="w-48 h-48">
                     </div>
                     <p class="text-xs text-gray-400 mb-4 break-all px-4 font-mono select-all bg-black/40 py-2 rounded-xl border border-white/5">${escapeHtml(qrUrl)}</p>
@@ -1618,92 +1686,6 @@
         applyStaticTranslations();
         initializeIndustryUI();
         loadAndRender();
-
-        // 3D Background (giữ nguyên)
-        (function init3D() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 700 : 1500;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particlesCount * 3);
-            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            const starCount = 100;
-            const starPositions = new Float32Array(starCount * 3);
-            const starVelocities = [];
-            for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
-                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
-            }
-            const starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
-
-            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
-
-            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
-            document.addEventListener('touchmove', (e) => {
-                if (e.touches.length) {
-                    mouseX = (e.touches[0].clientX - halfX) * 0.001;
-                    mouseY = (e.touches[0].clientY - halfY) * 0.001;
-                }
-            }, { passive: true });
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX - halfX) * 0.0005;
-                mouseY = (e.clientY - halfY) * 0.0005;
-            });
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.03) % 1;
-                material.color.setHSL(hue, 0.8, 0.6);
-                particles.rotation.y = t * 0.02;
-                particles.rotation.x = t * 0.01;
-                targetX = mouseX * 0.5;
-                targetY = mouseY * 0.5;
-                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
-                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
-
-                const posArr = stars.geometry.attributes.position.array;
-                for (let i = 0; i < starCount; i++) {
-                    posArr[i*3] += starVelocities[i].x;
-                    posArr[i*3+1] += starVelocities[i].y;
-                    posArr[i*3+2] += starVelocities[i].z;
-                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
-                        posArr[i*3] = (Math.random() - 0.5) * 120;
-                        posArr[i*3+1] = 40;
-                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
-                    }
-                }
-                stars.geometry.attributes.position.needsUpdate = true;
-                renderer.render(scene, camera);
-            }
-            animate();
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
     </script>
 </body>
 </html>

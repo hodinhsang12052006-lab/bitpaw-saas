@@ -153,6 +153,33 @@
                 </div>
             </div>
 
+            <!-- Shift Hours (Time In/Out) — riêng biệt với Tua theo dịch vụ bên dưới: đây là
+                 1 bản ghi/ca làm để tính LƯƠNG GIỜ (base pay), còn Tua là hoa hồng theo TỪNG
+                 khách (có thể nhiều lần/ngày) — không được gộp chung 1 form kẻo tính khống giờ. -->
+            <div class="glass-panel rounded-3xl p-5 lg:p-6 mb-6 shrink-0 border border-cyan-500/20 shadow-xl">
+                <h3 class="text-cyan-400 text-xs font-black mb-4 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-business-time"></i> <span data-i18n="cnl_shift_title">Giờ Làm Ca (Lương Giờ)</span></h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_shift_time_in">Giờ Vào</label>
+                        <input type="time" id="shift_gio_den" class="pos-input text-cyan-400 font-mono text-base h-12" onchange="calcShiftHours()">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_shift_time_out">Giờ Ra</label>
+                        <input type="time" id="shift_gio_ve" class="pos-input text-cyan-400 font-mono text-base h-12" onchange="calcShiftHours()">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_shift_total_hours">Tổng Số Giờ</label>
+                        <div class="relative">
+                            <input type="number" id="shift_so_gio" class="pos-input text-emerald-400 bg-emerald-900/10 border-emerald-500/30 text-base h-12 pr-8" readonly placeholder="0">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">h</span>
+                        </div>
+                    </div>
+                    <button onclick="submitShift()" id="btnSubmitShift" class="bg-gradient-to-r from-cyan-500 to-blue-600 font-black h-12 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-lg tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95">
+                        <i class="fas fa-clock"></i> <span data-i18n="cnl_shift_save_btn">Lưu Giờ Làm</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
                 <div class="lg:col-span-8 glass-panel rounded-[2rem] p-6 lg:p-8 shadow-2xl flex flex-col overflow-y-auto relative border border-rose-500/20">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-bl-full pointer-events-none blur-md"></div>
@@ -188,21 +215,21 @@
 
                     <div class="grid grid-cols-3 gap-5 mb-8 relative z-10">
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip tiền mặt khách đưa" data-i18n="cnl_label_cash_tip">4. Tip Mặt</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cash_tip" data-i18n="cnl_label_cash_tip">4. Tip Mặt</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-bold">$</span>
                                 <input type="number" id="val_cash_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-emerald-300 font-mono">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Tiền tip khách quẹt thẻ" data-i18n="cnl_label_cc_tip">5. Tip Thẻ</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cc_tip" data-i18n="cnl_label_cc_tip">5. Tip Thẻ</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500/50 font-bold">$</span>
                                 <input type="number" id="val_cc_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-purple-300 font-mono">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" title="Phí quẹt thẻ trừ vào Tip" data-i18n="cnl_label_cc_fee">6. Phí C/C Tip</label>
+                            <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cc_fee" data-i18n="cnl_label_cc_fee">6. Phí C/C Tip</label>
                             <div class="relative">
                                 <input type="number" id="val_cc_fee" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-300 font-mono pr-6">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-bold">%</span>
@@ -569,7 +596,7 @@
             loadHistory(id);
             
             // Reset form
-            document.getElementById('ten_dv').value = "Làm Nail";
+            document.getElementById('ten_dv').value = t('cnl_default_service_name');
             document.getElementById('val_total').value = "100";
             document.getElementById('val_split').value = "60";
             document.getElementById('val_supply').value = "3";
@@ -577,6 +604,10 @@
             document.getElementById('val_cc_tip').value = "0";
             document.getElementById('val_cc_fee').value = "3";
             calculatePos();
+
+            document.getElementById('shift_gio_den').value = "";
+            document.getElementById('shift_gio_ve').value = "";
+            document.getElementById('shift_so_gio').value = "";
         }
 
         function backToList() {
@@ -706,6 +737,58 @@
             btn.innerHTML = origHtml; btn.disabled = false;
         }
 
+        // ========== SHIFT HOURS (Time In/Out) — dùng để tính LƯƠNG GIỜ (base pay), tách biệt
+        // với Tua (hoa hồng theo dịch vụ) ở trên. Cùng logic calcHours() với chamcong_fnb.html. ==========
+        function calcShiftHours() {
+            const gioIn = document.getElementById('shift_gio_den').value;
+            const gioOut = document.getElementById('shift_gio_ve').value;
+            if (gioIn && gioOut) {
+                const [hIn, mIn] = gioIn.split(':').map(Number);
+                const [hOut, mOut] = gioOut.split(':').map(Number);
+                let diff = (hOut * 60 + mOut) - (hIn * 60 + mIn);
+                if (diff < 0) diff += 24 * 60; // ca qua đêm
+                document.getElementById('shift_so_gio').value = (diff / 60).toFixed(2);
+            }
+        }
+
+        async function submitShift() {
+            const gioIn = document.getElementById('shift_gio_den').value;
+            const gioOut = document.getElementById('shift_gio_ve').value;
+            const soGio = parseFloat(document.getElementById('shift_so_gio').value) || 0;
+            if (!gioIn || !gioOut || soGio <= 0) return showToast(t('cnl_shift_toast_missing_times'), "warning");
+
+            const payload = {
+                ma_nv: currentWorkerId,
+                ngay_cham: getFormattedDate(),
+                nganh_nghe: 'Nails',
+                trang_thai: 'Có mặt', // đánh dấu "có đi làm hôm đó" — payroll dùng để tính ngày công
+                gio_den: gioIn,
+                gio_ve: gioOut,
+                so_gio: soGio,
+                ghi_chu: `[SHIFT] ${gioIn} - ${gioOut}`,
+                tien_tua: 0,
+                tien_tips: 0,
+                phu_cap: 0,
+                tang_ca: 0
+            };
+
+            const btn = document.getElementById('btnSubmitShift');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            btn.disabled = true;
+
+            try {
+                await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
+                showToast(t('cnl_shift_toast_saved'), "success");
+                document.getElementById('shift_gio_den').value = "";
+                document.getElementById('shift_gio_ve').value = "";
+                document.getElementById('shift_so_gio').value = "";
+            } catch (e) {
+                showToast(t('cnl_shift_toast_error_prefix') + e.message, "error");
+            }
+            btn.innerHTML = origHtml; btn.disabled = false;
+        }
+
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
@@ -773,7 +856,19 @@
                 cnl_toast_service_required: 'Vui lòng nhập tên dịch vụ!',
                 cnl_calculating: 'ĐANG TÍNH TUA...',
                 cnl_toast_submit_success: 'Đã chốt bill và tính Tua thành công!',
-                cnl_toast_save_error_prefix: 'Lỗi lưu dữ liệu: '
+                cnl_toast_save_error_prefix: 'Lỗi lưu dữ liệu: ',
+                cnl_shift_title: 'Giờ Làm Ca (Lương Giờ)',
+                cnl_shift_time_in: 'Giờ Vào',
+                cnl_shift_time_out: 'Giờ Ra',
+                cnl_shift_total_hours: 'Tổng Số Giờ',
+                cnl_shift_save_btn: 'Lưu Giờ Làm',
+                cnl_shift_toast_missing_times: 'Vui lòng nhập đủ Giờ Vào và Giờ Ra!',
+                cnl_shift_toast_saved: 'Đã lưu giờ làm ca thành công!',
+                cnl_shift_toast_error_prefix: 'Lỗi lưu giờ làm: ',
+                cnl_title_cash_tip: 'Tiền tip tiền mặt khách đưa',
+                cnl_title_cc_tip: 'Tiền tip khách quẹt thẻ',
+                cnl_title_cc_fee: 'Phí quẹt thẻ trừ vào Tip',
+                cnl_default_service_name: 'Làm Nail'
             },
             en: {
                 cnl_nav_overview: 'Overview',
@@ -839,7 +934,19 @@
                 cnl_toast_service_required: 'Please enter a service name!',
                 cnl_calculating: 'CALCULATING PAY...',
                 cnl_toast_submit_success: 'Bill closed and pay calculated successfully!',
-                cnl_toast_save_error_prefix: 'Error saving data: '
+                cnl_toast_save_error_prefix: 'Error saving data: ',
+                cnl_shift_title: 'Shift Hours (Hourly Pay)',
+                cnl_shift_time_in: 'Time In',
+                cnl_shift_time_out: 'Time Out',
+                cnl_shift_total_hours: 'Total Hours',
+                cnl_shift_save_btn: 'Save Shift Hours',
+                cnl_shift_toast_missing_times: 'Please enter both Time In and Time Out!',
+                cnl_shift_toast_saved: 'Shift hours saved successfully!',
+                cnl_shift_toast_error_prefix: 'Error saving shift hours: ',
+                cnl_title_cash_tip: 'Cash tip given by customer',
+                cnl_title_cc_tip: 'Tip charged on customer card',
+                cnl_title_cc_fee: 'Card processing fee deducted from Tip',
+                cnl_default_service_name: 'Nail Service'
             }
         };
         function t(key) {
@@ -853,6 +960,7 @@
         function applyStaticTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
         }

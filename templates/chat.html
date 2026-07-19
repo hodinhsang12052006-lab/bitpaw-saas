@@ -8,8 +8,6 @@
     <!-- Libraries -->
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     
@@ -332,7 +330,7 @@
                 chat_loading_more: 'Đang tải...',
                 chat_error_send: 'Lỗi gửi tín hiệu!',
                 chat_image_sent: 'Đã gửi ảnh thành công!',
-                chat_error_upload_image: "Lỗi tải ảnh! Kiểm tra Bucket 'chat_images' trên Supabase.",
+                chat_error_upload_image: "Lỗi tải ảnh! Vui lòng thử lại.",
                 chat_error_gif: 'Lỗi gửi GIF!',
                 chat_no_one_online: 'Chưa có ai trực tuyến',
                 chat_you_tag: ' (Bạn)',
@@ -372,7 +370,7 @@
                 chat_loading_more: 'Loading...',
                 chat_error_send: 'Error sending message!',
                 chat_image_sent: 'Image sent successfully!',
-                chat_error_upload_image: "Error uploading image! Check the 'chat_images' bucket on Supabase.",
+                chat_error_upload_image: "Error uploading image! Please try again.",
                 chat_error_gif: 'Error sending GIF!',
                 chat_no_one_online: 'No one online',
                 chat_you_tag: ' (You)',
@@ -406,23 +404,36 @@
         }
 
         // ========================================================
-        // KIỂM TRA SESSION SUPABASE
+        // LOGIC CHÍNH — Flask API nội bộ (db.chat_messages/db.chat_presence), thay Supabase
+        // JS + Supabase Auth hoàn toàn. checkAuth()/fetchUserInfo() cũ dùng
+        // supabaseClient.auth.getSession()/getUser() làm lớp xác thực THỨ HAI chồng lên Flask
+        // session — thừa và đã vô hiệu hoá từ khi route /chat có @login_required (app.py:4241),
+        // danh tính người dùng giờ lấy thẳng từ server (session['user_email']) qua response
+        // của API, không cần tự gọi thêm auth nào ở client nữa.
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
-
-        async function checkAuth() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.replace('{{ url_for('home') }}');
-                return false;
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
             }
-            return true;
+            return body;
         }
-        checkAuth();
+
+        async function hrUpload(fileOrBlob, kind, filename) {
+            const formData = new FormData();
+            formData.append('file', fileOrBlob, filename || fileOrBlob.name || 'upload.jpg');
+            formData.append('kind', kind);
+            const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi upload (${res.status})`);
+            }
+            return body.url;
+        }
 
         // ========================================================
         // CHAT ENGINE
@@ -431,24 +442,10 @@
         const chatBox = document.getElementById('chatBox');
         const onlineList = document.getElementById('onlineUsersList');
 
-        // Lấy thông tin người dùng từ localStorage hoặc từ session
-        let myName = localStorage.getItem('bp_user_name') || localStorage.getItem('bp_emp_name') || t('chat_anonymous_name');
-        let myEmail = localStorage.getItem('bp_user_email') || localStorage.getItem('bp_emp_code') || `User_${Math.floor(Math.random()*1000)}`;
-        
-        // Nếu có session user, ưu tiên lấy email thật
-        async function fetchUserInfo() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user && user.email) {
-                myEmail = user.email;
-                // Lấy tên từ bảng employees
-                const { data: emp } = await supabaseClient.from('employees').select('ho_ten').eq('email', myEmail).maybeSingle();
-                if (emp && emp.ho_ten) myName = emp.ho_ten;
-                else myName = myEmail.split('@')[0];
-                localStorage.setItem('bp_user_name', myName);
-                localStorage.setItem('bp_user_email', myEmail);
-            }
-        }
-        fetchUserInfo();
+        // Danh tính lấy từ response của tin nhắn đầu tiên gửi lên/tải xuống — server luôn trả
+        // đúng sender_id/sender_name theo session, không cần đoán trước ở client như bản cũ.
+        let myName = localStorage.getItem('bp_emp_name') || t('chat_anonymous_name');
+        let myEmail = localStorage.getItem('bp_emp_code') || '';
 
         let isLoadingMore = false;
         let oldestTimestamp = null;
@@ -468,19 +465,16 @@
             }
             if (!hasMore && !reset) return;
             
-            let query = supabaseClient
-                .from('messages')
-                .select('*')
-                .eq('room', currentRoom)
-                .order('timestamp', { ascending: false })
-                .limit(50);
-            
+            let url = `/api/chat/messages?room=${encodeURIComponent(currentRoom)}&limit=50`;
             if (oldestTimestamp && !reset) {
-                query = query.lt('timestamp', oldestTimestamp);
+                url += `&before=${encodeURIComponent(oldestTimestamp)}`;
             }
-            
-            const { data, error } = await query;
-            if (error) {
+
+            let data;
+            try {
+                const body = await hrApi(url);
+                data = body.data || [];
+            } catch (error) {
                 console.error(error);
                 showToast(t('chat_error_load_msg'), "error");
                 return;
@@ -500,7 +494,12 @@
             if (data.length > 0) {
                 oldestTimestamp = data[0].timestamp;
             }
-            
+            // Ở lần load đầu (reset), ghi nhận timestamp mới nhất để pollNewMessages() không
+            // tưởng nhầm các tin vừa render xong là tin "mới" và chèn lặp lại lần đầu SSE báo.
+            if (reset && data.length > 0) {
+                lastMessageTimestamp = data[data.length - 1].timestamp;
+            }
+
             const fragment = document.createDocumentFragment();
             data.forEach(msg => {
                 const msgDiv = createMessageElement(msg);
@@ -602,9 +601,10 @@
             hideAllPopups();
 
             try {
-                await supabaseClient.from('messages').insert([{
-                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: msg
-                }]);
+                await hrApi('/api/chat/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ room: currentRoom, content: msg }),
+                });
             } catch (error) {
                 showToast(t('chat_error_send'), "error");
             }
@@ -620,15 +620,12 @@
 
             try {
                 const fileName = `img_${Date.now()}_${file.name.replace(/\s/g, '')}`;
-                const { error: upErr } = await supabaseClient.storage.from('chat_images').upload(fileName, file);
-                if(upErr) throw upErr;
+                const imgUrl = await hrUpload(file, 'chat', fileName);
 
-                const { data } = supabaseClient.storage.from('chat_images').getPublicUrl(fileName);
-                const imgUrl = data.publicUrl;
-
-                await supabaseClient.from('messages').insert([{
-                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: `[IMG]${imgUrl}`
-                }]);
+                await hrApi('/api/chat/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ room: currentRoom, content: `[IMG]${imgUrl}` }),
+                });
                 showToast(t('chat_image_sent'), "success");
             } catch(e) {
                 showToast(t('chat_error_upload_image'), "error");
@@ -641,9 +638,10 @@
         async function sendGif(url) {
             hideAllPopups();
             try {
-                await supabaseClient.from('messages').insert([{
-                    sender_id: myEmail, sender_name: myName, room: currentRoom, content: `[GIF]${url}`
-                }]);
+                await hrApi('/api/chat/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ room: currentRoom, content: `[GIF]${url}` }),
+                });
             } catch(e) { showToast(t('chat_error_gif'), "error"); }
         }
 
@@ -696,46 +694,54 @@
         });
 
         // ========================================================
-        // REALTIME & PRESENCE
-        // ========================================================
-        // Subscribe vào bảng messages
-        supabaseClient.channel('public:messages')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                if(payload.new.room === currentRoom) {
-                    const newMsgDiv = createMessageElement(payload.new);
+        // REALTIME & PRESENCE — thay Supabase Realtime (bảng messages) + Presence (online-users)
+        // bằng 1 SSE dùng chung (/api/stream/chat, watch cả chat_messages lẫn chat_presence) +
+        // heartbeat. Supabase Presence là pub/sub tức thời trong bộ nhớ (không có "bảng" thật
+        // để watch) nên không có cách port 1:1 — thay bằng: client tự ping định kỳ
+        // (/api/chat/presence/ping), server coi 1 người "online" nếu last_seen trong
+        // _CHAT_PRESENCE_TTL_SECONDS gần nhất. Cách này còn XỬ LÝ TỐT HƠN bản gốc: bản gốc
+        // dựa vào beforeunload -> presenceChannel.untrack() để dọn dẹp khi rời trang, vốn
+        // không đáng tin cậy (tab bị crash/mất mạng thì untrack() không bao giờ chạy, người
+        // đó bị kẹt "online" mãi mãi); còn kiểu heartbeat+TTL tự động hết hạn dù có untrack
+        // hay không.
+        let lastMessageTimestamp = null;
+
+        async function pollNewMessages() {
+            try {
+                const body = await hrApi(`/api/chat/messages?room=${encodeURIComponent(currentRoom)}&limit=20`);
+                const msgs = (body.data || []).slice().reverse();
+                msgs.forEach(msg => {
+                    if (lastMessageTimestamp && msg.timestamp <= lastMessageTimestamp) return;
+                    const newMsgDiv = createMessageElement(msg);
                     chatBox.appendChild(newMsgDiv);
                     scrollToBottom(true);
-                }
-            }).subscribe();
+                });
+                if (msgs.length) lastMessageTimestamp = msgs[msgs.length - 1].timestamp;
+            } catch (e) { /* im lặng — vòng sau thử lại */ }
+        }
 
-        // Presence channel
-        const presenceChannel = supabaseClient.channel('online-users', {
-            config: { presence: { key: myEmail } },
-        });
+        async function pollPresence() {
+            try {
+                const body = await hrApi(`/api/chat/presence?room=${encodeURIComponent(currentRoom)}`);
+                renderOnlineUsers(body.data || []);
+            } catch (e) { /* im lặng — vòng sau thử lại */ }
+        }
 
-        presenceChannel.on('presence', { event: 'sync' }, () => {
-            const newState = presenceChannel.presenceState();
-            renderOnlineUsers(newState);
-        });
+        function startChatRealtime() {
+            const stream = new EventSource('/api/stream/chat');
+            stream.onmessage = () => { pollNewMessages(); pollPresence(); };
+            // Heartbeat: tự ping presence mỗi 10s (< _CHAT_PRESENCE_TTL_SECONDS=20s ở server để
+            // không bao giờ bị coi là offline khi tab vẫn đang mở).
+            hrApi('/api/chat/presence/ping', { method: 'POST', body: JSON.stringify({ room: currentRoom }) })
+                .then(res => { myEmail = res.email; myName = res.name; pollPresence(); })
+                .catch(() => {});
+            setInterval(() => {
+                hrApi('/api/chat/presence/ping', { method: 'POST', body: JSON.stringify({ room: currentRoom }) }).catch(() => {});
+            }, 10000);
+        }
 
-        presenceChannel.subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await presenceChannel.track({ name: myName, email: myEmail, online_at: new Date().toISOString() });
-            }
-        });
-
-        // Xử lý khi user rời đi (trình duyệt đóng)
-        window.addEventListener('beforeunload', async () => {
-            await presenceChannel.untrack();
-        });
-
-        function renderOnlineUsers(presenceState) {
+        function renderOnlineUsers(activeUsers) {
             onlineList.innerHTML = '';
-            let activeUsers = [];
-            for (const key in presenceState) {
-                activeUsers.push(presenceState[key][0]); 
-            }
-
             if(activeUsers.length === 0) {
                 onlineList.innerHTML = `<div class="text-center text-xs text-gray-500 mt-4">${t('chat_no_one_online')}</div>`;
                 return;
@@ -779,7 +785,8 @@
         }
 
         // Init
-        supabaseReady.then(() => loadHistory(true));
+        loadHistory(true);
+        startChatRealtime();
         VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
     </script>
 </body>

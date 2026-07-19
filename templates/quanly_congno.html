@@ -7,8 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
@@ -335,13 +333,19 @@
         }
 
         // ========================================================
-        // SUPABASE
+        // API nội bộ (Flask + MongoDB, business_id lấy từ session)
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -512,21 +516,15 @@
 
         async function loadPartners() {
             try {
-                // Giả sử có bảng 'customers' và 'suppliers'
-                const { data: customers } = await supabase.from('customers').select('id, name, code, phone');
-                const { data: suppliers } = await supabase.from('suppliers').select('id, name, code, phone');
-                partners.customer = customers || [];
-                partners.supplier = suppliers || [];
+                const [customersRes, suppliersRes] = await Promise.all([
+                    hrApi('/api/customers'),
+                    hrApi('/api/suppliers')
+                ]);
+                partners.customer = customersRes.data || [];
+                partners.supplier = suppliersRes.data || [];
             } catch (e) {
-                // Nếu chưa có bảng, dùng dữ liệu mẫu
-                partners.customer = [
-                    { id: 1, name: 'Khách hàng A', code: 'KH001', phone: '0900000001' },
-                    { id: 2, name: 'Khách hàng B', code: 'KH002', phone: '0900000002' }
-                ];
-                partners.supplier = [
-                    { id: 1, name: 'Nhà cung cấp X', code: 'NCC001', phone: '0900000011' },
-                    { id: 2, name: 'Nhà cung cấp Y', code: 'NCC002', phone: '0900000012' }
-                ];
+                partners.customer = [];
+                partners.supplier = [];
             }
         }
 
@@ -537,12 +535,15 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
 
             // Lấy tất cả giao dịch công nợ
-            let query = supabase.from('debt_transactions').select('*');
-            if (filterType !== 'all') query = query.eq('partner_type', filterType);
-            if (fromDate) query = query.gte('transaction_date', fromDate);
-            if (toDate) query = query.lte('transaction_date', toDate);
-            const { data: transactions, error } = await query.order('transaction_date', { ascending: false });
-            if (error) {
+            let transactions;
+            try {
+                const params = new URLSearchParams();
+                if (filterType !== 'all') params.set('partner_type', filterType);
+                if (fromDate) params.set('start', fromDate);
+                if (toDate) params.set('end', toDate);
+                const body = await hrApi(`/api/debt_transactions?${params.toString()}`);
+                transactions = body.data || [];
+            } catch (e) {
                 showToast(t('congno_toast_load_debt_error'), "error");
                 return;
             }
@@ -593,13 +594,12 @@
 
         async function viewDetail(type, id, name) {
             document.getElementById('detailName').innerText = name;
-            const { data: transactions, error } = await supabase
-                .from('debt_transactions')
-                .select('*')
-                .eq('partner_type', type)
-                .eq('partner_id', id)
-                .order('transaction_date', { ascending: true });
-            if (error) {
+            let transactions;
+            try {
+                const params = new URLSearchParams({ partner_type: type, partner_id: id });
+                const body = await hrApi(`/api/debt_transactions?${params.toString()}`);
+                transactions = body.data || [];
+            } catch (e) {
                 showToast(t('congno_toast_load_history_error'), "error");
                 return;
             }
@@ -688,16 +688,17 @@
             btn.disabled = true;
 
             try {
-                const { error } = await supabase.from('debt_transactions').insert([{
-                    partner_type: partnerType,
-                    partner_id: parseInt(partnerId),
-                    direction: direction,
-                    amount: amount,
-                    transaction_date: transDate,
-                    note: note,
-                    created_at: new Date().toISOString()
-                }]);
-                if (error) throw error;
+                await hrApi('/api/debt_transactions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        partner_type: partnerType,
+                        partner_id: partnerId,
+                        direction: direction,
+                        amount: amount,
+                        transaction_date: transDate,
+                        note: note
+                    })
+                });
 
                 showToast(t('congno_toast_saved_success'), "success");
                 closeTransactionModal();
@@ -737,7 +738,6 @@
             langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
         window.onload = async () => {
-            await supabaseReady;
             await loadPartners();
             loadDebtList();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));

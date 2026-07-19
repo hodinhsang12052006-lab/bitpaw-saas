@@ -4,11 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>BitPaw Menu | QR Order</title>
-    
+
+    <!-- Open Graph: preview khi link nay duoc share qua Zalo/iMessage. Dung branding chung
+    BitPaw (giong landing.html) vi route /qr_menu hien khong truyen ten/logo rieng cua tung
+    tiem -- muon hien dung ten/logo tiem thi can sua route truyen them bien do (viec khac). -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="BitPaw Menu | QR Order">
+    <meta property="og:description" content="Xem menu và đặt món trực tiếp qua mã QR trên bàn.">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -303,17 +312,28 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i><span data-i18n="loading">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    <script>
+        // ========== FLASK/MONGO JSON API (thay lớp gọi thẳng DB từ trình duyệt trước đây) ==========
+        // Wrapper fetch dùng chung, cùng phong cách posApi() ở templates/table_order.html: set JSON
+        // header, throw nếu !res.ok hoặc body.success === false để các nơi gọi chỉ cần try/catch.
+        async function posApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        // Token giới hạn phạm vi (chỉ đọc menu/bàn, tạo đơn tại đúng bàn này) do Flask ký sẵn khi render trang.
-        const tenantJwt = {{ (tenant_jwt or '') | tojson }};
-        const supabase = tenantJwt
-            ? createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${tenantJwt}` } } })
-            : createClient(supabaseUrl, supabaseKey);
+        // Menu đã được server lọc sẵn theo đúng table/channel_type khi render trang (route
+        // /qr_menu/<identifier>) — dùng trực tiếp cho lần tải đầu tiên, không cần fetch.
+        const initialMenu = {{ menu | tojson }};
+        // channel_type mà server đã dùng để lọc `menu` ở trên — mọi lần refresh thủ công qua
+        // /api/public/pos/products phải dùng lại đúng giá trị này để nhất quán với lần render đầu.
+        const serverChannelType = {{ channel_type | tojson }};
 
         // State
         let tableId = null;
@@ -480,7 +500,9 @@
             else overlay.classList.remove('active');
         }
         
-        // Lấy thông tin bàn từ URL param (qr_token hoặc id)
+        // Thông tin bàn (id/name) do Flask render sẵn vào data-attribute của #tableNameDisplay —
+        // route /qr_menu/<identifier> đã xác thực bàn tồn tại trước khi render trang (404 nếu
+        // không), nên không còn cần tự query lại 'dining_tables' phía client nữa.
         async function loadTableInfo() {
             const urlParams = new URLSearchParams(window.location.search);
             const ind = urlParams.get('industry') || 'fnb';
@@ -493,59 +515,28 @@
                 return true;
             }
 
-            let token = urlParams.get('token');
-            if (!token) {
-                // fallback: check path segment
-                const pathParts = window.location.pathname.split('/');
-                token = pathParts[pathParts.length - 1] || 'demo_token';
-            }
-            const loadingNameSpan = document.getElementById('tableNameDisplay');
-            if (loadingNameSpan) loadingNameSpan.innerText = t('loading_generic');
-            const { data, error } = await supabase
-                .from('dining_tables')
-                .select('id, name')
-                .eq('qr_token', token)
-                .maybeSingle();
-            if (error || !data) {
-                console.error('Không tìm thấy bàn/ghế/phòng', error);
-                const nameSpan = document.getElementById('tableNameDisplay');
-                if (nameSpan) nameSpan.innerText = t('location_load_error');
-                return null;
-            }
-            tableId = data.id;
-            tableName = data.name;
             const nameSpan = document.getElementById('tableNameDisplay');
-            if (nameSpan) {
-                nameSpan.setAttribute('data-table-id', tableId);
-                nameSpan.setAttribute('data-table-name', tableName);
-                nameSpan.innerText = tableName;
-            }
-            return true;
+            if (nameSpan) nameSpan.innerText = t('location_load_error');
+            return null;
         }
-        
-        // Lấy danh sách sản phẩm (is_active true, filtered dynamically by industry)
-        async function loadProducts() {
-            showLoading(true);
-            const urlParams = new URLSearchParams(window.location.search);
-            const ind = urlParams.get('industry') || 'fnb';
-            let channelType = 'fnb';
-            if (ind === 'nail') channelType = 'nail';
-            else if (ind === 'spa') channelType = 'spa';
 
-            let query = supabase
-                .from('products')
-                .select('id, name, price, category, image')
-                .eq('is_active', true)
-                .eq('channel_type', channelType);
-            if (tableBusinessId) query = query.eq('business_id', tableBusinessId);
-            const { data, error } = await query.order('name');
-            if (error) {
+        // Lấy danh sách sản phẩm: lần tải đầu dùng `initialMenu` server render sẵn (đã lọc theo
+        // đúng table/channel_type); các lần refresh thủ công sau đó gọi lại
+        // GET /api/public/pos/products với cùng serverChannelType để luôn nhất quán với lần render đầu.
+        async function loadProducts(forceRefresh = false) {
+            if (!forceRefresh && Array.isArray(initialMenu)) {
+                return initialMenu;
+            }
+            showLoading(true);
+            try {
+                const body = await posApi(`/api/public/pos/products?table_id=${encodeURIComponent(tableId)}&channel_type=${encodeURIComponent(serverChannelType)}`);
+                showLoading(false);
+                return body.data || [];
+            } catch (error) {
                 showToastMessage(t('menu_load_error') + error.message, true);
                 showLoading(false);
                 return [];
             }
-            showLoading(false);
-            return data || [];
         }
         
         function renderMenu(productsArray) {
@@ -691,22 +682,20 @@
                 return;
             }
             showLoading(true);
+
+            // Gửi đơn hàng qua Flask API (POST /api/submit_qr_order) — route PUBLIC, tự xác
+            // thực bàn theo table_id phía server, tạo đơn + phiếu bếp + cập nhật trạng thái
+            // bàn, không cần session đăng nhập.
             try {
-                // Gửi từng món vào bảng table_orders
-                for (let item of cart) {
-                    const { error } = await supabase.from('table_orders').insert([{
+                await posApi('/api/submit_qr_order', {
+                    method: 'POST',
+                    body: JSON.stringify({
                         table_id: tableId,
-                        product_id: item.id,
-                        quantity: item.quantity,
-                        created_at: new Date()
-                    }]);
-                    if (error) throw error;
-                }
-                // Nếu bàn đang trống, cập nhật trạng thái thành 'Đang phục vụ'
-                const { data: tableData } = await supabase.from('dining_tables').select('status').eq('id', tableId).single();
-                if (tableData && tableData.status !== 'Đang phục vụ') {
-                    await supabase.from('dining_tables').update({ status: 'Đang phục vụ' }).eq('id', tableId);
-                }
+                        items: cart,
+                        total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+                        customer_note: ''
+                    })
+                });
                 cart = [];
                 renderCart();
                 showToastMessage(t('order_sent'));
@@ -718,19 +707,21 @@
                 showLoading(false);
             }
         }
-        
-        // Gọi nhân viên / tính tiền (gửi thông báo đến POS qua supabase realtime)
+
+        // Gọi nhân viên / tính tiền qua POST /api/table/notify (route PUBLIC, ghi vào
+        // db.user_logs để POS/nhân viên theo dõi — thay cho insert thẳng từ trình duyệt trước đây).
         async function callService(type) {
             if (!tableId) return;
             showLoading(true);
             try {
-                // Ghi log vào bảng service_requests (có thể tạo bảng mới hoặc dùng bảng user_logs)
-                await supabase.from('user_logs').insert([{
-                    user_email: `table_${tableId}`,
-                    action: type === 'staff' ? 'call_staff' : 'request_bill',
-                    description: `Bàn ${tableName} yêu cầu ${type === 'staff' ? 'gọi nhân viên' : 'tính tiền'}`,
-                    created_at: new Date()
-                }]);
+                await posApi('/api/table/notify', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        table_id: tableId,
+                        table_name: tableName,
+                        type: type === 'staff' ? 'staff' : 'bill'
+                    })
+                });
                 showToastMessage(type === 'staff' ? t('staff_called') : t('bill_requested'));
             } catch (err) {
                 console.warn(err);

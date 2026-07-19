@@ -518,7 +518,14 @@
                     let soNgayLam = myRecords.filter(r => r.trang_thai === 'Có mặt' || r.trang_thai === 'Trọn Ngày').length;
 
                     myRecords.forEach(r => {
-                        const gioLamHopLe = Number(r.so_gio) > 0 ? Number(r.so_gio) : 8; // Chặn giờ âm (lỗi tính ca đêm) lọt vào tổng lương
+                        // Chỉ mặc định 8h cho bản ghi ĐIỂM DANH thật (Có mặt/Trọn Ngày, vd check-in
+                        // camera+GPS ở diemdanh.html) khi thiếu so_gio chi tiết — KHÔNG áp dụng cho
+                        // bản ghi giao dịch/hoa hồng (vd mỗi lượt Tua ở chamcong_nail.html có
+                        // so_gio=0 thật sự), nếu không 1 thợ làm 3 khách/ngày sẽ bị cộng khống 24h.
+                        let gioLamHopLe;
+                        if (Number(r.so_gio) > 0) gioLamHopLe = Number(r.so_gio);
+                        else if (r.trang_thai === 'Có mặt' || r.trang_thai === 'Trọn Ngày') gioLamHopLe = 8;
+                        else gioLamHopLe = 0;
                         totalGioLam += gioLamHopLe; totalTangCa += Number(r.tang_ca || 0); totalHoaHong += Number(r.tien_tua || 0);
                         totalTips += Number(r.tien_tips || 0); phuCapPhatSinh += Number(r.phu_cap || 0);
                     });
@@ -526,7 +533,11 @@
                     let luongChinh = 0; let cot2 = 0; let cot3 = 0; let thucLanh = 0;
 
                     if (myIndustry.includes('Spa') || myIndustry.includes('Nails')) {
-                        luongChinh = luongCoBan; cot2 = totalHoaHong; cot3 = totalTips + phuCapPhatSinh + phuCapCoDinh; 
+                        // Lương bao/booth (luong_cb) là chính nếu có cấu hình; ngược lại tính theo
+                        // giờ thực tế × đơn giá/giờ (Time In/Out ở chamcong_nail.html) — cùng quy
+                        // tắc với nhánh F&B/Khách sạn bên dưới.
+                        luongChinh = luongCoBan > 0 ? luongCoBan : (totalGioLam * luongTheoGio);
+                        cot2 = totalHoaHong; cot3 = totalTips + phuCapPhatSinh + phuCapCoDinh;
                         thucLanh = luongChinh + cot2 + cot3;
                     } else if (myIndustry.includes('Văn Phòng')) {
                         let luongNgay = luongCoBan / 26; luongChinh = Math.round(luongNgay * soNgayLam);

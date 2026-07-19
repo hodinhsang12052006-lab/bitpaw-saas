@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -329,24 +328,18 @@
     <div id="toast" class="toast" data-i18n="sell_toast_default">Thông báo</div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // ========== LOGIC CHÍNH — Flask API nội bộ (db.products / db.orders), thay Supabase JS. ==========
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // Lấy thông tin sản phẩm từ URL (product id)
         const urlParams = new URLSearchParams(window.location.search);
@@ -492,16 +485,12 @@
             else loadingOverlay.classList.remove('active');
         }
 
-        // Load sản phẩm từ Supabase
+        // Load sản phẩm từ Flask API nội bộ (thay Supabase)
         async function loadProduct() {
             showLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('products')
-                    .select('id, name, price, stock, image')
-                    .eq('id', productId)
-                    .single();
-                if (error) throw error;
+                const body = await hrApi('/api/products/' + productId);
+                const data = body.data;
                 if (!data) {
                     showToastMessage(t('sell_toast_product_not_found'), true);
                     setTimeout(() => window.location.href = "{{ url_for('index') }}", 1500);
@@ -555,42 +544,16 @@
             updateTotalPreview();
         });
 
-        // Tạo đơn hàng mới
+        // Tạo đơn hàng mới qua Flask API (server tự tính giá/tổng từ DB và trừ stock)
         async function createOrder(quantity, paymentMethod, note) {
-            const totalAmount = quantity * productPrice;
-            // 1. Insert into orders
-            const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert([{
-                    total_amount: totalAmount,
+            const body = await hrApi('/api/sales/checkout', {
+                method: 'POST',
+                body: JSON.stringify({
+                    items: [{ product_id: productId, quantity: quantity }],
                     payment_method: paymentMethod,
-                    status: 'completed',
-                    created_at: new Date().toISOString(),
-                    business_id: '{{ session.get("business_id", "") }}'
-                }])
-                .select('id')
-                .single();
-            if (orderError) throw orderError;
-            const orderId = orderData.id;
-            // 2. Insert into order_items
-            const { error: itemError } = await supabase
-                .from('order_items')
-                .insert([{
-                    order_id: orderId,
-                    product_id: productId,
-                    quantity: quantity,
-                    price: productPrice,
-                    total_price: totalAmount
-                }]);
-            if (itemError) throw itemError;
-            // 3. Update stock of product
-            const newStock = maxStock - quantity;
-            const { error: updateError } = await supabase
-                .from('products')
-                .update({ stock: newStock })
-                .eq('id', productId);
-            if (updateError) throw updateError;
-            return { orderId };
+                }),
+            });
+            return { orderId: body.order_id };
         }
 
         // Submit form
@@ -675,7 +638,7 @@
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // Khởi tạo
-        supabaseReady.then(() => { loadProduct(); });
+        loadProduct();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

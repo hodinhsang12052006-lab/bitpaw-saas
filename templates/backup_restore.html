@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -179,27 +178,7 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="backuprestore_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Failed to retrieve tenant token:', json && json.error);
-                }
-                return supabaseClient;
-            })
-            .catch(e => { console.error('Error calling /api/session/supabase_token:', e); return supabaseClient; });
-        const BACKUP_BUCKET = 'backups';
-
+    <script>
         // ========== i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
@@ -364,68 +343,27 @@
             else overlay.classList.remove('active');
         }
 
-        // ========== 1. Lấy toàn bộ dữ liệu từ Supabase ==========
-        async function fetchAllData() {
-            const tables = ['products', 'orders', 'order_items', 'customers', 'staff', 'appointments', 'dining_tables', 'promotions', 'expenses', 'payment_transactions', 'system_settings'];
-            const result = {};
-            for (const table of tables) {
-                try {
-                    const { data, error } = await supabaseClient.from(table).select('*');
-                    if (error) throw error;
-                    result[table] = data || [];
-                } catch (err) {
-                    console.warn(`${t('backuprestore_dev_table_fetch_err')} ${table}:`, err);
-                    result[table] = [];
-                }
+        // ========== hrApi: fetch helper cho Flask/GridFS backup API ==========
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || (body && body.success === false)) {
+                throw new Error((body && (body.error || body.message)) || `Lỗi máy chủ (${res.status})`);
             }
-            // Thêm timestamp
-            result._backup_metadata = {
-                version: '1.0',
-                timestamp: new Date().toISOString(),
-                tables: tables
-            };
-            return result;
+            return body;
         }
 
-        // ========== 2. Ghi đè dữ liệu (restore) ==========
-        async function restoreAllData(backupData) {
-            // Xóa dữ liệu cũ theo thứ tự (xóa bảng con trước nếu có khóa ngoại, ở đây đơn giản xóa từng bảng)
-            const order = ['order_items', 'appointments', 'table_orders', 'orders', 'payment_transactions', 'products', 'customers', 'staff', 'dining_tables', 'promotions', 'expenses', 'system_settings'];
-            for (const table of order) {
-                if (backupData[table] !== undefined) {
-                    // Xóa tất cả bản ghi cũ
-                    const { error: delError } = await supabaseClient.from(table).delete().neq('id', 0);
-                    if (delError) console.warn(tf('backuprestore_dev_table_delete_err', { table }), delError);
-                    // Chèn dữ liệu mới
-                    if (backupData[table].length > 0) {
-                        const { error: insertError } = await supabaseClient.from(table).insert(backupData[table]);
-                        if (insertError) throw new Error(tf('backuprestore_err_restore_table', { table, msg: insertError.message }));
-                    }
-                }
-            }
-            return true;
-        }
-
-        // ========== 3. Backup xuống file JSON và tải về ==========
+        // ========== 1. Tạo backup trên server (GridFS) ==========
+        // Server tự đọc BACKUP_TABLES + system_settings, đóng gói và lưu vào GridFS (bucket 'backups').
         async function performBackup() {
             showLoading(true);
             try {
-                const allData = await fetchAllData();
-                const dataStr = JSON.stringify(allData, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
-                const filename = `bitpaw_full_backup_${timestamp}.json`;
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast(`${t('backuprestore_toast_backup_created')} ${filename} (${(blob.size/1024).toFixed(2)} KB)`);
-                // Sau khi backup thành công, ghi log lên bảng backup_logs (nếu muốn)
-                await supabaseClient.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), user_email: (await supabaseClient.auth.getUser()).data.user?.email || 'anonymous' }]);
+                const result = await hrApi('/api/backup/create', { method: 'POST' });
+                showToast(`${t('backuprestore_toast_backup_created')} ${result.filename || ''}`);
+                await loadCloudBackups();
             } catch (err) {
                 console.error(err);
                 showToast(t('backuprestore_toast_backup_error') + err.message, true);
@@ -434,20 +372,13 @@
             }
         }
 
-        // ========== 4. Đẩy backup lên Supabase Storage ==========
+        // ========== 2. Đẩy backup lên Cloud (server GridFS) ==========
+        // Cùng một thao tác backend với performBackup() - server lưu bản backup, không có khái niệm
+        // "bucket Supabase" riêng nữa, mọi bản backup đều nằm trong GridFS của server.
         async function uploadBackupToCloud() {
             showLoading(true);
             try {
-                const allData = await fetchAllData();
-                const dataStr = JSON.stringify(allData, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
-                const filename = `bitpaw_cloud_backup_${timestamp}.json`;
-                const filePath = `backups/${filename}`;
-                const { error: uploadError } = await supabaseClient.storage.from(BACKUP_BUCKET).upload(filePath, blob, { cacheControl: '3600', upsert: true });
-                if (uploadError) throw uploadError;
-                // Lưu thông tin vào bảng backup_logs
-                await supabaseClient.from('backup_logs').insert([{ filename: filename, size_kb: (blob.size/1024).toFixed(2), created_at: new Date(), storage_path: filePath, user_email: (await supabaseClient.auth.getUser()).data.user?.email || 'anonymous' }]);
+                const result = await hrApi('/api/backup/create', { method: 'POST' });
                 showToast(t('backuprestore_toast_cloud_success'));
                 await loadCloudBackups();
             } catch (err) {
@@ -458,25 +389,20 @@
             }
         }
 
-        // ========== 5. Lấy danh sách backup từ Cloud ==========
+        // ========== 3. Lấy danh sách backup từ server ==========
+        // Lưu ý: /api/backup/list trả về MẢNG thuần (không bọc trong {success, data}).
         async function loadCloudBackups() {
             const container = document.getElementById('cloudBackupList');
             container.innerHTML = `<div class="text-center text-gray-500 py-5">${t('backuprestore_loading_short')}</div>`;
             try {
-                const { data, error } = await supabaseClient.storage.from(BACKUP_BUCKET).list('backups');
-                if (error) throw error;
-                if (!data || data.length === 0) {
+                const files = await hrApi('/api/backup/list');
+                if (!Array.isArray(files) || files.length === 0) {
                     container.innerHTML = `<div class="text-center text-gray-500 py-5">${t('backuprestore_no_cloud_backups')}</div>`;
                     return;
                 }
-                // Lấy thêm thông tin từ bảng backup_logs để hiển thị thời gian tạo
-                const { data: logs } = await supabaseClient.from('backup_logs').select('*').order('created_at', { ascending: false });
-                const logMap = new Map();
-                logs?.forEach(log => logMap.set(log.filename, log));
-                container.innerHTML = data.map(file => {
-                    const log = logMap.get(file.name);
-                    const size = (file.metadata?.size / 1024).toFixed(2) + ' KB';
-                    const created = log ? new Date(log.created_at).toLocaleString() : t('backuprestore_unknown');
+                container.innerHTML = files.map(file => {
+                    const size = ((file.size || 0) / 1024).toFixed(2) + ' KB';
+                    const created = file.created_at ? new Date(file.created_at).toLocaleString() : t('backuprestore_unknown');
                     return `
                         <div class="backup-item glass-card p-3 flex justify-between items-center">
                             <div>
@@ -488,27 +414,15 @@
                             </div>
                             <div class="flex gap-2">
                                 <button class="restore-cloud-btn bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">${t('backuprestore_restore_action')}</button>
-                                <button class="delete-cloud-btn bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">${t('backuprestore_delete_action')}</button>
                             </div>
                         </div>
                     `;
                 }).join('');
-                // Gắn sự kiện cho các nút phục hồi & xóa
+                // Gắn sự kiện cho các nút phục hồi
                 document.querySelectorAll('.restore-cloud-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const filename = btn.getAttribute('data-filename');
                         await restoreFromCloud(filename);
-                    });
-                });
-                document.querySelectorAll('.delete-cloud-btn').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const filename = btn.getAttribute('data-filename');
-                        if (confirm(tf('backuprestore_confirm_delete_cloud', { filename }))) {
-                            await supabaseClient.storage.from(BACKUP_BUCKET).remove([`backups/${filename}`]);
-                            await supabaseClient.from('backup_logs').delete().eq('filename', filename);
-                            showToast(t('backuprestore_toast_deleted'));
-                            loadCloudBackups();
-                        }
                     });
                 });
             } catch (err) {
@@ -517,17 +431,15 @@
             }
         }
 
-        // Phục hồi từ một file trên Cloud
+        // Phục hồi từ một bản backup đã lưu trên server (GridFS)
         async function restoreFromCloud(filename) {
             if (!confirm(tf('backuprestore_confirm_restore_cloud', { filename }))) return;
             showLoading(true);
             try {
-                const { data, error } = await supabaseClient.storage.from(BACKUP_BUCKET).download(`backups/${filename}`);
-                if (error) throw error;
-                const text = await data.text();
-                const backupData = JSON.parse(text);
-                if (!backupData.products) throw new Error(t('backuprestore_invalid_backup'));
-                await restoreAllData(backupData);
+                await hrApi('/api/backup/restore', {
+                    method: 'POST',
+                    body: JSON.stringify({ filename }),
+                });
                 showToast(t('backuprestore_toast_restore_cloud_success'));
                 setTimeout(() => window.location.reload(), 2000);
             } catch (err) {
@@ -575,10 +487,15 @@
             }
             showLoading(true);
             try {
-                const text = await selectedFile.text();
-                const backupData = JSON.parse(text);
-                if (!backupData.products) throw new Error(t('backuprestore_invalid_format'));
-                await restoreAllData(backupData);
+                // /api/backup/restore chỉ phục hồi theo TÊN FILE của một bản backup đã tồn tại
+                // sẵn trong GridFS của tenant hiện tại (được tạo bởi /api/backup/create) - server
+                // không có endpoint nhận nội dung file JSON tùy ý tải lên từ máy người dùng.
+                // Ta thử phục hồi theo tên file được chọn; nếu tên đó không khớp một bản backup
+                // đã lưu trên server (ví dụ người dùng chọn file JSON bất kỳ), server sẽ trả lỗi.
+                await hrApi('/api/backup/restore', {
+                    method: 'POST',
+                    body: JSON.stringify({ filename: selectedFile.name }),
+                });
                 showToast(t('backuprestore_toast_restore_success'));
                 setTimeout(() => window.location.reload(), 2000);
             } catch (err) {
@@ -596,23 +513,13 @@
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
-        // ========== 8. Khởi tạo & tạo bảng nếu chưa có ==========
+        // ========== 8. Khởi tạo ==========
+        // Server (Flask/MongoDB) đã tự đảm bảo collection backup_logs và bucket GridFS 'backups'
+        // tồn tại sẵn - không cần kiểm tra/tạo từ phía client nữa.
         async function init() {
-            // Kiểm tra bảng backup_logs, nếu chưa có thì tạo (hướng dẫn)
-            const { error: checkError } = await supabaseClient.from('backup_logs').select('id').limit(1);
-            if (checkError && checkError.message.includes('does not exist')) {
-                console.log(t('backuprestore_dev_sql_hint') + '\n' +
-                    'CREATE TABLE IF NOT EXISTS backup_logs (id SERIAL PRIMARY KEY, filename TEXT, size_kb TEXT, created_at TIMESTAMPTZ, storage_path TEXT, user_email TEXT);\n' +
-                    'ALTER TABLE backup_logs ENABLE ROW LEVEL SECURITY;');
-            }
-            // Tạo bucket backups nếu chưa có (hướng dẫn thủ công hoặc dùng SDK)
-            const { data: buckets } = await supabaseClient.storage.listBuckets();
-            if (!buckets.find(b => b.name === BACKUP_BUCKET)) {
-                console.log(tf('backuprestore_dev_bucket_hint', { bucket: BACKUP_BUCKET }));
-            }
             await loadCloudBackups();
         }
-        supabaseReady.then(() => { init(); });
+        init();
 
         // Nút backup
         document.getElementById('backupNowBtn').addEventListener('click', performBackup);

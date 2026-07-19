@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -189,7 +188,7 @@
                 <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest" data-i18n="addspa_subtitle">Set up a professional Spa service</p>
             </div>
 
-            <form id="spaForm" enctype="multipart/form-data" class="space-y-5">
+            <form id="spaForm" method="POST" action="{{ url_for('add_spa') }}" enctype="multipart/form-data" class="space-y-5">
                 <!-- Image preview -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_image">Description Image (Optional)</label>
@@ -260,8 +259,6 @@
     <div id="toast" class="toast">Notification</div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
         // ========== i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
@@ -287,9 +284,7 @@
                 addspa_toast_invalid_price: 'Vui lòng nhập giá hợp lệ',
                 addspa_toast_upload_error_prefix: 'Lỗi tải ảnh lên: ',
                 addspa_toast_success: '✅ Thêm liệu trình thành công!',
-                addspa_toast_error_prefix: '❌ Lỗi: ',
-                addspa_console_token_error: 'Không lấy được tenant token:',
-                addspa_console_supabase_token_error: 'Lỗi khi gọi /api/session/supabase_token:'
+                addspa_toast_error_prefix: '❌ Lỗi: '
             },
             en: {
                 addspa_tagline: 'Professional spa treatment management',
@@ -313,9 +308,7 @@
                 addspa_toast_invalid_price: 'Please enter a valid price',
                 addspa_toast_upload_error_prefix: 'Image upload error: ',
                 addspa_toast_success: '✅ Treatment added successfully!',
-                addspa_toast_error_prefix: '❌ Error: ',
-                addspa_console_token_error: 'Failed to get tenant token:',
-                addspa_console_supabase_token_error: 'Error calling /api/session/supabase_token:'
+                addspa_toast_error_prefix: '❌ Error: '
             }
         };
         function t(key) {
@@ -335,24 +328,6 @@
         }
         applyStaticTranslations();
         document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error(t('addspa_console_token_error'), json && json.error);
-                }
-                return supabaseClient;
-            })
-            .catch(e => { console.error(t('addspa_console_supabase_token_error'), e); return supabaseClient; });
-        const STORAGE_BUCKET = 'product_images';
 
         // DOM elements
         const imageInput = document.getElementById('imageInput');
@@ -404,94 +379,10 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // ========== Upload ảnh lên Supabase Storage ==========
-        async function uploadImage(file) {
-            if (!file) return null;
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const filePath = `spa/${fileName}`;
-            const { data, error } = await supabaseClient.storage
-                .from(STORAGE_BUCKET)
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
-            if (error) {
-                console.error('Upload error:', error);
-                showToast(t('addspa_toast_upload_error_prefix') + error.message, true);
-                return null;
-            }
-            const { data: publicUrl } = supabaseClient.storage
-                .from(STORAGE_BUCKET)
-                .getPublicUrl(filePath);
-            return publicUrl.publicUrl;
-        }
-
         // Track click CSKH + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung, gọi
         // /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp ở cuối trang.
 
-        // ========== Submit form: lưu vào Supabase (bảng products, channel_type='spa') ==========
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('spaName').value.trim();
-            if (!name) {
-                showToast(t('addspa_toast_no_name'), true);
-                return;
-            }
-            const priceVal = priceHidden.value;
-            if (!priceVal || parseInt(priceVal) <= 0) {
-                showToast(t('addspa_toast_invalid_price'), true);
-                return;
-            }
-            const category = document.getElementById('spaCategory').value;
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('addspa_btn_saving');
-
-            let imageUrl = null;
-            if (imageInput.files.length > 0) {
-                imageUrl = await uploadImage(imageInput.files[0]);
-                if (!imageUrl && imageInput.files[0]) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-magic"></i> ' + t('addspa_btn_save');
-                    return;
-                }
-            }
-
-            try {
-                const { data, error } = await supabaseClient
-                    .from('products')
-                    .insert([{
-                        name: name,
-                        category: category,
-                        channel_type: 'spa',
-                        stock: 9999, // Spa doesn't need a hard quantity count
-                        price: parseFloat(priceVal),
-                        image: imageUrl,
-                        is_active: true,
-                        created_at: new Date().toISOString()
-                    }]);
-                if (error) throw error;
-                showToast(t('addspa_toast_success'));
-                // Reset form
-                document.getElementById('spaName').value = '';
-                priceDisplay.value = '';
-                priceHidden.value = '';
-                imageInput.value = '';
-                fileNameSpan.innerText = t('addspa_no_image');
-                previewImg.classList.add('hidden');
-                previewPlaceholder.classList.remove('hidden');
-                setTimeout(() => {
-                    window.location.href = "{{ url_for('spa') }}";
-                }, 1500);
-            } catch (err) {
-                console.error(err);
-                showToast(t('addspa_toast_error_prefix') + err.message, true);
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-magic"></i> ' + t('addspa_btn_save');
-            }
-        });
+        // Submit: form gửi trực tiếp lên Flask (POST /add_spa), không can thiệp JS.
 
         // --- 3D Background (giữ nguyên) ---
         (function init3D() {

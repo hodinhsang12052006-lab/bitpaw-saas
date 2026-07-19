@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -405,19 +404,30 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="payment_history_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+    <script>
+        // ========================================================
+        // LOGIC CHÍNH — Flask API nội bộ (db.payment_transactions), thay lớp gọi API cũ.
+        // business_id được tự động scope theo session ở server (@login_required),
+        // client không cần tự quản lý auth/token nào nữa.
+        // ========================================================
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // Global variables
         let transactions = [];
         let currentPage = 1;
         let rowsPerPage = 5;
         let filteredTransactions = [];
+        let totalRecords = 0;
         let methodChart = null, monthlyChart = null;
 
         // DOM elements
@@ -588,36 +598,32 @@
             return map[status] || map.failed;
         }
 
-        // Load dữ liệu từ Supabase
+        // Load dữ liệu từ Flask API nội bộ (/api/payment_transactions)
         async function loadTransactions() {
             showLoading(true);
-            let query = supabase.from('payment_transactions').select('*', { count: 'exact' });
-            
-            // Filters
-            const search = searchInput.value.trim();
-            if (search) {
-                query = query.or(`transaction_id.ilike.%${search}%,method.ilike.%${search}%`);
-            }
-            const status = statusFilter.value;
-            if (status !== 'all') query = query.eq('status', status);
-            if (startDate.value) query = query.gte('created_at', startDate.value);
-            if (endDate.value) query = query.lte('created_at', endDate.value + ' 23:59:59');
-            
-            const from = (currentPage - 1) * rowsPerPage;
-            const to = from + rowsPerPage - 1;
-            const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
-            if (error) {
+            try {
+                const params = new URLSearchParams();
+                const search = searchInput.value.trim();
+                if (search) params.set('search', search);
+                const status = statusFilter.value;
+                if (status && status !== 'all') params.set('status', status);
+                if (startDate.value) params.set('start', startDate.value);
+                if (endDate.value) params.set('end', endDate.value);
+                params.set('page', currentPage);
+                params.set('page_size', rowsPerPage);
+
+                const body = await hrApi(`/api/payment_transactions?${params.toString()}`);
+                transactions = body.data || [];
+                filteredTransactions = [...transactions];
+                totalRecords = body.count || 0;
+                renderTable();
+                updateCharts();
+                recordCountSpan.innerText = tf('payment_history_total_records', { count: totalRecords });
+            } catch (error) {
                 showToast(tf('payment_history_toast_load_error', { msg: error.message }), true);
+            } finally {
                 showLoading(false);
-                return;
             }
-            transactions = data || [];
-            filteredTransactions = [...transactions];
-            totalRecords = count || 0;
-            renderTable();
-            updateCharts();
-            recordCountSpan.innerText = tf('payment_history_total_records', { count: totalRecords });
-            showLoading(false);
         }
 
         function renderTable() {

@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -278,24 +277,18 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG (đúng của bạn) ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // ========== LOGIC CHÍNH — Flask API nội bộ (db.kitchen_orders), thay Supabase JS. ==========
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let orders = [];
         let realtimeChannel = null;
@@ -384,8 +377,7 @@
             if (!order) return;
             showLoading(true);
             try {
-                const { error } = await supabase.from('kitchen_orders').update({ status: 'cooking' }).eq('id', orderId);
-                if (error) throw error;
+                await hrApi(`/api/kitchen/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify({ status: 'cooking' }) });
                 order.status = 'cooking';
                 renderOrders();
                 showToast(`🔥 ${tf('kitchen_display_toast_cooking_order', { table: order.table_name })}`, false);
@@ -402,8 +394,7 @@
             if (!order) return;
             showLoading(true);
             try {
-                const { error } = await supabase.from('kitchen_orders').update({ status: 'completed' }).eq('id', orderId);
-                if (error) throw error;
+                await hrApi(`/api/kitchen/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
                 orders = orders.filter(o => o.id !== orderId);
                 renderOrders();
                 checkNewOrders(orders);
@@ -416,78 +407,35 @@
             }
         };
 
-        // Kết nối Supabase realtime (nếu bảng kitchen_orders tồn tại)
-        async function connectRealtime() {
+        // Tải danh sách vé bếp + kết nối SSE thay Supabase Realtime.
+        async function loadOrders() {
             try {
-                // Kiểm tra bảng có tồn tại không
-                const { error } = await supabase.from('kitchen_orders').select('id', { count: 'exact', head: true });
-                if (error) {
-                    console.log('Chưa có bảng kitchen_orders — màn hình bếp sẽ trống cho tới khi có đơn thật.');
-                    return;
-                }
-                // Lấy dữ liệu ban đầu — cả đơn đang chờ và đang nấu đều phải hiện trên màn hình bếp
-                const { data, error: fetchError } = await supabase
-                    .from('kitchen_orders')
-                    .select('*')
-                    .in('status', ['pending', 'cooking'])
-                    .order('created_at', { ascending: true });
-                if (!fetchError && data && data.length) {
-                    orders = data.map(o => ({
-                        id: o.id,
-                        table_id: o.table_id,
-                        table_name: o.table_name,
-                        items: o.items,
-                        created_at: o.created_at,
-                        status: o.status
-                    }));
-                    renderOrders();
-                    checkNewOrders(orders);
-                }
-                // Subscribe realtime
-                realtimeChannel = supabase
-                    .channel('kitchen-orders')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kitchen_orders' }, (payload) => {
-                        const newOrder = payload.new;
-                        if (newOrder.status === 'pending') {
-                            orders.unshift({
-                                id: newOrder.id,
-                                table_id: newOrder.table_id,
-                                table_name: newOrder.table_name,
-                                items: newOrder.items,
-                                created_at: newOrder.created_at,
-                                status: newOrder.status
-                            });
-                            renderOrders();
-                            checkNewOrders(orders);
-                        }
-                    })
-                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kitchen_orders' }, (payload) => {
-                        const updated = payload.new;
-                        if (updated.status === 'completed') {
-                            // Đơn xong ở nơi khác (vd: bếp dùng 2 màn hình) -> gỡ khỏi danh sách ở đây luôn
-                            orders = orders.filter(o => o.id !== updated.id);
-                        } else {
-                            const existing = orders.find(o => o.id === updated.id);
-                            if (existing) {
-                                existing.status = updated.status;
-                            } else if (updated.status === 'pending' || updated.status === 'cooking') {
-                                orders.push({
-                                    id: updated.id,
-                                    table_id: updated.table_id,
-                                    table_name: updated.table_name,
-                                    items: updated.items,
-                                    created_at: updated.created_at,
-                                    status: updated.status
-                                });
-                            }
-                        }
-                        renderOrders();
-                        checkNewOrders(orders);
-                    })
-                    .subscribe();
+                const body = await hrApi('/api/kitchen/orders');
+                orders = (body.data || []).map(o => ({
+                    id: o.id,
+                    table_id: o.table_id,
+                    table_name: o.table_name,
+                    items: o.items,
+                    created_at: o.created_at,
+                    status: o.status
+                }));
+                renderOrders();
+                checkNewOrders(orders);
             } catch (err) {
-                console.warn('Không thể kết nối Supabase realtime, màn hình bếp sẽ không tự cập nhật.', err);
+                console.warn('Không tải được danh sách vé bếp.', err);
             }
+        }
+
+        // Layer tương đương "public:tasks_app" — SSE (MongoDB Change Stream ở
+        // /api/stream/kitchen) thay kênh Supabase Realtime `kitchen-orders`. Server chỉ gửi
+        // tín hiệu "đã đổi", client tự loadOrders() lại — không cần phân biệt INSERT/UPDATE
+        // ở client như bản Supabase cũ vì loadOrders() luôn lấy đúng danh sách pending+cooking
+        // mới nhất từ server.
+        async function connectRealtime() {
+            await loadOrders();
+            realtimeChannel = new EventSource('/api/stream/kitchen');
+            realtimeChannel.onmessage = () => loadOrders();
+            realtimeChannel.onerror = () => console.warn('Mất kết nối SSE bếp, trình duyệt sẽ tự reconnect.');
         }
 
         // Cập nhật thời gian thực
@@ -582,7 +530,7 @@
 
         // Khởi tạo
         renderOrders();
-        supabaseReady.then(() => { connectRealtime(); });
+        connectRealtime();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

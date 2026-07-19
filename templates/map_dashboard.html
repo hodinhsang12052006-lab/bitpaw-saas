@@ -11,9 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Supabase & ThreeJS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
+    <!-- ThreeJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
 
@@ -542,19 +540,22 @@
         }
 
         // ========================================================
-        // KIỂM TRA SESSION
+        // LOGIC CHÍNH — Flask API nội bộ (db.employees/db.tasks/db.dichvu), thay Supabase JS.
+        // checkAuth() cũ gọi supabase.auth.getSession() để tự redirect nếu mất session — thừa,
+        // vì route /map_dashboard đã có @login_required chặn ở tầng Flask (app.py:4251-4257),
+        // trang này không thể vào được nếu chưa đăng nhập nên bỏ hẳn, không cần thay thế.
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
-
-        async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) window.location.replace('{{ url_for('home') }}');
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
         }
-        checkAuth();
 
         // ========================================================
         // BẢN ĐỒ & LOGIC CHÍNH
@@ -572,7 +573,8 @@
 
         async function fetchInitialData() {
             try {
-                const { data } = await supabase.from('dichvu').select('*');
+                const body = await hrApi('/api/services');
+                const data = body.data;
                 if(data) {
                     globalMenuData = data;
                     let opt = `<option value="" class="bg-gray-900">${t('map_dashboard_opt_manual_note')}</option>`;
@@ -588,9 +590,9 @@
 
         async function fetchWorkers() {
             try {
-                const { data: users, error } = await supabase.from('employees').select('*');
-                if (error) throw error;
-                currentWorkersData = users; 
+                const body = await hrApi('/api/hr/employees');
+                const users = body.data || [];
+                currentWorkersData = users;
 
                 const workerListDiv = document.getElementById('workerList');
                 workerListDiv.innerHTML = ''; 
@@ -660,13 +662,15 @@
             }
         }
 
+        // Thay kênh Supabase Realtime `radar_tracking` bằng SSE dùng chung endpoint đã có sẵn
+        // /api/stream/hr_employees (server chỉ báo "đã đổi", client tự fetchWorkers() lại toàn
+        // bộ danh sách + vẽ lại marker — đơn giản hơn bản Supabase cũ vốn phải tự vá payload.new
+        // vào từng nhân viên trong currentWorkersData).
+        let radarStream = null;
         function setupRealtime() {
-            supabase.channel('radar_tracking')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees' }, (payload) => {
-                    const idx = currentWorkersData.findIndex(w => w.id === payload.new.id);
-                    if(idx !== -1) currentWorkersData[idx] = payload.new;
-                    updateMapAndUI(payload.new);
-                }).subscribe();
+            if (radarStream) return;
+            radarStream = new EventSource('/api/stream/hr_employees');
+            radarStream.onmessage = () => fetchWorkers();
         }
 
         function updateMapAndUI(worker) {
@@ -773,7 +777,8 @@
             if(activeTargetMarker) map.removeLayer(activeTargetMarker);
 
             try {
-                const { data: tasks, error: errTask } = await supabase.from('tasks').select('*').eq('trang_thai', 'Chờ Nhận').limit(1);
+                const taskBody = await hrApi('/api/tasks');
+                const tasks = (taskBody.data || []).filter(t => t.trang_thai === 'Chờ Nhận').slice(0, 1);
 
                 if(!tasks || tasks.length === 0) {
                     showAIAlert(t('map_dashboard_ai_no_jobs'), t('map_dashboard_ai_title_perfect'));
@@ -802,10 +807,10 @@
                     }
                 });
 
-                await supabase.from('tasks').update({ 
-                    trang_thai: 'Đã Nhận', 
-                    nguoi_nhan: bestWorker.ho_ten 
-                }).eq('id', targetTask.id);
+                await hrApi(`/api/tasks/${targetTask.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ trang_thai: 'Đã Nhận', nguoi_nhan: bestWorker.ho_ten }),
+                });
 
                 const workerLatLng = [bestWorker.toa_do_lat, bestWorker.toa_do_lng];
 
@@ -870,10 +875,13 @@
                     }
                 }
 
-                await supabase.from('tasks').insert([{
-                    ten_khach: khach, dia_chi: diachi, sdt: sdt || t('map_dashboard_sdt_none'), noi_dung: finalContent,
-                    trang_thai: 'Đã Nhận', nguoi_nhan: thoName
-                }]);
+                await hrApi('/api/tasks', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        ten_khach: khach, dia_chi: diachi, sdt: sdt || t('map_dashboard_sdt_none'), noi_dung: finalContent,
+                        trang_thai: 'Đã Nhận', nguoi_nhan: thoName
+                    }),
+                });
 
                 closeManualJobModal();
                 
@@ -950,7 +958,7 @@
 
         // Khởi tạo và lắng nghe sự kiện tìm kiếm
         document.getElementById('searchInput').addEventListener('input', filterWorkers);
-        supabaseReady.then(() => fetchInitialData());
+        fetchInitialData();
     </script>
 </body>
 </html>

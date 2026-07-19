@@ -31,19 +31,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
 # Đã gỡ bỏ hoàn toàn Supabase khỏi backend — toàn bộ dữ liệu giờ đọc/ghi qua MongoDB Atlas
-# (pymongo) bên dưới. SUPABASE_URL/SUPABASE_KEY (đọc thẳng qua os.environ, KHÔNG qua package
-# `supabase` nào) chỉ còn được truyền dạng chuỗi cấu hình cho các template có JS client-side
-# tự gọi thẳng Supabase từ trình duyệt (kiến trúc riêng, tách biệt khỏi backend Python này —
-# xem ghi chú ở route /api/session/supabase_token).
+# (pymongo) bên dưới.
 from mongo_client import db, fs, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
 from i18n import get_translations, resolve_lang, LANG_COOKIE_NAME
-from pymongo import UpdateOne
+from pymongo import UpdateOne, ReturnDocument
+from cryptography.fernet import Fernet
 from gridfs import GridFS
 from gridfs.errors import NoFile
 from bson import ObjectId
 from bson.errors import InvalidId
 from ai_context_engine import AIContextEngine
-import jwt as pyjwt
+from email_service import EmailService
 
 # Các module cho US market pivot (tenant_engine/currency_utils/payment_us_engine) từng làm
 # sập TOÀN BỘ app trên Vercel (mọi route, kể cả /favicon.ico, đều 500 FUNCTION_INVOCATION_FAILED
@@ -96,29 +94,28 @@ if not _flask_secret_key:
     )
 app.secret_key = _flask_secret_key
 
-# Đọc thẳng qua os.environ (KHÔNG qua package `supabase`/`supabase_client.py` nào — đã gỡ bỏ
-# hoàn toàn khỏi backend). Chỉ dùng để bơm vào window.ENV/{{ supabase_url }} cho các template
-# có JS client-side tự gọi thẳng Supabase Cloud từ trình duyệt (kiến trúc riêng biệt, không đi
-# qua Flask/MongoDB — xem route /api/session/supabase_token bên dưới).
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+# Mã hoá thông tin đăng nhập sàn TMĐT (ecommerce_sync.html) tại nghỉ — KHÔNG BAO GIỜ lưu
+# plaintext (bản Supabase cũ gửi thẳng api_key/api_secret dạng chữ thường lên Supabase, không
+# mã hoá gì cả). Nếu chưa cấu hình ECOMMERCE_ENC_KEY, tính năng lưu credential PHẢI từ chối
+# (fail-closed) thay vì âm thầm lưu plaintext.
+_ecommerce_enc_key = os.environ.get('ECOMMERCE_ENC_KEY')
+try:
+    _ecommerce_fernet = Fernet(_ecommerce_enc_key.encode()) if _ecommerce_enc_key else None
+except Exception as _e:
+    print(f"[!] ECOMMERCE_ENC_KEY không hợp lệ (phải là 1 Fernet key base64 32 byte): {_e}")
+    _ecommerce_fernet = None
 
-# Version cache-bust cho static JS chứa config nhạy cảm với deploy (vd: tenant_supabase_client.js
-# đọc window.ENV) — tính 1 lần lúc process khởi động (không phải mỗi request, tránh mất tác dụng
-# cache), nên mỗi lần Vercel redeploy/cold start sẽ ra version mới, buộc trình duyệt tải lại JS
-# thay vì dùng bản cache cũ.
+# Version cache-bust cho static JS/CSS versioned qua asset_version — tính 1 lần lúc process
+# khởi động (không phải mỗi request, tránh mất tác dụng cache), nên mỗi lần Vercel
+# redeploy/cold start sẽ ra version mới, buộc trình duyệt tải lại thay vì dùng bản cache cũ.
 _ASSET_VERSION = str(int(time.time()))
 
 
 @app.after_request
 def _disable_html_caching(response):
-    """Chặn cache trình duyệt/CDN cho các trang HTML/JSON render động (Jinja) — chỉ những
-    trang này mới nhúng trực tiếp SUPABASE_URL/SUPABASE_KEY vào JS lúc render, nên nếu bị
-    cache lại (browser hoặc edge CDN của Vercel) sau khi đổi biến môi trường, người dùng vẫn
-    thấy giá trị CŨ dù server & source code đã đúng — đây chính là nguyên nhân gây lỗi
-    DNS_PROBE_FINISHED_NXDOMAIN khi đổi project Supabase (URL cũ vẫn bị cache lại ở trình
-    duyệt/CDN dù đã sửa env + code). Không áp dụng cho /static/ vì file tĩnh (css/js/ảnh)
-    cache bình thường là an toàn và cần thiết cho hiệu năng.
+    """Chặn cache trình duyệt/CDN cho các trang HTML/JSON render động (Jinja), tránh người
+    dùng thấy dữ liệu CŨ sau khi server/source đã cập nhật. Không áp dụng cho /static/ vì
+    file tĩnh (css/js/ảnh) cache bình thường là an toàn và cần thiết cho hiệu năng.
     """
     if not request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'no-store, must-revalidate'
@@ -264,8 +261,6 @@ def inject_industry_config():
         industry_config=INDUSTRY_CONFIG,
         active_industry_code=business_mode,
         active_industry_cfg=active_cfg,
-        supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY,
         tenant_country=tenant_country,
         tenant_currency=tenant_currency,
         default_lang=default_lang,
@@ -460,6 +455,70 @@ def login_required(f):
 # cskh_clicks, customer_feedback, backup_logs.
 
 
+# ========== WELCOME EMAIL (gửi ngay sau khi tenant kích hoạt tài khoản bằng license code) ==========
+# Đối tượng chính là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ — nội dung email viết
+# hoàn toàn bằng tiếng Anh chuyên nghiệp, không phải bilingual như widget tư vấn landing page.
+_INDUSTRY_WELCOME_EN = {
+    'retail': {'name': 'Retail', 'modules': ['Point of Sale', 'Inventory Management', 'Expense Tracking']},
+    'fnb': {'name': 'F&B / Restaurant', 'modules': ['Table Ordering & POS', 'QR Menu', 'Kitchen Display System', 'Staff Attendance']},
+    'spa': {'name': 'Spa & Beauty', 'modules': ['Spa Services', 'Online Booking', 'Staff Attendance & Commission']},
+    'nail': {'name': 'Nails & Salon', 'modules': ['Nail Services POS', 'Staff Scheduling', 'Payroll & Commission', 'Attendance Tracking']},
+    'karaoke': {'name': 'Karaoke & Billiards', 'modules': ['Room Timing', 'POS Ordering']},
+    'hotel': {'name': 'Hotel', 'modules': ['Room Management', 'Staff Attendance']},
+    'production': {'name': 'Manufacturing', 'modules': ['Factory Output Tracking', 'Staff Attendance']},
+    'technical': {'name': 'Technical Services', 'modules': ['GPS Dispatch', 'Field Staff Attendance']},
+    'office': {'name': 'Office / Corporate', 'modules': ['Staff Attendance', 'Payroll']},
+}
+
+
+def _send_welcome_email(email, business_name, owner_name, business_type):
+    """Gửi email chào mừng ngay sau khi tenant đăng ký thành công bằng activation code.
+    Best-effort: lỗi SMTP/network ở đây KHÔNG được phép làm hỏng luồng đăng ký (tài khoản
+    đã tạo thành công rồi), chỉ log lại để debug — xem cách gọi ở register()."""
+    info = _INDUSTRY_WELCOME_EN.get(business_type) or {
+        'name': (business_type or 'General').title(), 'modules': ['Point of Sale', 'Staff Attendance']
+    }
+    greeting_name = owner_name or 'there'
+    modules_html = ''.join(f'<li style="margin-bottom:6px;">{m}</li>' for m in info['modules'])
+    html = f"""
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; background:#0b0f19; color:#f1f5f9; border-radius:16px; overflow:hidden; border:1px solid rgba(148,163,184,0.15);">
+        <div style="background: linear-gradient(135deg, #0891b2, #4f46e5); padding: 28px 32px;">
+            <h1 style="margin:0; font-size:22px; color:#ffffff;">Welcome to BitPaw OS!</h1>
+        </div>
+        <div style="padding: 28px 32px;">
+            <p style="font-size:15px; line-height:1.6;">Hi {greeting_name},</p>
+            <p style="font-size:15px; line-height:1.6;">
+                Your workspace for <strong>{business_name}</strong> has been successfully activated and provisioned
+                for the <strong>{info['name']}</strong> industry.
+            </p>
+            <p style="font-size:13px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-top:24px; margin-bottom:8px;">Modules included in your plan</p>
+            <ul style="font-size:15px; line-height:1.6; padding-left:20px; margin-top:0;">
+                {modules_html}
+            </ul>
+            <p style="font-size:15px; line-height:1.6; margin-top:24px;">
+                You can log in anytime with the email address <strong>{email}</strong> to start managing your business.
+            </p>
+            <p style="font-size:13px; color:#64748b; margin-top:32px;">
+                Need help getting started? Just reply to this email — our team is here for you.
+            </p>
+        </div>
+        <div style="background:#080a12; padding:16px 32px; font-size:11px; color:#475569; text-align:center;">
+            &copy; BitPaw OS. All rights reserved.
+        </div>
+    </div>
+    """
+    try:
+        success, message = EmailService.send_email(
+            email,
+            f"Welcome to BitPaw OS — Your {info['name']} Workspace is Ready!",
+            html
+        )
+        if not success:
+            print(f"[register] Welcome email not sent to {email}: {message}")
+    except Exception as e:
+        print(f"[register] Welcome email failed for {email}: {str(e)}")
+
+
 # ========== ROUTE XÁC THỰC ==========
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -467,39 +526,43 @@ def register():
         email = request.form['email']
         password = request.form['password']
         business_type = request.form['business_type']
+        business_name = (request.form.get('business_name') or '').strip()
+        fullname = (request.form.get('fullname') or '').strip()
         license_key = request.form.get('license_key', '').strip()
-        
+
         # Kiểm tra License Key trên collection license_codes (MongoDB).
         if not license_key:
-            flash('Vui lòng nhập Mã kích hoạt bản quyền!', 'danger')
+            flash('Please enter your activation code!', 'danger')
             return render_template('index.html', active_tab='register')
 
         if db is None:
-            flash('Lỗi kiểm tra mã kích hoạt: MongoDB chưa kết nối.', 'danger')
+            flash('Error verifying activation code: MongoDB is not connected.', 'danger')
             return render_template('index.html', active_tab='register')
 
         try:
             key_valid = db.license_codes.find_one({'license_key': license_key, 'trang_thai': 'Sẵn sàng'})
             if not key_valid:
-                flash('Mã kích hoạt không hợp lệ, sai mã, hoặc đã được sử dụng!', 'danger')
+                flash('Invalid activation code, or it has already been used.', 'danger')
                 return render_template('index.html', active_tab='register')
 
-            # Kiểm tra xem mã kích hoạt có hợp lệ với ngành nghề được chọn không
-            license_nganh = key_valid.get('nganh_nghe')
-            if license_nganh and license_nganh.strip() and license_nganh.lower() != 'all' and license_nganh.lower() != business_type.lower():
-                flash(f'Mã kích hoạt này chỉ dành cho ngành nghề: {license_nganh.upper()}!', 'danger')
-                return render_template('index.html', active_tab='register')
+            # Mã kích hoạt là NGUỒN SỰ THẬT DUY NHẤT cho ngành nghề/module được cấp — tự động lấy
+            # theo mã thay vì tin lựa chọn dropdown của client (trước đây REJECT nếu 2 giá trị
+            # lệch nhau, khiến chủ tiệm nhập đúng mã Nails nhưng lỡ chọn nhầm dropdown F&B vẫn bị
+            # từ chối đăng ký oan). Chỉ giữ lựa chọn dropdown cho mã dùng chung (rỗng/'all').
+            license_nganh = (key_valid.get('nganh_nghe') or '').strip()
+            if license_nganh and license_nganh.lower() != 'all':
+                business_type = license_nganh.lower()
 
             # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth)
             if db.users.find_one({'email': email}):
-                flash('Email này đã được đăng ký, vui lòng đăng nhập.', 'danger')
+                flash('This email is already registered — please log in instead.', 'danger')
                 return render_template('index.html', active_tab='register')
 
             # Cập nhật trạng thái key
             db.license_codes.update_one({'license_key': license_key}, {'$set': {'trang_thai': 'Đã kích hoạt'}})
         except Exception as db_err:
             print(f"[register] Lỗi kiểm tra license_codes trên MongoDB: {str(db_err)}")
-            flash(f'Lỗi kiểm tra mã kích hoạt: {str(db_err)}', 'danger')
+            flash(f'Error verifying activation code: {str(db_err)}', 'danger')
             return render_template('index.html', active_tab='register')
 
         try:
@@ -510,6 +573,17 @@ def register():
                 'password_hash': generate_password_hash(password),
                 'business_id': user_id,  # mỗi chủ tiệm tự là 1 tenant, giống quy ước cũ của Supabase Auth
                 'role': 'admin',
+                'created_at': datetime.now().isoformat()
+            })
+            # Hồ sơ doanh nghiệp — trước đây KHÔNG được tạo ở bước này, khiến
+            # AIContextEngine.build_context_prompt() (db.businesses.find_one) không bao giờ tìm
+            # thấy tên cửa hàng thật cho AI CSKH cá nhân hoá của tenant mới đăng ký. Cung cấp đủ
+            # ngay khi kích hoạt để tính năng đó hoạt động đúng như thiết kế.
+            db.businesses.insert_one({
+                'id': user_id,
+                'name': business_name or email,
+                'owner_name': fullname,
+                'industry_code': business_type,
                 'created_at': datetime.now().isoformat()
             })
             session['business_mode'] = business_type
@@ -523,10 +597,14 @@ def register():
                 )
             except Exception as db_err:
                 print(f"MongoDB system_settings upsert skipped: {str(db_err)}")
-            flash('Đăng ký tài khoản thành công! Vui lòng đăng nhập.', 'success')
+
+            # Welcome email — best-effort, KHÔNG được làm hỏng luồng đăng ký nếu SMTP lỗi/chưa cấu hình.
+            _send_welcome_email(email, business_name or email, fullname, business_type)
+
+            flash('Account registered successfully! Please log in.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
-            flash(f'Lỗi đăng ký: {str(e)}', 'danger')
+            flash(f'Registration error: {str(e)}', 'danger')
     return render_template('index.html', active_tab='register')
 
 
@@ -606,7 +684,7 @@ def login():
 
             session['business_mode'] = mode
 
-            flash('Đăng nhập thành công', 'success')
+            flash('Login successful', 'success')
 
             # Hardcode duy nhất 1 tài khoản trùm: email này luôn vào thẳng Super Admin, bất kể
             # business_mode đã cấu hình hay chưa — không đẩy qua /setup như user thường. Check
@@ -629,7 +707,7 @@ def login():
                         return redirect(target_url)
             return redirect(url_for('setup'))
         except Exception as e:
-            flash('Sai email hoặc mật khẩu', 'danger')
+            flash('Incorrect email or password', 'danger')
     return render_template('index.html', active_tab='login')
 
 
@@ -1260,6 +1338,58 @@ def public_checkout():
     return render_template('checkout.html')
 
 
+# ========== SAAS MODULE SIGNUP (checkout.html) — KHÔNG dùng chung với db.orders của POS ==========
+# checkout.html KHÔNG PHẢI checkout đơn hàng POS — đây là form đăng ký mua gói phần mềm
+# (hrm/pos/ecom/agency) của một khách hàng CHƯA CÓ business_id (doanh nghiệp chưa tồn tại).
+# db.orders/`order_items` của POS được rất nhiều báo cáo doanh thu ($lookup theo order_id,
+# tổng total_amount theo business_id) tin tưởng là "1 đơn hàng thật của 1 tenant đã tồn tại" —
+# ghi lead đăng ký vào đó sẽ làm sai lệch báo cáo doanh thu và vỡ các pipeline $lookup. Vì vậy
+# lead đăng ký được lưu vào 1 collection hoàn toàn tách biệt, không có business_id, không có
+# order_items đi kèm. Sau khi khách bấm "Đã chuyển khoản", nhân viên vẫn xác nhận + cấp license
+# key thủ công qua /api/superadmin/duc_ma như quy trình hiện tại — form này KHÔNG tự động kích
+# hoạt tài khoản (hành vi y hệt bản Supabase cũ: chỉ ghi nhận lead, không có webhook xác nhận
+# thanh toán nào tồn tại).
+@app.route('/api/checkout/payment_methods', methods=['GET'])
+def api_checkout_payment_methods():
+    """PUBLIC — chỉ trả về các cổng thanh toán đang active, cho khách xem QR chuyển khoản
+    trước khi có tài khoản/session. Dùng chung collection db.payment_methods với
+    /api/superadmin/payment_methods (superadmin quản lý), nhưng route này không yêu cầu đăng
+    nhập và luôn lọc is_active=True."""
+    try:
+        methods = list(db.payment_methods.find({'is_active': True}, {'_id': 0}).sort('id', 1))
+        return jsonify({"success": True, "data": methods})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/checkout/signup', methods=['POST'])
+def api_checkout_signup():
+    """PUBLIC — ghi nhận lead đăng ký mua gói (chưa có business_id vì doanh nghiệp chưa được
+    tạo). Lưu vào db.saas_signups, KHÔNG đụng tới db.orders của POS."""
+    data = request.json or {}
+    required = ('customer_name', 'phone', 'shop_name', 'email', 'module_plan', 'total_price')
+    if not all((data.get(f) or '').strip() if isinstance(data.get(f), str) else data.get(f) for f in required):
+        return jsonify({"success": False, "message": "Thiếu thông tin bắt buộc."}), 400
+    try:
+        doc = {
+            'id': next_mongo_id('saas_signups'),
+            'customer_name': data.get('customer_name', ''),
+            'phone': data.get('phone', ''),
+            'shop_name': data.get('shop_name', ''),
+            'email': data.get('email', ''),
+            'module_plan': data.get('module_plan', ''),
+            'total_price': data.get('total_price', 0),
+            'memo_code': data.get('memo_code', ''),
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+        }
+        db.saas_signups.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/landing_nail')
 def legacy_landing_nail():
     return render_template('landing_nail.html')
@@ -1468,6 +1598,93 @@ def api_pos_products():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/products/<int:id>', methods=['GET'])
+@login_required
+def api_product_get(id):
+    """Tra cứu 1 sản phẩm theo id, business_id-scoped — thay Supabase select().eq('id',
+    ...).single() cũ ở sell.html. Không lọc channel_type (khác /api/pos/products) vì sell.html
+    bán trực tiếp theo product_id trên URL, có thể là sản phẩm retail lẫn F&B/spa."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        product = db.products.find_one(
+            {'id': id, 'business_id': business_id},
+            {'id': 1, 'name': 1, 'price': 1, 'stock': 1, 'image': 1, '_id': 0}
+        )
+        if not product:
+            return jsonify({"success": False, "message": "Không tìm thấy sản phẩm."}), 404
+        return jsonify({"success": True, "data": product})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/sales/checkout', methods=['POST'])
+@login_required
+def api_sales_checkout():
+    """Bán hàng trực tiếp (sell.html: 1 sản phẩm; spa.html: giỏ hàng nhiều dịch vụ) — khác
+    checkout_table() (dùng cho đơn theo bàn F&B qua table_orders). Route này tạo thẳng 1
+    order + order_items từ danh sách item client gửi lên, không qua bàn. Trừ tồn kho nếu sản
+    phẩm có field `stock` (dịch vụ spa thường không track tồn kho nên bỏ qua an toàn)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    items = data.get('items') or []
+    if not items:
+        return jsonify({"success": False, "message": "Giỏ hàng trống."}), 400
+    try:
+        product_ids = [it['product_id'] for it in items]
+        products_map = {
+            p['id']: p for p in db.products.find(
+                {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
+            )
+        }
+        total_amount = 0
+        order_items_docs = []
+        stock_updates = []
+        for it in items:
+            prod = products_map.get(it['product_id'])
+            if not prod:
+                continue  # chặn bán sản phẩm không thuộc tenant này hoặc không tồn tại
+            qty = int(it.get('quantity', 1))
+            price = prod.get('price', 0)
+            line_total = qty * price
+            total_amount += line_total
+            order_items_docs.append({
+                'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
+            })
+            if 'stock' in prod:
+                stock_updates.append(UpdateOne(
+                    {'id': prod['id'], 'business_id': business_id}, {'$set': {'stock': prod['stock'] - qty}}
+                ))
+        if not order_items_docs:
+            return jsonify({"success": False, "message": "Không có sản phẩm hợp lệ trong giỏ hàng."}), 400
+
+        order_id = next_mongo_id('orders')
+        order_doc = {
+            'id': order_id,
+            'business_id': business_id,
+            'total_amount': total_amount,
+            'payment_method': data.get('payment_method', 'cash'),
+            'status': data.get('status', 'completed'),
+            'created_at': datetime.now().isoformat(),
+        }
+        if data.get('customer_phone'):
+            order_doc['customer_phone'] = data['customer_phone']
+        db.orders.insert_one(order_doc)
+
+        for oi in order_items_docs:
+            oi['id'] = next_mongo_id('order_items')
+            oi['order_id'] = order_id
+            if data.get('customer_phone'):
+                oi['customer_phone'] = data['customer_phone']
+        db.order_items.insert_many(order_items_docs)
+
+        if stock_updates:
+            db.products.bulk_write(stock_updates)
+
+        return jsonify({"success": True, "order_id": order_id, "total_amount": total_amount})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/pos/tables', methods=['GET'])
 @login_required
 def api_pos_tables():
@@ -1486,7 +1703,7 @@ def api_pos_deactivate_product(id):
     try:
         result = db.products.update_one({'id': id, 'business_id': business_id}, {'$set': {'is_active': 0}})
         if result.matched_count == 0:
-            return jsonify({'success': False, 'message': 'Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
+            return jsonify({'success': False, 'message': 'Product not found or does not belong to your account.'}), 403
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1531,9 +1748,9 @@ def api_pos_add_order_item(table_id):
     product_id = data.get('product_id')
     quantity = data.get('quantity', 1)
     if not product_id:
-        return jsonify({'success': False, 'message': 'Thiếu product_id.'}), 400
+        return jsonify({'success': False, 'message': 'Missing product_id.'}), 400
     if not _assert_owns_product(product_id, business_id):
-        return jsonify({'success': False, 'message': 'Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
+        return jsonify({'success': False, 'message': 'Product not found or does not belong to your account.'}), 403
     try:
         existing = db.table_orders.find_one(
             {'table_id': table_id, 'product_id': product_id, 'business_id': business_id}, {'id': 1, 'quantity': 1, '_id': 0}
@@ -1559,7 +1776,7 @@ def api_pos_delete_order_item(item_id):
     try:
         item = db.table_orders.find_one({'id': item_id, 'business_id': business_id}, {'table_id': 1, '_id': 0})
         if not item:
-            return jsonify({'success': False, 'message': 'Món này không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
+            return jsonify({'success': False, 'message': 'This item does not exist or does not belong to your account.'}), 403
         table_id = item['table_id']
         db.table_orders.delete_one({'id': item_id, 'business_id': business_id})
         remaining = db.table_orders.count_documents({'table_id': table_id, 'business_id': business_id})
@@ -1620,8 +1837,7 @@ def view_table(table_id):
         menu_data = list(db.products.find(
             {'is_active': 1, 'channel_type': 'retail', 'business_id': business_id}, {'_id': 0}
         ))
-        tenant_jwt = _mint_tenant_jwt(business_id)  # nhân viên xem bàn -> token đầy đủ quyền, không giới hạn scope
-        return render_template('table_order.html', table=table, orders=current_orders, total_bill=total_bill, menu=menu_data, tenant_jwt=tenant_jwt)
+        return render_template('table_order.html', table=table, orders=current_orders, total_bill=total_bill, menu=menu_data)
     except Exception as e:
         return f"Lỗi tải thông tin bàn: {str(e)}", 500
 
@@ -1630,9 +1846,9 @@ def _assert_owns_table(table_id, business_id):
     """Trả về (True, None) nếu bàn thuộc đúng business_id, ngược lại (False, thông báo lỗi)."""
     doc = db.dining_tables.find_one({'id': table_id}, {'business_id': 1, '_id': 0})
     if not doc:
-        return False, "Bàn không tồn tại."
+        return False, "Table not found."
     if doc.get('business_id') != business_id:
-        return False, "Bàn này không thuộc quyền quản lý của bạn."
+        return False, "This table does not belong to your account."
     return True, None
 
 
@@ -2062,6 +2278,65 @@ def expense_list():
     return render_template('expense_list.html', expenses=expenses_data)
 
 
+# ========== CHI PHÍ (JSON API cho add_expense.html) — thay 2 tầng xác thực chồng chéo cũ
+# (Supabase Auth + Flask session) bằng ĐÚNG 1 tầng: Flask session, đã được @login_required ở
+# route /add_expense bắt buộc từ trước. business_id lấy từ session, KHÔNG dùng user_id do
+# Supabase Auth tự sinh (2 hệ định danh tách biệt trước đây khiến trang không bao giờ hoạt
+# động thật với người dùng thật của app). ==========
+@app.route('/api/expenses', methods=['GET'])
+@login_required
+def api_expenses_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        expenses = list(db.expenses.find({'business_id': business_id}, {'_id': 0}).sort('expense_date', -1))
+        return jsonify({"success": True, "data": expenses})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/expenses', methods=['POST'])
+@login_required
+def api_expenses_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    description = (data.get('description') or '').strip()
+    try:
+        amount = float(data.get('amount'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Số tiền không hợp lệ."}), 400
+    if not description or amount <= 0:
+        return jsonify({"success": False, "message": "Thiếu mô tả hoặc số tiền không hợp lệ."}), 400
+    try:
+        doc = {
+            'id': next_mongo_id('expenses'),
+            'category': data.get('category', ''),
+            'description': description,
+            'amount': amount,
+            'expense_date': data.get('expense_date') or datetime.now().strftime('%Y-%m-%d'),
+            'created_at': datetime.now().isoformat(),
+            'business_id': business_id,
+        }
+        db.expenses.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/expenses/<int:id>', methods=['DELETE'])
+@login_required
+def api_expenses_delete(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        owns, err = _assert_owns_row_mongo('expenses', id, business_id)
+        if not owns:
+            return jsonify({"success": False, "message": err}), 403
+        db.expenses.delete_one({'id': id, 'business_id': business_id})
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== QUẢN LÝ KHUYẾN MÃI ==========
 @app.route('/promotions')
 @login_required
@@ -2147,6 +2422,19 @@ def staff_list():
     return render_template('staff_management.html', staffs=staffs_data)
 
 
+@app.route('/api/staff', methods=['GET'])
+@login_required
+def api_staff_list():
+    """Bản JSON của cùng query trong staff_management() ở trên — dùng để load lại danh sách
+    sau khi thêm/sửa/xóa mà không cần reload cả trang, thay Supabase select() cũ."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        staffs_data = list(db.staff.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
+        return jsonify({"success": True, "data": staffs_data})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/add_staff', methods=['POST'])
 @login_required
 def add_staff():
@@ -2227,6 +2515,22 @@ def customers():
     return render_template('crm.html', customers=customers_data, error_message=error_message)
 
 
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def api_customers_list():
+    """Bản JSON của cùng query trong customers() ở trên — trả về TOÀN BỘ danh sách (không
+    filter/pagination server-side); crm.html tự lọc theo search/tier/khoảng ngày + tự phân
+    trang ở client, giống cách nhanvien.html/bangluong.html đã lọc theo ngành ở client trong
+    đợt migrate HR — danh sách khách hàng của 1 tenant thường đủ nhỏ để làm vậy, và tránh phải
+    dựng lại y hệt bộ query builder .or()/.gte()/.lte()/.range() của Supabase ở phía server."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        customers_data = list(db.customers.find({'business_id': business_id}, {'_id': 0}).sort('id', -1))
+        return jsonify({"success": True, "data": customers_data})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/add_customer', methods=['POST'])
 @login_required
 def add_customer():
@@ -2282,6 +2586,155 @@ def delete_customer(id):
         return jsonify({'success': False, 'message': f'Lỗi xóa khách hàng: {str(e)}'}), 500
 
 
+# ========== QUẢN LÝ NHÀ CUNG CẤP (dùng bởi quanly_congno.html) — CRUD giống hệt customers ở
+# trên, tách collection riêng vì nhà cung cấp là bên MÌNH nợ, khác khách hàng là bên NỢ MÌNH.
+# Collection này trước đây không tồn tại cả ở Supabase lẫn Mongo — trang cũ fallback về vài
+# dòng dữ liệu giả khi query lỗi, che giấu việc bảng chưa từng được tạo. ==========
+@app.route('/api/suppliers', methods=['GET'])
+@login_required
+def api_suppliers_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        suppliers = list(db.suppliers.find({'business_id': business_id}, {'_id': 0}).sort('id', -1))
+        return jsonify({"success": True, "data": suppliers})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/add_supplier', methods=['POST'])
+@login_required
+def add_supplier():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': 'Thiếu tên nhà cung cấp.'}), 400
+    try:
+        doc = {
+            'id': next_mongo_id('suppliers'),
+            'name': name,
+            'code': data.get('code', ''),
+            'phone': data.get('phone', ''),
+            'business_id': business_id,
+        }
+        db.suppliers.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({'success': True, 'data': doc})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi thêm nhà cung cấp: {str(e)}'}), 500
+
+
+@app.route('/update_supplier/<int:id>', methods=['PUT'])
+@login_required
+def update_supplier(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        owns, err = _assert_owns_row_mongo('suppliers', id, business_id)
+        if not owns:
+            return jsonify({'success': False, 'message': err}), 403
+        data = dict(request.json or {})
+        data.pop('business_id', None)
+        data.pop('id', None)
+        db.suppliers.update_one({'id': id, 'business_id': business_id}, {'$set': data})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi cập nhật nhà cung cấp: {str(e)}'}), 500
+
+
+@app.route('/delete_supplier/<int:id>', methods=['DELETE'])
+@login_required
+def delete_supplier(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        owns, err = _assert_owns_row_mongo('suppliers', id, business_id)
+        if not owns:
+            return jsonify({'success': False, 'message': err}), 403
+        db.suppliers.delete_one({'id': id, 'business_id': business_id})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi xóa nhà cung cấp: {str(e)}'}), 500
+
+
+# ========== CÔNG NỢ (quanly_congno.html) — ledger giao dịch nợ theo từng đối tác (khách hàng
+# HOẶC nhà cung cấp), TÁCH BIỆT với db.transactions (sổ quỹ thu/chi chung, không gắn đối tác) ở
+# Batch 2 — 2 khái niệm khác nhau (dòng tiền chung vs. số dư nợ theo từng đối tác), không dùng
+# chung 1 collection để tránh phải thêm field tuỳ chọn + nhánh rẽ cho 2 nghiệp vụ khác nhau. ==========
+def _assert_owns_partner(partner_type, partner_id, business_id):
+    collection = 'customers' if partner_type == 'customer' else 'suppliers'
+    doc = db[collection].find_one({'id': partner_id, 'business_id': business_id}, {'id': 1, '_id': 0})
+    return bool(doc)
+
+
+@app.route('/api/debt_transactions', methods=['GET'])
+@login_required
+def api_debt_transactions_list():
+    business_id = session.get('business_id') or session['user_id']
+    query = {'business_id': business_id}
+    partner_type = request.args.get('partner_type')
+    if partner_type in ('customer', 'supplier'):
+        query['partner_type'] = partner_type
+    partner_id = request.args.get('partner_id', type=int)
+    if partner_id is not None:
+        query['partner_id'] = partner_id
+    start = request.args.get('start')
+    end = request.args.get('end')
+    if start or end:
+        date_filter = {}
+        if start:
+            date_filter['$gte'] = start
+        if end:
+            date_filter['$lte'] = end + ' 23:59:59'
+        query['transaction_date'] = date_filter
+    try:
+        rows = list(db.debt_transactions.find(query, {'_id': 0}).sort('transaction_date', 1))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/debt_transactions', methods=['POST'])
+@login_required
+def api_debt_transactions_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    partner_type = data.get('partner_type')
+    partner_id = data.get('partner_id')
+    direction = data.get('direction')
+    if partner_type not in ('customer', 'supplier'):
+        return jsonify({"success": False, "message": "partner_type không hợp lệ."}), 400
+    if direction not in ('expense', 'payment'):
+        return jsonify({"success": False, "message": "direction không hợp lệ."}), 400
+    try:
+        amount = float(data.get('amount'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Số tiền không hợp lệ."}), 400
+    if amount <= 0:
+        return jsonify({"success": False, "message": "Số tiền phải lớn hơn 0."}), 400
+    try:
+        partner_id = int(partner_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Thiếu đối tượng (đối tác)."}), 400
+    if not _assert_owns_partner(partner_type, partner_id, business_id):
+        return jsonify({"success": False, "message": "Đối tác không tồn tại hoặc không thuộc quyền quản lý của bạn."}), 403
+    try:
+        doc = {
+            'id': next_mongo_id('debt_transactions'),
+            'partner_type': partner_type,
+            'partner_id': partner_id,
+            'direction': direction,
+            'amount': amount,
+            'transaction_date': data.get('transaction_date') or datetime.now().strftime('%Y-%m-%d'),
+            'note': data.get('note', ''),
+            'created_at': datetime.now().isoformat(),
+            'business_id': business_id,
+        }
+        db.debt_transactions.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== QUẢN LÝ GIAO DỊCH THANH TOÁN ==========
 @app.route('/payment_transactions')
 @login_required
@@ -2312,20 +2765,164 @@ def update_payment_status(id):
         return jsonify({'success': False, 'message': f'Lỗi cập nhật trạng thái thanh toán: {str(e)}'}), 500
 
 
+# ========== PAYMENT TRANSACTIONS SEARCH/PAGINATION JSON API (thay Supabase JS ở
+# payment_history.html + admin_payment_management.html — dùng chung 1 endpoint) ==========
+@app.route('/api/payment_transactions', methods=['GET'])
+@login_required
+def api_payment_transactions_list():
+    business_id = session.get('business_id') or session['user_id']
+    query = {'business_id': business_id}
+
+    search = (request.args.get('search') or '').strip()
+    if search:
+        regex = {'$regex': re.escape(search), '$options': 'i'}
+        query['$or'] = [
+            {'transaction_id': regex}, {'method': regex},
+            {'customer_name': regex}, {'customer_email': regex},
+        ]
+    status = request.args.get('status')
+    if status and status != 'all':
+        query['status'] = status
+    start = request.args.get('start')
+    end = request.args.get('end')
+    if start or end:
+        date_filter = {}
+        if start:
+            date_filter['$gte'] = start
+        if end:
+            date_filter['$lte'] = end + ' 23:59:59'
+        query['created_at'] = date_filter
+
+    page = request.args.get('page', 1, type=int)
+    page_size = min(request.args.get('page_size', 20, type=int), 100)
+
+    try:
+        total = db.payment_transactions.count_documents(query)
+        skip = max(0, (page - 1) * page_size)
+        rows = list(
+            db.payment_transactions.find(query, {'_id': 0}).sort('created_at', -1).skip(skip).limit(page_size)
+        )
+        return jsonify({"success": True, "data": rows, "count": total})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/payment_transactions/<int:id>', methods=['GET'])
+@login_required
+def api_payment_transactions_get(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        row = db.payment_transactions.find_one({'id': id, 'business_id': business_id}, {'_id': 0})
+        if not row:
+            return jsonify({"success": False, "message": "Không tìm thấy giao dịch."}), 404
+        return jsonify({"success": True, "data": row})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== SỔ QUỸ / THU CHI JSON API (thay Supabase JS ở quanly_thuchi.html +
+# baocao_loinhuan.html — db.transactions, collection mới) ==========
+@app.route('/api/transactions', methods=['GET'])
+@login_required
+def api_transactions_list():
+    business_id = session.get('business_id') or session['user_id']
+    query = {'business_id': business_id}
+    start = request.args.get('start')
+    end = request.args.get('end')
+    if start or end:
+        date_filter = {}
+        if start:
+            date_filter['$gte'] = start
+        if end:
+            date_filter['$lte'] = end
+        query['transaction_date'] = date_filter
+    tx_type = request.args.get('type')
+    if tx_type and tx_type != 'all':
+        query['type'] = tx_type
+    try:
+        rows = list(db.transactions.find(query, {'_id': 0}).sort('transaction_date', -1))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/transactions/<int:id>', methods=['GET'])
+@login_required
+def api_transactions_get(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        row = db.transactions.find_one({'id': id, 'business_id': business_id}, {'_id': 0})
+        if not row:
+            return jsonify({"success": False, "message": "Không tìm thấy giao dịch."}), 404
+        return jsonify({"success": True, "data": row})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/transactions', methods=['POST'])
+@login_required
+def api_transactions_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        doc = {
+            'id': next_mongo_id('transactions'),
+            'business_id': business_id,
+            'type': data.get('type', 'expense'),
+            'category': data.get('category', ''),
+            'amount': float(data.get('amount') or 0),
+            'transaction_date': data.get('transaction_date', ''),
+            'note': data.get('note', ''),
+        }
+        db.transactions.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/transactions/<int:id>', methods=['PATCH'])
+@login_required
+def api_transactions_update(id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    updates = {k: v for k, v in data.items() if k in ('type', 'category', 'amount', 'transaction_date', 'note')}
+    if not updates:
+        return jsonify({"success": False, "message": "Không có trường hợp lệ để cập nhật."}), 400
+    try:
+        result = db.transactions.update_one({'id': id, 'business_id': business_id}, {'$set': updates})
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy giao dịch."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/transactions/<int:id>', methods=['DELETE'])
+@login_required
+def api_transactions_delete(id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.transactions.delete_one({'id': id, 'business_id': business_id})
+        if result.deleted_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy giao dịch."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== SPA & KARAOKE ==========
 @app.route('/spa')
 @login_required
 def spa():
     business_id = session.get('business_id') or session['user_id']
     try:
-        brand_doc = db.system_settings.find_one({'key': 'brand_name'}, {'value': 1, '_id': 0})
-        brand_name = brand_doc['value'] if brand_doc else 'BitPaw'
+        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
     except Exception as db_err:
         print(f"MongoDB brand_name select failed: {str(db_err)}")
         brand_name = 'BitPaw'
     try:
-        color_doc = db.system_settings.find_one({'key': 'brand_color'}, {'value': 1, '_id': 0})
-        brand_color = color_doc['value'] if color_doc else '#06b6d4'
+        brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
     except Exception as db_err:
         print(f"MongoDB brand_color select failed: {str(db_err)}")
         brand_color = '#06b6d4'
@@ -2432,13 +3029,7 @@ def public_booking(spa_id=None, service_id=None):
     except Exception as e:
         print(f"MongoDB public_booking services select failed: {str(e)}")
         services_data = []
-    # Khách đặt lịch qua QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc dịch vụ, tạo lịch hẹn của đúng tiệm này)
-    try:
-        tenant_jwt = _mint_tenant_jwt(spa_id, scope='qr_public', ttl_seconds=1800) if spa_id else None
-    except Exception as e:
-        print(f"_mint_tenant_jwt failed: {str(e)}")
-        tenant_jwt = None
-    return render_template('booking.html', services=services_data, pre_selected_service_id=service_id, spa_id=spa_id, tenant_jwt=tenant_jwt)
+    return render_template('booking.html', services=services_data, pre_selected_service_id=service_id, spa_id=spa_id)
 
 
 @app.route('/create_appointment', methods=['POST'])
@@ -2449,8 +3040,9 @@ def create_appointment():
         svc = db.products.find_one({'id': data['service_id']}, {'business_id': 1, '_id': 0})
         if not svc:
             return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
+        appointment_id = next_mongo_id('appointments')
         db.appointments.insert_one({
-            'id': next_mongo_id('appointments'),
+            'id': appointment_id,
             'customer_name': data['name'],
             'customer_phone': data['phone'],
             'service_id': data['service_id'],
@@ -2462,7 +3054,9 @@ def create_appointment():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
-    return jsonify({'success': True})
+    # id trả về cho booking.html hiển thị mã tra cứu lịch hẹn (trước đây đọc từ
+    # supabase.insert().select() — insert_one() của Mongo không tự trả row nên phải trả tay).
+    return jsonify({'success': True, 'id': appointment_id})
 
 
 @app.route('/karaoke')
@@ -2530,7 +3124,244 @@ def toggle_room(room_id):
         return f"Lỗi xử lý phòng karaoke: {str(e)}", 500
 
 
+# ========== KARAOKE JSON API (thay Supabase JS ở karaoke.html) ==========
+# QUAN TRỌNG: bản Supabase cũ của karaoke.html đọc/ghi bảng `dining_tables` để quản lý phòng
+# (status/price_per_hour/start_time) — nhưng db.dining_tables trên Mongo là collection HOÀN
+# TOÀN KHÁC của POS (200 bàn tự seed, chỉ có id/name/qr_token/business_id, KHÔNG có
+# status/price_per_hour). Trỏ thẳng karaoke.html vào db.dining_tables sẽ vỡ vì sai schema.
+# Collection đúng đã có sẵn và đang được /karaoke, /toggle_room dùng là db.karaoke_rooms — 3
+# route dưới đây chỉ là bản JSON (thay vì redirect) của cùng logic, để karaoke.html gọi qua
+# fetch() không cần load lại trang.
+@app.route('/api/karaoke/rooms', methods=['GET'])
+@login_required
+def api_karaoke_rooms_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rooms = list(db.karaoke_rooms.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
+        return jsonify({"success": True, "data": rooms})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/karaoke/rooms', methods=['POST'])
+@login_required
+def api_karaoke_rooms_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({"success": False, "message": "Thiếu tên phòng."}), 400
+    try:
+        price_per_hour = float(data.get('price_per_hour', 0))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Giá theo giờ không hợp lệ."}), 400
+    try:
+        doc = {
+            'id': next_mongo_id('karaoke_rooms'),
+            'name': name,
+            'price_per_hour': price_per_hour,
+            'status': 'Trống',
+            'start_time': None,
+            'business_id': business_id,
+        }
+        db.karaoke_rooms.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/karaoke/rooms/<int:room_id>/start', methods=['POST'])
+@login_required
+def api_karaoke_room_start(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        # find_one_and_update lọc luôn status='Trống' trong filter -> atomic, tránh race
+        # condition 2 nhân viên cùng bấm Start 1 phòng (bản Supabase cũ tách find rồi update
+        # thành 2 bước riêng, có khe hở đua nhau ghi).
+        result = db.karaoke_rooms.find_one_and_update(
+            {'id': room_id, 'business_id': business_id, 'status': 'Trống'},
+            {'$set': {'status': 'Đang chơi', 'start_time': now}},
+            return_document=ReturnDocument.AFTER,
+            projection={'_id': 0}
+        )
+        if not result:
+            return jsonify({"success": False, "message": "Phòng không tồn tại hoặc đang không trống."}), 409
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/karaoke/rooms/<int:room_id>/checkout', methods=['POST'])
+@login_required
+def api_karaoke_room_checkout(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    customer_phone = (data.get('customer_phone') or '').strip() or None
+    try:
+        room = db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
+        if not room or room.get('status') != 'Đang chơi':
+            return jsonify({"success": False, "message": "Phòng không tồn tại hoặc chưa mở."}), 409
+        start_time = parse_datetime(room['start_time'])
+        now = datetime.now()
+        duration_minutes = (now - start_time).total_seconds() / 60.0
+        if duration_minutes < 15:
+            duration_minutes = 15
+        else:
+            duration_minutes = math.ceil(duration_minutes / 15.0) * 15
+        duration_hours = duration_minutes / 60.0
+        total_price = duration_hours * room['price_per_hour']
+        order_id = None
+        prod = db.products.find_one({'name': 'Phí Giờ Karaoke', 'business_id': business_id}, {'id': 1, '_id': 0})
+        if prod:
+            order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
+            order_id = next_mongo_id('orders')
+            order_doc = {
+                'id': order_id,
+                'order_code': order_code,
+                'channel': 'karaoke',
+                'total_amount': total_price,
+                'business_id': business_id,
+                'created_at': datetime.now().isoformat(),
+            }
+            if customer_phone:
+                order_doc['customer_phone'] = customer_phone
+            db.orders.insert_one(order_doc)
+            db.order_items.insert_one({
+                'id': next_mongo_id('order_items'),
+                'order_id': order_id,
+                'product_id': prod['id'],
+                'quantity': 1,
+                'price': total_price,
+                'total_price': total_price,
+                'business_id': business_id,
+            })
+        db.karaoke_rooms.update_one(
+            {'id': room_id, 'business_id': business_id}, {'$set': {'status': 'Trống', 'start_time': None}}
+        )
+        return jsonify({"success": True, "total_amount": total_price, "order_id": order_id})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== BÁO CÁO ==========
+@app.route('/api/report/summary', methods=['GET'])
+@login_required
+def api_report_summary():
+    """Thay toàn bộ fetchReportData() Supabase cũ ở report.html — tính doanh thu/chi
+    phí/lợi nhuận theo khoảng ngày do client chọn (today/yesterday/week/month/custom),
+    cùng biểu đồ theo ngày, top sản phẩm, phân bổ theo ngành, top khách hàng, chi tiêu gần
+    đây. Route /report (bên dưới) chỉ tính all-time cho lần render đầu; route này phục vụ
+    mọi lần đổi khoảng ngày sau đó."""
+    denied = _deny_if_staff_page()
+    if denied:
+        return denied
+    business_id = session.get('business_id') or session['user_id']
+
+    period = request.args.get('period', 'month')
+    today = datetime.now()
+    if period == 'today':
+        start_dt = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    elif period == 'yesterday':
+        y = today - timedelta(days=1)
+        start_dt = y.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = y.replace(hour=23, minute=59, second=59, microsecond=999999)
+    elif period == 'week':
+        start_dt = (today - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    elif period == 'month':
+        start_dt = (today - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    else:
+        try:
+            start_dt = datetime.strptime(request.args.get('start', ''), '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
+            end_dt = datetime.strptime(request.args.get('end', ''), '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+        except ValueError:
+            return jsonify({"success": False, "message": "Thiếu hoặc sai định dạng start/end (YYYY-MM-DD)."}), 400
+
+    start_iso, end_iso = start_dt.isoformat(), end_dt.isoformat()
+    start_date_str, end_date_str = start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')
+
+    try:
+        orders = list(db.orders.find(
+            {'business_id': business_id, 'created_at': {'$gte': start_iso, '$lte': end_iso}},
+            {'id': 1, 'total_amount': 1, 'created_at': 1, 'customer_id': 1, '_id': 0}
+        ))
+        revenue = sum(o.get('total_amount') or 0 for o in orders)
+
+        expenses = list(db.expenses.find(
+            {'business_id': business_id, 'expense_date': {'$gte': start_date_str, '$lte': end_date_str}},
+            {'amount': 1, 'expense_date': 1, 'description': 1, '_id': 0}
+        ))
+        expense = sum(e.get('amount') or 0 for e in expenses)
+
+        # Doanh thu theo ngày cho biểu đồ
+        labels, revenue_by_day_map = [], {}
+        cur = start_dt
+        while cur.date() <= end_dt.date():
+            d = cur.strftime('%Y-%m-%d')
+            labels.append(d[5:])
+            revenue_by_day_map[d] = 0
+            cur += timedelta(days=1)
+        for o in orders:
+            d = (o.get('created_at') or '')[:10]
+            if d in revenue_by_day_map:
+                revenue_by_day_map[d] += o.get('total_amount') or 0
+        revenue_by_day = list(revenue_by_day_map.values())
+
+        order_ids = [o['id'] for o in orders]
+        order_items = list(db.order_items.find({'order_id': {'$in': order_ids}}, {'product_id': 1, 'quantity': 1, '_id': 0})) if order_ids else []
+        products = list(db.products.find({'business_id': business_id}, {'id': 1, 'name': 1, 'category': 1, 'price': 1, '_id': 0}))
+        product_map = {p['id']: p for p in products}
+
+        sold_map = {}
+        for oi in order_items:
+            sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + (oi.get('quantity') or 0)
+        top_products = sorted(
+            [{'id': pid, 'name': product_map.get(pid, {}).get('name', f'SP{pid}'), 'sold': sold,
+              'revenue': sold * (product_map.get(pid, {}).get('price') or 0)}
+             for pid, sold in sold_map.items()],
+            key=lambda x: x['sold'], reverse=True
+        )[:5]
+
+        category_revenue = {}
+        for oi in order_items:
+            prod = product_map.get(oi['product_id'])
+            if prod:
+                cat = prod.get('category') or 'Other'
+                category_revenue[cat] = category_revenue.get(cat, 0) + (prod.get('price') or 0) * (oi.get('quantity') or 0)
+        category_data = [{'name': cat, 'total': total} for cat, total in category_revenue.items()]
+
+        customer_spent = {}
+        for o in orders:
+            cid = o.get('customer_id')
+            if cid:
+                customer_spent[cid] = customer_spent.get(cid, 0) + (o.get('total_amount') or 0)
+        customers = list(db.customers.find({'id': {'$in': list(customer_spent.keys())}, 'business_id': business_id}, {'id': 1, 'name': 1, 'phone': 1, '_id': 0})) if customer_spent else []
+        customer_map = {c['id']: c for c in customers}
+        top_customers = sorted(
+            [{'id': cid, 'name': customer_map.get(cid, {}).get('name', f'KH{cid}'), 'phone': customer_map.get(cid, {}).get('phone', ''), 'spent': spent}
+             for cid, spent in customer_spent.items()],
+            key=lambda x: x['spent'], reverse=True
+        )[:5]
+
+        recent_expenses = sorted(expenses, key=lambda e: e.get('expense_date') or '', reverse=True)[:5]
+
+        return jsonify({
+            "success": True,
+            "revenue": revenue, "expense": expense, "profit": revenue - expense,
+            "revenueByDay": revenue_by_day, "labels": labels,
+            "categoryData": category_data,
+            "topProducts": top_products,
+            "topCustomers": top_customers,
+            "recentExpenses": recent_expenses,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/report')
 @login_required
 def report():
@@ -2569,41 +3400,86 @@ def report():
         return render_template('report.html', revenue=0, expense=0, profit=0, breakdown=[])
 
 
+def _compute_profit_by_product(business_id):
+    """Dùng chung cho route render (profit_report) và JSON API (/api/report/profit) — tránh
+    lặp lại phép tính sold/revenue/cost/profit/margin ở 2 nơi."""
+    products_data = list(db.products.find(
+        {'is_active': 1, 'business_id': business_id}, {'id': 1, 'name': 1, 'category': 1, 'price': 1, 'cost_price': 1, '_id': 0}
+    ))
+    own_product_ids = {p['id'] for p in products_data}
+    # order_items chưa có cột business_id riêng — chỉ cần lọc theo product_id thuộc đúng tenant
+    # (dùng $in ngay trong query thay vì kéo hết order_items về rồi lọc bằng Python).
+    order_items = list(db.order_items.find(
+        {'product_id': {'$in': list(own_product_ids)}}, {'product_id': 1, 'quantity': 1, '_id': 0}
+    ))
+    sold_map = {}
+    for oi in order_items:
+        sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + oi['quantity']
+    profit_data = []
+    for p in products_data:
+        sold = sold_map.get(p['id'], 0)
+        revenue = sold * p['price']
+        cost = sold * (p.get('cost_price') or 0)
+        profit_val = revenue - cost
+        margin = (profit_val / revenue * 100) if revenue else 0
+        profit_data.append({
+            'id': p['id'],
+            'name': p['name'],
+            'category': p['category'],
+            'sold': sold,
+            'revenue': revenue,
+            'cost': cost,
+            'profit': profit_val,
+            'margin': margin,
+            # Đơn giá gốc (không phải tổng đã nhân số lượng bán) — cần riêng vì sản phẩm chưa
+            # bán được (sold=0) vẫn phải hiện đúng đơn giá/giá vốn, không phải 0.
+            'unit_price': p['price'],
+            'unit_cost': p.get('cost_price') or 0,
+        })
+    return profit_data
+
+
+@app.route('/api/report/profit', methods=['GET'])
+@login_required
+def api_report_profit():
+    """Thay loadProfitData() Supabase cũ ở profit_by_product.html — dùng lại đúng phép tính
+    của profit_report() phía dưới, gọi lại sau khi sửa giá vốn để refresh bảng."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        return jsonify({"success": True, "data": _compute_profit_by_product(business_id)})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/products/<int:id>/cost', methods=['PATCH'])
+@login_required
+def api_product_update_cost(id):
+    """Cập nhật riêng giá vốn (cost_price) — /update_product/<id> hiện chỉ nhận full-form
+    update (name/category/price/stock), không có cost_price, nên tách route riêng thay vì
+    nới rộng ngữ nghĩa của route đó."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        new_cost = float(data.get('cost_price'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "cost_price không hợp lệ."}), 400
+    if new_cost < 0:
+        return jsonify({"success": False, "message": "cost_price không được âm."}), 400
+    try:
+        if not _assert_owns_product(id, business_id):
+            return jsonify({"success": False, "message": "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn."}), 403
+        db.products.update_one({'id': id, 'business_id': business_id}, {'$set': {'cost_price': new_cost}})
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/profit_report')
 @login_required
 def profit_report():
     business_id = session.get('business_id') or session['user_id']
     try:
-        # Lấy tất cả products của đúng tenant, tính số lượng bán từ order_items
-        products_data = list(db.products.find(
-            {'is_active': 1, 'business_id': business_id}, {'id': 1, 'name': 1, 'category': 1, 'price': 1, 'cost_price': 1, '_id': 0}
-        ))
-        own_product_ids = {p['id'] for p in products_data}
-        # order_items chưa có cột business_id riêng — chỉ cần lọc theo product_id thuộc đúng tenant
-        # (dùng $in ngay trong query thay vì kéo hết order_items về rồi lọc bằng Python).
-        order_items = list(db.order_items.find(
-            {'product_id': {'$in': list(own_product_ids)}}, {'product_id': 1, 'quantity': 1, '_id': 0}
-        ))
-        sold_map = {}
-        for oi in order_items:
-            sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + oi['quantity']
-        profit_data = []
-        for p in products_data:
-            sold = sold_map.get(p['id'], 0)
-            revenue = sold * p['price']
-            cost = sold * (p.get('cost_price') or 0)
-            profit_val = revenue - cost
-            margin = (profit_val / revenue * 100) if revenue else 0
-            profit_data.append({
-                'id': p['id'],
-                'name': p['name'],
-                'category': p['category'],
-                'sold': sold,
-                'revenue': revenue,
-                'cost': cost,
-                'profit': profit_val,
-                'margin': margin
-            })
+        profit_data = _compute_profit_by_product(business_id)
         error_message = None
     except Exception as e:
         print(f"Error calculating profit report (network/offline): {e}")
@@ -2801,11 +3677,15 @@ def api_storage_upload():
 
 
 @app.route('/api/storage/file/<file_id>', methods=['GET'])
+@login_required
 def api_storage_file(file_id):
-    """Trả nội dung ảnh từ GridFS theo _id. Không bọc @login_required — <img src> tải ảnh
-    trực tiếp từ trình duyệt (kể cả khi mở trong tab/link riêng) sẽ không kèm session cookie
-    trong mọi trường hợp, và ảnh đại diện/ảnh check-in vốn đã public trên bucket Supabase cũ
-    (getPublicUrl), nên giữ đúng hành vi tương đương — không phải một lỗ hổng mới."""
+    """Trả nội dung ảnh từ GridFS theo _id — CHỈ cho đúng business_id đã upload file đó.
+    Sửa lại từ bản đầu (không login_required, không check business_id): <img src> same-origin
+    VẪN gửi kèm session cookie như request thường, nên lý do "không kèm cookie" ban đầu là
+    sai; và ObjectId của Mongo sinh theo timestamp+counter (dễ đoán/dò hơn nhiều so với UUID
+    ngẫu nhiên của Supabase Storage cũ), nên để public hoàn toàn là lỗ hổng thật, không phải
+    hành vi tương đương an toàn như đã tưởng."""
+    business_id = session.get('business_id') or session['user_id']
     if media_fs is None:
         return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
     try:
@@ -2815,7 +3695,48 @@ def api_storage_file(file_id):
         return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-    return Response(grid_file.read(), mimetype=grid_file.content_type or 'application/octet-stream')
+    if getattr(grid_file, 'business_id', None) != business_id:
+        return jsonify({'success': False, 'error': 'Không có quyền truy cập file này.'}), 403
+    # Cache-Control: `private` (không phải `public`) vì route này yêu cầu login + kiểm tra
+    # business_id — dùng `public` sẽ để lộ rủi ro shared/CDN cache (vd Vercel edge, Nginx phía
+    # trước) vô tình trả nhầm ảnh của tenant A cho tenant B nếu cùng cache 1 URL dùng chung.
+    # `private` vẫn giữ nguyên lợi ích cache phía trình duyệt (giảm round-trip lặp lại, cải
+    # thiện LCP trên mạng 3G/4G) mà không mở lỗ rò rỉ chéo tenant qua cache trung gian.
+    return Response(
+        grid_file.read(),
+        mimetype=grid_file.content_type or 'application/octet-stream',
+        headers={'Cache-Control': 'private, max-age=86400'}
+    )
+
+
+# Kind nào được coi là "công khai theo thiết kế" — logo/cover thương hiệu (khách xem trang
+# landing/booking/portal/qr_menu của tenant) và ảnh chat CSKH (khách ẩn danh gửi/nhận qua
+# portal.html, không có session để dùng route private ở trên). CHỈ 2 nhóm này — không bao giờ
+# thêm 'checkin'/'avatar'/... vào đây, những kind đó PHẢI qua /api/storage/file/<id> (private).
+_PUBLIC_MEDIA_KINDS = {'brand_logo', 'brand_cover', 'portal_chat'}
+
+
+@app.route('/api/public/storage/file/<file_id>', methods=['GET'])
+def api_public_storage_file(file_id):
+    """PUBLIC — CHỈ phục vụ file có kind nằm trong whitelist _PUBLIC_MEDIA_KINDS ở trên; mọi
+    kind khác (checkin, avatar...) bị từ chối kể cả biết đúng file_id, để không lặp lại lỗ hổng
+    'public storage = ai cũng xem được mọi ảnh' đã vá ở api_storage_file()."""
+    if media_fs is None:
+        return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
+    try:
+        object_id = ObjectId(file_id)
+        grid_file = media_fs.get(object_id)
+    except (NoFile, InvalidId):
+        return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    if getattr(grid_file, 'kind', None) not in _PUBLIC_MEDIA_KINDS:
+        return jsonify({'success': False, 'error': 'File này không công khai.'}), 403
+    return Response(
+        grid_file.read(),
+        mimetype=grid_file.content_type or 'application/octet-stream',
+        headers={'Cache-Control': 'public, max-age=86400'}
+    )
 
 
 # ========== QR MENU ==========
@@ -2838,23 +3759,23 @@ def qr_menu(identifier):
     if not table_data:
         return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
 
-    # Chỉ load đúng thực đơn của tenant sở hữu bàn này — cấm lộ sản phẩm của tiệm khác
+    # Chỉ load đúng thực đơn của tenant sở hữu bàn này — cấm lộ sản phẩm của tiệm khác.
+    # channel_type đọc từ query string (mặc định 'retail' giữ đúng hành vi cũ) — trước đây bản
+    # Supabase JS ở qr_menu.html tự query lại theo ?industry= (fnb/nail/spa), KHÁC với
+    # 'retail' hardcode ở đây, nên nếu client gọi refresh live qua /api/public/pos/products sẽ
+    # ra danh sách khác với menu đã render sẵn. Truyền channel_type xuống template để mọi lần
+    # gọi lại đều dùng ĐÚNG 1 giá trị nhất quán với lần render đầu.
     table_business_id = table_data.get('business_id')
+    channel_type = request.args.get('channel_type', 'retail')
     try:
-        menu_filter = {'is_active': 1, 'channel_type': 'retail'}
+        menu_filter = {'is_active': 1, 'channel_type': channel_type}
         if table_business_id:
             menu_filter['business_id'] = table_business_id
         menu_data = list(db.products.find(menu_filter, {'_id': 0}))
     except Exception as e:
         print(f"MongoDB qr_menu products select failed: {str(e)}")
         menu_data = []
-    # Khách quét QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc menu/bàn, tạo đơn tại đúng bàn này)
-    try:
-        tenant_jwt = _mint_tenant_jwt(table_business_id, scope='qr_public', ttl_seconds=1800)
-    except Exception as e:
-        print(f"_mint_tenant_jwt failed: {str(e)}")
-        tenant_jwt = None
-    return render_template('qr_menu.html', table=table_data, menu=menu_data, tenant_jwt=tenant_jwt)
+    return render_template('qr_menu.html', table=table_data, menu=menu_data, channel_type=channel_type)
 
 
 @app.route('/api/submit_qr_order', methods=['POST'])
@@ -2881,13 +3802,13 @@ def submit_qr_order():
             else:
                 table_check = db.dining_tables.find_one({'qr_token': table_id}, {'id': 1, 'name': 1, 'business_id': 1, '_id': 0})
             if not table_check:
-                return jsonify({"success": False, "message": "Bàn không tồn tại hoặc mã QR không hợp lệ."}), 404
+                return jsonify({"success": False, "message": "Table not found or QR code is invalid."}), 404
             # Luôn dùng id số thật của bàn cho các bảng liên quan, tránh lưu nhầm qr_token dạng chuỗi
             resolved_table_id = table_check['id']
-            table_display_name = table_check.get('name') or f"Bàn {resolved_table_id}"
+            table_display_name = table_check.get('name') or f"Table {resolved_table_id}"
             table_business_id = table_check.get('business_id')
         except Exception as e:
-            return jsonify({"success": False, "message": f"Không thể xác thực bàn: {str(e)}"}), 500
+            return jsonify({"success": False, "message": f"Could not verify table: {str(e)}"}), 500
 
         # Gom danh sách món khách gửi lên thành 1 list chung (JSON nhiều món hoặc form 1 món),
         # rồi batch-fetch TẤT CẢ sản phẩm liên quan trong 1 query duy nhất ($in) — thay vì
@@ -2976,44 +3897,250 @@ def submit_qr_order():
         except Exception:
             pass
 
-        return jsonify({"success": True, "message": "Gửi đơn hàng thành công!"})
+        return jsonify({"success": True, "message": "Order submitted successfully!"})
     except Exception as e:
         print("Error submitting QR order:", e)
-        return jsonify({"success": False, "message": f"Lỗi máy chủ: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
+
+# ========== GỌI NHÂN VIÊN / YÊU CẦU TÍNH TIỀN (thay Supabase JS ở table_order.html) ==========
+@app.route('/api/table/notify', methods=['POST'])
+def api_table_notify():
+    """Route PUBLIC (khách quét QR tại bàn, không có session) — resolve business_id qua
+    table_id/qr_token giống hệt submit_qr_order() ở trên, không tin business_id client gửi."""
+    data = request.json or {}
+    table_id = data.get('table_id')
+    notify_type = data.get('type')
+    table_name = data.get('table_name', f'Table {table_id}')
+    if notify_type not in ('staff', 'bill'):
+        return jsonify({"success": False, "message": "Invalid type."}), 400
+    try:
+        table_doc = db.dining_tables.find_one({'id': table_id}, {'business_id': 1, '_id': 0})
+        if not table_doc:
+            return jsonify({"success": False, "message": "Table not found."}), 404
+        business_id = table_doc.get('business_id')
+        db.user_logs.insert_one({
+            'id': next_mongo_id('user_logs'),
+            'business_id': business_id,
+            'user_email': f"table_{table_id}",
+            'action': 'call_staff' if notify_type == 'staff' else 'request_bill',
+            'description': f"Bàn {table_name} yêu cầu {'gọi nhân viên' if notify_type == 'staff' else 'tính tiền'}",
+            'created_at': datetime.now().isoformat(),
+        })
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/public/pos/products', methods=['GET'])
+def api_public_pos_products():
+    """PUBLIC (không @login_required) — thực đơn cho khách quét QR gọi món tại bàn
+    (table_order.html) TRƯỚC KHI có Flask session. Tenant resolve qua table_id giống hệt
+    submit_qr_order()/api_table_notify() ở trên, KHÔNG tin business_id do client tự gửi.
+    Projection loại trừ cost_price (giá vốn) và business_id khỏi response — chỉ trả về dữ
+    liệu cần cho việc hiển thị menu công khai."""
+    table_id = request.args.get('table_id')
+    channel_type = request.args.get('channel_type', 'fnb')
+    if not table_id or not str(table_id).isdigit():
+        return jsonify({"success": False, "message": "Missing or invalid table_id."}), 400
+    try:
+        table_doc = db.dining_tables.find_one({'id': int(table_id)}, {'business_id': 1, '_id': 0})
+        if not table_doc:
+            return jsonify({"success": False, "message": "Table not found."}), 404
+        business_id = table_doc.get('business_id')
+        products_data = list(db.products.find(
+            {'is_active': 1, 'channel_type': channel_type, 'business_id': business_id},
+            {'id': 1, 'name': 1, 'price': 1, 'stock': 1, 'image': 1, 'category': 1, 'channel_type': 1, '_id': 0}
+        ).sort('name', 1))
+        return jsonify({"success": True, "data": products_data})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== KITCHEN DISPLAY JSON API (thay Supabase JS ở kitchen_display.html) ==========
+# db.kitchen_orders đã tồn tại sẵn (ghi bởi submit_qr_order ở trên) — chỉ còn thiếu chiều
+# đọc/cập nhật cho màn hình bếp. business_id lấy từ session, KHÔNG tin client.
+@app.route('/api/kitchen/orders', methods=['GET'])
+@login_required
+def api_kitchen_orders_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        orders = list(db.kitchen_orders.find(
+            {'business_id': business_id, 'status': {'$in': ['pending', 'cooking']}},
+            {'_id': 0}
+        ).sort('created_at', 1))
+        return jsonify({"success": True, "data": orders})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/kitchen/orders/<int:order_id>', methods=['PATCH'])
+@login_required
+def api_kitchen_orders_update(order_id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    status = data.get('status')
+    if status not in ('pending', 'cooking', 'completed'):
+        return jsonify({"success": False, "error": "trang_thai không hợp lệ."}), 400
+    try:
+        result = db.kitchen_orders.update_one(
+            {'id': order_id, 'business_id': business_id}, {'$set': {'status': status}}
+        )
+        if result.matched_count == 0:
+            return jsonify({"success": False, "error": "Không tìm thấy vé bếp."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/stream/kitchen')
+@login_required
+def stream_kitchen():
+    """Thay kênh Supabase Realtime `kitchen-orders` (INSERT+UPDATE trên bảng kitchen_orders)."""
+    return _sse_change_signal(db.kitchen_orders, _sse_tenant_match())
+
+
+# ========== CHAT NỘI BỘ JSON API (thay Supabase JS + Supabase Auth ở chat.html) ==========
+# db.chat_messages (mới) + db.chat_presence (mới, thay Supabase Realtime Presence — Presence
+# là pub/sub tức thời trong bộ nhớ, không có bảng tương ứng; thay bằng heartbeat: client tự
+# ping định kỳ, "online" = last_seen trong N giây gần nhất). Danh tính người dùng lấy từ
+# session['user_email'] (Flask đã xác thực qua @login_required) — KHÔNG còn cần Supabase Auth
+# getSession()/getUser() như code cũ, vốn là lớp xác thực THỨ HAI chồng lên Flask session,
+# đã bị vô hiệu hoá từ khi route /chat có @login_required (route chỉ vào được nếu đã đăng
+# nhập Flask, nên check Supabase Auth phía client luôn đúng/không có tác dụng thật).
+_CHAT_PRESENCE_TTL_SECONDS = 20
+
+
+def _resolve_chat_identity(business_id):
+    email = session.get('user_email') or f"user_{session.get('user_id')}"
+    emp = db.employees.find_one({'email': email, 'business_id': business_id}, {'ho_ten': 1, '_id': 0})
+    name = (emp or {}).get('ho_ten') or email.split('@')[0]
+    return email, name
+
+
+@app.route('/api/chat/messages', methods=['GET'])
+@login_required
+def api_chat_messages_list():
+    business_id = session.get('business_id') or session['user_id']
+    room = request.args.get('room', 'KenhChung')
+    before = request.args.get('before')
+    limit = min(request.args.get('limit', 50, type=int), 100)
+    query = {'business_id': business_id, 'room': room}
+    if before:
+        query['timestamp'] = {'$lt': before}
+    try:
+        msgs = list(db.chat_messages.find(query, {'_id': 0}).sort('timestamp', -1).limit(limit))
+        return jsonify({"success": True, "data": msgs})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/chat/messages', methods=['POST'])
+@login_required
+def api_chat_messages_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    content = (data.get('content') or '').strip()
+    room = data.get('room', 'KenhChung')
+    if not content:
+        return jsonify({"success": False, "error": "Tin nhắn trống."}), 400
+    sender_id, sender_name = _resolve_chat_identity(business_id)
+    try:
+        doc = {
+            'id': next_mongo_id('chat_messages'),
+            'business_id': business_id,
+            'room': room,
+            'sender_id': sender_id,
+            'sender_name': sender_name,
+            'content': content,
+            'timestamp': datetime.now().isoformat(),
+        }
+        db.chat_messages.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/chat/presence/ping', methods=['POST'])
+@login_required
+def api_chat_presence_ping():
+    business_id = session.get('business_id') or session['user_id']
+    room = (request.json or {}).get('room', 'KenhChung')
+    sender_id, sender_name = _resolve_chat_identity(business_id)
+    try:
+        db.chat_presence.update_one(
+            {'business_id': business_id, 'room': room, 'email': sender_id},
+            {'$set': {'name': sender_name, 'last_seen': datetime.now().isoformat()}},
+            upsert=True
+        )
+        # Trả kèm danh tính đã resolve — client dùng đúng 1 lần gọi đầu tiên để biết
+        # "mình là ai" (so sánh sender_id === myEmail khi render bong bóng chat) thay vì phải
+        # tự gọi Supabase Auth getUser() như code cũ.
+        return jsonify({"success": True, "email": sender_id, "name": sender_name})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/chat/presence', methods=['GET'])
+@login_required
+def api_chat_presence_list():
+    business_id = session.get('business_id') or session['user_id']
+    room = request.args.get('room', 'KenhChung')
+    cutoff = (datetime.now() - timedelta(seconds=_CHAT_PRESENCE_TTL_SECONDS)).isoformat()
+    try:
+        online = list(db.chat_presence.find(
+            {'business_id': business_id, 'room': room, 'last_seen': {'$gte': cutoff}},
+            {'_id': 0, 'email': 1, 'name': 1}
+        ))
+        return jsonify({"success": True, "data": online})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/stream/chat')
+@login_required
+def stream_chat():
+    """Thay 2 kênh Supabase Realtime `public:messages` + presence `online-users` — 1 stream
+    dùng chung, watch cả chat_messages và chat_presence ở cấp Database."""
+    return _sse_change_signal(db, _sse_tenant_match('chat_messages', 'chat_presence'))
 
 
 # ========== CÀI ĐẶT THƯƠNG HIỆU ==========
+def _brand_setting_get(business_id, key, default=None):
+    doc = db.system_settings.find_one({'key': key, 'business_id': business_id}, {'value': 1, '_id': 0})
+    return doc['value'] if doc else default
+
+
+def _brand_setting_set(business_id, key, value):
+    db.system_settings.update_one(
+        {'key': key, 'business_id': business_id}, {'$set': {'value': value}}, upsert=True
+    )
+
+
 @app.route('/brand_settings', methods=['GET', 'POST'])
 @login_required
 def brand_settings():
+    # ĐÃ CHUYỂN SANG PER-TENANT (quyết định sản phẩm): brand_name/brand_color/logo/cover/font
+    # trước đây là 1 giá trị TOÀN CỤC dùng chung mọi tenant — nay mỗi khoá đều lọc thêm
+    # business_id, giống mọi key khác trong system_settings (payment_config, inventory_thresholds).
     denied = _deny_if_staff_page()
     if denied:
         return denied
+    business_id = session.get('business_id') or session['user_id']
     if request.method == 'POST':
-        # Update brand settings in system_settings securely
-        # LƯU Ý: brand_name/brand_color vốn là 1 giá trị TOÀN CỤC dùng chung cho mọi tenant từ
-        # trước tới nay (không có business_id) — giữ nguyên đúng hành vi cũ khi migrate, không
-        # tự ý đổi thành per-tenant vì đây là quyết định sản phẩm cần bàn riêng, không phải lỗi.
         try:
-            db.system_settings.update_one(
-                {'key': 'brand_name'}, {'$set': {'value': request.form['brand_name']}}, upsert=True
-            )
+            _brand_setting_set(business_id, 'brand_name', request.form['brand_name'])
         except Exception as e:
             print("Error updating brand_name settings:", e)
-
         try:
-            db.system_settings.update_one(
-                {'key': 'brand_color'}, {'$set': {'value': request.form['brand_color']}}, upsert=True
-            )
+            _brand_setting_set(business_id, 'brand_color', request.form['brand_color'])
         except Exception as e:
             print("Error updating brand_color settings:", e)
-        # Xử lý upload logo và cover nếu có
         return redirect(url_for('spa'))
     try:
-        brand_doc = db.system_settings.find_one({'key': 'brand_name'}, {'value': 1, '_id': 0})
-        brand_name = brand_doc['value'] if brand_doc else 'BitPaw'
-        color_doc = db.system_settings.find_one({'key': 'brand_color'}, {'value': 1, '_id': 0})
-        brand_color = color_doc['value'] if color_doc else '#06b6d4'
+        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
+        brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
         error_message = None
     except Exception as e:
         print(f"Error fetching brand settings (network/offline): {e}")
@@ -3023,11 +4150,199 @@ def brand_settings():
     return render_template('brand_settings.html', brand_name=brand_name, brand_color=brand_color, error_message=error_message)
 
 
+@app.route('/api/brand_settings', methods=['GET'])
+@login_required
+def api_brand_settings_get():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        data = {
+            'brand_name': _brand_setting_get(business_id, 'brand_name', 'BitPaw'),
+            'brand_color': _brand_setting_get(business_id, 'brand_color', '#06b6d4'),
+            'font_family': _brand_setting_get(business_id, 'brand_font_family', ''),
+            'logo_url': _brand_setting_get(business_id, 'brand_logo_url', ''),
+            'cover_url': _brand_setting_get(business_id, 'brand_cover_url', ''),
+        }
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/brand_settings', methods=['POST'])
+@login_required
+def api_brand_settings_save():
+    """multipart/form-data: brand_name, brand_color, font_family (text) + logo/cover (file,
+    tuỳ chọn) — hoàn thiện phần "Xử lý upload logo và cover nếu có" trước đây chỉ là TODO chưa
+    từng cài đặt. Ảnh lưu GridFS kind='brand_logo'/'brand_cover' (công khai qua
+    /api/public/storage/file/<id>, xem whitelist _PUBLIC_MEDIA_KINDS)."""
+    business_id = session.get('business_id') or session['user_id']
+    denied = _deny_if_staff_page()
+    if denied:
+        return jsonify({"success": False, "message": "Không có quyền."}), 403
+    try:
+        if 'brand_name' in request.form:
+            _brand_setting_set(business_id, 'brand_name', request.form['brand_name'])
+        if 'brand_color' in request.form:
+            _brand_setting_set(business_id, 'brand_color', request.form['brand_color'])
+        if 'font_family' in request.form:
+            _brand_setting_set(business_id, 'brand_font_family', request.form['font_family'])
+
+        for field, kind, setting_key in (('logo', 'brand_logo', 'brand_logo_url'), ('cover', 'brand_cover', 'brand_cover_url')):
+            file = request.files.get(field)
+            if file and file.filename:
+                if media_fs is None:
+                    return jsonify({"success": False, "message": "MongoDB/GridFS chưa được cấu hình."}), 400
+                if not _allowed_media_file(file.filename):
+                    return jsonify({"success": False, "message": "Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp)."}), 400
+                file_id = media_fs.put(
+                    file.stream.read(),
+                    filename=secure_filename(file.filename),
+                    business_id=business_id,
+                    kind=kind,
+                    content_type=file.mimetype or 'application/octet-stream'
+                )
+                _brand_setting_set(business_id, setting_key, url_for('api_public_storage_file', file_id=str(file_id)))
+
+        return jsonify({"success": True, "data": {
+            'brand_name': _brand_setting_get(business_id, 'brand_name', 'BitPaw'),
+            'brand_color': _brand_setting_get(business_id, 'brand_color', '#06b6d4'),
+            'font_family': _brand_setting_get(business_id, 'brand_font_family', ''),
+            'logo_url': _brand_setting_get(business_id, 'brand_logo_url', ''),
+            'cover_url': _brand_setting_get(business_id, 'brand_cover_url', ''),
+        }})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== MỚI: ROUTE CHO CÁC TEMPLATE CÒN THIẾU ==========
 @app.route('/inventory_alert')
 @login_required
 def inventory_alert():
     return render_template('inventory_alert.html')
+
+
+# ========== INVENTORY ALERT JSON API (thay Supabase JS ở inventory_alert.html) ==========
+@app.route('/api/inventory/products', methods=['GET'])
+@login_required
+def api_inventory_products():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        products = list(db.products.find(
+            {'business_id': business_id, 'is_active': 1}, {'_id': 0}
+        ).sort('id', 1))
+        return jsonify({"success": True, "data": products})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/inventory/thresholds', methods=['GET'])
+@login_required
+def api_inventory_thresholds_get():
+    """Bản Supabase cũ chỉ lọc theo key='inventory_thresholds', KHÔNG lọc business_id — mọi
+    tenant vô tình đọc/ghi chung 1 ngưỡng cảnh báo tồn kho của nhau. Sửa lại bắt buộc lọc theo
+    business_id, giống mọi key khác trong system_settings (vd payment_config)."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        doc = db.system_settings.find_one(
+            {'key': 'inventory_thresholds', 'business_id': business_id}, {'value': 1, '_id': 0}
+        )
+        thresholds = json.loads(doc['value']) if doc else {'warning': 10, 'critical': 5}
+        return jsonify({"success": True, "data": thresholds})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/inventory/thresholds', methods=['PUT'])
+@login_required
+def api_inventory_thresholds_update():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        warning = int(data.get('warning'))
+        critical = int(data.get('critical'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Ngưỡng cảnh báo không hợp lệ."}), 400
+    if warning <= 0 or critical <= 0 or critical >= warning:
+        return jsonify({"success": False, "message": "Ngưỡng nguy cấp phải nhỏ hơn ngưỡng cảnh báo và đều > 0."}), 400
+    try:
+        db.system_settings.update_one(
+            {'key': 'inventory_thresholds', 'business_id': business_id},
+            {'$set': {'value': json.dumps({'warning': warning, 'critical': critical})}},
+            upsert=True
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/products/<int:id>/restock', methods=['POST'])
+@login_required
+def api_products_restock(id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        quantity = int(data.get('quantity'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Số lượng không hợp lệ."}), 400
+    if quantity <= 0:
+        return jsonify({"success": False, "message": "Số lượng phải lớn hơn 0."}), 400
+    try:
+        # $inc thay vì đọc stock hiện tại rồi ghi đè — tránh lost-update khi 2 người cùng
+        # nhập hàng 1 sản phẩm đồng thời (bản Supabase cũ tính newStock ở client rồi update
+        # đè, có race condition thật).
+        result = db.products.find_one_and_update(
+            {'id': id, 'business_id': business_id},
+            {'$inc': {'stock': quantity}},
+            return_document=ReturnDocument.AFTER,
+            projection={'_id': 0}
+        )
+        if not result:
+            return jsonify({"success": False, "message": "Không tìm thấy sản phẩm."}), 404
+        db.inventory_logs.insert_one({
+            'id': next_mongo_id('inventory_logs'),
+            'product_id': id,
+            'quantity_change': quantity,
+            'type': 'restock',
+            'business_id': business_id,
+            'created_at': datetime.now().isoformat(),
+        })
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/restock_proposals', methods=['GET'])
+@login_required
+def api_restock_proposals_list():
+    business_id = session.get('business_id') or session['user_id']
+    query = {'business_id': business_id}
+    status = request.args.get('status')
+    if status:
+        query['status'] = status
+    try:
+        proposals = list(db.restock_proposals.find(query, {'_id': 0}).sort('created_at', -1))
+        return jsonify({"success": True, "data": proposals})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/restock_proposals/<int:id>', methods=['PATCH'])
+@login_required
+def api_restock_proposals_update(id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    status = data.get('status')
+    if status not in ('approved', 'dismissed', 'pending'):
+        return jsonify({"success": False, "message": "status không hợp lệ."}), 400
+    try:
+        result = db.restock_proposals.update_one(
+            {'id': id, 'business_id': business_id}, {'$set': {'status': status}}
+        )
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy đề xuất."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/kitchen_display')
 @login_required
@@ -3038,6 +4353,124 @@ def kitchen_display():
 @login_required
 def ecommerce_sync():
     return render_template('ecommerce_sync.html')
+
+
+# ========== ECOMMERCE SYNC (Shopee/TikTok/Lazada) — MIGRATION AN TOÀN, CHƯA PHẢI TÍCH HỢP
+# THẬT. Bản Supabase cũ gửi thẳng api_key/api_secret dạng plaintext từ trình duyệt lên Supabase,
+# không mã hoá, và "sync" chỉ là setTimeout giả lập ở client — KHÔNG hề gọi API thật của
+# Shopee/TikTok/Lazada. Theo quyết định sản phẩm: giữ nguyên mức độ tính năng hiện tại (chưa
+# tích hợp thật — cần OAuth/webhook/signature verification riêng cho từng sàn, ngoài phạm vi
+# đợt migrate này), nhưng credential giờ được mã hoá tại nghỉ (Fernet, key từ biến môi trường
+# ECOMMERCE_ENC_KEY) và KHÔNG BAO GIỜ echo lại về client — cải thiện thật so với bản cũ dù
+# tính năng sync vẫn là stub. ==========
+def _ecommerce_mask(value):
+    if not value:
+        return ''
+    return ('*' * max(0, len(value) - 4)) + value[-4:]
+
+
+@app.route('/api/ecommerce/connections', methods=['GET'])
+@login_required
+def api_ecommerce_connections_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        docs = list(db.ecommerce_connections.find({'business_id': business_id}, {'_id': 0}))
+        # KHÔNG bao giờ trả api_key/api_secret (kể cả bản mã hoá) — chỉ trạng thái + vài ký tự
+        # cuối để người dùng xác nhận đã lưu đúng credential, không phải để đọc lại.
+        safe = [{
+            'platform': d.get('platform'),
+            'connected': True,
+            'api_key_masked': _ecommerce_mask(d.get('api_key_plain_last4_only', '')),
+            'updated_at': d.get('updated_at'),
+        } for d in docs]
+        return jsonify({"success": True, "data": safe})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/ecommerce/connections', methods=['POST'])
+@login_required
+def api_ecommerce_connections_save():
+    business_id = session.get('business_id') or session['user_id']
+    if _ecommerce_fernet is None:
+        return jsonify({
+            "success": False,
+            "message": "Tính năng lưu API Key/Secret sàn TMĐT chưa được cấu hình an toàn trên "
+                       "máy chủ (thiếu ECOMMERCE_ENC_KEY) — liên hệ quản trị hệ thống trước khi dùng."
+        }), 503
+    data = request.json or {}
+    platform = (data.get('platform') or '').strip()
+    api_key = data.get('api_key') or ''
+    api_secret = data.get('api_secret') or ''
+    if platform not in ('Shopee', 'TikTok', 'Lazada') or not api_key or not api_secret:
+        return jsonify({"success": False, "message": "Thiếu platform/api_key/api_secret hợp lệ."}), 400
+    try:
+        db.ecommerce_connections.update_one(
+            {'business_id': business_id, 'platform': platform},
+            {'$set': {
+                'api_key_enc': _ecommerce_fernet.encrypt(api_key.encode()).decode(),
+                'api_secret_enc': _ecommerce_fernet.encrypt(api_secret.encode()).decode(),
+                'api_key_plain_last4_only': api_key[-4:],
+                'updated_at': datetime.now().isoformat(),
+            }, '$setOnInsert': {'id': next_mongo_id('ecommerce_connections'), 'business_id': business_id, 'platform': platform}},
+            upsert=True
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/ecommerce/sync', methods=['POST'])
+@login_required
+def api_ecommerce_sync():
+    """STUB — chỉ ghi nhận yêu cầu sync vào hàng đợi, KHÔNG gọi API thật của bất kỳ sàn nào
+    (tích hợp thật là 1 dự án riêng: OAuth/API-key exchange theo từng sàn, webhook có xác thực
+    chữ ký, worker đồng bộ nền — ngoài phạm vi migrate Supabase->Mongo). Trả về rõ ràng
+    status='stub_not_implemented' để frontend KHÔNG hiển thị như thể đã đồng bộ xong thật."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    platforms = data.get('platforms') or []
+    sync_type = data.get('type', 'all')
+    try:
+        for platform in platforms:
+            db.ecommerce_sync_queue.insert_one({
+                'id': next_mongo_id('ecommerce_sync_queue'),
+                'business_id': business_id,
+                'platform': platform,
+                'action': sync_type,
+                'status': 'stub_not_implemented',
+                'created_at': datetime.now().isoformat(),
+            })
+        return jsonify({
+            "success": True,
+            "status": "stub_not_implemented",
+            "message": "Đã ghi nhận yêu cầu — tích hợp API thật với sàn TMĐT chưa được xây dựng."
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/ecommerce/orders', methods=['GET'])
+@login_required
+def api_ecommerce_orders_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        orders = list(db.ecommerce_orders.find({'business_id': business_id}, {'_id': 0}).sort('created_at', -1))
+        return jsonify({"success": True, "data": orders})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/ecommerce/products', methods=['GET'])
+@login_required
+def api_ecommerce_products_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        count = db.ecommerce_products.count_documents({'business_id': business_id})
+        return jsonify({"success": True, "data": {"count": count}})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/payment_gateway')
 @login_required
@@ -3174,7 +4607,7 @@ def api_us_payment_start():
         else:
             region = {"country": "VN", "currency": "VND"}
         if region['country'] != 'US' or region['currency'] != 'USD':
-            return jsonify({'success': False, 'message': 'Tenant này không thuộc thị trường US (Square chỉ áp dụng cho country=US).'}), 403
+            return jsonify({'success': False, 'message': 'This tenant is not in the US market (Square is only available for country=US).'}), 403
 
         if amount is None:
             return jsonify({'success': False, 'message': 'Missing amount'}), 400
@@ -3622,37 +5055,6 @@ def payment_success():
 def sell():
     return render_template('sell.html')
 
-# ========== TENANT SESSION TOKEN (cho các trang gọi Supabase trực tiếp từ trình duyệt) ==========
-# Các trang nhanvien/bangluong/app_nhanvien/diemdanh/chamcong_* gọi thẳng Supabase bằng anon key,
-# nên RLS không có cách nào phân biệt tenant nếu không có claim business_id trong JWT của request.
-# Hàm này ký 1 JWT ngắn hạn chứa business_id (và tuỳ chọn "scope" giới hạn phạm vi cho khách
-# vãng lai quét QR/đặt lịch — không có scope = token đầy đủ quyền của nhân viên/chủ tiệm).
-def _mint_tenant_jwt(business_id, scope=None, ttl_seconds=3600):
-    secret = os.environ.get('SUPABASE_JWT_SECRET')
-    if not secret or not business_id:
-        return None
-    now = int(time.time())
-    payload = {
-        "role": "authenticated",
-        "business_id": business_id,
-        "iat": now,
-        "exp": now + ttl_seconds,
-    }
-    if scope:
-        payload["scope"] = scope
-    return pyjwt.encode(payload, secret, algorithm="HS256")
-
-
-@app.route('/api/session/supabase_token')
-@login_required
-def get_supabase_tenant_token():
-    business_id = session.get('business_id') or session.get('user_id')
-    token = _mint_tenant_jwt(business_id)
-    if not token:
-        return jsonify({"success": False, "error": "Server chưa cấu hình SUPABASE_JWT_SECRET."}), 500
-    return jsonify({"success": True, "token": token, "business_id": business_id})
-
-
 # ========== MỚI: ROUTE CHO CƠ SỞ DỮ LIỆU NHÂN SỰ VÀ SUPER ADMIN ==========
 @app.route('/nhanvien')
 @login_required
@@ -3771,9 +5173,20 @@ def table_order():
     if not table_data:
         return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
 
-    # Khách quét QR không đăng nhập -> token giới hạn phạm vi (chỉ đọc menu/bàn, tạo đơn tại đúng bàn này)
-    tenant_jwt = _mint_tenant_jwt(table_data.get('business_id'), scope='qr_public', ttl_seconds=1800)
-    return render_template('table_order.html', table=table_data, tenant_jwt=tenant_jwt)
+    # Khách quét QR KHÔNG có session — inject_industry_config() (context_processor toàn cục)
+    # sẽ resolve tenant_country/tenant_currency theo session.get('business_id') là None, tức
+    # LUÔN fallback VN/VND bất kể tiệm thật sự thuộc thị trường nào. Phải tự resolve theo đúng
+    # business_id của CÁI BÀN đang được quét (không phải theo session) rồi truyền đè lên context
+    # processor's giá trị mặc định (render_template kwargs ghi đè context processor cùng tên).
+    if hasattr(TenantEngine, 'get_region_config'):
+        region = TenantEngine.get_region_config(table_data.get('business_id'))
+    else:
+        region = {"country": "VN", "currency": "VND"}
+
+    return render_template(
+        'table_order.html', table=table_data,
+        tenant_country=region['country'], tenant_currency=region['currency']
+    )
 
 @app.route('/baocao_loinhuan')
 @login_required
@@ -3887,9 +5300,116 @@ def fnb_dashboard():
     return render_template('fnb_dashboard.html')
 
 @app.route('/portal')
-@login_required
 def portal():
+    """PUBLIC (đã bỏ @login_required) — trang chat CSKH cho KHÁCH HÀNG CUỐI của tiệm, truy cập
+    qua link/QR riêng dạng /portal?id=<customer_id>, KHÔNG có session đăng nhập. Route này trước
+    đây bị gắn @login_required nhầm (rập khuôn theo mọi route khác trong lần migrate đầu), khiến
+    mọi khách hàng bấm vào link đều bị đá về trang đăng nhập nhân viên — cùng loại lỗi với
+    kiosk Fast Check-in và QR gọi món đã sửa ở Batch 2."""
     return render_template('portal.html')
+
+
+def _resolve_portal_customer(customer_id):
+    """Tra cứu bot_customers theo id do CHÍNH customer_id xác định business_id — không có
+    session nên KHÔNG ĐƯỢC tin business_id từ client dưới bất kỳ hình thức nào; mọi route
+    /api/portal/* đều phải đi qua hàm này trước khi đọc/ghi bot_messages."""
+    if not customer_id:
+        return None
+    return db.bot_customers.find_one({'id': customer_id}, {'_id': 0})
+
+
+@app.route('/api/portal/messages', methods=['GET'])
+def api_portal_messages_list():
+    customer_id = request.args.get('customer_id', '')
+    customer = _resolve_portal_customer(customer_id)
+    if not customer:
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
+    try:
+        messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
+        return jsonify({"success": True, "data": messages})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/portal/messages', methods=['POST'])
+def api_portal_messages_create():
+    """Khách hàng (ẩn danh, không session) gửi tin nhắn HOẶC client tự ghi lại phản hồi AI giả
+    lập (sender_type='ai', giống hành vi getAIResponse() cũ ở portal.html). KHÔNG cho phép
+    sender_type='staff' qua route public này — trả lời thật của nhân viên chỉ được ghi qua
+    /api/bot/messages (đã có @login_required + business_id từ session)."""
+    data = request.json or {}
+    customer_id = data.get('customer_id', '')
+    content = (data.get('content') or '').strip()
+    sender_type = data.get('sender_type', 'customer')
+    if sender_type not in ('customer', 'ai'):
+        return jsonify({"success": False, "message": "sender_type không hợp lệ."}), 400
+    if not content:
+        return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
+    customer = _resolve_portal_customer(customer_id)
+    if not customer:
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
+    try:
+        now_iso = datetime.now().isoformat()
+        db.bot_messages.insert_one({
+            'customer_id': customer_id, 'sender_type': sender_type, 'content': content[:2000],
+            'business_id': customer['business_id'], 'created_at': now_iso,
+            'is_read': sender_type != 'customer',
+        })
+        db.bot_customers.update_one(
+            {'id': customer_id}, {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/portal/upload', methods=['POST'])
+def api_portal_upload():
+    """Upload ảnh/GIF khách gửi trong chat CSKH — public, business_id lấy từ customer_id (KHÔNG
+    có session để lấy từ đó). File lưu vào cùng GridFS bucket 'media' như /api/storage/upload
+    nhưng kind='portal_chat' — chỉ kind này (+ brand_logo/brand_cover) được phép đọc công khai
+    qua /api/public/storage/file/<id>, tách biệt khỏi ảnh riêng tư khác (checkin, avatar...)."""
+    if media_fs is None:
+        return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
+    customer_id = request.form.get('customer_id', '')
+    customer = _resolve_portal_customer(customer_id)
+    if not customer:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hội thoại này.'}), 404
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'Thiếu file để upload.'}), 400
+    if not _allowed_media_file(file.filename):
+        return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
+    filename = secure_filename(file.filename)
+    try:
+        file_id = media_fs.put(
+            file.stream.read(),
+            filename=filename,
+            business_id=customer['business_id'],
+            kind='portal_chat',
+            content_type=file.mimetype or 'application/octet-stream'
+        )
+        return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_public_storage_file', file_id=str(file_id))})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/portal/stream', methods=['GET'])
+def api_portal_stream():
+    """SSE public — chỉ là tín hiệu "có gì mới, tự gọi lại /api/portal/messages", KHÔNG mang dữ
+    liệu, nên lộ tín hiệu này không rò rỉ nội dung chat của khách khác. Match stage tự dựng
+    (không dùng _sse_tenant_match() vì hàm đó đọc business_id từ session, ở đây không có
+    session — business_id phải suy ra từ customer_id)."""
+    customer_id = request.args.get('customer_id', '')
+    customer = _resolve_portal_customer(customer_id)
+    if not customer:
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
+    match = {'$match': {'$or': [
+        {'fullDocument.business_id': customer['business_id']},
+        {'operationType': 'delete'},
+    ], 'ns.coll': {'$in': ['bot_customers', 'bot_messages']}}}
+    return _sse_change_signal(db, match)
+
 
 @app.route('/quanly_congno')
 @login_required
@@ -3935,7 +5455,7 @@ def _is_superadmin():
 @login_required
 def super_admin():
     if not _is_superadmin():
-        return "Truy cập bị từ chối: trang này chỉ dành cho Superadmin.", 403
+        return "Access denied: this page is for Superadmin only.", 403
     return render_template('super_admin.html')
 
 @app.route('/ai_bot')
@@ -3961,9 +5481,9 @@ def ai_bot():
     # Try fetching brand details from MongoDB if connected
     if MONGO_STATUS == "CONNECTED":
         try:
-            brand_doc = db.system_settings.find_one({'key': 'brand_name'}, {'value': 1, '_id': 0})
-            if brand_doc:
-                brand_name = brand_doc['value']
+            brand_doc_value = _brand_setting_get(business_id, 'brand_name')
+            if brand_doc_value:
+                brand_name = brand_doc_value
                 has_profile = True
         except Exception as e:
             print(f"[!] MongoDB profile query failed: {str(e)}")
@@ -4076,6 +5596,75 @@ def _load_recent_chat_history(business_id, customer_phone, limit=10):
     except Exception:
         pass
     return []
+
+
+# ========== AI BOT CONSOLE (staff xem/trả lời hội thoại của TENANT MÌNH) — thay Supabase JS
+# ở ai_bot.html. Client cũ đọc bot_customers/bot_messages KHÔNG lọc business_id (giống lỗ hổng
+# đã vá ở user_logs.html) — 2 route GET dưới đây bắt buộc lọc theo business_id của session. ==========
+@app.route('/api/bot/customers', methods=['GET'])
+@login_required
+def api_bot_customers_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        customers = list(db.bot_customers.find({'business_id': business_id}, {'_id': 0}).sort('last_message_time', -1))
+        return jsonify({"success": True, "data": customers})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+def _assert_owns_bot_customer(customer_id, business_id):
+    doc = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, '_id': 0})
+    return bool(doc) and doc.get('business_id') == business_id
+
+
+@app.route('/api/bot/messages', methods=['GET'])
+@login_required
+def api_bot_messages_list():
+    business_id = session.get('business_id') or session['user_id']
+    customer_id = request.args.get('customer_id', '')
+    if not _assert_owns_bot_customer(customer_id, business_id):
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+    try:
+        messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
+        return jsonify({"success": True, "data": messages})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/bot/messages', methods=['POST'])
+@login_required
+def api_bot_messages_create():
+    """Staff (chủ tiệm) tự trả lời khách trong console ai_bot.html — sender_type='staff',
+    KHÁC với sender_type='ai'/'customer' do _persist_chat_turn() ghi tự động từ widget
+    landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    customer_id = data.get('customer_id', '')
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
+    if not _assert_owns_bot_customer(customer_id, business_id):
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+    try:
+        now_iso = datetime.now().isoformat()
+        db.bot_messages.insert_one({
+            'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
+            'business_id': business_id, 'created_at': now_iso, 'is_read': True,
+        })
+        db.bot_customers.update_one(
+            {'id': customer_id, 'business_id': business_id},
+            {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/stream/bot_chat')
+@login_required
+def stream_bot_chat():
+    """Thay kênh Supabase Realtime `public:bot_messages`."""
+    return _sse_change_signal(db, _sse_tenant_match('bot_customers', 'bot_messages'))
 
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
@@ -4207,12 +5796,12 @@ def app_nhanvien():
 @login_required
 def duc_ma():
     if not _is_superadmin():
-        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     data = request.json
     ma_key = (data.get('license_key') or '').strip()
     nganh = data.get('nganh_nghe')
     if not ma_key:
-        return jsonify({"success": False, "message": "Thiếu mã license."}), 400
+        return jsonify({"success": False, "message": "Missing license code."}), 400
     try:
         # license_codes là collection license dùng chung toàn hệ thống trên MongoDB (không thuộc
         # riêng tenant nào). update_one(..., upsert=True) trên license_key giữ đúng hành vi
@@ -4223,7 +5812,7 @@ def duc_ma():
              '$setOnInsert': {'id': next_mongo_id('license_codes')}},
             upsert=True
         )
-        return jsonify({"success": True, "message": f"Đã đúc mã {ma_key} thành công!"})
+        return jsonify({"success": True, "message": f"License code {ma_key} generated successfully!"})
     except Exception as e:
         print(f"[duc_ma] Lỗi ghi license_codes lên MongoDB: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -4232,16 +5821,20 @@ def duc_ma():
 @login_required
 def get_keys():
     if not _is_superadmin():
-        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     try:
         docs = db.license_codes.find(
             {}, {'id': 1, 'license_key': 1, 'nganh_nghe': 1, 'trang_thai': 1, '_id': 0}
         ).sort('id', -1)
+        # Trả về status code trung lập (không phải chuỗi tiếng Việt trực tiếp) để frontend tự
+        # dịch hiển thị theo currentLang — trước đây trả thẳng 'trang_thai' tiếng Việt ('Đã kích
+        # hoạt') khiến badge trạng thái luôn hiện tiếng Việt bất kể ngôn ngữ đang chọn.
+        _status_code_map = {'Sẵn sàng': 'ready', 'Đã kích hoạt': 'activated'}
         keys_list = [{
             "id": k['id'],
             "key_code": k['license_key'],
             "industry": k['nganh_nghe'],
-            "status": 'Chưa sử dụng' if k['trang_thai'] == 'Sẵn sàng' else k['trang_thai']
+            "status": _status_code_map.get(k['trang_thai'], k['trang_thai'])
         } for k in docs]
         return jsonify({"success": True, "data": keys_list})
     except Exception as e:
@@ -4253,12 +5846,68 @@ def get_keys():
 @login_required
 def delete_key(key_id):
     if not _is_superadmin():
-        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     try:
         db.license_codes.delete_one({'id': key_id})
-        return jsonify({"success": True, "message": "Đã xóa license key thành công!"})
+        return jsonify({"success": True, "message": "License key deleted successfully!"})
     except Exception as e:
         print(f"[delete_key] Lỗi xóa license_codes id={key_id} trên MongoDB: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== SUPER ADMIN: CỔNG THANH TOÁN NHẬN TIỀN (thay Supabase JS ở super_admin.html)
+# db.payment_methods — collection mới, TOÀN CỤC dùng chung cho mọi tenant (danh sách ngân
+# hàng nhận tiền hiển thị ở checkout.html), không có business_id — chỉ superadmin sửa được. ==========
+@app.route('/api/superadmin/payment_methods', methods=['GET'])
+@login_required
+def api_superadmin_payment_methods_list():
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    try:
+        methods = list(db.payment_methods.find({}, {'_id': 0}).sort('id', 1))
+        return jsonify({"success": True, "data": methods})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/payment_methods', methods=['POST'])
+@login_required
+def api_superadmin_payment_methods_create():
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    data = request.json or {}
+    try:
+        doc = {
+            'id': next_mongo_id('payment_methods'),
+            'bin_code': data.get('bin_code', ''),
+            'provider_name': data.get('provider_name', ''),
+            'account_number': data.get('account_number', ''),
+            'account_name': data.get('account_name', ''),
+            'logo_url': data.get('logo_url', ''),
+            'is_active': True,
+        }
+        db.payment_methods.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/payment_methods/<int:id>', methods=['PATCH'])
+@login_required
+def api_superadmin_payment_methods_update(id):
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    data = request.json or {}
+    updates = {k: v for k, v in data.items() if k in ('bin_code', 'provider_name', 'account_number', 'account_name', 'logo_url', 'is_active')}
+    if not updates:
+        return jsonify({"success": False, "message": "No valid fields to update."}), 400
+    try:
+        result = db.payment_methods.update_one({'id': id}, {'$set': updates})
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Payment method not found."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -4294,7 +5943,7 @@ def _lookup_business_name_stage():
 @login_required
 def superadmin_chat_conversations():
     if not _is_superadmin():
-        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     try:
         pipeline = [{'$sort': {'last_message_time': -1}}] + _lookup_business_name_stage()
         conversations = list(db.bot_customers.aggregate(pipeline))
@@ -4318,7 +5967,7 @@ def superadmin_chat_conversations():
 @login_required
 def superadmin_chat_messages(customer_id):
     if not _is_superadmin():
-        return jsonify({"success": False, "message": "Truy cập bị từ chối: yêu cầu quyền Superadmin."}), 403
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     try:
         msgs = list(
             db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1)
@@ -5502,7 +7151,7 @@ def api_calculate_payroll():
     try:
         month, year = month_year.split('/')
     except ValueError:
-        return jsonify({"success": False, "error": "month_year phải theo định dạng MM/YYYY"}), 400
+        return jsonify({"success": False, "error": "month_year must be in MM/YYYY format"}), 400
 
     industry = (data.get('industry') or 'Spa').strip()
     business_id = session.get('business_id') or session['user_id']
@@ -5557,7 +7206,17 @@ def api_calculate_payroll():
             so_ngay_lam = 0
             for r in my_records:
                 so_gio = float(r.get('so_gio') or 0)
-                gio_lam_hop_le = so_gio if so_gio > 0 else 8  # Chặn giờ âm do lỗi tính ca đêm
+                if so_gio > 0:
+                    gio_lam_hop_le = so_gio
+                elif r.get('trang_thai') in ('Có mặt', 'Trọn Ngày'):
+                    # Bản ghi điểm danh đơn giản (vd: check-in camera+GPS ở diemdanh.html) không
+                    # có giờ chi tiết — mặc định 1 ngày công = 8h. CHỈ áp dụng cho bản ghi thật sự
+                    # đại diện "có đi làm hôm đó" — KHÔNG áp dụng cho bản ghi giao dịch/hoa hồng
+                    # (vd: mỗi lượt tính Tua ở chamcong_nail.html), nếu không 1 thợ nails làm 3
+                    # khách trong ngày sẽ bị cộng khống 24h dù mỗi giao dịch vốn dĩ so_gio=0.
+                    gio_lam_hop_le = 8
+                else:
+                    gio_lam_hop_le = 0
                 total_gio_lam += gio_lam_hop_le
                 total_tang_ca += float(r.get('tang_ca') or 0)
                 total_hoa_hong += float(r.get('tien_tua') or 0)
@@ -5567,7 +7226,11 @@ def api_calculate_payroll():
                     so_ngay_lam += 1
 
             if 'Spa' in industry or 'Nails' in industry:
-                luong_chinh = luong_co_ban
+                # Lương giờ (Time In/Out ở chamcong_nail.html) là chính nếu có cấu hình luong_cb
+                # (lương bao/booth cố định); ngược lại tính theo giờ thực tế × đơn giá/giờ — cùng
+                # quy tắc với nhánh F&B/Khách sạn bên dưới. Tiền Tua (hoa hồng dịch vụ) và Tips
+                # luôn cộng thêm, KHÔNG phụ thuộc mô hình lương chính là bao hay theo giờ.
+                luong_chinh = luong_co_ban if luong_co_ban > 0 else total_gio_lam * luong_theo_gio
                 cot2 = total_hoa_hong
                 cot3 = total_tips + phu_cap_phat_sinh + phu_cap_co_dinh
             elif 'Văn Phòng' in industry:
@@ -5654,10 +7317,30 @@ def api_hr_employees_get(ma_nv):
     try:
         emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'_id': 0})
         if not emp:
-            return jsonify({"success": False, "error": "Không tìm thấy nhân viên."}), 404
+            return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/public/hr/employees/lookup', methods=['GET'])
+def api_public_employee_lookup():
+    """PUBLIC (không @login_required) — dùng bởi màn "Fast Check-in" ở index.html, nơi nhân
+    viên gõ mã NV để đi thẳng vào camera chấm công (diemdanh.html) TRƯỚC KHI đăng nhập, nên
+    chưa có session/business_id để lọc tenant. Chỉ trả về ho_ten/ma_nv (không lương, không
+    business_id, không thông tin nhạy cảm khác) — cùng mức lộ dữ liệu như lookup không đăng
+    nhập cũ, nếu 2 doanh nghiệp trùng ma_nv thì có thể lộ tên nhân viên của nhau, đây là giới
+    hạn kế thừa từ luồng kiosk chưa đăng nhập, không phải lỗi mới phát sinh."""
+    ma_nv = (request.args.get('ma_nv') or '').strip()
+    if not ma_nv:
+        return jsonify({"success": False, "message": "Missing employee ID."}), 400
+    try:
+        emp = db.employees.find_one({'ma_nv': ma_nv}, {'ho_ten': 1, 'ma_nv': 1, '_id': 0})
+        if not emp:
+            return jsonify({"success": False, "message": "Employee not found."}), 404
+        return jsonify({"success": True, "data": emp})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route('/api/hr/employees', methods=['POST'])
@@ -5667,10 +7350,10 @@ def api_hr_employees_create():
     data = request.json or {}
     ma_nv = (data.get('ma_nv') or '').strip()
     if not ma_nv:
-        return jsonify({"success": False, "error": "Thiếu mã nhân viên (ma_nv)."}), 400
+        return jsonify({"success": False, "error": "Missing employee ID (ma_nv)."}), 400
     try:
         if db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}):
-            return jsonify({"success": False, "error": f"Mã nhân viên '{ma_nv}' đã tồn tại."}), 409
+            return jsonify({"success": False, "error": f"Employee ID '{ma_nv}' already exists."}), 409
         doc = {
             'id': next_mongo_id('employees'),
             'business_id': business_id,
@@ -5698,11 +7381,11 @@ def api_hr_employees_update(ma_nv):
     data = request.json or {}
     updates = {k: v for k, v in data.items() if k in _EMPLOYEE_PATCHABLE_FIELDS}
     if not updates:
-        return jsonify({"success": False, "error": "Không có trường hợp lệ để cập nhật."}), 400
+        return jsonify({"success": False, "error": "No valid fields to update."}), 400
     try:
         result = db.employees.update_one({'ma_nv': ma_nv, 'business_id': business_id}, {'$set': updates})
         if result.matched_count == 0:
-            return jsonify({"success": False, "error": "Không tìm thấy nhân viên."}), 404
+            return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -5725,7 +7408,7 @@ def api_hr_employees_kudo(ma_nv):
             {'$inc': {'diem_kudo': points}}
         )
         if result.matched_count == 0:
-            return jsonify({"success": False, "error": "Không tìm thấy nhân viên."}), 404
+            return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -5738,7 +7421,7 @@ def api_hr_employees_delete(ma_nv):
     try:
         result = db.employees.delete_one({'ma_nv': ma_nv, 'business_id': business_id})
         if result.deleted_count == 0:
-            return jsonify({"success": False, "error": "Không tìm thấy nhân viên."}), 404
+            return jsonify({"success": False, "error": "Employee not found."}), 404
         db.chamcong.delete_many({'ma_nv': ma_nv, 'business_id': business_id})
         return jsonify({"success": True})
     except Exception as e:
@@ -5775,7 +7458,7 @@ def api_hr_chamcong_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     if not (data.get('ma_nv') or '').strip():
-        return jsonify({"success": False, "error": "Thiếu mã nhân viên (ma_nv)."}), 400
+        return jsonify({"success": False, "error": "Missing employee ID (ma_nv)."}), 400
     try:
         doc = dict(data)
         doc['id'] = next_mongo_id('chamcong')
@@ -5794,11 +7477,11 @@ def api_hr_chamcong_update(record_id):
     data = request.json or {}
     updates = {k: v for k, v in data.items() if k != 'id' and k != 'business_id' and k != 'ma_nv'}
     if not updates:
-        return jsonify({"success": False, "error": "Không có trường hợp lệ để cập nhật."}), 400
+        return jsonify({"success": False, "error": "No valid fields to update."}), 400
     try:
         result = db.chamcong.update_one({'id': record_id, 'business_id': business_id}, {'$set': updates})
         if result.matched_count == 0:
-            return jsonify({"success": False, "error": "Không tìm thấy bản ghi chấm công."}), 404
+            return jsonify({"success": False, "error": "Attendance record not found."}), 404
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -5859,6 +7542,34 @@ def api_tasks_update(task_id):
         if result.matched_count == 0:
             return jsonify({"success": False, "error": "Không tìm thấy công việc."}), 404
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+@login_required
+def api_tasks_delete(task_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.tasks.delete_one({'id': task_id, 'business_id': business_id})
+        if result.deleted_count == 0:
+            return jsonify({"success": False, "error": "Không tìm thấy công việc."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/tasks/cleanup', methods=['POST'])
+@login_required
+def api_tasks_cleanup():
+    """Xoá hàng loạt job theo trạng thái (vd 'Hoàn Thành') — dùng bởi nút "Dọn dẹp" ở
+    quanly_dichvu.html."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    trang_thai = data.get('trang_thai', 'Hoàn Thành')
+    try:
+        result = db.tasks.delete_many({'business_id': business_id, 'trang_thai': trang_thai})
+        return jsonify({"success": True, "deleted_count": result.deleted_count})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -5990,6 +7701,15 @@ def api_inventory_delete(item_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/stream/inventory')
+@login_required
+def stream_inventory():
+    """Thay kênh Supabase Realtime `kho_tracking` (quanly_kho.html) — bảng kho_vat_tu. Layer 4
+    chỉ xây CRUD, chưa có realtime (đó là phạm vi Layer 2) — bổ sung ở đây vì quanly_kho.html
+    cần đúng kênh này."""
+    return _sse_change_signal(db.kho_vat_tu, _sse_tenant_match())
+
+
 @app.route('/api/services', methods=['GET'])
 @login_required
 def api_services_list():
@@ -6013,6 +7733,7 @@ def api_services_create():
             'id': next_mongo_id('dichvu'),
             'business_id': business_id,
             'ten_dich_vu': data['ten_dich_vu'],
+            'gia_dich_vu': data.get('gia_dich_vu', 0),
             'tien_tua': data.get('tien_tua', 0),
         }
         db.dichvu.insert_one(doc)
@@ -6027,7 +7748,7 @@ def api_services_create():
 def api_services_update(service_id):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
-    updates = {k: v for k, v in data.items() if k in ('ten_dich_vu', 'tien_tua')}
+    updates = {k: v for k, v in data.items() if k in ('ten_dich_vu', 'gia_dich_vu', 'tien_tua')}
     if not updates:
         return jsonify({"success": False, "error": "Không có trường hợp lệ để cập nhật."}), 400
     try:
@@ -6186,8 +7907,6 @@ MOCK_COMMUNITIES = [
 def network_home():
     return render_template(
         'network_home.html',
-        supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY,
         jobs=MOCK_JOBS[:3],
         services=MOCK_SERVICES[:2],
         communities=MOCK_COMMUNITIES[:3]

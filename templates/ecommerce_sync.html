@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -183,27 +182,31 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // ========================================================
+        // LOGIC CHÍNH — Flask API nội bộ (db.ecommerce_connections/ecommerce_orders/
+        // ecommerce_products/ecommerce_sync_queue, tất cả @login_required + lọc theo
+        // business_id ở server), thay hoàn toàn client SaaS bên thứ ba cũ đã bị gỡ bỏ. Bản cũ
+        // gửi thẳng api_key/api_secret dạng PLAINTEXT từ trình duyệt lên thẳng bên thứ ba đó và
+        // "sync" chỉ là setTimeout giả lập — không hề gọi API thật của Shopee/TikTok/Lazada. Theo quyết định
+        // sản phẩm: credential giờ được mã hoá tại nghỉ ở server (Fernet) và không bao giờ
+        // echo lại cho client; tính năng đồng bộ vẫn là STUB có nhãn rõ ràng (tích hợp thật
+        // với từng sàn — OAuth/webhook/signature — ngoài phạm vi migrate này).
+        // ========================================================
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let platformChart = null;
         let syncOrders = [];
-        let syncProducts = [];
 
         function showToast(msg, isErr = false) {
             const toast = document.getElementById('toast');
@@ -225,18 +228,39 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
+        async function loadConnections() {
+            try {
+                const body = await hrApi('/api/ecommerce/connections');
+                const byPlatform = {};
+                (body.data || []).forEach(c => { byPlatform[c.platform] = c; });
+                ['Shopee', 'TikTok', 'Lazada'].forEach(platform => {
+                    const el = document.getElementById(`${platform.toLowerCase()}Status`);
+                    if (!el) return;
+                    const conn = byPlatform[platform];
+                    if (conn && conn.connected) {
+                        el.innerText = tf('ecommerce_sync_status_connected_masked', { key: conn.api_key_masked || '****' });
+                    } else {
+                        el.innerText = t('ecommerce_sync_status_disconnected');
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
         async function loadSyncData() {
             showLoading(true);
             try {
-                const { data: ordersData, error: oErr } = await supabase.from('ecommerce_orders').select('*').order('created_at', { ascending: false });
-                if (oErr) throw oErr;
-                syncOrders = ordersData || [];
-                const { data: productsData, error: pErr } = await supabase.from('ecommerce_products').select('*');
-                if (pErr) throw pErr;
-                syncProducts = productsData || [];
+                const [ordersBody, productsBody] = await Promise.all([
+                    hrApi('/api/ecommerce/orders'),
+                    hrApi('/api/ecommerce/products'),
+                ]);
+                await loadConnections();
+                syncOrders = ordersBody.data || [];
+                const productCount = (productsBody.data && productsBody.data.count) || 0;
 
                 document.getElementById('syncOrderCount').innerText = syncOrders.length;
-                document.getElementById('syncProductCount').innerText = syncProducts.length;
+                document.getElementById('syncProductCount').innerText = productCount;
                 document.getElementById('orderRecordCount').innerText = tf('ecommerce_sync_record_count', { count: syncOrders.length });
 
                 const tbody = document.getElementById('orderTableBody');
@@ -275,60 +299,73 @@
         }
 
         async function saveConnection(platform, apiKey, apiSecret) {
-            const { error } = await supabase.from('ecommerce_connections').upsert({ platform, api_key: apiKey, api_secret: apiSecret, updated_at: new Date() });
-            if (error) throw error;
+            // 503 khi server chưa cấu hình ECOMMERCE_ENC_KEY — hrApi ném đúng nguyên văn
+            // message từ server (không phải lỗi chung chung) để người dùng biết cần liên hệ
+            // quản trị hệ thống thay vì tưởng do họ nhập sai.
+            return hrApi('/api/ecommerce/connections', {
+                method: 'POST',
+                body: JSON.stringify({ platform, api_key: apiKey, api_secret: apiSecret }),
+            });
         }
 
         async function syncAll(platformsList, type = 'all') {
             showLoading(true);
             addLog(tf('ecommerce_sync_log_start', { type: type === 'all' ? t('ecommerce_sync_all_word') : type }));
             try {
-                // Ghi vào hàng đợi đồng bộ
-                for (const platform of platformsList) {
-                    const { error } = await supabase.from('ecommerce_sync_queue').insert([{ platform, action: type === 'products' ? 'sync_products' : (type === 'orders' ? 'sync_orders' : 'sync_all'), status: 'pending', created_at: new Date() }]);
-                    if (error) throw error;
-                }
-                // Giả lập đồng bộ (thực tế sẽ có worker xử lý)
-                setTimeout(() => {
-                    addLog(tf('ecommerce_sync_log_products', { count: syncProducts.length }));
-                    addLog(tf('ecommerce_sync_log_orders', { count: syncOrders.length }));
-                    document.getElementById('lastSyncTime').innerText = new Date().toLocaleString();
-                    showToast(t('ecommerce_sync_toast_sync_complete'));
-                    loadSyncData(); // reload
-                    showLoading(false);
-                }, 1500);
+                // STUB: chỉ ghi nhận yêu cầu vào hàng đợi ở server — KHÔNG có tích hợp API thật
+                // với Shopee/TikTok/Lazada (server luôn trả status: 'stub_not_implemented').
+                // Tuyệt đối không hiển thị như thể dữ liệu thật đã được đồng bộ xong.
+                const body = await hrApi('/api/ecommerce/sync', {
+                    method: 'POST',
+                    body: JSON.stringify({ platforms: platformsList, type }),
+                });
+                addLog(body.message || t('ecommerce_sync_stub_notice'));
+                showToast(body.message || t('ecommerce_sync_stub_notice'));
+                document.getElementById('lastSyncTime').innerText = `${new Date().toLocaleString()} (${t('ecommerce_sync_stub_tag')})`;
+                await loadSyncData(); // reload (vẫn 0/rỗng — đúng như kỳ vọng vì chưa có sync thật)
             } catch (err) {
                 addLog(t('ecommerce_sync_toast_error_prefix') + err.message);
                 showToast(t('ecommerce_sync_toast_sync_error_prefix') + err.message, true);
+            } finally {
                 showLoading(false);
             }
         }
 
-        // Kết nối sàn (lưu config)
+        // Kết nối sàn (lưu config) — key/secret đi thẳng lên server qua HTTPS để mã hoá tại
+        // nghỉ (Fernet); server KHÔNG BAO GIỜ trả lại giá trị thật, chỉ trả bản che (4 ký tự
+        // cuối) qua GET /api/ecommerce/connections. Sau khi lưu thành công, xoá luôn 2 ô nhập
+        // trên trình duyệt — không có lý do gì để giữ secret dạng plaintext trong DOM/bộ nhớ
+        // sau khi đã gửi đi.
         document.querySelectorAll('.connect-shopee, .connect-tiktok, .connect-lazada').forEach(btn => {
             btn.addEventListener('click', async () => {
                 let platform = '';
-                let key = '', secret = '';
+                let keyEl = null, secretEl = null;
                 if (btn.classList.contains('connect-shopee')) {
                     platform = 'Shopee';
-                    key = document.getElementById('shopeeKey').value;
-                    secret = document.getElementById('shopeeSecret').value;
+                    keyEl = document.getElementById('shopeeKey');
+                    secretEl = document.getElementById('shopeeSecret');
                 } else if (btn.classList.contains('connect-tiktok')) {
                     platform = 'TikTok';
-                    key = document.getElementById('tiktokAppId').value;
-                    secret = document.getElementById('tiktokSecret').value;
+                    keyEl = document.getElementById('tiktokAppId');
+                    secretEl = document.getElementById('tiktokSecret');
                 } else {
                     platform = 'Lazada';
-                    key = document.getElementById('lazadaKey').value;
-                    secret = document.getElementById('lazadaSecret').value;
+                    keyEl = document.getElementById('lazadaKey');
+                    secretEl = document.getElementById('lazadaSecret');
                 }
+                const key = keyEl.value;
+                const secret = secretEl.value;
                 if (!key || !secret) { showToast(t('ecommerce_sync_toast_missing_keys'), true); return; }
                 showLoading(true);
                 try {
+                    // Lỗi 503 (server chưa cấu hình ECOMMERCE_ENC_KEY) đi qua đúng nhánh catch
+                    // này và hiển thị nguyên văn message từ server — không phải lỗi chung chung.
                     await saveConnection(platform, key, secret);
                     addLog(tf('ecommerce_sync_log_connected', { platform }));
                     showToast(tf('ecommerce_sync_toast_connected', { platform }));
-                    document.getElementById(`${platform.toLowerCase()}Status`).innerText = t('ecommerce_sync_status_connected');
+                    keyEl.value = '';
+                    secretEl.value = '';
+                    await loadConnections();
                 } catch (err) {
                     showToast(t('ecommerce_sync_toast_connect_error_prefix') + err.message, true);
                 } finally {
@@ -392,19 +429,18 @@
                 ecommerce_sync_toast_load_error_prefix: 'Lỗi tải dữ liệu: ',
                 ecommerce_sync_log_start: 'Bắt đầu đồng bộ {type}...',
                 ecommerce_sync_all_word: 'tất cả',
-                ecommerce_sync_log_products: 'Đồng bộ sản phẩm: {count} sản phẩm được cập nhật',
-                ecommerce_sync_log_orders: 'Đồng bộ đơn hàng: {count} đơn hàng mới',
-                ecommerce_sync_toast_sync_complete: 'Đồng bộ hoàn tất!',
                 ecommerce_sync_toast_error_prefix: 'Lỗi: ',
                 ecommerce_sync_toast_sync_error_prefix: 'Lỗi đồng bộ: ',
                 ecommerce_sync_toast_missing_keys: 'Vui lòng nhập API Key và Secret',
                 ecommerce_sync_log_connected: 'Kết nối {platform} thành công!',
                 ecommerce_sync_toast_connected: 'Đã kết nối {platform}',
-                ecommerce_sync_status_connected: 'Đã kết nối',
+                ecommerce_sync_status_connected_masked: 'Đã kết nối · {key}',
                 ecommerce_sync_toast_connect_error_prefix: 'Lỗi kết nối: ',
                 ecommerce_sync_toast_fill_all: 'Vui lòng nhập đầy đủ',
                 ecommerce_sync_toast_request_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
-                ecommerce_sync_toast_error_prefix2: 'Lỗi: '
+                ecommerce_sync_toast_error_prefix2: 'Lỗi: ',
+                ecommerce_sync_stub_notice: 'Đã ghi nhận yêu cầu đồng bộ — tích hợp API thật với sàn TMĐT chưa được xây dựng.',
+                ecommerce_sync_stub_tag: 'yêu cầu đã ghi nhận, chưa đồng bộ thật'
             },
             en: {
                 ecommerce_sync_header_suffix: '| Marketplace Sync',
@@ -451,19 +487,18 @@
                 ecommerce_sync_toast_load_error_prefix: 'Error loading data: ',
                 ecommerce_sync_log_start: 'Starting sync for {type}...',
                 ecommerce_sync_all_word: 'all',
-                ecommerce_sync_log_products: 'Product sync: {count} products updated',
-                ecommerce_sync_log_orders: 'Order sync: {count} new orders',
-                ecommerce_sync_toast_sync_complete: 'Sync complete!',
                 ecommerce_sync_toast_error_prefix: 'Error: ',
                 ecommerce_sync_toast_sync_error_prefix: 'Sync error: ',
                 ecommerce_sync_toast_missing_keys: 'Please enter the API Key and Secret',
                 ecommerce_sync_log_connected: '{platform} connected successfully!',
                 ecommerce_sync_toast_connected: '{platform} connected',
-                ecommerce_sync_status_connected: 'Connected',
+                ecommerce_sync_status_connected_masked: 'Connected · {key}',
                 ecommerce_sync_toast_connect_error_prefix: 'Connection error: ',
                 ecommerce_sync_toast_fill_all: 'Please fill in all information',
                 ecommerce_sync_toast_request_sent: 'Request sent! We will contact you within 15 minutes.',
-                ecommerce_sync_toast_error_prefix2: 'Error: '
+                ecommerce_sync_toast_error_prefix2: 'Error: ',
+                ecommerce_sync_stub_notice: 'Sync request recorded — real marketplace API integration is not built yet.',
+                ecommerce_sync_stub_tag: 'request recorded, not a real sync'
             }
         };
         function t(key) {
@@ -492,7 +527,7 @@
             langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
-        supabaseReady.then(() => loadSyncData());
+        loadSyncData();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

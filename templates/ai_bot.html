@@ -237,9 +237,7 @@
 
     <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
+    <script>
         // 3D Background Logic
         (function init3D() {
             const canvas = document.getElementById('bg-canvas');
@@ -321,22 +319,19 @@
             });
         })();
 
-        // Supabase Init
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // Flask API wrapper (thay client BaaS cũ) — business_id đã được lọc ở server
+        // theo session, client chỉ cần gọi thẳng các route /api/bot/*.
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let currentCustomerId = null;
         let currentCustomerPhone = null;
@@ -414,17 +409,16 @@
 
         async function fetchCustomers() {
             try {
-                const { data, error } = await supabase.from('bot_customers').select('*').order('last_message_time', { ascending: false });
-                if (error) throw error;
-                allCustomers = data || [];
-                
+                const body = await hrApi('/api/bot/customers');
+                allCustomers = body.data || [];
+
                 if (allCustomers.length === 0) {
                     throw new Error("No data in table");
                 }
                 isMockMode = false;
                 applyNurtureFilter();
             } catch (err) {
-                console.warn("Supabase database unreachable or empty.", err);
+                console.warn("Không tải được danh sách khách hàng (trống hoặc lỗi mạng).", err);
                 if (isDemoMode) {
                     isMockMode = true;
                     allCustomers = mockCustomers;
@@ -477,7 +471,7 @@
                 labelReal.classList.replace("text-gray-600", "text-gray-400");
                 labelDemo.classList.replace("text-yellow-400", "text-yellow-500/50");
                 labelDemo.classList.remove("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
-                showToast("Đã chuyển về hiển thị Dữ liệu thực từ Supabase", "error");
+                showToast("Đã chuyển về hiển thị Dữ liệu thực từ hệ thống", "error");
             }
             
             fetchCustomers();
@@ -598,8 +592,11 @@
         }
 
 
-        async function loadMessages(customerId) {
-            chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i></div>';
+        async function loadMessages(customerId, opts) {
+            const silent = opts && opts.silent;
+            if (!silent) {
+                chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i></div>';
+            }
             if (isMockMode || String(customerId).startsWith('mock-')) {
                 chatBox.innerHTML = '';
                 const msgs = mockMessages[customerId] || [{ sender_type: 'customer', content: 'Chào sếp! Sếp tư vấn giúp em phương án tối ưu vận hành nhé.', created_at: new Date().toISOString() }];
@@ -611,11 +608,11 @@
                 return;
             }
             try {
-                const { data, error } = await supabase.from('bot_messages').select('*').eq('customer_id', customerId).order('created_at', { ascending: true });
-                if (error) throw error;
+                const body = await hrApi(`/api/bot/messages?customer_id=${encodeURIComponent(customerId)}`);
+                const data = body.data || [];
                 chatBox.innerHTML = '';
-                
-                if (!data || data.length === 0) {
+
+                if (data.length === 0) {
                     appendAIMessageStatic("Hệ thống đã kết nối. Chờ khách hàng nhắn tin...");
                 } else {
                     data.forEach(msg => {
@@ -626,7 +623,9 @@
                 scrollToBottom();
             } catch (err) {
                 console.error(err);
-                chatBox.innerHTML = '<div class="text-center text-rose-400 py-10">Lỗi tải tin nhắn</div>';
+                if (!silent) {
+                    chatBox.innerHTML = '<div class="text-center text-rose-400 py-10">Lỗi tải tin nhắn</div>';
+                }
             }
         }
 
@@ -727,10 +726,24 @@
                 conversationHistory.shift();
             }
 
+            // Lưu tin nhắn trả lời của nhân viên vào hội thoại thật của khách hàng
+            // (server tự gắn sender_type='staff' và cập nhật last_message của bot_customers)
+            if (!isMockMode && !String(currentCustomerId).startsWith('mock-')) {
+                try {
+                    await hrApi('/api/bot/messages', {
+                        method: 'POST',
+                        body: JSON.stringify({ customer_id: currentCustomerId, content: text })
+                    });
+                } catch (ex) {
+                    console.error("Gửi tin nhắn thất bại:", ex);
+                    showToast('Gửi tin nhắn thất bại', 'error');
+                }
+            }
+
             let aiResponse = "";
             try {
                 const systemPrompt = `Bạn là BitPaw AI Tư Vấn, một nhân viên tư vấn phần mềm thật, không phải chatbot văn mẫu.
-Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải.
+NGÔN NGỮ: Khách hàng chủ yếu là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ (Việt Kiều). Hãy trả lời bằng cách trộn tiếng Anh và tiếng Việt một cách tự nhiên, chuyên nghiệp, đúng chất song ngữ của người Việt hải ngoại — KHÔNG dịch cứng 100% sang 1 thứ tiếng. Ưu tiên tiếng Anh cho thuật ngữ hệ thống/tính năng (dashboard, POS, Pro Plan, Nails module, Restaurant module, upgrade, feature...), giữ tiếng Việt cho xưng hô/ngữ khí thân mật (anh/chị, dạ, ạ, nhé). Ví dụ phong cách: "Hi there! Chào mừng anh/chị đến với hệ thống quản lý POS. The system fully supports both Nails and Restaurant modules. Anh/chị cần tư vấn thêm về tính năng nào ạ?"
 Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ” ở mọi câu.
 Không tự hứa đã gửi link/bảng giá nếu hệ thống chưa thực hiện hành động đó.
 Không tự báo giá cụ thể nếu chưa có bảng giá chính thức trong dữ liệu.
@@ -804,46 +817,30 @@ ${text}`;
             }
 
             appendCopilotMessageStatic(aiResponse);
-
-            // Lưu lên Supabase nếu không phải chế độ mock
-            if (!isMockMode && !String(currentCustomerId).startsWith('mock-')) {
-                try {
-                    const senderType = aiToggleSwitch.checked ? 'ai' : 'staff';
-                    await supabase.from('bot_messages').insert([
-                        { customer_id: currentCustomerId, sender_type: senderType, content: text, created_at: new Date().toISOString() },
-                        { customer_id: currentCustomerId, sender_type: 'ai', content: aiResponse, created_at: new Date().toISOString() }
-                    ]);
-                    await supabase.from('bot_customers').update({ last_message: aiResponse, last_message_time: new Date().toISOString() }).eq('id', currentCustomerId);
-                } catch (ex) {
-                    console.error("Save failed:", ex);
-                }
-            }
+            // Gợi ý của BitPaw Copilot chỉ hiển thị tạm thời cho nhân viên tham khảo,
+            // không lưu vào hội thoại thật của khách hàng (tin nhắn thật đã lưu ở trên).
         };
 
-        // Bật Realtime lắng nghe tin nhắn mới
-        function subscribeToRealtime() {
+        // Realtime lắng nghe tin nhắn mới — thay kênh Realtime BaaS cũ bằng SSE
+        // (chỉ báo hiệu "có thay đổi", client tự poll lại danh sách khách + hội thoại đang mở).
+        function startBotRealtime() {
             try {
-                supabase.channel('public:bot_messages')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bot_messages' }, payload => {
-                    const newMsg = payload.new;
-                    if(newMsg.customer_id === currentCustomerId) {
-                        if(newMsg.sender_type !== 'staff' && newMsg.sender_type !== 'ai') {
-                            appendAIMessageStatic(newMsg.content, newMsg.created_at);
-                            scrollToBottom();
-                        }
-                    }
+                const stream = new EventSource('/api/stream/bot_chat');
+                stream.onmessage = () => {
                     fetchCustomers();
-                }).subscribe();
+                    if (currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-')) {
+                        loadMessages(currentCustomerId, { silent: true });
+                    }
+                };
+                stream.onerror = () => { /* EventSource tự động reconnect */ };
             } catch (ex) {
-                console.warn("Realtime channel skipped offline.");
+                console.warn("Realtime stream skipped offline.");
             }
         }
 
         // Khởi động
-        supabaseReady.then(() => {
-            fetchCustomers();
-            subscribeToRealtime();
-        });
+        fetchCustomers();
+        startBotRealtime();
     </script>
 </body>
 </html>

@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -163,23 +162,46 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Failed to retrieve tenant token:', json && json.error);
+        // Flask API nội bộ (db.customers) thay Supabase JS. Backend `/api/customers` trả về
+        // TOÀN BỘ danh sách của tenant (không phân trang/filter server-side) — search/tier/
+        // khoảng ngày/phân trang giờ làm ở client trên `allCustomers` (cache 1 lần, chỉ fetch
+        // lại sau khi thêm/sửa), thay vì dựng lại y hệt query builder .or()/.gte()/.range()
+        // của Supabase ở phía server. Danh sách khách hàng 1 tenant thường đủ nhỏ để làm vậy.
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
+
+        let allCustomers = [];
+        async function fetchAllCustomers() {
+            const body = await hrApi('/api/customers');
+            allCustomers = body.data || [];
+        }
+
+        function getFilteredCustomers() {
+            const search = searchInput.value.trim().toLowerCase();
+            const tier = tierFilter.value;
+            const from = startDate.value;
+            const to = endDate.value;
+            return allCustomers.filter(c => {
+                if (search) {
+                    const hay = `${c.name || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase();
+                    if (!hay.includes(search)) return false;
                 }
-                return supabaseClient;
-            })
-            .catch(e => { console.error('Error calling /api/session/supabase_token:', e); return supabaseClient; });
+                if (tier !== 'all' && c.tier !== tier) return false;
+                if (from && (!c.join_date || c.join_date < from)) return false;
+                if (to && (!c.join_date || c.join_date > to)) return false;
+                return true;
+            });
+        }
 
         // ========== i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -423,21 +445,19 @@
             return `<span class="vip-badge ${map[tier]}">${tier}</span>`;
         }
 
-        async function loadCustomers() {
+        async function loadCustomers(refetch = true) {
             loadingOverlay.classList.add('active');
-            let query = supabaseClient.from('customers').select('*', { count: 'exact' });
-            const search = searchInput.value.trim();
-            if (search) {
-                query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
+            try {
+                if (refetch) await fetchAllCustomers();
+            } catch (err) {
+                showToast(t('crm_toast_load_error') + err.message, true);
+                loadingOverlay.classList.remove('active');
+                return;
             }
-            const tier = tierFilter.value;
-            if (tier !== 'all') query = query.eq('tier', tier);
-            if (startDate.value) query = query.gte('join_date', startDate.value);
-            if (endDate.value) query = query.lte('join_date', endDate.value);
+            const filtered = getFilteredCustomers().sort((a, b) => b.id - a.id);
             const from = (currentPage - 1) * rowsPerPage;
-            const to = from + rowsPerPage - 1;
-            const { data, error, count } = await query.order('id', { ascending: false }).range(from, to);
-            if (error) { showToast(t('crm_toast_load_error') + error.message, true); loadingOverlay.classList.remove('active'); return; }
+            const data = filtered.slice(from, from + rowsPerPage);
+            const count = filtered.length;
             totalRecords = count || 0;
             currentCustomers = data || [];
             renderTable();
@@ -474,16 +494,8 @@
             recordCountSpan.innerText = tf('crm_record_count', { count: totalRecords });
         }
 
-        async function updateStatsAndChart() {
-            let query = supabaseClient.from('customers').select('*');
-            const search = searchInput.value.trim();
-            if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
-            const tier = tierFilter.value;
-            if (tier !== 'all') query = query.eq('tier', tier);
-            if (startDate.value) query = query.gte('join_date', startDate.value);
-            if (endDate.value) query = query.lte('join_date', endDate.value);
-            const { data } = await query;
-            if (!data) return;
+function updateStatsAndChart() {
+            const data = getFilteredCustomers();
             const total = data.length;
             const vipCount = data.filter(c => c.tier === 'Gold' || c.tier === 'Platinum').length;
             const totalSpent = data.reduce((s, c) => s + (c.total_spent || 0), 0);
@@ -505,7 +517,7 @@
         }
 
         async function showDetail(id) {
-            const { data: c } = await supabaseClient.from('customers').select('*').eq('id', id).single();
+            const c = allCustomers.find(c => c.id === id);
             if (!c) return;
             detailContent.innerHTML = `
                 <div class="flex justify-between border-b border-white/10 pb-1"><span class="text-gray-400">${t('crm_detail_name')}</span><span class="font-bold">${escapeHtml(c.name)}</span></div>
@@ -561,12 +573,16 @@
             loadingOverlay.classList.add('active');
             try {
                 if (id) {
-                    const { error } = await supabaseClient.from('customers').update({ name, phone, email, tier, loyalty_points: points }).eq('id', id);
-                    if (error) throw error;
+                    await hrApi('/update_customer/' + id, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name, phone, email, tier, loyalty_points: points }),
+                    });
                     showToast(t('crm_toast_updated'));
                 } else {
-                    const { error } = await supabaseClient.from('customers').insert([{ name, phone, email, tier, loyalty_points: points, total_spent: 0, join_date: new Date().toISOString().slice(0,10) }]);
-                    if (error) throw error;
+                    await hrApi('/add_customer', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, phone, email, tier, loyalty_points: points }),
+                    });
                     showToast(t('crm_toast_added'));
                 }
                 await loadCustomers();
@@ -575,17 +591,10 @@
             finally { loadingOverlay.classList.remove('active'); }
         });
 
-        function applyFilters() { currentPage = 1; loadCustomers(); }
+        function applyFilters() { currentPage = 1; loadCustomers(false); }
         function resetFilters() { searchInput.value = ''; tierFilter.value = 'all'; startDate.value = ''; endDate.value = ''; applyFilters(); }
         async function exportToExcel() {
-            let query = supabaseClient.from('customers').select('*');
-            const search = searchInput.value.trim();
-            if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
-            const tier = tierFilter.value;
-            if (tier !== 'all') query = query.eq('tier', tier);
-            if (startDate.value) query = query.gte('join_date', startDate.value);
-            if (endDate.value) query = query.lte('join_date', endDate.value);
-            const { data } = await query;
+            const data = getFilteredCustomers();
             if (!data || data.length === 0) { showToast(t('crm_toast_no_export_data'), true); return; }
             const wsData = [[t('crm_export_col_id'), t('crm_export_col_name'), t('crm_export_col_phone'), t('crm_export_col_email'), t('crm_export_col_tier'), t('crm_export_col_spend'), t('crm_export_col_points'), t('crm_export_col_joindate')]];
             data.forEach(c => wsData.push([c.id, c.name, c.phone, c.email, c.tier, c.total_spent || 0, c.loyalty_points || 0, c.join_date]));
@@ -610,12 +619,12 @@
         tierFilter.addEventListener('change', applyFilters);
         startDate.addEventListener('change', applyFilters);
         endDate.addEventListener('change', applyFilters);
-        prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadCustomers(); } });
-        nextBtn.addEventListener('click', () => { const total = Math.ceil(totalRecords / rowsPerPage); if (currentPage < total) { currentPage++; loadCustomers(); } });
+        prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadCustomers(false); } });
+        nextBtn.addEventListener('click', () => { const total = Math.ceil(totalRecords / rowsPerPage); if (currentPage < total) { currentPage++; loadCustomers(false); } });
         document.getElementById('customerModal').addEventListener('click', (e) => { if(e.target === customerModal) closeModals(); });
         document.getElementById('detailModal').addEventListener('click', (e) => { if(e.target === detailModal) closeModals(); });
 
-        supabaseReady.then(() => { loadCustomers(); });
+        loadCustomers();
 
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.

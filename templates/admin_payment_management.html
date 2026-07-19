@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -517,25 +516,21 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="admin_payment_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+    <script>
+        // ========== FLASK/MONGO API HELPER ==========
+        // business_id được scope tự động ở server qua session (@login_required).
+        async function paymentApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+                credentials: 'same-origin',
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let currentPage = 1;
         let rowsPerPage = 7;
@@ -779,36 +774,38 @@
             return map[status] || map.failed;
         }
         
+        function buildFilterParams() {
+            const params = new URLSearchParams();
+            if (searchInput.value) params.set('search', searchInput.value);
+            if (statusFilter.value !== 'all') params.set('status', statusFilter.value);
+            if (startDate.value) params.set('start', startDate.value);
+            if (endDate.value) params.set('end', endDate.value);
+            return params;
+        }
+
         async function loadTransactions() {
             loadingOverlay.classList.add('active');
-            let query = supabase
-                .from('payment_transactions')
-                .select('*', { count: 'exact' });
-            
-            // filters
-            if (searchInput.value) {
-                const term = searchInput.value;
-                query = query.or(`transaction_id.ilike.%${term}%,customer_name.ilike.%${term}%,customer_email.ilike.%${term}%`);
-            }
-            if (statusFilter.value !== 'all') query = query.eq('status', statusFilter.value);
-            if (methodFilter.value !== 'all') query = query.ilike('method', `%${methodFilter.value}%`);
-            if (startDate.value) query = query.gte('created_at', startDate.value);
-            if (endDate.value) query = query.lte('created_at', endDate.value + ' 23:59:59');
-            
-            const from = (currentPage - 1) * rowsPerPage;
-            const to = from + rowsPerPage - 1;
-            query = query.order('created_at', { ascending: false }).range(from, to);
-            
-            const { data, error, count } = await query;
-            if (error) {
-                showToast(tf('admin_payment_toast_load_error', { msg: error.message }), true);
+            try {
+                const params = buildFilterParams();
+                params.set('page', currentPage);
+                params.set('page_size', rowsPerPage);
+                const body = await paymentApi(`/api/payment_transactions?${params.toString()}`);
+                let data = body.data || [];
+                totalRecords = body.count || 0;
+                // Lưu ý: /api/payment_transactions (app.py) chưa hỗ trợ lọc theo "method" ở
+                // server, nên lọc method chỉ áp dụng best-effort trên trang dữ liệu vừa tải
+                // về — tổng số bản ghi/phân trang vẫn tính theo bộ lọc search/status/date.
+                if (methodFilter.value !== 'all') {
+                    const m = methodFilter.value.toLowerCase();
+                    data = data.filter(tx => (tx.method || '').toLowerCase().includes(m));
+                }
+                renderTable(data);
+                updateStatsAndCharts(data);
+            } catch (e) {
+                showToast(tf('admin_payment_toast_load_error', { msg: e.message }), true);
+            } finally {
                 loadingOverlay.classList.remove('active');
-                return;
             }
-            totalRecords = count || 0;
-            renderTable(data || []);
-            updateStatsAndCharts(data || []);
-            loadingOverlay.classList.remove('active');
         }
         
         function renderTable(transactions) {
@@ -832,8 +829,12 @@
 
             document.querySelectorAll('.view-detail').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    const { data } = await supabase.from('payment_transactions').select('*').eq('id', btn.dataset.id).single();
-                    if (data) showDetailModal(data);
+                    try {
+                        const body = await paymentApi(`/api/payment_transactions/${btn.dataset.id}`);
+                        if (body.data) showDetailModal(body.data);
+                    } catch (e) {
+                        showToast(tf('admin_payment_toast_load_error', { msg: e.message }), true);
+                    }
                 });
             });
 
@@ -915,15 +916,19 @@
             if (!currentModalId) return;
             const newStatus = updateStatusSelect.value;
             loadingOverlay.classList.add('active');
-            const { error } = await supabase.from('payment_transactions').update({ status: newStatus }).eq('id', currentModalId);
-            if (error) {
-                showToast(tf('admin_payment_toast_update_error', { msg: error.message }), true);
-            } else {
+            try {
+                await paymentApi(`/update_payment_status/${currentModalId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ status: newStatus }),
+                });
                 showToast(t('admin_payment_toast_update_success'));
                 await loadTransactions();
+            } catch (e) {
+                showToast(tf('admin_payment_toast_update_error', { msg: e.message }), true);
+            } finally {
+                loadingOverlay.classList.remove('active');
+                closeModal();
             }
-            loadingOverlay.classList.remove('active');
-            closeModal();
         }
         
         function resetFilters() {
@@ -937,29 +942,48 @@
         }
         
         async function exportToExcel() {
-            let query = supabase.from('payment_transactions').select('*');
-            if (searchInput.value) {
-                const term = searchInput.value;
-                query = query.or(`transaction_id.ilike.%${term}%,customer_name.ilike.%${term}%,customer_email.ilike.%${term}%`);
+            loadingOverlay.classList.add('active');
+            try {
+                // /api/payment_transactions giới hạn tối đa 100 bản ghi/trang (server-side
+                // cap), nên phải lặp qua từng trang để gom đủ toàn bộ dữ liệu khớp bộ lọc.
+                const params = buildFilterParams();
+                const pageSize = 100;
+                let page = 1;
+                let all = [];
+                let total = Infinity;
+                while (all.length < total) {
+                    params.set('page', page);
+                    params.set('page_size', pageSize);
+                    const body = await paymentApi(`/api/payment_transactions?${params.toString()}`);
+                    const rows = body.data || [];
+                    total = body.count || 0;
+                    all = all.concat(rows);
+                    if (rows.length === 0) break;
+                    page++;
+                }
+                let data = all;
+                if (methodFilter.value !== 'all') {
+                    const m = methodFilter.value.toLowerCase();
+                    data = data.filter(tx => (tx.method || '').toLowerCase().includes(m));
+                }
+                if (!data || data.length === 0) {
+                    showToast(t('admin_payment_toast_no_data_export'), true);
+                    return;
+                }
+                const wsData = [[t('admin_payment_excel_h_id'), t('admin_payment_excel_h_customer'), t('admin_payment_excel_h_email'), t('admin_payment_excel_h_method'), t('admin_payment_excel_h_amount'), t('admin_payment_excel_h_currency'), t('admin_payment_excel_h_status'), t('admin_payment_excel_h_time')]];
+                data.forEach(tx => {
+                    wsData.push([tx.transaction_id, tx.customer_name, tx.customer_email, tx.method, tx.amount, tx.currency, tx.status, tx.created_at]);
+                });
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+                XLSX.writeFile(wb, `transactions_${new Date().toISOString().slice(0,19)}.xlsx`);
+                showToast(t('admin_payment_toast_export_success'));
+            } catch (e) {
+                showToast(tf('admin_payment_toast_generic_error', { msg: e.message }), true);
+            } finally {
+                loadingOverlay.classList.remove('active');
             }
-            if (statusFilter.value !== 'all') query = query.eq('status', statusFilter.value);
-            if (methodFilter.value !== 'all') query = query.ilike('method', `%${methodFilter.value}%`);
-            if (startDate.value) query = query.gte('created_at', startDate.value);
-            if (endDate.value) query = query.lte('created_at', endDate.value + ' 23:59:59');
-            const { data } = await query;
-            if (!data || data.length === 0) {
-                showToast(t('admin_payment_toast_no_data_export'), true);
-                return;
-            }
-            const wsData = [[t('admin_payment_excel_h_id'), t('admin_payment_excel_h_customer'), t('admin_payment_excel_h_email'), t('admin_payment_excel_h_method'), t('admin_payment_excel_h_amount'), t('admin_payment_excel_h_currency'), t('admin_payment_excel_h_status'), t('admin_payment_excel_h_time')]];
-            data.forEach(tx => {
-                wsData.push([tx.transaction_id, tx.customer_name, tx.customer_email, tx.method, tx.amount, tx.currency, tx.status, tx.created_at]);
-            });
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
-            XLSX.writeFile(wb, `transactions_${new Date().toISOString().slice(0,19)}.xlsx`);
-            showToast(t('admin_payment_toast_export_success'));
         }
         
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
@@ -982,7 +1006,7 @@
         
         // Initial load
         applyStaticTranslations();
-        supabaseReady.then(() => { loadTransactions(); });
+        loadTransactions();
         
         // ========== 3D Background GIỮ NGUYÊN ==========
         (function init3D() {

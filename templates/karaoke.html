@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -295,7 +294,7 @@
             </div>
         </div>
 
-        <!-- Grid danh sách phòng (sẽ load từ Supabase) -->
+        <!-- Grid danh sách phòng (load qua /api/karaoke/rooms) -->
         <div class="room-grid" id="roomGrid">
             <div class="text-center col-span-full text-gray-500 py-10" data-i18n="karaoke_loading_rooms">Đang tải danh sách phòng...</div>
         </div>
@@ -336,23 +335,25 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // Gọi thẳng Flask/MongoDB API nội bộ (db.karaoke_rooms, business_id lấy từ session
+        // phía server), cùng pattern hrApi() với templates/chat.html. LƯU Ý: collection Mongo
+        // thật tên "dining_tables" là bảng bàn POS hoàn toàn khác (không có
+        // status/price_per_hour/start_time) nên KHÔNG được dùng ở đây; endpoint đúng là
+        // /api/karaoke/rooms* (dựa trên db.karaoke_rooms).
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                const err = new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+                err.status = res.status;
+                err.body = body;
+                throw err;
+            }
+            return body;
+        }
 
         let currentRoomId = null;
         let currentRoomName = '';
@@ -373,26 +374,23 @@
             else overlay.classList.remove('active');
         }
 
-        // Load danh sách phòng từ bảng dining_tables (hoặc rooms)
+        // Load danh sách phòng từ collection karaoke_rooms qua Flask API (GET /api/karaoke/rooms)
         async function loadRooms() {
             showLoading(true);
-            const { data, error } = await supabase
-                .from('dining_tables')
-                .select('*')
-                .order('id', { ascending: true });
-            if (error) {
+            try {
+                const body = await hrApi('/api/karaoke/rooms');
+                const rooms = body.data || [];
+                if (rooms.length === 0) {
+                    document.getElementById('roomGrid').innerHTML = `<div class="text-center col-span-full text-gray-500 py-10">${t('karaoke_no_rooms_yet')}</div>`;
+                    return;
+                }
+                renderRooms(rooms);
+            } catch (error) {
                 showToast(tf('karaoke_toast_error_loading_rooms', { msg: error.message }), true);
                 document.getElementById('roomGrid').innerHTML = `<div class="text-center col-span-full text-rose-400 py-10">${t('karaoke_unable_load_rooms')}</div>`;
+            } finally {
                 showLoading(false);
-                return;
             }
-            if (!data || data.length === 0) {
-                document.getElementById('roomGrid').innerHTML = `<div class="text-center col-span-full text-gray-500 py-10">${t('karaoke_no_rooms_yet')}</div>`;
-                showLoading(false);
-                return;
-            }
-            renderRooms(data);
-            showLoading(false);
         }
 
         function renderRooms(rooms) {
@@ -461,64 +459,48 @@
 
         async function startRoom(roomId) {
             showLoading(true);
-            const startTime = new Date().toISOString();
-            const { error } = await supabase
-                .from('dining_tables')
-                .update({ status: 'Đang chơi', start_time: startTime })
-                .eq('id', roomId);
-            if (error) {
-                showToast(tf('karaoke_toast_error_starting_room', { msg: error.message }), true);
-            } else {
+            try {
+                // Atomic trên server (find_one_and_update lọc status='Trống') — 409 nghĩa là
+                // phòng vừa bị người khác bấm Start trước, không phải lỗi thật.
+                await hrApi(`/api/karaoke/rooms/${roomId}/start`, { method: 'POST' });
                 showToast(t('karaoke_toast_room_activated'));
                 await loadRooms();
+            } catch (error) {
+                if (error.status === 409) {
+                    showToast(t('karaoke_toast_room_taken'), true);
+                    await loadRooms();
+                } else {
+                    showToast(tf('karaoke_toast_error_starting_room', { msg: error.message }), true);
+                }
+            } finally {
+                showLoading(false);
             }
-            showLoading(false);
         }
 
-        async function endRoom(roomId, totalAmount, customerPhone) {
+        async function endRoom(roomId, customerPhone) {
             showLoading(true);
-
-            // Ghi nhận doanh thu vào orders/order_items (best-effort, không chặn luồng trả phòng
-            // nếu lỗi ghi log) kèm customer_phone để đồng bộ với trí nhớ khách hàng của AI CSKH.
             try {
-                const { data: orderData, error: orderError } = await supabase
-                    .from('orders')
-                    .insert([{
-                        total_amount: totalAmount,
-                        payment_method: 'cash',
-                        status: 'completed',
-                        created_at: new Date().toISOString(),
-                        customer_phone: customerPhone
-                    }])
-                    .select('id')
-                    .single();
-                if (orderError) throw orderError;
-
-                const { error: itemError } = await supabase
-                    .from('order_items')
-                    .insert([{
-                        order_id: orderData.id,
-                        quantity: 1,
-                        price: totalAmount,
-                        total_price: totalAmount,
-                        customer_phone: customerPhone
-                    }]);
-                if (itemError) throw itemError;
-            } catch (logErr) {
-                console.error('Lỗi ghi nhận đơn hàng karaoke:', logErr);
-            }
-
-            const { error } = await supabase
-                .from('dining_tables')
-                .update({ status: 'Trống', start_time: null })
-                .eq('id', roomId);
-            if (error) {
-                showToast(tf('karaoke_toast_payment_error', { msg: error.message }), true);
-            } else {
-                showToast(t('karaoke_toast_payment_success'));
+                // Server tính tiền theo thời gian thực tế (làm tròn lên 15 phút, tối thiểu 15
+                // phút), tự tạo order/order_item doanh thu và reset phòng về trống — tất cả
+                // trong 1 lệnh gọi duy nhất (trước đây là 3 lệnh riêng: insert orders, insert
+                // order_items, update trạng thái phòng).
+                const body = await hrApi(`/api/karaoke/rooms/${roomId}/checkout`, {
+                    method: 'POST',
+                    body: JSON.stringify({ customer_phone: customerPhone }),
+                });
+                const amountStr = (body.total_amount || 0).toLocaleString('vi-VN') + '₫';
+                showToast(tf('karaoke_toast_payment_success', { amount: amountStr }));
                 await loadRooms();
+            } catch (error) {
+                if (error.status === 409) {
+                    showToast(t('karaoke_toast_already_checked_out'), true);
+                    await loadRooms();
+                } else {
+                    showToast(tf('karaoke_toast_payment_error', { msg: error.message }), true);
+                }
+            } finally {
+                showLoading(false);
             }
-            showLoading(false);
         }
 
         function startTimers() {
@@ -548,7 +530,7 @@
             if (currentRoomId) {
                 const custPhone = document.getElementById('custPhone').value.trim() || null;
                 document.getElementById('checkoutModal').classList.remove('active');
-                await endRoom(currentRoomId, currentTotalAmount, custPhone);
+                await endRoom(currentRoomId, custPhone);
                 document.getElementById('custPhone').value = '';
                 currentRoomId = null;
             }
@@ -601,8 +583,10 @@
                 karaoke_modal_room_label: 'Phòng: {name}',
                 karaoke_toast_error_starting_room: 'Lỗi bắt đầu phòng: {msg}',
                 karaoke_toast_room_activated: '✅ Đã kích hoạt phòng! Bắt đầu tính giờ.',
+                karaoke_toast_room_taken: 'Phòng vừa được người khác kích hoạt, đang tải lại danh sách...',
                 karaoke_toast_payment_error: 'Lỗi thanh toán: {msg}',
-                karaoke_toast_payment_success: '💸 Thanh toán thành công! Cảm ơn quý khách.',
+                karaoke_toast_payment_success: '💸 Thanh toán thành công! Số tiền: {amount}',
+                karaoke_toast_already_checked_out: 'Phòng đã được thanh toán trước đó, đang tải lại danh sách...',
                 karaoke_toast_fill_fields: 'Vui lòng nhập đầy đủ',
                 karaoke_toast_request_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
                 karaoke_toast_generic_error: 'Lỗi: {msg}'
@@ -635,8 +619,10 @@
                 karaoke_modal_room_label: 'Room: {name}',
                 karaoke_toast_error_starting_room: 'Error starting room: {msg}',
                 karaoke_toast_room_activated: '✅ Room activated! Timer started.',
+                karaoke_toast_room_taken: 'Room was just activated by someone else, reloading list...',
                 karaoke_toast_payment_error: 'Payment error: {msg}',
-                karaoke_toast_payment_success: '💸 Payment successful! Thank you.',
+                karaoke_toast_payment_success: '💸 Payment successful! Amount: {amount}',
+                karaoke_toast_already_checked_out: 'Room was already checked out, reloading list...',
                 karaoke_toast_fill_fields: 'Please fill in all fields',
                 karaoke_toast_request_sent: '✅ Request sent! We will contact you within 15 minutes.',
                 karaoke_toast_generic_error: 'Error: {msg}'
@@ -669,7 +655,7 @@
             langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
-        supabaseReady.then(() => { loadRooms(); });
+        loadRooms();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

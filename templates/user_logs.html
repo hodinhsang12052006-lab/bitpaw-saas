@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -151,9 +150,12 @@
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="userlogs_loading_data">Đang tải dữ liệu...</span></div></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    <!-- Dữ liệu log đã được server lọc đúng theo business_id (xem route /user_logs trong app.py)
+         và truyền thẳng qua Jinja — không còn gọi Supabase trực tiếp từ client (trước đây bị lộ
+         log của MỌI tenant khác vì thiếu bộ lọc business_id). -->
+    <script>const SERVER_LOGS = {{ logs | tojson }};</script>
 
+    <script type="module">
         // ========================================================
         // I18N (VI/EN)
         // ========================================================
@@ -279,23 +281,6 @@
         applyStaticTranslations();
         document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
 
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error(t('userlogs_console_token_error'), json && json.error);
-                }
-                return supabaseClient;
-            })
-            .catch(e => { console.error(t('userlogs_console_token_fetch_error'), e); return supabaseClient; });
-
         // Global variables
         let logs = [];
         let currentPage = 1, rowsPerPage = 6;
@@ -348,16 +333,12 @@
             return map[action] || `<span class="action-badge action-login">${action}</span>`;
         }
 
-        // Load logs from Supabase
-        async function loadLogs() {
+        // Load logs — dữ liệu đã được server truyền sẵn qua SERVER_LOGS (Jinja, đúng business_id),
+        // không còn truy vấn Supabase trực tiếp từ client nữa.
+        function loadLogs() {
             showLoading(true);
             try {
-                const { data, error } = await supabaseClient
-                    .from('user_logs')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                if (error) throw error;
-                logs = data || [];
+                logs = SERVER_LOGS || [];
                 applyFilters();
             } catch (err) {
                 console.error(err);
@@ -500,7 +481,7 @@
         nextBtn.addEventListener('click', () => { const total = Math.ceil(filteredLogs.length / rowsPerPage); if (currentPage < total) { currentPage++; renderTable(); } });
 
         // Initial load
-        supabaseReady.then(() => { loadLogs(); });
+        loadLogs();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

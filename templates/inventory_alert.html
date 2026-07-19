@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -182,23 +181,18 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // Flask/MongoDB API nội bộ (đã @login_required + lọc business_id phía server).
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // Global variables
         let products = [];
@@ -255,16 +249,13 @@
             else overlay.classList.remove('active');
         }
 
-        // Load thresholds from system_settings
+        // Load thresholds (business_id-scoped server-side)
         async function loadThresholds() {
             try {
-                const { data, error } = await supabase.from('system_settings').select('value').eq('key', 'inventory_thresholds').single();
-                if (error && error.code !== 'PGRST116') throw error;
-                if (data) {
-                    const settings = JSON.parse(data.value);
-                    globalWarningThreshold = settings.warning || 10;
-                    globalCriticalThreshold = settings.critical || 5;
-                }
+                const body = await hrApi('/api/inventory/thresholds');
+                const settings = body.data || {};
+                globalWarningThreshold = settings.warning || 10;
+                globalCriticalThreshold = settings.critical || 5;
                 warningThresholdInput.value = globalWarningThreshold;
                 criticalThresholdInput.value = globalCriticalThreshold;
             } catch (err) { console.warn('Threshold load error', err); }
@@ -274,21 +265,21 @@
         async function saveThresholds() {
             showLoading(true);
             try {
-                const payload = { warning: globalWarningThreshold, critical: globalCriticalThreshold };
-                const { error } = await supabase.from('system_settings').upsert({ key: 'inventory_thresholds', value: JSON.stringify(payload), updated_at: new Date() });
-                if (error) throw error;
+                await hrApi('/api/inventory/thresholds', {
+                    method: 'PUT',
+                    body: JSON.stringify({ warning: globalWarningThreshold, critical: globalCriticalThreshold })
+                });
                 showToast(t('inventory_alert_toast_threshold_saved'));
-            } catch (err) { showToast(t('inventory_alert_toast_save_error_prefix') + err.message, true); }
+            } catch (err) { showToast(t('inventory_alert_toast_save_error_prefix') + err.message, true); throw err; }
             finally { showLoading(false); }
         }
 
-        // Load products from Supabase (is_active = true)
+        // Load products (active only, business_id-scoped, sorted by id server-side)
         async function loadProducts() {
             showLoading(true);
             try {
-                const { data, error } = await supabase.from('products').select('*').eq('is_active', true).order('id', { ascending: true });
-                if (error) throw error;
-                products = data || [];
+                const body = await hrApi('/api/inventory/products');
+                products = body.data || [];
                 applyFilters();
                 await loadThresholds();
             } catch (err) { showToast(t('inventory_alert_toast_load_error_prefix') + err.message, true); }
@@ -386,16 +377,20 @@
             const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb, ws, 'Inventory'); XLSX.writeFile(wb, `inventory_${new Date().toISOString().slice(0,19)}.xlsx`); showToast(t('inventory_alert_toast_export_success'));
         }
 
-        // Restock
+        // Restock — atomic $inc server-side (avoids lost-update race from client-computed newStock)
         async function restockProduct(id, quantity) {
             const product = products.find(p => p.id == id);
             if (!product) return false;
-            const newStock = product.stock + quantity;
             try {
-                const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
-                if (error) throw error;
-                product.stock = newStock;
-                await supabase.from('inventory_logs').insert([{ product_id: id, quantity_change: quantity, type: 'restock', created_at: new Date() }]);
+                const body = await hrApi(`/api/products/${id}/restock`, {
+                    method: 'POST',
+                    body: JSON.stringify({ quantity })
+                });
+                if (body.data && typeof body.data.stock !== 'undefined') {
+                    product.stock = body.data.stock;
+                } else {
+                    product.stock += quantity;
+                }
                 return true;
             } catch (err) { showToast(t('inventory_alert_toast_restock_error_prefix') + err.message, true); return false; }
         }
@@ -426,10 +421,17 @@
         saveThresholdBtn.addEventListener('click', async () => {
             const newWarning = parseInt(warningThresholdInput.value);
             const newCritical = parseInt(criticalThresholdInput.value);
-            if (isNaN(newWarning) || isNaN(newCritical) || newCritical >= newWarning) { showToast(t('inventory_alert_toast_invalid_threshold'), true); return; }
+            if (isNaN(newWarning) || isNaN(newCritical) || newCritical >= newWarning || newWarning <= 0 || newCritical <= 0) { showToast(t('inventory_alert_toast_invalid_threshold'), true); return; }
+            const prevWarning = globalWarningThreshold, prevCritical = globalCriticalThreshold;
             globalWarningThreshold = newWarning;
             globalCriticalThreshold = newCritical;
-            await saveThresholds();
+            try {
+                await saveThresholds();
+            } catch (err) {
+                globalWarningThreshold = prevWarning;
+                globalCriticalThreshold = prevCritical;
+                return;
+            }
             applyFilters();
             thresholdModal.classList.remove('active');
             showToast(t('inventory_alert_toast_threshold_updated'));
@@ -450,8 +452,8 @@
             const list = document.getElementById('restockProposalsList');
             const countEl = document.getElementById('restockProposalCount');
             try {
-                const { data, error } = await supabase.from('restock_proposals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
-                if (error) throw error;
+                const body = await hrApi('/api/restock_proposals?status=pending');
+                const data = body.data || [];
                 if (!data || data.length === 0) { panel.style.display = 'none'; return; }
                 panel.style.display = 'block';
                 countEl.innerText = tf('inventory_alert_ai_proposal_count', { count: data.length });
@@ -476,8 +478,10 @@
 
         async function updateRestockProposalStatus(id, status) {
             try {
-                const { error } = await supabase.from('restock_proposals').update({ status }).eq('id', id);
-                if (error) throw error;
+                await hrApi(`/api/restock_proposals/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status })
+                });
                 showToast(status === 'approved' ? `✅ ${t('inventory_alert_toast_marked_restocked')}` : t('inventory_alert_toast_proposal_dismissed'));
                 loadRestockProposals();
             } catch (err) {
@@ -671,7 +675,8 @@
         }
 
         // Initial load
-        supabaseReady.then(() => { loadProducts(); loadRestockProposals(); });
+        loadProducts();
+        loadRestockProposals();
 
         // Pagination (simplified, no prev/next buttons in original? but we keep if needed)
         // The original didn't have pagination buttons, so we skip adding them. But we keep currentPage logic for future.

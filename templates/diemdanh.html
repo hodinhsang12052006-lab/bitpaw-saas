@@ -6,10 +6,6 @@
     <title>Điểm Danh Của Tôi | BitPaw OS</title>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- 🚀 THÊM THƯ VIỆN SUPABASE -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
@@ -89,13 +85,31 @@
 
     <script>
         // ==========================================
-        // 🚀 1. CẤU HÌNH SUPABASE 
+        // 🚀 1. API NỘI BỘ (Flask + MongoDB).
         // ==========================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
+
+        async function hrUpload(fileOrBlob, kind, filename) {
+            const formData = new FormData();
+            formData.append('file', fileOrBlob, filename || fileOrBlob.name || 'upload.jpg');
+            formData.append('kind', kind);
+            const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi upload (${res.status})`);
+            }
+            return body.url;
+        }
 
         // Biến lưu thông tin nhân viên (Lấy từ LocalStorage đã đăng nhập ở App Nhân Viên)
         let currentUser = { code: 'NV-0000', name: 'Chưa đăng nhập' };
@@ -180,9 +194,8 @@
             }
         }
 
-        // --- 4. BẤM "CHỤP & LƯU" -> ĐẨY THẲNG LÊN SUPABASE CLOUD ---
+        // --- 4. BẤM "CHỤP & LƯU" -> ĐẨY LÊN MÁY CHỦ NỘI BỘ (Flask + MongoDB) ---
         async function captureAndSubmit() {
-            await supabaseReady;
             const btn = document.getElementById('captureBtn');
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('diemdanh_uploading')}`;
             btn.disabled = true;
@@ -212,32 +225,22 @@
                     const toa_do = `${currentLat},${currentLng}`;
                     const fileName = `diemdanh_${currentUser.code}_${Date.now()}.jpg`;
 
-                    // A. Tải ảnh điểm danh lên Đám mây (Storage: checkin_images)
-                    const { data: uploadData, error: uploadErr } = await supabase.storage
-                        .from('checkin_images')
-                        .upload(fileName, blob, { contentType: 'image/jpeg' });
-                    
-                    if (uploadErr) throw uploadErr;
+                    // A. Tải ảnh điểm danh lên máy chủ (GridFS qua /api/storage/upload)
+                    const imageUrl = await hrUpload(blob, 'checkin', fileName);
 
-                    // B. Lấy đường link public của ảnh vừa up
-                    const { data: publicUrlData } = supabase.storage
-                        .from('checkin_images')
-                        .getPublicUrl(fileName);
-
-                    const imageUrl = publicUrlData.publicUrl;
-
-                    // C. Lưu thông tin (Giờ, Tọa độ, Link Ảnh) vào Bảng 'chamcong'
-                    const { error: dbErr } = await supabase.from('chamcong').insert([{
-                        ma_nv: currentUser.code,
-                        ngay_cham: todayStr,
-                        gio_den: timeStr,
-                        trang_thai: 'Có mặt',
-                        nganh_nghe: 'Kỹ Thuật', // Tùy chỉnh theo Sếp
-                        toa_do: toa_do,
-                        anh_checkin: imageUrl
-                    }]);
-
-                    if (dbErr) throw dbErr;
+                    // B. Lưu thông tin (Giờ, Tọa độ, Link Ảnh) vào bảng 'chamcong'
+                    await hrApi('/api/hr/chamcong', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            ma_nv: currentUser.code,
+                            ngay_cham: todayStr,
+                            gio_den: timeStr,
+                            trang_thai: 'Có mặt',
+                            nganh_nghe: 'Kỹ Thuật', // Tùy chỉnh theo Sếp
+                            toa_do: toa_do,
+                            anh_checkin: imageUrl
+                        })
+                    });
 
                     // Ghi nhận cờ Đã Điểm Danh vào điện thoại
                     localStorage.setItem('bp_da_diem_danh', new Date().toDateString());

@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -348,24 +347,9 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabaseClient = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabaseClient;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabaseClient; });
+        // Client Supabase đã gỡ — form setup thật (#setupForm) submit thẳng lên Flask
+        // (POST /setup, đã ghi db.system_settings từ trước); saveBusinessMode() bên dưới
+        // là hàm dead code chưa từng được gọi, đã xoá luôn cùng đợt này.
 
         // ========================================================
         // I18N (VI mặc định / EN chuyển đổi)
@@ -453,35 +437,6 @@
         // Clear selected class
         function clearSelected() {
             modeCards.forEach(card => card.classList.remove('selected'));
-        }
-        
-        // Lưu mode vào Supabase (bảng system_settings)
-        async function saveBusinessMode(mode) {
-            showLoading(true);
-            try {
-                const { error } = await supabaseClient
-                    .from('system_settings')
-                    .upsert({ key: 'business_mode', value: mode, updated_at: new Date() }, { onConflict: 'key' });
-                if (error) throw error;
-                showToastMessage(`${t('setup_toast_switched_prefix')}${mode.toUpperCase()}${t('setup_toast_switched_suffix')}`);
-                // Chuyển hướng đến phân hệ tương ứng sau 1.5s
-                setTimeout(() => {
-                    let targetUrl = "{{ url_for('index') }}";
-                    if (mode === 'fnb') {
-                        targetUrl = "{{ url_for('pos') }}";
-                    } else if (mode === 'spa') {
-                        targetUrl = "{{ url_for('spa') }}";
-                    } else if (mode === 'karaoke') {
-                        targetUrl = "{{ url_for('karaoke') }}";
-                    }
-                    window.location.href = targetUrl;
-                }, 1500);
-            } catch (err) {
-                console.error(err);
-                showToastMessage(t('setup_toast_save_error_prefix') + err.message, true);
-            } finally {
-                showLoading(false);
-            }
         }
         
         // Mở modal xác nhận

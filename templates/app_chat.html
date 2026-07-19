@@ -12,8 +12,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     
     <style>
@@ -313,23 +311,56 @@
         }
 
         // ========================================================
-        // 🚀 CẤU HÌNH SUPABASE & DỮ LIỆU USER LOCAL
+        // LOGIC CHÍNH — Flask API nội bộ (db.chat_messages/db.chat_presence/db.employees).
+        // checkAuth() cũ dựa vào lớp xác thực client THỨ HAI chồng lên Flask session — thừa
+        // và đã vô hiệu hoá từ khi route /app_chat có @login_required (app.py:4863); danh tính gửi tin
+        // (sender_id/sender_name) giờ do SERVER tự resolve theo session['user_email'] (xem
+        // _resolve_chat_identity trong app.py), không tự suy ra ở client nữa.
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabaseClient = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
+        async function hrUpload(fileOrBlob, kind, filename) {
+            const formData = new FormData();
+            formData.append('file', fileOrBlob, filename || fileOrBlob.name || 'upload.jpg');
+            formData.append('kind', kind);
+            const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi upload (${res.status})`);
+            }
+            return body.url;
+        }
+
+        // myId (mã nhân viên) chỉ dùng để tạo room-id của các đoạn chat 1-1 (Room_<ma1>_<ma2>)
+        // và tra cứu avatar trong danh bạ — KHÔNG PHẢI danh tính gửi tin nhắn thật. Danh tính
+        // gửi tin (myEmail/myName) do server trả về qua /api/chat/presence/ping, giống hệt cách
+        // chat.html đã migrate xác định "mình là ai" để so sánh sender_id khi vẽ bong bóng chat.
         const myId = localStorage.getItem('bp_emp_code') || "GUEST";
-        const myName = localStorage.getItem('bp_emp_name') || t('appchat_guest_name');
-        
-        let currentRoom = ""; let realtimeChannel = null; let avatarMap = {};
+        let myName = localStorage.getItem('bp_emp_name') || t('appchat_guest_name');
+        let myEmail = '';
+        const identityReady = hrApi('/api/chat/presence/ping', {
+            method: 'POST',
+            body: JSON.stringify({ room: 'KenhChung' }),
+        }).then(res => { myEmail = res.email; myName = res.name; }).catch(() => {});
+
+        let currentRoom = ""; let currentRoomAvatar = ""; let avatarMap = {};
+        let presenceIntervalId = null; let lastMessageTimestamp = null;
         const chatBox = document.getElementById('chatBox');
 
         window.onload = () => {
             init3DBackground();
-            supabaseReady.then(() => loadDanhBa());
+            startChatStream();
+            loadDanhBa();
         };
 
         function formatTime(isoString) {
@@ -343,57 +374,63 @@
         // 1. TẢI DANH BẠ 
         // ==========================================
         async function loadDanhBa() {
+            await identityReady;
             try {
-                // Tải tin nhắn cuối của Kênh Chung
-                const { data: globalMsg } = await supabaseClient.from('messages').select('content, sender_name').eq('room', 'KenhChung').order('timestamp', { ascending: false }).limit(1).maybeSingle();
-                if(globalMsg) {
-                    let preview = globalMsg.content.includes('/storage/v1/object/public/') ? t('appchat_sent_image_short') : globalMsg.content;
-                    document.getElementById('last_msg_KenhChung').innerHTML = `<span class="text-white">${globalMsg.sender_name}:</span> ${preview}`;
-                }
+                // Tải tin nhắn cuối của Kênh Chung — /api/chat/messages hỗ trợ limit bất kỳ room
+                // nào (business-scoped), dùng limit=1 để lấy tin mới nhất thay maybeSingle() cũ.
+                try {
+                    const globalBody = await hrApi(`/api/chat/messages?room=${encodeURIComponent('KenhChung')}&limit=1`);
+                    const globalMsg = (globalBody.data || [])[0];
+                    if (globalMsg) {
+                        let preview = globalMsg.content.startsWith('[IMG]') || globalMsg.content.startsWith('[GIF]') ? t('appchat_sent_image_short') : globalMsg.content;
+                        document.getElementById('last_msg_KenhChung').innerHTML = `<span class="text-white">${globalMsg.sender_name}:</span> ${preview}`;
+                    }
+                } catch (e) { /* im lặng — không chặn tải danh bạ nếu Kênh Chung chưa có tin */ }
 
-                // Tải danh bạ
-                const { data: users, error } = await supabaseClient.from('employees').select('ma_nv, ho_ten, linh_vuc, avatar_url');
-                if(!error && users) {
-                    let html = '';
-                    for (const u of users) {
-                        if(u.avatar_url) avatarMap[u.ma_nv] = u.avatar_url;
-                        if (u.ma_nv === myId) continue; 
+                // Tải danh bạ nhân sự (dùng chung /api/hr/employees đã migrate của HR stack)
+                const body = await hrApi('/api/hr/employees');
+                const users = body.data || [];
+                let html = '';
+                for (const u of users) {
+                    if (u.avatar_url) avatarMap[u.ma_nv] = u.avatar_url;
+                    if (u.ma_nv === myId) continue;
 
-                        const roomId = 'Room_' + getChatRoomId(myId, u.ma_nv);
-                        const { data: lastMsg } = await supabaseClient.from('messages').select('content, sender_email').eq('room', roomId).order('timestamp', { ascending: false }).limit(1).maybeSingle();
-                        
-                        let previewText = t('appchat_click_to_chat');
-                        let unreadDot = "";
+                    const roomId = 'Room_' + getChatRoomId(myId, u.ma_nv);
+                    let previewText = t('appchat_click_to_chat');
+                    let unreadDot = "";
 
+                    try {
+                        const msgBody = await hrApi(`/api/chat/messages?room=${encodeURIComponent(roomId)}&limit=1`);
+                        const lastMsg = (msgBody.data || [])[0];
                         if (lastMsg) {
-                            previewText = lastMsg.content.includes('/storage/v1/object/public/') ? t('appchat_sent_image') : lastMsg.content;
-                            if (lastMsg.sender_email !== myId) {
+                            previewText = lastMsg.content.startsWith('[IMG]') || lastMsg.content.startsWith('[GIF]') ? t('appchat_sent_image') : lastMsg.content;
+                            if (lastMsg.sender_id !== myEmail) {
                                 previewText = `<span class="text-white font-bold drop-shadow-md">${previewText}</span>`;
                                 unreadDot = `<div class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse"></div>`;
                             } else {
                                 previewText = `${t('appchat_you_prefix')}${previewText}`;
                             }
                         }
+                    } catch (e) { /* im lặng — phòng chưa từng có tin nhắn */ }
 
-                        const defaultAvt = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.ho_ten)}&background=1E293B&color=06b6d4&bold=true`;
-                        const avatarContent = `<img src="${u.avatar_url || defaultAvt}" class="w-full h-full object-cover">`;
+                    const defaultAvt = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.ho_ten)}&background=1E293B&color=06b6d4&bold=true`;
+                    const avatarContent = `<img src="${u.avatar_url || defaultAvt}" class="w-full h-full object-cover">`;
 
-                        html += `
-                        <div onclick="openChat('${roomId}', '${u.ho_ten}', '${u.avatar_url || defaultAvt}')" class="flex items-center gap-4 p-3 rounded-3xl bg-white/5 border border-white/5 cursor-pointer active:scale-95 transition-all hover:bg-white/10 group">
-                            <div class="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent group-hover:border-cyan-500 transition-colors shrink-0 shadow-inner">
-                                ${avatarContent}
+                    html += `
+                    <div onclick="openChat('${roomId}', '${u.ho_ten}', '${u.avatar_url || defaultAvt}')" class="flex items-center gap-4 p-3 rounded-3xl bg-white/5 border border-white/5 cursor-pointer active:scale-95 transition-all hover:bg-white/10 group">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent group-hover:border-cyan-500 transition-colors shrink-0 shadow-inner">
+                            ${avatarContent}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-center mb-1">
+                                <h4 class="font-bold text-white text-sm truncate pr-2 group-hover:text-cyan-300 transition-colors">${u.ho_ten}</h4>
+                                ${unreadDot}
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-center mb-1">
-                                    <h4 class="font-bold text-white text-sm truncate pr-2 group-hover:text-cyan-300 transition-colors">${u.ho_ten}</h4>
-                                    ${unreadDot}
-                                </div>
-                                <p class="text-[11px] text-gray-400 truncate">${previewText}</p>
-                            </div>
-                        </div>`;
-                    }
-                    document.getElementById('danh_ba_nhan_su').innerHTML = html;
+                            <p class="text-[11px] text-gray-400 truncate">${previewText}</p>
+                        </div>
+                    </div>`;
                 }
+                document.getElementById('danh_ba_nhan_su').innerHTML = html;
             } catch(e) { showToast(t('appchat_error_load_contacts'), "error"); }
         }
 
@@ -401,9 +438,11 @@
         // 2. MỞ PHÒNG CHAT & LOAD LỊCH SỬ CHAT
         // ==========================================
         async function openChat(room_id, room_name, avatar_url = "") {
+            await identityReady;
             currentRoom = room_id;
+            currentRoomAvatar = avatar_url;
             document.getElementById('chat_title').innerText = room_name;
-            
+
             const chatIconDiv = document.getElementById('chat_icon');
             if(room_id === 'KenhChung') {
                 chatIconDiv.innerHTML = '<i class="fas fa-bullhorn text-xl"></i>';
@@ -418,38 +457,74 @@
             document.getElementById('chat_status').innerText = t('appchat_status_syncing');
 
             chatBox.innerHTML = `<div class="text-center text-xs text-cyan-500/70 my-6 font-bold uppercase tracking-widest animate-pulse"><i class="fas fa-satellite fa-spin mr-2"></i>${t('appchat_syncing_satellite')}</div>`;
+            lastMessageTimestamp = null;
 
             try {
-                const { data: messages, error } = await supabaseClient.from('messages').select('*').eq('room', currentRoom).order('timestamp', { ascending: true }).limit(100);
+                const body = await hrApi(`/api/chat/messages?room=${encodeURIComponent(currentRoom)}&limit=100`);
+                const messages = (body.data || []).slice().reverse();
 
-                if (!error && messages) {
-                    chatBox.innerHTML = `<div class="text-center text-[9px] font-black text-gray-500 my-6 uppercase tracking-[0.2em] bg-white/5 inline-block px-4 py-1.5 rounded-full mx-auto border border-white/5 flex justify-center w-fit"><i class="fas fa-lock text-cyan-500 mr-2"></i> ${t('appchat_e2e_encrypted')}</div>`;
-                    messages.forEach(msg => renderMessage(msg));
-                    forceScrollToBottom();
-                }
+                chatBox.innerHTML = `<div class="text-center text-[9px] font-black text-gray-500 my-6 uppercase tracking-[0.2em] bg-white/5 inline-block px-4 py-1.5 rounded-full mx-auto border border-white/5 flex justify-center w-fit"><i class="fas fa-lock text-cyan-500 mr-2"></i> ${t('appchat_e2e_encrypted')}</div>`;
+                messages.forEach(msg => renderMessage(msg));
+                if (messages.length) lastMessageTimestamp = messages[messages.length - 1].timestamp;
+                forceScrollToBottom();
             } catch (err) { showToast(t('appchat_error_load_chat'), "error"); }
 
-            setupRealtime();
+            startRealtimeForRoom(currentRoom);
         }
 
         function closeChat() {
             document.getElementById('screen_chat').classList.remove('active');
             document.getElementById('screen_contacts').classList.add('active');
-            if(realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
-            loadDanhBa(); 
+            stopRealtime();
+            currentRoom = ""; currentRoomAvatar = "";
+            loadDanhBa();
         }
 
         // ==========================================
-        // 3. KÊNH REALTIME
+        // 3. REALTIME & PRESENCE — 1 SSE dùng chung (/api/stream/chat, watch cả chat_messages
+        // lẫn chat_presence) + heartbeat, giống hệt kiến trúc của chat.html. Presence không có
+        // "bảng" thật để watch trực tiếp nên dùng: client tự ping định kỳ
+        // (/api/chat/presence/ping), server coi 1 người "online" nếu last_seen trong
+        // _CHAT_PRESENCE_TTL_SECONDS gần nhất.
         // ==========================================
-        function setupRealtime() {
+        function startChatStream() {
+            const stream = new EventSource('/api/stream/chat');
+            stream.onmessage = () => {
+                if (currentRoom && document.getElementById('screen_chat').classList.contains('active')) {
+                    pollNewMessages();
+                }
+            };
+        }
+
+        async function pollNewMessages() {
+            if (!currentRoom) return;
+            try {
+                const body = await hrApi(`/api/chat/messages?room=${encodeURIComponent(currentRoom)}&limit=20`);
+                const msgs = (body.data || []).slice().reverse();
+                let appended = false;
+                msgs.forEach(msg => {
+                    if (lastMessageTimestamp && msg.timestamp <= lastMessageTimestamp) return;
+                    renderMessage(msg);
+                    appended = true;
+                });
+                if (msgs.length) lastMessageTimestamp = msgs[msgs.length - 1].timestamp;
+                if (appended) forceScrollToBottom();
+            } catch (e) { /* im lặng — vòng sau thử lại */ }
+        }
+
+        function startRealtimeForRoom(room) {
+            stopRealtime();
             document.getElementById('chat_status').innerText = t('appchat_status_online');
-            realtimeChannel = supabaseClient.channel('chat_phong_' + currentRoom)
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room=eq.${currentRoom}` }, (payload) => {
-                    if(payload.new.sender_email !== myId) {
-                        renderMessage(payload.new); forceScrollToBottom();
-                    }
-                }).subscribe();
+            // Heartbeat: tự ping presence mỗi 10s (< _CHAT_PRESENCE_TTL_SECONDS=20s ở server).
+            hrApi('/api/chat/presence/ping', { method: 'POST', body: JSON.stringify({ room }) })
+                .then(res => { myEmail = res.email; myName = res.name; }).catch(() => {});
+            presenceIntervalId = setInterval(() => {
+                hrApi('/api/chat/presence/ping', { method: 'POST', body: JSON.stringify({ room }) }).catch(() => {});
+            }, 10000);
+        }
+
+        function stopRealtime() {
+            if (presenceIntervalId) { clearInterval(presenceIntervalId); presenceIntervalId = null; }
         }
 
         // ==========================================
@@ -461,11 +536,14 @@
             const msgText = input.value.trim();
             if(!msgText) return;
 
-            input.value = ''; 
-            const newMsgObj = { room: currentRoom, sender_email: myId, sender_name: myName, content: msgText, timestamp: new Date().toISOString() };
-            
-            renderMessage(newMsgObj); forceScrollToBottom();
-            await supabaseClient.from('messages').insert([newMsgObj]);
+            input.value = '';
+            try {
+                await hrApi('/api/chat/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ room: currentRoom, content: msgText }),
+                });
+                pollNewMessages();
+            } catch (error) { /* im lặng — SSE/vòng poll kế tiếp sẽ tự thử lại */ }
         });
 
         // ==========================================
@@ -479,22 +557,20 @@
             forceScrollToBottom();
 
             try {
-                const fileExt = file.name.split('.').pop();
+                const fileExt = file.name.split('.').pop() || 'jpg';
                 const fileName = `${myId}_${Date.now()}.${fileExt}`;
 
-                const { data, error } = await supabaseClient.storage.from('chat_images').upload(fileName, file);
-                if (error) throw error;
+                const imageUrl = await hrUpload(file, 'chat', fileName);
+                await hrApi('/api/chat/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ room: currentRoom, content: `[IMG]${imageUrl}` }),
+                });
 
-                const { data: publicUrlData } = supabaseClient.storage.from('chat_images').getPublicUrl(fileName);
-                const imageUrl = publicUrlData.publicUrl;
-
-                const newMsgObj = { room: currentRoom, sender_email: myId, sender_name: myName, content: imageUrl, timestamp: new Date().toISOString() };
-                await supabaseClient.from('messages').insert([newMsgObj]);
-                
-                document.getElementById(tempId).remove();
-                renderMessage(newMsgObj); forceScrollToBottom();
+                document.getElementById(tempId)?.remove();
+                pollNewMessages();
             } catch (error) {
-                document.getElementById(tempId).innerHTML = `<div class="text-rose-400 text-[10px] bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/30">${t('appchat_error_upload_image')}</div>`;
+                const tempEl = document.getElementById(tempId);
+                if (tempEl) tempEl.innerHTML = `<div class="text-rose-400 text-[10px] bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/30">${t('appchat_error_upload_image')}</div>`;
             }
             input.value = '';
         }
@@ -503,16 +579,20 @@
         // 6. RENDER TIN NHẮN LÊN MÀN HÌNH
         // ==========================================
         function renderMessage(data) {
-            const isMe = data.sender_email === myId;
+            // Danh tính gửi tin (sender_id) là email do server resolve (session['user_email']),
+            // KHÔNG PHẢI mã nhân viên (myId) — so sánh với myEmail lấy từ
+            // /api/chat/presence/ping, đúng kiến trúc chat.html.
+            const isMe = data.sender_id === myEmail;
             let contentHTML = "";
+            const content = data.content || "";
 
-            if (data.content && data.content.startsWith('http') && data.content.includes('/storage/v1/object/public/')) {
-                // Đổi window.open thành onclick="openLightbox(...)"
-                contentHTML = `<img src="${data.content}" onload="forceScrollToBottom()" class="max-w-[240px] w-full rounded-2xl border border-white/10 shadow-lg mt-1 cursor-pointer hover:opacity-80 transition object-cover bg-black/50" onclick="openLightbox(this.src)">`;
+            if (content.startsWith('[IMG]') || content.startsWith('[GIF]')) {
+                const url = content.replace('[IMG]', '').replace('[GIF]', '');
+                contentHTML = `<img src="${url}" onload="forceScrollToBottom()" class="max-w-[240px] w-full rounded-2xl border border-white/10 shadow-lg mt-1 cursor-pointer hover:opacity-80 transition object-cover bg-black/50" onclick="openLightbox(this.src)">`;
             } else {
-                contentHTML = `<div class="${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-gray-200'} px-4 py-3 text-sm shadow-md mb-0.5 break-words inline-block leading-relaxed">${data.content}</div>`;
+                contentHTML = `<div class="${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-gray-200'} px-4 py-3 text-sm shadow-md mb-0.5 break-words inline-block leading-relaxed">${content}</div>`;
             }
-            
+
             const timeStr = formatTime(data.timestamp);
             let html = '';
 
@@ -525,7 +605,12 @@
                     </div>
                 </div>`;
             } else {
-                const senderAvatarUrl = avatarMap[data.sender_email]; 
+                // avatarMap được đánh chỉ mục theo ma_nv (danh bạ /api/hr/employees), nhưng
+                // data.sender_id là email server-resolved nên không trùng khoá trong Kênh Chung
+                // (nhiều người gửi) — fallback sang avatar ui-avatars theo tên. Trong đoạn chat
+                // 1-1 thì dùng thẳng avatar_url đã biết của người đối diện (currentRoomAvatar)
+                // truyền từ danh bạ khi bấm vào, chính xác hơn.
+                const senderAvatarUrl = (currentRoom !== 'KenhChung' && currentRoomAvatar) ? currentRoomAvatar : avatarMap[data.sender_id];
                 const defaultAvt = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.sender_name || '?')}&background=1E293B&color=06b6d4&bold=true`;
                 const finalAvatarHTML = `<img src="${senderAvatarUrl || defaultAvt}" class="w-full h-full object-cover">`;
 

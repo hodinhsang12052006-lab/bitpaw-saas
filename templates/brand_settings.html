@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -304,25 +303,6 @@
     </div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
-        const STORAGE_BUCKET = 'brand_assets';
-
         // DOM elements
         const brandNameInput = document.getElementById('brandNameInput');
         const brandColorInput = document.getElementById('brandColorInput');
@@ -456,57 +436,42 @@
             previewBrandName.style.fontFamily = fontSelect.value;
         });
 
-        // Upload ảnh lên Supabase Storage
-        async function uploadFile(file, folder) {
-            if (!file) return null;
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const { data, error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, file, { cacheControl: '3600', upsert: true });
-            if (error) throw error;
-            const { data: publicUrl } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
-            return publicUrl.publicUrl;
+        // Lưu settings qua API Flask/MongoDB (multipart vì có upload file)
+        async function saveSettings(brandName, brandColor, fontFamily, logoFile, coverFile) {
+            const formData = new FormData();
+            if (brandName !== undefined && brandName !== null) formData.append('brand_name', brandName);
+            if (brandColor !== undefined && brandColor !== null) formData.append('brand_color', brandColor);
+            if (fontFamily !== undefined && fontFamily !== null) formData.append('font_family', fontFamily);
+            if (logoFile) formData.append('logo', logoFile);
+            if (coverFile) formData.append('cover', coverFile);
+
+            const res = await fetch('/api/brand_settings', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error((json && json.error) || 'Request failed');
+            return json.data;
         }
 
-        // Lưu settings lên bảng system_settings
-        async function saveSettings(brandName, brandColor, fontFamily, logoUrl, coverUrl) {
-            const payload = {
-                brand_name: brandName,
-                brand_color: brandColor,
-                font_family: fontFamily,
-                logo_url: logoUrl,
-                cover_url: coverUrl
-            };
-            const { error } = await supabase.from('system_settings').upsert({ key: 'brand_settings', value: JSON.stringify(payload), updated_at: new Date() });
-            if (error) throw error;
-        }
-
-        // Tải settings hiện tại
+        // Tải settings hiện tại của tenant
         async function loadSettings() {
-            const { data, error } = await supabase.from('system_settings').select('value').eq('key', 'brand_settings').single();
-            if (error && error.code !== 'PGRST116') throw error;
-            if (data) {
-                const settings = JSON.parse(data.value);
-                brandNameInput.value = settings.brand_name || 'BitPaw';
-                brandColorInput.value = settings.brand_color || '#06b6d4';
-                fontSelect.value = settings.font_family || 'Inter';
-                if (settings.logo_url) {
-                    currentLogoUrl = settings.logo_url;
-                    previewLogoImg.src = settings.logo_url;
-                    document.getElementById('logoPreview').src = settings.logo_url;
-                }
-                if (settings.cover_url) {
-                    // có thể hiển thị preview cover nếu cần
-                }
-                updatePreview();
-                previewCardDiv.style.fontFamily = fontSelect.value;
-                previewBrandName.style.fontFamily = fontSelect.value;
-            } else {
-                // giá trị mặc định
-                brandNameInput.value = 'BitPaw';
-                brandColorInput.value = '#06b6d4';
-                fontSelect.value = 'Inter';
-                updatePreview();
+            const res = await fetch('/api/brand_settings', { credentials: 'same-origin' });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error((json && json.error) || 'Request failed');
+            const settings = json.data || {};
+            brandNameInput.value = settings.brand_name || 'BitPaw';
+            brandColorInput.value = settings.brand_color || '#06b6d4';
+            fontSelect.value = settings.font_family || 'Inter';
+            if (settings.logo_url) {
+                currentLogoUrl = settings.logo_url;
+                previewLogoImg.src = settings.logo_url;
+                document.getElementById('logoPreview').src = settings.logo_url;
             }
+            updatePreview();
+            previewCardDiv.style.fontFamily = fontSelect.value;
+            previewBrandName.style.fontFamily = fontSelect.value;
         }
 
         // Submit form
@@ -515,17 +480,14 @@
             loadingOverlay.classList.add('active');
             saveBtn.disabled = true;
             try {
-                let logoUrl = currentLogoUrl;
-                if (logoUpload.files.length > 0) {
-                    logoUrl = await uploadFile(logoUpload.files[0], 'logos');
-                    previewLogoImg.src = logoUrl;
-                    document.getElementById('logoPreview').src = logoUrl;
+                const logoFile = logoUpload.files.length > 0 ? logoUpload.files[0] : null;
+                const coverFile = coverUpload.files.length > 0 ? coverUpload.files[0] : null;
+                const updated = await saveSettings(brandNameInput.value.trim(), brandColorInput.value, fontSelect.value, logoFile, coverFile);
+                if (updated && updated.logo_url) {
+                    currentLogoUrl = updated.logo_url;
+                    previewLogoImg.src = updated.logo_url;
+                    document.getElementById('logoPreview').src = updated.logo_url;
                 }
-                let coverUrl = null;
-                if (coverUpload.files.length > 0) {
-                    coverUrl = await uploadFile(coverUpload.files[0], 'covers');
-                }
-                await saveSettings(brandNameInput.value.trim(), brandColorInput.value, fontSelect.value, logoUrl, coverUrl);
                 showToast(t('brand_settings_toast_saved'));
                 setTimeout(() => { window.location.href = "{{ url_for('spa') }}"; }, 1500);
             } catch (err) {
@@ -561,7 +523,7 @@
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
         // Khởi tạo
-        supabaseReady.then(() => { loadSettings(); });
+        loadSettings();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

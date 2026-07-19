@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -356,27 +355,24 @@
     </script>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        // ========================================================
+        // LOGIC CHÍNH — Flask API nội bộ (db.promotions, business_id-scoped), thay Supabase JS.
+        // ========================================================
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
-
-        // Global variables
-        let promotions = [];
+        // Global variables — danh sách khuyến mãi đã được render sẵn từ server (route /promotions,
+        // Jinja `promotions=promos_data`), tránh phải thêm endpoint GET JSON mới.
+        let promotions = {{ promotions | tojson }};
         let currentPage = 1, rowsPerPage = 5;
         let filteredPromos = [];
         let deleteId = null;
@@ -445,23 +441,9 @@
             return `<span class="status-badge expired-badge"><i class="fas fa-hourglass-end mr-1"></i> ${t('promo_status_expired')}</span>`;
         }
 
-        // Load dữ liệu từ Supabase
-        async function loadPromotions() {
-            showLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from('promotions')
-                    .select('*')
-                    .order('id', { ascending: false });
-                if (error) throw error;
-                promotions = data || [];
-                applyFilters();
-            } catch (err) {
-                console.error(err);
-                showToast(tf('promo_toast_error_loading', { msg: err.message }), true);
-            } finally {
-                showLoading(false);
-            }
+        // Danh sách khuyến mãi đã có sẵn từ Jinja (window/server render), chỉ cần áp bộ lọc ban đầu.
+        function loadPromotions() {
+            applyFilters();
         }
 
         // Cập nhật thống kê và biểu đồ
@@ -595,27 +577,27 @@
             showLoading(true);
             try {
                 if (id) {
-                    const { error } = await supabase
-                        .from('promotions')
-                        .update({
+                    await hrApi('/update_promotion/' + id, {
+                        method: 'PUT',
+                        body: JSON.stringify({
                             code, name, discount_type, discount_value, start_date, end_date,
-                            usage_limit, product_ids, status, updated_at: new Date()
+                            usage_limit, product_ids, status
                         })
-                        .eq('id', id);
-                    if (error) throw error;
+                    });
                     showToast(t('promo_toast_update_success'));
                 } else {
-                    const { error } = await supabase
-                        .from('promotions')
-                        .insert([{
+                    await hrApi('/add_promotion', {
+                        method: 'POST',
+                        body: JSON.stringify({
                             code, name, discount_type, discount_value, start_date, end_date,
-                            usage_limit, product_ids, status, used_count: 0, created_at: new Date()
-                        }]);
-                    if (error) throw error;
+                            usage_limit, product_ids, status
+                        })
+                    });
                     showToast(t('promo_toast_add_success'));
                 }
-                await loadPromotions();
                 closeModals();
+                // Reload trang để lấy lại danh sách khuyến mãi mới nhất từ server (Jinja).
+                setTimeout(() => location.reload(), 500);
             } catch (err) {
                 console.error(err);
                 showToast(tf('promo_toast_save_error', { msg: err.message }), true);
@@ -629,11 +611,10 @@
             if (!deleteId) return;
             showLoading(true);
             try {
-                const { error } = await supabase.from('promotions').delete().eq('id', deleteId);
-                if (error) throw error;
+                await hrApi('/delete_promotion/' + deleteId, { method: 'DELETE' });
                 showToast(t('promo_toast_delete_success'));
-                await loadPromotions();
                 closeDeleteModal();
+                setTimeout(() => location.reload(), 500);
             } catch (err) {
                 showToast(tf('promo_toast_delete_error', { msg: err.message }), true);
             } finally {
@@ -708,7 +689,7 @@
         document.getElementById('deleteModal').addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
 
         // Khởi tạo
-        supabaseReady.then(() => { loadPromotions(); });
+        loadPromotions();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

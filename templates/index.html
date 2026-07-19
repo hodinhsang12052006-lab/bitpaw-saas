@@ -11,9 +11,8 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Supabase and Three.js -->
+    <!-- Three.js -->
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -262,6 +261,18 @@
         .recent-scroll {
             max-height: 120px;
             overflow-y: auto;
+        }
+
+        @keyframes fomoFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fomo-item {
+            animation: fomoFadeIn 0.35s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .fomo-item:last-child {
+            border-bottom: none;
         }
 
         /* Premium activation gate cards and controls */
@@ -1686,41 +1697,87 @@
                 }, 1000);
             })();
 
-            // ========== SUPABASE DATABASE REGISTRY CONNECT ==========
-            const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+            // ========== BACKEND API HELPER (post cloud-BaaS migration to Flask/Mongo) ==========
+            // Same small fetch wrapper used in templates/chat.html's hrApi(): sets JSON
+            // headers and throws when the response isn't ok or the body explicitly
+            // reports { success: false }.
+            async function hrApi(path, options) {
+                const res = await fetch(path, {
+                    ...options,
+                    headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok || body.success === false) {
+                    throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                }
+                return body;
+            }
+
+            // ========== FOMO SOCIAL-PROOF TICKER ("Recent Activities" panel) ==========
+            // Product decision: no backend endpoint exposes real cross-tenant signup
+            // activity (there is no such thing as "other tenants' signups" data this
+            // tenant should ever see), so this slot is used as a marketing social-proof
+            // widget instead of a real operations log. Content is SIMULATED for
+            // conversion psychology on the launch demo — not real customer data.
+            const FOMO_EVENTS = [
+                { name: 'Kevin', context: 'Nail Salon in Texas', action: 'just subscribed to the Pro Plan' },
+                { name: 'Linda', context: 'Restaurant in California', action: 'upgraded to Enterprise' },
+                { name: 'Michael', context: 'Nail Salon in Florida', action: 'started a free trial' },
+                { name: 'Jennifer', context: 'Restaurant in New York', action: 'just subscribed to the Pro Plan' },
+                { name: 'David', context: 'Nail Salon in Georgia', action: 'upgraded to the Pro Plan' },
+                { name: 'Amy', context: 'Restaurant in Washington', action: 'started a free trial' },
+                { name: 'Chris', context: 'Nail Salon in Arizona', action: 'just subscribed to the Pro Plan' },
+                { name: 'Sarah', context: 'Restaurant in Nevada', action: 'upgraded to Enterprise' },
+                { name: 'Brian', context: 'Nail Salon in North Carolina', action: 'just signed up for a free trial' },
+                { name: 'Emily', context: 'Restaurant in Illinois', action: 'just subscribed to the Pro Plan' },
+                { name: 'Tommy', context: 'Nail Salon in Virginia', action: 'upgraded to Enterprise' },
+                { name: 'Michelle', context: 'Restaurant in Oregon', action: 'started a free trial' }
+            ];
+            let fomoTickerItems = [];
+            let fomoRecentIdx = [];
+
+            function fomoPickEvent() {
+                // Bỏ qua 3 sự kiện vừa hiện để tránh lặp liên tiếp, giữ cảm giác "luôn mới".
+                let idx;
+                do { idx = Math.floor(Math.random() * FOMO_EVENTS.length); } while (fomoRecentIdx.includes(idx) && FOMO_EVENTS.length > 3);
+                fomoRecentIdx.push(idx);
+                if (fomoRecentIdx.length > 3) fomoRecentIdx.shift();
+                return FOMO_EVENTS[idx];
+            }
+
+            function fomoRelativeTime(seconds) {
+                if (seconds < 60) return 'Just now';
+                const mins = Math.floor(seconds / 60);
+                if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`;
+                const hrs = Math.floor(mins / 60);
+                return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+            }
+
+            function fomoRenderList() {
+                const el = document.getElementById('launcherActivityList');
+                if (!el) return;
+                el.innerHTML = fomoTickerItems.map(item => `
+                    <div class="fomo-item flex items-start gap-2.5 py-1.5">
+                        <div class="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-[10px] font-bold shrink-0 mt-0.5">${item.initial}</div>
+                        <div class="min-w-0">
+                            <p class="text-gray-300 leading-snug"><span class="font-bold text-white">${item.name}</span> from a <span class="text-cyan-400">${item.context}</span> ${item.action}</p>
+                            <p class="text-[10px] text-gray-600 mt-0.5">${fomoRelativeTime(item.seconds)}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function fomoTick() {
+                fomoTickerItems.forEach(i => i.seconds += 9);
+                const evt = fomoPickEvent();
+                fomoTickerItems.unshift({ name: evt.name, initial: evt.name.charAt(0), context: evt.context, action: evt.action, seconds: 0 });
+                if (fomoTickerItems.length > 5) fomoTickerItems.pop();
+                fomoRenderList();
+            }
 
             async function fetchDashboardData() {
-                try {
-                    const { data: activities, error: actErr } = await supabaseClient
-                        .from('user_logs')
-                        .select('action, description, created_at')
-                        .order('created_at', { ascending: false })
-                        .limit(5);
-
-                    let activityHtml = `<div class="text-center text-gray-500 py-2">${currentLang === 'en' ? 'No activity yet' : 'Chưa có hoạt động nào'}</div>`;
-                    if (!actErr && activities && activities.length) {
-                        activityHtml = activities.map(act => {
-                            const time = new Date(act.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                            let icon = 'fas fa-info-circle text-cyan-400';
-                            if (act.action.includes('checkout') || act.action.includes('payment')) icon = 'fas fa-wallet text-emerald-400';
-                            else if (act.action.includes('call_staff')) icon = 'fas fa-bell text-rose-400 animate-pulse';
-                            else if (act.action.includes('login') || act.action.includes('register')) icon = 'fas fa-fingerprint text-purple-400';
-
-                            return `<div class="flex items-center gap-3 text-gray-400 py-1.5 border-b border-white/5">
-                                    <i class="${icon} w-4 text-center"></i>
-                                    <span class="truncate flex-1">${time} - ${act.description}</span>
-                                </div>`;
-                        }).join('');
-                    }
-
-                    if (document.getElementById('launcherActivityList')) document.getElementById('launcherActivityList').innerHTML = activityHtml;
-                } catch (err) {
-                    console.error("Lỗi fetch log:", err);
-                    const errHtml = `<div class="text-center text-rose-400 py-2">${currentLang === 'en' ? 'Unable to connect to the Cloud server' : 'Không thể kết nối máy chủ Cloud'}</div>`;
-                    if (document.getElementById('launcherActivityList')) document.getElementById('launcherActivityList').innerHTML = errHtml;
-                }
+                fomoTick();
+                setInterval(fomoTick, 9000);
             }
 
             function updateClock() {
@@ -1761,18 +1818,20 @@
                 const originalText = btn.innerHTML;
                 btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'CONNECTING...' : 'KẾT NỐI...'}`; btn.disabled = true;
                 try {
-                    const { data, error } = await supabaseClient.from('employees').select('ho_ten').eq('ma_nv', code).maybeSingle();
-                    if (error) throw error;
-                    if (!data) {
-                        showMessage((currentLang === 'en' ? "No employee found with code: " : "Không tìm thấy Nhân viên mang mã: ") + code, true);
-                        btn.innerHTML = originalText; btn.disabled = false;
-                        return;
-                    }
+                    // Trang này render TRƯỚC KHI đăng nhập (app.py: route /index render
+                    // index.html khi chưa có session) nên KHÔNG thể gọi /api/hr/employees/<ma_nv>
+                    // (yêu cầu @login_required) — dùng route public riêng, chỉ trả về
+                    // ho_ten/ma_nv, không có business_id/lương.
+                    const body = await hrApi(`/api/public/hr/employees/lookup?ma_nv=${encodeURIComponent(code)}`);
+                    const data = body.data;
                     sessionStorage.setItem('bp_emp_code', code);
                     sessionStorage.setItem('bp_emp_name', data.ho_ten);
                     window.location.href = 'diemdanh.html';
                 } catch (err) {
-                    showMessage(currentLang === 'en' ? "Server connection error!" : "Lỗi kết nối máy chủ!", true);
+                    const notFound = /Không tìm thấy|404/i.test(err.message || '');
+                    showMessage(notFound
+                        ? (currentLang === 'en' ? "No employee found with code: " : "Không tìm thấy Nhân viên mang mã: ") + code
+                        : (currentLang === 'en' ? "Server connection error!" : "Lỗi kết nối máy chủ!"), true);
                     btn.innerHTML = originalText; btn.disabled = false;
                 }
             }
@@ -1875,7 +1934,8 @@
             const dataI18nPlaceholder = {
                 index_fastcheckin_placeholder: { vi: 'VD: NV001', en: 'e.g. NV001' },
                 index_reset_email_placeholder: { vi: 'Nhập Email của bạn', en: 'Enter your email' },
-                index_reg_license_placeholder: { vi: 'VD: BITPAW-TR8D8T5S', en: 'e.g. BITPAW-TR8D8T5S' }
+                index_reg_license_placeholder: { vi: 'VD: BITPAW-TR8D8T5S', en: 'e.g. BITPAW-TR8D8T5S' },
+                index_reg_business_name_placeholder: { vi: 'Tên cửa hàng / Doanh nghiệp', en: 'Business / Shop Name' }
             };
             function applyDataI18n(lang) {
                 const useLang = (lang === 'en') ? 'en' : 'vi';
@@ -2013,12 +2073,17 @@
                 if (!email) return showMessage(currentLang === 'en' ? "Please enter your Email!" : "Vui lòng nhập Email!", true);
                 const btn = document.getElementById('btnReset');
                 btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'Sending...' : 'Đang gửi...'}`; btn.disabled = true;
-                try {
-                    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password.html' });
-                    if (error) throw error;
-                    showMessage(currentLang === 'en' ? "✅ Recovery link sent to your Email." : "✅ Đã gửi link khôi phục vào Email.", false);
-                    closeForgotModal();
-                } catch (e) { showMessage((currentLang === 'en' ? "❌ Error: " : "❌ Lỗi: ") + e.message, true); }
+                // GAP (not wired): no backend route exists yet for password-reset emails.
+                // app.py has no "/reset_password", "/forgot_password" or similar endpoint
+                // (grepped app.py case-insensitively for "reset"/"forgot" - zero hits besides
+                // one unrelated comment). The old client-side call being replaced here
+                // asked a hosted BaaS auth service to email a reset link directly.
+                // Keeping the modal/button in the UI (not silently dropping the feature),
+                // but it is a no-op until a real endpoint (e.g. POST /api/auth/reset-password
+                // that generates a reset token in Mongo and emails it) is built server-side.
+                showMessage(currentLang === 'en'
+                    ? "Password reset is not available yet. Please contact support."
+                    : "Tính năng khôi phục mật khẩu chưa khả dụng. Vui lòng liên hệ hỗ trợ.", true);
                 btn.innerHTML = currentLang === 'en' ? 'Send Reset Link' : 'Gửi Link Reset'; btn.disabled = false;
             }
 

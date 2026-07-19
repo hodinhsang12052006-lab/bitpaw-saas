@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -477,24 +476,20 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = fetch('/api/session/supabase_token', { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(json => {
-                if (json && json.success) {
-                    supabase = createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${json.token}` } } });
-                } else {
-                    console.error('Không lấy được tenant token:', json && json.error);
-                }
-                return supabase;
-            })
-            .catch(e => { console.error('Lỗi khi gọi /api/session/supabase_token:', e); return supabase; });
+        // ========================================================
+        // LOGIC CHÍNH — Flask API nội bộ (db.staff, business_id-scoped), thay Supabase JS.
+        // ========================================================
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // ========== DOM Elements ==========
         const staffTableBody = document.getElementById('staffTableBody');
@@ -693,16 +688,12 @@
             return '<span class="text-rose-400 text-xs"><i class="fas fa-circle text-[8px] mr-1"></i> ' + t('staff_management_tam_nghi') + '</span>';
         }
 
-        // Load staff list from Supabase
+        // Load staff list from Flask API
         async function loadStaff() {
             showLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('staff')
-                    .select('*')
-                    .order('id', { ascending: true });
-                if (error) throw error;
-                renderStaffTable(data || []);
+                const body = await hrApi('/api/staff');
+                renderStaffTable(body.data || []);
             } catch (err) {
                 console.error(err);
                 showToast(t('staff_management_err_load_list') + err.message, true);
@@ -799,18 +790,17 @@
             try {
                 if (id) {
                     // Update
-                    const { error } = await supabase
-                        .from('staff')
-                        .update({ name, phone, role, commission_rate, is_active })
-                        .eq('id', id);
-                    if (error) throw error;
+                    await hrApi('/update_staff/' + id, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name, phone, role, commission_rate, is_active })
+                    });
                     showToast(t('staff_management_msg_update_success'));
                 } else {
                     // Insert
-                    const { error } = await supabase
-                        .from('staff')
-                        .insert([{ name, phone, role, commission_rate, is_active, created_at: new Date() }]);
-                    if (error) throw error;
+                    await hrApi('/add_staff', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, phone, role, commission_rate, is_active })
+                    });
                     showToast(t('staff_management_msg_add_success'));
                 }
                 closeModal();
@@ -834,11 +824,7 @@
             if (!currentDeleteId) return;
             showLoading(true);
             try {
-                const { error } = await supabase
-                    .from('staff')
-                    .delete()
-                    .eq('id', currentDeleteId);
-                if (error) throw error;
+                await hrApi('/delete_staff/' + currentDeleteId, { method: 'DELETE' });
                 showToast(t('staff_management_msg_delete_success'));
                 deleteModal.classList.remove('active');
                 await loadStaff();
@@ -887,7 +873,7 @@
         searchInput.addEventListener('input', filterStaff);
 
         // Initial load
-        supabaseReady.then(() => { loadStaff(); });
+        loadStaff();
 
         // 3D Background (giữ nguyên)
         (function init3D() {

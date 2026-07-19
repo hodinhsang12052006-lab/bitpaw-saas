@@ -7,8 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -526,29 +524,43 @@
         }
 
         // ========================================================
-        // 🚀 KẾT NỐI SUPABASE & LOGIC CRM
+        // 🚀 LOGIC CRM (Flask REST API nội bộ, business_id-scoped qua session)
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
 
-        let currentChatPhone = null;
-
-        // --- 1. LOAD CUSTOMERS ---
+        // --- 1. LOAD CUSTOMERS (GET /api/customers — trả về toàn bộ danh sách của tenant,
+        // không phân trang/filter server-side; search theo tên/SĐT lọc ở client, giống cách
+        // crm.html đã làm cho cùng endpoint này) ---
+        let allCustomersCache = [];
         async function loadCustomers() {
             const table = document.getElementById('customerTable');
             table.innerHTML = '<tr><td colspan="4" class="text-center py-20 text-fuchsia-500 animate-pulse font-bold uppercase tracking-widest"><i class="fas fa-spinner fa-spin mr-2"></i> ' + t('crm_automation_loading_data') + '</td></tr>';
 
-            const search = document.getElementById('searchCustomer').value.trim();
+            const search = document.getElementById('searchCustomer').value.trim().toLowerCase();
 
             try {
-                let query = supabase.from('customers').select('*').order('last_visit', { ascending: false });
-                if(search) query = query.or(`phone.ilike.%${search}%,full_name.ilike.%${search}%`);
+                const response = await fetch('/api/customers');
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'error');
+                allCustomersCache = result.data || [];
 
-                const { data, error } = await query;
-                if(error) throw error;
+                let data = allCustomersCache.slice().sort((a, b) => {
+                    const da = a.last_visit || a.join_date || '';
+                    const dbb = b.last_visit || b.join_date || '';
+                    if (da !== dbb) return da < dbb ? 1 : -1;
+                    return (b.id || 0) - (a.id || 0);
+                });
+
+                if (search) {
+                    data = data.filter(c => {
+                        const name = (c.full_name || c.name || '').toLowerCase();
+                        const phone = (c.phone || '').toLowerCase();
+                        return name.includes(search) || phone.includes(search);
+                    });
+                }
 
                 if(!data || data.length === 0) {
                     table.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-500 italic uppercase tracking-widest text-xs font-bold">' + t('crm_automation_no_customer_data') + '</td></tr>';
@@ -556,29 +568,32 @@
                 }
 
                 table.innerHTML = data.map(c => {
-                    const dateStr = new Date(c.last_visit).toLocaleDateString('vi-VN');
+                    const visitDate = c.last_visit || c.join_date;
+                    const dateStr = visitDate ? new Date(visitDate).toLocaleDateString('vi-VN') : '---';
+                    const name = c.full_name || c.name || '';
+                    const source = c.source || '—';
                     return `
                         <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors bg-black/20 group">
                             <td class="py-4 px-4 border-r border-white/5">
-                                <p class="font-black text-white tracking-wide group-hover:text-fuchsia-400 transition-colors">${c.full_name}</p>
-                                <p class="text-[10px] text-gray-500 font-mono font-bold mt-0.5"><i class="fas fa-phone-alt text-gray-600 mr-1"></i> ${c.phone}</p>
+                                <p class="font-black text-white tracking-wide group-hover:text-fuchsia-400 transition-colors">${escapeHtml(name)}</p>
+                                <p class="text-[10px] text-gray-500 font-mono font-bold mt-0.5"><i class="fas fa-phone-alt text-gray-600 mr-1"></i> ${escapeHtml(c.phone)}</p>
                             </td>
                             <td class="py-4 px-4 text-center border-r border-white/5">
-                                <span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border border-blue-500/30 shadow-inner">${c.source}</span>
+                                <span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border border-blue-500/30 shadow-inner">${escapeHtml(source)}</span>
                             </td>
                             <td class="py-4 px-4 text-center border-r border-white/5">
                                 <p class="text-xs text-gray-300 font-bold">${dateStr}</p>
                             </td>
                             <td class="py-4 px-4 text-center">
                                 <span class="text-emerald-400 font-mono font-black text-base shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] bg-emerald-900/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
-                                    ${Number(c.total_spent).toLocaleString('vi-VN')} ₫
+                                    ${Number(c.total_spent || 0).toLocaleString('vi-VN')} ₫
                                 </span>
                             </td>
                         </tr>
                     `;
                 }).join('');
             } catch(e) {
-                table.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-rose-500 font-bold">' + t('crm_automation_err_load_supabase') + '</td></tr>';
+                table.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-rose-500 font-bold">' + t('crm_automation_err_load_customer_data') + '</td></tr>';
             }
         }
 
@@ -1106,74 +1121,90 @@
             }
         }
 
-        // --- 3. LIVE INBOX & REALTIME CHAT ---
+        // --- 3. LIVE INBOX & REALTIME CHAT (dùng chung backend /api/bot/* với ai_bot.html:
+        // GET /api/bot/customers (danh sách hội thoại), GET/POST /api/bot/messages (lịch sử +
+        // gửi trả lời của staff), GET /api/stream/bot_chat (SSE báo hiệu, tự poll lại) ---
+        let allBotCustomersCache = [];
+        let currentInboxCustomerId = null;
+
         async function loadInboxContacts() {
             const inboxList = document.getElementById('inboxList');
             try {
-                // Lấy những khách có chat gần nhất
-                const { data, error } = await supabase
-                    .from('crm_messages')
-                    .select('customer_phone, customers(full_name), content, created_at')
-                    .order('created_at', { ascending: false });
-                
-                if(error) throw error;
+                const response = await fetch('/api/bot/customers');
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'error');
 
-                // Lọc bỏ trùng lặp phone, chỉ lấy tin mới nhất của mỗi người
-                const uniqueContacts = [];
-                const mapPhones = new Map();
-                for (const item of data) {
-                    if (!mapPhones.has(item.customer_phone)) {
-                        mapPhones.set(item.customer_phone, true);
-                        uniqueContacts.push(item);
-                    }
-                }
-
-                if(uniqueContacts.length === 0) {
-                    inboxList.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs font-bold uppercase tracking-widest">' + t('crm_automation_no_conversations') + '</div>';
-                    return;
-                }
-
-                inboxList.innerHTML = uniqueContacts.map(c => `
-                    <div onclick="openChat('${c.customer_phone}', '${c.customers?.full_name || t('crm_automation_walkin_customer')}')" class="p-4 border-b border-white/5 bg-black/20 cursor-pointer hover:bg-white/[0.05] transition-colors border-l-2 border-l-transparent hover:border-l-fuchsia-500">
-                        <div class="flex justify-between items-start mb-1.5">
-                            <h4 class="font-black text-white text-xs flex items-center gap-2 truncate pr-2"><i class="fas fa-user-circle text-gray-500 text-base"></i> ${c.customers?.full_name || c.customer_phone}</h4>
-                        </div>
-                        <p class="text-[11px] text-gray-400 truncate pr-4 font-medium leading-relaxed">${c.content}</p>
-                    </div>
-                `).join('');
-
-            } catch(e) {}
+                allBotCustomersCache = result.data || [];
+                renderInboxList(allBotCustomersCache);
+            } catch(e) {
+                inboxList.innerHTML = '<div class="p-8 text-center text-rose-500 text-xs font-bold uppercase tracking-widest">' + t('crm_automation_err_load_conversations') + '</div>';
+            }
         }
 
-        async function openChat(phone, name) {
-            currentChatPhone = phone;
+        function renderInboxList(data) {
+            const inboxList = document.getElementById('inboxList');
+            if (!data || data.length === 0) {
+                inboxList.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs font-bold uppercase tracking-widest">' + t('crm_automation_no_conversations') + '</div>';
+                return;
+            }
+
+            inboxList.innerHTML = data.map(c => {
+                const isActive = currentInboxCustomerId === c.id;
+                return `
+                    <div class="inbox-contact-item p-4 border-b border-white/5 ${isActive ? 'bg-white/[0.08]' : 'bg-black/20'} cursor-pointer hover:bg-white/[0.05] transition-colors border-l-2 ${isActive ? 'border-l-fuchsia-500' : 'border-l-transparent'} hover:border-l-fuchsia-500">
+                        <div class="flex justify-between items-start mb-1.5">
+                            <h4 class="font-black text-white text-xs flex items-center gap-2 truncate pr-2"><i class="fas fa-user-circle text-gray-500 text-base"></i> ${escapeHtml(c.full_name || t('crm_automation_walkin_customer'))}</h4>
+                        </div>
+                        <p class="text-[11px] text-gray-400 truncate pr-4 font-medium leading-relaxed">${escapeHtml(c.last_message || '')}</p>
+                    </div>
+                `;
+            }).join('');
+
+            inboxList.querySelectorAll('.inbox-contact-item').forEach((el, idx) => {
+                el.addEventListener('click', () => openChat(data[idx].id, data[idx].full_name || t('crm_automation_walkin_customer')));
+            });
+        }
+
+        async function openChat(customerId, name) {
+            currentInboxCustomerId = customerId;
             document.getElementById('activeChatName').innerText = name;
-            document.getElementById('activeChatPhone').innerText = phone;
-            
+            const idStr = String(customerId);
+            document.getElementById('activeChatPhone').innerText = idStr.includes(':') ? idStr.split(':').slice(1).join(':') : idStr;
+
+            renderInboxList(allBotCustomersCache);
+
             const box = document.getElementById('liveChatBox');
             box.innerHTML = '<div class="text-center text-fuchsia-500 mt-10"><i class="fas fa-spinner fa-spin text-xl"></i></div>';
 
-            try {
-                const { data, error } = await supabase.from('crm_messages').select('*').eq('customer_phone', phone).order('created_at', { ascending: true });
-                if(error) throw error;
+            await loadInboxMessages(customerId);
+        }
 
+        async function loadInboxMessages(customerId, opts) {
+            const silent = opts && opts.silent;
+            const box = document.getElementById('liveChatBox');
+
+            try {
+                const response = await fetch(`/api/bot/messages?customer_id=${encodeURIComponent(customerId)}`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'error');
+
+                const data = result.data || [];
                 if(data.length === 0) {
                     box.innerHTML = '<div class="text-center text-gray-500 text-xs mt-10 uppercase tracking-widest font-bold">' + t('crm_automation_no_chat_messages') + '</div>';
                     return;
                 }
 
                 box.innerHTML = data.map(msg => {
-                    const isBot = msg.sender_type === 'bot';
-                    const isUser = msg.sender_type === 'user';
-                    const isKhach = msg.sender_type === 'customer';
+                    const isBot = msg.sender_type === 'bot' || msg.sender_type === 'ai';
+                    const isStaff = msg.sender_type === 'staff';
 
-                    if (isBot || isUser) {
+                    if (isBot || isStaff) {
                         return `
                             <div class="flex justify-start animate-[fadeIn_0.3s_ease-out]">
                                 <div class="max-w-[75%]">
                                     <p class="text-[9px] ${isBot ? 'text-fuchsia-400' : 'text-cyan-400'} font-black mb-1.5 ml-1 uppercase tracking-widest drop-shadow-sm"><i class="fas ${isBot ? 'fa-robot' : 'fa-headset'} mr-1"></i> ${isBot ? t('crm_automation_sender_bot') : t('crm_automation_sender_cskh')}</p>
                                     <div class="${isBot ? 'bg-fuchsia-900/20 border-fuchsia-500/30' : 'bg-cyan-900/20 border-cyan-500/30'} border p-3.5 rounded-2xl rounded-tl-sm text-[13px] text-gray-200 shadow-sm leading-relaxed font-medium">
-                                        ${msg.content}
+                                        ${escapeHtml(msg.content)}
                                     </div>
                                 </div>
                             </div>
@@ -1184,20 +1215,24 @@
                                 <div class="max-w-[75%] flex flex-col items-end">
                                     <p class="text-[9px] text-gray-400 font-black mb-1.5 mr-1 uppercase tracking-widest text-right">${t('crm_automation_sender_customer')}</p>
                                     <div class="bg-black/60 border border-white/10 p-3.5 rounded-2xl rounded-tr-sm text-[13px] text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] leading-relaxed font-medium">
-                                        ${msg.content}
+                                        ${escapeHtml(msg.content)}
                                     </div>
                                 </div>
                             </div>
                         `;
                     }
                 }).join('');
-                
+
                 box.scrollTop = box.scrollHeight;
-            } catch(e) {}
+            } catch(e) {
+                if (!silent) {
+                    box.innerHTML = '<div class="text-center text-rose-500 text-xs mt-10 uppercase tracking-widest font-bold">' + t('crm_automation_err_load_chat') + '</div>';
+                }
+            }
         }
 
         async function sendLiveMessage() {
-            if(!currentChatPhone) return alert(t('crm_automation_alert_select_customer'));
+            if(!currentInboxCustomerId) return alert(t('crm_automation_alert_select_customer'));
             const input = document.getElementById('liveChatInput');
             const text = input.value.trim();
             if(!text) return;
@@ -1205,29 +1240,41 @@
             input.value = '';
 
             try {
-                await supabase.from('crm_messages').insert([{
-                    customer_phone: currentChatPhone, sender_type: 'user', content: text
-                }]);
-                // Không cần append HTML tay vì Realtime sẽ tự bắt và update
-            } catch(e) {}
+                const response = await fetch('/api/bot/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_id: currentInboxCustomerId, content: text })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'error');
+
+                await loadInboxMessages(currentInboxCustomerId, { silent: true });
+                loadInboxContacts();
+            } catch(e) {
+                showToast(t('crm_automation_err_send_message'), 'error');
+            }
         }
 
-        supabaseReady.then(() => {
-            // LẮNG NGHE REALTIME INBOX
-            supabase.channel('inbox_tracking')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crm_messages' }, payload => {
-                    const msg = payload.new;
-                    // Nếu đang mở đúng đoạn chat đó thì load lại nội dung
-                    if(msg.customer_phone === currentChatPhone) {
-                        openChat(currentChatPhone, document.getElementById('activeChatName').innerText);
-                    }
-                    // Dù mở hay không cũng load lại cái list bên trái cho nó lên đầu
+        // Realtime lắng nghe tin nhắn mới qua SSE (chỉ báo hiệu "có thay đổi", client tự poll
+        // lại danh sách hội thoại + tin nhắn đang mở), giống cách ai_bot.html đã làm.
+        function startBotInboxRealtime() {
+            try {
+                const stream = new EventSource('/api/stream/bot_chat');
+                stream.onmessage = () => {
                     loadInboxContacts();
-                }).subscribe();
+                    if (currentInboxCustomerId) {
+                        loadInboxMessages(currentInboxCustomerId, { silent: true });
+                    }
+                };
+                stream.onerror = () => { /* EventSource tự động reconnect */ };
+            } catch (ex) {
+                console.warn("Realtime stream skipped offline.");
+            }
+        }
 
-            // Khởi chạy khi tải trang
-            loadWorkflows();
-        });
+        // Khởi chạy khi tải trang
+        startBotInboxRealtime();
+        loadWorkflows();
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -1301,7 +1348,10 @@
                 crm_automation_th_total_spent: 'Tổng Tiêu (LTV)',
                 crm_automation_loading_data: 'Đang tải dữ liệu...',
                 crm_automation_no_customer_data: 'Chưa có Data Khách Hàng.',
-                crm_automation_err_load_supabase: 'Lỗi tải dữ liệu Supabase!',
+                crm_automation_err_load_customer_data: 'Lỗi tải dữ liệu khách hàng!',
+                crm_automation_err_load_conversations: 'Lỗi tải danh sách hội thoại!',
+                crm_automation_err_load_chat: 'Lỗi tải tin nhắn hội thoại!',
+                crm_automation_err_send_message: 'Gửi tin nhắn thất bại!',
                 crm_automation_inbox_title: 'Hộp Thư Trực Tuyến',
                 crm_automation_placeholder_search_chat: 'Tìm người chat...',
                 crm_automation_connecting_ws: 'Đang kết nối WebSocket...',
@@ -1432,7 +1482,10 @@
                 crm_automation_th_total_spent: 'Total Spent (LTV)',
                 crm_automation_loading_data: 'Loading data...',
                 crm_automation_no_customer_data: 'No customer data yet.',
-                crm_automation_err_load_supabase: 'Error loading Supabase data!',
+                crm_automation_err_load_customer_data: 'Error loading customer data!',
+                crm_automation_err_load_conversations: 'Error loading conversation list!',
+                crm_automation_err_load_chat: 'Error loading chat messages!',
+                crm_automation_err_send_message: 'Failed to send message!',
                 crm_automation_inbox_title: 'Live Inbox',
                 crm_automation_placeholder_search_chat: 'Search chat contacts...',
                 crm_automation_connecting_ws: 'Connecting to WebSocket...',

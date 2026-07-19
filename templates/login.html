@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -391,12 +390,12 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        // LƯU Ý: templates/login.html KHÔNG được route nào render (route /login thật sự
+        // render index.html) — file này mồ côi, không ảnh hưởng runtime. Đã gỡ client
+        // Supabase; riêng nút "Forgot password" gọi supabase.auth.resetPasswordForEmail()
+        // thật (không phải dead code như phần còn lại) nhưng KHÔNG có luồng Flask tương
+        // đương nào tồn tại trong app.py — đã thay bằng thông báo rõ ràng "chưa hỗ trợ"
+        // thay vì âm thầm không làm gì, xem handler bên dưới.
 
         // DOM elements
         const form = document.getElementById('loginForm');
@@ -485,14 +484,9 @@
             sendResetBtn.disabled = true;
             sendResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
             try {
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin + '/reset-password'
-                });
-                if (error) throw error;
-                showToast('Password reset instructions have been sent to your email');
-                forgotModal.classList.add('hidden');
-                forgotModal.classList.remove('flex');
-                resetEmailInput.value = '';
+                // Chưa có luồng đặt lại mật khẩu qua Flask — báo rõ cho người dùng thay vì
+                // giả vờ đã gửi email (file này cũng đang mồ côi, không route nào render nó).
+                throw new Error('Password reset is not available yet. Please contact support.');
             } catch (err) {
                 showToast(err.message || 'Error sending request', true);
             } finally {

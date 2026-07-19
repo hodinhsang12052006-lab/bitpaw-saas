@@ -10,7 +10,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
@@ -244,11 +243,21 @@
         }
 
         // ========================================================
-        // LOGIC CHÍNH SUPABASE
+        // LOGIC CHÍNH — Flask API nội bộ (db.payment_methods/db.saas_signups).
+        // Đây là form đăng ký mua gói phần mềm (public, không cần đăng nhập), KHÔNG phải
+        // checkout đơn hàng POS — không được gọi tới API đơn hàng POS.
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         const urlParams = new URLSearchParams(window.location.search);
         const moduleType = urlParams.get('plan') || 'pos';
@@ -287,14 +296,8 @@
 
             const tabsContainer = document.getElementById('bankTabsContainer');
             try {
-                const { data, error } = await supabase
-                    .from('payment_methods')
-                    .select('*')
-                    .eq('is_active', true)
-                    .order('id', { ascending: true });
-
-                if (error) throw error;
-                activeBanks = data;
+                const body = await hrApi('/api/checkout/payment_methods');
+                activeBanks = body.data || [];
 
                 if (activeBanks.length > 0) {
                     tabsContainer.innerHTML = ''; 
@@ -372,13 +375,14 @@
                 email: document.getElementById('custEmail').value.trim(),
                 module_plan: moduleType,
                 total_price: currentModule.price,
-                memo_code: randomMemo,
-                status: 'pending' 
+                memo_code: randomMemo
             };
 
             try {
-                const { error } = await supabase.from('orders').insert([orderData]);
-                if (error) throw error;
+                await hrApi('/api/checkout/signup', {
+                    method: 'POST',
+                    body: JSON.stringify(orderData)
+                });
 
                 document.getElementById('successScreen').classList.remove('hidden');
 

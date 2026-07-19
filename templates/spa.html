@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 
     <style>
@@ -958,12 +957,18 @@
     <div id="toast" class="toast"></div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        // ========== Flask API nội bộ, thay Supabase JS. ==========
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // ========== STATE ==========
         let cart = [];
@@ -1255,7 +1260,7 @@
             }
         }
 
-        // ========== EXECUTE PAYMENT & SUPABASE ==========
+        // ========== EXECUTE PAYMENT & LƯU ĐƠN HÀNG (Flask API) ==========
         paymentProcessForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -1278,38 +1283,20 @@
                 // Giả lập thời gian verify payment quốc tế (Stripe, Paypal)
                 await new Promise(res => setTimeout(res, 2000));
 
-                // Lưu vào Supabase Database
+                // Lưu vào cơ sở dữ liệu qua Flask API
                 showLoading(true, t('spa_loading_saving_order'));
-                
-                const { data: orderData, error: orderError } = await supabase
-                    .from('orders')
-                    .insert([{
-                        total_amount: baseVND,
+
+                const checkoutBody = await hrApi('/api/sales/checkout', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty })),
                         payment_method: selectedMethod,
                         status: paymentType === 'cash' ? 'pending' : 'completed',
-                        created_at: new Date().toISOString(),
-                        customer_phone: custPhone
-                    }])
-                    .select('id')
-                    .single();
+                        customer_phone: custPhone,
+                    }),
+                });
 
-                if (orderError) throw orderError;
-
-                const orderId = orderData.id;
-
-                for (let item of cart) {
-                    const { error: itemError } = await supabase
-                        .from('order_items')
-                        .insert([{
-                            order_id: orderId,
-                            product_id: item.id,
-                            quantity: item.qty,
-                            price: item.price,
-                            total_price: item.price * item.qty,
-                            customer_phone: custPhone
-                        }]);
-                    if (itemError) throw itemError;
-                }
+                const orderId = checkoutBody.order_id;
 
                 // Xóa giỏ hàng & Ẩn Checkout Modal
                 cart = [];

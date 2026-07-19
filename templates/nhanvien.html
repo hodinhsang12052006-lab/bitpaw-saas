@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Nhân Sự | BitPaw OS</title>
+    <title>{{ 'Staff Management' if default_lang == 'en' else 'Quản Lý Nhân Sự' }} | BitPaw OS</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -85,9 +85,12 @@
                 </h2>
                 <p class="text-gray-400 mt-2 text-xs font-bold tracking-widest uppercase" data-i18n="nhanvien_subtitle">Quản lý hồ sơ và thiết lập cấu trúc lương thưởng.</p>
             </div>
-            <div class="hidden md:flex bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl items-center gap-2">
-                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></div>
-                <span class="text-[10px] font-bold uppercase tracking-widest" data-i18n="nhanvien_hrm_online">HRM Online</span>
+            <div class="flex items-center gap-3">
+                <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-bold transition">EN</button>
+                <div class="hidden md:flex bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl items-center gap-2">
+                    <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" data-i18n="nhanvien_hrm_online">HRM Online</span>
+                </div>
             </div>
         </div>
 
@@ -319,9 +322,128 @@
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || `Server error (${res.status})`);
             }
             return body;
+        }
+
+        // ========== MULTI-REGION i18n ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                nhanvien_title_prefix: 'Hồ Sơ', nhanvien_title_name: 'Nhân Sự',
+                nhanvien_subtitle: 'Quản lý hồ sơ và thiết lập cấu trúc lương thưởng.',
+                nhanvien_hrm_online: 'HRM Online',
+                nhanvien_form_title: 'Khởi tạo Hồ Sơ Mới',
+                nhanvien_label_code: 'Mã NV', nhanvien_code_placeholder: 'VD: NV001',
+                nhanvien_label_name: 'Họ và Tên', nhanvien_name_placeholder: 'Họ và tên nhân viên',
+                nhanvien_label_dept: 'Phòng Ban',
+                nhanvien_dept_office: 'Văn Phòng', nhanvien_dept_tech: 'Kỹ Thuật', nhanvien_dept_spa: 'Spa & Beauty',
+                nhanvien_dept_fnb_full: 'F&B / Nhà Hàng', nhanvien_dept_fnb: 'F&B', nhanvien_dept_hotel: 'Khách Sạn', nhanvien_dept_prod: 'Sản Xuất',
+                nhanvien_label_role: 'Chức Vụ', nhanvien_role_placeholder: 'Nhân viên',
+                nhanvien_btn_save_profile: 'Lưu Hồ Sơ',
+                nhanvien_search_placeholder: 'Tìm theo tên, mã NV...',
+                nhanvien_filter_all: 'Tất cả',
+                nhanvien_th_profile: 'Hồ Sơ NV', nhanvien_th_dept: 'Phòng Ban', nhanvien_th_salary: 'Cơ Chế Lương',
+                nhanvien_th_kudo: 'Sao Kudo', nhanvien_th_action: 'Thao Tác',
+                nhanvien_loading: 'Đang tải dữ liệu...',
+                nhanvien_page_show: 'Hiển thị', nhanvien_page_employees: 'nhân viên',
+                nhanvien_page_info: 'Trang {current} / {total}',
+                nhanvien_modal_history_title: 'Lịch sử làm việc:',
+                nhanvien_hist_th_date: 'Ngày', nhanvien_hist_th_checkin: 'Giờ đến', nhanvien_hist_th_status: 'Trạng thái',
+                nhanvien_hist_th_extra: 'Phát sinh (₫)', nhanvien_hist_th_note: 'Ghi chú',
+                nhanvien_salary_modal_title: 'Cấu hình lương',
+                nhanvien_salary_modal_hint: 'Đây là lương chấm công dùng để tính Bảng lương (bangluong.html). Khác với "Cấu hình lương" ở trang Quản lý Nhân viên POS (cauhinh_luong.html) — 2 hệ nhân sự riêng biệt.',
+                nhanvien_salary_staff_label: 'Nhân sự',
+                nhanvien_salary_fixed: 'Lương cố định (tháng)', nhanvien_salary_hourly: 'Lương theo giờ (₫/h)',
+                nhanvien_salary_allowance: 'Phụ cấp cố định', nhanvien_salary_update_btn: 'Cập nhật',
+                nhanvien_no_staff: 'Không có nhân sự nào',
+                nhanvien_dept_unassigned: 'Chưa phân',
+                nhanvien_not_configured: 'Chưa cấu hình',
+                nhanvien_per_month: '₫/tháng', nhanvien_per_hour: '₫/giờ', nhanvien_allowance_prefix: 'phụ cấp',
+                nhanvien_tooltip_history: 'Xem lịch sử', nhanvien_tooltip_salary: 'Cấu hình lương', nhanvien_tooltip_delete: 'Xóa nhân sự',
+                nhanvien_toast_load_error: 'Lỗi tải dữ liệu',
+                nhanvien_toast_missing_fields: 'Vui lòng nhập Mã NV và Họ tên',
+                nhanvien_toast_add_success: '✅ Thêm nhân viên thành công',
+                nhanvien_toast_add_error_prefix: 'Lỗi: ',
+                nhanvien_confirm_delete: 'Xóa nhân viên {ma_nv} và toàn bộ dữ liệu liên quan? Hành động không thể hoàn tác!',
+                nhanvien_toast_deleted: 'Đã xóa nhân sự',
+                nhanvien_toast_delete_error: 'Lỗi khi xóa',
+                nhanvien_history_loading: 'Đang tải...',
+                nhanvien_history_empty: 'Chưa có dữ liệu chấm công',
+                nhanvien_money_commission: '(Tua)', nhanvien_money_tips: '(Tips)', nhanvien_money_allowance: '(P.C)',
+                nhanvien_toast_salary_success: 'Cập nhật lương thành công',
+                nhanvien_toast_salary_error: 'Lỗi lưu lương'
+            },
+            en: {
+                nhanvien_title_prefix: 'Staff', nhanvien_title_name: 'Profiles',
+                nhanvien_subtitle: 'Manage staff profiles and set up pay structures.',
+                nhanvien_hrm_online: 'HRM Online',
+                nhanvien_form_title: 'Create New Profile',
+                nhanvien_label_code: 'Staff ID', nhanvien_code_placeholder: 'e.g. EMP001',
+                nhanvien_label_name: 'Full Name', nhanvien_name_placeholder: "Employee's full name",
+                nhanvien_label_dept: 'Department',
+                nhanvien_dept_office: 'Office', nhanvien_dept_tech: 'Technical', nhanvien_dept_spa: 'Spa & Beauty',
+                nhanvien_dept_fnb_full: 'F&B / Restaurant', nhanvien_dept_fnb: 'F&B', nhanvien_dept_hotel: 'Hotel', nhanvien_dept_prod: 'Production',
+                nhanvien_label_role: 'Role', nhanvien_role_placeholder: 'Staff',
+                nhanvien_btn_save_profile: 'Save Profile',
+                nhanvien_search_placeholder: 'Search by name, staff ID...',
+                nhanvien_filter_all: 'All',
+                nhanvien_th_profile: 'Staff Profile', nhanvien_th_dept: 'Department', nhanvien_th_salary: 'Pay Structure',
+                nhanvien_th_kudo: 'Kudo Stars', nhanvien_th_action: 'Actions',
+                nhanvien_loading: 'Loading data...',
+                nhanvien_page_show: 'Show', nhanvien_page_employees: 'employees',
+                nhanvien_page_info: 'Page {current} / {total}',
+                nhanvien_modal_history_title: 'Work History:',
+                nhanvien_hist_th_date: 'Date', nhanvien_hist_th_checkin: 'Check-in', nhanvien_hist_th_status: 'Status',
+                nhanvien_hist_th_extra: 'Extra ($)', nhanvien_hist_th_note: 'Note',
+                nhanvien_salary_modal_title: 'Pay Configuration',
+                nhanvien_salary_modal_hint: 'This is the attendance-based pay used to calculate Payroll (bangluong.html). Different from "Pay Configuration" on the POS Staff Management page (cauhinh_luong.html) — 2 separate staff systems.',
+                nhanvien_salary_staff_label: 'Staff',
+                nhanvien_salary_fixed: 'Fixed Salary (monthly)', nhanvien_salary_hourly: 'Hourly Wage ($/h)',
+                nhanvien_salary_allowance: 'Fixed Allowance', nhanvien_salary_update_btn: 'Update',
+                nhanvien_no_staff: 'No staff found',
+                nhanvien_dept_unassigned: 'Unassigned',
+                nhanvien_not_configured: 'Not configured',
+                nhanvien_per_month: '/month', nhanvien_per_hour: '/hour', nhanvien_allowance_prefix: 'allowance',
+                nhanvien_tooltip_history: 'View history', nhanvien_tooltip_salary: 'Pay configuration', nhanvien_tooltip_delete: 'Delete staff',
+                nhanvien_toast_load_error: 'Error loading data',
+                nhanvien_toast_missing_fields: 'Please enter Staff ID and Full Name',
+                nhanvien_toast_add_success: '✅ Staff added successfully',
+                nhanvien_toast_add_error_prefix: 'Error: ',
+                nhanvien_confirm_delete: 'Delete employee {ma_nv} and all related data? This action cannot be undone!',
+                nhanvien_toast_deleted: 'Staff deleted',
+                nhanvien_toast_delete_error: 'Error deleting staff',
+                nhanvien_history_loading: 'Loading...',
+                nhanvien_history_empty: 'No attendance data yet',
+                nhanvien_money_commission: '(Commission)', nhanvien_money_tips: '(Tips)', nhanvien_money_allowance: '(Allow.)',
+                nhanvien_toast_salary_success: 'Pay updated successfully',
+                nhanvien_toast_salary_error: 'Error saving pay'
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function tf(key, params) {
+            let str = t(key);
+            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+            return str;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            renderTable();
+        }
+        const langToggleBtn = document.getElementById('langToggleBtn');
+        if (langToggleBtn) {
+            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
         let currentDept = 'all';
@@ -379,7 +501,16 @@
                 const body = await hrApi('/api/hr/employees?sort=id_desc');
                 allEmployees = body.data || [];
                 renderTable();
-            } catch (e) { showToast("Lỗi tải dữ liệu", "error"); }
+            } catch (e) { showToast(t('nhanvien_toast_load_error'), "error"); }
+        }
+
+        function deptLabel(dept) {
+            const map = {
+                'Spa & Beauty': 'nhanvien_dept_spa', 'Khách Sạn': 'nhanvien_dept_hotel',
+                'F&B': 'nhanvien_dept_fnb', 'Sản Xuất': 'nhanvien_dept_prod',
+                'Kỹ Thuật': 'nhanvien_dept_tech', 'Văn Phòng': 'nhanvien_dept_office'
+            };
+            return map[dept] ? t(map[dept]) : (dept || t('nhanvien_dept_unassigned'));
         }
 
         function renderTable() {
@@ -395,24 +526,24 @@
             const totalPages = Math.ceil(filtered.length / pageSize);
             const start = (currentPage - 1) * pageSize;
             const paginated = filtered.slice(start, start + pageSize);
-            document.getElementById('pageInfo').innerText = `Trang ${currentPage} / ${totalPages || 1}`;
+            document.getElementById('pageInfo').innerText = tf('nhanvien_page_info', { current: currentPage, total: totalPages || 1 });
 
             const tbody = document.getElementById('empTable');
             if (paginated.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-20 text-gray-500">Không có nhân sự nào</td</tr>';
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-20 text-gray-500">${t('nhanvien_no_staff')}</td></tr>`;
                 return;
             }
             let html = '';
             for (let emp of paginated) {
-                const avatar = emp.avatar_url 
+                const avatar = emp.avatar_url
                     ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full bg-gradient-to-br ${getAvatarGradient(emp.linh_vuc)} flex items-center justify-center font-black">${emp.ho_ten.charAt(0).toUpperCase()}</div>`;
                 const kudoHtml = emp.diem_kudo ? `<span class="bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 px-2 py-1 rounded-lg text-xs font-bold"><i class="fas fa-star mr-1"></i>${emp.diem_kudo}</span>` : '<span class="text-gray-600">-</span>';
                 let salaryHtml = '';
-                if (emp.luong_cb) salaryHtml += `<div class="text-yellow-400 text-xs">${emp.luong_cb.toLocaleString()}₫/tháng</div>`;
-                if (emp.luong_gio) salaryHtml += `<div class="text-cyan-400 text-xs">${emp.luong_gio.toLocaleString()}₫/giờ</div>`;
-                if (emp.phu_cap) salaryHtml += `<div class="text-emerald-400 text-[11px]">+${emp.phu_cap.toLocaleString()}₫ phụ cấp</div>`;
-                if (!salaryHtml) salaryHtml = '<span class="text-gray-500 text-[10px]">Chưa cấu hình</span>';
+                if (emp.luong_cb) salaryHtml += `<div class="text-yellow-400 text-xs">${emp.luong_cb.toLocaleString()}${t('nhanvien_per_month')}</div>`;
+                if (emp.luong_gio) salaryHtml += `<div class="text-cyan-400 text-xs">${emp.luong_gio.toLocaleString()}${t('nhanvien_per_hour')}</div>`;
+                if (emp.phu_cap) salaryHtml += `<div class="text-emerald-400 text-[11px]">+${emp.phu_cap.toLocaleString()} ${t('nhanvien_allowance_prefix')}</div>`;
+                if (!salaryHtml) salaryHtml = `<span class="text-gray-500 text-[10px]">${t('nhanvien_not_configured')}</span>`;
                 const safeData = JSON.stringify({ cb: emp.luong_cb||0, gio: emp.luong_gio||0, pc: emp.phu_cap||0 }).replace(/"/g, '&quot;');
                 html += `
                     <tr class="hr-row border-b border-white/5 hover:bg-white/5 transition" data-dept="${emp.linh_vuc || ''}">
@@ -422,14 +553,14 @@
                                 <div><p class="font-black text-white text-sm hrm-name">${emp.ho_ten}</p><p class="text-[10px] text-gray-400 font-mono hrm-code"><i class="fas fa-id-badge"></i> ${emp.ma_nv}</p></div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 text-center border-r border-white/5"><span class="px-2 py-1 rounded-lg text-[10px] font-black border ${getBadgeColor(emp.linh_vuc)}">${emp.linh_vuc || 'Chưa phân'}</span></td>
+                        <td class="px-6 py-4 text-center border-r border-white/5"><span class="px-2 py-1 rounded-lg text-[10px] font-black border ${getBadgeColor(emp.linh_vuc)}">${deptLabel(emp.linh_vuc)}</span></td>
                         <td class="px-6 py-4 border-r border-white/5">${salaryHtml}</td>
                         <td class="px-6 py-4 text-center border-r border-white/5">${kudoHtml}</td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex justify-center gap-2">
-                                <button onclick="viewHistory('${emp.ma_nv}', '${emp.ho_ten}')" data-tooltip="Xem lịch sử" class="p-2 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-gray-400 hover:text-emerald-400 transition"><i class="fas fa-calendar-alt"></i></button>
-                                <button onclick="openSalaryModal('${emp.ma_nv}', '${emp.ho_ten}', ${safeData})" data-tooltip="Cấu hình lương" class="p-2 rounded-xl bg-white/5 hover:bg-yellow-500/20 text-gray-400 hover:text-yellow-400 transition"><i class="fas fa-file-invoice-dollar"></i></button>
-                                <button onclick="deleteEmployee('${emp.ma_nv}')" data-tooltip="Xóa nhân sự" class="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-gray-400 hover:text-rose-500 transition"><i class="fas fa-trash-alt"></i></button>
+                                <button onclick="viewHistory('${emp.ma_nv}', '${emp.ho_ten}')" data-tooltip="${t('nhanvien_tooltip_history')}" class="p-2 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-gray-400 hover:text-emerald-400 transition"><i class="fas fa-calendar-alt"></i></button>
+                                <button onclick="openSalaryModal('${emp.ma_nv}', '${emp.ho_ten}', ${safeData})" data-tooltip="${t('nhanvien_tooltip_salary')}" class="p-2 rounded-xl bg-white/5 hover:bg-yellow-500/20 text-gray-400 hover:text-yellow-400 transition"><i class="fas fa-file-invoice-dollar"></i></button>
+                                <button onclick="deleteEmployee('${emp.ma_nv}')" data-tooltip="${t('nhanvien_tooltip_delete')}" class="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-gray-400 hover:text-rose-500 transition"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -470,30 +601,30 @@
         async function addEmployee() {
             const ma_nv = document.getElementById('ma_nv').value.trim().toUpperCase();
             const ho_ten = document.getElementById('ho_ten').value.trim();
-            if (!ma_nv || !ho_ten) return showToast("Vui lòng nhập Mã NV và Họ tên", "error");
+            if (!ma_nv || !ho_ten) return showToast(t('nhanvien_toast_missing_fields'), "error");
             const payload = {
                 ma_nv, ho_ten,
                 linh_vuc: document.getElementById('linh_vuc').value,
-                chuc_vu: document.getElementById('chuc_vu').value.trim() || 'Nhân viên',
+                chuc_vu: document.getElementById('chuc_vu').value.trim() || t('nhanvien_role_placeholder'),
                 luong_cb: 0, luong_gio: 0, phu_cap: 0, diem_kudo: 0
             };
             try {
                 await hrApi('/api/hr/employees', { method: 'POST', body: JSON.stringify(payload) });
-                showToast("✅ Thêm nhân viên thành công");
+                showToast(t('nhanvien_toast_add_success'));
                 document.getElementById('ma_nv').value = '';
                 document.getElementById('ho_ten').value = '';
                 document.getElementById('chuc_vu').value = '';
                 loadEmployees();
-            } catch (err) { showToast("Lỗi: Mã NV đã tồn tại", "error"); }
+            } catch (err) { showToast(t('nhanvien_toast_add_error_prefix') + err.message, "error"); }
         }
 
         async function deleteEmployee(ma_nv) {
-            if (!confirm(`Xóa nhân viên ${ma_nv} và toàn bộ dữ liệu liên quan? Hành động không thể hoàn tác!`)) return;
+            if (!confirm(tf('nhanvien_confirm_delete', { ma_nv }))) return;
             try {
                 await hrApi(`/api/hr/employees/${encodeURIComponent(ma_nv)}`, { method: 'DELETE' });
-                showToast("Đã xóa nhân sự");
+                showToast(t('nhanvien_toast_deleted'));
                 loadEmployees();
-            } catch(e) { showToast("Lỗi khi xóa", "error"); }
+            } catch(e) { showToast(t('nhanvien_toast_delete_error'), "error"); }
         }
 
         async function viewHistory(ma_nv, ho_ten) {
@@ -501,23 +632,23 @@
             document.getElementById('historyModal').classList.add('flex');
             document.getElementById('modalEmpName').innerText = ho_ten;
             const tbody = document.getElementById('historyTableBody');
-            tbody.innerHTML = '<td><td colspan="5" class="text-center py-10 text-cyan-500"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-cyan-500"><i class="fas fa-spinner fa-spin"></i> ${t('nhanvien_history_loading')}</td></tr>`;
             let data = [];
             try {
                 const body = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&limit=30`);
                 data = body.data || [];
             } catch (e) { /* fallthrough: khối check bên dưới hiện thông báo trống */ }
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Chưa có dữ liệu chấm công</td</td>';
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">${t('nhanvien_history_empty')}</td></tr>`;
                 return;
             }
             let html = '';
             for (let row of data) {
                 const statusClass = row.trang_thai?.includes('Nghỉ') ? 'text-rose-400 bg-rose-500/10' : 'text-emerald-400 bg-emerald-500/10';
                 let money = '';
-                if (row.tien_tua) money += `<div>+${row.tien_tua.toLocaleString()}đ <span class="text-gray-500">(Tua)</span></div>`;
-                if (row.tien_tips) money += `<div>+${row.tien_tips.toLocaleString()}đ <span class="text-gray-500">(Tips)</span></div>`;
-                if (row.phu_cap) money += `<div>+${row.phu_cap.toLocaleString()}đ <span class="text-gray-500">(P.C)</span></div>`;
+                if (row.tien_tua) money += `<div>+${row.tien_tua.toLocaleString()}đ <span class="text-gray-500">${t('nhanvien_money_commission')}</span></div>`;
+                if (row.tien_tips) money += `<div>+${row.tien_tips.toLocaleString()}đ <span class="text-gray-500">${t('nhanvien_money_tips')}</span></div>`;
+                if (row.phu_cap) money += `<div>+${row.phu_cap.toLocaleString()}đ <span class="text-gray-500">${t('nhanvien_money_allowance')}</span></div>`;
                 if (!money) money = '-';
                 html += `<tr class="border-b border-white/5">
                     <td class="px-4 py-3 font-bold">${row.ngay_cham}</td>
@@ -552,10 +683,10 @@
                     method: 'PATCH',
                     body: JSON.stringify({ luong_cb, luong_gio, phu_cap }),
                 });
-                showToast("Cập nhật lương thành công");
+                showToast(t('nhanvien_toast_salary_success'));
                 closeModal('salaryModal');
                 loadEmployees();
-            } catch(e) { showToast("Lỗi lưu lương", "error"); }
+            } catch(e) { showToast(t('nhanvien_toast_salary_error'), "error"); }
             if (btn) btn.disabled = false;
         }
 
@@ -564,6 +695,7 @@
             document.getElementById(id).classList.remove('flex');
         }
 
+        applyStaticTranslations();
         loadEmployees();
 
         // Layer 2: thay kênh Supabase Realtime `hr_realtime` bằng SSE (MongoDB Change Stream ở

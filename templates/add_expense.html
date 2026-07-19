@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- EmailJS (tùy chọn, nếu muốn gửi email thật) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -156,33 +155,6 @@
         .toast.show {
             transform: translateX(-50%) translateY(0);
         }
-        /* auth buttons */
-        .auth-container {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .auth-btn {
-            background: rgba(255,255,255,0.1);
-            padding: 5px 12px;
-            border-radius: 30px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .auth-btn:hover {
-            background: #f43f5e;
-            color: black;
-        }
-        .user-email {
-            font-size: 12px;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 12px;
-            border-radius: 30px;
-            border-left: 2px solid #f43f5e;
-        }
         .delete-expense {
             cursor: pointer;
         }
@@ -214,9 +186,6 @@
         <div class="flex justify-end mb-2">
             <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
         </div>
-
-        <!-- Auth row -->
-        <div class="auth-container" id="authContainer"></div>
 
         <!-- Header logo -->
         <div class="flex flex-col items-center justify-center mb-6">
@@ -367,12 +336,21 @@
     <div id="toast" class="toast" data-i18n="addexpense_toast_default">Thông báo</div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-        // ========== SUPABASE CONFIG ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabaseClient = createClient(supabaseUrl, supabaseKey);
+        // Flask session (see @login_required on the /add_expense route in app.py) already
+        // gates this whole page server-side, so there is no client-side "logged out" state
+        // to handle here. Data now comes from the internal /api/expenses Flask/MongoDB API
+        // instead of a second, disconnected third-party auth identity.
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // DOM elements
         const amountRaw = document.getElementById('amountRaw');
@@ -382,7 +360,6 @@
         const toast = document.getElementById('toast');
         let expenseChart = null;
         let categoryChart = null;
-        let currentUser = null;
 
         // ========== I18N ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -424,22 +401,12 @@
                 addexpense_support_message_placeholder: 'Mô tả vấn đề cần hỗ trợ...',
                 addexpense_support_submit_btn: 'Gửi yêu cầu',
                 addexpense_toast_default: 'Thông báo',
-                addexpense_logout_btn: 'Đăng xuất',
-                addexpense_login_btn: 'Đăng nhập',
-                addexpense_register_btn: 'Đăng ký',
-                addexpense_prompt_login_email: 'Email đăng nhập:',
-                addexpense_prompt_password: 'Mật khẩu:',
-                addexpense_prompt_register_email: 'Email đăng ký:',
-                addexpense_prompt_register_password: 'Mật khẩu (>=6 ký tự):',
-                addexpense_toast_register_success: 'Đăng ký thành công! Vui lòng xác nhận email.',
-                addexpense_msg_login_required: 'Vui lòng đăng nhập để xem chi tiêu',
                 addexpense_msg_no_expenses: 'Chưa có chi tiêu nào',
                 addexpense_chart_dataset_label: 'Chi tiêu (VNĐ)',
                 addexpense_confirm_delete: 'Xóa khoản chi này?',
                 addexpense_toast_delete_error: 'Lỗi xóa',
                 addexpense_toast_deleted: 'Đã xóa',
                 addexpense_toast_load_error: 'Lỗi tải dữ liệu chi tiêu',
-                addexpense_toast_login_first: 'Vui lòng đăng nhập trước!',
                 addexpense_toast_invalid_amount: 'Vui lòng nhập số tiền hợp lệ!',
                 addexpense_toast_large_amount: '⚠️ Khoản chi lớn hơn 10 triệu! Hãy kiểm tra lại.',
                 addexpense_processing: 'Đang xử lý...',
@@ -486,22 +453,12 @@
                 addexpense_support_message_placeholder: 'Describe what you need help with...',
                 addexpense_support_submit_btn: 'Send request',
                 addexpense_toast_default: 'Notification',
-                addexpense_logout_btn: 'Log out',
-                addexpense_login_btn: 'Log in',
-                addexpense_register_btn: 'Register',
-                addexpense_prompt_login_email: 'Login email:',
-                addexpense_prompt_password: 'Password:',
-                addexpense_prompt_register_email: 'Registration email:',
-                addexpense_prompt_register_password: 'Password (>=6 characters):',
-                addexpense_toast_register_success: 'Registration successful! Please confirm your email.',
-                addexpense_msg_login_required: 'Please log in to view expenses',
                 addexpense_msg_no_expenses: 'No expenses yet',
                 addexpense_chart_dataset_label: 'Expenses (VND)',
                 addexpense_confirm_delete: 'Delete this expense?',
                 addexpense_toast_delete_error: 'Delete error',
                 addexpense_toast_deleted: 'Deleted',
                 addexpense_toast_load_error: 'Error loading expense data',
-                addexpense_toast_login_first: 'Please log in first!',
                 addexpense_toast_invalid_amount: 'Please enter a valid amount!',
                 addexpense_toast_large_amount: '⚠️ This expense is over 10 million! Please double-check.',
                 addexpense_processing: 'Processing...',
@@ -526,8 +483,8 @@
             currentLang = lang;
             localStorage.setItem('bitpaw_lang', lang);
             applyStaticTranslations();
-            // Refresh JS-rendered parts (auth buttons, recent list, chart labels) so they pick up the new language.
-            try { updateAuthUI(); } catch(e) {}
+            // Refresh JS-rendered parts (recent list, chart labels) so they pick up the new language.
+            try { loadExpenseData(); } catch(e) {}
         }
         applyStaticTranslations();
         document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
@@ -566,56 +523,11 @@
             });
         });
 
-        // ========== AUTH ==========
-        const authContainer = document.getElementById('authContainer');
-        async function updateAuthUI() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user) {
-                currentUser = user;
-                authContainer.innerHTML = `<span class="user-email"><i class="fas fa-user-circle"></i> ${user.email}</span>
-                                           <div class="auth-btn" id="logoutBtn">${t('addexpense_logout_btn')}</div>`;
-                document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-                    await supabaseClient.auth.signOut();
-                    location.reload();
-                });
-                loadExpenseData(); // load sau khi đã login
-            } else {
-                currentUser = null;
-                authContainer.innerHTML = `<div class="auth-btn" id="loginBtn">${t('addexpense_login_btn')}</div>
-                                           <div class="auth-btn" id="registerBtn">${t('addexpense_register_btn')}</div>`;
-                document.getElementById('loginBtn').onclick = () => {
-                    const email = prompt(t('addexpense_prompt_login_email'));
-                    const pwd = prompt(t('addexpense_prompt_password'));
-                    if(email && pwd) supabaseClient.auth.signInWithPassword({ email, password: pwd }).then(res => {
-                        if(res.error) showToast(res.error.message, true);
-                        else updateAuthUI();
-                    });
-                };
-                document.getElementById('registerBtn').onclick = () => {
-                    const email = prompt(t('addexpense_prompt_register_email'));
-                    const pwd = prompt(t('addexpense_prompt_register_password'));
-                    if(email && pwd && pwd.length>=6) supabaseClient.auth.signUp({ email, password: pwd }).then(res => {
-                        if(res.error) showToast(res.error.message, true);
-                        else showToast(t('addexpense_toast_register_success'));
-                    });
-                };
-                // Ẩn phần chi tiêu nếu chưa đăng nhập
-                document.getElementById('recentList').innerHTML = `<div class="text-center text-gray-500 text-sm p-4">${t('addexpense_msg_login_required')}</div>`;
-                if(expenseChart) expenseChart.destroy();
-                if(categoryChart) categoryChart.destroy();
-            }
-        }
-
         // ========== LOAD EXPENSE DATA (bar + pie + recent) ==========
         async function loadExpenseData() {
-            if(!currentUser) return;
             try {
-                const { data, error } = await supabaseClient
-                    .from('expenses')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('expense_date', { ascending: false });
-                if (error) throw error;
+                const body = await hrApi('/api/expenses');
+                const data = body.data || [];
 
                 // 1. Bar chart 30 ngày
                 const dateMap = new Map();
@@ -654,7 +566,7 @@
                 });
 
                 // 3. Danh sách 5 gần nhất + xóa
-                const recentList = data?.slice(0,5) || [];
+                const recentList = data.slice(0,5);
                 const listDiv = document.getElementById('recentList');
                 if (recentList.length === 0) {
                     listDiv.innerHTML = `<div class="text-center text-gray-500 text-sm p-4">${t('addexpense_msg_no_expenses')}</div>`;
@@ -668,9 +580,13 @@
                     document.querySelectorAll('.delete-expense').forEach(btn => {
                         btn.addEventListener('click', async (e) => {
                             if(confirm(t('addexpense_confirm_delete'))) {
-                                const { error } = await supabaseClient.from('expenses').delete().eq('id', btn.dataset.id).eq('user_id', currentUser.id);
-                                if(error) showToast(t('addexpense_toast_delete_error'), true);
-                                else { showToast(t('addexpense_toast_deleted')); loadExpenseData(); }
+                                try {
+                                    await hrApi(`/api/expenses/${btn.dataset.id}`, { method: 'DELETE' });
+                                    showToast(t('addexpense_toast_deleted'));
+                                    loadExpenseData();
+                                } catch (err) {
+                                    showToast(t('addexpense_toast_delete_error'), true);
+                                }
                             }
                         });
                     });
@@ -684,7 +600,6 @@
         // ========== SUBMIT FORM ==========
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if(!currentUser) { showToast(t('addexpense_toast_login_first'), true); return; }
             const amountVal = amountHidden.value;
             if (!amountVal || parseInt(amountVal) <= 0) {
                 showToast(t('addexpense_toast_invalid_amount'), true);
@@ -700,11 +615,10 @@
             submitBtn.disabled = true;
             submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('addexpense_processing')}`;
             try {
-                const { error } = await supabaseClient.from('expenses').insert([{
-                    user_id: currentUser.id,
-                    category, description, amount, expense_date: expenseDate, created_at: new Date()
-                }]);
-                if (error) throw error;
+                await hrApi('/api/expenses', {
+                    method: 'POST',
+                    body: JSON.stringify({ category, description, amount, expense_date: expenseDate }),
+                });
                 showToast(t('addexpense_toast_add_success'));
                 document.querySelector('input[name="description"]').value = '';
                 amountRaw.value = '';
@@ -729,17 +643,10 @@
         });
 
         // ========== KHỞI TẠO ==========
-        await updateAuthUI();
-
-        // ========== TẠO BẢNG NẾU CHƯA CÓ (hướng dẫn) ==========
-        // Chạy các câu lệnh SQL trong Supabase Editor:
-        // CREATE TABLE IF NOT EXISTS expenses (id SERIAL PRIMARY KEY, user_id UUID REFERENCES auth.users(id), category TEXT, description TEXT, amount BIGINT, expense_date DATE, created_at TIMESTAMPTZ);
-        // ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-        // CREATE POLICY "Users can view own expenses" ON expenses FOR SELECT USING (auth.uid() = user_id);
-        // CREATE POLICY "Users can insert own expenses" ON expenses FOR INSERT WITH CHECK (auth.uid() = user_id);
-        // CREATE POLICY "Users can delete own expenses" ON expenses FOR DELETE USING (auth.uid() = user_id);
-        // CREATE TABLE IF NOT EXISTS cskh_requests (id SERIAL PRIMARY KEY, name TEXT, phone TEXT, message TEXT, status TEXT, created_at TIMESTAMPTZ);
-        // CREATE TABLE IF NOT EXISTS cskh_clicks (id SERIAL PRIMARY KEY, user_id UUID, channel TEXT, clicked_at TIMESTAMPTZ);
+        // @login_required on the /add_expense Flask route already guarantees a valid
+        // session before this page renders, so we load data directly — no client-side
+        // login/register/logout gate needed.
+        await loadExpenseData();
 
         // ========== 3D BACKGROUND GIỮ NGUYÊN ==========
         (function init3D() {

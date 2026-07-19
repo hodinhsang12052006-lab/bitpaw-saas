@@ -7,8 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
@@ -336,13 +334,20 @@
         }
 
         // ========================================================
-        // SUPABASE CONFIG
+        // FLASK API HELPER — gọi thẳng /api/transactions (CRUD nội bộ),
+        // business_id đã được lọc phía server qua session, xem app.py ~2488
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        let supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        const supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(c => { supabase = c; return c; });
+        async function txApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         // Multi-region (US market pivot): mỗi tenant hiển thị tiền theo currency riêng của mình.
         const TENANT_CURRENCY = "{{ tenant_currency }}";
@@ -377,21 +382,28 @@
             const category = document.getElementById('filterCategory').value;
             const search = document.getElementById('searchInput').value.toLowerCase();
 
-            let query = supabase.from('transactions').select('*').order('transaction_date', { ascending: false });
-            if (type !== 'all') query = query.eq('type', type);
-            if (fromDate) query = query.gte('transaction_date', fromDate);
-            if (toDate) query = query.lte('transaction_date', toDate);
-            if (category !== 'all') query = query.eq('category', category);
+            const params = new URLSearchParams();
+            if (type !== 'all') params.set('type', type);
+            if (fromDate) params.set('start', fromDate);
+            if (toDate) params.set('end', toDate);
 
-            const { data, error } = await query;
-            if (error) {
+            let data;
+            try {
+                const body = await txApi(`/api/transactions?${params.toString()}`);
+                data = body.data || [];
+            } catch (e) {
                 showToast(t('qtc_toast_load_error'), "error");
                 return;
             }
 
+            // Danh mục + tìm kiếm nội dung: API chưa hỗ trợ lọc theo 2 tiêu chí này,
+            // nên lọc phía client như bản gốc.
             let filtered = data;
+            if (category !== 'all') {
+                filtered = filtered.filter(tx => tx.category === category);
+            }
             if (search) {
-                filtered = data.filter(tx => tx.note && tx.note.toLowerCase().includes(search));
+                filtered = filtered.filter(tx => tx.note && tx.note.toLowerCase().includes(search));
             }
 
             let totalIncome = 0, totalExpense = 0;
@@ -475,9 +487,10 @@
             document.getElementById('transactionModal').classList.add('flex');
         }
 
-        function editTransaction(id) {
-            supabase.from('transactions').select('*').eq('id', id).single().then(({ data, error }) => {
-                if (error) { showToast(t('qtc_toast_fetch_error'), "error"); return; }
+        async function editTransaction(id) {
+            try {
+                const body = await txApi(`/api/transactions/${id}`);
+                const data = body.data;
                 document.getElementById('modalTitle').innerText = t('qtc_modal_edit_title');
                 document.getElementById('editId').value = data.id;
                 document.getElementById('transType').value = data.type;
@@ -488,7 +501,9 @@
                 document.getElementById('transNote').value = data.note || '';
                 document.getElementById('transactionModal').classList.remove('hidden');
                 document.getElementById('transactionModal').classList.add('flex');
-            });
+            } catch (e) {
+                showToast(t('qtc_toast_fetch_error'), "error");
+            }
         }
 
         async function saveTransaction() {
@@ -509,12 +524,16 @@
 
             try {
                 if (id) {
-                    const { error } = await supabase.from('transactions').update({ type, category, amount, transaction_date: date, note }).eq('id', id);
-                    if (error) throw error;
+                    await txApi(`/api/transactions/${id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ type, category, amount, transaction_date: date, note }),
+                    });
                     showToast(t('qtc_toast_update_success'), "success");
                 } else {
-                    const { error } = await supabase.from('transactions').insert([{ type, category, amount, transaction_date: date, note }]);
-                    if (error) throw error;
+                    await txApi('/api/transactions', {
+                        method: 'POST',
+                        body: JSON.stringify({ type, category, amount, transaction_date: date, note }),
+                    });
                     showToast(t('qtc_toast_add_success'), "success");
                 }
                 closeTransactionModal();
@@ -528,11 +547,12 @@
 
         async function deleteTransaction(id) {
             if (!confirm(t('qtc_confirm_delete'))) return;
-            const { error } = await supabase.from('transactions').delete().eq('id', id);
-            if (error) showToast(t('qtc_toast_delete_fail'), "error");
-            else {
+            try {
+                await txApi(`/api/transactions/${id}`, { method: 'DELETE' });
                 showToast(t('qtc_toast_delete_success'), "success");
                 loadTransactions();
+            } catch (e) {
+                showToast(t('qtc_toast_delete_fail'), "error");
             }
         }
 
@@ -711,7 +731,7 @@
             document.getElementById('filterFrom').valueAsDate = new Date(new Date().setDate(1));
             document.getElementById('filterTo').valueAsDate = new Date();
             applyStaticTranslations();
-            supabaseReady.then(() => loadTransactions());
+            loadTransactions();
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
         };
     </script>

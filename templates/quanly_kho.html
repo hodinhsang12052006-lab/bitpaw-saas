@@ -8,9 +8,7 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Supabase & ThreeJS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="{{ url_for('static', filename='js/tenant_supabase_client.js') }}"></script>
+    <!-- ThreeJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
@@ -205,13 +203,20 @@
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
         // ========================================================
-        // 🚀 LOGIC CŨ CỦA SẾP (GIỮ NGUYÊN 100%)
+        // 🚀 LOGIC KHO — dùng Flask API /api/inventory (cùng backend với
+        // templates/chamcong_kythuat.html), thay Supabase JS hoàn toàn.
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // Nâng cấp lên client có JWT business_id để RLS lọc đúng tenant.
-        var supabaseReady = createTenantSupabaseClient(supabaseUrl, supabaseKey).then(function(c) { supabase = c; return c; });
+        async function hrApi(path, options) {
+            const res = await fetch(path, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) {
+                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+            }
+            return body;
+        }
 
         let khoData = [];
         let currentFilter = 'all'; // all | critical | instock
@@ -219,9 +224,10 @@
         // 1. TẢI DỮ LIỆU KHO
         async function loadDataKho() {
             try {
-                const { data, error } = await supabase.from('kho_vat_tu').select('*').order('id', { ascending: false });
-                if (error) throw error;
-                khoData = data || [];
+                const body = await hrApi('/api/inventory');
+                // API trả về sắp xếp tăng dần theo id; đảo ngược để giữ đúng thứ tự
+                // hiển thị cũ (mới thêm lên đầu).
+                khoData = (body.data || []).slice().reverse();
                 
                 // Cập nhật số lượng trên các nút Filter
                 document.getElementById('count_all').innerText = khoData.length;
@@ -303,9 +309,15 @@
 
             try {
                 if (id) {
-                    await supabase.from('kho_vat_tu').update({ ten_vat_tu: ten, ton_kho: ton, don_vi: dv }).eq('id', id);
+                    await hrApi('/api/inventory/' + id, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ ten_vat_tu: ten, ton_kho: ton, don_vi: dv }),
+                    });
                 } else {
-                    await supabase.from('kho_vat_tu').insert([{ ten_vat_tu: ten, ton_kho: ton, don_vi: dv }]);
+                    await hrApi('/api/inventory', {
+                        method: 'POST',
+                        body: JSON.stringify({ ten_vat_tu: ten, ton_kho: ton, don_vi: dv }),
+                    });
                 }
                 resetForm();
                 loadDataKho();
@@ -338,7 +350,7 @@
 
         async function deleteItem(id) {
             if(confirm(t('qk_confirm_delete'))) {
-                await supabase.from('kho_vat_tu').delete().eq('id', id);
+                await hrApi('/api/inventory/' + id, { method: 'DELETE' });
                 loadDataKho();
             }
         }
@@ -386,14 +398,16 @@
             document.body.removeChild(link);
         }
 
-        supabaseReady.then(function() {
-            // LẮNG NGHE REALTIME: Kho nhảy số tự động khi bên Kỹ Thuật rút đồ!
-            supabase.channel('kho_tracking')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'kho_vat_tu' }, () => { loadDataKho(); })
-                .subscribe();
+        // LẮNG NGHE REALTIME: Kho nhảy số tự động khi bên Kỹ Thuật rút đồ!
+        let khoStream = null;
+        function setupRealtime() {
+            if (khoStream) return;
+            khoStream = new EventSource('/api/stream/inventory');
+            khoStream.onmessage = () => { loadDataKho(); };
+        }
 
-            loadDataKho();
-        });
+        loadDataKho();
+        setupRealtime();
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";

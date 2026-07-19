@@ -1,13 +1,22 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Book a Service | BitPaw Services</title>
-    
+
+    <!-- Open Graph: preview khi link nay duoc share qua Zalo/iMessage. Dung branding chung
+    BitPaw (giong landing.html) vi route /booking hien khong truyen ten/logo rieng cua tung
+    tiem -- muon hien dung ten/logo tiem thi can sua route truyen them bien do (viec khac). -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Book a Service | BitPaw Services">
+    <meta property="og:description" content="Đặt lịch hẹn dịch vụ trực tuyến nhanh chóng, tiện lợi.">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
+
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -283,15 +292,11 @@
         }
 
         // ========================================================
-        // 🚀 LOGIC ĐẶT LỊCH & SUPABASE
+        // 🚀 LOGIC ĐẶT LỊCH (dữ liệu dịch vụ do Flask render sẵn ngay trong trang)
         // ========================================================
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        // Token giới hạn phạm vi (chỉ đọc dịch vụ, tạo lịch hẹn của đúng tiệm này) do Flask ký sẵn khi render trang.
-        const tenantJwt = {{ (tenant_jwt or '') | tojson }};
-        const supabase = tenantJwt
-            ? window.supabase.createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${tenantJwt}` } } })
-            : window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Danh sách dịch vụ đã được /booking, /booking/qr/<spa_id>, /booking/service/<service_id>
+        // lọc theo đúng tiệm (business_id) từ phía server — inline luôn vào trang, khỏi cần fetch thêm lần nữa.
+        const services = {{ services | tojson }};
 
         let globalMenuData = [];
         // business_id của tiệm (spa_id trong QR chính là business_id) — dùng để lọc/gắn đúng tenant, chặn lộ chéo dữ liệu
@@ -315,20 +320,17 @@
             loadServices();
         };
 
-        async function loadServices() {
+        function loadServices() {
             const selectEl = document.getElementById('cus_service');
             try {
-                let svcQuery = supabase.from('dichvu').select('*').order('id', { ascending: false });
-                if (bookingBusinessId) svcQuery = svcQuery.eq('business_id', bookingBusinessId);
-                const { data, error } = await svcQuery;
-                if (error) throw error;
-                
-                if (data && data.length > 0) {
+                const data = [...services].sort((a, b) => (b.id || 0) - (a.id || 0));
+
+                if (data.length > 0) {
                     globalMenuData = data;
                     let options = '<option value="" disabled selected class="text-gray-500">-- Click to select a service --</option>';
                     data.forEach(dv => {
-                        const price = dv.gia_dich_vu ? new Intl.NumberFormat('vi-VN').format(dv.gia_dich_vu) + ' ₫' : 'Contact us';
-                        options += `<option value="${dv.id}">${dv.ten_dich_vu} (${price})</option>`;
+                        const price = dv.price ? new Intl.NumberFormat('vi-VN').format(dv.price) + ' ₫' : 'Contact us';
+                        options += `<option value="${dv.id}">${dv.name} (${price})</option>`;
                     });
                     selectEl.innerHTML = options;
                 } else {
@@ -370,34 +372,32 @@
             btn.disabled = true;
 
             try {
-                const dateObj = new Date(datetimeInput);
-                const prettyDateTime = dateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
-
-                let finalContent = `[LỊCH HẸN: ${prettyDateTime}]\n`;
+                // Gộp địa chỉ + ghi chú khách vào 1 trường "note" duy nhất vì
+                // /create_appointment (Mongo) chỉ có field note, không có field địa chỉ riêng.
                 const selectedSvc = globalMenuData.find(dv => dv.id == serviceId);
-                
-                if (selectedSvc) {
-                    const giaThu = selectedSvc.gia_dich_vu ? Number(selectedSvc.gia_dich_vu).toLocaleString('vi-VN') : '0';
-                    const hoaHong = selectedSvc.tien_tua ? Number(selectedSvc.tien_tua).toLocaleString('vi-VN') : '0';
-                    finalContent += `[DỊCH VỤ] ${selectedSvc.ten_dich_vu} \n[Giá Thu]: ${giaThu}đ [Hoa Hồng]: ${hoaHong}đ \n--- Ghi chú Khách: ${note || 'Không có'}`;
-                }
+                let noteParts = [`Địa chỉ: ${address}`];
+                if (selectedSvc) noteParts.push(`Dịch vụ: ${selectedSvc.name}`);
+                if (note) noteParts.push(`Ghi chú khách: ${note}`);
+                const finalNote = noteParts.join(' | ');
 
-                const { data, error } = await supabase.from('tasks').insert([{
-                    ten_khach: name,
-                    sdt: phone,
-                    dia_chi: address,
-                    noi_dung: finalContent,
-                    trang_thai: 'Chờ Nhận',
-                    nguoi_nhan: '',
-                    business_id: bookingBusinessId || null
-                }]).select();
-
-                if (error) throw error;
+                const resp = await fetch('/create_appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        phone: phone,
+                        service_id: serviceId,
+                        book_time: datetimeInput,
+                        note: finalNote
+                    })
+                });
+                const result = await resp.json();
+                if (!result.success) throw new Error(result.message || 'Unknown error');
 
                 // Ghi nhận Cache chống Spam
                 localStorage.setItem('bp_last_booking', Date.now().toString());
 
-                const ticketId = data && data.length > 0 ? `TICKET-${data[0].id}` : `TICKET-${Math.floor(Math.random()*9999)}`;
+                const ticketId = `TICKET-${result.id}`;
                 showSuccessScreen(ticketId);
 
             } catch(error) {

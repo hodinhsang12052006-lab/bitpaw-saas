@@ -9,7 +9,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -487,10 +486,9 @@
     <div id="toast" class="toast" data-i18n="ad_assistant_toast_default">Thông báo</div>
 
     <script>
-        // ========== SUPABASE CLIENT ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Client Supabase đã gỡ — tính năng Ad Assistant đã chạy hoàn toàn qua blueprint
+        // ad_assistant.py (Flask/Mongo: db.ad_suggestions_log, db.ad_campaigns), không có
+        // lời gọi Supabase thật nào trong file này.
 
         // ========== MULTI-LANGUAGE (VI/EN) ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";

@@ -8,7 +8,6 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -182,23 +181,17 @@
 
     <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[280px] z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.js';
-
-        // ========== SUPABASE ==========
-        const supabaseUrl = 'https://iojtglaxgdwsxxalhubx.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvanRnbGF4Z2R3c3h4YWxodWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NjgzNTIsImV4cCI6MjA5MzE0NDM1Mn0.KA7wdsZsK3oA6ybi5Gl_KnkzAKZM-ESI3Eyzx-mipwM';
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Lấy customer_id từ URL
+    <script>
+        // Lấy customer_id từ URL — customer_id là CHUỖI (vd "business123:0900000000"),
+        // KHÔNG được parseInt như code backend cũ (id số serial cũ đã không còn đúng với schema Mongo mới).
         const urlParams = new URLSearchParams(window.location.search);
         const customerId = urlParams.get('id');
-        let currentCustomerId = customerId ? parseInt(customerId) : null;
+        let currentCustomerId = customerId || null;
         let needHumanFlag = false;
         let followUpTimer = null;
         let isWaitingForReply = false;
-        let realtimeChannel = null;
-        let lastReceivedMessageId = null; // tránh lặp tin nhắn
+        let eventSource = null; // EventSource SSE thay cho realtime channel cũ
+        let knownMessageCount = 0; // số tin nhắn đã render, dùng để chỉ append phần mới khi SSE báo có thay đổi
 
         // DOM
         const chatBox = document.getElementById('chatBox');
@@ -400,6 +393,51 @@
             }
         }
 
+        // Ghi 1 tin nhắn vào backend (thay cho lời gọi insert bot_messages trực tiếp từ client cũ)
+        // senderType phải là 'customer' (tin thật của khách, kể cả bản mô phỏng gõ sai/gõ lại)
+        // hoặc 'ai' (phản hồi giả lập của getAIResponse()/follow-up/hand-off) — KHÔNG được gửi 'staff' ở route public này.
+        // Nội dung các tin đã render optimistic ở tab này, chờ được "khớp" và bỏ qua khi
+        // /api/portal/stream báo có thay đổi rồi ta gọi lại /api/portal/messages — tránh hiển thị lặp
+        // (endpoint stream chỉ báo tín hiệu, không phân biệt tin đó do chính tab này vừa gửi hay không).
+        const ownPendingContents = [];
+        async function postPortalMessage(content, senderType) {
+            if (!currentCustomerId) return { success: false };
+            ownPendingContents.push(content);
+            try {
+                const res = await fetch('/api/portal/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_id: currentCustomerId, content, sender_type: senderType })
+                });
+                const json = await res.json();
+                if (!json.success) {
+                    console.error('Lỗi lưu tin nhắn:', json.message);
+                    const idx = ownPendingContents.indexOf(content);
+                    if (idx !== -1) ownPendingContents.splice(idx, 1);
+                }
+                return json;
+            } catch (e) {
+                console.error('Lỗi lưu tin nhắn:', e);
+                const idx = ownPendingContents.indexOf(content);
+                if (idx !== -1) ownPendingContents.splice(idx, 1);
+                return { success: false };
+            }
+        }
+
+        // Render 1 message doc từ backend ra chatBox (dùng chung cho loadHistory và cập nhật SSE)
+        function renderStoredMessage(msg) {
+            const senderType = (msg.sender_type === 'customer') ? 'user' : 'ai';
+            const imgMatch = msg.content.match(/^\[IMG\](https?:\/\/\S+)/);
+            const gifMatch = msg.content.match(/^\[GIF\](https?:\/\/\S+)/);
+            if (imgMatch) {
+                appendMessage(senderType, '', msg.created_at, imgMatch[1], false);
+            } else if (gifMatch) {
+                appendMessage(senderType, '', msg.created_at, gifMatch[1], true);
+            } else {
+                appendMessage(senderType, msg.content, msg.created_at);
+            }
+        }
+
         // Reset follow-up timer
         function resetFollowUpTimer() {
             if (followUpTimer) clearTimeout(followUpTimer);
@@ -409,12 +447,7 @@
                         const followUpMsg = "Dạ anh/chị có đang online đó không ạ? Lăn tăn gì cứ nhắn em nhé.";
                         const chunks = splitMessage(followUpMsg, 120);
                         await sendMultipleMessages(chunks);
-                        await supabase.from('bot_messages').insert([{
-                            customer_id: currentCustomerId,
-                            sender: 'ai',
-                            content: followUpMsg,
-                            created_at: new Date().toISOString()
-                        }]);
+                        await postPortalMessage(followUpMsg, 'ai');
                         isWaitingForReply = false;
                     }
                 }, 30000);
@@ -429,9 +462,11 @@
         }
 
         async function setNeedHumanFlag(customerId) {
-            try {
-                await supabase.from('bot_customers').update({ need_human: true }).eq('id', customerId);
-            } catch(e) { console.warn(e); }
+            // GAP: không có endpoint /api/portal/* nào để set cờ need_human=true trên bot_customers
+            // (route public không được phép ghi trực tiếp field này). needHumanFlag chỉ còn tồn tại
+            // client-side (điều khiển việc dừng follow-up timer trong phiên hiện tại) — không còn
+            // được đồng bộ lên server/CRM như trước. Không tự chế endpoint mới ở đây.
+            console.warn('need_human flag chỉ set client-side — chưa có backend endpoint public để persist cho customer', customerId);
         }
 
         // Fake Typo (10% với câu ngắn <15 chữ)
@@ -452,22 +487,12 @@
             const wrongText = words.join(' ');
             // Hiển thị và lưu tin nhắn sai
             appendMessage('user', wrongText);
-            await supabase.from('bot_messages').insert([{
-                customer_id: currentCustomerId,
-                sender: 'user',
-                content: wrongText,
-                created_at: new Date().toISOString()
-            }]);
+            await postPortalMessage(wrongText, 'customer');
             // Sau 1.5s gửi sửa
             setTimeout(async () => {
                 const corrected = `*${text}*`;
                 appendMessage('user', corrected);
-                await supabase.from('bot_messages').insert([{
-                    customer_id: currentCustomerId,
-                    sender: 'user',
-                    content: corrected,
-                    created_at: new Date().toISOString()
-                }]);
+                await postPortalMessage(corrected, 'customer');
                 await processUserMessage(text, true);
             }, 1500);
             return null;
@@ -491,14 +516,10 @@
         async function processUserMessage(userText, isTypoFixed = false) {
             if (!currentCustomerId) return;
             if (!isTypoFixed) {
-                const { error } = await supabase.from('bot_messages').insert([{
-                    customer_id: currentCustomerId,
-                    sender: 'user',
-                    content: userText,
-                    created_at: new Date().toISOString()
-                }]);
-                if (error) console.error(error);
-                await supabase.from('bot_customers').update({ last_message: userText, last_message_time: new Date().toISOString() }).eq('id', currentCustomerId);
+                // Lưu ý: POST /api/portal/messages đã tự cập nhật last_message/last_message_time
+                // của bot_customers phía server, nên KHÔNG cần thêm lời gọi update bot_customers riêng
+                // (lời gọi update bot_customers trực tiếp từ client cũ đã bị xoá vì trùng lặp).
+                await postPortalMessage(userText, 'customer');
             }
             if (followUpTimer) clearTimeout(followUpTimer);
             isWaitingForReply = false;
@@ -510,12 +531,7 @@
                 const handOffMsg = "Dạ vâng, để em báo Quản lý kho lên đơn và gửi thông tin thanh toán cho mình ngay ạ. Anh/chị đợi em chút nhé!";
                 const chunks = splitMessage(handOffMsg, 120);
                 await sendMultipleMessages(chunks);
-                await supabase.from('bot_messages').insert([{
-                    customer_id: currentCustomerId,
-                    sender: 'ai',
-                    content: handOffMsg,
-                    created_at: new Date().toISOString()
-                }]);
+                await postPortalMessage(handOffMsg, 'ai');
                 return;
             }
 
@@ -523,12 +539,7 @@
             const aiReply = await getAIResponse(userText);
             const chunks = splitMessage(aiReply, 120);
             await sendMultipleMessages(chunks);
-            await supabase.from('bot_messages').insert([{
-                customer_id: currentCustomerId,
-                sender: 'ai',
-                content: aiReply,
-                created_at: new Date().toISOString()
-            }]);
+            await postPortalMessage(aiReply, 'ai');
             isWaitingForReply = true;
             resetFollowUpTimer();
         }
@@ -555,26 +566,25 @@
                 return;
             }
             if (!file) return;
-            const ext = isGif ? 'gif' : 'jpg';
-            const fileName = `${currentCustomerId}_${Date.now()}_media.${ext}`;
-            const { data, error } = await supabase.storage
-                .from('chat_images')
-                .upload(fileName, file, { cacheControl: '3600', upsert: false });
-            if (error) {
+            try {
+                const formData = new FormData();
+                formData.append('customer_id', currentCustomerId);
+                formData.append('file', file);
+                const res = await fetch('/api/portal/upload', { method: 'POST', body: formData });
+                const json = await res.json();
+                if (!json.success) {
+                    showToast(t('portal_err_upload'), 'error');
+                    return;
+                }
+                const mediaUrl = json.url;
+                appendMessage('user', '', null, mediaUrl, isGif);
+                // Quy ước prefix [IMG]/[GIF] giống templates/chat.html để tương thích khi hiển thị lại
+                const contentText = isGif ? `[GIF]${mediaUrl}` : `[IMG]${mediaUrl}`;
+                await postPortalMessage(contentText, 'customer');
+                await processUserMessage(`Đã gửi ${isGif ? 'GIF' : 'ảnh'}`, false);
+            } catch (e) {
                 showToast(t('portal_err_upload'), 'error');
-                return;
             }
-            const { data: publicUrlData } = supabase.storage.from('chat_images').getPublicUrl(fileName);
-            const mediaUrl = publicUrlData.publicUrl;
-            appendMessage('user', '', null, mediaUrl, isGif);
-            const contentText = isGif ? `[GIF] ${mediaUrl}` : `[Hình ảnh] ${mediaUrl}`;
-            await supabase.from('bot_messages').insert([{
-                customer_id: currentCustomerId,
-                sender: 'user',
-                content: contentText,
-                created_at: new Date().toISOString()
-            }]);
-            await processUserMessage(`Đã gửi ${isGif ? 'GIF' : 'ảnh'}`, false);
         }
 
         // Emoji picker
@@ -610,37 +620,50 @@
             await handleSendMessage(new Event('submit'));
         };
 
-        // ========== REALTIME SUBSCRIBE (Portal) ==========
+        // ========== REALTIME (Portal) — SSE thay cho realtime channel cũ ==========
+        // /api/portal/stream chỉ là tín hiệu "có gì mới", không mang dữ liệu — mỗi lần nhận
+        // signal ta gọi lại /api/portal/messages rồi chỉ append phần tin nhắn mới (so với knownMessageCount).
+        async function refreshFromServer() {
+            if (!currentCustomerId) return;
+            try {
+                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`);
+                const json = await res.json();
+                if (!json.success || !Array.isArray(json.data)) return;
+                const newMessages = json.data.slice(knownMessageCount);
+                knownMessageCount = json.data.length;
+                let gotNewMsg = false;
+                newMessages.forEach(msg => {
+                    // Bỏ qua tin nhắn nội dung khớp với tin ta vừa optimistic-render + POST từ chính tab
+                    // này (typing effect của AI giả lập / tin nhắn user vừa gõ) — tránh hiển thị lặp.
+                    const pendingIdx = ownPendingContents.indexOf(msg.content);
+                    if (pendingIdx !== -1) {
+                        ownPendingContents.splice(pendingIdx, 1);
+                        return;
+                    }
+                    renderStoredMessage(msg);
+                    if (msg.sender_type !== 'customer') gotNewMsg = true;
+                });
+                if (gotNewMsg) {
+                    scrollToBottom();
+                    // Cập nhật lại trạng thái follow-up (vì admin/AI vừa nhắn)
+                    if (followUpTimer) clearTimeout(followUpTimer);
+                    isWaitingForReply = true;
+                    resetFollowUpTimer();
+                }
+            } catch (e) {
+                console.warn('Lỗi refresh tin nhắn từ SSE:', e);
+            }
+        }
+
         function subscribeToRealtime() {
             if (!currentCustomerId) return;
-            if (realtimeChannel) {
-                realtimeChannel.unsubscribe();
-                realtimeChannel = null;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
             }
-            realtimeChannel = supabase
-                .channel(`public:bot_messages:${currentCustomerId}`)
-                .on('postgres_changes', 
-                    { event: 'INSERT', schema: 'public', table: 'bot_messages', filter: `customer_id=eq.${currentCustomerId}` },
-                    async (payload) => {
-                        const newMsg = payload.new;
-                        // Bỏ qua tin nhắn do chính user này gửi (tránh lặp)
-                        if (newMsg.sender === 'user') return;
-                        if (lastReceivedMessageId === newMsg.id) return;
-                        lastReceivedMessageId = newMsg.id;
-                        // Kiểm tra trùng nội dung với tin nhắn cuối (dự phòng)
-                        const lastMsgDiv = chatBox.querySelector('.chat-ai:last-child .text-gray-200');
-                        if (lastMsgDiv && lastMsgDiv.innerText.trim() === newMsg.content) return;
-                        // Hiển thị tin nhắn mới (từ AI hoặc staff)
-                        appendMessage('ai', newMsg.content, newMsg.created_at);
-                        scrollToBottom();
-                        // Cập nhật lại trạng thái follow-up (vì admin/AI vừa nhắn)
-                        if (followUpTimer) clearTimeout(followUpTimer);
-                        isWaitingForReply = true;
-                        resetFollowUpTimer();
-                    })
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') console.log('✅ Realtime subscribed for customer', currentCustomerId);
-                });
+            eventSource = new EventSource(`/api/portal/stream?customer_id=${encodeURIComponent(currentCustomerId)}`);
+            eventSource.onmessage = () => { refreshFromServer(); };
+            eventSource.onerror = (e) => { console.warn('SSE lỗi kết nối:', e); };
         }
 
         // ========== LOAD LỊCH SỬ ==========
@@ -650,41 +673,35 @@
                 return;
             }
             chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i><span class="ml-2 text-gray-400">' + t('portal_loading') + '</span></div>';
-            const { data, error } = await supabase
-                .from('bot_messages')
-                .select('*')
-                .eq('customer_id', currentCustomerId)
-                .order('created_at', { ascending: true });
-            if (error) {
+            let json;
+            try {
+                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`);
+                json = await res.json();
+                if (!res.ok || !json.success) {
+                    chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t('portal_err_load_history') + '</div>';
+                    return;
+                }
+            } catch (e) {
                 chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t('portal_err_load_history') + '</div>';
                 return;
             }
+            const data = json.data || [];
             chatBox.innerHTML = '';
-            if (!data || data.length === 0) {
+            knownMessageCount = data.length;
+            if (data.length === 0) {
                 appendMessage('ai', t('portal_welcome_message'));
                 isWaitingForReply = true;
                 resetFollowUpTimer();
             } else {
-                data.forEach(msg => {
-                    const senderType = (msg.sender === 'user') ? 'user' : 'ai';
-                    const imgMatch = msg.content.match(/\[Hình ảnh\] (https?:\/\/[^\s]+)/);
-                    const gifMatch = msg.content.match(/\[GIF\] (https?:\/\/[^\s]+)/);
-                    if (imgMatch) {
-                        appendMessage(senderType, '', msg.created_at, imgMatch[1], false);
-                    } else if (gifMatch) {
-                        appendMessage(senderType, '', msg.created_at, gifMatch[1], true);
-                    } else {
-                        appendMessage(senderType, msg.content, msg.created_at);
-                    }
-                });
+                data.forEach(renderStoredMessage);
                 const lastMsg = data[data.length-1];
-                if (lastMsg && lastMsg.sender === 'ai') {
+                if (lastMsg && lastMsg.sender_type !== 'customer') {
                     isWaitingForReply = true;
                     resetFollowUpTimer();
                 }
             }
             scrollToBottom();
-            // Sau khi load xong, kích hoạt realtime
+            // Sau khi load xong, kích hoạt SSE
             subscribeToRealtime();
         }
 
