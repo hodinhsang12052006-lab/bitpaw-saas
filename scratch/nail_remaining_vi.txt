@@ -1,0 +1,68 @@
+6: <title>BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ</title>
+8: <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html
+9: để biết đầy đủ tham số. Đặt "set" TRƯỚC include, đây là nơi DUY NHẤT cần sửa
+10: khi muốn đổi title/description/schema riêng cho ngành Nail. -->
+11: {% set title = "BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ" %}
+12: {% set description = "BitPaw Nails - Giải pháp tối ưu hóa vận hành cho Tiệm Nails & Salon: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS thợ."
+13: {% set keywords = "phần mềm quản lý tiệm nail, chia tua thợ nail tự động, tính hoa hồng thợ nail, chấm công GPS tiệm nail, phần mềm salon" %}
+19: {'q': 'BitPaw Nails có tự động chia tua thợ công bằng không?', 'a': 'Có. Thuật toán chia tua tự động xoay vòng theo giờ khách vào, đảm bảo công bằng giữa các thợ và tự động tính ho
+20: {'q': 'Phần mềm có tính lương và hoa hồng thợ Nail tự động không?', 'a': 'Có. BitPaw Nails tự tính bill, tip và hoa hồng thợ theo từng dịch vụ, kèm chấm công GPS để đối soát giờ là
+21: {'q': 'BitPaw Nails có giúp nhắc lịch chăm sóc khách quay lại không?', 'a': 'Có. Hệ thống CRM tích hợp AI tự động nhắc lịch hẹn và chăm sóc khách cũ qua Zalo, giúp tăng tỷ lệ khách
+29: <!-- CSS cho AOS hoạt ảnh mượt mà -->
+32: <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung cho
+33: mọi landing (chính + ngách), xem static/css/bp_mobile_ui.css -->
+54: /* Neon scan line trang nhã */
+156: /* Floating widget: style thật do static/js/cskh_widget.js tự inject lúc runtime, không định nghĩa tĩnh ở đây nữa. */
+177: /* Ẩn block liên hệ tĩnh dư thừa theo feedback người dùng */
+183: 3D HOLOGRAM SHIBA & SCANNER EFFECTS (ĐỒNG BỘ LANDING CHÍNH)
+295: <a href="#" onclick="changeLanguage('vi'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-pink-500/20 hover:text-pink-400 transition"><spa
+333: component dùng chung, xem templates/components/mobile_bottom_nav.html
+334: và templates/components/smart_fab.html. pricing_anchor = "calculator"
+335: vì bảng giá của trang Nail nằm ở <section id="calculator">. -->
+353: Quản lý tiệm Nail <br class="hidden sm:inline">
+354: <span class="text-gradient-pink drop-shadow-[0_4px_25px_rgba(236,72,153,0.65)]">không còn loạn tua, sai bill.</span> <br class="hidden sm:inline">
+355: <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI giữ khách quay lại.</span>
+374: <!-- Hero Right Visual (Đồng bộ & Constrained) -->
+388: <!-- Tia laser quét AI chuyển động dọc -->
+394: <!-- 1. Lịch hẹn card -->
+404: <!-- 2. Thợ Rảnh card -->
+759: <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="features_title">Core Features<span class="text-gradient-pink drop-shadow-[0_2px_10px_rgba
+789: <!-- Feature 2: Tua Thợ -->
+954: <!-- 6. Section “Tính tua & tiền thợ minh bạch” (Interactive Calculator) -->
+972: <!-- Chọn gói dịch vụ móng nhanh -->
+1039: <div class="flex justify-between"><span>Tua Thợ Nhận (<span id="rc_split_rate" class="text-pink-400">60</span>%):</span> <span class="text-white font-bold" id="rc_worker_tua">$46.2
+1041: <div class="flex justify-between text-purple-400"><span>+ Tip Quẹt Thẻ (Sau CC Fee <span id="rc_cc_fee_rate">3</span>%):</span> <span id="rc_cc_tip">+$14.55</span></div>
+1067: <!-- 7. Section AI giữ khách cũ (AI CSKH Message Previews) -->
+1183: <!-- 9. Section Trust / Vì sao chủ tiệm tin được -->
+1410: <!-- Widget liên hệ nổi (Zalo/Messenger/Mail/Call/Mascot) được cskh_widget.js tự tạo
+1411: động (xem components/cskh_global.html bên dưới) — KHÔNG hardcode tĩnh ở đây nữa
+1412: để tránh 2 thanh widget đè/lệch lên nhau. -->
+1414: <!-- Policy Modal (Đồng bộ với Landing Page chính) -->
+1420: <h3 id="modalTitle" class="text-xl font-black text-pink-400 tracking-wider uppercase">Tiêu đề</h3>
+1429: class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-bold transition">Đã hiểu & Đóng</button>
+1437: <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung,
+1441: <!-- Script import các thư viện hoạt ảnh và 3D hiệu ứng -->
+1449: // 3D THREE.JS PARTICLE BACKGROUND (BỌC AN TOÀN)
+1466: // Tối ưu hóa hiệu năng: Mobile giảm hạt chống giật lag
+1480: opacity: 0.75, // Rực rỡ nổi bật như landing chính
+1489: mouseX = (e.clientX - window.innerWidth/2) * 0.0005; // Độ nhạy di chuột cao sinh động
+1498: particlesMesh.rotation.y = elapsed * 0.04; // Xoay sinh động hơn
+1518: // KHỞI TẠO AOS & VANILLA TILT AN TOÀN
+1545: // INTERACTIVE TURNS & TIPS CALCULATOR LOGIC (BỌC AN TOÀN)
+1574: // Kiểm tra sự tồn tại của các thành phần DOM
+1577: // Tránh giá trị âm và NaN
+1585: // 1. Doanh thu chia % = Total Bill - Phí Supply
+1588: // 2. Tiền Tua thợ nhận = Doanh thu chia % * (% chia thợ / 100)
+1591: // 3. Tiền Tip quẹt thẻ thực tế của thợ sau khi trừ phí cà thẻ
+1594: // 4. Thợ cầm về = Tiền Tua + Tip mặt + Tip thẻ thực tế
+1597: // 5. Tiệm giữ lại = Doanh thu tiệm sau tua
+1600: // Cập nhật DOM an toàn
+1629: // Đăng ký Listener an toàn
+1646: // Chạy tính toán lần đầu
+1651: // POLICY MODAL LOGIC (ĐỒNG BỘ BITPAW)
+1659: terms: 'Điều khoản sử dụng',
+1660: privacy: 'Chính sách bảo mật',
+1661: payment: 'Chính sách thanh toán'
+1664: document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2 text-pink-400"></i> ' + (titles[type] || 'Chính sách');
+1665: document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>Các điều khoản chính sách của BitPaw được áp dụng nhất quán trên toàn bộ hệ thống. Nội 
+TOTAL: 67
