@@ -16,7 +16,7 @@ def custom_sqlite3_connect(database, *args, **kwargs):
     return _original_sqlite3_connect(database, *args, **kwargs)
 sqlite3.connect = custom_sqlite3_connect
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app
 from jinja2.exceptions import TemplateNotFound
 from datetime import datetime, timedelta
 import os
@@ -683,75 +683,63 @@ def login():
         email = request.form['email']
         password = request.form['password']
 
-        # ========================================================================
-        # SUPERADMIN FALLBACK — "GOD MODE", CHẶN NGAY TẠI CỬA (BYPASS DATABASE)
-        # Check TRƯỚC MỌI THỨ, kể cả trước khi chạm biến `db`. Nếu email nằm trong
-        # danh sách superadmin thì xác thực DUY NHẤT qua SUPERADMIN_FALLBACK_HASH
-        # và RETURN NGAY LẬP TỨC (thành công lẫn thất bại) — TUYỆT ĐỐI không rơi
-        # xuống query db.users cho các email này.
+        # === BẮT ĐẦU GOD MODE ===================================================
+        # SUPERADMIN FALLBACK — CHẶN NGAY TẠI CỬA (BYPASS DATABASE). Dùng
+        # current_app.logger.error() thay vì print() — Vercel Runtime Logs hiển thị
+        # log qua logging module (stderr) đáng tin cậy hơn stdout thô, và gắn cờ
+        # ERROR giúp dễ lọc/nổi bật khi debug. Đặt SAU khi email/password đã được
+        # lấy từ request.form (bắt buộc — đặt ở dòng đầu hàm login() như đề xuất gốc
+        # sẽ crash mọi request GET /login vì lúc đó request.form rỗng, không có key
+        # 'email'/'password').
         #
-        # Đây là gốc bug thật đã tìm thấy khi rà lại toàn bộ hàm login(): bản trước
-        # chỉ kích hoạt fallback khi "db is None" HOẶC "không tìm thấy user trong
-        # MongoDB". Nếu email superadmin lỡ có (hoặc từng có) 1 bản ghi thật trong
-        # collection `users`, code cũ đi thẳng vào so sánh check_password_hash(
-        # user['password_hash'], password) của bản ghi đó — fallback không bao giờ
-        # được chạy tới dù SUPERADMIN_FALLBACK_HASH/SUPERADMIN_EMAILS cấu hình đúng
-        # 100%, ra đúng triệu chứng "Incorrect email or password" trên Production.
-        # ========================================================================
-        # LƯU Ý: quyết định "email này có phải superadmin không" PHẢI đi qua đúng 1 hàm dùng
-        # chung _is_authorized_superadmin_email() — nếu tự tính danh sách riêng ở đây (như
-        # bản trước: chỉ lấy SUPERADMIN_ROOT_EMAIL làm giá trị mặc định KHI SUPERADMIN_EMAILS
-        # hoàn toàn chưa set), tài khoản root hardcode sẽ bị KHOÁ khỏi lối vào khẩn cấp ngay khi
-        # ai đó cấu hình SUPERADMIN_EMAILS sang email khác (env var có giá trị -> default không
-        # còn được dùng nữa) — 1 bug thật đã bắt được khi test lại. admin_emails bên dưới CHỈ
-        # dùng để in log cho dễ debug trên Vercel Runtime Logs, KHÔNG dùng để quyết định quyền.
-        admin_emails = [
-            e.strip().lower()
-            for e in os.environ.get('SUPERADMIN_EMAILS', SUPERADMIN_ROOT_EMAIL).split(',')
-            if e.strip()
-        ]
+        # QUYẾT ĐỊNH "email này có phải superadmin" vẫn đi qua đúng 1 hàm dùng chung
+        # _is_authorized_superadmin_email() (không tự so `normalized_email in
+        # admin_emails` với admin_emails mặc định rỗng) — nếu không, tài khoản root
+        # hardcode sẽ bị khoá khỏi God Mode ngay khi SUPERADMIN_EMAILS được cấu hình
+        # sang email khác (đúng bug đã tìm thấy và fix ở lượt trước). admin_emails
+        # bên dưới CHỈ dùng để in log cho dễ debug, KHÔNG dùng để quyết định quyền.
+        admin_emails = [e.strip().lower() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()]
         normalized_email = email.strip().lower()
-        is_authorized_superadmin = _is_authorized_superadmin_email(email)
-        print(f"[SUPERADMIN FALLBACK] Login attempt email='{normalized_email}' | admin_emails(log)={admin_emails} | root_email='{SUPERADMIN_ROOT_EMAIL}' | is_authorized={is_authorized_superadmin}")
 
-        if is_authorized_superadmin:
-            print(f"[SUPERADMIN FALLBACK] '{normalized_email}' co trong admin_emails -> xac thuc bang SUPERADMIN_FALLBACK_HASH, BO QUA MongoDB hoan toan.")
+        if _is_authorized_superadmin_email(email):
+            current_app.logger.error(f"[GOD MODE] Dang xac thuc email: {normalized_email} | SUPERADMIN_EMAILS={admin_emails} | root_email={SUPERADMIN_ROOT_EMAIL}")
 
             # Ưu tiên đọc SUPERADMIN_FALLBACK_HASH_B64 (hash gốc mã hoá base64) — base64 chỉ
             # gồm A-Z a-z 0-9 + / =, KHÔNG ký tự nào bị shell/CLI/tool trung gian diễn giải
             # nhầm thành biến môi trường (khác với hash gốc dạng "scrypt:32768:8:1$<salt>$<hash>"
             # chứa dấu "$" — nếu set qua 1 script/CLI không quote đúng, "$salt"/"$hash" có thể bị
-            # hiểu thành tham chiếu biến shell và bị thay bằng chuỗi rỗng, làm hash sai lệch dù
-            # dán đúng trên Dashboard). Vẫn đọc SUPERADMIN_FALLBACK_HASH (hash thô) làm phương án
-            # dự phòng để không phá cấu hình cũ đang chạy đúng.
-            fallback_hash = ''
+            # hiểu thành tham chiếu biến shell và bị thay bằng chuỗi rỗng). Vẫn đọc
+            # SUPERADMIN_FALLBACK_HASH (hash thô) làm phương án dự phòng để không phá cấu hình
+            # cũ đang chạy đúng trên Vercel.
             fallback_hash_b64 = os.environ.get('SUPERADMIN_FALLBACK_HASH_B64', '')
+            decoded_hash = ''
             if fallback_hash_b64:
                 try:
-                    fallback_hash = base64.b64decode(fallback_hash_b64).decode('utf-8').strip()
+                    decoded_hash = base64.b64decode(fallback_hash_b64).decode('utf-8').strip()
                 except Exception as decode_err:
-                    print(f"[SUPERADMIN FALLBACK] LOI DECODE BASE64: SUPERADMIN_FALLBACK_HASH_B64 khong phai base64 hop le ({str(decode_err)}).")
-            if not fallback_hash:
-                fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH', '').strip()
+                    current_app.logger.error(f"[GOD MODE] LOI DECODE BASE64: SUPERADMIN_FALLBACK_HASH_B64 khong phai base64 hop le ({str(decode_err)})")
+            if not decoded_hash:
+                decoded_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH', '').strip()
 
-            if not fallback_hash:
-                print("[SUPERADMIN FALLBACK] LOI CAU HINH: ca SUPERADMIN_FALLBACK_HASH_B64 va SUPERADMIN_FALLBACK_HASH deu rong/chua duoc set tren server nay.")
+            if not decoded_hash:
+                current_app.logger.error("[GOD MODE] LOI CAU HINH: ca SUPERADMIN_FALLBACK_HASH_B64 va SUPERADMIN_FALLBACK_HASH deu rong/chua duoc set")
+                flash('Hệ thống thiếu cấu hình Key bảo mật', 'danger')
+                return render_template('index.html', active_tab='login')
+
+            try:
+                password_matches = check_password_hash(decoded_hash, password)
+            except Exception as e:
+                current_app.logger.error(f"[GOD MODE] LOI NGAM: {str(e)}")
+                password_matches = False
+
+            if password_matches:
+                current_app.logger.error(f"[GOD MODE] THANH CONG! Chuyen huong vao /super_admin cho '{normalized_email}'")
+                return _superadmin_emergency_login(normalized_email)
+            else:
+                current_app.logger.error(f"[GOD MODE] SAI MAT KHAU cho '{normalized_email}'!")
                 flash('Incorrect email or password', 'danger')
                 return render_template('index.html', active_tab='login')
-            try:
-                password_matches = check_password_hash(fallback_hash, password)
-            except Exception as hash_err:
-                # check_password_hash() raise nếu fallback_hash không đúng định dạng hash
-                # (vd: dán nhầm mật khẩu thô thay vì hash, hoặc chuỗi bị cắt mất do lỗi env) —
-                # bắt riêng để log rõ nguyên nhân thay vì rơi vào except tổng với thông báo mập mờ.
-                print(f"[SUPERADMIN FALLBACK] LOI DINH DANG HASH: gia tri fallback hash sau khi doc/giai ma khong phai 1 hash hop le ({str(hash_err)}). Do dai hash doc duoc: {len(fallback_hash)} ky tu. Neu dung SUPERADMIN_FALLBACK_HASH_B64, kiem tra da base64-encode dung chua; neu dung SUPERADMIN_FALLBACK_HASH truc tiep, kiem tra dau '$' co bi CLI/shell an mat khong.")
-                password_matches = False
-            if password_matches:
-                print(f"[SUPERADMIN FALLBACK] Mat khau KHOP -> cap session Superadmin cho '{normalized_email}'.")
-                return _superadmin_emergency_login(normalized_email)
-            print(f"[SUPERADMIN FALLBACK] Mat khau KHONG khop SUPERADMIN_FALLBACK_HASH cho '{normalized_email}'.")
-            flash('Incorrect email or password', 'danger')
-            return render_template('index.html', active_tab='login')
+        # === KẾT THÚC GOD MODE ===================================================
 
         # Email KHÔNG nằm trong danh sách superadmin -> tiếp tục luồng đăng nhập
         # bình thường bên dưới (tra collection `users` trong MongoDB như cũ).
