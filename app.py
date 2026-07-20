@@ -5916,6 +5916,71 @@ def api_superadmin_payment_methods_update(id):
 # embedded-join "bot_customers(*, businesses(name))" của Postgres/PostgREST cũ). CHÚ Ý: 2 route
 # dưới đây CỐ TÌNH không lọc theo 1 business_id cụ thể — đây là màn hình Super Admin xem TẤT CẢ
 # hội thoại của MỌI tenant cùng lúc (đúng mục đích thiết kế), không phải route thiếu sót bảo mật.
+@app.route('/api/superadmin/stats', methods=['GET'])
+@login_required
+def api_superadmin_stats():
+    """Chỉ số tổng quan cross-tenant cho Command Center (/super_admin) — Doanh thu hôm
+    nay/tháng này, hội thoại AI hôm nay, leads đang chờ xử lý. Mọi giá trị LUÔN trả về
+    dạng số (0 nếu chưa có bản ghi/lỗi truy vấn) — KHÔNG BAO GIỜ trả None/thiếu field,
+    để frontend không bao giờ phải hiển thị "--" nữa (đúng yêu cầu: mặc định 0/0 VND/0%
+    thay vì để trống khi DB rỗng hoặc lỗi)."""
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+
+    stats = {
+        'revenue_today': 0,
+        'revenue_month': 0,
+        'ai_conversations_today': 0,
+        'leads_pending': 0,
+        # He thong hien CHUA co pipeline theo doi luot truy cap/phien (session/funnel step) nao
+        # ca — khong co du lieu that de tinh ra 1 ty le chuyen doi co y nghia, nen mac dinh 0
+        # thay vi bia so lieu gia co the gay hieu nham quyet dinh kinh doanh.
+        'pos_conversion_rate': 0,
+        'returning_customer_rate': 0,
+    }
+
+    if db is None:
+        return jsonify({"success": True, "data": stats})
+
+    now = datetime.now()
+    today_str = now.strftime('%Y-%m-%d')
+    tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+    month_start_str = now.strftime('%Y-%m-01')
+
+    try:
+        result = list(db.orders.aggregate([
+            {'$match': {'created_at': {'$gte': today_str, '$lt': tomorrow_str}}},
+            {'$group': {'_id': None, 'total': {'$sum': '$total_amount'}}},
+        ]))
+        stats['revenue_today'] = result[0]['total'] if result else 0
+    except Exception as e:
+        print(f"[api_superadmin_stats] Lỗi tính revenue_today: {str(e)}")
+
+    try:
+        result = list(db.orders.aggregate([
+            {'$match': {'created_at': {'$gte': month_start_str}}},
+            {'$group': {'_id': None, 'total': {'$sum': '$total_amount'}}},
+        ]))
+        stats['revenue_month'] = result[0]['total'] if result else 0
+    except Exception as e:
+        print(f"[api_superadmin_stats] Lỗi tính revenue_month: {str(e)}")
+
+    try:
+        # Moi conversation = 1 customer_id co it nhat 1 tin nhan (bat ky ben nao gui) trong hom nay.
+        stats['ai_conversations_today'] = len(db.bot_messages.distinct(
+            'customer_id', {'created_at': {'$gte': today_str, '$lt': tomorrow_str}}
+        ))
+    except Exception as e:
+        print(f"[api_superadmin_stats] Lỗi đếm ai_conversations_today: {str(e)}")
+
+    try:
+        stats['leads_pending'] = db.saas_signups.count_documents({'status': 'pending'})
+    except Exception as e:
+        print(f"[api_superadmin_stats] Lỗi đếm leads_pending: {str(e)}")
+
+    return jsonify({"success": True, "data": stats})
+
+
 # Việc chặn truy cập chéo-tenant ở đây được đảm bảo bằng _is_superadmin() (chỉ 1 tài khoản trùm/
 # danh sách SUPERADMIN_EMAILS mới qua được), KHÔNG phải bằng match business_id như các route
 # tenant thường khác — quy tắc "mọi query phải match business_id" áp dụng cho route của CHỦ TIỆM

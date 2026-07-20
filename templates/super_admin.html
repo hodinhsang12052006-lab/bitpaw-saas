@@ -147,25 +147,25 @@
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-usd-circle"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_today">Doanh Thu Hôm Nay</span>
-                    <span class="text-2xl font-black text-emerald-400 block tracking-tight" id="statRevenueToday">--</span>
+                    <span class="text-2xl font-black text-emerald-400 block tracking-tight" id="statRevenueToday">0 VND</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-calendar-alt"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_revenue_month">Doanh Thu Tháng Này</span>
-                    <span class="text-2xl font-black text-cyan-400 block tracking-tight" id="statRevenueMonth">--</span>
+                    <span class="text-2xl font-black text-cyan-400 block tracking-tight" id="statRevenueMonth">0 VND</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-robot"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1" data-i18n="super_admin_stat_ai_conversations">Hội Thoại AI Hôm Nay</span>
-                    <span class="text-2xl font-black text-purple-400 block tracking-tight" id="statAiConversations">--</span>
+                    <span class="text-2xl font-black text-purple-400 block tracking-tight" id="statAiConversations">0</span>
                 </div>
 
                 <div class="glass-panel p-5 relative overflow-hidden group">
                     <div class="absolute -right-6 -bottom-6 text-7xl text-white/[0.02] pointer-events-none"><i class="fas fa-funnel-dollar"></i></div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-1">Leads Landing Page</span>
-                    <span class="text-2xl font-black text-orange-400 block tracking-tight" id="statLeadsLanding">--</span>
+                    <span class="text-2xl font-black text-orange-400 block tracking-tight" id="statLeadsLanding">0</span>
                 </div>
             </div>
 
@@ -247,11 +247,11 @@
                                 <div class="bg-black/30 p-4 rounded-xl space-y-2.5 text-xs">
                                     <div class="flex justify-between">
                                         <span class="text-gray-400" data-i18n="super_admin_label_pos_conversion">Tỉ lệ chốt đơn POS:</span>
-                                        <span class="font-bold text-cyan-400">--</span>
+                                        <span class="font-bold text-cyan-400" id="statPosConversion">0%</span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-gray-400" data-i18n="super_admin_label_returning_customer">Khách cũ quay lại:</span>
-                                        <span class="font-bold text-purple-400">--</span>
+                                        <span class="font-bold text-purple-400" id="statReturningCustomer">0%</span>
                                     </div>
                                 </div>
                             </div>
@@ -1290,15 +1290,62 @@
             langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
         }
 
+        // Cac widget thong ke Command Center — luon ep ve 0/0 VND/0% khi API tra ve thieu
+        // field/null/loi mang, KHONG BAO GIO de nguyen "--" tinh trong HTML nua.
+        function formatVnd(amount) {
+            const n = Number(amount);
+            const safe = Number.isFinite(n) ? n : 0;
+            return safe.toLocaleString('vi-VN') + ' VND';
+        }
+        function formatCount(value) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
+        }
+        function formatPercent(value) {
+            const n = Number(value);
+            const safe = Number.isFinite(n) ? n : 0;
+            return safe.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + '%';
+        }
+
+        async function loadSuperAdminStats() {
+            const ids = ['statRevenueToday', 'statRevenueMonth', 'statAiConversations', 'statLeadsLanding', 'statPosConversion', 'statReturningCustomer'];
+            try {
+                const res = await fetch('/api/superadmin/stats');
+                const json = await res.json();
+                // API loi/tra success:false van phai roi vao nhanh "mac dinh 0" ben duoi,
+                // khong duoc de nguyen text cu tren man hinh.
+                const data = (json && json.success && json.data) ? json.data : {};
+
+                document.getElementById('statRevenueToday').innerText = formatVnd(data.revenue_today);
+                document.getElementById('statRevenueMonth').innerText = formatVnd(data.revenue_month);
+                document.getElementById('statAiConversations').innerText = formatCount(data.ai_conversations_today);
+                document.getElementById('statLeadsLanding').innerText = formatCount(data.leads_pending);
+                document.getElementById('statPosConversion').innerText = formatPercent(data.pos_conversion_rate);
+                document.getElementById('statReturningCustomer').innerText = formatPercent(data.returning_customer_rate);
+            } catch (e) {
+                console.error('[loadSuperAdminStats] Lỗi tải chỉ số thống kê, hiển thị mặc định 0:', e);
+                // Mang loi / API sap: ep tat ca ve dung dinh dang mac dinh, tuyet doi khong
+                // de lai "--" hay bat ky gia tri rong nao tren man hinh.
+                document.getElementById('statRevenueToday').innerText = formatVnd(0);
+                document.getElementById('statRevenueMonth').innerText = formatVnd(0);
+                document.getElementById('statAiConversations').innerText = formatCount(0);
+                document.getElementById('statLeadsLanding').innerText = formatCount(0);
+                document.getElementById('statPosConversion').innerText = formatPercent(0);
+                document.getElementById('statReturningCustomer').innerText = formatPercent(0);
+            }
+        }
+
         // Auto load on init
         window.addEventListener('DOMContentLoaded', () => {
             applyStaticTranslations();
             loadKeys();
             loadPaymentMethods();
             loadChatConversations();
+            loadSuperAdminStats();
             // Poll đơn giản mỗi 15s để badge số tin chưa đọc + danh sách hội thoại luôn gần
             // real-time mà không cần mở kênh realtime riêng nào.
             setInterval(loadChatConversations, 15000);
+            setInterval(loadSuperAdminStats, 30000);
         });
     </script>
     <script src="/static/js/cskh_widget.js"></script>
