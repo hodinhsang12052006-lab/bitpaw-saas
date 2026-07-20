@@ -4,29 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ</title>
-    <meta name="description" content="BitPaw Nails - Giải pháp tối ưu hóa vận hành cho Tiệm Nails & Salon: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS thợ.">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ">
-    <meta property="og:description" content="BitPaw Nails - Giải pháp tối ưu hóa vận hành cho Tiệm Nails & Salon: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS thợ.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ">
-    <meta name="twitter:description" content="BitPaw Nails - Giải pháp tối ưu hóa vận hành cho Tiệm Nails & Salon: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS thợ.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html
+         để biết đầy đủ tham số. Đặt "set" TRƯỚC include, đây là nơi DUY NHẤT cần sửa
+         khi muốn đổi title/description/schema riêng cho ngành Nail. -->
+    {% set title = "BitPaw Nails | Quản Lý Tiệm Nail, Chia Tua & Tính Hoa Hồng Thợ" %}
+    {% set description = "BitPaw Nails - Giải pháp tối ưu hóa vận hành cho Tiệm Nails & Salon: Thuật toán tự động chia tua thợ công bằng, tự động tính hoa hồng thợ, chấm công GPS thợ." %}
+    {% set keywords = "phần mềm quản lý tiệm nail, chia tua thợ nail tự động, tính hoa hồng thợ nail, chấm công GPS tiệm nail, phần mềm salon" %}
+    {% set canonical_path = "solutions/nail" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Nails" %}
+    {% set schema_subcategory = "Salon & Nail Shop Management Software" %}
+    {% set faq_items = [
+        {'q': 'BitPaw Nails có tự động chia tua thợ công bằng không?', 'a': 'Có. Thuật toán chia tua tự động xoay vòng theo giờ khách vào, đảm bảo công bằng giữa các thợ và tự động tính hoa hồng theo % hoặc ca cố định.'},
+        {'q': 'Phần mềm có tính lương và hoa hồng thợ Nail tự động không?', 'a': 'Có. BitPaw Nails tự tính bill, tip và hoa hồng thợ theo từng dịch vụ, kèm chấm công GPS để đối soát giờ làm thực tế.'},
+        {'q': 'BitPaw Nails có giúp nhắc lịch chăm sóc khách quay lại không?', 'a': 'Có. Hệ thống CRM tích hợp AI tự động nhắc lịch hẹn và chăm sóc khách cũ qua Zalo, giúp tăng tỷ lệ khách quay lại.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung cho
+         mọi landing (chính + ngách), xem static/css/bp_mobile_ui.css -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
 
     <style>
         html {
@@ -295,7 +300,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_register">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-pink-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-pink-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -324,15 +329,23 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. pricing_anchor = "calculator"
+         vì bảng giá của trang Nail nằm ở <section id="calculator">. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <!-- Deep Space Glow Effects -->
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-pink-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none"></div>
-        
+
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-pink-500/10 border border-pink-500/30 text-pink-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
                     <span data-i18n="hero_badge">💅 BitPaw OS: Quản Trị Vận Hành Tiệm Nails Chuyên Nghiệp</span>
                 </div>
@@ -344,8 +357,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_subtitle">
                     Một màn hình gom lịch hẹn, chia tua thợ, POS tính bill, tip/supply, CRM và AI gợi ý chăm khách quay lại.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-pink bg-pink-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-pink bg-pink-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Dùng thử cho tiệm Nail</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1488,6 +1501,10 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung,
+         xem static/js/bp_mobile_ui.js -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Script import các thư viện hoạt ảnh và 3D hiệu ứng -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -1957,6 +1974,20 @@
                 footer_zalo_tech: 'WhatsApp: (+84) 794.678.904',
                 footer_admin_login: 'Đăng Nhập Quản Trị',
                 footer_credit_label: 'Thiết kế & Lập trình bởi:',
+
+                // Mobile app-like nav (components/mobile_bottom_nav.html + smart_fab.html)
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email',
             },
             en: {
                 hero_badge: '💅 BitPaw OS: Professional Nail Salon Operations Management',
@@ -2159,6 +2190,19 @@
                 footer_zalo_tech: 'WhatsApp: (+84) 794.678.904',
                 footer_admin_login: 'Admin Login',
                 footer_credit_label: 'Designed & Developed By:',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email',
             }
         };
 

@@ -4,28 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Production | Quản Lý Năng Suất Công Nhân & Cảnh Báo Hao Hụt Vật Tư</title>
-    <meta name="description" content="BitPaw Production - Giải pháp quản trị nhà xưởng và xí nghiệp 4.0: Chấm công sản lượng công nhân di động, tự động cảnh báo tồn kho vật tư tối thiểu, kiểm soát tỷ lệ phế phẩm hao hụt và chốt lương khoán công bằng.">
-    <meta name="keywords" content="factory management software, production tracking software, worker productivity tracking, manufacturing SaaS, inventory shortage alerts, piece-rate payroll software, factory workforce management, production output tracking, warehouse inventory management, manufacturing ERP">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Production | Quản Lý Năng Suất Công Nhân & Cảnh Báo Hao Hụt Vật Tư">
-    <meta property="og:description" content="BitPaw Production - Giải pháp quản trị nhà xưởng và xí nghiệp 4.0: Chấm công sản lượng công nhân di động, tự động cảnh báo tồn kho vật tư tối thiểu, kiểm soát tỷ lệ phế phẩm hao hụt và chốt lương khoán công bằng.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Production | Quản Lý Năng Suất Công Nhân & Cảnh Báo Hao Hụt Vật Tư">
-    <meta name="twitter:description" content="BitPaw Production - Giải pháp quản trị nhà xưởng và xí nghiệp 4.0: Chấm công sản lượng công nhân di động, tự động cảnh báo tồn kho vật tư tối thiểu, kiểm soát tỷ lệ phế phẩm hao hụt và chốt lương khoán công bằng.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw Production | Quản Lý Năng Suất Công Nhân & Cảnh Báo Hao Hụt Vật Tư" %}
+    {% set description = "BitPaw Production - Giải pháp quản trị nhà xưởng và xí nghiệp 4.0: Chấm công sản lượng công nhân di động, tự động cảnh báo tồn kho vật tư tối thiểu, kiểm soát tỷ lệ phế phẩm hao hụt và chốt lương khoán công bằng." %}
+    {% set keywords = "factory management software, production tracking software, worker productivity tracking, manufacturing SaaS, inventory shortage alerts, piece-rate payroll software, factory workforce management, production output tracking, warehouse inventory management, manufacturing ERP" %}
+    {% set canonical_path = "solutions/production" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Production" %}
+    {% set schema_subcategory = "Factory & Manufacturing Production Management Software" %}
+    {% set faq_items = [
+        {'q': 'BitPaw Production có chấm công sản lượng công nhân qua điện thoại di động không?', 'a': 'Có. Công nhân tự chấm công sản lượng ngay trên điện thoại tại xưởng, hệ thống tự tổng hợp để tính lương khoán, không cần ghi chép tay.'},
+        {'q': 'Hệ thống có cảnh báo khi vật tư sắp hết không?', 'a': 'Có. BitPaw Production tự động cảnh báo khi tồn kho vật tư chạm ngưỡng tối thiểu, giúp xưởng chủ động đặt hàng trước khi thiếu hụt gây gián đoạn sản xuất.'},
+        {'q': 'Phần mềm có kiểm soát tỷ lệ phế phẩm hao hụt không?', 'a': 'Có. Hệ thống ghi nhận và kiểm soát tỷ lệ phế phẩm/hao hụt theo từng lô sản xuất, giúp quản lý xưởng phát hiện sớm bất thường và chốt lương khoán công bằng dựa trên sản lượng thực tế.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
@@ -271,7 +272,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-teal bg-teal-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(13, 148, 136, 0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="header_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-teal-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-teal-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -300,14 +301,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none"></div>
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-teal-500/10 border border-teal-500/30 text-teal-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🏭 BitPaw OS: Số Hóa Vận Hành Nhà Xưởng & Tính Lương Khoán Sản Lượng
                 </div>
@@ -319,8 +327,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Hệ thống tự động ghi nhận số lượng sản phẩm công nhân làm ra theo tổ đội và ca gãy kíp, kiểm soát tỷ lệ phế phẩm hao hụt nghiêm ngặt và chốt lương khoán công bằng.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-teal bg-teal-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(13, 148, 136, 0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-teal bg-teal-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(13, 148, 136, 0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Số hóa nhà xưởng 4.0</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1249,6 +1257,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Background Animation (Three.js Teal Particles Network) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
@@ -1628,7 +1639,20 @@
                 footer_fanpage_label: 'Facebook Chính Thức',
                 footer_admin_login: 'Đăng Nhập Quản Trị',
                 footer_credit_label: 'Thiết kế & Lập trình bởi:',
-                modal_close_btn: 'Đã hiểu & Đóng'
+                modal_close_btn: 'Đã hiểu & Đóng',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 hero_badge: '🏭 BitPaw OS: Digitize Factory Operations & Piece-Rate Payroll',
@@ -1787,7 +1811,20 @@
                 footer_fanpage_label: 'Official Facebook',
                 footer_admin_login: 'Admin Login',
                 footer_credit_label: 'Designed & Developed by:',
-                modal_close_btn: 'Got It & Close'
+                modal_close_btn: 'Got It & Close',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

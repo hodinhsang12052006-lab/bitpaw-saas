@@ -1,0 +1,190 @@
+<!-- =============================================================================
+     COMPONENT: <head> SEO Meta + Entity JSON-LD (DRY, shared)
+     Include NGAY SAU <meta charset>/<meta viewport> trong <head> của mọi trang
+     landing (chính hoặc ngách). Component này TỰ CHỨA favicon/apple-touch-icon
+     (nguồn chân lý duy nhất cho toàn hệ thống) — trang gọi include KHÔNG được
+     tự khai báo icon rel="icon"/rel="apple-touch-icon" nữa, sẽ bị trùng thẻ.
+     KHÔNG tự chứa <title> — trang chủ tự giữ thẻ đó vì mỗi trang cần 1
+     <title> khác nhau và <title> phải nằm sớm trong <head>.
+
+     THAM SỐ (đặt bằng lệnh Jinja "set" TRƯỚC dòng include; tên biến bên phải
+     "| default(...)" là giá trị dùng khi trang không set) — LƯU Ý: block
+     comment này KHÔNG viết ký hiệu tag Jinja thật (dấu ngoặc nhọn + %) vì
+     Jinja parse cả bên trong comment HTML, chỉ mô tả bằng chữ:
+       - title                (bắt buộc nên set — dùng chung cho <title> lẫn OG/Twitter/schema)
+       - description           (bắt buộc nên set)
+       - keywords              (tuỳ chọn)
+       - canonical_path         ví dụ 'landing' hoặc 'solutions/nail' — KHÔNG có dấu / đầu
+       - og_locale              mặc định 'en_US' (site cam kết tiếng Anh là ngôn ngữ gốc)
+       - image_filename         ảnh OG/Twitter, mặc định 'cho1.jpg' (1024x559)
+       - logo_filename          ảnh favicon + logo schema Organization, mặc định 'icon.jpg' (1024x1024, vuông)
+       - schema_name            tên phần mềm cho SoftwareApplication, mặc định 'BitPaw OS'
+       - schema_subcategory     mặc định 'Point of Sale System, Human Resources Management System'
+       - offer_low / offer_high giá VND thấp nhất/cao nhất hiển thị ở trang, mặc định 399000/999000
+       - faq_items              list các {q, a} — bỏ trống thì KHÔNG render schema FAQPage
+                                 (tránh mainEntity rỗng, sai chuẩn schema.org)
+
+     Xem ví dụ set đầy đủ (đúng cú pháp Jinja thật, có escape) ở đầu file
+     templates/landing_nail.html — copy nguyên khối đó cho trang ngách khác.
+     ============================================================================= -->
+
+{% set _title = title | default('BitPaw OS | All-in-One Smart POS & HR Management Software for Global Businesses') %}
+{% set _description = description | default('BitPaw OS is a B2B SaaS company providing all-in-one Smart POS and HR management software for growing businesses worldwide — point of sale, workforce management, CRM, and AI customer service in a single platform.') %}
+{% set _canonical_url = request.url_root ~ (canonical_path | default('landing')) %}
+{% set _og_locale = og_locale | default('en_US') %}
+{% set _logo_filename = logo_filename | default('icon.jpg') %}
+{% set _image_url = url_for('static', filename=(image_filename | default('cho1.jpg')), _external=True) %}
+{% set _logo_url = url_for('static', filename=_logo_filename, _external=True) %}
+{% set _schema_name = schema_name | default('BitPaw OS') %}
+{% set _schema_subcategory = schema_subcategory | default('Point of Sale System, Human Resources Management System') %}
+{% set _offer_low = offer_low | default(399000) %}
+{% set _offer_high = offer_high | default(999000) %}
+{% set _faq_items = faq_items | default([]) %}
+
+<!-- ================= FAVICON / APP ICON =================
+     Trỏ về static/icon.jpg (1024x1024, ảnh vuông) — dùng url_for() thay vì
+     hardcode "/static/images/icon.jpg" vì file đó KHÔNG tồn tại trong repo
+     (chỉ có static/icon.jpg ở gốc thư mục static); hardcode sai đường dẫn sẽ
+     làm favicon 404 trên mọi trang. Khai báo nhiều rel để tối đa độ tương
+     thích: favicon tab trình duyệt (icon/shortcut icon), icon khi "Add to
+     Home Screen" trên iOS (apple-touch-icon), và gợi ý logo cho kết quả tìm
+     kiếm Google (cùng với JSON-LD Organization.logo bên dưới). -->
+<link rel="icon" type="image/jpeg" href="{{ url_for('static', filename=_logo_filename) }}">
+<link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename=_logo_filename) }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename=_logo_filename) }}">
+
+<!-- ================= NGÔN NGỮ: CAM KẾT TIẾNG ANH LÀ GỐC =================
+     Tín hiệu kỹ thuật cho Google/AI Overview: site này lấy tiếng Anh làm
+     ngôn ngữ chính (song song với thị trường Việt Nam qua hreflang vi-VN
+     bên dưới). LƯU Ý: vài trang landing ngách hiện vẫn đặt title/description
+     tiếng Việt qua tham số "title"/"description" riêng — khai báo cứng dưới
+     đây áp dụng ĐỒNG NHẤT cho mọi trang bất kể nội dung hiển thị, đúng theo
+     yêu cầu ép nhận diện tiếng Anh toàn hệ thống. Nếu 1 trang cụ thể vẫn giữ
+     nội dung tiếng Việt lâu dài, nên cân nhắc set content-language riêng cho
+     trang đó để tránh Google Search Console cảnh báo lệch ngôn ngữ khai báo
+     so với nội dung thật. -->
+<meta name="language" content="English">
+<meta http-equiv="content-language" content="en">
+
+<meta name="description" content="{{ _description }}">
+{% if keywords %}<meta name="keywords" content="{{ keywords }}">{% endif %}
+<meta name="robots" content="index, follow">
+
+<!-- ================= TECHNICAL SEO: CANONICAL + HREFLANG =================
+     _canonical_url build từ request.url_root (domain gốc, luôn có dấu "/" cuối)
+     + canonical_path — 1 URL cố định, KHÔNG phụ thuộc query string như
+     "request.url" (mỗi query khác nhau từng bị Google tính là 1 URL riêng =>
+     duplicate content). x-default và en-US trỏ cùng URL để khẳng định tiếng
+     Anh là bản gốc; vi-VN là bản phụ (site chưa tách URL riêng theo ngôn ngữ
+     — hạn chế thật của kiến trúc hiện tại, không phải setup lý tưởng). -->
+<link rel="canonical" href="{{ _canonical_url }}">
+<link rel="alternate" href="{{ _canonical_url }}" hreflang="x-default">
+<link rel="alternate" href="{{ _canonical_url }}" hreflang="en-US">
+<link rel="alternate" href="{{ _canonical_url }}" hreflang="vi-VN">
+
+<!-- ================= OPEN GRAPH (Facebook / iMessage / WhatsApp / LinkedIn / Zalo) ================= -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BitPaw OS">
+<meta property="og:title" content="{{ _title }}">
+<meta property="og:description" content="{{ _description }}">
+<meta property="og:url" content="{{ _canonical_url }}">
+<meta property="og:image" content="{{ _image_url }}">
+<meta property="og:image:alt" content="BitPaw OS — All-in-One Smart POS &amp; HR Management Software">
+<meta property="og:locale" content="{{ _og_locale }}">
+<meta property="og:locale:alternate" content="{{ 'vi_VN' if _og_locale == 'en_US' else 'en_US' }}">
+
+<!-- ================= TWITTER / X CARD ================= -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ _title }}">
+<meta name="twitter:description" content="{{ _description }}">
+<meta name="twitter:image" content="{{ _image_url }}">
+<meta name="twitter:image:alt" content="BitPaw OS — All-in-One Smart POS &amp; HR Management Software">
+
+<!-- ================= JSON-LD ENTITY INJECTION (ANTI-CRYPTO) =================
+     Mục tiêu: buộc Google Knowledge Graph / AI Overview nhận diện "BitPaw" là
+     1 CÔNG TY PHẦN MỀM B2B SAAS (Organization + SoftwareApplication @type
+     BusinessApplication), KHÔNG PHẢI 1 đồng tiền ảo/token/meme coin trùng
+     tên. "disambiguatingDescription" là thuộc tính schema.org THẬT — dùng nó
+     để tuyên bố phủ định rõ ràng, thay vì nhét từ khoá phủ định vào nội dung
+     hiển thị (làm rối UX của người dùng thật).
+
+     LƯU Ý AN TOÀN: mọi biến động (title/description/url...) PHẢI qua filter
+     "| tojson" khi nhúng vào JSON-LD, KHÔNG được viết biến in ra thô giữa 2
+     dấu ngoặc kép thủ công — Flask/Jinja auto-escape HTML (vd "&" -> "&amp;")
+     cho mọi giá trị in ra, nhưng trình duyệt/Google KHÔNG giải mã HTML entity
+     bên trong thẻ script, nên nội dung sẽ hiển thị sai (vd "POS &amp; Kitchen"
+     thay vì "POS & Kitchen"). "| tojson" tự escape đúng chuẩn JSON/JS an toàn. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "BitPaw",
+  "legalName": "BitPaw OS",
+  "url": {{ _canonical_url | tojson }},
+  "logo": {{ _logo_url | tojson }},
+  "description": "BitPaw OS is a B2B SaaS company providing all-in-one Smart POS and HR management software for growing businesses worldwide.",
+  "disambiguatingDescription": "Bitpaw OS is a B2B SaaS company providing Smart POS and HR management software for global businesses. It is NOT associated with any cryptocurrency, meme coin, or blockchain project.",
+  "founder": {
+    "@type": "Person",
+    "name": "Thành David"
+  },
+  "contactPoint": [{
+    "@type": "ContactPoint",
+    "contactType": "customer service",
+    "email": "Bitpaw30052003@gmail.com",
+    "telephone": "+84-794-678-904",
+    "areaServed": ["US", "VN"],
+    "availableLanguage": ["English", "Vietnamese"]
+  }],
+  "sameAs": [
+    "https://www.facebook.com/chuyhieuhong"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["SoftwareApplication", "WebApplication"],
+  "name": {{ _schema_name | tojson }},
+  "url": {{ _canonical_url | tojson }},
+  "image": {{ _image_url | tojson }},
+  "applicationCategory": "BusinessApplication",
+  "applicationSubCategory": {{ _schema_subcategory | tojson }},
+  "operatingSystem": "Web-based (any modern browser)",
+  "description": {{ _description | tojson }},
+  "disambiguatingDescription": "Bitpaw OS is a B2B SaaS company providing Smart POS and HR management software for global businesses. It is NOT associated with any cryptocurrency, meme coin, or blockchain project.",
+  "author": {
+    "@type": "Organization",
+    "name": "BitPaw"
+  },
+  "offers": {
+    "@type": "AggregateOffer",
+    "priceCurrency": "VND",
+    "lowPrice": {{ _offer_low | tojson }},
+    "highPrice": {{ _offer_high | tojson }},
+    "offerCount": "3",
+    "availability": "https://schema.org/InStock",
+    "url": {{ _canonical_url | tojson }}
+  }
+}
+</script>
+{% if _faq_items %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for item in _faq_items %}
+    {
+      "@type": "Question",
+      "name": {{ item.q | tojson }},
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": {{ item.a | tojson }}
+      }
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}

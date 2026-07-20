@@ -1,0 +1,192 @@
+/* =========================================================================
+   BitPaw — MOBILE "APP-LIKE EXPERIENCE" MODULE (shared, DRY)
+   Dùng chung cho landing.html VÀ mọi landing ngách (landing_nail.html,
+   landing_fnb.html, ...). Nạp 1 lần bằng <link rel="stylesheet"> — KHÔNG
+   copy/paste CSS này vào từng trang nữa (đó là lý do nó nằm ở static/css,
+   không phải trong 1 <style> lặp lại bên trong từng component .html).
+
+   Viết bằng CSS thuần (không dùng class Tailwind kiểu arbitrary-value như
+   min-h-[100dvh]) vì tailwind.output.css là file build sẵn (PurgeCSS quét
+   templates lúc build) — 1 class mới tinh sẽ KHÔNG có trong file .css hiện
+   tại cho tới khi ai đó chạy lại lệnh build Tailwind. Viết tay ở đây đảm
+   bảo chạy đúng ngay, không phụ thuộc bước build của bất kỳ trang nào.
+
+   QUY ƯỚC tích hợp cho mọi trang muốn dùng module này (xem
+   templates/components/mobile_bottom_nav.html + smart_fab.html):
+     - Nút hamburger cũ của trang PHẢI có id="hamburgerBtn" (bị ẩn ở mobile).
+     - Nếu trang có canvas 3D/particle nền, không đổi gì thêm — module này
+       chỉ chèn thêm UI nổi (position: fixed), không đụng bố cục cũ.
+     - Muốn hero full-screen kiểu app: thêm class "bp-hero" vào <section>
+       hero, và "bp-hero-copy" / "bp-hero-actions" vào khối text/nút CTA.
+   ========================================================================= */
+
+/* ---------- 1. Ẩn hamburger cũ trên mobile (thay bằng tab "More") ---------- */
+@media (max-width: 1024px) {
+    #hamburgerBtn { display: none !important; }
+}
+
+/* ---------- 2. Bottom Tab Bar (Home / Solutions / Pricing / More) ---------- */
+.bp-bottom-nav {
+    display: none;
+}
+@media (max-width: 1024px) {
+    .bp-bottom-nav {
+        display: flex;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 200;
+        background: rgba(8, 6, 26, 0.88);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+}
+.bp-tab {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 4px 8px;
+    background: none;
+    border: none;
+    color: #8b93a7;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s ease, transform 0.15s ease;
+}
+.bp-tab i { font-size: 19px; line-height: 1; transition: transform 0.2s ease; }
+.bp-tab:active { transform: scale(0.92); }
+.bp-tab.active { color: #22d3ee; }
+.bp-tab.active i { transform: translateY(-1px); }
+
+/* ---------- 3. Smart Floating Action Button (Pill, Glassmorphism) ---------- */
+.bp-fab {
+    display: none;
+}
+@media (max-width: 1024px) {
+    .bp-fab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: fixed;
+        right: 14px;
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        z-index: 210;
+        padding: 11px 18px 11px 14px;
+        border-radius: 9999px;
+        background: rgba(6, 182, 212, 0.16);
+        border: 1px solid rgba(34, 211, 238, 0.45);
+        backdrop-filter: blur(14px) saturate(160%);
+        -webkit-backdrop-filter: blur(14px) saturate(160%);
+        box-shadow: 0 8px 24px rgba(6, 182, 212, 0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+        color: #e6fbff;
+        font-size: 12.5px;
+        font-weight: 800;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .bp-fab:active { transform: scale(0.95); }
+    .bp-fab .bp-fab-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #22d3ee;
+        box-shadow: 0 0 10px rgba(34, 211, 238, 0.9);
+        animation: bpFabDotPulse 1.8s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+}
+@keyframes bpFabDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ---------- 4. Bottom Sheet (dùng chung cho Solutions & Action Sheet) ---------- */
+.bp-sheet-backdrop {
+    position: fixed; inset: 0; z-index: 220;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.bp-sheet-backdrop.bp-open { opacity: 1; pointer-events: auto; }
+.bp-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 221;
+    max-height: 78vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #0b0a22;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-bottom: none;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -20px 60px rgba(0,0,0,0.55);
+    padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bp-sheet.bp-open { transform: translateY(0); }
+.bp-sheet-handle {
+    width: 40px; height: 4px; border-radius: 4px;
+    background: rgba(255,255,255,0.2);
+    margin: 6px auto 14px;
+}
+.bp-sheet-title {
+    font-size: 13px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #22d3ee;
+    margin-bottom: 14px;
+}
+.bp-sheet-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #e5e7eb; font-weight: 700; font-size: 14px;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.bp-sheet-item:last-child { border-bottom: none; }
+.bp-sheet-item:active { background: rgba(255,255,255,0.04); }
+.bp-sheet-icon {
+    width: 38px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+}
+
+/* ---------- 5. Hero "App-like" — opt-in qua class .bp-hero, chỉ dưới lg ---------- */
+@media (max-width: 1024px) {
+    .bp-hero {
+        min-height: 100dvh;
+        min-height: 100vh; /* fallback cho trình duyệt chưa hỗ trợ dvh */
+        display: flex;
+        align-items: center;
+        text-align: center;
+        padding-top: 96px;
+        padding-bottom: 110px; /* chừa chỗ cho bottom nav + FAB */
+    }
+    .bp-hero .bp-hero-copy { text-align: center; margin-left: auto; margin-right: auto; }
+    .bp-hero .bp-hero-actions { justify-content: center; }
+}
+
+/* CTA pulse — opt-in qua class .bp-cta-pulse, mọi kích thước màn hình */
+.bp-cta-pulse { animation: bpCtaPulse 2.6s ease-in-out infinite; }
+@keyframes bpCtaPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.45), 0 0 20px rgba(6,182,212,0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(6, 182, 212, 0), 0 0 28px rgba(6,182,212,0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bp-cta-pulse, .bp-fab .bp-fab-dot { animation: none; }
+}
+
+/* ---------- 6. Ẩn cụm nút liên hệ nổi cũ (cskh_widget.js) trên mobile ----------
+   #bitpawCskhFloating được inject bởi static/js/cskh_widget.js — file này được
+   include ở MỌI trang qua components/cskh_global.html. Ẩn bằng CSS ở đây (module
+   dùng chung) thay vì sửa cskh_widget.js, để không phải đụng vào 1 file JS đang
+   chạy trên toàn bộ site. Chatbox Mascot AI (#chatWidget) KHÔNG bị ẩn — Action
+   Sheet của smart_fab.html gọi lại đúng window.toggleChat() có sẵn để mở nó. */
+@media (max-width: 1024px) {
+    #bitpawCskhFloating { display: none !important; }
+}

@@ -4,30 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV</title>
-    <meta name="description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
-    <meta name="keywords" content="spa management software, salon booking system, wellness business management, appointment scheduling software, spa POS system, technician commission software, beauty clinic management, spa scheduling app">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV">
-    <meta property="og:description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV">
-    <meta name="twitter:description" content="BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw Spa | Quản Lý Spa, Lập Lịch Booking & Tính Hoa Hồng KTV" %}
+    {% set description = "BitPaw Spa management software: smart online booking system, multi-session treatment package tracking, Smart POS billing, automated staff shift scheduling, and transparent technician commission calculation for spas, beauty clinics, and wellness businesses." %}
+    {% set keywords = "spa management software, salon booking system, wellness business management, appointment scheduling software, spa POS system, technician commission software, beauty clinic management, spa scheduling app" %}
+    {% set canonical_path = "solutions/spa" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Spa" %}
+    {% set schema_subcategory = "Spa & Beauty Salon Booking and Management Software" %}
+    {% set faq_items = [
+        {'q': 'BitPaw Spa có quản lý được lịch hẹn khách online không?', 'a': 'Có. Khách có thể tự đặt lịch hẹn online, hệ thống tự động xếp phòng/giường trống và phân ca kỹ thuật viên (KTV) theo thời gian thực, tránh trùng lịch.'},
+        {'q': 'Phần mềm có theo dõi được liệu trình nhiều buổi (multi-session) của khách không?', 'a': 'Có. BitPaw Spa lưu hồ sơ liệu trình từng khách, tự động trừ số buổi còn lại mỗi lần khách sử dụng dịch vụ, giúp lễ tân và KTV luôn nắm rõ khách còn bao nhiêu buổi.'},
+        {'q': 'BitPaw Spa có tự động tính hoa hồng cho kỹ thuật viên không?', 'a': 'Có. Hệ thống tự tính hoa hồng KTV theo từng dịch vụ đã thực hiện, minh bạch rõ ràng và đồng bộ trực tiếp với Smart POS thanh toán, không cần tính tay.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
 
     <style>
         html {
@@ -270,7 +271,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -299,14 +300,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-pink-500/10 rounded-full blur-[140px] pointer-events-none"></div>
-        
+
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md">
                     <span data-i18n="hero_badge">💅 BitPaw OS: Hệ Thống Số Hóa Spa & Beauty Clinic Toàn Diện</span>
                 </div>
@@ -318,8 +326,8 @@
                 <p class="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Một màn hình gom lịch hẹn từ nhiều kênh, tự động phân phòng/giường/KTV, quản lý thẻ liệu trình số chi tiết, POS tính hoa hồng thợ và AI CSKH tự nhắc tái chăm sóc.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-cyan bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Dùng thử cho Spa của sếp</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1439,6 +1447,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Script imports -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -2325,7 +2336,20 @@
                 footer_admin_login: 'Đăng Nhập Quản Trị',
                 footer_designed_by: 'Thiết kế & Lập trình bởi:',
                 modal_default_title: 'Tiêu đề',
-                modal_close_btn: 'Đã hiểu & Đóng'
+                modal_close_btn: 'Đã hiểu & Đóng',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 hero_badge: '💅 BitPaw OS: Complete Digital System For Spa & Beauty Clinics',
@@ -2537,7 +2561,20 @@
                 footer_admin_login: 'Admin Login',
                 footer_designed_by: 'Designed & developed by:',
                 modal_default_title: 'Title',
-                modal_close_btn: 'Got It & Close'
+                modal_close_btn: 'Got It & Close',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

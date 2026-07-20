@@ -4,28 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Hotel | Hotel & Homestay Management, Check-In & Real-Time Room Map</title>
-    <meta name="description" content="BitPaw Hotel - An automated management solution for hotels, homestays & guesthouses: smart online room booking, real-time vacant/dirty/occupied room maps, automatic hourly/mini bar Smart POS billing, and AI-driven low-season guest offers.">
-    <meta name="keywords" content="hotel management software, homestay management, hotel POS system, room booking system, hotel PMS Vietnam, BitPaw Hotel">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Hotel | Hotel & Homestay Management, Check-In & Real-Time Room Map">
-    <meta property="og:description" content="BitPaw Hotel - An automated management solution for hotels, homestays & guesthouses: smart online room booking, real-time vacant/dirty/occupied room maps, automatic hourly/mini bar Smart POS billing, and AI-driven low-season guest offers.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Hotel | Hotel & Homestay Management, Check-In & Real-Time Room Map">
-    <meta name="twitter:description" content="BitPaw Hotel - An automated management solution for hotels, homestays & guesthouses: smart online room booking, real-time vacant/dirty/occupied room maps, automatic hourly/mini bar Smart POS billing, and AI-driven low-season guest offers.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw Hotel | Hotel & Homestay Management, Check-In & Real-Time Room Map" %}
+    {% set description = "BitPaw Hotel - An automated management solution for hotels, homestays & guesthouses: smart online room booking, real-time vacant/dirty/occupied room maps, automatic hourly/mini bar Smart POS billing, and AI-driven low-season guest offers." %}
+    {% set keywords = "hotel management software, homestay management, hotel POS system, room booking system, hotel PMS Vietnam, BitPaw Hotel" %}
+    {% set canonical_path = "solutions/hotel" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Hotel" %}
+    {% set schema_subcategory = "Hotel & Homestay Property Management System (PMS)" %}
+    {% set faq_items = [
+        {'q': 'Does BitPaw Hotel show room availability in real time?', 'a': 'Yes. The system displays a live map of vacant, dirty, and occupied rooms, so front-desk staff can check in guests instantly without manually verifying room status.'},
+        {'q': 'Can guests book rooms online through BitPaw Hotel?', 'a': 'Yes. BitPaw Hotel includes a smart online booking system that lets guests reserve rooms directly, syncing automatically with the real-time room map to prevent double-booking.'},
+        {'q': 'Does BitPaw Hotel handle hourly stays and mini-bar charges automatically?', 'a': "Yes. The Smart POS module automatically calculates hourly billing and mini-bar consumption per room, and can trigger AI-driven offers to guests during low-season periods."}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
@@ -271,7 +272,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-blue-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-blue-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -300,14 +301,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"></div>
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🏨 BitPaw OS: Quản Trị Vận Hành Khách Sạn & Homestay Chuyên Nghiệp
                 </div>
@@ -319,8 +327,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Một màn hình gom lịch đặt phòng, sơ đồ buồng phòng realtime, check-in di động nhanh gọn, POS chốt bill mini bar/tiền giờ chuẩn xác và AI tự động kéo khách quen.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_btn1">Dùng thử cho khách sạn</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1430,6 +1438,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Script imports -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -1898,6 +1909,19 @@
                 footer_company_name: 'Bitpaw Technology LLC',
                 footer_tax_info: 'Business Registration: 888999777',
                 footer_address: '1390 Market Street, Suite 200, San Francisco, CA 94102, United States',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 hero_badge: '🏨 BitPaw OS: Professional Hotel & Homestay Operations Management',
@@ -2127,6 +2151,19 @@
                 footer_company_name: 'Bitpaw Technology LLC',
                 footer_tax_info: 'Business Registration: 888999777',
                 footer_address: '1390 Market Street, Suite 200, San Francisco, CA 94102, United States',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

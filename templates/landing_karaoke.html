@@ -4,28 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Karaoke | Hệ Thống Quản Lý Phòng Hát, Tính Tiền Giờ & Order QR Bàn Bida</title>
-    <meta name="description" content="BitPaw Karaoke - all-in-one karaoke, billiards & game center management software: automatic per-minute time billing, in-room drink ordering, realtime room status (Available/Cleaning/Occupied), dynamic QR payments, and AI-driven customer outreach to fill idle hours.">
-    <meta name="keywords" content="karaoke management software, billiard hall management software, game center POS system, karaoke billing software, room time billing system, karaoke POS Vietnam">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Karaoke | Hệ Thống Quản Lý Phòng Hát, Tính Tiền Giờ & Order QR Bàn Bida">
-    <meta property="og:description" content="BitPaw Karaoke - all-in-one karaoke, billiards & game center management software: automatic per-minute time billing, in-room drink ordering, realtime room status, dynamic QR payments, and AI-driven customer outreach to fill idle hours.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Karaoke | Hệ Thống Quản Lý Phòng Hát, Tính Tiền Giờ & Order QR Bàn Bida">
-    <meta name="twitter:description" content="BitPaw Karaoke - all-in-one karaoke, billiards & game center management software: automatic per-minute time billing, in-room drink ordering, realtime room status, dynamic QR payments, and AI-driven customer outreach to fill idle hours.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw Karaoke | Hệ Thống Quản Lý Phòng Hát, Tính Tiền Giờ & Order QR Bàn Bida" %}
+    {% set description = "BitPaw Karaoke - all-in-one karaoke, billiards & game center management software: automatic per-minute time billing, in-room drink ordering, realtime room status (Available/Cleaning/Occupied), dynamic QR payments, and AI-driven customer outreach to fill idle hours." %}
+    {% set keywords = "karaoke management software, billiard hall management software, game center POS system, karaoke billing software, room time billing system, karaoke POS Vietnam" %}
+    {% set canonical_path = "solutions/karaoke" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Karaoke" %}
+    {% set schema_subcategory = "Karaoke, Billiards & Entertainment Venue POS Software" %}
+    {% set faq_items = [
+        {'q': 'How does BitPaw Karaoke calculate room charges?', 'a': "The system automatically bills each room per minute of actual usage, so staff never have to manually track start/end times or calculate charges by hand."},
+        {'q': 'Can customers order drinks and food directly from the room?', 'a': "Yes. BitPaw Karaoke supports in-room ordering, with orders sent straight to the bar/kitchen while the system keeps billing in sync with the room's session."},
+        {'q': 'Does it show which rooms are available in real time?', 'a': 'Yes. The system displays realtime room status (Available, Cleaning, Occupied) so staff can seat new customers immediately without walking around to check.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
@@ -272,7 +273,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-purple bg-purple-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_register">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-purple-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-purple-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -301,14 +302,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-pink-500/10 rounded-full blur-[140px] pointer-events-none"></div>
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-purple-500/10 border border-purple-500/30 text-purple-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🎤 BitPaw OS: Số Hóa Quản Trị Karaoke, Bida & Game Center Chuyên Nghiệp
                 </div>
@@ -321,8 +329,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
                     Hệ thống tự động tính giờ chuẩn xác đến từng giây block lẻ, sơ đồ bàn/phòng 3D realtime, gọi đồ uống/dịch vụ tại phòng qua tablet/mobile, in hóa đơn tích hợp QR ngân hàng động.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-purple bg-purple-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-purple bg-purple-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(168,85,247,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_btn1">Dùng thử cho quán giải trí</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1255,6 +1263,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Background Animation (Three.js Purple/Pink Particles Network) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
@@ -1606,7 +1617,20 @@
                 footer_zalo_name: 'WhatsApp: (+84) 794.678.904', footer_fanpage_label: 'Facebook Chính Thức',
                 footer_login_btn: 'Đăng Nhập Quản Trị',
                 footer_credit_label: 'Thiết kế & Lập trình bởi:',
-                modal_close_btn: 'Đã hiểu & Đóng'
+                modal_close_btn: 'Đã hiểu & Đóng',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 nav_solutions: 'Solutions', nav_features: 'Features', nav_pricing: 'Pricing',
@@ -1725,7 +1749,20 @@
                 footer_zalo_name: 'WhatsApp: (+84) 794.678.904', footer_fanpage_label: 'Official Facebook',
                 footer_login_btn: 'Admin Login',
                 footer_credit_label: 'Designed & Developed by:',
-                modal_close_btn: 'Got It & Close'
+                modal_close_btn: 'Got It & Close',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

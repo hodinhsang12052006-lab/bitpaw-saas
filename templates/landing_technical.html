@@ -4,28 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Technical | Bản Đồ Định Vị Kỹ Thuật Viên, Chợ Điều Phối Kanban & Nghiệm Thu Ký Số</title>
-    <meta name="description" content="BitPaw Technical - Field service management software for technician dispatch: real-time GPS fleet tracking, smart Kanban job scheduling, mobile digital sign-off, and automated technician commission settlement.">
-    <meta name="keywords" content="field service management software, technician dispatch system, GPS fleet tracking, work order management, mobile workforce management, job scheduling software, digital sign-off, technician commission automation">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw Technical | Field Service GPS Dispatch, Kanban Job Board & Digital Sign-off">
-    <meta property="og:description" content="BitPaw Technical - Field service management software for technician dispatch: real-time GPS fleet tracking, smart Kanban job scheduling, mobile digital sign-off, and automated technician commission settlement.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw Technical | Field Service GPS Dispatch, Kanban Job Board & Digital Sign-off">
-    <meta name="twitter:description" content="BitPaw Technical - Field service management software for technician dispatch: real-time GPS fleet tracking, smart Kanban job scheduling, mobile digital sign-off, and automated technician commission settlement.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw Technical | Field Service GPS Dispatch, Kanban Job Board & Digital Sign-off" %}
+    {% set description = "BitPaw Technical - Field service management software for technician dispatch: real-time GPS fleet tracking, smart Kanban job scheduling, mobile digital sign-off, and automated technician commission settlement." %}
+    {% set keywords = "field service management software, technician dispatch system, GPS fleet tracking, work order management, mobile workforce management, job scheduling software, digital sign-off, technician commission automation" %}
+    {% set canonical_path = "solutions/technical" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw Technical" %}
+    {% set schema_subcategory = "Field Service Management (FSM) & Technician Dispatch Software" %}
+    {% set faq_items = [
+        {'q': 'Does BitPaw Technical track technicians with GPS in real time?', 'a': "Yes. The system provides real-time GPS fleet tracking so dispatchers always know each technician's location and can assign the nearest available technician to a new job."},
+        {'q': 'How are technician jobs scheduled and dispatched?', 'a': 'BitPaw Technical uses a smart Kanban job board to schedule and dispatch jobs, letting dispatchers drag and drop jobs between technicians based on location and availability.'},
+        {'q': 'Can customers confirm job completion digitally?', 'a': 'Yes. Technicians collect a mobile digital sign-off from the customer on-site, and the system automatically settles technician commission once the job is confirmed complete.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
@@ -288,7 +289,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-red bg-red-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(239, 68, 68, 0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial_cta">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-red-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-red-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -317,14 +318,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-red-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-orange-500/10 rounded-full blur-[140px] pointer-events-none"></div>
         
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🛠️ BitPaw OS: Bản Đồ Định Vị GPS Vệ Tinh & Chợ Điều Phối Kanban Kỹ Thuật Viên
                 </div>
@@ -336,8 +344,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed" data-i18n="hero_subtitle">
                     Hệ thống tự động theo dõi vị trí kỹ thuật viên trên bản đồ vệ tinh, giao việc kéo thả thông minh qua chợ Kanban, quản lý hao hụt vật tư sửa chữa và chốt hoa hồng thợ nhanh gọn.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-red bg-red-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239, 68, 68, 0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-red bg-red-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(239, 68, 68, 0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Số hóa đội ngũ kỹ thuật</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1269,6 +1277,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Background Animation (Three.js Red Particle Network) & Custom Interactive Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
@@ -1643,6 +1654,19 @@
                 workflow_badge: 'LUỒNG VẬN HÀNH THỰC TẾ',
                 workflow_title: 'Quy trình điều phối và sửa chữa lắp đặt hiện trường',
                 workflow_subtitle: 'Bản đồ quy trình khép kín từ lúc nhận cuộc gọi báo hỏng của khách hàng đến khi thợ ký nghiệm thu, thu tiền:',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 hero_badge: '🛠️ BitPaw OS: Satellite GPS Map & Technician Kanban Dispatch Marketplace',
@@ -1811,6 +1835,19 @@
                 workflow_badge: 'REAL-WORLD OPERATING FLOW',
                 workflow_title: 'Field Dispatch, Repair & Installation Workflow',
                 workflow_subtitle: 'A complete closed-loop process, from receiving the customer\'s call to technician sign-off and payment collection:',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

@@ -1,0 +1,83 @@
+<!-- =============================================================================
+     COMPONENT: Mobile Bottom Tab Bar + Solutions Bottom Sheet (DRY, shared)
+     CSS: static/css/bp_mobile_ui.css | JS: static/js/bp_mobile_ui.js
+     (trang gọi include này phải tự link 2 file đó — xem hướng dẫn tích hợp)
+
+     YÊU CẦU ở trang chủ (host template) trước khi include:
+       - Đã có <div id="mobile-menu">...</div> (drawer menu cũ) — tab "More"
+         bên dưới GỌI LẠI toggleMobileMenu() có sẵn để mở đúng nó, không tạo
+         menu trùng lặp lần 2.
+       - Nút hamburger cũ có id="hamburgerBtn" (bị ẩn ở mobile bởi CSS module).
+
+     THAM SỐ tuỳ chỉnh (đặt bằng lệnh Jinja "set" TRƯỚC dòng include, bỏ qua =
+     dùng mặc định của trang landing chính):
+       - pricing_anchor: id (KHÔNG có dấu #) của section bảng giá cần cuộn tới
+         khi bấm tab "Pricing". Mặc định "bang-gia".
+     ============================================================================= -->
+
+<!-- 1. Bottom Sheet: Solutions (mở khi bấm tab "Solutions") -->
+<div id="bpSolutionsBackdrop" class="bp-sheet-backdrop" onclick="bpCloseSheet('bpSolutionsSheet','bpSolutionsBackdrop')"></div>
+<div id="bpSolutionsSheet" class="bp-sheet" role="dialog" aria-modal="true" aria-labelledby="bpSolutionsSheetTitle">
+    <div class="bp-sheet-handle"></div>
+    <div class="bp-sheet-title" id="bpSolutionsSheetTitle" data-i18n="solsheet_title">Khám Phá Giải Pháp</div>
+    <a href="{{ url_for('solutions_page', industry_code='nail') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(236,72,153,0.15);color:#f472b6;"><i class="fas fa-hand-sparkles"></i></span>
+        <span data-i18n="navmenu_nail_title">Tiệm Nail</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='spa') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(244,63,94,0.15);color:#fb7185;"><i class="fas fa-spa"></i></span>
+        <span data-i18n="navmenu_spa_title">Spa / Beauty</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='fnb') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(249,115,22,0.15);color:#fb923c;"><i class="fas fa-utensils"></i></span>
+        <span data-i18n="navmenu_fnb_title">Nhà Hàng & F&amp;B</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='hotel') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24;"><i class="fas fa-hotel"></i></span>
+        <span data-i18n="navmenu_hotel_title">Khách Sạn / Homestay</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='karaoke') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(168,85,247,0.15);color:#c084fc;"><i class="fas fa-microphone"></i></span>
+        <span data-i18n="navmenu_karaoke_title">Karaoke / Bida</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='office') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(99,102,241,0.15);color:#818cf8;"><i class="fas fa-briefcase"></i></span>
+        <span data-i18n="navmenu_office_title">Văn Phòng / HRM</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='retail') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(6,182,212,0.15);color:#22d3ee;"><i class="fas fa-shopping-bag"></i></span>
+        <span data-i18n="navmenu_retail_title">Bán Lẻ & Siêu Thị</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='hr') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(59,130,246,0.15);color:#60a5fa;"><i class="fas fa-users-cog"></i></span>
+        <span data-i18n="navmenu_hr_title">Quản Trị Nhân Sự</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='production') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(20,184,166,0.15);color:#2dd4bf;"><i class="fas fa-industry"></i></span>
+        <span data-i18n="navmenu_production_title">Sản Xuất / Xưởng</span>
+    </a>
+    <a href="{{ url_for('solutions_page', industry_code='technical') }}" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(239,68,68,0.15);color:#f87171;"><i class="fas fa-tools"></i></span>
+        <span data-i18n="navmenu_technical_title">Dịch Vụ Kỹ Thuật</span>
+    </a>
+</div>
+
+<!-- 2. Bottom Tab Bar: Home / Solutions / Pricing / More -->
+<nav class="bp-bottom-nav" aria-label="Mobile primary navigation">
+    <button type="button" class="bp-tab active" id="bpTabHome" onclick="bpGoHome()">
+        <i class="fas fa-house"></i>
+        <span data-i18n="bnav_home">Trang chủ</span>
+    </button>
+    <button type="button" class="bp-tab" id="bpTabSolutions" onclick="bpOpenSheet('bpSolutionsSheet','bpSolutionsBackdrop')">
+        <i class="fas fa-shapes"></i>
+        <span data-i18n="bnav_solutions">Giải pháp</span>
+    </button>
+    <button type="button" class="bp-tab" id="bpTabPricing" data-target="{{ pricing_anchor | default('bang-gia') }}" onclick="bpGoPricing(this)">
+        <i class="fas fa-tags"></i>
+        <span data-i18n="bnav_pricing">Bảng giá</span>
+    </button>
+    <button type="button" class="bp-tab" id="bpTabMore" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+        <span data-i18n="bnav_more">Thêm</span>
+    </button>
+</nav>

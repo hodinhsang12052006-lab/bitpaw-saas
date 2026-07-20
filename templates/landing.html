@@ -6,24 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ i18n.meta_title }}</title>
 
-    <meta name="description" content="{{ i18n.meta_description }}">
-    <meta name="keywords"
-        content="all-in-one business management platform, B2B SaaS software, HRM software, GPS workforce management, smart POS system, omnichannel e-commerce, AI marketing agency, retail POS software">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="{{ i18n.meta_title }}">
-    <meta property="og:description" content="{{ i18n.meta_description }}">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="{{ i18n.og_locale }}">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ i18n.meta_title }}">
-    <meta name="twitter:description" content="{{ i18n.meta_description }}">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html
+         để biết toàn bộ tham số. Trang chính /landing dùng i18n dict động (đổi theo
+         current_lang), các landing ngách khác set title/description tĩnh riêng. -->
+    {% set title = i18n.meta_title %}
+    {% set description = i18n.meta_description %}
+    {% set keywords = "all-in-one business management platform, B2B SaaS software, HRM software, GPS workforce management, smart POS system, omnichannel e-commerce, AI marketing agency, retail POS software" %}
+    {% set canonical_path = "landing" %}
+    {% set og_locale = i18n.og_locale %}
+    {% set faq_items = [
+        {'q': 'What is BitPaw OS?', 'a': 'BitPaw OS is an all-in-one B2B SaaS business management platform that combines Smart POS, HR & workforce management (HRM), CRM, and AI-powered customer service in a single system for restaurants, retail stores, salons, and service businesses.'},
+        {'q': 'Does BitPaw OS support a Kitchen Display System (KDS) for restaurants?', 'a': "Yes. BitPaw OS includes QR-code table ordering plus a real-time Kitchen Display System (KDS) that sends orders straight to the kitchen the moment they're placed, along with ingredient-level inventory deduction for F&B operations."},
+        {'q': 'Can BitPaw OS manage staff attendance, payroll, and HR?', 'a': "Yes. BitPaw OS's HRM module handles GPS-based clock-in/clock-out, shift scheduling, one-click payroll calculation, and commission tracking for staff across multiple locations."}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -464,6 +461,10 @@
             transition: width 0.1s ease;
         }
     </style>
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung cho
+         mọi landing (chính + ngách), xem static/css/bp_mobile_ui.css -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
 </head>
 
 <body class="antialiased selection:bg-cyan-500 selection:text-black relative i18n-boot">
@@ -719,7 +720,7 @@
                     class="hidden md:flex btn-neon bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black px-6 py-2 rounded-full text-sm items-center gap-2">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_call">Mua Ngay</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none"><i
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none"><i
                         class="fas fa-bars"></i></button>
             </div>
         </div>
@@ -791,9 +792,18 @@
         </nav>
     </div>
 
-    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex items-center min-h-[90vh]">
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. pricing_anchor phải khớp id
+         section bảng giá thật của trang (ở đây là #bang-gia). -->
+    {% set pricing_anchor = 'bang-gia' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
+
+    <section class="bp-hero relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex items-center min-h-[90vh]">
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10 w-full">
-            <div class="text-center lg:text-left" data-aos="fade-right" data-aos-duration="1000">
+            <div class="bp-hero-copy text-center lg:text-left" data-aos="fade-right" data-aos-duration="1000">
                 <div
                     class="inline-block bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold px-4 py-2 rounded-full mb-6 backdrop-blur-md shadow-[0_0_10px_rgba(6,182,212,0.2)]">
                     <span class="w-2 h-2 rounded-full bg-cyan-400 inline-block mr-2 animate-pulse"></span> <span data-i18n="hero_badge_v3">B2B
@@ -810,12 +820,12 @@
                     BitPaw OS giúp chủ doanh nghiệp quản lý bán hàng, nhân sự, khách hàng, AI chăm sóc, marketing, tồn
                     kho và báo cáo lợi nhuận trên một nền tảng duy nhất.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <div class="relative group inline-block">
                         <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw mascot avatar" loading="lazy"
                             class="absolute -top-10 right-2 w-12 h-12 object-cover rounded-full border-2 border-[#ff944d] transform translate-y-6 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-0 drop-shadow-[0_0_10px_#ff944d]">
                         <a href="#bang-gia"
-                            class="btn-neon bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] relative z-10">
+                            class="bp-cta-pulse btn-neon bg-cyan-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] relative z-10">
                             <i class="fas fa-rocket"></i> <span data-i18n="hero_btn_start">Bắt Đầu Chuyển Đổi Số</span>
                         </a>
                     </div>
@@ -3243,6 +3253,11 @@
 
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
+
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung,
+         xem static/js/bp_mobile_ui.js -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
 
     <script>
         // ========== Tự động nhận diện khách nước ngoài / Việt Kiều theo ngôn ngữ trình duyệt ==========

@@ -4,29 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw F&B | Quản Lý Nhà Hàng, Cafe, Order QR Tại Bàn & Bếp KDS</title>
-    <meta name="description" content="BitPaw F&B - Giải pháp tự động hóa toàn diện cho Nhà hàng, Quán ăn & Cafe: Gọi món qua QR code động tại bàn, Màn hình hiển thị bếp KDS realtime, Smart POS thu ngân siêu tốc, đối soát định lượng kho tự động.">
-    <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='cho1.jpg') }}">
-    <link rel="canonical" href="{{ request.url }}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="BitPaw F&B | Quản Lý Nhà Hàng, Cafe, Order QR Tại Bàn & Bếp KDS">
-    <meta property="og:description" content="BitPaw F&B - Giải pháp tự động hóa toàn diện cho Nhà hàng, Quán ăn & Cafe: Gọi món qua QR code động tại bàn, Màn hình hiển thị bếp KDS realtime, Smart POS thu ngân siêu tốc, đối soát định lượng kho tự động.">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
-    <meta property="og:locale" content="vi_VN">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="BitPaw F&B | Quản Lý Nhà Hàng, Cafe, Order QR Tại Bàn & Bếp KDS">
-    <meta name="twitter:description" content="BitPaw F&B - Giải pháp tự động hóa toàn diện cho Nhà hàng, Quán ăn & Cafe: Gọi món qua QR code động tại bàn, Màn hình hiển thị bếp KDS realtime, Smart POS thu ngân siêu tốc, đối soát định lượng kho tự động.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+
+    <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
+    {% set title = "BitPaw F&B | Quản Lý Nhà Hàng, Cafe, Order QR Tại Bàn & Bếp KDS" %}
+    {% set description = "BitPaw F&B - Giải pháp tự động hóa toàn diện cho Nhà hàng, Quán ăn & Cafe: Gọi món qua QR code động tại bàn, Màn hình hiển thị bếp KDS realtime, Smart POS thu ngân siêu tốc, đối soát định lượng kho tự động." %}
+    {% set keywords = "phần mềm quản lý nhà hàng, order QR tại bàn, màn hình bếp KDS, phần mềm quán cafe, smart POS nhà hàng, quản lý kho định lượng F&B" %}
+    {% set canonical_path = "solutions/fnb" %}
+    {% set og_locale = "vi_VN" %}
+    {% set schema_name = "BitPaw F&B" %}
+    {% set schema_subcategory = "Restaurant POS & Kitchen Display System (KDS) Software" %}
+    {% set faq_items = [
+        {'q': 'BitPaw F&B có hỗ trợ khách gọi món qua QR code tại bàn không?', 'a': 'Có. Khách quét mã QR riêng của từng bàn để xem menu và gọi món trực tiếp, đơn hàng đổ thẳng về màn hình bếp (KDS) và POS thu ngân theo thời gian thực.'},
+        {'q': 'Màn hình bếp KDS của BitPaw hoạt động như thế nào?', 'a': 'Mọi đơn từ order nội bộ (nhân viên) lẫn order QR của khách đều tự động tạo vé bếp và hiển thị realtime trên màn hình KDS, giúp bếp không bỏ sót món và lên món đúng thứ tự.'},
+        {'q': 'Phần mềm có tự động trừ kho theo định lượng nguyên liệu không?', 'a': 'Có. Mỗi món ăn được định lượng nguyên liệu (công thức), khi bán ra hệ thống tự trừ kho theo đúng định lượng, giúp phát hiện thất thoát nguyên liệu chính xác hơn cách trừ kho theo thành phẩm.'}
+    ] %}
+    {% include 'components/seo_meta.html' %}
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    
+
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <!-- Mobile "app-like" UI module (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
 
     <style>
         html {
@@ -269,7 +271,7 @@
                 <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-orange-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-orange-400 p-2 focus:outline-none" aria-label="Open menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -298,14 +300,21 @@
         </nav>
     </div>
 
+    <!-- Mobile app-like nav (Bottom Tab Bar + Solutions Sheet) + Smart FAB —
+         component dùng chung, xem templates/components/mobile_bottom_nav.html
+         và templates/components/smart_fab.html. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
+
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
-    <section class="relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
+    <section class="bp-hero relative pt-36 pb-28 lg:pt-48 lg:pb-36 overflow-hidden flex items-center min-h-screen">
         <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-orange-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-yellow-500/10 rounded-full blur-[140px] pointer-events-none"></div>
-        
+
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
-            <div data-aos="fade-right" data-aos-duration="800" class="text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
+            <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
                     🍔 BitPaw OS: Số Hóa Vận Hành Nhà Hàng, Cafe Chuyên Nghiệp
                 </div>
@@ -317,8 +326,8 @@
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium break-words" data-i18n="hero_desc">
                     Một màn hình đồng bộ gọi món QR tại bàn, điều phối màn hình bếp KDS, Smart POS thu ngân siêu tốc, tự động trừ kho nguyên liệu và trợ lý AI gợi ý marketing.
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="btn-neon-orange bg-orange-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(249,115,22,0.4)]">
+                <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-orange bg-orange-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(249,115,22,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Dùng thử cho quán F&B</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1434,6 +1443,9 @@
     <!-- Reusable Premium CSKH Global Component -->
     {% include 'components/cskh_global.html' %}
 
+    <!-- Mobile app-like UI behavior (Bottom Nav / FAB / Sheets) — dùng chung -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
+
     <!-- Script imports -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -1897,7 +1909,20 @@
                 footer_credit: 'Thiết kế & Lập trình bởi:',
                 footer_zalo_contact: 'WhatsApp: (+84) 794.678.904',
                 modal_default_title: 'Tiêu đề',
-                modal_close_btn: 'Đã hiểu & Đóng'
+                modal_close_btn: 'Đã hiểu & Đóng',
+
+                bnav_home: 'Trang chủ',
+                bnav_solutions: 'Giải pháp',
+                bnav_pricing: 'Bảng giá',
+                bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp',
+                fab_label: 'Liên hệ',
+                fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI',
+                fabsheet_zalo: 'Tư Vấn Zalo',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Gọi Hotline',
+                fabsheet_email: 'Gửi Email'
             },
             en: {
                 hero_badge: '🍔 BitPaw OS: Professional Digital Operations For Restaurants & Cafes',
@@ -2109,7 +2134,20 @@
                 footer_credit: 'Designed & Developed by:',
                 footer_zalo_contact: 'WhatsApp: (+84) 794.678.904',
                 modal_default_title: 'Title',
-                modal_close_btn: 'Got It & Close'
+                modal_close_btn: 'Got It & Close',
+
+                bnav_home: 'Home',
+                bnav_solutions: 'Solutions',
+                bnav_pricing: 'Pricing',
+                bnav_more: 'More',
+                solsheet_title: 'Explore Solutions',
+                fab_label: 'Contact',
+                fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant',
+                fabsheet_zalo: 'Zalo Consulting',
+                fabsheet_messenger: 'Messenger',
+                fabsheet_call: 'Call Hotline',
+                fabsheet_email: 'Send Email'
             }
         };
 

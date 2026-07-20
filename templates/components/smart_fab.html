@@ -1,0 +1,43 @@
+<!-- =============================================================================
+     COMPONENT: Smart Floating Action Button (Pill, Glassmorphism) + Action Sheet
+     CSS: static/css/bp_mobile_ui.css | JS: static/js/bp_mobile_ui.js
+
+     YÊU CẦU ở trang chủ (host template) trước khi include:
+       - Đã {% include 'components/cskh_global.html' %} ở đâu đó trong trang
+         (cung cấp window.toggleChat() cho mục "Chat với Trợ Lý AI" bên dưới).
+
+     Không có tham số bắt buộc — thông tin liên hệ (Zalo/Messenger/Hotline/
+     Email) tập trung DUY NHẤT ở đây, sửa 1 chỗ áp dụng cho mọi trang landing
+     đang include component này (thay vì mỗi trang tự hardcode 1 bản riêng).
+     ============================================================================= -->
+
+<div id="bpFabBackdrop" class="bp-sheet-backdrop" onclick="bpCloseSheet('bpFabSheet','bpFabBackdrop')"></div>
+<div id="bpFabSheet" class="bp-sheet" role="dialog" aria-modal="true" aria-labelledby="bpFabSheetTitle">
+    <div class="bp-sheet-handle"></div>
+    <div class="bp-sheet-title" id="bpFabSheetTitle" data-i18n="fabsheet_title">Liên Hệ Ngay</div>
+    <a href="javascript:void(0)" class="bp-sheet-item" onclick="bpOpenMascotChat()">
+        <span class="bp-sheet-icon" style="background:rgba(34,211,238,0.15);color:#22d3ee;"><i class="fas fa-robot"></i></span>
+        <span data-i18n="fabsheet_chat">Chat với Trợ Lý AI</span>
+    </a>
+    <a href="https://zalo.me/0794678904" target="_blank" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(0,104,255,0.18);color:#4f9dff;"><i class="fas fa-comment-dots"></i></span>
+        <span data-i18n="fabsheet_zalo">Tư Vấn Zalo</span>
+    </a>
+    <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(99,102,241,0.18);color:#818cf8;"><i class="fab fa-facebook-messenger"></i></span>
+        <span data-i18n="fabsheet_messenger">Messenger</span>
+    </a>
+    <a href="tel:0794678904" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(16,185,129,0.18);color:#34d399;"><i class="fas fa-phone-alt"></i></span>
+        <span data-i18n="fabsheet_call">Gọi Hotline</span>
+    </a>
+    <a href="mailto:Bitpaw30052003@gmail.com" class="bp-sheet-item">
+        <span class="bp-sheet-icon" style="background:rgba(234,67,53,0.18);color:#f87171;"><i class="fas fa-envelope"></i></span>
+        <span data-i18n="fabsheet_email">Gửi Email</span>
+    </a>
+</div>
+
+<button type="button" class="bp-fab" onclick="bpOpenSheet('bpFabSheet','bpFabBackdrop')">
+    <span class="bp-fab-dot"></span>
+    <span data-i18n="fab_label">Liên hệ</span>
+</button>
