@@ -637,6 +637,25 @@ def get_user_data_by_email(email):
 SUPERADMIN_ROOT_EMAIL = 'hodinhsang30052003@gmail.com'
 
 
+def _is_authorized_superadmin_email(email):
+    """Nguồn chân lý DUY NHẤT cho câu hỏi "email này có được cấp quyền Superadmin không?" —
+    dùng chung cho CẢ login() (fallback khẩn cấp) LẪN _is_superadmin() (gate truy cập trang
+    /super_admin sau khi đã đăng nhập). Trước đây login() tự so sánh với SUPERADMIN_ROOT_EMAIL
+    (1 email hardcode) mà KHÔNG đọc SUPERADMIN_EMAILS, nên tài khoản cấu hình qua biến môi
+    trường này không bao giờ đăng nhập fallback được dù _is_superadmin() vẫn cho vào trang sau
+    khi (giả sử) đã có session — 2 nơi lệch nhau chính là gốc lỗi "Incorrect email or password".
+    True nếu email là tài khoản trùm hardcode, HOẶC nằm trong danh sách SUPERADMIN_EMAILS (env
+    var, cách nhau bởi dấu phẩy). Không cấu hình biến env này vẫn không sao — tài khoản trùm
+    hardcode luôn được cấp quyền, không phụ thuộc env/DB (fail-closed cho mọi email khác)."""
+    normalized = (email or '').strip().lower()
+    if not normalized:
+        return False
+    if normalized == SUPERADMIN_ROOT_EMAIL:
+        return True
+    allowed = {e.strip().lower() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()}
+    return normalized in allowed
+
+
 def _superadmin_emergency_login(email):
     """Lối vào khẩn cấp CHO ĐÚNG 1 tài khoản trùm hardcode, CHỈ kích hoạt khi MongoDB không kết
     nối được hoặc bản ghi user thật không còn tồn tại (vd: DB bị xoá/khôi phục từ backup cũ) —
@@ -662,19 +681,68 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        is_root_email = email.strip().lower() == SUPERADMIN_ROOT_EMAIL
-        fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH')
 
+        # ========================================================================
+        # SUPERADMIN FALLBACK — "GOD MODE", CHẶN NGAY TẠI CỬA (BYPASS DATABASE)
+        # Check TRƯỚC MỌI THỨ, kể cả trước khi chạm biến `db`. Nếu email nằm trong
+        # danh sách superadmin thì xác thực DUY NHẤT qua SUPERADMIN_FALLBACK_HASH
+        # và RETURN NGAY LẬP TỨC (thành công lẫn thất bại) — TUYỆT ĐỐI không rơi
+        # xuống query db.users cho các email này.
+        #
+        # Đây là gốc bug thật đã tìm thấy khi rà lại toàn bộ hàm login(): bản trước
+        # chỉ kích hoạt fallback khi "db is None" HOẶC "không tìm thấy user trong
+        # MongoDB". Nếu email superadmin lỡ có (hoặc từng có) 1 bản ghi thật trong
+        # collection `users`, code cũ đi thẳng vào so sánh check_password_hash(
+        # user['password_hash'], password) của bản ghi đó — fallback không bao giờ
+        # được chạy tới dù SUPERADMIN_FALLBACK_HASH/SUPERADMIN_EMAILS cấu hình đúng
+        # 100%, ra đúng triệu chứng "Incorrect email or password" trên Production.
+        # ========================================================================
+        # LƯU Ý: quyết định "email này có phải superadmin không" PHẢI đi qua đúng 1 hàm dùng
+        # chung _is_authorized_superadmin_email() — nếu tự tính danh sách riêng ở đây (như
+        # bản trước: chỉ lấy SUPERADMIN_ROOT_EMAIL làm giá trị mặc định KHI SUPERADMIN_EMAILS
+        # hoàn toàn chưa set), tài khoản root hardcode sẽ bị KHOÁ khỏi lối vào khẩn cấp ngay khi
+        # ai đó cấu hình SUPERADMIN_EMAILS sang email khác (env var có giá trị -> default không
+        # còn được dùng nữa) — 1 bug thật đã bắt được khi test lại. admin_emails bên dưới CHỈ
+        # dùng để in log cho dễ debug trên Vercel Runtime Logs, KHÔNG dùng để quyết định quyền.
+        admin_emails = [
+            e.strip().lower()
+            for e in os.environ.get('SUPERADMIN_EMAILS', SUPERADMIN_ROOT_EMAIL).split(',')
+            if e.strip()
+        ]
+        normalized_email = email.strip().lower()
+        is_authorized_superadmin = _is_authorized_superadmin_email(email)
+        print(f"[SUPERADMIN FALLBACK] Login attempt email='{normalized_email}' | admin_emails(log)={admin_emails} | root_email='{SUPERADMIN_ROOT_EMAIL}' | is_authorized={is_authorized_superadmin}")
+
+        if is_authorized_superadmin:
+            print(f"[SUPERADMIN FALLBACK] '{normalized_email}' co trong admin_emails -> xac thuc bang SUPERADMIN_FALLBACK_HASH, BO QUA MongoDB hoan toan.")
+            fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH', '')
+            if not fallback_hash:
+                print("[SUPERADMIN FALLBACK] LOI CAU HINH: bien moi truong SUPERADMIN_FALLBACK_HASH dang rong/chua duoc set tren server nay.")
+                flash('Incorrect email or password', 'danger')
+                return render_template('index.html', active_tab='login')
+            try:
+                password_matches = check_password_hash(fallback_hash, password)
+            except Exception as hash_err:
+                # check_password_hash() raise nếu fallback_hash không đúng định dạng hash
+                # (vd: dán nhầm mật khẩu thô thay vì hash) — bắt riêng để log rõ nguyên nhân
+                # thay vì rơi vào except tổng phía dưới với thông báo mập mờ.
+                print(f"[SUPERADMIN FALLBACK] LOI DINH DANG HASH: SUPERADMIN_FALLBACK_HASH khong phai 1 hash hop le ({str(hash_err)}). Kiem tra lai bien moi truong, dam bao dan dung chuoi hash sinh boi generate_password_hash(), khong dan mat khau tho.")
+                password_matches = False
+            if password_matches:
+                print(f"[SUPERADMIN FALLBACK] Mat khau KHOP -> cap session Superadmin cho '{normalized_email}'.")
+                return _superadmin_emergency_login(normalized_email)
+            print(f"[SUPERADMIN FALLBACK] Mat khau KHONG khop SUPERADMIN_FALLBACK_HASH cho '{normalized_email}'.")
+            flash('Incorrect email or password', 'danger')
+            return render_template('index.html', active_tab='login')
+
+        # Email KHÔNG nằm trong danh sách superadmin -> tiếp tục luồng đăng nhập
+        # bình thường bên dưới (tra collection `users` trong MongoDB như cũ).
         try:
             if db is None:
-                if is_root_email and fallback_hash and check_password_hash(fallback_hash, password):
-                    return _superadmin_emergency_login(email)
                 raise Exception("MongoDB chưa kết nối.")
 
             user = db.users.find_one({'email': email})
             if not user:
-                if is_root_email and fallback_hash and check_password_hash(fallback_hash, password):
-                    return _superadmin_emergency_login(email)
                 raise Exception("Sai email hoặc mật khẩu")
             if not check_password_hash(user['password_hash'], password):
                 raise Exception("Sai email hoặc mật khẩu")
@@ -717,10 +785,15 @@ def login():
 
             flash('Login successful', 'success')
 
-            # Hardcode duy nhất 1 tài khoản trùm: email này luôn vào thẳng Super Admin, bất kể
-            # business_mode đã cấu hình hay chưa — không đẩy qua /setup như user thường. Check
-            # này đặt trước mọi logic redirect theo ngành nghề.
-            if email.strip().lower() == 'hodinhsang30052003@gmail.com':
+            # Mọi email nằm trong danh sách Superadmin (root hardcode HOẶC SUPERADMIN_EMAILS)
+            # luôn vào thẳng Super Admin, bất kể business_mode đã cấu hình hay chưa — không đẩy
+            # qua /setup như user thường. Check này đặt TRƯỚC mọi logic redirect theo ngành nghề.
+            # Dùng chung đúng 1 nguồn chân lý _is_authorized_superadmin_email() với khối
+            # SUPERADMIN FALLBACK ở đầu hàm và _is_superadmin() — trước đây chỗ này hardcode
+            # đúng 1 email, nên tài khoản superadmin cấu hình qua SUPERADMIN_EMAILS mà đăng
+            # nhập được bằng mật khẩu DB thật (không qua fallback) vẫn bị đẩy nhầm qua /setup
+            # hoặc trang ngành nghề thay vì /super_admin.
+            if _is_authorized_superadmin_email(email):
                 return redirect('/super_admin')
 
             if mode in INDUSTRY_CONFIG:
@@ -5359,16 +5432,10 @@ def quanly_thuchi():
     return render_template('quanly_thuchi.html')
 
 def _is_superadmin():
-    """True khi email đang đăng nhập là tài khoản trùm hardcode, hoặc nằm trong danh sách
-    SUPERADMIN_EMAILS (env var). Không cấu hình biến env này vẫn không sao — tài khoản
-    trùm hardcode luôn được cấp quyền, không phụ thuộc env/DB (fail-closed cho mọi email khác)."""
-    user_email = (session.get('user_email') or '').strip().lower()
-    if not user_email:
-        return False
-    if user_email == 'hodinhsang30052003@gmail.com':
-        return True
-    allowed = {e.strip().lower() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()}
-    return user_email in allowed
+    """Gate truy cập trang/API superadmin cho session ĐANG đăng nhập — dùng chung đúng 1 nguồn
+    chân lý _is_authorized_superadmin_email() với login() (xem comment ở đó), tránh lệch logic
+    giữa "ai được phép đăng nhập fallback" và "ai được phép vào trang sau khi đã đăng nhập"."""
+    return _is_authorized_superadmin_email(session.get('user_email'))
 
 
 @app.route('/super_admin')
