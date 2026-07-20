@@ -26,6 +26,7 @@ import uuid
 import json
 import random
 import re
+import base64
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -715,18 +716,35 @@ def login():
 
         if is_authorized_superadmin:
             print(f"[SUPERADMIN FALLBACK] '{normalized_email}' co trong admin_emails -> xac thuc bang SUPERADMIN_FALLBACK_HASH, BO QUA MongoDB hoan toan.")
-            fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH', '')
+
+            # Ưu tiên đọc SUPERADMIN_FALLBACK_HASH_B64 (hash gốc mã hoá base64) — base64 chỉ
+            # gồm A-Z a-z 0-9 + / =, KHÔNG ký tự nào bị shell/CLI/tool trung gian diễn giải
+            # nhầm thành biến môi trường (khác với hash gốc dạng "scrypt:32768:8:1$<salt>$<hash>"
+            # chứa dấu "$" — nếu set qua 1 script/CLI không quote đúng, "$salt"/"$hash" có thể bị
+            # hiểu thành tham chiếu biến shell và bị thay bằng chuỗi rỗng, làm hash sai lệch dù
+            # dán đúng trên Dashboard). Vẫn đọc SUPERADMIN_FALLBACK_HASH (hash thô) làm phương án
+            # dự phòng để không phá cấu hình cũ đang chạy đúng.
+            fallback_hash = ''
+            fallback_hash_b64 = os.environ.get('SUPERADMIN_FALLBACK_HASH_B64', '')
+            if fallback_hash_b64:
+                try:
+                    fallback_hash = base64.b64decode(fallback_hash_b64).decode('utf-8').strip()
+                except Exception as decode_err:
+                    print(f"[SUPERADMIN FALLBACK] LOI DECODE BASE64: SUPERADMIN_FALLBACK_HASH_B64 khong phai base64 hop le ({str(decode_err)}).")
             if not fallback_hash:
-                print("[SUPERADMIN FALLBACK] LOI CAU HINH: bien moi truong SUPERADMIN_FALLBACK_HASH dang rong/chua duoc set tren server nay.")
+                fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH', '').strip()
+
+            if not fallback_hash:
+                print("[SUPERADMIN FALLBACK] LOI CAU HINH: ca SUPERADMIN_FALLBACK_HASH_B64 va SUPERADMIN_FALLBACK_HASH deu rong/chua duoc set tren server nay.")
                 flash('Incorrect email or password', 'danger')
                 return render_template('index.html', active_tab='login')
             try:
                 password_matches = check_password_hash(fallback_hash, password)
             except Exception as hash_err:
                 # check_password_hash() raise nếu fallback_hash không đúng định dạng hash
-                # (vd: dán nhầm mật khẩu thô thay vì hash) — bắt riêng để log rõ nguyên nhân
-                # thay vì rơi vào except tổng phía dưới với thông báo mập mờ.
-                print(f"[SUPERADMIN FALLBACK] LOI DINH DANG HASH: SUPERADMIN_FALLBACK_HASH khong phai 1 hash hop le ({str(hash_err)}). Kiem tra lai bien moi truong, dam bao dan dung chuoi hash sinh boi generate_password_hash(), khong dan mat khau tho.")
+                # (vd: dán nhầm mật khẩu thô thay vì hash, hoặc chuỗi bị cắt mất do lỗi env) —
+                # bắt riêng để log rõ nguyên nhân thay vì rơi vào except tổng với thông báo mập mờ.
+                print(f"[SUPERADMIN FALLBACK] LOI DINH DANG HASH: gia tri fallback hash sau khi doc/giai ma khong phai 1 hash hop le ({str(hash_err)}). Do dai hash doc duoc: {len(fallback_hash)} ky tu. Neu dung SUPERADMIN_FALLBACK_HASH_B64, kiem tra da base64-encode dung chua; neu dung SUPERADMIN_FALLBACK_HASH truc tiep, kiem tra dau '$' co bi CLI/shell an mat khong.")
                 password_matches = False
             if password_matches:
                 print(f"[SUPERADMIN FALLBACK] Mat khau KHOP -> cap session Superadmin cho '{normalized_email}'.")
