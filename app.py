@@ -634,18 +634,49 @@ def get_user_data_by_email(email):
     return user
 
 
+SUPERADMIN_ROOT_EMAIL = 'hodinhsang30052003@gmail.com'
+
+
+def _superadmin_emergency_login(email):
+    """Lối vào khẩn cấp CHO ĐÚNG 1 tài khoản trùm hardcode, CHỈ kích hoạt khi MongoDB không kết
+    nối được hoặc bản ghi user thật không còn tồn tại (vd: DB bị xoá/khôi phục từ backup cũ) —
+    KHÔNG BAO GIỜ dùng cho luồng đăng nhập bình thường (luồng thường luôn ưu tiên tra `users`
+    thật + check_password_hash ở trên). Verify qua check_password_hash() với 1 HASH (không phải
+    plaintext) đọc từ SUPERADMIN_FALLBACK_HASH — sinh 1 lần bằng:
+        python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('...'))"
+    rồi dán vào .env (KHÔNG commit .env lên git). Không hardcode mật khẩu dạng chữ thô trong
+    source vì bất kỳ ai đọc được code (leak repo, log lỗi, contractor cũ...) sẽ có quyền
+    Superadmin vĩnh viễn không thể thu hồi — hash thì rotate được bất kỳ lúc nào chỉ bằng cách
+    đổi biến môi trường, không cần sửa code."""
+    session['user_id'] = 'superadmin-fallback'
+    session['business_id'] = 'superadmin-fallback'
+    session['user_email'] = email.strip().lower()
+    session['role'] = 'super_admin'
+    session['business_mode'] = 'none'
+    flash('Login successful (Superadmin emergency fallback)', 'success')
+    return redirect('/super_admin')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        is_root_email = email.strip().lower() == SUPERADMIN_ROOT_EMAIL
+        fallback_hash = os.environ.get('SUPERADMIN_FALLBACK_HASH')
 
         try:
             if db is None:
+                if is_root_email and fallback_hash and check_password_hash(fallback_hash, password):
+                    return _superadmin_emergency_login(email)
                 raise Exception("MongoDB chưa kết nối.")
 
             user = db.users.find_one({'email': email})
-            if not user or not check_password_hash(user['password_hash'], password):
+            if not user:
+                if is_root_email and fallback_hash and check_password_hash(fallback_hash, password):
+                    return _superadmin_emergency_login(email)
+                raise Exception("Sai email hoặc mật khẩu")
+            if not check_password_hash(user['password_hash'], password):
                 raise Exception("Sai email hoặc mật khẩu")
 
             user_id = user['id']
@@ -1451,7 +1482,7 @@ def add_product():
                 'id': next_mongo_id('products'),
                 'name': request.form['name'],
                 'category': cat,
-                'channel_type': 'retail',
+                'channel_type': 'fnb' if current_mode == 'fnb' else 'retail',
                 'stock': int(request.form['stock']),
                 'price': float(request.form['price']),
                 'image': filename,
@@ -1749,7 +1780,8 @@ def api_pos_add_order_item(table_id):
     quantity = data.get('quantity', 1)
     if not product_id:
         return jsonify({'success': False, 'message': 'Missing product_id.'}), 400
-    if not _assert_owns_product(product_id, business_id):
+    product = db.products.find_one({'id': product_id, 'business_id': business_id}, {'name': 1, '_id': 0})
+    if not product:
         return jsonify({'success': False, 'message': 'Product not found or does not belong to your account.'}), 403
     try:
         existing = db.table_orders.find_one(
@@ -1763,6 +1795,24 @@ def api_pos_add_order_item(table_id):
                 'id': next_mongo_id('table_orders'), 'table_id': table_id, 'product_id': product_id,
                 'quantity': quantity, 'business_id': business_id, 'created_at': datetime.now().isoformat()
             })
+
+        # Tạo vé bếp cho màn hình Kitchen Display — best-effort, không chặn luồng gọi món
+        # nội bộ nếu ghi vé bếp lỗi. /api/stream/kitchen watch() trên db.kitchen_orders nên
+        # insert ở đây tự động phát SSE, không cần code đẩy event riêng.
+        try:
+            table_doc = db.dining_tables.find_one({'id': table_id}, {'name': 1, '_id': 0})
+            db.kitchen_orders.insert_one({
+                'id': next_mongo_id('kitchen_orders'),
+                'business_id': business_id,
+                'table_id': table_id,
+                'table_name': table_doc.get('name') if table_doc else f'Table {table_id}',
+                'items': [{'name': product['name'], 'qty': quantity}],
+                'status': 'pending',
+                'created_at': datetime.now().isoformat()
+            })
+        except Exception as kitchen_err:
+            print(f"Ghi vé bếp thất bại (không chặn luồng gọi món nội bộ): {str(kitchen_err)}")
+
         db.dining_tables.update_one({'id': table_id, 'business_id': business_id}, {'$set': {'status': 'Đang phục vụ'}})
         return jsonify({'success': True})
     except Exception as e:
@@ -2226,6 +2276,26 @@ def checkout_table(table_id):
                 })
             if order_items_docs:
                 db.order_items.insert_many(order_items_docs)
+
+            # Ghi nhận giao dịch vào payment_transactions — thiếu bước này khiến báo cáo dòng
+            # tiền tổng (đối soát payment_transactions <-> orders) không thấy các đơn checkout
+            # qua luồng /checkout nội bộ này (khác với /api/payment/confirm đã làm đúng).
+            try:
+                db.payment_transactions.insert_one({
+                    'id': next_mongo_id('payment_transactions'),
+                    'transaction_id': order_code,
+                    'order_id': order_id,
+                    'customer_name': 'Khách POS Vãng Lai',
+                    'customer_email': 'pos_walkin@bitpaw.com',
+                    'amount': total_bill,
+                    'currency': 'VND',
+                    'method': 'POS',
+                    'status': 'completed',
+                    'business_id': business_id,
+                    'created_at': datetime.now().isoformat()
+                })
+            except Exception as txn_err:
+                print(f"Ghi payment_transactions cho checkout thất bại: {str(txn_err)}")
 
             db.table_orders.delete_many({'table_id': table_id, 'business_id': business_id})
             db.dining_tables.update_one({'id': table_id, 'business_id': business_id}, {'$set': {'status': 'Còn trống'}})
@@ -2911,154 +2981,12 @@ def api_transactions_delete(id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ========== SPA & KARAOKE ==========
-@app.route('/spa')
-@login_required
-def spa():
-    business_id = session.get('business_id') or session['user_id']
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
-    try:
-        brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
-    except Exception as db_err:
-        print(f"MongoDB brand_color select failed: {str(db_err)}")
-        brand_color = '#06b6d4'
-    try:
-        services_data = list(db.products.find(
-            {'is_active': 1, 'channel_type': 'spa', 'business_id': business_id, 'name': {'$ne': 'Phí Dịch Vụ Spa'}},
-            {'_id': 0}
-        ).sort('name', 1))
-    except Exception as db_err:
-        print(f"MongoDB services select failed: {str(db_err)}")
-        services_data = []
-    return render_template('spa.html', services=services_data, brand_name=brand_name, brand_color=brand_color)
+# ========== SPA ==========
+# Route ngành Spa (spa/add_spa/delete_spa/checkout_spa/booking/create_appointment/chamcong_spa)
+# đã chuyển sang blueprints/spa_bp.py — xem khối "Register Blueprints" ở cuối file để biết
+# cách đăng ký. Đừng định nghĩa lại các route này ở đây, sẽ đăng ký trùng URL với blueprint.
 
-
-@app.route('/add_spa', methods=['GET', 'POST'])
-@login_required
-def add_spa():
-    business_id = session.get('business_id') or session['user_id']
-    if request.method == 'POST':
-        try:
-            image_file = request.files.get('image')
-            filename = ""
-            if image_file and image_file.filename != '' and allowed_file(image_file.filename):
-                filename = secure_filename(image_file.filename)
-                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            db.products.insert_one({
-                'id': next_mongo_id('products'),
-                'name': request.form['name'],
-                'category': 'Spa & Beauty',
-                'channel_type': 'spa',
-                'stock': 9999,
-                'price': float(request.form['price']),
-                'image': filename,
-                'is_active': 1,
-                'business_id': business_id
-            })
-            return redirect(url_for('spa'))
-        except Exception as e:
-            return f"Lỗi thêm dịch vụ spa: {str(e)}", 500
-    return render_template('add_spa.html')
-
-
-@app.route('/delete_spa/<int:id>')
-@login_required
-def delete_spa(id):
-    business_id = session.get('business_id') or session['user_id']
-    try:
-        owns, err = _assert_owns_row_mongo('products', id, business_id)
-        if not owns:
-            return err, 403
-        db.products.update_one({'id': id, 'business_id': business_id}, {'$set': {'is_active': 0}})
-        return redirect(url_for('spa'))
-    except Exception as e:
-        return f"Lỗi xóa dịch vụ spa: {str(e)}", 500
-
-
-@app.route('/checkout_spa', methods=['POST'])
-@login_required
-def checkout_spa():
-    business_id = session.get('business_id') or session['user_id']
-    try:
-        product_id = request.form['product_id']
-        if not _assert_owns_product(product_id, business_id):
-            return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
-        qty = int(request.form['quantity'])
-        prod = db.products.find_one({'id': product_id}, {'price': 1, '_id': 0})
-        if prod:
-            price = prod['price']
-            total_price = price * qty
-            order_code = f"SPA-{uuid.uuid4().hex[:8].upper()}"
-            order_id = next_mongo_id('orders')
-            db.orders.insert_one({
-                'id': order_id,
-                'order_code': order_code,
-                'channel': 'spa',
-                'total_amount': total_price,
-                'business_id': business_id,
-                'created_at': datetime.now().isoformat()
-            })
-            db.order_items.insert_one({
-                'id': next_mongo_id('order_items'),
-                'order_id': order_id,
-                'product_id': product_id,
-                'quantity': qty,
-                'price': price,
-                'total_price': total_price,
-                'business_id': business_id
-            })
-        return redirect(url_for('spa'))
-    except Exception as e:
-        return f"Lỗi thanh toán spa: {str(e)}", 500
-
-
-@app.route('/booking')
-@app.route('/booking/qr/<spa_id>')
-@app.route('/booking/service/<service_id>')
-def public_booking(spa_id=None, service_id=None):
-    try:
-        query_filter = {'is_active': 1, 'channel_type': 'spa', 'name': {'$ne': 'Phí Dịch Vụ Spa'}}
-        # spa_id trong QR chính là business_id của tiệm — chỉ hiện đúng dịch vụ của tiệm đó, không trộn tiệm khác
-        if spa_id:
-            query_filter['business_id'] = spa_id
-        services_data = list(db.products.find(query_filter, {'_id': 0}))
-    except Exception as e:
-        print(f"MongoDB public_booking services select failed: {str(e)}")
-        services_data = []
-    return render_template('booking.html', services=services_data, pre_selected_service_id=service_id, spa_id=spa_id)
-
-
-@app.route('/create_appointment', methods=['POST'])
-def create_appointment():
-    data = request.json or {}
-    try:
-        # Route public (khách đặt lịch, không có session) — xác định business_id qua dịch vụ được chọn
-        svc = db.products.find_one({'id': data['service_id']}, {'business_id': 1, '_id': 0})
-        if not svc:
-            return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
-        appointment_id = next_mongo_id('appointments')
-        db.appointments.insert_one({
-            'id': appointment_id,
-            'customer_name': data['name'],
-            'customer_phone': data['phone'],
-            'service_id': data['service_id'],
-            'staff_id': data.get('staff_id'),
-            'book_time': data['book_time'],
-            'note': data.get('note'),
-            'status': 'pending',
-            'business_id': svc['business_id']
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
-    # id trả về cho booking.html hiển thị mã tra cứu lịch hẹn (trước đây đọc từ
-    # supabase.insert().select() — insert_one() của Mongo không tự trả row nên phải trả tay).
-    return jsonify({'success': True, 'id': appointment_id})
-
-
+# ========== KARAOKE ==========
 @app.route('/karaoke')
 @login_required
 def karaoke():
@@ -5122,14 +5050,7 @@ def chamcong_nail():
         return denied
     return render_template('chamcong_nail.html')
 
-@app.route('/chamcong/spa')
-@app.route('/chamcong_spa')
-@login_required
-def chamcong_spa():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
-    return render_template('chamcong_spa.html')
+# chamcong_spa (/chamcong/spa, /chamcong_spa) đã chuyển sang blueprints/spa_bp.py
 
 @app.route('/chamcong/vanphong')
 @app.route('/chamcong_vanphong')
@@ -6944,6 +6865,16 @@ try:
     app.register_blueprint(email_test_bp)
 except Exception as bp_err:
     print(f"Error registering email_test_bp: {str(bp_err)}")
+
+# Kiến trúc "1 ngành = 1 file": blueprints/spa_bp.py là bản mẫu — file đó @app.route(...) thẳng
+# vào chính `app` này (không dùng flask.Blueprint — xem lý do ở đầu file đó), nên chỉ cần import
+# là đủ để route được đăng ký, không cần register_blueprint(). Mỗi ngành mới (fnb, nail,
+# karaoke...) thêm 1 dòng import y hệt khối này. Phải import SAU khi mọi hàm dùng chung
+# (login_required, _assert_owns_product...) đã định nghĩa xong ở trên.
+try:
+    import blueprints.spa_bp  # noqa: F401 — import để đăng ký route, không cần dùng tên module
+except Exception as bp_err:
+    print(f"Error registering blueprints.spa_bp: {str(bp_err)}")
 
 
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========
