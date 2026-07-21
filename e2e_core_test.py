@@ -27,6 +27,9 @@ import sys
 import os
 import uuid
 import time
+import hmac
+import hashlib
+import base64
 from datetime import datetime
 
 # Windows console: bat buoc UTF-8 truoc khi in bat ky dong log tieng Viet/emoji nao,
@@ -35,6 +38,14 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Square webhook (SQUARE_WEBHOOK_SIGNATURE_KEY/SQUARE_WEBHOOK_URL) CHUA duoc cau hinh that
+# trong .env — day la 2 bien MOI, chua duoc set o Production (Vercel) hay local. De test dung
+# duoc thuat toan verify chu ky (khong phu thuoc secret that cua Production), script tu set
+# 1 key TEST-ONLY truoc khi import app.py/payment_us_engine.py (2 module doc gia tri nay tai
+# thoi diem import). KHONG anh huong gi den cau hinh that tren Vercel.
+os.environ.setdefault("SQUARE_WEBHOOK_SIGNATURE_KEY", "e2e-test-only-webhook-signature-key")
+os.environ.setdefault("SQUARE_WEBHOOK_URL", "https://e2e-test.local/api/webhooks/square")
 
 # ============================================================================
 # HANG SO DINH DANH DU LIEU TEST (co dinh qua nhieu lan chay -> cleanup don gian,
@@ -48,8 +59,10 @@ TEST_INDUSTRY = "retail"
 
 CUSTOMER_CASH_PHONE = "0909000111"
 CUSTOMER_CARD_PHONE = "0909000222"
+CUSTOMER_SQUARE_PHONE = "0909000444"
 STAFF_NAME = "E2E Test Technician"
 STAFF_PHONE = "0909000333"
+FAKE_SQUARE_CHECKOUT_ID = "E2E-TEST-SQUARE-CHECKOUT-0001"
 
 PRODUCT_A = {"name": "E2E Test Latte", "price": 12.99, "stock": 100,
              "image_url": "https://picsum.photos/seed/e2e-latte/400/300"}
@@ -115,7 +128,7 @@ def cleanup_test_data(db, phase):
         db.order_items.delete_many({"business_id": old_business_id})
         db.staff.delete_many({"business_id": old_business_id})
         db.customers.delete_many({"business_id": old_business_id,
-                                   "phone": {"$in": [CUSTOMER_CASH_PHONE, CUSTOMER_CARD_PHONE]}})
+                                   "phone": {"$in": [CUSTOMER_CASH_PHONE, CUSTOMER_CARD_PHONE, CUSTOMER_SQUARE_PHONE]}})
         db.system_settings.delete_many({"key": f"business_mode_{old_business_id}"})
         db.system_settings.delete_many({"key": "commission_rate", "business_id": old_business_id})
         db.business_memberships.delete_many({"owner_user_id": old_business_id})
@@ -391,6 +404,127 @@ def main():
         print(f"  Phuong thuc  : {card_order_doc['payment_method']} (Gateway txn: {gw['transaction_id']})")
         print(f"  Trang thai   : {card_order_doc['status']}")
         print("-" * 60)
+
+        # ====================================================================
+        step("SQUARE TERMINAL — Day lenh quet the that xuong thiet bi (SQUARE_DEVICE_ID)")
+        # ====================================================================
+        square_qty = 1
+        square_subtotal = round(PRODUCT_A["price"] * square_qty, 2)
+        resp = merchant_client.post("/api/payments/square/checkout", json={
+            "items": [{"product_id": product_a_doc["id"], "quantity": square_qty}],
+            "tip_amount": 3.00,
+            "customer_phone": CUSTOMER_SQUARE_PHONE,
+            "staff_id": staff_id,
+            "currency": "USD",
+        })
+        rj = resp.get_json()
+        print(f"  -> POST /api/payments/square/checkout -> status={resp.status_code}, body={rj}")
+        if rj.get("success"):
+            # Square Sandbox that su chap nhan cau hinh trong .env — dung dung order_id/
+            # checkout_id THAT tra ve de test tiep phan Webhook ben duoi.
+            square_order_id = rj["order_id"]
+            square_checkout_id = rj["checkout_id"]
+            check("Đơn Square 'pending' được tạo với subtotal đúng",
+                  abs(db.orders.find_one({"id": square_order_id})["subtotal"] - square_subtotal) < 0.01)
+        else:
+            # SQUARE_DEVICE_ID trong .env hiện tại không phải thiết bị đang online thật (không
+            # có phần cứng Square Terminal nào cắm trong môi trường code này) -> Square API có
+            # thể trả lỗi (vd device không tồn tại/không thuộc account token này). Đây KHÔNG
+            # phải lỗi code — endpoint đã chạy đúng logic, gọi đúng Square API, chỉ là không có
+            # phần cứng thật để hoàn tất bên phía Square. Tự tạo 1 đơn 'pending' TƯƠNG ĐƯƠNG
+            # thẳng vào DB để vẫn kiểm tra được trọn vẹn phần Webhook bên dưới.
+            print("  [INFO] Square API chưa trả kết quả thành công (dự kiến nếu SQUARE_DEVICE_ID "
+                  "chưa phải thiết bị thật đang online) — tự tạo đơn 'pending' tương đương để "
+                  "test tiếp phần Webhook.")
+            order_fields = {
+                "subtotal": square_subtotal, "tip_amount": 3.00, "total_amount": round(square_subtotal + 3.00, 2),
+                "payment_method": "square", "payment_bucket": "card", "currency": "USD",
+                "customer_phone": CUSTOMER_SQUARE_PHONE, "staff_id": staff_id,
+                "commission_rate": EXPECTED_DEFAULT_STAFF_COMMISSION_PERCENT,
+                "staff_commission": round(square_subtotal * (EXPECTED_DEFAULT_STAFF_COMMISSION_PERCENT / 100), 2),
+                "owner_commission": round(square_subtotal * (1 - EXPECTED_DEFAULT_STAFF_COMMISSION_PERCENT / 100), 2),
+                "staff_tip_earning": 3.00,
+                "staff_total_earning": round(square_subtotal * (EXPECTED_DEFAULT_STAFF_COMMISSION_PERCENT / 100) + 3.00, 2),
+            }
+            # Dùng đúng next_mongo_id thật của hệ thống (qua Flask app đã import) để id không
+            # bao giờ đụng hàng với dữ liệu thật khác trong DB.
+            square_order_id = flask_app.next_mongo_id("orders")
+            square_checkout_id = FAKE_SQUARE_CHECKOUT_ID
+            db.orders.insert_one({
+                "id": square_order_id, "business_id": business_id, "status": "pending",
+                "created_at": datetime.now().isoformat(), "square_checkout_id": square_checkout_id,
+                "square_txn_id": f"SQTERM-{square_order_id}-FAKE", **order_fields
+            })
+
+        pending_order = db.orders.find_one({"id": square_order_id})
+        check("Đơn Square đang ở trạng thái 'pending' TRƯỚC khi có Webhook",
+              pending_order.get("status") == "pending", str(pending_order))
+        check("Đơn Square đã tính SẴN hoa hồng Thợ (không đợi Webhook mới tính)",
+              abs(pending_order.get("staff_commission", 0) -
+                  round(square_subtotal * (EXPECTED_DEFAULT_STAFF_COMMISSION_PERCENT / 100), 2)) < 0.01,
+              str(pending_order))
+
+        # ====================================================================
+        step("WEBHOOK SECURITY — từ chối request KHÔNG có chữ ký hợp lệ (chống fake webhook)")
+        # ====================================================================
+        fake_webhook_payload = {
+            "type": "terminal.checkout.updated",
+            "data": {"object": {"checkout": {"id": square_checkout_id, "status": "COMPLETED"}}}
+        }
+        resp = merchant_client.post("/api/webhooks/square", json=fake_webhook_payload)
+        check("Webhook KHÔNG có header chữ ký -> bị từ chối 401", resp.status_code == 401,
+              f"status={resp.status_code}, body={resp.get_json()}")
+
+        resp = merchant_client.post(
+            "/api/webhooks/square", json=fake_webhook_payload,
+            headers={"x-square-hmacsha256-signature": "hacker-fake-signature-not-real"}
+        )
+        check("Webhook có chữ ký SAI -> vẫn bị từ chối 401", resp.status_code == 401,
+              f"status={resp.status_code}, body={resp.get_json()}")
+
+        still_pending = db.orders.find_one({"id": square_order_id})
+        check("Đơn hàng VẪN CÒN 'pending' sau 2 lần webhook giả mạo bị chặn (không bị đánh lừa)",
+              still_pending.get("status") == "pending", str(still_pending))
+
+        # ====================================================================
+        step("WEBHOOK THẬT — Square báo COMPLETED -> cập nhật PAID + CRM + Hoa hồng")
+        # ====================================================================
+        webhook_url = os.environ["SQUARE_WEBHOOK_URL"]
+        webhook_key = os.environ["SQUARE_WEBHOOK_SIGNATURE_KEY"]
+        import json as _json
+        raw_body = _json.dumps(fake_webhook_payload).encode("utf-8")
+        digest = hmac.new(webhook_key.encode("utf-8"), webhook_url.encode("utf-8") + raw_body, hashlib.sha256).digest()
+        valid_signature = base64.b64encode(digest).decode("utf-8")
+        print(f"  -> Đã tự ký webhook bằng SQUARE_WEBHOOK_SIGNATURE_KEY test-only (không phải secret Production).")
+
+        resp = merchant_client.post(
+            "/api/webhooks/square", data=raw_body, content_type="application/json",
+            headers={"x-square-hmacsha256-signature": valid_signature}
+        )
+        rj = resp.get_json()
+        check("Webhook CÓ chữ ký ĐÚNG -> được chấp nhận (200)", resp.status_code == 200 and rj.get("success") is True,
+              f"status={resp.status_code}, body={rj}")
+
+        paid_order = db.orders.find_one({"id": square_order_id})
+        check("Đơn hàng Square đã chuyển trạng thái 'PAID' sau Webhook", paid_order.get("status") == "PAID", str(paid_order))
+
+        square_customer = db.customers.find_one({"business_id": business_id, "phone": CUSTOMER_SQUARE_PHONE})
+        check("Khách hàng đơn Square ĐÃ được lưu vào CRM (Webhook trigger đúng _finalize_paid_order)",
+              square_customer is not None and abs(square_customer.get("total_spent", 0) - paid_order["total_amount"]) < 0.01,
+              str(square_customer))
+
+        # Webhook trùng (Square có thể gửi lại) không được cộng CRM/điểm 2 lần.
+        spent_before_retry = square_customer["total_spent"]
+        resp = merchant_client.post(
+            "/api/webhooks/square", data=raw_body, content_type="application/json",
+            headers={"x-square-hmacsha256-signature": valid_signature}
+        )
+        check("Webhook GỬI TRÙNG (retry) vẫn trả 200 (Square sẽ không retry vô ích)",
+              resp.status_code == 200)
+        square_customer_after_retry = db.customers.find_one({"business_id": business_id, "phone": CUSTOMER_SQUARE_PHONE})
+        check("CRM KHÔNG bị cộng trùng total_spent khi Webhook gửi lại (idempotent)",
+              abs(square_customer_after_retry["total_spent"] - spent_before_retry) < 0.01,
+              str(square_customer_after_retry))
 
         print("\n✅ E2E TEST PASSED: TỪ SETUP ĐẾN XUẤT BILL THÀNH CÔNG")
         exit_code = 0

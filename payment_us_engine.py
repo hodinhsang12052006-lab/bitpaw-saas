@@ -13,12 +13,25 @@ Square Sandbox docs: https://developer.squareup.com/docs/devtools/sandbox/paymen
 """
 import os
 import uuid
+import hmac
+import hashlib
+import base64
 import requests
 
 SQUARE_ENV = os.environ.get('SQUARE_ENV', 'sandbox')
 SQUARE_ACCESS_TOKEN = os.environ.get('SQUARE_ACCESS_TOKEN')
 SQUARE_LOCATION_ID = os.environ.get('SQUARE_LOCATION_ID')
 SQUARE_DEVICE_ID = os.environ.get('SQUARE_DEVICE_ID')  # optional: physical Square Terminal device
+# Signature key riêng của 1 Webhook Subscription cụ thể trong Square Developer Dashboard
+# (Webhooks -> chọn subscription -> Signature Key) — KHÁC với SQUARE_ACCESS_TOKEN, không
+# được lẫn lộn 2 giá trị này.
+SQUARE_WEBHOOK_SIGNATURE_KEY = os.environ.get('SQUARE_WEBHOOK_SIGNATURE_KEY')
+# URL notification CHÍNH XÁC như đã đăng ký trong Square Dashboard (vd:
+# https://bitpawsoftware.com/api/webhooks/square) — chữ ký Square tính trên (URL + body raw),
+# nên chỉ cần lệch 1 ký tự (http vs https, có/không dấu "/" cuối...) là verify luôn SAI dù
+# key đúng. Đặt qua env thay vì tự suy ra từ request.url vì request.url có thể bị proxy/
+# Vercel edge chỉnh sai scheme/host so với URL thật khách hàng (Square) đã gọi tới.
+SQUARE_WEBHOOK_URL = os.environ.get('SQUARE_WEBHOOK_URL')
 
 SQUARE_API_BASE = (
     'https://connect.squareupsandbox.com' if SQUARE_ENV != 'production'
@@ -129,3 +142,37 @@ def start_us_payment(amount_usd, txn_id, description='BitPaw POS Order'):
         if result.get('configured'):
             return result
     return create_payment_link(amount_usd, txn_id, description=description)
+
+
+def verify_webhook_signature(request_url, request_body_bytes, signature_header):
+    """Xác thực chữ ký Webhook Square (chống fake request giả mạo Webhook that).
+
+    Thuật toán CHÍNH THỨC của Square (Webhooks API v2):
+        HMAC-SHA256(key=SQUARE_WEBHOOK_SIGNATURE_KEY, message=notification_url + raw_body)
+        -> base64-encode -> so sánh với header 'x-square-hmacsha256-signature'.
+    Docs: https://developer.squareup.com/docs/webhooks/step3validate
+
+    FAIL-CLOSED tuyệt đối: bất kỳ điều kiện nào không rõ ràng (thiếu signature key, thiếu
+    header, thiếu URL đã cấu hình) đều trả về False — KHÔNG BAO GIỜ coi 1 request là hợp lệ
+    khi chưa xác minh được chắc chắn, dù có thể gây gián đoạn tạm thời nếu quên cấu hình env.
+
+    request_body_bytes PHẢI là bytes RAW của request (request.get_data() ở Flask, gọi TRƯỚC
+    khi Flask parse JSON) — verify trên dữ liệu đã parse-lại-serialize sẽ sai chữ ký vì thứ tự
+    key/khoảng trắng có thể khác bản gốc Square gửi.
+    """
+    if not SQUARE_WEBHOOK_SIGNATURE_KEY:
+        return False
+    if not signature_header:
+        return False
+    url_to_sign = SQUARE_WEBHOOK_URL or request_url
+    if not url_to_sign:
+        return False
+    try:
+        payload = url_to_sign.encode('utf-8') + request_body_bytes
+        digest = hmac.new(SQUARE_WEBHOOK_SIGNATURE_KEY.encode('utf-8'), payload, hashlib.sha256).digest()
+        expected_signature = base64.b64encode(digest).decode('utf-8')
+    except Exception:
+        return False
+    # So sánh an toàn thời gian không đổi (chống timing attack dò từng byte chữ ký) — KHÔNG
+    # bao giờ dùng "==" thường để so 2 chuỗi bí mật/chữ ký.
+    return hmac.compare_digest(expected_signature, signature_header)

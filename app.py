@@ -81,9 +81,23 @@ try:
 except Exception as _import_err:
     print(f"[!] Critical: could not import payment_us_engine ({_import_err}). US Square payment route will report 'not configured'.")
     class _PaymentUsEngineFallback:
+        SQUARE_DEVICE_ID = None
+
         @staticmethod
         def start_us_payment(amount_usd, txn_id, description='BitPaw POS Order'):
             return {'success': False, 'configured': False, 'message': 'payment_us_engine module không khả dụng trên server này.'}
+
+        @staticmethod
+        def is_configured():
+            return False
+
+        @staticmethod
+        def create_terminal_checkout(amount_usd, txn_id, note='BitPaw POS Order'):
+            return {'success': False, 'configured': False, 'message': 'payment_us_engine module không khả dụng trên server này.'}
+
+        @staticmethod
+        def verify_webhook_signature(request_url, request_body_bytes, signature_header):
+            return False  # fail-closed: module lỗi/không có -> KHÔNG BAO GIỜ coi webhook hợp lệ
     payment_us_engine = _PaymentUsEngineFallback()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -1727,111 +1741,143 @@ def api_product_get(id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+def _compute_cart_order(business_id, data):
+    """Tính subtotal/tip/total/payment_bucket/hoa hồng từ payload giỏ hàng — DÙNG CHUNG cho
+    cả api_sales_checkout (cash/mock) LẪN api_square_checkout (Square Terminal thật), đảm bảo
+    2 luồng luôn tính tiền giống hệt nhau (sửa 1 chỗ, áp dụng cả 2). Raise ValueError(message)
+    nếu dữ liệu không hợp lệ — caller tự bắt và trả 400/404 tương ứng.
+    Trả về (order_fields: dict, order_items_docs: list, stock_updates: list)."""
+    items = data.get('items') or []
+    if not items:
+        raise ValueError("Giỏ hàng trống.")
+    product_ids = [it['product_id'] for it in items]
+    products_map = {
+        p['id']: p for p in db.products.find(
+            {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
+        )
+    }
+    subtotal = 0
+    order_items_docs = []
+    stock_updates = []
+    for it in items:
+        prod = products_map.get(it['product_id'])
+        if not prod:
+            continue  # chặn bán sản phẩm không thuộc tenant này hoặc không tồn tại
+        qty = int(it.get('quantity', 1))
+        price = prod.get('price', 0)
+        line_total = qty * price
+        subtotal += line_total
+        order_items_docs.append({
+            'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
+        })
+        if 'stock' in prod:
+            stock_updates.append(UpdateOne(
+                {'id': prod['id'], 'business_id': business_id}, {'$set': {'stock': prod['stock'] - qty}}
+            ))
+    if not order_items_docs:
+        raise ValueError("Không có sản phẩm hợp lệ trong giỏ hàng.")
+
+    # Tip: số tiền cố định (tip_amount) hoặc theo % subtotal (tip_percent) — client gửi 1
+    # trong 2, không gửi thì mặc định 0. total_amount = subtotal + tip (số tiền thực thu),
+    # subtotal/tip_amount được lưu riêng để đối soát/hiển thị hoá đơn tách bạch.
+    tip_amount = data.get('tip_amount')
+    if tip_amount is None and data.get('tip_percent') is not None:
+        tip_amount = subtotal * (float(data['tip_percent']) / 100)
+    tip_amount = round(float(tip_amount or 0), 2)
+    total_amount = round(subtotal + tip_amount, 2)
+
+    # Phân loại thanh toán cho báo cáo Cash/Card: payment_method giữ nguyên chuỗi gốc
+    # (không phá các màn hình khác đang gửi 'bank'/'momo'/'stripe'/'vietqr'...), nhưng luôn
+    # kèm thêm payment_bucket chỉ gồm đúng 2 giá trị 'cash' hoặc 'card' — mọi hình thức
+    # KHÔNG PHẢI tiền mặt (bank, momo, thẻ, ví điện tử...) đều gộp vào 'card' vì bản chất
+    # đều là tiền vào tài khoản/không phải tiền mặt tại quầy — Dashboard tổng hợp doanh thu
+    # dựa trên field này để đối soát 2 quỹ tách biệt (tiền mặt vs tiền vào tài khoản).
+    payment_method = (data.get('payment_method') or 'cash').strip().lower()
+    payment_bucket = 'cash' if payment_method == 'cash' else 'card'
+
+    # Hoa hồng Chủ/Thợ: chỉ áp dụng khi đơn có gắn staff_id (ai trực tiếp phục vụ khách).
+    # Chia theo subtotal (giá trị dịch vụ/sản phẩm) — Tip KHÔNG chia, cộng thẳng 100% cho thợ.
+    staff_id = data.get('staff_id')
+    commission_fields = {}
+    if staff_id is not None:
+        try:
+            staff_id = int(staff_id)
+        except (TypeError, ValueError):
+            raise ValueError("staff_id không hợp lệ.")
+        staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id})
+        if not staff_doc:
+            raise ValueError("Nhân viên (staff_id) không tồn tại hoặc không thuộc cửa hàng này.")
+        commission_rate = _resolve_staff_commission_rate(business_id, staff_doc, data.get('commission_rate'))
+        staff_commission = round(subtotal * (commission_rate / 100), 2)
+        owner_commission = round(subtotal - staff_commission, 2)
+        commission_fields = {
+            'staff_id': staff_id,
+            'commission_rate': commission_rate,
+            'staff_commission': staff_commission,
+            'owner_commission': owner_commission,
+            'staff_tip_earning': tip_amount,  # Tip 100% về thợ, không qua công thức chia %
+            'staff_total_earning': round(staff_commission + tip_amount, 2),
+        }
+
+    order_fields = {
+        'subtotal': subtotal,
+        'tip_amount': tip_amount,
+        'total_amount': total_amount,
+        'payment_method': payment_method,
+        'payment_bucket': payment_bucket,
+        'currency': data.get('currency', 'VND'),
+    }
+    order_fields.update(commission_fields)
+    if data.get('customer_phone'):
+        order_fields['customer_phone'] = data['customer_phone']
+    return order_fields, order_items_docs, stock_updates
+
+
+def _finalize_paid_order(order_doc):
+    """Gọi NGAY SAU KHI 1 đơn hàng được xác nhận thanh toán xong — cộng điểm loyalty/tạo CRM.
+    Dùng chung cho cả luồng đồng bộ (api_sales_checkout, biết ngay kết quả) LẪN luồng bất
+    đồng bộ (webhook Square, chỉ biết kết quả sau khi khách quẹt thẻ xong ở quầy)."""
+    if order_doc.get('customer_phone'):
+        _award_loyalty_points(
+            order_doc['business_id'], order_doc['customer_phone'], order_doc['total_amount'],
+            currency=order_doc.get('currency', 'VND')
+        )
+
+
 @app.route('/api/sales/checkout', methods=['POST'])
 @login_required
 def api_sales_checkout():
     """Bán hàng trực tiếp (sell.html: 1 sản phẩm; spa.html: giỏ hàng nhiều dịch vụ) — khác
     checkout_table() (dùng cho đơn theo bàn F&B qua table_orders). Route này tạo thẳng 1
     order + order_items từ danh sách item client gửi lên, không qua bàn. Trừ tồn kho nếu sản
-    phẩm có field `stock` (dịch vụ spa thường không track tồn kho nên bỏ qua an toàn)."""
+    phẩm có field `stock` (dịch vụ spa thường không track tồn kho nên bỏ qua an toàn).
+    Dùng cho thanh toán Cash HOẶC các cổng thanh toán "biết kết quả ngay" (không qua Square
+    Terminal vật lý) — xem api_square_checkout() cho luồng quẹt thẻ thật bất đồng bộ."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
-    items = data.get('items') or []
-    if not items:
-        return jsonify({"success": False, "message": "Giỏ hàng trống."}), 400
     try:
-        product_ids = [it['product_id'] for it in items]
-        products_map = {
-            p['id']: p for p in db.products.find(
-                {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
-            )
-        }
-        subtotal = 0
-        order_items_docs = []
-        stock_updates = []
-        for it in items:
-            prod = products_map.get(it['product_id'])
-            if not prod:
-                continue  # chặn bán sản phẩm không thuộc tenant này hoặc không tồn tại
-            qty = int(it.get('quantity', 1))
-            price = prod.get('price', 0)
-            line_total = qty * price
-            subtotal += line_total
-            order_items_docs.append({
-                'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
-            })
-            if 'stock' in prod:
-                stock_updates.append(UpdateOne(
-                    {'id': prod['id'], 'business_id': business_id}, {'$set': {'stock': prod['stock'] - qty}}
-                ))
-        if not order_items_docs:
-            return jsonify({"success": False, "message": "Không có sản phẩm hợp lệ trong giỏ hàng."}), 400
+        order_fields, order_items_docs, stock_updates = _compute_cart_order(business_id, data)
+    except ValueError as e:
+        msg = str(e)
+        status_code = 404 if 'không tồn tại' in msg else 400
+        return jsonify({"success": False, "message": msg}), status_code
 
-        # Tip: số tiền cố định (tip_amount) hoặc theo % subtotal (tip_percent) — client gửi 1
-        # trong 2, không gửi thì mặc định 0. total_amount = subtotal + tip (số tiền thực thu),
-        # subtotal/tip_amount được lưu riêng để đối soát/hiển thị hoá đơn tách bạch.
-        tip_amount = data.get('tip_amount')
-        if tip_amount is None and data.get('tip_percent') is not None:
-            tip_amount = subtotal * (float(data['tip_percent']) / 100)
-        tip_amount = round(float(tip_amount or 0), 2)
-        total_amount = round(subtotal + tip_amount, 2)
-
-        # Phân loại thanh toán cho báo cáo Cash/Card: payment_method giữ nguyên chuỗi gốc
-        # (không phá các màn hình khác đang gửi 'bank'/'momo'/'stripe'/'vietqr'...), nhưng luôn
-        # kèm thêm payment_bucket chỉ gồm đúng 2 giá trị 'cash' hoặc 'card' — mọi hình thức
-        # KHÔNG PHẢI tiền mặt (bank, momo, thẻ, ví điện tử...) đều gộp vào 'card' vì bản chất
-        # đều là tiền vào tài khoản/không phải tiền mặt tại quầy — Dashboard tổng hợp doanh thu
-        # dựa trên field này để đối soát 2 quỹ tách biệt (tiền mặt vs tiền vào tài khoản).
-        payment_method = (data.get('payment_method') or 'cash').strip().lower()
-        payment_bucket = 'cash' if payment_method == 'cash' else 'card'
-
-        # Hoa hồng Chủ/Thợ: chỉ áp dụng khi đơn có gắn staff_id (ai trực tiếp phục vụ khách).
-        # Chia theo subtotal (giá trị dịch vụ/sản phẩm) — Tip KHÔNG chia, cộng thẳng 100% cho thợ.
-        staff_id = data.get('staff_id')
-        staff_doc = None
-        commission_fields = {}
-        if staff_id is not None:
-            try:
-                staff_id = int(staff_id)
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "message": "staff_id không hợp lệ."}), 400
-            staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id})
-            if not staff_doc:
-                return jsonify({"success": False, "message": "Nhân viên (staff_id) không tồn tại hoặc không thuộc cửa hàng này."}), 404
-            commission_rate = _resolve_staff_commission_rate(business_id, staff_doc, data.get('commission_rate'))
-            staff_commission = round(subtotal * (commission_rate / 100), 2)
-            owner_commission = round(subtotal - staff_commission, 2)
-            commission_fields = {
-                'staff_id': staff_id,
-                'commission_rate': commission_rate,
-                'staff_commission': staff_commission,
-                'owner_commission': owner_commission,
-                'staff_tip_earning': tip_amount,  # Tip 100% về thợ, không qua công thức chia %
-                'staff_total_earning': round(staff_commission + tip_amount, 2),
-            }
-
+    try:
         order_id = next_mongo_id('orders')
         order_doc = {
             'id': order_id,
             'business_id': business_id,
-            'subtotal': subtotal,
-            'tip_amount': tip_amount,
-            'total_amount': total_amount,
-            'payment_method': payment_method,
-            'payment_bucket': payment_bucket,
             'status': data.get('status', 'completed'),
             'created_at': datetime.now().isoformat(),
         }
-        order_doc.update(commission_fields)
-        if data.get('customer_phone'):
-            order_doc['customer_phone'] = data['customer_phone']
+        order_doc.update(order_fields)
         db.orders.insert_one(order_doc)
 
         for oi in order_items_docs:
             oi['id'] = next_mongo_id('order_items')
             oi['order_id'] = order_id
-            if data.get('customer_phone'):
-                oi['customer_phone'] = data['customer_phone']
+            if order_fields.get('customer_phone'):
+                oi['customer_phone'] = order_fields['customer_phone']
         db.order_items.insert_many(order_items_docs)
 
         if stock_updates:
@@ -1840,18 +1886,166 @@ def api_sales_checkout():
         # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
         # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
         # trực tiếp (route này) không bao giờ được ghi nhận vào CRM/loyalty dù có nhập SĐT.
-        if data.get('customer_phone'):
-            _award_loyalty_points(business_id, data['customer_phone'], total_amount, currency=data.get('currency', 'VND'))
+        _finalize_paid_order(order_doc)
 
-        response_data = {
-            "success": True, "order_id": order_id,
-            "subtotal": subtotal, "tip_amount": tip_amount, "total_amount": total_amount,
-            "payment_method": payment_method, "payment_bucket": payment_bucket,
-        }
-        response_data.update(commission_fields)
-        return jsonify(response_data)
+        return jsonify({"success": True, "order_id": order_id, **order_fields})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== SQUARE TERMINAL — QUẸT THẺ THẬT (BẤT ĐỒNG BỘ QUA WEBHOOK) ==========
+# Khác api_sales_checkout (biết kết quả thanh toán NGAY trong request, dùng cho Cash/mock):
+# luồng này TẠO ĐƠN TRẠNG THÁI 'pending' trước, đẩy lệnh xuống thiết bị Square Terminal vật lý
+# (SQUARE_DEVICE_ID), rồi CHỜ webhook /api/webhooks/square báo kết quả thật sau khi khách quẹt
+# thẻ xong tại quầy — có thể mất vài giây đến vài chục giây, không thể trả lời đồng bộ trong
+# 1 request HTTP duy nhất.
+@app.route('/api/payments/square/checkout', methods=['POST'])
+@login_required
+def api_square_checkout():
+    """Web POS gọi khi thu ngân chọn thanh toán 'Card' và muốn quẹt thẻ THẬT qua Square
+    Terminal. Tạo trước 1 đơn hàng trạng thái 'pending' (tính đủ subtotal/tip/hoa hồng ngay
+    từ lúc này, dùng chung công thức với api_sales_checkout), đẩy lệnh xuống Square, lưu lại
+    checkout_id để webhook đối soát khi có kết quả thật."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        order_fields, order_items_docs, stock_updates = _compute_cart_order(business_id, data)
+    except ValueError as e:
+        msg = str(e)
+        status_code = 404 if 'không tồn tại' in msg else 400
+        return jsonify({"success": False, "message": msg}), status_code
+
+    if not payment_us_engine.is_configured() or not payment_us_engine.SQUARE_DEVICE_ID:
+        return jsonify({
+            "success": False,
+            "message": "Square Terminal chưa được cấu hình đầy đủ (thiếu SQUARE_ACCESS_TOKEN/SQUARE_LOCATION_ID/SQUARE_DEVICE_ID)."
+        }), 503
+
+    try:
+        order_id = next_mongo_id('orders')
+        order_doc = {
+            'id': order_id,
+            'business_id': business_id,
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+        }
+        order_doc.update(order_fields)
+        # Luồng Square Terminal luôn là quẹt thẻ thật — ép cứng payment_method/payment_bucket
+        # bất kể client gửi gì, tránh trường hợp gửi nhầm 'cash' vào route quẹt thẻ.
+        order_doc['payment_method'] = 'square'
+        order_doc['payment_bucket'] = 'card'
+
+        txn_id = f"SQTERM-{order_id}-{uuid.uuid4().hex[:6].upper()}"
+        square_result = payment_us_engine.create_terminal_checkout(
+            order_doc['total_amount'], txn_id, note=f"BitPaw POS Order #{order_id}"
+        )
+        if not square_result.get('configured'):
+            return jsonify({"success": False, "message": square_result.get('message')}), 503
+        if not square_result.get('success'):
+            return jsonify({"success": False, "message": square_result.get('message')}), 502
+
+        order_doc['square_checkout_id'] = square_result.get('checkout_id')
+        order_doc['square_txn_id'] = txn_id
+        db.orders.insert_one(order_doc)
+
+        for oi in order_items_docs:
+            oi['id'] = next_mongo_id('order_items')
+            oi['order_id'] = order_id
+            if order_fields.get('customer_phone'):
+                oi['customer_phone'] = order_fields['customer_phone']
+        db.order_items.insert_many(order_items_docs)
+
+        if stock_updates:
+            db.products.bulk_write(stock_updates)
+
+        return jsonify({
+            "success": True,
+            "order_id": order_id,
+            "checkout_id": square_result.get('checkout_id'),
+            "terminal_status": square_result.get('terminal_status'),
+            "total_amount": order_doc['total_amount'],
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/payments/square/status/<int:order_id>', methods=['GET'])
+@login_required
+def api_square_payment_status(order_id):
+    """Web POS poll route này sau khi gọi api_square_checkout(), hiện 'Đang chờ khách quẹt
+    thẻ...' cho tới khi status chuyển 'PAID' (webhook đã xử lý xong) hoặc 'failed'."""
+    business_id = session.get('business_id') or session['user_id']
+    order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
+    if not order_doc:
+        return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
+    return jsonify({
+        "success": True,
+        "data": {
+            "order_id": order_doc['id'],
+            "status": order_doc.get('status'),
+            "total_amount": order_doc.get('total_amount'),
+        }
+    })
+
+
+@app.route('/api/webhooks/square', methods=['POST'])
+def api_webhook_square():
+    """Nhận tín hiệu THẬT từ Square sau khi khách quẹt thẻ/Apple Pay xong tại Terminal.
+    KHÔNG @login_required — Square gọi server-to-server, không mang session/cookie nào cả.
+    An toàn DUY NHẤT dựa vào verify chữ ký HMAC bên dưới — TUYỆT ĐỐI không tin bất kỳ field
+    nào trong body nếu chữ ký sai/thiếu cấu hình (fail-closed)."""
+    raw_body = request.get_data()
+    signature = request.headers.get('x-square-hmacsha256-signature', '')
+
+    if not payment_us_engine.verify_webhook_signature(request.url, raw_body, signature):
+        current_app.logger.error(
+            "[SQUARE WEBHOOK] Chữ ký không hợp lệ hoặc chưa cấu hình SQUARE_WEBHOOK_SIGNATURE_KEY/"
+            "SQUARE_WEBHOOK_URL — từ chối request."
+        )
+        return jsonify({"success": False, "message": "Invalid signature."}), 401
+
+    try:
+        event = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        event = {}
+    if not event:
+        return jsonify({"success": False, "message": "Invalid JSON body."}), 400
+
+    event_type = event.get('type')
+    if event_type != 'terminal.checkout.updated':
+        # Các loại event khác (payment.updated, ...) chưa xử lý ở route này — vẫn trả 200 để
+        # Square không retry vô ích, chỉ đơn giản bỏ qua.
+        return jsonify({"success": True, "message": "Event type ignored."}), 200
+
+    checkout_obj = ((event.get('data') or {}).get('object') or {}).get('checkout') or {}
+    checkout_id = checkout_obj.get('id')
+    checkout_status = checkout_obj.get('status')
+    if not checkout_id:
+        return jsonify({"success": False, "message": "Missing checkout id."}), 400
+
+    try:
+        order_doc = db.orders.find_one({'square_checkout_id': checkout_id})
+        if not order_doc:
+            current_app.logger.error(f"[SQUARE WEBHOOK] Không tìm thấy đơn hàng nào với checkout_id={checkout_id}")
+            return jsonify({"success": True, "message": "No matching order (ignored)."}), 200
+
+        if checkout_status == 'COMPLETED':
+            # Idempotent: nếu Square gửi trùng webhook (retry) mà đơn đã PAID rồi thì bỏ qua,
+            # không cộng loyalty/hoa hồng 2 lần.
+            if order_doc.get('status') != 'PAID':
+                db.orders.update_one(
+                    {'id': order_doc['id']},
+                    {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()}}
+                )
+                order_doc['status'] = 'PAID'
+                _finalize_paid_order(order_doc)
+        elif checkout_status in ('CANCELED', 'FAILED'):
+            db.orders.update_one({'id': order_doc['id']}, {'$set': {'status': 'failed'}})
+    except Exception as e:
+        current_app.logger.error(f"[SQUARE WEBHOOK] Lỗi xử lý webhook: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    return jsonify({"success": True}), 200
 
 
 @app.route('/api/dashboard/sales_summary', methods=['GET'])

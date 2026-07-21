@@ -322,7 +322,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-black/70 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30">
             <i class="fas fa-spinner fa-pulse text-3xl text-cyan-400"></i>
-            <span class="text-sm font-medium text-gray-200" data-i18n="sell_processing">Đang xử lý đơn hàng...</span>
+            <span id="loadingOverlayText" class="text-sm font-medium text-gray-200" data-i18n="sell_processing">Đang xử lý đơn hàng...</span>
         </div>
     </div>
     <div id="toast" class="toast" data-i18n="sell_toast_default">Thông báo</div>
@@ -590,8 +590,41 @@
             }
         });
 
-        // ========== US MARKET: SQUARE SANDBOX CHECKOUT ==========
+        // ========== SQUARE TERMINAL — QUẸT THẺ THẬT (chờ Webhook xác nhận bất đồng bộ) ==========
+        const loadingOverlayText = document.getElementById('loadingOverlayText');
         const squareSellBtn = document.getElementById('squareSellBtn');
+
+        function setLoadingText(msg) {
+            if (loadingOverlayText) loadingOverlayText.innerText = msg;
+        }
+
+        // Poll GET /api/payments/square/status/<order_id> mỗi 2s cho tới khi Webhook Square
+        // xử lý xong (status chuyển 'PAID'/'failed') hoặc hết 90s thì báo timeout — khách vẫn
+        // có thể đã quẹt thẻ thành công, chỉ là webhook tới chậm, thu ngân nên tự kiểm tra lại
+        // đơn hàng thay vì cho khách quẹt thẻ lần 2 gây trừ tiền trùng.
+        function pollSquarePaymentStatus(orderId, { intervalMs = 2000, timeoutMs = 90000 } = {}) {
+            return new Promise((resolve, reject) => {
+                const startedAt = Date.now();
+                const tick = async () => {
+                    try {
+                        const res = await fetch(`/api/payments/square/status/${orderId}`);
+                        const body = await res.json();
+                        if (body.success && body.data) {
+                            if (body.data.status === 'PAID') return resolve(body.data);
+                            if (body.data.status === 'failed') return reject(new Error('Payment was canceled or failed on the card reader.'));
+                        }
+                    } catch (err) {
+                        console.error('Poll error:', err);
+                    }
+                    if (Date.now() - startedAt > timeoutMs) {
+                        return reject(new Error('Timed out waiting for the card reader. Please check the order status manually.'));
+                    }
+                    setTimeout(tick, intervalMs);
+                };
+                tick();
+            });
+        }
+
         if (squareSellBtn) {
             squareSellBtn.addEventListener('click', async () => {
                 const quantity = parseInt(quantityInput.value);
@@ -603,33 +636,42 @@
                     showToastMessage(`Quantity exceeds stock (${maxStock})`, true);
                     return;
                 }
-                const total = quantity * productPrice;
 
                 squareSellBtn.disabled = true;
+                submitBtn.disabled = true;
+                setLoadingText('Sending amount to the card reader...');
                 showLoading(true);
                 try {
-                    const response = await fetch('/api/us-payment/start', {
+                    const startResp = await fetch('/api/payments/square/checkout', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ amount: Math.round(total * 100) / 100 })
+                        body: JSON.stringify({ items: [{ product_id: productId, quantity: quantity }] })
                     });
-                    const result = await response.json();
-                    if (result.success) {
-                        showToastMessage('✅ Redirecting to Square checkout...');
-                        if (result.checkout_url) {
-                            setTimeout(() => { window.location.href = result.checkout_url; }, 800);
-                        } else if (result.terminal_status) {
-                            showToastMessage(`Square Terminal checkout sent (status: ${result.terminal_status})`);
-                        }
-                    } else {
-                        showToastMessage('Square checkout error: ' + result.message, true);
+                    const startResult = await startResp.json();
+                    if (!startResult.success) {
+                        showToastMessage('Square Terminal error: ' + startResult.message, true);
+                        return;
                     }
+
+                    // Đơn đã được TẠO (status='pending') và lệnh đã đẩy xuống máy — giờ chờ
+                    // khách quẹt thẻ tại quầy, KHÔNG rời trang cho tới khi có kết quả thật.
+                    setLoadingText('⏳ Waiting for the customer to tap/insert their card...');
+                    showToastMessage('💳 Amount sent to the card reader — please tap or insert your card.');
+
+                    const paidData = await pollSquarePaymentStatus(startResult.order_id);
+                    setLoadingText('✅ Payment confirmed!');
+                    showToastMessage(`✅ Payment successful! Order #${paidData.order_id} — $${Number(paidData.total_amount).toFixed(2)}`);
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('index') }}";
+                    }, 1500);
                 } catch (err) {
                     console.error(err);
-                    showToastMessage('Server connection error: ' + err.message, true);
+                    showToastMessage('❌ ' + err.message, true);
                 } finally {
                     squareSellBtn.disabled = false;
+                    submitBtn.disabled = false;
                     showLoading(false);
+                    setLoadingText(t('sell_processing'));
                 }
             });
         }
