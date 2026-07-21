@@ -1916,9 +1916,17 @@ def api_square_checkout():
         return jsonify({"success": False, "message": msg}), status_code
 
     if not payment_us_engine.is_configured() or not payment_us_engine.SQUARE_DEVICE_ID:
+        # Chỉ trả về CỜ true/false (không lộ giá trị secret thật) để biết chính xác biến nào
+        # đang thiếu trên server đang chạy — 3 biến độc lập, có thể chỉ thiếu đúng 1 trong số đó.
         return jsonify({
             "success": False,
-            "message": "Square Terminal chưa được cấu hình đầy đủ (thiếu SQUARE_ACCESS_TOKEN/SQUARE_LOCATION_ID/SQUARE_DEVICE_ID)."
+            "message": "Square Terminal chưa được cấu hình đầy đủ (thiếu SQUARE_ACCESS_TOKEN/SQUARE_LOCATION_ID/SQUARE_DEVICE_ID).",
+            "config_status": {
+                "SQUARE_ACCESS_TOKEN_set": bool(payment_us_engine.SQUARE_ACCESS_TOKEN),
+                "SQUARE_LOCATION_ID_set": bool(payment_us_engine.SQUARE_LOCATION_ID),
+                "SQUARE_DEVICE_ID_set": bool(payment_us_engine.SQUARE_DEVICE_ID),
+                "SQUARE_ENV": payment_us_engine.SQUARE_ENV,
+            }
         }), 503
 
     try:
