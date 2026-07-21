@@ -32,7 +32,7 @@
 {% set _description = description | default('BitPaw OS is the automated SaaS infrastructure and AI operating system built for F&B restaurants and nail salons — unifying smart POS, payroll, CRM, and AI customer engagement in one platform.') %}
 {% set _canonical_url = request.url_root ~ (canonical_path | default('landing')) %}
 {% set _og_locale = og_locale | default('en_US') %}
-{% set _logo_filename = logo_filename | default('icon.jpg') %}
+{% set _logo_filename = logo_filename | default('logo_b.jpg') %}
 {% set _image_url = url_for('static', filename=(image_filename | default('cho1.jpg')), _external=True) %}
 {% set _logo_url = url_for('static', filename=_logo_filename, _external=True) %}
 {% set _schema_name = schema_name | default('BitPaw OS') %}
@@ -42,13 +42,12 @@
 {% set _faq_items = faq_items | default([]) %}
 
 <!-- ================= FAVICON / APP ICON =================
-     Trỏ về static/icon.jpg (1024x1024, ảnh vuông) — dùng url_for() thay vì
-     hardcode "/static/images/icon.jpg" vì file đó KHÔNG tồn tại trong repo
-     (chỉ có static/icon.jpg ở gốc thư mục static); hardcode sai đường dẫn sẽ
-     làm favicon 404 trên mọi trang. Khai báo nhiều rel để tối đa độ tương
-     thích: favicon tab trình duyệt (icon/shortcut icon), icon khi "Add to
-     Home Screen" trên iOS (apple-touch-icon), và gợi ý logo cho kết quả tìm
-     kiếm Google (cùng với JSON-LD Organization.logo bên dưới). -->
+     Trỏ về static/logo_b.jpg (logo thật, 1024x1024, ảnh vuông) — dùng url_for()
+     thay vì hardcode đường dẫn để tránh 404 nếu tên file thay đổi. Khai báo
+     nhiều rel để tối đa độ tương thích: favicon tab trình duyệt (icon/shortcut
+     icon), icon khi "Add to Home Screen" trên iOS (apple-touch-icon), và gợi ý
+     logo cho kết quả tìm kiếm Google (cùng với JSON-LD Organization.logo bên
+     dưới). -->
 <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename=_logo_filename) }}">
 <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename=_logo_filename) }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename=_logo_filename) }}">
