@@ -372,7 +372,7 @@
                             <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-wallet text-emerald-400"></i> <span data-i18n="hero_card2_title">Quỹ Tiền Mặt</span></h4>
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
-                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_line1">Số dư: 996,100,000 ₫</p>
+                        <p class="text-sm text-white font-extrabold" data-i18n="hero_card2_line1">Số dư: $39,844</p>
                         <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider block mt-1" data-i18n="hero_card2_line2">Lợi nhuận ròng: +15%</span>
                     </div>
                 </div>
@@ -868,9 +868,9 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="text-sm font-black text-gray-300 uppercase tracking-wider" data-i18n="calc_label1">1. Lương cứng cơ bản (26 ngày công chuẩn)</label>
-                                <span id="salary-display" class="text-lg font-black text-indigo-400">12,000,000 ₫</span>
+                                <span id="salary-display" class="text-lg font-black text-indigo-400">$480.00</span>
                             </div>
-                            <input type="range" id="base-salary" min="5000000" max="40000000" step="500000" value="12000000" class="w-full accent-indigo-500">
+                            <input type="range" id="base-salary" min="200" max="1600" step="20" value="480" class="w-full accent-indigo-500">
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -883,7 +883,7 @@
                             </div>
                             <div>
                                 <div class="flex justify-between mb-2">
-                                    <span class="text-xs font-black text-gray-400 uppercase" data-i18n="calc_label3">3. Số phút đi trễ (Phạt 2k/phút)</span>
+                                    <span class="text-xs font-black text-gray-400 uppercase" data-i18n="calc_label3">3. Số phút đi trễ (Phạt $0.10/phút)</span>
                                     <span id="late-display" class="text-sm font-extrabold text-white">0 phút</span>
                                 </div>
                                 <input type="range" id="late-minutes" min="0" max="120" step="5" value="0" class="w-full accent-emerald-500">
@@ -906,9 +906,9 @@
                         <div>
                             <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5" data-i18n="calc_label5">5. Lương KPI Hiệu Suất Cơ Bản</label>
                             <select id="kpi-base" class="w-full p-4 calc-input text-base font-extrabold">
-                                <option value="2000000" data-i18n="calc_opt_low">Thấp (2,000,000 đ)</option>
-                                <option value="4000000" selected data-i18n="calc_opt_mid">Trung bình (4,000,000 đ)</option>
-                                <option value="6000000" data-i18n="calc_opt_high">Cao (6,000,000 đ)</option>
+                                <option value="80" data-i18n="calc_opt_low">Thấp ($80)</option>
+                                <option value="160" selected data-i18n="calc_opt_mid">Trung bình ($160)</option>
+                                <option value="240" data-i18n="calc_opt_high">Cao ($240)</option>
                             </select>
                         </div>
                     </div>
@@ -923,28 +923,28 @@
                         <div class="space-y-4 font-mono text-sm mb-8">
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="bill_label1">Lương cứng gốc:</span>
-                                <span id="bill-base" class="text-white font-bold">12,000,000 ₫</span>
+                                <span id="bill-base" class="text-white font-bold">$480.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="bill_label2">Lương cứng theo công:</span>
-                                <span id="bill-actual-base" class="text-white font-bold">12,000,000 ₫</span>
+                                <span id="bill-actual-base" class="text-white font-bold">$480.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="bill_label3">Thưởng KPI hiệu suất:</span>
-                                <span id="bill-kpi-bonus" class="text-white font-bold">4,000,000 ₫</span>
+                                <span id="bill-kpi-bonus" class="text-white font-bold">$160.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="bill_label4">Phạt đi trễ:</span>
-                                <span id="bill-late-penalty">- 0 ₫</span>
+                                <span id="bill-late-penalty">-$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="bill_label5">Bảo hiểm & Thuế ước tính:</span>
-                                <span id="bill-insurance">- 1,280,000 ₫</span>
+                                <span id="bill-insurance">-$50.40</span>
                             </div>
-                            
+
                             <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
                                 <span data-i18n="bill_label6">THỰC LĨNH:</span>
-                                <span id="bill-net-pay" class="text-xl">14,720,000 ₫</span>
+                                <span id="bill-net-pay" class="text-xl">$589.60</span>
                             </div>
                         </div>
                     </div>
@@ -1335,7 +1335,7 @@
         const billNetPay = document.getElementById('bill-net-pay');
 
         function formatCurrency(val) {
-            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+            return "$" + Number(val).toFixed(2);
         }
 
         window.calculatePayroll = function calculatePayroll() {
@@ -1356,7 +1356,7 @@
             // Calculation
             const actualBase = (baseSalary / 26.0) * days;
             const kpiBonus = kpiBase * (kpiPercent / 100.0);
-            const latePenalty = lates * 2000;
+            const latePenalty = lates * 0.10;
             
             // Insurance & Tax estimation (approx 10.5% base)
             const insuranceCost = baseSalary * 0.105;
@@ -1365,11 +1365,11 @@
 
             // Display in outputs
             billBase.textContent = formatCurrency(baseSalary);
-            billActualBase.textContent = formatCurrency(Math.round(actualBase));
-            billKpiBonus.textContent = formatCurrency(Math.round(kpiBonus));
-            billLatePenalty.textContent = "- " + formatCurrency(latePenalty);
-            billInsurance.textContent = "- " + formatCurrency(Math.round(insuranceCost));
-            billNetPay.textContent = formatCurrency(Math.round(netPay));
+            billActualBase.textContent = formatCurrency(actualBase);
+            billKpiBonus.textContent = formatCurrency(kpiBonus);
+            billLatePenalty.textContent = "-" + formatCurrency(latePenalty);
+            billInsurance.textContent = "-" + formatCurrency(insuranceCost);
+            billNetPay.textContent = formatCurrency(netPay);
         }
 
         // Add event listeners
@@ -1478,7 +1478,7 @@
                 hero_card1_line1: 'Đã chốt: 45 nhân sự',
                 hero_card1_line2: 'Trạng thái: 100% Chính xác',
                 hero_card2_title: 'Quỹ Tiền Mặt',
-                hero_card2_line1: 'Số dư: 996,100,000 ₫',
+                hero_card2_line1: 'Số dư: $39,844',
                 hero_card2_line2: 'Lợi nhuận ròng: +15%',
                 problems_label: 'Thực tế vận hành',
                 problems_title: 'Khối văn phòng hành chính đang <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">mệt mỏi vì nỗi lo nào?</span>',
@@ -1554,15 +1554,15 @@
                 calc_desc: 'Hãy thử tính toán bảng lương thực tế của nhân sự văn phòng để trải nghiệm thuật toán tính lương tự động, minh bạch của BitPaw OS:',
                 calc_label1: '1. Lương cứng cơ bản (26 ngày công chuẩn)',
                 calc_label2: '2. Số ngày công thực tế',
-                calc_label3: '3. Số phút đi trễ (Phạt 2k/phút)',
+                calc_label3: '3. Số phút đi trễ (Phạt $0.10/phút)',
                 calc_label4: '4. Hiệu suất hoàn thành KPI',
                 calc_kpi_weak: 'Yếu (50%)',
                 calc_kpi_std: 'Chuẩn (100%)',
                 calc_kpi_excellent: 'Xuất sắc (150%)',
                 calc_label5: '5. Lương KPI Hiệu Suất Cơ Bản',
-                calc_opt_low: 'Thấp (2,000,000 đ)',
-                calc_opt_mid: 'Trung bình (4,000,000 đ)',
-                calc_opt_high: 'Cao (6,000,000 đ)',
+                calc_opt_low: 'Thấp ($80)',
+                calc_opt_mid: 'Trung bình ($160)',
+                calc_opt_high: 'Cao ($240)',
                 bill_title: 'Phiếu Lương Chi Tiết',
                 bill_label1: 'Lương cứng gốc:',
                 bill_label2: 'Lương cứng theo công:',
@@ -1638,7 +1638,7 @@
                 hero_card1_line1: 'Closed: 45 staff',
                 hero_card1_line2: 'Status: 100% Accurate',
                 hero_card2_title: 'Cash Fund',
-                hero_card2_line1: 'Balance: 996,100,000 ₫',
+                hero_card2_line1: 'Balance: $39,844',
                 hero_card2_line2: 'Net Profit: +15%',
                 problems_label: 'Real-World Operations',
                 problems_title: 'What headaches are <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">office administrators tired of?</span>',
@@ -1714,15 +1714,15 @@
                 calc_desc: 'Try calculating a real office staff payroll to experience BitPaw OS\'s automatic, transparent payroll algorithm:',
                 calc_label1: '1. Base Salary (26 standard workdays)',
                 calc_label2: '2. Actual Days Worked',
-                calc_label3: '3. Late Minutes (Penalty: 2k/min)',
+                calc_label3: '3. Late Minutes (Penalty: $0.10/min)',
                 calc_label4: '4. KPI Completion Performance',
                 calc_kpi_weak: 'Weak (50%)',
                 calc_kpi_std: 'Standard (100%)',
                 calc_kpi_excellent: 'Excellent (150%)',
                 calc_label5: '5. Base KPI Performance Pay',
-                calc_opt_low: 'Low (2,000,000 ₫)',
-                calc_opt_mid: 'Medium (4,000,000 ₫)',
-                calc_opt_high: 'High (6,000,000 ₫)',
+                calc_opt_low: 'Low ($80)',
+                calc_opt_mid: 'Medium ($160)',
+                calc_opt_high: 'High ($240)',
                 bill_title: 'Detailed Payslip',
                 bill_label1: 'Original base salary:',
                 bill_label2: 'Base salary by attendance:',

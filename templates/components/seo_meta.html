@@ -20,7 +20,7 @@
        - logo_filename          ảnh favicon + logo schema Organization, mặc định 'icon.jpg' (1024x1024, vuông)
        - schema_name            tên phần mềm cho SoftwareApplication, mặc định 'BitPaw OS'
        - schema_subcategory     mặc định 'Point of Sale System, Human Resources Management System'
-       - offer_low / offer_high giá VND thấp nhất/cao nhất hiển thị ở trang, mặc định 399000/999000
+       - offer_low / offer_high giá USD thấp nhất/cao nhất hiển thị ở trang, mặc định 49.99/79.99
        - faq_items              list các {q, a} — bỏ trống thì KHÔNG render schema FAQPage
                                  (tránh mainEntity rỗng, sai chuẩn schema.org)
 
@@ -28,8 +28,8 @@
      templates/landing_nail.html — copy nguyên khối đó cho trang ngách khác.
      ============================================================================= -->
 
-{% set _title = title | default('BitPaw OS | All-in-One Smart POS & HR Management Software for Global Businesses') %}
-{% set _description = description | default('BitPaw OS is a B2B SaaS company providing all-in-one Smart POS and HR management software for growing businesses worldwide — point of sale, workforce management, CRM, and AI customer service in a single platform.') %}
+{% set _title = title | default('BitPaw OS | Automated SaaS Infrastructure & AI OS for F&B and Nail Salons') %}
+{% set _description = description | default('BitPaw OS is the automated SaaS infrastructure and AI operating system built for F&B restaurants and nail salons — unifying smart POS, payroll, CRM, and AI customer engagement in one platform.') %}
 {% set _canonical_url = request.url_root ~ (canonical_path | default('landing')) %}
 {% set _og_locale = og_locale | default('en_US') %}
 {% set _logo_filename = logo_filename | default('icon.jpg') %}
@@ -37,8 +37,8 @@
 {% set _logo_url = url_for('static', filename=_logo_filename, _external=True) %}
 {% set _schema_name = schema_name | default('BitPaw OS') %}
 {% set _schema_subcategory = schema_subcategory | default('Point of Sale System, Human Resources Management System') %}
-{% set _offer_low = offer_low | default(399000) %}
-{% set _offer_high = offer_high | default(999000) %}
+{% set _offer_low = offer_low | default(49.99) %}
+{% set _offer_high = offer_high | default(79.99) %}
 {% set _faq_items = faq_items | default([]) %}
 
 <!-- ================= FAVICON / APP ICON =================
@@ -159,7 +159,7 @@
   },
   "offers": {
     "@type": "AggregateOffer",
-    "priceCurrency": "VND",
+    "priceCurrency": "USD",
     "lowPrice": {{ _offer_low | tojson }},
     "highPrice": {{ _offer_high | tojson }},
     "offerCount": "3",

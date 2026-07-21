@@ -875,9 +875,9 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="text-sm font-black text-gray-300 uppercase tracking-wider" data-i18n="calc_label_cart">1. Giá trị đơn hàng gốc tạm tính</label>
-                                <span id="cart-display" class="text-lg font-black text-amber-400">1,500,000 ₫</span>
+                                <span id="cart-display" class="text-lg font-black text-amber-400">$60.00</span>
                             </div>
-                            <input type="range" id="cart-val" min="500000" max="10000000" step="100000" value="1500000" class="w-full accent-amber-500">
+                            <input type="range" id="cart-val" min="20" max="400" step="4" value="60" class="w-full accent-amber-500">
                         </div>
 
                         <div>
@@ -892,7 +892,7 @@
 
                         <div>
                             <div class="flex justify-between items-center mb-2">
-                                <label class="text-sm font-black text-gray-300 uppercase tracking-wider" data-i18n="calc_label_points">3. Sử dụng điểm tích lũy cũ (1 điểm = 1k)</label>
+                                <label class="text-sm font-black text-gray-300 uppercase tracking-wider" data-i18n="calc_label_points">3. Sử dụng điểm tích lũy cũ (1 điểm = $0.04)</label>
                                 <span id="points-display" class="text-lg font-black text-amber-400">50 điểm</span>
                             </div>
                             <input type="range" id="points-val" min="0" max="500" step="10" value="50" class="w-full accent-amber-500">
@@ -928,28 +928,28 @@
                         <div class="space-y-4 font-mono text-sm mb-8">
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_bill_base_label">Giá gốc đơn hàng:</span>
-                                <span id="bill-base" class="text-white font-bold">1,500,000 ₫</span>
+                                <span id="bill-base" class="text-white font-bold">$60.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="calc_bill_tier_label">Giảm hạng thành viên:</span>
-                                <span id="bill-tier-discount">- 75,000 ₫</span>
+                                <span id="bill-tier-discount">-$3.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="calc_bill_points_label">Khấu trừ điểm tích lũy:</span>
-                                <span id="bill-points-deduct">- 50,000 ₫</span>
+                                <span id="bill-points-deduct">-$2.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="calc_bill_promo_label">Giảm giá khuyến mãi:</span>
-                                <span id="bill-promo-discount">- 0 ₫</span>
+                                <span id="bill-promo-discount">-$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-emerald-400">
                                 <span data-i18n="calc_bill_earned_label">Điểm thưởng nhận thêm:</span>
-                                <span id="bill-points-earned">+ 13 điểm</span>
+                                <span id="bill-points-earned">+ 14 điểm</span>
                             </div>
 
                             <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
                                 <span data-i18n="calc_bill_total_label">THỰC THU:</span>
-                                <span id="bill-total" class="text-xl">1,375,000 ₫</span>
+                                <span id="bill-total" class="text-xl">$55.00</span>
                             </div>
                         </div>
                     </div>
@@ -1344,7 +1344,7 @@
         const billTotal = document.getElementById('bill-total');
 
         function formatCurrency(val) {
-            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+            return "$" + Number(val).toFixed(2);
         }
 
         function calculateRetailBill() {
@@ -1359,7 +1359,7 @@
 
             // Calculations
             const tierDiscount = cartVal * memberTierRate;
-            const pointsDeduct = points * 1000; // 1 point = 1k
+            const pointsDeduct = points * 0.04; // 1 point = $0.04
             
             // Special promo logic
             const promoOption = document.querySelector('input[name="promo-discount"]:checked').value;
@@ -1369,13 +1369,13 @@
             let totalBill = cartVal - tierDiscount - pointsDeduct - promoDiscount;
             if (totalBill < 0) totalBill = 0;
 
-            const pointsEarned = Math.round(totalBill * 0.01 / 1000); // 1% points earned
+            const pointsEarned = Math.round(totalBill * 0.01 / 0.04); // 1% points earned
 
             // Display outputs
             billBase.textContent = formatCurrency(cartVal);
-            billTierDiscount.textContent = "- " + formatCurrency(Math.round(tierDiscount));
-            billPointsDeduct.textContent = "- " + formatCurrency(pointsDeduct);
-            billPromoDiscount.textContent = "- " + formatCurrency(Math.round(promoDiscount));
+            billTierDiscount.textContent = "-" + formatCurrency(tierDiscount);
+            billPointsDeduct.textContent = "-" + formatCurrency(pointsDeduct);
+            billPromoDiscount.textContent = "-" + formatCurrency(promoDiscount);
             billPointsEarned.textContent = `+ ${pointsEarned} ${pointsUnit}`;
             billTotal.textContent = formatCurrency(Math.round(totalBill));
         }
@@ -1574,7 +1574,7 @@
                 calc_tier_silver: 'Thành Viên Bạc (Chiết khấu 5%)',
                 calc_tier_gold: 'Thành Viên Vàng (Chiết khấu 10%)',
                 calc_tier_diamond: 'Thành Viên Kim Cương (Chiết khấu 15%)',
-                calc_label_points: '3. Sử dụng điểm tích lũy cũ (1 điểm = 1k)',
+                calc_label_points: '3. Sử dụng điểm tích lũy cũ (1 điểm = $0.04)',
                 calc_points_min: '0 điểm',
                 calc_points_mid: '250 điểm',
                 calc_points_max: '500 điểm',
@@ -1746,7 +1746,7 @@
                 calc_tier_silver: 'Silver Member (5% discount)',
                 calc_tier_gold: 'Gold Member (10% discount)',
                 calc_tier_diamond: 'Diamond Member (15% discount)',
-                calc_label_points: '3. Use existing reward points (1 point = 1k VND)',
+                calc_label_points: '3. Use existing reward points (1 point = $0.04)',
                 calc_points_min: '0 pts',
                 calc_points_mid: '250 pts',
                 calc_points_max: '500 pts',

@@ -872,9 +872,9 @@
                         <div>
                             <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5" data-i18n="calc_label_rate">1. Đơn giá lương theo ca trực chuẩn</label>
                             <select id="shift-rate" class="w-full p-4 calc-input text-base font-extrabold">
-                                <option value="150000" data-i18n="calc_option_general">Ca Phổ Thông / Nhân viên phục vụ (150,000đ/ca)</option>
-                                <option value="250000" selected data-i18n="calc_option_tech">Ca Kỹ Thuật / Lễ tân VIP (250,000đ/ca)</option>
-                                <option value="400000" data-i18n="calc_option_manager">Ca Quản lý / KTV Trưởng (400,000đ/ca)</option>
+                                <option value="6" data-i18n="calc_option_general">Ca Phổ Thông / Nhân viên phục vụ ($6/ca)</option>
+                                <option value="10" selected data-i18n="calc_option_tech">Ca Kỹ Thuật / Lễ tân VIP ($10/ca)</option>
+                                <option value="16" data-i18n="calc_option_manager">Ca Quản lý / KTV Trưởng ($16/ca)</option>
                             </select>
                         </div>
 
@@ -916,8 +916,8 @@
                                     <span class="text-sm font-bold text-white" data-i18n="calc_allowance_none">Không nhận phụ cấp</span>
                                 </label>
                                 <label class="flex items-center gap-2.5 p-4 bg-black/40 border border-white/10 rounded-2xl cursor-pointer hover:border-sky-500/50 transition">
-                                    <input type="radio" name="allowance-opt" value="800000" class="text-sky-500 focus:ring-0">
-                                    <span class="text-sm font-bold text-white" data-i18n="calc_allowance_yes">Chuyên cần + Ăn trưa (+800k)</span>
+                                    <input type="radio" name="allowance-opt" value="32" class="text-sky-500 focus:ring-0">
+                                    <span class="text-sm font-bold text-white" data-i18n="calc_allowance_yes">Chuyên cần + Ăn trưa (+$32)</span>
                                 </label>
                             </div>
                         </div>
@@ -933,32 +933,32 @@
                         <div class="space-y-4 font-mono text-sm mb-8">
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_r_rate_label">Đơn giá ca trực:</span>
-                                <span id="bill-shift-rate" class="text-white font-bold">250,000 ₫/ca</span>
+                                <span id="bill-shift-rate" class="text-white font-bold">$10.00/ca</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_r_base_label">Lương ca trực thực nhận:</span>
-                                <span id="bill-shifts-sum" class="text-white font-bold">6,500,000 ₫</span>
+                                <span id="bill-shifts-sum" class="text-white font-bold">$260.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_r_ot_label">Tiền tăng ca Overtime:</span>
-                                <span id="bill-ot-sum" class="text-white font-bold">0 ₫</span>
+                                <span id="bill-ot-sum" class="text-white font-bold">$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_r_night_label">Phụ cấp ca trực đêm:</span>
-                                <span id="bill-night-sum" class="text-white font-bold">0 ₫</span>
+                                <span id="bill-night-sum" class="text-white font-bold">$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_r_allowance_label">Phụ cấp chuyên cần:</span>
-                                <span id="bill-allowance" class="text-white font-bold">0 ₫</span>
+                                <span id="bill-allowance" class="text-white font-bold">$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="calc_r_tax_label">Khấu trừ bảo hiểm TNCN:</span>
-                                <span id="bill-insurance">- 650,000 ₫</span>
+                                <span id="bill-insurance">-$26.00</span>
                             </div>
-                            
+
                             <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
                                 <span data-i18n="calc_r_final_label">THỰC LĨNH:</span>
-                                <span id="bill-net-pay" class="text-xl">5,850,000 ₫</span>
+                                <span id="bill-net-pay" class="text-xl">$234.00</span>
                             </div>
                         </div>
                     </div>
@@ -1351,7 +1351,7 @@
         const billNetPay = document.getElementById('bill-net-pay');
 
         function formatCurrency(val) {
-            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+            return "$" + Number(val).toFixed(2);
         }
 
         function calculateHrmPayroll() {
@@ -1390,7 +1390,7 @@
             billOtSum.textContent = formatCurrency(Math.round(otSum));
             billNightSum.textContent = formatCurrency(Math.round(nightSum));
             billAllowance.textContent = formatCurrency(allowanceCost);
-            billInsurance.textContent = "- " + formatCurrency(Math.round(insuranceCost));
+            billInsurance.textContent = "-" + formatCurrency(insuranceCost);
             billNetPay.textContent = formatCurrency(Math.round(netPay));
         }
 
@@ -1584,9 +1584,9 @@
                 calc_title2: 'Lương Ca Trực & Phụ Thu Overtime',
                 calc_desc: 'Hãy thử tính toán bảng lương ca trực và các khoản phụ thu tăng ca OT, ca đêm để xem BitPaw HRM chốt công minh bạch ra sao:',
                 calc_label_rate: '1. Đơn giá lương theo ca trực chuẩn',
-                calc_option_general: 'Ca Phổ Thông / Nhân viên phục vụ (150,000đ/ca)',
-                calc_option_tech: 'Ca Kỹ Thuật / Lễ tân VIP (250,000đ/ca)',
-                calc_option_manager: 'Ca Quản lý / KTV Trưởng (400,000đ/ca)',
+                calc_option_general: 'Ca Phổ Thông / Nhân viên phục vụ ($6/ca)',
+                calc_option_tech: 'Ca Kỹ Thuật / Lễ tân VIP ($10/ca)',
+                calc_option_manager: 'Ca Quản lý / KTV Trưởng ($16/ca)',
                 calc_label_shifts: '2. Số ca trực thực tế trong tháng',
                 calc_label_ot: '3. Số giờ tăng ca Overtime (1.5x)',
                 calc_ot_tick1: '0 giờ',
@@ -1596,7 +1596,7 @@
                 calc_night_tick3: '15 ca đêm',
                 calc_label_allowance: '5. Phụ cấp chuyên cần & ăn trưa cố định',
                 calc_allowance_none: 'Không nhận phụ cấp',
-                calc_allowance_yes: 'Chuyên cần + Ăn trưa (+800k)',
+                calc_allowance_yes: 'Chuyên cần + Ăn trưa (+$32)',
                 calc_receipt_title: 'Phiếu Lương Ca Trực',
                 calc_r_rate_label: 'Đơn giá ca trực:',
                 calc_r_base_label: 'Lương ca trực thực nhận:',
@@ -1768,9 +1768,9 @@
                 calc_title2: 'Shift Pay & Overtime Surcharges',
                 calc_desc: 'Try calculating shift pay and overtime/night-shift surcharges to see how transparently BitPaw HRM closes out payroll:',
                 calc_label_rate: '1. Standard Shift Pay Rate',
-                calc_option_general: 'General Staff / Service Employee (150,000₫/shift)',
-                calc_option_tech: 'Technical Staff / VIP Receptionist (250,000₫/shift)',
-                calc_option_manager: 'Manager / Lead Technician (400,000₫/shift)',
+                calc_option_general: 'General Staff / Service Employee ($6/shift)',
+                calc_option_tech: 'Technical Staff / VIP Receptionist ($10/shift)',
+                calc_option_manager: 'Manager / Lead Technician ($16/shift)',
                 calc_label_shifts: '2. Actual Shifts Worked This Month',
                 calc_label_ot: '3. Overtime Hours (1.5x)',
                 calc_ot_tick1: '0 hours',
@@ -1780,7 +1780,7 @@
                 calc_night_tick3: '15 night shifts',
                 calc_label_allowance: '5. Fixed Attendance & Lunch Allowance',
                 calc_allowance_none: 'No allowance',
-                calc_allowance_yes: 'Attendance + Lunch (+800k)',
+                calc_allowance_yes: 'Attendance + Lunch (+$32)',
                 calc_receipt_title: 'Shift Payslip',
                 calc_r_rate_label: 'Shift rate:',
                 calc_r_base_label: 'Base shift pay:',

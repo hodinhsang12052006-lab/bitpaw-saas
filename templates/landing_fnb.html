@@ -955,17 +955,17 @@
                             <div>
                                 <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_combo">Chọn Combo Món Ăn Nhanh</label>
                                 <select id="quick_service" class="calc-input w-full p-4 font-semibold text-base bg-[#08061a] border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
-                                    <option value="combo_family" data-i18n="calc_opt_family">Combo Gia Đình VIP (Món chính, lẩu nướng, nước - 650.000 ₫)</option>
-                                    <option value="combo_lunch" data-i18n="calc_opt_lunch">Combo Trưa Văn Phòng (2 người ăn - 150.000 ₫)</option>
-                                    <option value="combo_cafe" data-i18n="calc_opt_cafe">Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - 120.000 ₫)</option>
+                                    <option value="combo_family" data-i18n="calc_opt_family">Combo Gia Đình VIP (Món chính, lẩu nướng, nước - $26)</option>
+                                    <option value="combo_lunch" data-i18n="calc_opt_lunch">Combo Trưa Văn Phòng (2 người ăn - $6)</option>
+                                    <option value="combo_cafe" data-i18n="calc_opt_cafe">Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - $5)</option>
                                     <option value="custom" data-i18n="calc_opt_custom">Tự nhập tay giá trị hóa đơn bên dưới...</option>
                                 </select>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_total">1. Tổng Tiền Món Ăn (₫)</label>
-                                    <input type="number" id="calc_total" value="650000" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_total">1. Tổng Tiền Món Ăn ($)</label>
+                                    <input type="number" id="calc_total" value="26" class="calc-input w-full p-4 font-mono text-base font-bold bg-black/40 border border-white/10 text-white rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_discount">2. Giảm Giá Khuyến Mãi (%)</label>
@@ -986,12 +986,12 @@
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_tip">5. Tiền Tip Phục Vụ (₫)</label>
-                                    <input type="number" id="calc_tip" value="50000" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_tip">5. Tiền Tip Phục Vụ ($)</label>
+                                    <input type="number" id="calc_tip" value="2" class="calc-input w-full p-4 font-mono text-base font-bold text-emerald-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_cash">6. Khách Đưa (₫)</label>
-                                    <input type="number" id="calc_cash_given" value="1000000" class="calc-input w-full p-4 font-mono text-base font-bold text-yellow-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
+                                    <label class="block text-sm lg:text-[15px] text-slate-200 uppercase tracking-wider font-black mb-2 ml-1" data-i18n="calc_label_cash">6. Khách Đưa ($)</label>
+                                    <input type="number" id="calc_cash_given" value="40" class="calc-input w-full p-4 font-mono text-base font-bold text-yellow-400 bg-black/40 border border-white/10 rounded-xl focus:border-orange-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
@@ -1011,11 +1011,11 @@
                             <h3 class="text-center font-black text-slate-200 tracking-widest mb-6 uppercase border-b border-dashed border-white/10 pb-4 flex justify-center items-center gap-2 text-base lg:text-[18px]"><i class="fas fa-receipt text-orange-500"></i> <span data-i18n="receipt_title">Hóa đơn thanh toán bàn ăn</span></h3>
 
                             <div class="space-y-3 mb-6 text-slate-200 font-mono text-sm lg:text-base border-b border-dashed border-white/10 pb-6">
-                                <div class="flex justify-between"><span data-i18n="receipt_label_subtotal">Tiền Món Ăn:</span> <span class="text-white font-bold" id="rc_subtotal">650,000 ₫</span></div>
-                                <div class="flex justify-between text-rose-400"><span><span data-i18n="receipt_label_discount">- Khuyến Mãi Giảm</span> (<span id="rc_discount_rate">10</span>%):</span> <span id="rc_discount_val">-65,000 ₫</span></div>
-                                <div class="flex justify-between"><span><span data-i18n="receipt_label_service">+ Phí Dịch Vụ</span> (<span id="rc_service_rate">5</span>%):</span> <span id="rc_service_val">+29,250 ₫</span></div>
-                                <div class="flex justify-between"><span><span data-i18n="receipt_label_vat">+ Thuế VAT</span> (<span id="rc_vat_rate">8</span>%):</span> <span id="rc_vat_val">+49,140 ₫</span></div>
-                                <div class="flex justify-between text-emerald-400"><span data-i18n="receipt_label_tip">+ Tiền Tip Phục Vụ:</span> <span id="rc_tip_val">+50,000 ₫</span></div>
+                                <div class="flex justify-between"><span data-i18n="receipt_label_subtotal">Tiền Món Ăn:</span> <span class="text-white font-bold" id="rc_subtotal">$26.00</span></div>
+                                <div class="flex justify-between text-rose-400"><span><span data-i18n="receipt_label_discount">- Khuyến Mãi Giảm</span> (<span id="rc_discount_rate">10</span>%):</span> <span id="rc_discount_val">-$2.60</span></div>
+                                <div class="flex justify-between"><span><span data-i18n="receipt_label_service">+ Phí Dịch Vụ</span> (<span id="rc_service_rate">5</span>%):</span> <span id="rc_service_val">+$1.17</span></div>
+                                <div class="flex justify-between"><span><span data-i18n="receipt_label_vat">+ Thuế VAT</span> (<span id="rc_vat_rate">8</span>%):</span> <span id="rc_vat_val">+$1.97</span></div>
+                                <div class="flex justify-between text-emerald-400"><span data-i18n="receipt_label_tip">+ Tiền Tip Phục Vụ:</span> <span id="rc_tip_val">+$2.00</span></div>
                             </div>
                         </div>
 
@@ -1023,11 +1023,11 @@
                             <div class="mt-4 bg-black/60 p-4 rounded-2xl border border-white/5 shadow-inner">
                                 <div class="flex justify-between items-center mb-3">
                                     <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="receipt_label_total">Khách Phải Trả</span>
-                                    <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_total_bill">713,390 ₫</span>
+                                    <span class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] font-mono" id="rc_total_bill">$28.54</span>
                                 </div>
                                 <div class="flex justify-between items-center border-t border-white/5 pt-3">
                                     <span class="text-sm lg:text-base font-extrabold text-gray-200 uppercase tracking-wider" data-i18n="receipt_label_change">Tiền Thối Lại</span>
-                                    <span class="text-lg lg:text-xl font-black text-yellow-400 font-mono" id="rc_cash_change">286,610 ₫</span>
+                                    <span class="text-lg lg:text-xl font-black text-yellow-400 font-mono" id="rc_cash_change">$11.46</span>
                                 </div>
                             </div>
 
@@ -1563,9 +1563,9 @@
             const rCashChange = document.getElementById('rc_cash_change');
 
             const menuConfig = {
-                combo_family: { total: 650000, discount: 10, service: 5, vat: 8 },
-                combo_lunch: { total: 150000, discount: 5, service: 0, vat: 8 },
-                combo_cafe: { total: 120000, discount: 0, service: 0, vat: 8 }
+                combo_family: { total: 26, discount: 10, service: 5, vat: 8 },
+                combo_lunch: { total: 6, discount: 5, service: 0, vat: 8 },
+                combo_cafe: { total: 5, discount: 0, service: 0, vat: 8 }
             };
 
             function calculateRealtime() {
@@ -1595,16 +1595,16 @@
                 const change = Math.max(0, cashGiven - totalBill);
 
                 // Cập nhật DOM
-                if (rSubtotal) rSubtotal.innerText = `${total.toLocaleString()} ₫`;
+                if (rSubtotal) rSubtotal.innerText = `$${total.toFixed(2)}`;
                 if (rDiscountRate) rDiscountRate.innerText = discount;
-                if (rDiscountVal) rDiscountVal.innerText = `-${discountVal.toLocaleString()} ₫`;
+                if (rDiscountVal) rDiscountVal.innerText = `-$${discountVal.toFixed(2)}`;
                 if (rServiceRate) rServiceRate.innerText = servicePercent;
-                if (rServiceVal) rServiceVal.innerText = `+${serviceVal.toLocaleString()} ₫`;
+                if (rServiceVal) rServiceVal.innerText = `+$${serviceVal.toFixed(2)}`;
                 if (rVatRate) rVatRate.innerText = vatPercent;
-                if (rVatVal) rVatVal.innerText = `+${vatVal.toLocaleString()} ₫`;
-                if (rTipVal) rTipVal.innerText = `+${tip.toLocaleString()} ₫`;
-                if (rTotalBill) rTotalBill.innerText = `${Math.ceil(totalBill).toLocaleString()} ₫`;
-                if (rCashChange) rCashChange.innerText = `${Math.floor(change).toLocaleString()} ₫`;
+                if (rVatVal) rVatVal.innerText = `+$${vatVal.toFixed(2)}`;
+                if (rTipVal) rTipVal.innerText = `+$${tip.toFixed(2)}`;
+                if (rTotalBill) rTotalBill.innerText = `$${totalBill.toFixed(2)}`;
+                if (rCashChange) rCashChange.innerText = `$${change.toFixed(2)}`;
             }
 
             if (selectService) {
@@ -1616,8 +1616,8 @@
                         if (inputDiscount) inputDiscount.value = cfg.discount;
                         if (inputService) inputService.value = cfg.service;
                         if (inputVat) inputVat.value = cfg.vat;
-                        if (inputTip) inputTip.value = 50000;
-                        if (inputCashGiven) inputCashGiven.value = cfg.total > 500000 ? 1000000 : 200000;
+                        if (inputTip) inputTip.value = 2;
+                        if (inputCashGiven) inputCashGiven.value = cfg.total > 20 ? 40 : 10;
                         calculateRealtime();
                     }
                 });
@@ -1810,16 +1810,16 @@
                 calc_desc: 'Cuối giờ không lo nhập thủ công, nhầm tiền thừa hay sai thuế/phí dịch vụ. Hãy điền thử hóa đơn mẫu của nhà hàng/cafe để trải nghiệm Smart POS:',
                 calc_form_title: 'Nhập giá trị bill mẫu',
                 calc_label_combo: 'Chọn Combo Món Ăn Nhanh',
-                calc_opt_family: 'Combo Gia Đình VIP (Món chính, lẩu nướng, nước - 650.000 ₫)',
-                calc_opt_lunch: 'Combo Trưa Văn Phòng (2 người ăn - 150.000 ₫)',
-                calc_opt_cafe: 'Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - 120.000 ₫)',
+                calc_opt_family: 'Combo Gia Đình VIP (Món chính, lẩu nướng, nước - $26)',
+                calc_opt_lunch: 'Combo Trưa Văn Phòng (2 người ăn - $6)',
+                calc_opt_cafe: 'Set Trà Chiều & Bánh Ngọt (Trà hoa, bánh ngọt - $5)',
                 calc_opt_custom: 'Tự nhập tay giá trị hóa đơn bên dưới...',
-                calc_label_total: '1. Tổng Tiền Món Ăn (₫)',
+                calc_label_total: '1. Tổng Tiền Món Ăn ($)',
                 calc_label_discount: '2. Giảm Giá Khuyến Mãi (%)',
                 calc_label_service: '3. Phí Dịch Vụ / Setup (%)',
                 calc_label_vat: '4. Thuế VAT (%)',
-                calc_label_tip: '5. Tiền Tip Phục Vụ (₫)',
-                calc_label_cash: '6. Khách Đưa (₫)',
+                calc_label_tip: '5. Tiền Tip Phục Vụ ($)',
+                calc_label_cash: '6. Khách Đưa ($)',
                 calc_note: 'In hóa đơn nhiệt tích hợp QR Code ngân hàng động giúp khách chuyển khoản cực nhanh, hạn chế thất thoát.',
                 receipt_title: 'Hóa đơn thanh toán bàn ăn',
                 receipt_label_subtotal: 'Tiền Món Ăn:',
@@ -2035,16 +2035,16 @@
                 calc_desc: 'No more manual entry at closing time, no miscounted change or wrong tax/service fees. Try filling in a sample restaurant/cafe bill to experience Smart POS:',
                 calc_form_title: 'Enter sample bill values',
                 calc_label_combo: 'Choose a Quick Combo',
-                calc_opt_family: 'VIP Family Combo (Main course, hotpot BBQ, drinks - 650,000 VND)',
-                calc_opt_lunch: 'Office Lunch Combo (2 people - 150,000 VND)',
-                calc_opt_cafe: 'Afternoon Tea & Pastry Set (Flower tea, pastry - 120,000 VND)',
+                calc_opt_family: 'VIP Family Combo (Main course, hotpot BBQ, drinks - $26)',
+                calc_opt_lunch: 'Office Lunch Combo (2 people - $6)',
+                calc_opt_cafe: 'Afternoon Tea & Pastry Set (Flower tea, pastry - $5)',
                 calc_opt_custom: 'Enter your own bill value below...',
-                calc_label_total: '1. Total Food Amount (VND)',
+                calc_label_total: '1. Total Food Amount ($)',
                 calc_label_discount: '2. Promotion Discount (%)',
                 calc_label_service: '3. Service Fee / Setup (%)',
                 calc_label_vat: '4. VAT Tax (%)',
-                calc_label_tip: '5. Service Tip (VND)',
-                calc_label_cash: '6. Cash Given (VND)',
+                calc_label_tip: '5. Service Tip ($)',
+                calc_label_cash: '6. Cash Given ($)',
                 calc_note: 'Thermal receipt printing with a dynamic bank QR code lets customers transfer payment instantly, minimizing losses.',
                 receipt_title: 'Table Payment Receipt',
                 receipt_label_subtotal: 'Food Total:',

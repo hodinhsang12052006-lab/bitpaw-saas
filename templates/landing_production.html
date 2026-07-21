@@ -874,9 +874,9 @@
                         <div>
                             <label class="block text-sm font-black text-gray-300 uppercase tracking-wider mb-2.5" data-i18n="calc_field1_label">1. Đơn giá khoán trên mỗi sản phẩm</label>
                             <select id="piece-rate" class="w-full p-4 calc-input text-base font-extrabold">
-                                <option value="15000" data-i18n="calc_opt1">Sản phẩm gia công đơn giản (15,000đ/cái)</option>
-                                <option value="30000" selected data-i18n="calc_opt2">Sản phẩm thiết kế trung bình (30,000đ/cái)</option>
-                                <option value="60000" data-i18n="calc_opt3">Sản phẩm kỹ thuật cao cấp (60,000đ/cái)</option>
+                                <option value="0.60" data-i18n="calc_opt1">Sản phẩm gia công đơn giản ($0.60/cái)</option>
+                                <option value="1.20" selected data-i18n="calc_opt2">Sản phẩm thiết kế trung bình ($1.20/cái)</option>
+                                <option value="2.40" data-i18n="calc_opt3">Sản phẩm kỹ thuật cao cấp ($2.40/cái)</option>
                             </select>
                         </div>
 
@@ -890,7 +890,7 @@
                             </div>
                             <div>
                                 <div class="flex justify-between mb-2">
-                                    <span class="text-xs font-black text-gray-400 uppercase" data-i18n="calc_field3_label">3. Tỷ lệ phế phẩm lỗi QC (Phạt 10k/cái)</span>
+                                    <span class="text-xs font-black text-gray-400 uppercase" data-i18n="calc_field3_label">3. Tỷ lệ phế phẩm lỗi QC (Phạt $0.40/cái)</span>
                                     <span id="defect-display" class="text-sm font-extrabold text-white">1%</span>
                                 </div>
                                 <input type="range" id="defect-rate" min="0" max="10" value="1" class="w-full accent-teal-500">
@@ -918,8 +918,8 @@
                                     <span class="text-sm font-bold text-white" data-i18n="calc_allowance1">Không nhận phụ cấp</span>
                                 </label>
                                 <label class="flex items-center gap-2.5 p-4 bg-black/40 border border-white/10 rounded-2xl cursor-pointer hover:border-teal-500/50 transition">
-                                    <input type="radio" name="allowance-opt" value="500000" class="text-teal-500 focus:ring-0">
-                                    <span class="text-sm font-bold text-white" data-i18n="calc_allowance2">Phụ cấp tổ đội + Ăn trưa (+500k)</span>
+                                    <input type="radio" name="allowance-opt" value="20" class="text-teal-500 focus:ring-0">
+                                    <span class="text-sm font-bold text-white" data-i18n="calc_allowance2">Phụ cấp tổ đội + Ăn trưa (+$20)</span>
                                 </label>
                             </div>
                         </div>
@@ -935,32 +935,32 @@
                         <div class="space-y-4 font-mono text-sm mb-8">
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_bill_label1">Giá khoán sản phẩm:</span>
-                                <span id="bill-piece-rate" class="text-white font-bold">30,000 ₫/cái</span>
+                                <span id="bill-piece-rate" class="text-white font-bold">$1.20/cái</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_bill_label2">Lương sản phẩm chuẩn:</span>
-                                <span id="bill-pieces-sum" class="text-white font-bold">6,000,000 ₫</span>
+                                <span id="bill-pieces-sum" class="text-white font-bold">$240.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_bill_label3">Lương tăng ca Overtime:</span>
-                                <span id="bill-ot-sum" class="text-white font-bold">0 ₫</span>
+                                <span id="bill-ot-sum" class="text-white font-bold">$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span id="bill-defect-label">Phạt phế phẩm (2 cái):</span>
-                                <span id="bill-defect-penalty">- 20,000 ₫</span>
+                                <span id="bill-defect-penalty">-$0.80</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-gray-400" data-i18n="calc_bill_label5">Phụ cấp tổ đội xưởng:</span>
-                                <span id="bill-allowance" class="text-white font-bold">0 ₫</span>
+                                <span id="bill-allowance" class="text-white font-bold">$0.00</span>
                             </div>
                             <div class="flex justify-between py-1 border-b border-white/5 text-rose-400">
                                 <span data-i18n="calc_bill_label6">Khấu trừ bảo hiểm TNCN:</span>
-                                <span id="bill-insurance">- 600,000 ₫</span>
+                                <span id="bill-insurance">-$24.00</span>
                             </div>
 
                             <div class="flex justify-between pt-4 text-emerald-400 font-extrabold text-lg">
                                 <span data-i18n="calc_bill_label7">THỰC LĨNH:</span>
-                                <span id="bill-net-pay" class="text-xl">5,380,000 ₫</span>
+                                <span id="bill-net-pay" class="text-xl">$215.20</span>
                             </div>
                         </div>
                     </div>
@@ -1354,7 +1354,7 @@
         const billNetPay = document.getElementById('bill-net-pay');
 
         function formatCurrency(val) {
-            return new Intl.NumberFormat('vi-VN').format(val) + " ₫";
+            return "$" + Number(val).toFixed(2);
         }
 
         function calculateProductionPayroll() {
@@ -1374,7 +1374,7 @@
             
             const totalPieces = pieces + otPieces;
             const defectCount = Math.round(totalPieces * (defectRate / 100.0));
-            const defectPenalty = defectCount * 10000; // 10k penalty per defect
+            const defectPenalty = defectCount * 0.40; // $0.40 penalty per defect
 
             // Allowance
             const allowanceOption = document.querySelector('input[name="allowance-opt"]:checked').value;
@@ -1390,10 +1390,10 @@
             billPiecesSum.textContent = formatCurrency(Math.round(piecesSum));
             billOtSum.textContent = formatCurrency(Math.round(otSum));
             billDefectLabel.textContent = `Phạt phế phẩm (${defectCount} cái):`;
-            billDefectPenalty.textContent = "- " + formatCurrency(defectPenalty);
+            billDefectPenalty.textContent = "-" + formatCurrency(defectPenalty);
             billAllowance.textContent = formatCurrency(allowanceCost);
-            billInsurance.textContent = "- " + formatCurrency(Math.round(insuranceCost));
-            billNetPay.textContent = formatCurrency(Math.round(netPay));
+            billInsurance.textContent = "-" + formatCurrency(insuranceCost);
+            billNetPay.textContent = formatCurrency(netPay);
         }
 
         // Add event listeners
@@ -1579,18 +1579,18 @@
                 calc_title: 'Bảng Tính Thử <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">Lương Khoán Sản Lượng & Phế Phẩm</span>',
                 calc_desc: 'Hãy thử tính toán bảng lương khoán sản phẩm thực tế của công nhân để xem BitPaw Production chốt lương và trừ phạt phế phẩm khoa học ra sao:',
                 calc_field1_label: '1. Đơn giá khoán trên mỗi sản phẩm',
-                calc_opt1: 'Sản phẩm gia công đơn giản (15,000đ/cái)',
-                calc_opt2: 'Sản phẩm thiết kế trung bình (30,000đ/cái)',
-                calc_opt3: 'Sản phẩm kỹ thuật cao cấp (60,000đ/cái)',
+                calc_opt1: 'Sản phẩm gia công đơn giản ($0.60/cái)',
+                calc_opt2: 'Sản phẩm thiết kế trung bình ($1.20/cái)',
+                calc_opt3: 'Sản phẩm kỹ thuật cao cấp ($2.40/cái)',
                 calc_field2_label: '2. Số sản phẩm hoàn thành trong ca',
-                calc_field3_label: '3. Tỷ lệ phế phẩm lỗi QC (Phạt 10k/cái)',
+                calc_field3_label: '3. Tỷ lệ phế phẩm lỗi QC (Phạt $0.40/cái)',
                 calc_field4_label: '4. Tăng ca đêm muộn Overtime sản lượng (Nhân hệ số 1.3x)',
                 calc_ot_0: '0 cái OT',
                 calc_ot_100: '100 cái OT',
                 calc_ot_200: '200 cái OT',
                 calc_field5_label: '5. Phụ cấp tổ đội chuyên cần & ăn trưa cố định',
                 calc_allowance1: 'Không nhận phụ cấp',
-                calc_allowance2: 'Phụ cấp tổ đội + Ăn trưa (+500k)',
+                calc_allowance2: 'Phụ cấp tổ đội + Ăn trưa (+$20)',
                 calc_invoice_title: 'Hóa Đơn Lương Khoán',
                 calc_bill_label1: 'Giá khoán sản phẩm:',
                 calc_bill_label2: 'Lương sản phẩm chuẩn:',
@@ -1751,18 +1751,18 @@
                 calc_title: 'A Sample <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">Piece-Rate & Defect Payroll Calculator</span>',
                 calc_desc: 'Try calculating a real worker piece-rate payslip to see how BitPaw Production closes wages and deducts defect penalties scientifically:',
                 calc_field1_label: '1. Piece rate per unit',
-                calc_opt1: 'Simple assembly product (15,000 VND/unit)',
-                calc_opt2: 'Medium-complexity product (30,000 VND/unit)',
-                calc_opt3: 'High-precision technical product (60,000 VND/unit)',
+                calc_opt1: 'Simple assembly product ($0.60/unit)',
+                calc_opt2: 'Medium-complexity product ($1.20/unit)',
+                calc_opt3: 'High-precision technical product ($2.40/unit)',
                 calc_field2_label: '2. Units completed in the shift',
-                calc_field3_label: '3. QC defect rate (Penalty 10k/unit)',
+                calc_field3_label: '3. QC defect rate (Penalty $0.40/unit)',
                 calc_field4_label: '4. Late-night overtime output (1.3x multiplier)',
                 calc_ot_0: '0 units OT',
                 calc_ot_100: '100 units OT',
                 calc_ot_200: '200 units OT',
                 calc_field5_label: '5. Fixed team diligence & lunch allowance',
                 calc_allowance1: 'No allowance',
-                calc_allowance2: 'Team + Lunch Allowance (+500k)',
+                calc_allowance2: 'Team + Lunch Allowance (+$20)',
                 calc_invoice_title: 'Piece-Rate Payroll Invoice',
                 calc_bill_label1: 'Piece rate:',
                 calc_bill_label2: 'Standard output pay:',

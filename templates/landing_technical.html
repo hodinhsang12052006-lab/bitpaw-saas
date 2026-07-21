@@ -912,28 +912,28 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label for="hourly-wage" class="text-sm font-bold text-gray-300 flex items-center gap-2">
-                                    <i class="fas fa-dollar-sign text-red-400"></i> <span data-i18n="calc_label_wage">Đơn giá giờ thợ (VNĐ/giờ)</span>
+                                    <i class="fas fa-dollar-sign text-red-400"></i> <span data-i18n="calc_label_wage">Đơn giá giờ thợ ($/giờ)</span>
                                 </label>
-                                <span id="hourly-wage-val" class="text-lg font-black text-red-400">150,000 VNĐ</span>
+                                <span id="hourly-wage-val" class="text-lg font-black text-red-400">$6.00</span>
                             </div>
-                            <input type="range" id="hourly-wage" min="80000" max="300000" step="10000" value="150000"
+                            <input type="range" id="hourly-wage" min="3.20" max="12" step="0.40" value="6"
                                 class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500 focus:outline-none focus:ring-2 focus:ring-red-500">
                             <div class="flex justify-between text-xs text-gray-500 mt-1.5 font-semibold">
-                                <span data-i18n="calc_wage_tick1">80k VNĐ</span>
-                                <span data-i18n="calc_wage_tick2">150k VNĐ</span>
-                                <span data-i18n="calc_wage_tick3">300k VNĐ</span>
+                                <span data-i18n="calc_wage_tick1">$3.20</span>
+                                <span data-i18n="calc_wage_tick2">$6.00</span>
+                                <span data-i18n="calc_wage_tick3">$12.00</span>
                             </div>
                         </div>
 
                         <!-- Input 3 -->
                         <div>
                             <label for="part-cost" class="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
-                                <i class="fas fa-cogs text-red-400"></i> <span data-i18n="calc_label_partcost">Giá linh kiện thay thế (VNĐ)</span>
+                                <i class="fas fa-cogs text-red-400"></i> <span data-i18n="calc_label_partcost">Giá linh kiện thay thế ($)</span>
                             </label>
                             <div class="relative">
-                                <input type="number" id="part-cost" value="450000"
+                                <input type="number" id="part-cost" value="18"
                                     class="w-full calc-input px-4 py-3 text-white focus:outline-none pr-12 font-bold">
-                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm" data-i18n="calc_currency_unit">VNĐ</span>
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm" data-i18n="calc_currency_unit">$</span>
                             </div>
                         </div>
 
@@ -963,8 +963,8 @@
                         <div class="absolute -right-16 -top-16 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl"></div>
                         <h4 class="text-gray-400 text-xs font-black uppercase tracking-widest mb-1" data-i18n="calc_total_bill_label">TỔNG TIỀN HÓA ĐƠN KHÁCH TRẢ</h4>
                         <div class="flex items-baseline gap-2">
-                            <span id="total-bill-out" class="text-4xl lg:text-5xl font-black text-gradient-red">1,050,000</span>
-                            <span class="text-lg font-extrabold text-orange-400" data-i18n="calc_currency_unit">VNĐ</span>
+                            <span id="total-bill-out" class="text-4xl lg:text-5xl font-black text-gradient-red">42.00</span>
+                            <span class="text-lg font-extrabold text-orange-400" data-i18n="calc_currency_unit">$</span>
                         </div>
                         <p class="text-xs text-slate-400 mt-2 font-medium leading-relaxed" data-i18n="calc_total_bill_desc">Đã bao gồm chi phí nhân công và giá linh kiện thay thế tại chỗ.</p>
                     </div>
@@ -974,8 +974,8 @@
                         <div class="absolute -right-16 -top-16 w-32 h-32 bg-red-500/10 rounded-full blur-2xl"></div>
                         <h4 class="text-gray-400 text-xs font-black uppercase tracking-widest mb-1" data-i18n="calc_tech_pay_label">TIỀN CÔNG THỢ THỰC NHẬN (HOA HỒNG)</h4>
                         <div class="flex items-baseline gap-2">
-                            <span id="tech-pay-out" class="text-4xl lg:text-5xl font-black text-emerald-400">225,000</span>
-                            <span class="text-lg font-extrabold text-emerald-400" data-i18n="calc_currency_unit">VNĐ</span>
+                            <span id="tech-pay-out" class="text-4xl lg:text-5xl font-black text-emerald-400">9.00</span>
+                            <span class="text-lg font-extrabold text-emerald-400" data-i18n="calc_currency_unit">$</span>
                         </div>
                         <p class="text-xs text-slate-400 mt-2 font-medium leading-relaxed" data-i18n="calc_tech_pay_desc">Được tính từ tỷ lệ % chia nhân công sửa chữa + 10% hoa hồng bán linh kiện của thợ.</p>
                     </div>
@@ -1384,17 +1384,17 @@
         const efficiencyBadge = document.getElementById('efficiency-badge');
 
         function formatCurrency(number) {
-            return new Intl.NumberFormat('vi-VN').format(number);
+            return Number(number).toFixed(2);
         }
 
         function calculateInvoice() {
             const labor = parseInt(laborSlider.value);
-            const wage = parseInt(wageSlider.value);
-            const partCost = parseInt(partCostInput.value) || 0;
+            const wage = parseFloat(wageSlider.value);
+            const partCost = parseFloat(partCostInput.value) || 0;
             const comm = parseInt(commSlider.value);
 
             laborVal.textContent = labor + " giờ";
-            wageVal.textContent = formatCurrency(wage) + " VNĐ";
+            wageVal.textContent = "$" + formatCurrency(wage);
             commVal.textContent = comm + "%";
 
             // Total bill = labor cost + parts cost
@@ -1517,15 +1517,15 @@
                 ai_visual_title: 'Trực quan điều phối thợ',
                 calc_badge: 'ƯỚC TÍNH CHI PHÍ VÀ HOA HỒNG THỢ',
                 calc_cta: 'Số hóa đội thợ của bạn ngay',
-                calc_currency_unit: 'VNĐ',
+                calc_currency_unit: '$',
                 calc_hours_tick1: '1 giờ',
                 calc_hours_tick2: '6 giờ',
                 calc_hours_tick3: '12 giờ',
                 calc_interactive_badge: 'Trực quan 100%',
                 calc_label_commission: 'Tỷ lệ hoa hồng giờ thợ chia thợ',
                 calc_label_hours: 'Số giờ sửa chữa thực tế',
-                calc_label_partcost: 'Giá linh kiện thay thế (VNĐ)',
-                calc_label_wage: 'Đơn giá giờ thợ (VNĐ/giờ)',
+                calc_label_partcost: 'Giá linh kiện thay thế ($)',
+                calc_label_wage: 'Đơn giá giờ thợ ($/giờ)',
                 calc_params_title: 'Tham số tính toán',
                 calc_perf_desc: 'Tính toán dựa trên số giờ vận hành sự cố',
                 calc_perf_title: 'Hiệu suất và Phân bổ thợ',
@@ -1535,9 +1535,9 @@
                 calc_title: 'Bảng tính thử hóa đơn sửa chữa',
                 calc_total_bill_desc: 'Đã bao gồm chi phí nhân công và giá linh kiện thay thế tại chỗ.',
                 calc_total_bill_label: 'TỔNG TIỀN HÓA ĐƠN KHÁCH TRẢ',
-                calc_wage_tick1: '80k VNĐ',
-                calc_wage_tick2: '150k VNĐ',
-                calc_wage_tick3: '300k VNĐ',
+                calc_wage_tick1: '$3.20',
+                calc_wage_tick2: '$6.00',
+                calc_wage_tick3: '$12.00',
                 cta_btn1: 'Dùng thử miễn phí ngay',
                 cta_btn2: 'Chat Zalo nhận demo thực tế',
                 cta_subtitle: 'Đăng ký dùng thử miễn phí 14 ngày để trải nghiệm giải pháp điều phối thợ GPS real-time và chữ ký số nghiệm thu ngay trên di động.',
@@ -1698,15 +1698,15 @@
                 ai_visual_title: 'Visual Technician Dispatch',
                 calc_badge: 'COST & TECHNICIAN COMMISSION ESTIMATOR',
                 calc_cta: 'Digitize your technician team now',
-                calc_currency_unit: 'VND',
+                calc_currency_unit: '$',
                 calc_hours_tick1: '1 hour',
                 calc_hours_tick2: '6 hours',
                 calc_hours_tick3: '12 hours',
                 calc_interactive_badge: '100% Interactive',
                 calc_label_commission: 'Technician labor commission rate',
                 calc_label_hours: 'Actual repair hours',
-                calc_label_partcost: 'Replacement part cost (VND)',
-                calc_label_wage: 'Technician hourly rate (VND/hour)',
+                calc_label_partcost: 'Replacement part cost ($)',
+                calc_label_wage: 'Technician hourly rate ($/hour)',
                 calc_params_title: 'Calculation Parameters',
                 calc_perf_desc: 'Calculated based on incident handling hours',
                 calc_perf_title: 'Performance & Technician Allocation',
@@ -1716,9 +1716,9 @@
                 calc_title: 'Repair Invoice Calculator',
                 calc_total_bill_desc: 'Includes labor cost and on-site replacement part cost.',
                 calc_total_bill_label: 'TOTAL CUSTOMER INVOICE',
-                calc_wage_tick1: '80k VND',
-                calc_wage_tick2: '150k VND',
-                calc_wage_tick3: '300k VND',
+                calc_wage_tick1: '$3.20',
+                calc_wage_tick2: '$6.00',
+                calc_wage_tick3: '$12.00',
                 cta_btn1: 'Start Free Trial Now',
                 cta_btn2: 'Chat on Zalo for a live demo',
                 cta_subtitle: 'Sign up for a 14-day free trial to experience real-time GPS technician dispatch and mobile digital sign-off.',
