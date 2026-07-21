@@ -6,6 +6,7 @@
     <title>Bảng Lương Tổng Hợp | BitPaw OS</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -587,7 +588,7 @@
                     ${isTop1 ? '<div class="absolute -right-4 -top-6 text-6xl text-yellow-500/10"><i class="fas fa-crown"></i></div>' : ''}
                     <div class="col-span-3 flex items-center gap-3 lg:gap-4 pl-2 relative z-10">
                         <div class="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-800 flex items-center justify-center font-black text-white shadow-inner group-hover:scale-110 transition-transform overflow-hidden shrink-0 border border-white/10">
-                            ${emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0)}
+                            ${bpAvatarImg(emp.ho_ten, emp.avatar_url)}
                         </div>
                         <div class="min-w-0">
                             <p class="font-bold text-white text-sm lg:text-base group-hover:text-cyan-300 transition-colors truncate">${emp.ho_ten} ${isTop1 ? '<i class="fas fa-star text-yellow-400 text-[10px] ml-1"></i>' : ''}</p>

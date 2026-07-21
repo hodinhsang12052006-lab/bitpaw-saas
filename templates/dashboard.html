@@ -22,6 +22,7 @@
     </script>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -658,7 +659,7 @@
                 topEmps.forEach((emp, idx) => {
                     if (!emp.diem_kudo) return;
                     const m = medals[idx];
-                    const avatar = emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0);
+                    const avatar = bpAvatarImg(emp.ho_ten, emp.avatar_url);
                     html += `
                         <div class="kudo-card flex items-center justify-between bg-black/60 border border-white/5 p-3 rounded-2xl cursor-default relative overflow-hidden group hover:bg-white/[0.05]">
                             ${idx === 0 ? '<div class="absolute left-0 top-0 w-1 h-full bg-yellow-400 shadow-[0_0_10px_#facc15]"></div>' : ''}

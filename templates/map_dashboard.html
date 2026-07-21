@@ -10,6 +10,7 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     
     <!-- ThreeJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -599,7 +600,7 @@
                 let validCoordinates = []; 
 
                 users.forEach(u => {
-                    const avatarContent = u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : u.ho_ten.charAt(0).toUpperCase();
+                    const avatarContent = bpAvatarImg(u.ho_ten, u.avatar_url);
                     
                     let profession = u.linh_vuc || t('map_dashboard_profession_default');
                     let profColor = "text-gray-400"; 
@@ -678,7 +679,7 @@
             if (!lat || !lng) return; 
 
             let markerColor = trang_thai_gps === 'Rảnh' ? '#10b981' : '#f43f5e';
-            const avatarContent = avatar_url ? `<img src="${avatar_url}" class="w-full h-full object-cover">` : ho_ten.charAt(0).toUpperCase();
+            const avatarContent = bpAvatarImg(ho_ten, avatar_url);
 
             const kudoMarkerHTML = diem_kudo > 0 ? `<div class="absolute -top-3 -right-2 bg-yellow-500 text-black text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#08061a] z-20 shadow-[0_0_10px_#eab308]"><i class="fas fa-star text-[10px]"></i></div>` : '';
 

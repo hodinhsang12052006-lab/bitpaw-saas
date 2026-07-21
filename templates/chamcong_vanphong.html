@@ -7,6 +7,7 @@
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
@@ -361,7 +362,7 @@
                 const color = colors[index] || colors[3];
                 const isTop1 = index === 0;
                 const crown = isTop1 ? '<i class="fas fa-crown text-yellow-400 absolute -top-3 left-1/2 transform -translate-x-1/2 text-lg crown-glow z-20"></i>' : '';
-                const avatar = emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0);
+                const avatar = bpAvatarImg(emp.ho_ten, emp.avatar_url);
                 
                 list.innerHTML += `
                     <div class="kudo-card bg-black/40 border ${isTop1 ? 'border-yellow-500/50 shadow-[0_0_10px_rgba(250,204,21,0.2)]' : 'border-white/5'} rounded-xl p-3 flex items-center gap-3 cursor-default">

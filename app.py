@@ -1563,13 +1563,26 @@ def add_product():
         print(f"MongoDB system_settings select failed: {str(db_err)}")
         current_mode = 'none'
     if request.method == 'POST':
-        image_file = request.files.get('image')
-        filename = ""
-        if image_file and image_file.filename != '' and allowed_file(image_file.filename):
-            filename = secure_filename(image_file.filename)
-            image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         cat = request.form['category']
         business_id = session.get('business_id') or session['user_id']
+        # Ảnh sản phẩm lưu vào GridFS (media_fs, kind='product_image') thay vì filesystem cục
+        # bộ — trên Vercel, filesystem là ephemeral/read-only ngoài /tmp nên lưu file thật sẽ
+        # mất ảnh sau mỗi cold start/redeploy. Lưu thẳng URL public (không cần login) vì thực
+        # đơn được xem bởi khách quét QR (qr_menu.html/table_order.html) không có session.
+        image_url = ""
+        image_file = request.files.get('image')
+        if image_file and image_file.filename != '' and allowed_file(image_file.filename) and media_fs is not None:
+            try:
+                file_id = media_fs.put(
+                    image_file.stream.read(),
+                    filename=secure_filename(image_file.filename),
+                    business_id=business_id,
+                    kind='product_image',
+                    content_type=image_file.mimetype or 'application/octet-stream'
+                )
+                image_url = url_for('api_public_storage_file', file_id=str(file_id))
+            except Exception as media_err:
+                print(f"GridFS product image upload failed: {str(media_err)}")
         try:
             db.products.insert_one({
                 'id': next_mongo_id('products'),
@@ -1578,7 +1591,7 @@ def add_product():
                 'channel_type': 'fnb' if current_mode == 'fnb' else 'retail',
                 'stock': int(request.form['stock']),
                 'price': float(request.form['price']),
-                'image': filename,
+                'image': image_url,
                 'is_active': 1,
                 'business_id': business_id
             })
@@ -4140,10 +4153,12 @@ def api_storage_file(file_id):
 
 
 # Kind nào được coi là "công khai theo thiết kế" — logo/cover thương hiệu (khách xem trang
-# landing/booking/portal/qr_menu của tenant) và ảnh chat CSKH (khách ẩn danh gửi/nhận qua
-# portal.html, không có session để dùng route private ở trên). CHỈ 2 nhóm này — không bao giờ
-# thêm 'checkin'/'avatar'/... vào đây, những kind đó PHẢI qua /api/storage/file/<id> (private).
-_PUBLIC_MEDIA_KINDS = {'brand_logo', 'brand_cover', 'portal_chat'}
+# landing/booking/portal/qr_menu của tenant), ảnh chat CSKH (khách ẩn danh gửi/nhận qua
+# portal.html, không có session để dùng route private ở trên), và ảnh sản phẩm/dịch vụ (khách
+# quét QR menu/table_order cũng không có session nhưng vẫn cần xem ảnh món). CHỈ các nhóm này —
+# không bao giờ thêm 'checkin'/'avatar'/... vào đây, những kind đó PHẢI qua
+# /api/storage/file/<id> (private).
+_PUBLIC_MEDIA_KINDS = {'brand_logo', 'brand_cover', 'portal_chat', 'product_image'}
 
 
 @app.route('/api/public/storage/file/<file_id>', methods=['GET'])
@@ -4460,7 +4475,47 @@ def api_chat_messages_list():
         query['timestamp'] = {'$lt': before}
     try:
         msgs = list(db.chat_messages.find(query, {'_id': 0}).sort('timestamp', -1).limit(limit))
-        return jsonify({"success": True, "data": msgs})
+        # "unread" tính THẬT server-side (không phải suy đoán client) — so sánh timestamp tin
+        # mới nhất trong room với last_read_at của CHÍNH người đang gọi (chat_read_state), thay
+        # vì chỉ đoán qua "tin cuối có phải mình gửi không" như bản cũ (sai khi đã đọc rồi mà
+        # tin cuối vẫn của người khác). Không dùng field is_read trên từng message vì room có
+        # thể nhiều người cùng đọc (KenhChung) — "đã đọc" là trạng thái RIÊNG của từng người,
+        # không phải thuộc tính chung của tin nhắn.
+        email, _name = _resolve_chat_identity(business_id)
+        unread = False
+        if msgs:
+            try:
+                read_state = db.chat_read_state.find_one(
+                    {'business_id': business_id, 'room': room, 'email': email}, {'last_read_at': 1, '_id': 0}
+                )
+                last_read_at = read_state['last_read_at'] if read_state else None
+                unread = any(
+                    m.get('sender_id') != email and (not last_read_at or m['timestamp'] > last_read_at)
+                    for m in msgs
+                )
+            except Exception as read_state_err:
+                print(f"[api_chat_messages_list] Tính unread lỗi (bỏ qua, coi như đã đọc): {str(read_state_err)}")
+        return jsonify({"success": True, "data": msgs, "unread": unread})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/chat/read', methods=['POST'])
+@login_required
+def api_chat_mark_read():
+    """Đánh dấu ĐÃ ĐỌC 1 room cho ĐÚNG người gọi hiện tại — gọi khi client thực sự mở xem hội
+    thoại (openChat), KHÔNG gọi khi chỉ lấy preview tin cuối (loadDanhBa dùng limit=1 để hiện
+    preview, không phải hành động 'đọc')."""
+    business_id = session.get('business_id') or session['user_id']
+    room = (request.json or {}).get('room', 'KenhChung')
+    email, _name = _resolve_chat_identity(business_id)
+    try:
+        db.chat_read_state.update_one(
+            {'business_id': business_id, 'room': room, 'email': email},
+            {'$set': {'last_read_at': datetime.now().isoformat()}},
+            upsert=True
+        )
+        return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -8271,333 +8326,12 @@ def expense_alias():
     return redirect(url_for('quanly_thuchi'))
 
 
-# ==========================================
-# BITPAW NETWORK BLUEPRINT ROUTING (PHASE 1A + 1B + OVERHAUL)
-# ==========================================
-MOCK_JOBS = [
-    {
-        'id': 'job-1',
-        'title': 'Kỹ thuật viên Nails Acrylic (Thợ chính)',
-        'company': 'Bloom Nails Salon Q3',
-        'salary': '12.000.000đ - 18.000.000đ',
-        'location': 'Quận 3, TP. HCM',
-        'type': 'full_time',
-        'industry': 'nails',
-        'skills': ['Acrylic Extensions', 'Gel Polish Art', 'Đắp bột', 'Cắt móng'],
-        'description': 'Cần tuyển thợ nails chính biết đắp bột, vẽ gel chuyên nghiệp. Làm việc trong môi trường salon máy lạnh cao cấp, có phần trăm hoa hồng cao.',
-        'urgent': True
-    },
-    {
-        'id': 'job-2',
-        'title': 'Thợ phụ chăm sóc tóc & gội đầu dưỡng sinh',
-        'company': 'Luxury Spa & Hair Q1',
-        'salary': '7.000.000đ - 10.000.000đ',
-        'location': 'Quận 1, TP. HCM',
-        'type': 'full_time',
-        'industry': 'spa',
-        'skills': ['Gội đầu dưỡng sinh', 'Massage đầu', 'Phụ làm tóc'],
-        'description': 'Tuyển nhân viên phụ tóc gội dưỡng sinh làm việc xoay ca. Chưa biết nghề được đào tạo thêm.',
-        'urgent': False
-    },
-    {
-        'id': 'job-3',
-        'title': 'Thợ lắp đặt & sửa chữa điều hòa (HVAC)',
-        'company': 'Điện Lạnh Bách Khoa SG',
-        'salary': '10.000.000đ - 15.000.000đ',
-        'location': 'Quận 10, TP. HCM',
-        'type': 'shift_work',
-        'industry': 'technical',
-        'skills': ['Lắp đặt máy lạnh', 'Sửa board mạch', 'Nạp gas điều hòa'],
-        'description': 'Tuyển thợ điện lạnh lắp đặt, bảo dưỡng máy lạnh văn phòng và gia đình. Có xe máy đi lại, trợ cấp xăng xe.',
-        'urgent': True
-    },
-    {
-        'id': 'job-4',
-        'title': 'Nhân viên phục vụ & pha chế ca tối',
-        'company': 'BitPaw F&B Coffee',
-        'salary': '25.000đ - 30.000đ/giờ',
-        'location': 'Bình Thạnh, TP. HCM',
-        'type': 'part_time',
-        'industry': 'fnb',
-        'skills': ['Pha chế basic', 'Phục vụ bàn', 'Order món'],
-        'description': 'Tuyển pha chế kiêm phục vụ ca tối (18h-23h). Thân thiện, nhanh nhẹn, ưu tiên sinh viên.',
-        'urgent': False
-    }
-]
-
-MOCK_SERVICES = [
-    {
-        'id': 'svc-1',
-        'name': 'Thợ Nails A',
-        'service_type': 'Thiết kế & Làm móng Nails Art',
-        'rating': 4.9,
-        'reviews_count': 32,
-        'price': 'Chỉ từ 150k - 500k',
-        'location': 'Quận 3, TP. HCM',
-        'industry': 'nails',
-        'skills': ['Acrylic Extensions', 'Gel Polish Art', 'Chăm sóc móng', 'Đính đá'],
-        'availability': 'Hàng ngày 8:00 - 20:00'
-    },
-    {
-        'id': 'svc-2',
-        'name': 'Kỹ thuật viên Điện lạnh B',
-        'service_type': 'Sửa chữa & Vệ sinh Máy lạnh tại nhà',
-        'rating': 4.8,
-        'reviews_count': 19,
-        'price': 'Vệ sinh 150k/máy, sửa bo mạch báo giá trước',
-        'location': 'Quận 10, TP. HCM',
-        'industry': 'technical',
-        'skills': ['Vệ sinh máy lạnh', 'Lắp đặt máy lạnh', 'Nạp gas điều hòa'],
-        'availability': 'Cuối tuần & Ngày thường sau 18h'
-    },
-    {
-        'id': 'svc-3',
-        'name': 'Chuyên viên Spa C',
-        'service_type': 'Liệu trình Massage body & Chăm sóc da mụn',
-        'rating': 4.7,
-        'reviews_count': 25,
-        'price': 'Combo 90 phút 350k',
-        'location': 'Quận 1, TP. HCM',
-        'industry': 'spa',
-        'skills': ['Massage trị liệu', 'Chăm sóc da', 'Nặn mụn chuẩn y khoa'],
-        'availability': 'Nhận lịch đặt trước 1 ngày'
-    }
-]
-
-MOCK_COMMUNITIES = [
-    {
-        'slug': 'nails-viet',
-        'name': 'Cộng đồng Nail Việt Nam',
-        'members': 4250,
-        'description': 'Nơi chia sẻ các mẫu nail hot trend, kinh nghiệm đắp bột, vẽ cọ nét và tìm kiếm thợ nails nhanh chóng.',
-        'pinned_job': 'Kỹ thuật viên Nails Acrylic (Thợ chính) - Bloom Nails Salon'
-    },
-    {
-        'slug': 'spa-beauty',
-        'name': 'Spa & Thẩm Mỹ Master',
-        'members': 3100,
-        'description': 'Diễn đàn chia sẻ kỹ năng massage, công nghệ trị liệu da y khoa, vận hành spa chuyên nghiệp.',
-        'pinned_job': 'Kỹ thuật viên Spa Trị liệu da - Luxury Spa'
-    },
-    {
-        'slug': 'electrical-hvac',
-        'name': 'Thợ Kỹ Thuật Điện Lạnh HCMC',
-        'members': 1850,
-        'description': 'Nhóm giao lưu thợ điện gia dụng, thợ lắp ráp điều hòa, chia sẻ sơ đồ mạch điện tử và hỗ trợ xử lý lỗi khó.',
-        'pinned_job': 'Thợ lắp đặt & sửa chữa điều hòa (HVAC) - Điện Lạnh Bách Khoa'
-    },
-    {
-        'slug': 'fnb-owners',
-        'name': 'F&B Owners Guild',
-        'members': 2900,
-        'description': 'Nhóm kết nối các chủ quán cafe, nhà hàng, quán ăn chia sẻ nguồn nguyên liệu sỉ chất lượng, kinh nghiệm vận hành và tuyển nhân viên.',
-        'pinned_job': 'Nhân viên phục vụ & pha chế ca tối - BitPaw Coffee'
-    }
-]
-
-@app.route('/network')
-def network_home():
-    return render_template(
-        'network_home.html',
-        jobs=MOCK_JOBS[:3],
-        services=MOCK_SERVICES[:2],
-        communities=MOCK_COMMUNITIES[:3]
-    )
-
-def _ensure_network_users_table(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS network_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            fullname TEXT,
-            phone TEXT,
-            role TEXT,
-            location TEXT
-        )
-    """)
-
-
-@app.route('/network/login', methods=['GET', 'POST'])
-def network_login():
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-
-        try:
-            conn = sqlite3.connect('database.db')
-            c = conn.cursor()
-            _ensure_network_users_table(c)
-            c.execute("SELECT password_hash, fullname, phone, role, location FROM network_users WHERE email=?", (email,))
-            row = c.fetchone()
-            conn.close()
-        except Exception as e:
-            flash(f'Lỗi hệ thống, vui lòng thử lại: {str(e)}', 'danger')
-            return render_template('network_login.html')
-
-        if not row or not check_password_hash(row[0], password):
-            flash('Sai email hoặc mật khẩu!', 'danger')
-            return render_template('network_login.html')
-
-        session['network_user'] = {
-            'fullname': row[1],
-            'email': email,
-            'phone': row[2],
-            'role': row[3],
-            'location': row[4],
-            'is_onboarded': True
-        }
-        flash('Đăng nhập vào BitPaw Network thành công!', 'success')
-        return redirect(url_for('network_onboarding'))
-    return render_template('network_login.html')
-
-@app.route('/network/register', methods=['GET', 'POST'])
-def network_register():
-    if request.method == 'POST':
-        fullname = request.form.get('fullname', '')
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        phone = request.form.get('phone', '')
-        role = request.form.get('role', 'job_seeker')
-        location = request.form.get('location', 'Quận 1, TP. HCM')
-
-        if not email or not password:
-            flash('Vui lòng nhập đầy đủ email và mật khẩu!', 'danger')
-            return render_template('network_register.html')
-
-        try:
-            conn = sqlite3.connect('database.db')
-            c = conn.cursor()
-            _ensure_network_users_table(c)
-            c.execute("SELECT id FROM network_users WHERE email=?", (email,))
-            if c.fetchone():
-                conn.close()
-                flash('Email này đã được đăng ký!', 'danger')
-                return render_template('network_register.html')
-
-            c.execute(
-                "INSERT INTO network_users (email, password_hash, fullname, phone, role, location) VALUES (?, ?, ?, ?, ?, ?)",
-                (email, generate_password_hash(password), fullname, phone, role, location)
-            )
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            flash(f'Lỗi hệ thống, vui lòng thử lại: {str(e)}', 'danger')
-            return render_template('network_register.html')
-
-        session['network_user'] = {
-            'fullname': fullname,
-            'email': email,
-            'phone': phone,
-            'role': role,
-            'location': location,
-            'is_onboarded': False
-        }
-        flash('Đăng ký tài khoản BitPaw Network thành công!', 'success')
-        return redirect(url_for('network_onboarding'))
-    return render_template('network_register.html')
-
-@app.route('/network/onboarding', methods=['GET', 'POST'])
-def network_onboarding():
-    if not session.get('network_user'):
-        return redirect(url_for('network_login'))
-        
-    if request.method == 'POST':
-        user = session['network_user']
-        user['is_onboarded'] = True
-        
-        if user['role'] == 'job_seeker':
-            user['headline'] = request.form.get('headline', '')
-            user['skills'] = request.form.get('skills', '')
-            user['experience'] = request.form.get('experience', '')
-            user['salary_expect'] = request.form.get('salary_expect', '')
-        elif user['role'] == 'employer':
-            user['company_name'] = request.form.get('company_name', '')
-            user['industry'] = request.form.get('industry', '')
-            user['company_size'] = request.form.get('company_size', '')
-        elif user['role'] == 'provider':
-            user['service_type'] = request.form.get('service_type', '')
-            user['price_sheet'] = request.form.get('price_sheet', '')
-            user['availability'] = request.form.get('availability', '')
-        elif user['role'] == 'local_business':
-            user['business_name'] = request.form.get('business_name', '')
-            user['business_industry'] = request.form.get('business_industry', '')
-            user['interested_modules'] = request.form.getlist('interested_modules')
-            
-        session['network_user'] = user
-        flash('Thiết lập hồ sơ onboarding hoàn tất!', 'success')
-        return redirect(url_for('network_dashboard'))
-        
-    return render_template('network_onboarding.html')
-
-@app.route('/network/profile')
-def network_profile():
-    user = session.get('network_user')
-    if not user:
-        user = {
-            'fullname': 'Đặng Ngọc Minh Triết',
-            'email': 'minhtriet.acrylics@gmail.com',
-            'phone': '0794.678.904',
-            'role': 'job_seeker',
-            'location': 'Quận 3, TP. Hồ Chí Minh',
-            'headline': 'Chuyên viên Thiết kế Nails & Chăm sóc móng chuyên nghiệp (5+ năm kinh nghiệm)',
-            'skills': 'Acrylic Extensions, Gel Polish Art, Chăm sóc móng, Đính đá, Nail design',
-            'experience': 'Làm việc 3 năm tại Nail Salon Luxury Q1, 2 năm KTV chính tại Bloom Spa.',
-            'salary_expect': '12.000.000đ - 15.000.000đ',
-            'is_onboarded': True
-        }
-    return render_template('network_profile.html', profile=user)
-
-@app.route('/network/dashboard')
-def network_dashboard():
-    user = session.get('network_user')
-    if not user:
-        flash('Vui lòng đăng nhập để xem dashboard!', 'info')
-        return redirect(url_for('network_login'))
-    return render_template('network_dashboard.html', user=user)
-
-@app.route('/network/discover')
-def network_discover():
-    q = request.args.get('q', '')
-    category = request.args.get('category', 'all')
-    return render_template('network_discover.html', jobs=MOCK_JOBS, services=MOCK_SERVICES, communities=MOCK_COMMUNITIES, query=q, category=category)
-
-@app.route('/network/jobs')
-def network_jobs():
-    return render_template('network_jobs.html', jobs=MOCK_JOBS)
-
-@app.route('/network/services')
-def network_services():
-    return render_template('network_services.html', services=MOCK_SERVICES)
-
-@app.route('/network/communities')
-def network_communities():
-    return render_template('network_communities.html', communities=MOCK_COMMUNITIES)
-
-@app.route('/network/messages')
-def network_messages():
-    user = session.get('network_user')
-    if not user:
-        user = {'fullname': 'Khách Vãng Lai', 'role': 'job_seeker'}
-    return render_template('network_messages.html', user=user)
-
-@app.route('/network/cv-builder')
-def network_cv_builder():
-    user = session.get('network_user')
-    if not user:
-        user = {
-            'fullname': 'Đặng Ngọc Minh Triết',
-            'email': 'minhtriet.acrylics@gmail.com',
-            'phone': '0794.678.904',
-            'role': 'job_seeker',
-            'location': 'Quận 3, TP. Hồ Chí Minh',
-            'headline': 'Chuyên viên Thiết kế Nails & Chăm sóc móng chuyên nghiệp (5+ năm kinh nghiệm)',
-            'skills': 'Acrylic Extensions, Gel Polish Art, Chăm sóc móng, Đính đá, Nail design',
-            'experience': 'Làm việc 3 năm tại Nail Salon Luxury Q1, 2 năm KTV chính tại Bloom Spa.',
-            'salary_expect': '12.000.000đ - 15.000.000đ',
-            'is_onboarded': True
-        }
-    return render_template('network_cv_builder.html', profile=user)
+# BITPAW NETWORK BLUEPRINT (job/service/community marketplace) đã bị xoá — toàn bộ 12 route
+# /network/* dùng chung khối template network_*.html KHÔNG TỒN TẠI trong templates/ (đã kiểm
+# tra bằng ls, không route nào render được), nên trước đây bấm vào bất kỳ URL /network/* nào
+# đều lỗi 500 TemplateNotFound. Module dở dang, tách biệt hoàn toàn khỏi kiến trúc MongoDB đa
+# tenant chính (tự dùng SQLite database.db + session['network_user'] riêng) — không có nơi nào
+# khác trong code liên kết tới các route này (đã grep xác nhận), xoá an toàn.
 
 
 # ========== API QR CODE DYNAMIC (PHASE 1) ==========

@@ -6,6 +6,7 @@
     <title>Hotel Attendance - BitPaw OS</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
@@ -547,7 +548,7 @@
                             ? `<button class="bg-emerald-500/10 text-emerald-400 font-black p-2.5 rounded-xl w-full flex items-center justify-center gap-2 cursor-not-allowed opacity-50 border border-emerald-500/20 uppercase tracking-widest text-[10px] shadow-inner"><i class="fas fa-check-double"></i> ${t('chamcongkhachsan_confirmed')}</button>`
                             : `<button id="btn_${emp.ma_nv}" onclick="saveHotel('${emp.ma_nv}')" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black p-2.5 rounded-xl transition-all w-full flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(168,85,247,0.4)] hover:shadow-[0_5px_20px_rgba(236,72,153,0.6)] uppercase tracking-widest text-[10px] active:scale-95"><i class="fas fa-save text-sm"></i> ${t('chamcongkhachsan_save_shift')}</button>`;
 
-                        const avatarContent = emp.avatar_url ? `<img src="${emp.avatar_url}" class="w-full h-full object-cover">` : emp.ho_ten.charAt(0);
+                        const avatarContent = bpAvatarImg(emp.ho_ten, emp.avatar_url);
 
                         html += `
                         <tr class="hover:bg-white/[0.05] transition-colors group border-b border-white/5 tr-cascade" style="animation-delay: ${rowDelay}ms;">

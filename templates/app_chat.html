@@ -12,6 +12,7 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     
     <style>
@@ -404,20 +405,23 @@
                         const lastMsg = (msgBody.data || [])[0];
                         if (lastMsg) {
                             previewText = lastMsg.content.startsWith('[IMG]') || lastMsg.content.startsWith('[GIF]') ? t('appchat_sent_image') : lastMsg.content;
-                            if (lastMsg.sender_id !== myEmail) {
+                            // "unread" tính THẬT server-side (so sánh last_read_at của mình với
+                            // timestamp tin mới nhất) - KHÔNG còn đoán qua "tin cuối có phải
+                            // mình gửi không", vốn hiện sai chấm đỏ ngay cả khi đã đọc rồi.
+                            if (msgBody.unread) {
                                 previewText = `<span class="text-white font-bold drop-shadow-md">${previewText}</span>`;
                                 unreadDot = `<div class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse"></div>`;
-                            } else {
+                            } else if (lastMsg.sender_id === myEmail) {
                                 previewText = `${t('appchat_you_prefix')}${previewText}`;
                             }
                         }
                     } catch (e) { /* im lặng — phòng chưa từng có tin nhắn */ }
 
-                    const defaultAvt = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.ho_ten)}&background=1E293B&color=06b6d4&bold=true`;
-                    const avatarContent = `<img src="${u.avatar_url || defaultAvt}" class="w-full h-full object-cover">`;
+                    const avatarContent = bpAvatarImg(u.ho_ten, u.avatar_url);
+                    const avatarForRoom = u.avatar_url || bpAvatarUrl(u.ho_ten);
 
                     html += `
-                    <div onclick="openChat('${roomId}', '${u.ho_ten}', '${u.avatar_url || defaultAvt}')" class="flex items-center gap-4 p-3 rounded-3xl bg-white/5 border border-white/5 cursor-pointer active:scale-95 transition-all hover:bg-white/10 group">
+                    <div onclick="openChat('${roomId}', '${u.ho_ten}', '${avatarForRoom}')" class="flex items-center gap-4 p-3 rounded-3xl bg-white/5 border border-white/5 cursor-pointer active:scale-95 transition-all hover:bg-white/10 group">
                         <div class="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 border-transparent group-hover:border-cyan-500 transition-colors shrink-0 shadow-inner">
                             ${avatarContent}
                         </div>
@@ -442,6 +446,11 @@
             currentRoom = room_id;
             currentRoomAvatar = avatar_url;
             document.getElementById('chat_title').innerText = room_name;
+
+            // Đánh dấu ĐÃ ĐỌC ngay khi thực sự mở xem hội thoại này — KHÁC với việc chỉ lấy
+            // preview tin cuối ở loadDanhBa (limit=1, không phải hành động "đọc"). Không chờ
+            // (fire-and-forget) vì đây chỉ là cập nhật trạng thái, không cần chặn UI.
+            hrApi('/api/chat/read', { method: 'POST', body: JSON.stringify({ room: room_id }) }).catch(() => {});
 
             const chatIconDiv = document.getElementById('chat_icon');
             if(room_id === 'KenhChung') {
@@ -611,8 +620,7 @@
                 // 1-1 thì dùng thẳng avatar_url đã biết của người đối diện (currentRoomAvatar)
                 // truyền từ danh bạ khi bấm vào, chính xác hơn.
                 const senderAvatarUrl = (currentRoom !== 'KenhChung' && currentRoomAvatar) ? currentRoomAvatar : avatarMap[data.sender_id];
-                const defaultAvt = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.sender_name || '?')}&background=1E293B&color=06b6d4&bold=true`;
-                const finalAvatarHTML = `<img src="${senderAvatarUrl || defaultAvt}" class="w-full h-full object-cover">`;
+                const finalAvatarHTML = bpAvatarImg(data.sender_name || '?', senderAvatarUrl);
 
                 html = `
                 <div class="flex justify-start gap-3 mt-4">
