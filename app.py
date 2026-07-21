@@ -1746,7 +1746,7 @@ def api_sales_checkout():
                 {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
             )
         }
-        total_amount = 0
+        subtotal = 0
         order_items_docs = []
         stock_updates = []
         for it in items:
@@ -1756,7 +1756,7 @@ def api_sales_checkout():
             qty = int(it.get('quantity', 1))
             price = prod.get('price', 0)
             line_total = qty * price
-            total_amount += line_total
+            subtotal += line_total
             order_items_docs.append({
                 'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
             })
@@ -1767,15 +1767,62 @@ def api_sales_checkout():
         if not order_items_docs:
             return jsonify({"success": False, "message": "Không có sản phẩm hợp lệ trong giỏ hàng."}), 400
 
+        # Tip: số tiền cố định (tip_amount) hoặc theo % subtotal (tip_percent) — client gửi 1
+        # trong 2, không gửi thì mặc định 0. total_amount = subtotal + tip (số tiền thực thu),
+        # subtotal/tip_amount được lưu riêng để đối soát/hiển thị hoá đơn tách bạch.
+        tip_amount = data.get('tip_amount')
+        if tip_amount is None and data.get('tip_percent') is not None:
+            tip_amount = subtotal * (float(data['tip_percent']) / 100)
+        tip_amount = round(float(tip_amount or 0), 2)
+        total_amount = round(subtotal + tip_amount, 2)
+
+        # Phân loại thanh toán cho báo cáo Cash/Card: payment_method giữ nguyên chuỗi gốc
+        # (không phá các màn hình khác đang gửi 'bank'/'momo'/'stripe'/'vietqr'...), nhưng luôn
+        # kèm thêm payment_bucket chỉ gồm đúng 2 giá trị 'cash' hoặc 'card' — mọi hình thức
+        # KHÔNG PHẢI tiền mặt (bank, momo, thẻ, ví điện tử...) đều gộp vào 'card' vì bản chất
+        # đều là tiền vào tài khoản/không phải tiền mặt tại quầy — Dashboard tổng hợp doanh thu
+        # dựa trên field này để đối soát 2 quỹ tách biệt (tiền mặt vs tiền vào tài khoản).
+        payment_method = (data.get('payment_method') or 'cash').strip().lower()
+        payment_bucket = 'cash' if payment_method == 'cash' else 'card'
+
+        # Hoa hồng Chủ/Thợ: chỉ áp dụng khi đơn có gắn staff_id (ai trực tiếp phục vụ khách).
+        # Chia theo subtotal (giá trị dịch vụ/sản phẩm) — Tip KHÔNG chia, cộng thẳng 100% cho thợ.
+        staff_id = data.get('staff_id')
+        staff_doc = None
+        commission_fields = {}
+        if staff_id is not None:
+            try:
+                staff_id = int(staff_id)
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "message": "staff_id không hợp lệ."}), 400
+            staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id})
+            if not staff_doc:
+                return jsonify({"success": False, "message": "Nhân viên (staff_id) không tồn tại hoặc không thuộc cửa hàng này."}), 404
+            commission_rate = _resolve_staff_commission_rate(business_id, staff_doc, data.get('commission_rate'))
+            staff_commission = round(subtotal * (commission_rate / 100), 2)
+            owner_commission = round(subtotal - staff_commission, 2)
+            commission_fields = {
+                'staff_id': staff_id,
+                'commission_rate': commission_rate,
+                'staff_commission': staff_commission,
+                'owner_commission': owner_commission,
+                'staff_tip_earning': tip_amount,  # Tip 100% về thợ, không qua công thức chia %
+                'staff_total_earning': round(staff_commission + tip_amount, 2),
+            }
+
         order_id = next_mongo_id('orders')
         order_doc = {
             'id': order_id,
             'business_id': business_id,
+            'subtotal': subtotal,
+            'tip_amount': tip_amount,
             'total_amount': total_amount,
-            'payment_method': data.get('payment_method', 'cash'),
+            'payment_method': payment_method,
+            'payment_bucket': payment_bucket,
             'status': data.get('status', 'completed'),
             'created_at': datetime.now().isoformat(),
         }
+        order_doc.update(commission_fields)
         if data.get('customer_phone'):
             order_doc['customer_phone'] = data['customer_phone']
         db.orders.insert_one(order_doc)
@@ -1790,9 +1837,120 @@ def api_sales_checkout():
         if stock_updates:
             db.products.bulk_write(stock_updates)
 
-        return jsonify({"success": True, "order_id": order_id, "total_amount": total_amount})
+        # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
+        # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
+        # trực tiếp (route này) không bao giờ được ghi nhận vào CRM/loyalty dù có nhập SĐT.
+        if data.get('customer_phone'):
+            _award_loyalty_points(business_id, data['customer_phone'], total_amount, currency=data.get('currency', 'VND'))
+
+        response_data = {
+            "success": True, "order_id": order_id,
+            "subtotal": subtotal, "tip_amount": tip_amount, "total_amount": total_amount,
+            "payment_method": payment_method, "payment_bucket": payment_bucket,
+        }
+        response_data.update(commission_fields)
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/dashboard/sales_summary', methods=['GET'])
+@login_required
+def api_dashboard_sales_summary():
+    """Tổng hợp doanh thu HÔM NAY cho Dashboard chủ tiệm: tổng doanh thu, tổng số đơn/khách,
+    và doanh thu tách riêng Cash/Card — dùng payment_bucket ghi nhận sẵn ở api_sales_checkout
+    (mọi giá trị mặc định 0, không bao giờ trả None/thiếu field, cùng convention với
+    /api/superadmin/stats)."""
+    business_id = session.get('business_id') or session['user_id']
+    stats = {
+        'total_orders_today': 0,
+        'total_revenue_today': 0,
+        'total_customers_today': 0,
+        'cash_revenue_today': 0,
+        'card_revenue_today': 0,
+    }
+    if db is None:
+        return jsonify({"success": True, "data": stats})
+    try:
+        now = datetime.now()
+        today_str = now.strftime('%Y-%m-%d')
+        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        orders_today = list(db.orders.find(
+            {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}},
+            {'total_amount': 1, 'payment_bucket': 1, 'customer_phone': 1, '_id': 0}
+        ))
+        stats['total_orders_today'] = len(orders_today)
+        stats['total_revenue_today'] = round(sum(o.get('total_amount') or 0 for o in orders_today), 2)
+        stats['cash_revenue_today'] = round(
+            sum(o.get('total_amount') or 0 for o in orders_today if o.get('payment_bucket') == 'cash'), 2)
+        stats['card_revenue_today'] = round(
+            sum(o.get('total_amount') or 0 for o in orders_today if o.get('payment_bucket') == 'card'), 2)
+        stats['total_customers_today'] = len({o['customer_phone'] for o in orders_today if o.get('customer_phone')})
+    except Exception as e:
+        print(f"[api_dashboard_sales_summary] Lỗi tính doanh thu hôm nay: {str(e)}")
+    return jsonify({"success": True, "data": stats})
+
+
+@app.route('/api/staff/<int:staff_id>/income_today', methods=['GET'])
+@login_required
+def api_staff_income_today(staff_id):
+    """Nhân viên (thợ) xem thu nhập chính xác trong ngày: phục vụ mấy khách, hưởng bao nhiêu
+    tiền hoa hồng dịch vụ (theo % đã chia ở api_sales_checkout), thu bao nhiêu Tip (100%
+    không chia). Vẫn nằm sau @login_required của CHỦ TIỆM — hệ thống này chưa có tài khoản
+    đăng nhập riêng cho nhân viên (xem db.staff), nên đây là API chủ tiệm/quầy tra cứu hộ
+    thu nhập của 1 thợ cụ thể theo staff_id, không phải nhân viên tự đăng nhập xem."""
+    business_id = session.get('business_id') or session['user_id']
+    staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id}, {'_id': 0})
+    if not staff_doc:
+        return jsonify({"success": False, "message": "Nhân viên không tồn tại hoặc không thuộc cửa hàng này."}), 404
+
+    now = datetime.now()
+    today_str = now.strftime('%Y-%m-%d')
+    tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+    orders_today = list(db.orders.find({
+        'business_id': business_id, 'staff_id': staff_id,
+        'created_at': {'$gte': today_str, '$lt': tomorrow_str}
+    }, {'staff_commission': 1, 'staff_tip_earning': 1, '_id': 0}))
+
+    commission_earned = round(sum(o.get('staff_commission') or 0 for o in orders_today), 2)
+    tips_earned = round(sum(o.get('staff_tip_earning') or 0 for o in orders_today), 2)
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "staff_id": staff_id,
+            "staff_name": staff_doc.get('name'),
+            "customers_served_today": len(orders_today),
+            "commission_earned_today": commission_earned,
+            "tips_earned_today": tips_earned,
+            "total_income_today": round(commission_earned + tips_earned, 2),
+        }
+    })
+
+
+@app.route('/api/settings/commission_rate', methods=['GET'])
+@login_required
+def api_get_commission_rate_setting():
+    business_id = session.get('business_id') or session['user_id']
+    return jsonify({"success": True, "data": {"staff_commission_rate": _get_business_commission_rate(business_id)}})
+
+
+@app.route('/api/settings/commission_rate', methods=['POST'])
+@login_required
+def api_set_commission_rate_setting():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        rate = float(data.get('staff_commission_rate'))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "staff_commission_rate phải là số."}), 400
+    if not (0 <= rate <= 100):
+        return jsonify({"success": False, "message": "staff_commission_rate phải trong khoảng 0-100."}), 400
+    db.system_settings.update_one(
+        {'key': 'commission_rate', 'business_id': business_id},
+        {'$set': {'value': rate}}, upsert=True
+    )
+    return jsonify({"success": True, "data": {"staff_commission_rate": rate}})
 
 
 @app.route('/api/pos/tables', methods=['GET'])
@@ -1989,14 +2147,67 @@ LOYALTY_TIER_THRESHOLDS = [
     (30_000_000, 'Platinum'),
 ]  # Ngưỡng tổng chi tiêu (VNĐ) để lên hạng — chỉnh lại tuỳ chiến lược kinh doanh
 LOYALTY_POINTS_PER_VND = 1 / 10000  # 1 điểm / 10.000đ chi tiêu
+# Ngưỡng/tỉ lệ tương đương cho merchant vận hành bằng USD (vd module POS bán cho khách hải
+# ngoại) — bắt buộc phải TÁCH RIÊNG khỏi 2 hằng số VND ở trên: amount_spent của 1 đơn USD chỉ
+# vài chục đơn vị, nếu dùng chung công thức/ngưỡng VND thì int(amount_spent * 1/10000) luôn
+# làm tròn về 0 điểm và total_spent không bao giờ chạm nổi ngưỡng lên hạng thấp nhất (2 triệu),
+# khiến khách hàng USD không bao giờ được cộng điểm/lên hạng dù chi tiêu thật rất nhiều.
+LOYALTY_POINTS_PER_USD = 1  # 1 điểm / $1 chi tiêu
+LOYALTY_TIER_THRESHOLDS_USD = [
+    (0, 'Normal'),
+    (80, 'Silver'),
+    (400, 'Gold'),
+    (1200, 'Platinum'),
+]
 
 
-def _tier_for_spend(total_spent):
+def _tier_for_spend(total_spent, currency='VND'):
+    thresholds = LOYALTY_TIER_THRESHOLDS_USD if (currency or 'VND').upper() == 'USD' else LOYALTY_TIER_THRESHOLDS
     tier = 'Normal'
-    for threshold, name in LOYALTY_TIER_THRESHOLDS:
+    for threshold, name in thresholds:
         if total_spent >= threshold:
             tier = name
     return tier
+
+
+# ========== HOA HỒNG (COMMISSION SPLIT) CHỦ/THỢ ==========
+# Áp dụng khi 1 đơn hàng gắn với 1 staff_id cụ thể (ai là người trực tiếp phục vụ khách).
+# Tỉ lệ ăn chia tính trên GIÁ TRỊ SẢN PHẨM/DỊCH VỤ (subtotal) — Tip KHÔNG chia, 100% về thợ
+# (xem chỗ gọi trong api_sales_checkout). Thứ tự ưu tiên khi xác định % của thợ:
+#   1) commission_rate gửi kèm ngay trong request checkout (ghi đè 1 lần cho đơn đó)
+#   2) commission_rate đã lưu riêng cho staff đó (db.staff.commission_rate)
+#   3) commission_rate mặc định của cả cửa hàng (system_settings, key='commission_rate')
+#   4) DEFAULT_STAFF_COMMISSION_PERCENT (40%) nếu chưa cấu hình gì cả.
+DEFAULT_STAFF_COMMISSION_PERCENT = 40  # Chủ 60% - Thợ 40% nếu chưa ai cấu hình gì
+
+
+def _get_business_commission_rate(business_id):
+    """Đọc % hoa hồng mặc định của thợ (chủ tiệm tự cấu hình) — lưu ở system_settings theo
+    đúng convention key/business_id/value đã dùng cho brand_settings, inventory_thresholds."""
+    if db is None:
+        return DEFAULT_STAFF_COMMISSION_PERCENT
+    doc = db.system_settings.find_one({'key': 'commission_rate', 'business_id': business_id}, {'value': 1, '_id': 0})
+    if doc and doc.get('value') is not None:
+        try:
+            return float(doc['value'])
+        except (TypeError, ValueError):
+            pass
+    return DEFAULT_STAFF_COMMISSION_PERCENT
+
+
+def _resolve_staff_commission_rate(business_id, staff_doc, override_rate=None):
+    """Xác định % hoa hồng thợ thực sự áp dụng cho 1 đơn, theo đúng thứ tự ưu tiên ở trên."""
+    if override_rate is not None:
+        try:
+            return float(override_rate)
+        except (TypeError, ValueError):
+            pass
+    if staff_doc and staff_doc.get('commission_rate') is not None:
+        try:
+            return float(staff_doc['commission_rate'])
+        except (TypeError, ValueError):
+            pass
+    return _get_business_commission_rate(business_id)
 
 
 def _queue_loyalty_notification(business_id, customer, event_type, message):
@@ -2044,20 +2255,24 @@ def _queue_loyalty_notification(business_id, customer, event_type, message):
         print(f"Loi ghi loyalty_events: {e}")
 
 
-def _award_loyalty_points(business_id, customer_phone, amount_spent):
+def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='VND'):
     """Tự động cộng điểm + xét lên hạng cho khách ngay sau khi thanh toán xong.
-    Nếu SĐT chưa có trong CRM thì tự tạo khách mới. Không chặn luồng thanh toán nếu lỗi."""
+    Nếu SĐT chưa có trong CRM thì tự tạo khách mới. Không chặn luồng thanh toán nếu lỗi.
+    `currency` mặc định 'VND' (giữ nguyên hành vi cũ cho mọi caller hiện có) — truyền 'USD'
+    khi đơn hàng/merchant vận hành bằng USD để dùng đúng công thức điểm/ngưỡng hạng USD."""
     customer_phone = (customer_phone or '').strip()
     if not customer_phone or not amount_spent or amount_spent <= 0:
         return
     try:
+        is_usd = (currency or 'VND').upper() == 'USD'
+        points_rate = LOYALTY_POINTS_PER_USD if is_usd else LOYALTY_POINTS_PER_VND
         customer = db.customers.find_one({'business_id': business_id, 'phone': customer_phone}, {'_id': 0})
-        points_earned = int(amount_spent * LOYALTY_POINTS_PER_VND)
+        points_earned = int(amount_spent * points_rate)
         if customer:
             old_tier = customer.get('tier') or 'Normal'
             new_total_spent = (customer.get('total_spent') or 0) + amount_spent
             new_points = (customer.get('loyalty_points') or 0) + points_earned
-            new_tier = _tier_for_spend(new_total_spent)
+            new_tier = _tier_for_spend(new_total_spent, currency=currency)
             db.customers.update_one(
                 {'id': customer['id'], 'business_id': business_id},
                 {'$set': {'total_spent': new_total_spent, 'loyalty_points': new_points, 'tier': new_tier}}
@@ -2066,7 +2281,7 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent):
             customer['loyalty_points'] = new_points
             customer['tier'] = new_tier
         else:
-            new_tier = _tier_for_spend(amount_spent)
+            new_tier = _tier_for_spend(amount_spent, currency=currency)
             new_id = next_mongo_id('customers')
             customer = {
                 'id': new_id,
@@ -2595,8 +2810,11 @@ def add_staff():
             'name': data['name'],
             'phone': data['phone'],
             'role': data['role'],
-            'commission_rate': data['commission_rate'],
-            'is_active': data['is_active'],
+            # commission_rate để trống (None) nếu chủ tiệm không nhập riêng cho thợ này —
+            # api_sales_checkout sẽ tự fallback về mức mặc định của cả cửa hàng
+            # (xem _resolve_staff_commission_rate/_get_business_commission_rate).
+            'commission_rate': data.get('commission_rate'),
+            'is_active': data.get('is_active', True),
             'business_id': business_id
         })
         return jsonify({'success': True})
