@@ -6529,6 +6529,54 @@ def superadmin_chat_messages(customer_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+# ========== SUPERADMIN — LEADS TỪ WIDGET "AI TƯ VẤN" TRÊN LANDING PAGE ==========
+# db.cskh_requests đã được ghi từ lâu (create_cskh_request(), /api/cskh/request — form
+# "Nhập nhu cầu tư vấn" trong static/js/cskh_widget.js) nhưng CHƯA từng có route đọc lại —
+# tức là landing page gửi lead thành công nhưng không ai xem được. Đây KHÔNG phải dữ liệu
+# theo tenant (business_id) — là lead của chính BitPaw (người quan tâm mua phần mềm), nên chỉ
+# Superadmin được xem, không dùng business_id để lọc.
+@app.route('/api/superadmin/cskh_requests', methods=['GET'])
+@login_required
+def superadmin_cskh_requests_list():
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    try:
+        limit = min(request.args.get('limit', 50, type=int), 200)
+        leads = list(db.cskh_requests.find({}, {'_id': 0}).sort('id', -1).limit(limit))
+        pending_count = db.cskh_requests.count_documents({'status': 'pending'})
+        return jsonify({"success": True, "data": leads, "pending_count": pending_count})
+    except Exception as e:
+        print(f"[superadmin_cskh_requests_list] Lỗi tải danh sách leads: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/cskh_requests/<int:lead_id>/status', methods=['POST'])
+@login_required
+def superadmin_cskh_requests_update_status(lead_id):
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    new_status = (request.json or {}).get('status', 'contacted')
+    if new_status not in ('pending', 'contacted'):
+        return jsonify({"success": False, "message": "Trạng thái không hợp lệ."}), 400
+    try:
+        result = db.cskh_requests.update_one({'id': lead_id}, {'$set': {'status': new_status}})
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy lead này."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/stream/cskh_requests')
+@login_required
+def stream_cskh_requests():
+    """SSE + Change Streams (đúng pattern _sse_change_signal đã dùng cho chat_messages/
+    employees/payroll) — KHÔNG lọc theo business_id vì cskh_requests không thuộc tenant nào."""
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    return _sse_change_signal(db.cskh_requests, {'$match': {}})
+
+
 # ==================================================
 # AI BOT OMNICHANNEL CUSTOMER NURTURING PLATFORM ROUTES
 # ==================================================
