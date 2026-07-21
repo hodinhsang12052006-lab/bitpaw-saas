@@ -17,7 +17,14 @@ def load_env_file():
                         k, v = line.split('=', 1)
                         k_clean = k.strip()
                         v_clean = v.strip().strip('"').strip("'")
-                        os.environ[k_clean] = v_clean
+                        # KHÔNG BAO GIỜ ghi đè 1 biến môi trường THẬT đã có sẵn (vd: do Vercel
+                        # inject lúc chạy Production) bằng giá trị trong file '.env' cục bộ (chỉ
+                        # dùng cho dev local) — nếu không, 1 dòng để trống/rỗng ở máy dev (vd
+                        # "SQUARE_DEVICE_ID=") sẽ âm thầm xoá mất giá trị thật trên Production dù
+                        # đã cấu hình đúng trên Vercel Dashboard. File '.env' chỉ được phép ĐIỀN
+                        # VÀO chỗ trống, không được phép GHI ĐÈ.
+                        if k_clean not in os.environ or not os.environ[k_clean]:
+                            os.environ[k_clean] = v_clean
         except Exception as e:
             print(f"[!] Warning: Failed parsing '.env' file: {str(e)}")
 

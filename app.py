@@ -1925,6 +1925,9 @@ def api_square_checkout():
                 "SQUARE_ACCESS_TOKEN_set": bool(payment_us_engine.SQUARE_ACCESS_TOKEN),
                 "SQUARE_LOCATION_ID_set": bool(payment_us_engine.SQUARE_LOCATION_ID),
                 "SQUARE_DEVICE_ID_set": bool(payment_us_engine.SQUARE_DEVICE_ID),
+                "SQUARE_DEVICE_ID_is_none": payment_us_engine.SQUARE_DEVICE_ID is None,
+                "SQUARE_DEVICE_ID_len": len(payment_us_engine.SQUARE_DEVICE_ID) if payment_us_engine.SQUARE_DEVICE_ID is not None else -1,
+                "SQUARE_DEVICE_ID_from_os_environ_directly_len": len(os.environ.get('SQUARE_DEVICE_ID') or ''),
                 "SQUARE_ENV": payment_us_engine.SQUARE_ENV,
             }
         }), 503
