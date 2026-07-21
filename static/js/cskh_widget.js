@@ -271,13 +271,13 @@ document.addEventListener("DOMContentLoaded", () => {
         <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 text-xs" data-tooltip="Lên đầu">
             <i class="fas fa-chevron-up"></i>
         </button>
-        <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" data-tooltip="Email">
+        <a href="mailto:bitpawsoftware@gmail.com" class="contact-btn btn-mail" data-tooltip="Email">
             <i class="fas fa-envelope"></i>
         </a>
-        <a href="#" target="_blank" class="contact-btn btn-whatsapp" data-tooltip="WhatsApp">
+        <a href="https://wa.me/84794678904" target="_blank" class="contact-btn btn-whatsapp" data-tooltip="WhatsApp">
             <i class="fab fa-whatsapp"></i>
         </a>
-        <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" data-tooltip="Messenger">
+        <a href="https://www.facebook.com/profile.php?id=61591611704371" target="_blank" class="contact-btn btn-mess" data-tooltip="Messenger">
             <i class="fab fa-facebook-messenger"></i>
         </a>
         <a href="tel:0794678904" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
