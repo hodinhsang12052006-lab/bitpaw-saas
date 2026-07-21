@@ -280,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <a href="https://www.facebook.com/profile.php?id=61591611704371" target="_blank" class="contact-btn btn-mess" data-tooltip="Messenger">
             <i class="fab fa-facebook-messenger"></i>
         </a>
-        <a href="tel:0794678904" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
+        <a href="tel:+14632875192" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
             <i class="fas fa-phone-alt"></i>
         </a>
     `;
@@ -494,9 +494,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Tối ưu hóa việc chèn Hotline: không lặp hotline mỗi câu
-        const hasMentionedHotline = history.some(h => h.content && h.content.includes("0794.678.904"));
+        const hasMentionedHotline = history.some(h => h.content && h.content.includes("287-5192"));
         if (!hasMentionedHotline && (asksPrice || asksDemo || asksSetup || history.length <= 2)) {
-            reply += ` Hoặc sếp liên hệ Hotline / Zalo **0794.678.904 ** để em gửi kịch bản flow chi tiết ạ!`;
+            reply += ` Hoặc sếp liên hệ Hotline **+1 (463) 287-5192** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết ạ!`;
         }
 
         return reply;
@@ -661,8 +661,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
-                if (!aiReply.includes("0794") && !aiReply.includes("tư vấn gói tối ưu")) {
-                    aiReply += ` Sếp kết nối nhanh Hotline/Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
+                if (!aiReply.includes("287-5192") && !aiReply.includes("tư vấn gói tối ưu")) {
+                    aiReply += ` Sếp kết nối nhanh Hotline **+1 (463) 287-5192** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
                 }
 
                 if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
