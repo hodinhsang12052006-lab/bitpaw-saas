@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 transform: translateY(-50%) scale(1);
             }
             
-            .btn-zalo { background: #0068FF; }
+            .btn-whatsapp { background: #25D366; }
             .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
             .btn-call { background: #10b981; animation: ring-widget 2s infinite, pulse-call 1.5s infinite alternate; }
             .btn-mail { background: #ea4335; }
@@ -274,8 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <a href="mailto:hodinhsang30052003@gmail.com" class="contact-btn btn-mail" data-tooltip="Email">
             <i class="fas fa-envelope"></i>
         </a>
-        <a href="https://zalo.me/0794678904" target="_blank" class="contact-btn btn-zalo" data-tooltip="Zalo Kỹ Thuật">
-            <span class="font-black text-[9px] tracking-tighter">Zalo</span>
+        <a href="#" target="_blank" class="contact-btn btn-whatsapp" data-tooltip="WhatsApp">
+            <i class="fab fa-whatsapp"></i>
         </a>
         <a href="https://www.facebook.com/chuyhieuhong" target="_blank" class="contact-btn btn-mess" data-tooltip="Messenger">
             <i class="fab fa-facebook-messenger"></i>
