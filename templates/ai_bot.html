@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
+
 <head>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="ai_bot_title">BitPaw AI Copilot | Trợ Lý Chỉ Huy</title>
-    
+
     <script>
         // Suppress Tailwind CSS CDN warning in the developer console
-        (function() {
+        (function () {
             const warn = console.warn;
-            console.warn = function(...args) {
-                if (args[0] && typeof args[0] === 'string' && 
-                    (args[0].includes('cdn.tailwindcss.com') || 
-                     args[0].includes('should not be used in production') || 
-                     args[0].includes('Tailwind CSS'))) {
+            console.warn = function (...args) {
+                if (args[0] && typeof args[0] === 'string' &&
+                    (args[0].includes('cdn.tailwindcss.com') ||
+                        args[0].includes('should not be used in production') ||
+                        args[0].includes('Tailwind CSS'))) {
                     return;
                 }
                 warn.apply(console, args);
@@ -26,29 +28,93 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
-        
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: white;
+            overflow: hidden;
+        }
+
         /* 3D Background Canvas */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
 
         /* Hiệu ứng scanline và laser */
         .scan-line {
-            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
             background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998; pointer-events: none; opacity: 0.5;
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.5;
             animation: scanMove 8s linear infinite;
         }
+
         .laser-vertical {
-            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 100%;
             background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998; pointer-events: none; opacity: 0.3;
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.3;
             animation: laserVertical 12s ease-in-out infinite;
         }
-        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
-        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
 
-        .light-ray { position: absolute; background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), transparent); height: 2px; width: 150%; transform: rotate(-35deg); transform-origin: left; pointer-events: none; }
+        @keyframes scanMove {
+            0% {
+                top: -5%;
+            }
+
+            100% {
+                top: 105%;
+            }
+        }
+
+        @keyframes laserVertical {
+            0% {
+                left: -10%;
+            }
+
+            50% {
+                left: 110%;
+            }
+
+            100% {
+                left: -10%;
+            }
+        }
+
+        .light-ray {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), transparent);
+            height: 2px;
+            width: 150%;
+            transform: rotate(-35deg);
+            transform-origin: left;
+            pointer-events: none;
+        }
+
         .absolute-blur {
             position: absolute;
             top: -10%;
@@ -62,47 +128,163 @@
             z-index: 0;
         }
 
-        .glass-panel { background: rgba(10, 15, 37, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
-        .glass-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s; padding: 16px 20px; border-radius: 16px; outline: none; width: 100%; font-weight: 500;}
-        .glass-input:focus { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.4); background: rgba(0,0,0,0.8); }
+        .glass-panel {
+            background: rgba(10, 15, 37, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
 
-        ::-webkit-scrollbar { width: 4px; height: 4px; } 
-        ::-webkit-scrollbar-track { background: transparent; } 
-        ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 10px; }
-        
+        .glass-input {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+            padding: 16px 20px;
+            border-radius: 16px;
+            outline: none;
+            width: 100%;
+            font-weight: 500;
+        }
+
+        .glass-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+        }
+
         /* Chat styles */
-        .chat-ai { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.15)); border: 1px solid rgba(139,92,246,0.3); border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 15px rgba(139,92,246,0.1); }
-        .chat-user { background: linear-gradient(135deg, rgba(6,182,212,0.8), rgba(59,130,246,0.8)); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px 4px 20px 20px; box-shadow: 0 4px 15px rgba(6,182,212,0.3); }
+        .chat-ai {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 4px 20px 20px 20px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+        }
 
-        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+        .chat-user {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.8), rgba(59, 130, 246, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px 4px 20px 20px;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
 
-        .ai-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,0.8) 0%, rgba(6,182,212,0) 70%); filter: blur(40px); animation: pulse-core 4s infinite alternate; pointer-events: none; z-index: 0; }
-        @keyframes pulse-core { 0% { width: 200px; height: 200px; opacity: 0.3; } 100% { width: 350px; height: 350px; opacity: 0.6; } }
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typing {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+                opacity: 0.3;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .ai-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(6, 182, 212, 0) 70%);
+            filter: blur(40px);
+            animation: pulse-core 4s infinite alternate;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes pulse-core {
+            0% {
+                width: 200px;
+                height: 200px;
+                opacity: 0.3;
+            }
+
+            100% {
+                width: 350px;
+                height: 350px;
+                opacity: 0.6;
+            }
+        }
 
         /* Hologram Logo */
         @keyframes float-hologram {
-            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
-            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5)); }
-            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
-        }
-        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
+            0% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
 
-        .customer-item { transition: all 0.2s ease; cursor: pointer; }
-        .customer-item:hover { background: rgba(6, 182, 212, 0.15); border-left-color: #06b6d4; }
-        .active-customer { background: rgba(6, 182, 212, 0.2); border-left: 3px solid #06b6d4; }
+            50% {
+                transform: translateY(-4px);
+                filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5));
+            }
+
+            100% {
+                transform: translateY(0px);
+                filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4));
+            }
+        }
+
+        .logo-float {
+            animation: float-hologram 4s ease-in-out infinite;
+        }
+
+        .customer-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .customer-item:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-left-color: #06b6d4;
+        }
+
+        .active-customer {
+            background: rgba(6, 182, 212, 0.2);
+            border-left: 3px solid #06b6d4;
+        }
     </style>
 </head>
+
 <body class="flex min-h-screen relative antialiased">
-    
+
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
     <div class="light-ray top-0 -left-[20%] z-0"></div>
     <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
     <div class="absolute-blur"></div>
-    <div class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+    <div
+        class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0">
+    </div>
     <canvas id="bg-canvas"></canvas>
 
     {% include 'components/app_sidebar.html' %}
@@ -110,38 +292,48 @@
     <main class="flex-1 flex flex-col h-screen p-4 md:p-8 relative overflow-hidden">
         <div class="ai-core"></div>
 
-        <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
+        <div
+            class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
-                    <i class="fas fa-fingerprint text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> BitPaw <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">AI Copilot</span>
+                    <i class="fas fa-fingerprint text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> BitPaw
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">AI
+                        Copilot</span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span> Trợ lý Phân tích & Điều phối Tự động
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span> Trợ
+                    lý Phân tích & Điều phối Tự động
                 </p>
             </div>
             <div class="hidden md:flex gap-3">
-                <a href="/ai/connect-platforms" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/50 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                <a href="/ai/connect-platforms"
+                    class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/50 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.4)]">
                     <i class="fas fa-network-wired"></i> Kết nối kênh CSKH
                 </a>
-                <a href="/ai/customer-nurturing" class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
+                <a href="/ai/customer-nurturing"
+                    class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
                     <i class="fas fa-users-cog"></i> Khách hàng & Chiến dịch
                 </a>
             </div>
         </div>
 
         <div class="flex gap-5 flex-1 min-h-0 relative z-10">
-            
-            <div class="w-1/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+
+            <div
+                class="w-1/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
                 <div class="p-4 border-b border-white/10 bg-black/40 space-y-3 shrink-0">
                     <div class="relative">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm khách hàng..." class="glass-input pl-10 py-3 text-sm rounded-2xl bg-black/50">
+                        <input type="text" id="searchInput" placeholder="Tìm kiếm khách hàng..."
+                            class="glass-input pl-10 py-3 text-sm rounded-2xl bg-black/50">
                     </div>
-                    
+
                     <!-- Nurturing segment selectors -->
                     <div>
-                        <label class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block mb-1">Hộp thư & Phân khúc</label>
-                        <select id="nurtureFilter" onchange="applyNurtureFilter()" class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
+                        <label class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block mb-1">Hộp thư &
+                            Phân khúc</label>
+                        <select id="nurtureFilter" onchange="applyNurtureFilter()"
+                            class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
                             <option value="ALL">📬 Inbox Đa Kênh (Tất cả)</option>
                             <option value="NEW">🆕 Khách Hàng Mới</option>
                             <option value="HOT">🔥 Lead Nóng (Potential > 80%)</option>
@@ -153,70 +345,106 @@
 
                     <!-- Demo Mode toggle switch -->
                     <div class="flex items-center justify-between px-1">
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Chế độ hiển thị</span>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Chế độ hiển
+                            thị</span>
                         <div class="flex items-center gap-2">
                             <span class="text-[9px] text-gray-400 font-bold" id="demoModeLabel">Dữ liệu thật</span>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="demoModeSwitch" class="sr-only peer" onchange="toggleDemoMode()">
-                                <div class="w-7 h-4 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyan-500"></div>
+                                <input type="checkbox" id="demoModeSwitch" class="sr-only peer"
+                                    onchange="toggleDemoMode()">
+                                <div
+                                    class="w-7 h-4 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyan-500">
+                                </div>
                             </label>
-                            <span class="text-[9px] text-yellow-500/50 peer-checked:text-yellow-400 font-black uppercase" id="demoModeOnLabel">Demo Mode</span>
+                            <span
+                                class="text-[9px] text-yellow-500/50 peer-checked:text-yellow-400 font-black uppercase"
+                                id="demoModeOnLabel">Demo Mode</span>
                         </div>
                     </div>
                 </div>
                 <div id="customerList" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
-                    <div class="text-center text-cyan-400 py-10"><i class="fas fa-circle-notch fa-spin text-2xl"></i></div>
+                    <div class="text-center text-cyan-400 py-10"><i class="fas fa-circle-notch fa-spin text-2xl"></i>
+                    </div>
                 </div>
             </div>
 
 
-            <div class="w-2/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
-                
+            <div
+                class="w-2/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+
                 <div class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">
+                        <div
+                            class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">
                             <span id="chatAvatar">👤</span>
                         </div>
                         <div>
                             <h3 id="chatCustomerName" class="font-bold text-white text-sm">Chưa chọn khách</h3>
-                            <p class="text-[10px] text-cyan-400 tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đang hoạt động</p>
+                            <p class="text-[10px] text-cyan-400 tracking-wider flex items-center gap-1"><span
+                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đang hoạt động</p>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-center gap-3 bg-black/50 px-4 py-2 rounded-xl border border-white/5">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest" id="modeLabelOff">Chat Tay</span>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            id="modeLabelOff">Chat Tay</span>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="aiToggleSwitch" class="sr-only peer" checked>
-                            <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]"></div>
+                            <div
+                                class="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                            </div>
                         </label>
-                        <span class="text-[10px] font-black text-cyan-400 uppercase tracking-widest drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]" id="modeLabelOn">AI Trực</span>
+                        <span
+                            class="text-[10px] font-black text-cyan-400 uppercase tracking-widest drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]"
+                            id="modeLabelOn">AI Trực</span>
                     </div>
                 </div>
 
                 <!-- AI suggestion to close deal (Gợi ý AI chốt đơn) -->
-                <div id="aiClosingAlert" class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
+                <div id="aiClosingAlert"
+                    class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-magic text-purple-400 animate-pulse text-sm"></i>
-                        <span><strong class="text-cyan-400 font-bold">AI Gợi Ý Chốt Đơn:</strong> <span id="aiClosingText">Tặng voucher giảm giá 15% hóa đơn chốt dịch vụ ngay hôm nay!</span></span>
+                        <span><strong class="text-cyan-400 font-bold">AI Gợi Ý Chốt Đơn:</strong> <span
+                                id="aiClosingText">Tặng voucher giảm giá 15% hóa đơn chốt dịch vụ ngay hôm
+                                nay!</span></span>
                     </div>
-                    <button onclick="applyAISuggestion()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i class="fas fa-check mr-1"></i> Sử dụng gợi ý</button>
+                    <button onclick="applyAISuggestion()"
+                        class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i
+                            class="fas fa-check mr-1"></i> Sử dụng gợi ý</button>
                 </div>
 
 
-                <div class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0">
-                    <button onclick="sendQuickMessage('Gợi ý cho tôi chiến dịch tăng doanh thu trong tuần này?')" class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i class="fas fa-chart-line mr-1"></i> Gợi ý doanh thu</button>
-                    <button onclick="sendQuickMessage('Kịch bản tin nhắn chăm sóc và giữ chân khách hàng cũ hiệu quả?')" class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i class="fas fa-heart mr-1"></i> Gợi ý chăm sóc khách</button>
-                    <button onclick="sendQuickMessage('Phân tích tồn kho và gợi ý phương án thanh lý vật tư cận date?')" class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i class="fas fa-boxes mr-1"></i> Gợi ý tồn kho</button>
-                    <button onclick="sendQuickMessage('Tối ưu hóa lịch làm việc và sắp xếp ca trực nhân sự thông minh?')" class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i class="fas fa-users mr-1"></i> Gợi ý nhân sự</button>
+                <div
+                    class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0">
+                    <button onclick="sendQuickMessage('Gợi ý cho tôi chiến dịch tăng doanh thu trong tuần này?')"
+                        class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-chart-line mr-1"></i> Gợi ý doanh thu</button>
+                    <button onclick="sendQuickMessage('Kịch bản tin nhắn chăm sóc và giữ chân khách hàng cũ hiệu quả?')"
+                        class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-heart mr-1"></i> Gợi ý chăm sóc khách</button>
+                    <button onclick="sendQuickMessage('Phân tích tồn kho và gợi ý phương án thanh lý vật tư cận date?')"
+                        class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-boxes mr-1"></i> Gợi ý tồn kho</button>
+                    <button
+                        onclick="sendQuickMessage('Tối ưu hóa lịch làm việc và sắp xếp ca trực nhân sự thông minh?')"
+                        class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
+                            class="fas fa-users mr-1"></i> Gợi ý nhân sự</button>
                 </div>
 
-                <div id="chatBox" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
+                <div id="chatBox"
+                    class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
                     <div class="flex justify-start gap-4">
-                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
+                        <div
+                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1">
+                            <i class="fas fa-robot"></i></div>
                         <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
-                            <p class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
+                            <p
+                                class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">
+                                BitPaw Copilot</p>
                             <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">
-                                Chào Sếp! Chọn một khách hàng bên trái để bắt đầu trò chuyện nhé. Em đang ở chế độ trực tự động! 🚀
+                                Chào Sếp! Chọn một khách hàng bên trái để bắt đầu trò chuyện nhé. Em đang ở chế độ trực
+                                tự động! 🚀
                             </div>
                         </div>
                     </div>
@@ -224,8 +452,10 @@
 
                 <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
                     <form id="aiForm" class="flex items-center gap-3 relative" onsubmit="handleUserSubmit(event)">
-                        <input type="text" id="userInput" placeholder="Nhắn tin cho khách hàng..." autocomplete="off" class="glass-input pl-5 pr-16 font-medium text-sm rounded-2xl">
-                        <button type="submit" id="btnSend" class="absolute right-2 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all hover:scale-110 active:scale-95 border border-cyan-400">
+                        <input type="text" id="userInput" placeholder="Nhắn tin cho khách hàng..." autocomplete="off"
+                            class="glass-input pl-5 pr-16 font-medium text-sm rounded-2xl">
+                        <button type="submit" id="btnSend"
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all hover:scale-110 active:scale-95 border border-cyan-400">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </form>
@@ -235,7 +465,9 @@
         </div>
     </main>
 
-    <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container"
+        class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    </div>
 
     <script>
         // 3D Background Logic
@@ -263,9 +495,9 @@
             const starPositions = new Float32Array(starCount * 3);
             const starVelocities = [];
             for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
+                starPositions[i * 3] = (Math.random() - 0.5) * 120;
+                starPositions[i * 3 + 1] = (Math.random() - 0.5) * 70;
+                starPositions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 30;
                 starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
             }
             const starGeometry = new THREE.BufferGeometry();
@@ -299,13 +531,13 @@
 
                 const posArr = stars.geometry.attributes.position.array;
                 for (let i = 0; i < starCount; i++) {
-                    posArr[i*3] += starVelocities[i].x;
-                    posArr[i*3+1] += starVelocities[i].y;
-                    posArr[i*3+2] += starVelocities[i].z;
-                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
-                        posArr[i*3] = (Math.random() - 0.5) * 120;
-                        posArr[i*3+1] = 40;
-                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
+                    posArr[i * 3] += starVelocities[i].x;
+                    posArr[i * 3 + 1] += starVelocities[i].y;
+                    posArr[i * 3 + 2] += starVelocities[i].z;
+                    if (Math.abs(posArr[i * 3]) > 70 || Math.abs(posArr[i * 3 + 1]) > 45) {
+                        posArr[i * 3] = (Math.random() - 0.5) * 120;
+                        posArr[i * 3 + 1] = 40;
+                        posArr[i * 3 + 2] = (Math.random() - 0.5) * 50 - 25;
                     }
                 }
                 stars.geometry.attributes.position.needsUpdate = true;
@@ -353,7 +585,7 @@
 
         // Logic Công tắc AI
         aiToggleSwitch.addEventListener('change', (e) => {
-            if(e.target.checked) {
+            if (e.target.checked) {
                 modeLabelOn.classList.add('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
                 modeLabelOn.classList.remove('text-gray-500');
                 modeLabelOff.classList.remove('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
@@ -441,7 +673,7 @@
                     <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Hãy kết nối Zalo/Facebook hoặc thu lead từ Landing Page.</p>
                 </div>
             `;
-            
+
             // Reset chat area
             chatCustomerName.innerText = "Chưa chọn khách";
             chatAvatar.innerText = "👤";
@@ -455,13 +687,13 @@
             `;
         }
 
-        window.toggleDemoMode = function() {
+        window.toggleDemoMode = function () {
             const demoSwitch = document.getElementById("demoModeSwitch");
             const labelReal = document.getElementById("demoModeLabel");
             const labelDemo = document.getElementById("demoModeOnLabel");
-            
+
             isDemoMode = demoSwitch.checked;
-            
+
             if (isDemoMode) {
                 labelReal.classList.replace("text-gray-400", "text-gray-600");
                 labelDemo.classList.replace("text-yellow-500/50", "text-yellow-400");
@@ -473,19 +705,19 @@
                 labelDemo.classList.remove("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
                 showToast("Đã chuyển về hiển thị Dữ liệu thực từ hệ thống", "error");
             }
-            
+
             fetchCustomers();
         }
 
-        window.applyNurtureFilter = function() {
+        window.applyNurtureFilter = function () {
             const filterValue = document.getElementById("nurtureFilter").value;
             let filtered = [...allCustomers];
-            
+
             if (filterValue === 'CAMPAIGNS') {
                 renderCampaignsList();
                 return;
             }
-            
+
             if (filterValue === 'NEW') {
                 filtered = filtered.filter(c => c.status === 'NEW' || c.id === 'mock-5');
             } else if (filterValue === 'HOT') {
@@ -495,7 +727,7 @@
             } else if (filterValue === 'REMARKETING') {
                 filtered = filtered.filter(c => c.status === 'HIBERNATING' || c.status === 'CHURN_RISK' || c.id === 'mock-2');
             }
-            
+
             renderCustomerList(filtered);
         }
 
@@ -528,7 +760,7 @@
             `;
         }
 
-        window.applyAISuggestion = function() {
+        window.applyAISuggestion = function () {
             const closingText = document.getElementById("aiClosingText").innerText;
             userInput.value = `[AI Chốt đơn] Gửi ưu đãi đặc biệt: ${closingText}`;
             userInput.focus();
@@ -540,7 +772,7 @@
                 customerListDiv.innerHTML = `<p class="text-center text-gray-500 text-xs py-8 font-medium">Không tìm thấy khách hàng</p>`;
                 return;
             }
-            
+
             customers.forEach(cus => {
                 const item = document.createElement('div');
                 item.className = `customer-item flex items-center gap-3 p-3 rounded-2xl border border-transparent transition-all cursor-pointer ${currentCustomerId === cus.id ? 'active-customer' : 'hover:bg-white/5'}`;
@@ -566,7 +798,7 @@
             conversationHistory = [];
             chatCustomerName.innerText = customer.full_name || 'Khách';
             chatAvatar.innerText = customer.full_name?.charAt(0) || '👤';
-            
+
             // Show AI Closing suggestion
             const aiClosingAlert = document.getElementById("aiClosingAlert");
             const aiClosingText = document.getElementById("aiClosingText");
@@ -586,8 +818,8 @@
                     aiClosingText.innerText = "Voucher ưu đãi 10% hóa đơn chốt đơn chăm sóc khách hàng tự động!";
                 }
             }
-            
-            renderCustomerList(allCustomers); 
+
+            renderCustomerList(allCustomers);
             await loadMessages(customer.id);
         }
 
@@ -630,7 +862,7 @@
         }
 
         function appendUserMessageStatic(text, time = null) {
-            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) : new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-end">
@@ -642,7 +874,7 @@
         }
 
         function appendAIMessageStatic(text, time = null) {
-            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) : new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
@@ -656,7 +888,7 @@
         }
 
         function appendCopilotMessageStatic(text) {
-            const timeStr = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+            const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
@@ -672,8 +904,8 @@
 
         function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
 
-        window.sendQuickMessage = function(text) {
-            if(!currentCustomerId) { showToast('Vui lòng chọn một khách hàng hoặc chi nhánh bên trái trước!', 'error'); return; }
+        window.sendQuickMessage = function (text) {
+            if (!currentCustomerId) { showToast('Vui lòng chọn một khách hàng hoặc chi nhánh bên trái trước!', 'error'); return; }
             userInput.value = text;
             handleUserSubmit(new Event('submit'));
         }
@@ -701,11 +933,11 @@
         }
 
         // Xử lý gửi tin
-        window.handleUserSubmit = async function(e) {
-            if(e) e.preventDefault();
+        window.handleUserSubmit = async function (e) {
+            if (e) e.preventDefault();
             const text = userInput.value.trim();
-            if(!text) return;
-            if(!currentCustomerId) { showToast('Vui lòng chọn khách hàng bên trái trước!', 'error'); return; }
+            if (!text) return;
+            if (!currentCustomerId) { showToast('Vui lòng chọn khách hàng bên trái trước!', 'error'); return; }
 
             userInput.value = '';
             appendUserMessageStatic(text);
@@ -783,7 +1015,7 @@ ${text}`;
 
                 if (!response.ok) throw new Error("HTTP error " + response.status);
                 const resData = await response.json();
-                
+
                 if (resData && resData.choices && resData.choices[0] && resData.choices[0].message) {
                     aiResponse = resData.choices[0].message.content;
                 } else if (resData && resData.error) {
@@ -843,4 +1075,5 @@ ${text}`;
         startBotRealtime();
     </script>
 </body>
+
 </html>

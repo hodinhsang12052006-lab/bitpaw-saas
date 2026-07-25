@@ -1,4 +1,4 @@
-﻿// Reusable Premium CSKH Floating Widget & Mascot AI Chat Component
+// Reusable Premium CSKH Floating Widget & Mascot AI Chat Component
 // Integrated with DeepSeek AI Engine and Supabase CRM Fallback
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -169,13 +169,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 display: flex;
                 gap: 8px;
                 overflow-x: auto;
+                white-space: nowrap;
                 padding: 10px 14px;
+                padding-bottom: 5px;
                 background: rgba(0, 0, 0, 0.35);
                 border-top: 1px solid rgba(255, 255, 255, 0.06);
                 scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                cursor: grab;
             }
             .quick-replies-container::-webkit-scrollbar {
                 display: none;
+            }
+            .quick-replies-container.grabbing {
+                cursor: grabbing;
+                user-select: none;
             }
             .quick-reply-chip {
                 background: rgba(34, 211, 238, 0.08);
@@ -189,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 white-space: nowrap;
                 user-select: none;
+                flex-shrink: 0;
             }
             .quick-reply-chip:hover {
                 background: rgba(34, 211, 238, 0.2);
@@ -280,7 +289,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <a href="https://www.facebook.com/profile.php?id=61591611704371" target="_blank" class="contact-btn btn-mess" data-tooltip="Messenger">
             <i class="fab fa-facebook-messenger"></i>
         </a>
-        <a href="tel:+14632875192" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
+        <a href="tel:+61866294204" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
             <i class="fas fa-phone-alt"></i>
         </a>
     `;
@@ -305,25 +314,29 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         
         <div class="flex flex-col flex-1 min-h-0" id="cskh-tab-mascot">
+            <div class="flex gap-2 p-3 pb-0" id="chat-mode-selector">
+                <button type="button" id="chatModeAiBtn" class="flex-1 text-[11px] font-bold px-3 py-2 rounded-xl border border-cyan-400/60 bg-cyan-500/20 text-cyan-300 transition flex items-center justify-center gap-1.5"><i class="fas fa-robot"></i> Chat with AI</button>
+                <button type="button" id="chatModeHumanBtn" class="flex-1 text-[11px] font-bold px-3 py-2 rounded-xl border border-white/10 bg-black/30 text-gray-400 hover:text-white hover:border-white/30 transition flex items-center justify-center gap-1.5"><i class="fas fa-headset"></i> Talk to Human Agent</button>
+            </div>
             <div class="p-4 flex-1 overflow-y-auto flex flex-col gap-3 modal-scroll" id="chat-messages-container">
                 </div>
-            
+
             <div class="quick-replies-container" id="quick-replies-container">
-                <button type="button" onclick="handleQuickReply('Tôi làm tiệm nail')" class="quick-reply-chip">Tôi làm tiệm nail</button>
-                <button type="button" onclick="handleQuickReply('Tôi mở quán cafe')" class="quick-reply-chip">Tôi mở quán cafe</button>
-                <button type="button" onclick="handleQuickReply('Tôi cần QR Order')" class="quick-reply-chip">Tôi cần QR Order</button>
-                <button type="button" onclick="handleQuickReply('Tôi cần tính lương')" class="quick-reply-chip">Tôi cần tính lương</button>
-                <button type="button" onclick="handleQuickReply('Tôi muốn báo giá')" class="quick-reply-chip">Tôi muốn báo giá</button>
+                <button type="button" onclick="handleQuickReply('Tôi làm tiệm nail')" class="quick-reply-chip">Nail Salon</button>
+                <button type="button" onclick="handleQuickReply('Tôi mở quán cafe')" class="quick-reply-chip">Restaurant / Cafe</button>
+                <button type="button" onclick="handleQuickReply('Tôi cần QR Order')" class="quick-reply-chip">Marketing & Website</button>
+                <button type="button" onclick="handleQuickReply('Tôi cần tính lương')" class="quick-reply-chip">Payroll Setup</button>
+                <button type="button" onclick="handleQuickReply('Tôi muốn báo giá')" class="quick-reply-chip">Get a Quote</button>
             </div>
-            
+
             <div class="p-3 border-t border-white/10 bg-black/40">
                 <form id="mascot-chat-form" class="flex flex-col gap-2">
                     <div id="phone-container">
-                        <input type="text" id="chatPhone" placeholder="SĐT / Zalo của Sếp (Không bắt buộc)..." class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 placeholder-gray-500">
+                        <input type="text" id="chatPhone" placeholder="Your Phone Number" required class="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 placeholder-gray-500">
                     </div>
                     <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl pr-2 focus-within:border-cyan-400 transition">
-                        <input type="text" id="chatMsg" placeholder="Nhập nhu cầu tư vấn..." required class="w-full bg-transparent px-4 py-2.5 text-xs text-white focus:outline-none placeholder-gray-500">
-                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-black w-8 h-8 rounded-lg font-bold transition flex items-center justify-center shrink-0"><i class="fas fa-paper-plane text-xs"></i></button>
+                        <input type="text" id="chatMsg" placeholder="Enter your phone number to start chatting..." required disabled class="w-full bg-transparent px-4 py-2.5 text-xs text-white focus:outline-none placeholder-gray-500 disabled:opacity-50">
+                        <button type="submit" id="chatSendBtn" disabled class="bg-cyan-500 hover:bg-cyan-400 text-black w-8 h-8 rounded-lg font-bold transition flex items-center justify-center shrink-0 disabled:opacity-40 disabled:pointer-events-none"><i class="fas fa-paper-plane text-xs"></i></button>
                     </div>
                 </form>
             </div>
@@ -331,10 +344,43 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     document.body.appendChild(chatWidget);
 
+    // Drag to scroll for Quick Replies on PC
+    const qrContainer = document.getElementById("quick-replies-container");
+    if (qrContainer) {
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        qrContainer.addEventListener("mousedown", (e) => {
+            isDown = true;
+            qrContainer.classList.add("grabbing");
+            startX = e.pageX - qrContainer.offsetLeft;
+            scrollLeft = qrContainer.scrollLeft;
+        });
+
+        qrContainer.addEventListener("mouseleave", () => {
+            isDown = false;
+            qrContainer.classList.remove("grabbing");
+        });
+
+        qrContainer.addEventListener("mouseup", () => {
+            isDown = false;
+            qrContainer.classList.remove("grabbing");
+        });
+
+        qrContainer.addEventListener("mousemove", (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - qrContainer.offsetLeft;
+            const walk = (x - startX) * 1.5;
+            qrContainer.scrollLeft = scrollLeft - walk;
+        });
+    }
+
     // Đối tượng mục tiêu chính (Nails/Nhà hàng): chủ tiệm người Việt sống tại Mỹ (Việt Kiều) —
     // dùng chung cho các persona liên quan (nail/fnb/general) để bot trả lời song ngữ Anh-Việt
     // tự nhiên, chuyên nghiệp, đúng chất người Việt hải ngoại thay vì thuần 1 thứ tiếng.
-    const BILINGUAL_VIETKIEU_DIRECTIVE = "NGÔN NGỮ: Khách hàng chủ yếu là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ (Việt Kiều). Hãy trả lời bằng cách trộn tiếng Anh và tiếng Việt một cách tự nhiên, chuyên nghiệp, đúng chất song ngữ của người Việt hải ngoại — KHÔNG dịch cứng 100% sang 1 thứ tiếng. Ưu tiên tiếng Anh cho thuật ngữ hệ thống/tính năng (dashboard, POS, Pro Plan, Nails module, Restaurant module, upgrade, feature...), giữ tiếng Việt cho xưng hô/ngữ khí thân mật (anh/chị, dạ, ạ, nhé). Ví dụ phong cách: \"Hi there! Chào mừng anh/chị đến với hệ thống quản lý POS. The system fully supports both Nails and Restaurant modules. Anh/chị cần tư vấn thêm về tính năng nào ạ?\"";
+    const BILINGUAL_VIETKIEU_DIRECTIVE = "NGÔN NGỮ & PERSONA: Mày là nhân viên chốt sale và CSKH thật đang ngồi trực ở văn phòng support — TUYỆT ĐỐI không nhận là AI, bot, hay trợ lý ngôn ngữ. Xưng 'em', gọi khách là 'anh/chị' hoặc 'boss'. Khách hàng chủ yếu là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ (Việt Kiều). Trả lời bằng cách trộn tiếng Anh và tiếng Việt một cách tự nhiên, đúng chất Vietlish của người Việt hải ngoại — chêm mượt mà các từ 'system', 'setup', 'confirm', 'deposit', 'book lịch', 'check-out', 'support', 'owner', 'thợ tech'. Ưu tiên tiếng Anh cho thuật ngữ hệ thống/tính năng (dashboard, POS, Pro Plan, Nails module, Restaurant module, upgrade, feature...), giữ tiếng Việt cho xưng hô/ngữ khí thân mật. Thái độ: Nhiệt tình nhưng lanh lẹ, thực dụng. Dùng từ đệm đời thường như 'dạ', 'nha', 'á' ở cuối câu. CẤM DÙNG: 'Hân hạnh', 'Rất vui được hỗ trợ', 'Tóm lại', 'Xin chào, tôi có thể giúp gì'. Nếu khách lăn tăn giá cả, lấy bài toán chi phí ra thuyết phục: 'Dạ system bên em lo từ A-Z, tính ra rẻ bèo so với anh chị mướn thêm người ngồi canh lịch á, anh chị chốt luôn để em setup nha'. Ví dụ phong cách: 'Hi boss! System bên em support cả Nails lẫn Restaurant module nha. Anh/chị cần em setup demo không ạ?'";
 
     // 4. Industry Config and Prompts (DNA/Scenario matching)
     const industryData = {
@@ -390,7 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         general: {
             title: "BitPaw OS",
-            greeting: "Hi there! Chào mừng anh/chị đến với BitPaw OS. The system fully supports both Nails and Restaurant modules — from POS, HRM, payroll, to AI customer care. Anh/chị cần tư vấn thêm về tính năng nào ạ?",
+            greeting: "Hi there! Welcome to BitPaw OS. The system fully supports both Nails and Restaurant modules — from POS, HRM, payroll, to AI customer care. How can we assist you today?",
             prompt: "Bạn là trợ lý tư vấn thân thiện, thông minh của BitPaw OS. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Trò chuyện tự nhiên như người thật, ngắn gọn (2-5 câu, dưới 450 ký tự). Giới thiệu hệ sinh thái B2B SaaS BitPaw (POS đa ngành, Order QR, HRM chấm công, lương, CRM, CSKH), tập trung vào 2 module chủ lực Nails và Restaurant. Luôn hỏi lại một câu ngắn tự nhiên để hiểu ngành/quy mô của khách. Tuyệt đối không nhồi nhét hotline ở mọi câu trả lời."
         }
     };
@@ -425,17 +471,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatForm = document.getElementById("mascot-chat-form");
     const chatMsgInput = document.getElementById("chatMsg");
     const chatPhoneInput = document.getElementById("chatPhone");
+    const chatSendBtn = document.getElementById("chatSendBtn");
     const msgContainer = document.getElementById("chat-messages-container");
 
     let isLeadSubmitted = false;
     let userPhone = "";
     let chatHistory = [];
+    let chatMode = "ai"; // "ai" | "human"
+    let humanChatStream = null; // EventSource — chỉ mở 1 lần cho mỗi SĐT, xem startHumanAgentStream()
+    let renderedStaffMessageCount = 0; // đếm số tin nhắn staff đã render, tránh lặp khi poll lại
 
     // Sync state globally for quick reply handlers
     window.isLeadSubmittedGlobal = false;
 
+    // Bắt buộc nhập SĐT trước khi được gõ/gửi tin nhắn — khoá ô nhắn tin + nút gửi cho tới khi
+    // chatPhone có giá trị (không validate định dạng ở đây, chỉ chặn rỗng; validate số hợp lệ
+    // vẫn là việc riêng của hasValidPhone bên dưới khi lưu lead).
+    function updatePhoneGateState() {
+        const hasPhoneValue = !!(chatPhoneInput && chatPhoneInput.value.trim().length > 0);
+        if (chatMsgInput) {
+            chatMsgInput.disabled = !hasPhoneValue;
+            chatMsgInput.placeholder = hasPhoneValue ? "Type your message here..." : "Enter your phone number to start chatting...";
+        }
+        if (chatSendBtn) chatSendBtn.disabled = !hasPhoneValue;
+        return hasPhoneValue;
+    }
+    if (chatPhoneInput) {
+        chatPhoneInput.addEventListener("input", updatePhoneGateState);
+        updatePhoneGateState();
+    }
+
     // 6. Global Quick Reply Chip Click Handler
     window.handleQuickReply = function (text) {
+        const chatPhoneInput = document.getElementById("chatPhone");
+        if (chatPhoneInput && !chatPhoneInput.value.trim()) {
+            chatPhoneInput.focus();
+            return;
+        }
         const chatMsgInput = document.getElementById("chatMsg");
         if (chatMsgInput) {
             chatMsgInput.value = text;
@@ -445,6 +517,103 @@ document.addEventListener("DOMContentLoaded", () => {
             chatForm.dispatchEvent(new Event('submit'));
         }
     };
+
+    // 6b. AI / Human Agent Mode Selector — chuyển sang chat thật với Admin qua bot_customers/
+    // bot_messages (route /api/cskh/chat/*), Admin trả lời từ /super_admin "Tất Cả Hội Thoại".
+    const chatModeAiBtn = document.getElementById("chatModeAiBtn");
+    const chatModeHumanBtn = document.getElementById("chatModeHumanBtn");
+    function setChatMode(mode) {
+        chatMode = mode;
+        const activeCls = ["border-cyan-400/60", "bg-cyan-500/20", "text-cyan-300"];
+        const inactiveCls = ["border-white/10", "bg-black/30", "text-gray-400"];
+        if (chatModeAiBtn && chatModeHumanBtn) {
+            const aiActive = mode === "ai";
+            chatModeAiBtn.classList.toggle("border-cyan-400/60", aiActive);
+            chatModeAiBtn.classList.toggle("bg-cyan-500/20", aiActive);
+            chatModeAiBtn.classList.toggle("text-cyan-300", aiActive);
+            chatModeAiBtn.classList.toggle("border-white/10", !aiActive);
+            chatModeAiBtn.classList.toggle("bg-black/30", !aiActive);
+            chatModeAiBtn.classList.toggle("text-gray-400", !aiActive);
+
+            chatModeHumanBtn.classList.toggle("border-cyan-400/60", !aiActive);
+            chatModeHumanBtn.classList.toggle("bg-cyan-500/20", !aiActive);
+            chatModeHumanBtn.classList.toggle("text-cyan-300", !aiActive);
+            chatModeHumanBtn.classList.toggle("border-white/10", aiActive);
+            chatModeHumanBtn.classList.toggle("bg-black/30", aiActive);
+            chatModeHumanBtn.classList.toggle("text-gray-400", aiActive);
+        }
+    }
+    if (chatModeAiBtn) {
+        chatModeAiBtn.addEventListener("click", () => {
+            if (chatMode === "ai") return;
+            setChatMode("ai");
+            appendMessage("ai", "You're back with the AI Assistant. How can I help?");
+        });
+    }
+    if (chatModeHumanBtn) {
+        chatModeHumanBtn.addEventListener("click", () => {
+            if (chatMode === "human") return;
+            setChatMode("human");
+            const phoneVal = chatPhoneInput ? chatPhoneInput.value.trim() : "";
+            if (phoneVal) {
+                appendMessage("ai", "You're now connected with our Human Agent team. Type your message below and a real team member will reply here shortly.");
+                startHumanAgentStream(phoneVal);
+            } else {
+                appendMessage("ai", "You've requested a Human Agent — please enter your phone number below so our team can reply to you here.");
+            }
+        });
+    }
+
+    // 6c. Human Agent messaging — gửi/nhận tin nhắn thật với Admin, thay AI Copilot generate
+    // reply. Poll lại /api/cskh/chat/messages mỗi khi nhận tín hiệu "có gì mới" từ SSE
+    // /api/stream/cskh_chat (đúng pattern _sse_change_signal + EventSource đã dùng ở
+    // super_admin.html/loadCskhLeads, chỉ khác đây là phía khách, không có session).
+    async function fetchHumanAgentReplies(phone) {
+        try {
+            const res = await fetch("/api/cskh/chat/messages?phone=" + encodeURIComponent(phone));
+            const json = await res.json();
+            if (!json.success) return;
+            const staffMessages = (json.messages || []).filter(m => m.sender_type !== "customer");
+            if (staffMessages.length > renderedStaffMessageCount) {
+                staffMessages.slice(renderedStaffMessageCount).forEach(m => appendMessage("ai", m.content));
+                renderedStaffMessageCount = staffMessages.length;
+            }
+        } catch (err) {
+            console.log("Fetching human agent replies deferred: ", err);
+        }
+    }
+
+    function startHumanAgentStream(phone) {
+        if (!phone || humanChatStream) return;
+        fetchHumanAgentReplies(phone); // lấy ngay lịch sử/reply đã có trước khi mở kênh SSE
+        humanChatStream = new EventSource("/api/stream/cskh_chat?phone=" + encodeURIComponent(phone));
+        humanChatStream.onmessage = () => fetchHumanAgentReplies(phone);
+        humanChatStream.onerror = () => { /* EventSource tự reconnect, không cần xử lý thêm */ };
+    }
+
+    async function handleHumanAgentSubmit(msgVal, phoneVal) {
+        appendMessage("user", msgVal);
+        chatHistory.push({ role: "user", content: msgVal });
+        chatMsgInput.value = "";
+        chatMsgInput.disabled = true;
+        if (chatSendBtn) chatSendBtn.disabled = true;
+
+        try {
+            await fetch("/api/cskh/chat/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: phoneVal, content: msgVal }),
+            });
+        } catch (err) {
+            console.log("Human agent message send deferred: ", err);
+        }
+
+        startHumanAgentStream(phoneVal);
+
+        chatMsgInput.disabled = false;
+        if (chatSendBtn) chatSendBtn.disabled = false;
+        chatMsgInput.focus();
+    }
 
     // 7. Offline/Fallback Logic Engine (Vietnamese Natural Response)
     function generateBitPawSalesReply(message, phone, industryCode, history = []) {
@@ -494,9 +663,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Tối ưu hóa việc chèn Hotline: không lặp hotline mỗi câu
-        const hasMentionedHotline = history.some(h => h.content && h.content.includes("287-5192"));
+        const hasMentionedHotline = history.some(h => h.content && h.content.includes("6629 4204"));
         if (!hasMentionedHotline && (asksPrice || asksDemo || asksSetup || history.length <= 2)) {
-            reply += ` Hoặc sếp liên hệ Hotline **+1 (463) 287-5192** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết ạ!`;
+            reply += ` Hoặc sếp liên hệ Hotline **🇦🇺 +61 8 6629 4204** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết ạ!`;
         }
 
         return reply;
@@ -565,6 +734,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!msgVal) return;
 
             const phoneVal = chatPhoneInput ? chatPhoneInput.value.trim() : "";
+
+            if (chatMode === "human") {
+                await handleHumanAgentSubmit(msgVal, phoneVal);
+                return;
+            }
+
             const cleanedPhone = phoneVal.replace(/[\s.-]/g, '');
             const hasValidPhone = /^(0|84)[3|5|7|8|9][0-9]{8}$/.test(cleanedPhone);
 
@@ -640,11 +815,11 @@ document.addEventListener("DOMContentLoaded", () => {
                                 business_id: BUSINESS_ID,
                                 industry: industryCode,
                                 customer_phone: userPhone,
-                                history: chatHistory.slice(-12),
+                                history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
                                 userPrompt: `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
                                 max_tokens: 220,
-                                temperature: 0.7
+                                temperature: 0.75
                             })
                         });
 
@@ -661,8 +836,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
-                if (!aiReply.includes("287-5192") && !aiReply.includes("tư vấn gói tối ưu")) {
-                    aiReply += ` Sếp kết nối nhanh Hotline **+1 (463) 287-5192** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
+                if (!aiReply.includes("6629 4204") && !aiReply.includes("tư vấn gói tối ưu")) {
+                    aiReply += ` Sếp kết nối nhanh Hotline **🇦🇺 +61 8 6629 4204** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
                 }
 
                 if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
@@ -699,11 +874,11 @@ document.addEventListener("DOMContentLoaded", () => {
                                 business_id: BUSINESS_ID,
                                 industry: industryCode,
                                 customer_phone: userPhone,
-                                history: chatHistory.slice(-12),
+                                history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
                                 userPrompt: msgVal,
                                 max_tokens: 220,
-                                temperature: 0.7
+                                temperature: 0.75
                             })
                         });
 

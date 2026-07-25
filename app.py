@@ -6070,6 +6070,65 @@ def _load_recent_chat_history(business_id, customer_phone, limit=10):
     return []
 
 
+# ========== "TALK TO HUMAN AGENT" TỪ WIDGET CSKH TRÊN LANDING PAGE MARKETING (cskh_widget.js) ==========
+# Khách vãng lai trên landing page marketing (landing.html, landing_*.html) KHÔNG thuộc tenant
+# nào cả — business_id thật luôn là None ở đây (xem BUSINESS_ID trong cskh_widget.js). Dùng 1
+# sentinel business_id cố định để vẫn tái dùng đúng bot_customers/bot_messages + _persist_chat_turn()
+# sẵn có, và hội thoại tự động xuất hiện trong /super_admin "Tất Cả Hội Thoại" (route đó đọc
+# CROSS-TENANT, không lọc business_id, nên không cần thay đổi gì ở đó để nó "nhìn thấy" sentinel này).
+BITPAW_LEADS_BUSINESS_ID = "bitpaw_leads"
+
+
+@app.route('/api/cskh/chat/send', methods=['POST'])
+def api_cskh_chat_send():
+    """Public — khách bấm 'Talk to Human Agent' rồi gửi tin nhắn. Không có session (khách vãng
+    lai), khoá hội thoại theo SĐT khách nhập. Tái dùng _persist_chat_turn() best-effort y hệt
+    luồng AI/tenant, chỉ khác business_id là sentinel BITPAW_LEADS_BUSINESS_ID."""
+    data = request.json or {}
+    phone = (data.get('phone') or '').strip()
+    content = (data.get('content') or '').strip()
+    if not phone or not content:
+        return jsonify({"success": False, "message": "Thiếu số điện thoại hoặc nội dung tin nhắn."}), 400
+    _persist_chat_turn(BITPAW_LEADS_BUSINESS_ID, phone, content[:2000], sender_type='customer')
+    return jsonify({"success": True})
+
+
+@app.route('/api/cskh/chat/messages', methods=['GET'])
+def api_cskh_chat_messages():
+    """Public — widget poll lại route này (sau khi nhận tín hiệu từ /api/stream/cskh_chat) để
+    lấy toàn bộ lịch sử, bao gồm cả reply mới của Admin (sender_type='staff'). Khoá theo SĐT
+    trong query string — CHÚ Ý: cùng hạn chế đã có ở /api/portal/messages, khoá theo 1 giá trị
+    có thể đoán được (SĐT) chứ không phải bí mật thật sự; chấp nhận đánh đổi để khách vãng lai
+    không cần đăng nhập/token vẫn chat được."""
+    phone = (request.args.get('phone') or '').strip()
+    if not phone or db is None:
+        return jsonify({"success": True, "messages": []})
+    customer_id = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+    try:
+        messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
+        return jsonify({"success": True, "messages": messages})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/stream/cskh_chat', methods=['GET'])
+def stream_cskh_chat():
+    """SSE public — chỉ báo tín hiệu "có gì mới" cho ĐÚNG 1 khách (lọc theo customer_id đầy đủ,
+    không chỉ business_id — vì mọi khách landing page đều dùng chung 1 sentinel business_id, lọc
+    theo business_id sẽ khiến tín hiệu của khách A làm khách B tự fetch lại không cần thiết),
+    KHÔNG mang nội dung — giống hệt pattern /api/portal/stream (không dùng _sse_tenant_match()
+    vì route này không có session)."""
+    phone = (request.args.get('phone') or '').strip()
+    if not phone or db is None:
+        return Response('', mimetype='text/event-stream')
+    customer_id = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+    match = {'$match': {'$or': [
+        {'fullDocument.customer_id': customer_id},
+        {'operationType': 'delete'},
+    ], 'ns.coll': 'bot_messages'}}
+    return _sse_change_signal(db, match)
+
+
 # ========== AI BOT CONSOLE (staff xem/trả lời hội thoại của TENANT MÌNH) — thay Supabase JS
 # ở ai_bot.html. Client cũ đọc bot_customers/bot_messages KHÔNG lọc business_id (giống lỗ hổng
 # đã vá ở user_logs.html) — 2 route GET dưới đây bắt buộc lọc theo business_id của session. ==========
@@ -6526,6 +6585,38 @@ def superadmin_chat_messages(customer_id):
         })
     except Exception as e:
         print(f"[superadmin_chat_messages] Lỗi tải hội thoại customer_id={customer_id}: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/superadmin/chat/messages/<path:customer_id>', methods=['POST'])
+@login_required
+def superadmin_chat_send_message(customer_id):
+    """Admin gõ trả lời trong /super_admin 'Tất Cả Hội Thoại' — ghi thẳng vào bot_messages với
+    sender_type='staff' cho ĐÚNG customer_id đang mở (business_id:phone hoặc
+    BITPAW_LEADS_BUSINESS_ID:phone nếu là lead từ landing page marketing). Widget CSKH phía
+    khách (cskh_widget.js) đang lắng nghe /api/stream/cskh_chat trên đúng customer_id này nên
+    tin nhắn xuất hiện gần như ngay lập tức bên phía khách, không cần khách tự bấm refresh."""
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
+    data = request.json or {}
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({"success": False, "message": "Nội dung tin nhắn trống."}), 400
+    try:
+        cust = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, '_id': 0})
+        if not cust:
+            return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
+        now_iso = datetime.now().isoformat()
+        db.bot_messages.insert_one({
+            'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
+            'business_id': cust.get('business_id'), 'created_at': now_iso, 'is_read': True,
+        })
+        db.bot_customers.update_one(
+            {'id': customer_id}, {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"[superadmin_chat_send_message] Lỗi gửi tin nhắn customer_id={customer_id}: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 

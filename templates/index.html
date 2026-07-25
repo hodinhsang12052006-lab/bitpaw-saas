@@ -2,6 +2,7 @@
 <html lang="{{ default_lang }}">
 
 <head>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cổng Điều Hành Doanh Nghiệp | BitPaw OS</title>
@@ -131,7 +132,7 @@
             transform: translate(-50%, -50%);
             width: 100vw;
             height: 100vh;
-            background: 
+            background:
                 radial-gradient(circle at 25% 25%, rgba(6, 182, 212, 0.15) 0%, transparent 55%),
                 radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.14) 0%, transparent 55%),
                 radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 60%);
@@ -196,6 +197,7 @@
             0% {
                 transform: translate(0, 0) scale(1);
             }
+
             100% {
                 transform: translate(40px, -40px) scale(1.08);
             }
@@ -206,6 +208,7 @@
                 opacity: 0.7;
                 transform: translate(-50%, -50%) scale(0.95);
             }
+
             100% {
                 opacity: 1.1;
                 transform: translate(-50%, -50%) scale(1.05);
@@ -264,13 +267,22 @@
         }
 
         @keyframes fomoFadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         .fomo-item {
             animation: fomoFadeIn 0.35s ease;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
+
         .fomo-item:last-child {
             border-bottom: none;
         }
@@ -371,7 +383,7 @@
             height: 78px;
             border-radius: 50%;
             background: radial-gradient(circle, rgba(34, 211, 238, 0.45) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 70%);
-            box-shadow: 
+            box-shadow:
                 0 0 35px rgba(6, 182, 212, 0.45),
                 inset 0 0 18px rgba(139, 92, 246, 0.5);
             animation: orbPulse 3s ease-in-out infinite alternate;
@@ -422,10 +434,25 @@
         }
 
         /* Floating Chips Coordinate Placements */
-        .chip-pos { top: 18px; left: -10px; }
-        .chip-crm { top: 18px; right: -10px; }
-        .chip-hrm { bottom: 18px; left: -10px; }
-        .chip-ai { bottom: 18px; right: -10px; }
+        .chip-pos {
+            top: 18px;
+            left: -10px;
+        }
+
+        .chip-crm {
+            top: 18px;
+            right: -10px;
+        }
+
+        .chip-hrm {
+            bottom: 18px;
+            left: -10px;
+        }
+
+        .chip-ai {
+            bottom: 18px;
+            right: -10px;
+        }
 
         @keyframes orbPulse {
             0% {
@@ -433,6 +460,7 @@
                 opacity: 0.8;
                 filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.3));
             }
+
             100% {
                 transform: scale(1.08);
                 opacity: 1;
@@ -479,6 +507,7 @@
             0% {
                 top: 15%;
             }
+
             100% {
                 top: 85%;
             }
@@ -714,13 +743,33 @@
         }
 
         @keyframes ring {
-            0% { transform: rotate(0); }
-            10% { transform: rotate(15deg); }
-            20% { transform: rotate(-15deg); }
-            30% { transform: rotate(15deg); }
-            40% { transform: rotate(-15deg); }
-            50% { transform: rotate(0); }
-            100% { transform: rotate(0); }
+            0% {
+                transform: rotate(0);
+            }
+
+            10% {
+                transform: rotate(15deg);
+            }
+
+            20% {
+                transform: rotate(-15deg);
+            }
+
+            30% {
+                transform: rotate(15deg);
+            }
+
+            40% {
+                transform: rotate(-15deg);
+            }
+
+            50% {
+                transform: rotate(0);
+            }
+
+            100% {
+                transform: rotate(0);
+            }
         }
 
         /* Scoped Mobile Responsive Styling */
@@ -729,10 +778,12 @@
                 padding-top: 1rem !important;
                 padding-bottom: 1rem !important;
             }
+
             .cyber-login-card {
                 padding: 1.5rem !important;
                 min-height: auto !important;
             }
+
             /* Language switcher mobile optimization to avoid overlapping logo/UI */
             .fixed.top-6.right-6 {
                 top: 12px !important;
@@ -766,7 +817,8 @@
                     <div class="absolute inset-0 rounded-full border border-cyan-500/50 animate-ping opacity-25"></div>
                     <div class="absolute inset-0 rounded-full border-t border-purple-500/80 animate-spin"
                         style="animation-duration: 3s;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo"
+                        class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-wider text-white">Bit<span class="text-cyan-400">Paw</span>
@@ -774,14 +826,16 @@
                             class="text-xs px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30 uppercase tracking-widest font-bold font-mono">Launcher</span>
                     </h1>
                     <p class="text-gray-400 text-xs mt-0.5 uppercase tracking-widest flex items-center gap-1.5"><i
-                            class="fas fa-university text-cyan-400"></i> <span data-i18n="index_business_label">Doanh nghiệp:</span> <span
-                            class="text-white font-bold">{{ session.get('user_email', 'BitPaw Merchant') }}</span></p>
+                            class="fas fa-university text-cyan-400"></i> <span data-i18n="index_business_label">Doanh
+                            nghiệp:</span> <span class="text-white font-bold">{{ session.get('user_email', 'BitPaw
+                            Merchant') }}</span></p>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-4">
                 <div class="text-right hidden md:block">
-                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold" data-i18n="index_uptime_label">Thời gian vận
+                    <span class="text-[9px] text-gray-500 uppercase tracking-widest block font-bold"
+                        data-i18n="index_uptime_label">Thời gian vận
                         hành</span>
                     <span id="launcherClock" class="font-mono text-cyan-400 font-bold text-lg">00:00:00</span>
                 </div>
@@ -791,7 +845,8 @@
                 <div class="flex gap-2">
                     <span
                         class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.15)]"><i
-                            class="fas fa-check-circle animate-pulse"></i> <span data-i18n="index_license_active">License: Hoạt động</span></span>
+                            class="fas fa-check-circle animate-pulse"></i> <span
+                            data-i18n="index_license_active">License: Hoạt động</span></span>
                     <a href="{{ url_for('logout') }}"
                         class="bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 transition"><i
                             class="fas fa-sign-out-alt"></i> <span data-i18n="index_logout_btn">Đăng xuất</span></a>
@@ -814,12 +869,14 @@
 
                     <h3
                         class="text-xs font-black text-cyan-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2 flex items-center gap-2">
-                        <i class="fas fa-fingerprint"></i> <span data-i18n="index_operating_info_title">Thông Tin Vận Hành</span>
+                        <i class="fas fa-fingerprint"></i> <span data-i18n="index_operating_info_title">Thông Tin Vận
+                            Hành</span>
                     </h3>
 
                     <div class="space-y-4">
                         <div>
-                            <span class="text-[10px] text-gray-400 block mb-1 uppercase font-bold tracking-wider" data-i18n="index_industry_zone_label">Môi
+                            <span class="text-[10px] text-gray-400 block mb-1 uppercase font-bold tracking-wider"
+                                data-i18n="index_industry_zone_label">Môi
                                 trường phân vùng / Industry:</span>
                             <div
                                 class="flex items-center gap-2.5 bg-black/30 border border-white/5 rounded-xl px-4 py-2.5">
@@ -831,24 +888,31 @@
                                 </span>
                                 <div>
                                     <span class="font-bold text-white block text-sm">
-                                        {% if session.get('business_mode') == 'fnb' %} <span data-i18n="index_industry_fnb">Nhà hàng & Cafe (F&B)</span>
-                                        {% elif session.get('business_mode') == 'nail' %} <span data-i18n="index_industry_nail">Nails & Salon</span>
-                                        {% elif session.get('business_mode') == 'spa' %} <span data-i18n="index_industry_spa">Spa & Wellness</span>
-                                        {% else %} <span data-i18n="index_industry_retail">Bán lẻ & ERP (Retail)</span> {% endif %}
+                                        {% if session.get('business_mode') == 'fnb' %} <span
+                                            data-i18n="index_industry_fnb">Nhà hàng & Cafe (F&B)</span>
+                                        {% elif session.get('business_mode') == 'nail' %} <span
+                                            data-i18n="index_industry_nail">Nails & Salon</span>
+                                        {% elif session.get('business_mode') == 'spa' %} <span
+                                            data-i18n="index_industry_spa">Spa & Wellness</span>
+                                        {% else %} <span data-i18n="index_industry_retail">Bán lẻ & ERP (Retail)</span>
+                                        {% endif %}
                                     </span>
-                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-mono"><span data-i18n="index_industry_active_prefix">Industry
-                                        Active:</span> {{ session.get('business_mode', 'retail') }}</span>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-mono"><span
+                                            data-i18n="index_industry_active_prefix">Industry
+                                            Active:</span> {{ session.get('business_mode', 'retail') }}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="bg-black/30 border border-white/5 p-4 rounded-xl space-y-2">
                             <span class="text-[10px] text-gray-400 uppercase tracking-wider block font-bold"><i
-                                    class="fas fa-robot text-cyan-400"></i> <span data-i18n="index_ai_core_status_title">BitPaw AI Core Status</span></span>
+                                    class="fas fa-robot text-cyan-400"></i> <span
+                                    data-i18n="index_ai_core_status_title">BitPaw AI Core Status</span></span>
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-400" data-i18n="index_ai_status_label">Trạng thái AI:</span>
                                 <span class="text-emerald-400 font-bold flex items-center gap-1"><i
-                                        class="fas fa-circle text-[9px] animate-pulse"></i> <span data-i18n="index_ai_status_online">Online</span></span>
+                                        class="fas fa-circle text-[9px] animate-pulse"></i> <span
+                                        data-i18n="index_ai_status_online">Online</span></span>
                             </div>
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-400" data-i18n="index_chats_today_label">Chats hôm nay:</span>
@@ -867,20 +931,25 @@
                     <div class="flex justify-between items-center mb-3">
                         <h3
                             class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
-                            <i class="fas fa-clock"></i> <span data-i18n="index_attendance_title">Chấm Công Nhân Sự</span>
+                            <i class="fas fa-clock"></i> <span data-i18n="index_attendance_title">Chấm Công Nhân
+                                Sự</span>
                         </h3>
-                        <span class="text-[9px] bg-white/5 px-2 py-0.5 rounded text-gray-400 uppercase" data-i18n="index_secondary_badge">Secondary</span>
+                        <span class="text-[9px] bg-white/5 px-2 py-0.5 rounded text-gray-400 uppercase"
+                            data-i18n="index_secondary_badge">Secondary</span>
                     </div>
-                    <p class="text-gray-400 text-xs mb-4" data-i18n="index_attendance_desc">Mở bảng chấm công và xác thực check-in nhanh cho nhân viên khi
+                    <p class="text-gray-400 text-xs mb-4" data-i18n="index_attendance_desc">Mở bảng chấm công và xác
+                        thực check-in nhanh cho nhân viên khi
                         vào ca.</p>
                     <div class="flex gap-2">
                         <button onclick="openFastCheckin()"
                             class="flex-1 bg-white/5 border border-white/10 hover:bg-cyan-500/10 hover:text-cyan-300 text-gray-300 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-fingerprint"></i> <span data-i18n="index_checkin_shift_btn">Checkin ca</span>
+                            <i class="fas fa-fingerprint"></i> <span data-i18n="index_checkin_shift_btn">Checkin
+                                ca</span>
                         </button>
                         <a href="/chamcong"
                             class="flex-1 bg-white/5 border border-white/10 hover:bg-purple-500/10 hover:text-purple-300 text-gray-300 text-xs font-bold py-2.5 rounded-xl text-center transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-calendar-alt"></i> <span data-i18n="index_attendance_board_btn">Bảng biểu</span>
+                            <i class="fas fa-calendar-alt"></i> <span data-i18n="index_attendance_board_btn">Bảng
+                                biểu</span>
                         </a>
                     </div>
                 </div>
@@ -889,12 +958,14 @@
                 <div class="glass-panel p-6 flex-1 flex flex-col">
                     <h3
                         class="text-xs font-black text-cyan-400 uppercase tracking-widest mb-3 border-b border-white/5 pb-2 flex items-center gap-2">
-                        <i class="fas fa-history"></i> <span data-i18n="index_activity_log_title">Nhật Ký Vận Hành</span>
+                        <i class="fas fa-history"></i> <span data-i18n="index_activity_log_title">Nhật Ký Vận
+                            Hành</span>
                     </h3>
                     <div id="launcherActivityList"
                         class="recent-scroll space-y-2.5 text-xs text-gray-400 overflow-y-auto flex-1 pr-1">
-                        <div class="text-center text-gray-500 py-4"><i class="fas fa-spinner fa-spin mr-1"></i> <span data-i18n="index_connecting_data">Đang kết
-                            nối dữ liệu...</span></div>
+                        <div class="text-center text-gray-500 py-4"><i class="fas fa-spinner fa-spin mr-1"></i> <span
+                                data-i18n="index_connecting_data">Đang kết
+                                nối dữ liệu...</span></div>
                     </div>
                 </div>
             </div>
@@ -910,12 +981,15 @@
                             <i class="fas fa-cash-register"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_pos_badge">Mở
+                            class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_pos_badge">Mở
                             POS Screen</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_pos_title">Hệ Thống Bán Hàng & POS</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_pos_desc">Mở quầy gọi món tại chỗ, xếp lịch Nails/Spa,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_pos_title">Hệ Thống Bán
+                            Hàng & POS</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_pos_desc">Mở quầy gọi món
+                            tại chỗ, xếp lịch Nails/Spa,
                             treo bill, in hóa đơn nhiệt và thanh toán trực tiếp cho khách hàng.</p>
                     </div>
                 </a>
@@ -928,12 +1002,15 @@
                             <i class="fas fa-robot"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_ai_badge">AI
+                            class="text-[9px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_ai_badge">AI
                             Copilot</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_ai_title">BitPaw AI Copilot Core</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_ai_desc">Kích hoạt trợ lý chatbot AI đàm thoại bán hàng
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_ai_title">BitPaw AI
+                            Copilot Core</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_ai_desc">Kích hoạt trợ lý
+                            chatbot AI đàm thoại bán hàng
                             24/7, bám đuổi tư vấn tự động, thu thập leads chốt đơn đa nền tảng.</p>
                     </div>
                 </a>
@@ -946,12 +1023,15 @@
                             <i class="fas fa-qrcode"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_qr_badge">QR
+                            class="text-[9px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_qr_badge">QR
                             Menu View</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_qr_title">Thực Đơn QR Động & Đặt Lịch</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_qr_desc">Mã QR đặt món và thanh toán tại bàn (F&B), hoặc
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_qr_title">Thực Đơn QR Động
+                            & Đặt Lịch</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_qr_desc">Mã QR đặt món và
+                            thanh toán tại bàn (F&B), hoặc
                             tự chọn ghế Nails/ Spa booking trực tuyến cực kỳ sang xịn.</p>
                     </div>
                 </a>
@@ -964,11 +1044,14 @@
                             <i class="fas fa-tachometer-alt"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_crm_badge">Dashboard</span>
+                            class="text-[9px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_crm_badge">Dashboard</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_crm_title">Môi Trường Doanh Nghiệp (CRM)</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_crm_desc">Theo dõi chi tiết dữ liệu khách hàng CRM, tỷ lệ
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_crm_title">Môi Trường
+                            Doanh Nghiệp (CRM)</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_crm_desc">Theo dõi chi
+                            tiết dữ liệu khách hàng CRM, tỷ lệ
                             quay lại, quản lý tồn kho sản phẩm, phân cấp phân quyền bảo mật.</p>
                     </div>
                 </a>
@@ -981,12 +1064,15 @@
                             <i class="fas fa-envelope-open-text"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_inbox_badge">Hộp
+                            class="text-[9px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_inbox_badge">Hộp
                             Thư AI</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_inbox_title">Inbox Đa Kênh Omnichannel</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_inbox_desc">Kết nối tin nhắn đa kênh (Messenger, Zalo OA,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_inbox_title">Inbox Đa Kênh
+                            Omnichannel</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_inbox_desc">Kết nối tin
+                            nhắn đa kênh (Messenger, Zalo OA,
                             Web Form) đổ dồn về một hộp thư thông minh tập trung quản trị.</p>
                     </div>
                 </a>
@@ -999,12 +1085,15 @@
                             <i class="fas fa-paper-plane"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_campaign_badge">Gửi
+                            class="text-[9px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_campaign_badge">Gửi
                             Chiến Dịch</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_campaign_title">Chiến Dịch & Trình Gửi Tin</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_campaign_desc">Lên lịch kịch bản tự động chăm sóc sau mua,
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_campaign_title">Chiến Dịch
+                            & Trình Gửi Tin</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_campaign_desc">Lên lịch
+                            kịch bản tự động chăm sóc sau mua,
                             chúc mừng sinh nhật, gửi mã coupon ưu đãi tái kích hoạt tệp khách cũ.</p>
                     </div>
                 </a>
@@ -1017,12 +1106,15 @@
                             <i class="fas fa-credit-card"></i>
                         </div>
                         <span
-                            class="text-[9px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_payment_badge">Cấu
+                            class="text-[9px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold uppercase tracking-wider"
+                            data-i18n="index_card_payment_badge">Cấu
                             Hình Pay</span>
                     </div>
                     <div>
-                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_payment_title">Cổng Nhận Tiền & Fintech</h4>
-                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_payment_desc">Cấu hình VietQR động chuyển tiền trực tiếp về
+                        <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_payment_title">Cổng Nhận
+                            Tiền & Fintech</h4>
+                        <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_payment_desc">Cấu hình
+                            VietQR động chuyển tiền trực tiếp về
                             tài khoản, Stripe thanh toán thẻ quốc tế, ví MoMo, ZaloPay nhận tiền.</p>
                     </div>
                 </a>
@@ -1036,12 +1128,15 @@
                                 <i class="fas fa-chart-pie"></i>
                             </div>
                             <span
-                                class="text-[9px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30 font-bold uppercase tracking-wider" data-i18n="index_card_report_badge">Xem
+                                class="text-[9px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30 font-bold uppercase tracking-wider"
+                                data-i18n="index_card_report_badge">Xem
                                 Báo Cáo</span>
                         </div>
                         <div>
-                            <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_report_title">Doanh Thu & Dòng Tiền</h4>
-                            <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_report_desc">Tra cứu doanh số, lợi nhuận thực tế, chi
+                            <h4 class="font-bold text-white text-base mb-1" data-i18n="index_card_report_title">Doanh
+                                Thu & Dòng Tiền</h4>
+                            <p class="text-gray-400 text-xs leading-relaxed" data-i18n="index_card_report_desc">Tra cứu
+                                doanh số, lợi nhuận thực tế, chi
                                 phí đầu vào, thống kê dòng tiền chênh lệch theo thời gian thực.</p>
                         </div>
                 </a>
@@ -1064,8 +1159,8 @@
         <div class="w-full grid grid-cols-1 lg:grid-cols-10 gap-6 z-10 items-stretch py-4 md:py-6 my-auto">
 
             <!-- Form column -->
-            <div
-                class="lg:col-span-4 flex flex-col justify-center cyber-login-card rounded-[2rem] p-6 md:p-10 relative overflow-hidden animate-cyber-left" style="min-h: 580px;">
+            <div class="lg:col-span-4 flex flex-col justify-center cyber-login-card rounded-[2rem] p-6 md:p-10 relative overflow-hidden animate-cyber-left"
+                style="min-h: 580px;">
                 <div
                     class="absolute -top-20 -left-20 w-64 h-64 bg-cyan-600/20 rounded-full blur-[80px] pointer-events-none z-0">
                 </div>
@@ -1076,12 +1171,15 @@
                 <div class="text-center mb-6 relative z-10">
                     <div class="relative w-28 h-28 mx-auto flex items-center justify-center logo-float">
                         <!-- Conentric soft background glow -->
-                        <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/10 to-purple-500/10 blur-sm pointer-events-none"></div>
+                        <div
+                            class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/10 to-purple-500/10 blur-sm pointer-events-none">
+                        </div>
                         <div class="absolute w-full h-full border-t-2 border-purple-500/40 border-dashed rounded-full animate-spin mascot-ring-inner"
                             style="animation-duration: 6s;"></div>
                         <div class="absolute w-[112%] h-[112%] border-r-2 border-cyan-400/40 border-double rounded-full animate-spin mascot-ring-outer"
                             style="animation-duration: 8s; animation-direction: reverse;"></div>
-                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Hero Logo" class="w-full h-full rounded-full object-cover animate-spin-slow">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Hero Logo"
+                            class="w-full h-full rounded-full object-cover animate-spin-slow">
                     </div>
                     <h1 class="text-3xl font-black text-white tracking-widest mt-4">Bit<span
                             class="text-cyan-400">Paw</span> <span
@@ -1090,9 +1188,11 @@
                 </div>
 
                 <h2 id="txt_welcome" data-i18n="index_auth_welcome_title"
-                    class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300 uppercase mb-1.5 text-center lg:text-left relative z-10 tracking-wide">Cổng
+                    class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300 uppercase mb-1.5 text-center lg:text-left relative z-10 tracking-wide">
+                    Cổng
                     Kích Hoạt Hệ Thống</h2>
-                <p id="txt_subwelcome" data-i18n="index_auth_welcome_subtitle" class="text-slate-400 text-xs mb-8 text-center lg:text-left relative z-10 font-medium">Đăng
+                <p id="txt_subwelcome" data-i18n="index_auth_welcome_subtitle"
+                    class="text-slate-400 text-xs mb-8 text-center lg:text-left relative z-10 font-medium">Đăng
                     nhập tài khoản quản trị để vận hành Doanh nghiệp.</p>
 
                 <!-- Flash Messages -->
@@ -1119,7 +1219,8 @@
                                 <i
                                     class="far fa-envelope text-gray-400 group-focus-within:text-cyan-400 transition-colors"></i>
                             </div>
-                            <input type="email" id="loginEmail" name="email" placeholder="Email quản trị" data-i18n-placeholder="index_login_email_placeholder" required
+                            <input type="email" id="loginEmail" name="email" placeholder="Email quản trị"
+                                data-i18n-placeholder="index_login_email_placeholder" required
                                 class="cyber-input w-full pl-12 pr-4 py-3.5 rounded-xl text-white text-sm">
                         </div>
                         <div class="mb-3 relative group">
@@ -1127,12 +1228,14 @@
                                 <i
                                     class="fas fa-lock text-gray-400 group-focus-within:text-cyan-400 transition-colors"></i>
                             </div>
-                            <input type="password" id="loginPassword" name="password" placeholder="Mật khẩu" data-i18n-placeholder="index_login_password_placeholder" required
+                            <input type="password" id="loginPassword" name="password" placeholder="Mật khẩu"
+                                data-i18n-placeholder="index_login_password_placeholder" required
                                 class="cyber-input w-full pl-12 pr-10 py-3.5 rounded-xl text-white text-sm">
                         </div>
 
                         <div class="flex justify-end mb-6">
-                            <button type="button" onclick="forgotPassword()" id="btn_forgot" data-i18n="index_forgot_password_btn"
+                            <button type="button" onclick="forgotPassword()" id="btn_forgot"
+                                data-i18n="index_forgot_password_btn"
                                 class="text-cyan-400 text-xs hover:text-cyan-300 font-semibold transition-colors">Quên
                                 mật khẩu?</button>
                         </div>
@@ -1145,7 +1248,8 @@
                             <div class="text-center mt-1">
                                 <button type="button" onclick="setActiveTab('register')"
                                     class="text-gray-400 text-xs hover:text-white transition-all duration-300 flex items-center justify-center gap-1 mx-auto mt-2">
-                                    <span id="txt_newbiz" data-i18n="index_no_license_text" class="opacity-80">Chưa có bản quyền?</span>
+                                    <span id="txt_newbiz" data-i18n="index_no_license_text" class="opacity-80">Chưa có
+                                        bản quyền?</span>
                                     <span id="txt_createnow" data-i18n="index_initialize_now_btn"
                                         class="text-cyan-400 hover:text-cyan-300 font-bold border-b border-cyan-500/30 hover:border-cyan-400 transition-colors pb-0.5">Khởi
                                         tạo ngay</span>
@@ -1158,16 +1262,19 @@
                 <!-- Register Form -->
                 <div id="registerForm" class="form-panel relative z-10">
                     <form id="registerFormElement" action="{{ url_for('register') }}" method="POST" class="space-y-3.5">
-                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)" data-i18n-placeholder="index_reg_fullname_placeholder"
-                            required class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
+                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)"
+                            data-i18n-placeholder="index_reg_fullname_placeholder" required
+                            class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
                         <input type="text" id="regBusinessName" name="business_name"
-                            placeholder="Tên cửa hàng / Doanh nghiệp" data-i18n-placeholder="index_reg_business_name_placeholder" required
+                            placeholder="Tên cửa hàng / Doanh nghiệp"
+                            data-i18n-placeholder="index_reg_business_name_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
                         <div>
                             <label
                                 class="block text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1.5 ml-1"><i
-                                    class="fas fa-shapes mr-1"></i> <span data-i18n="index_reg_industry_label">Chọn Ngành Nghề</span></label>
+                                    class="fas fa-shapes mr-1"></i> <span data-i18n="index_reg_industry_label">Chọn
+                                    Ngành Nghề</span></label>
                             <select name="business_type" id="reg_business_type" required
                                 class="cyber-input w-full px-4 py-3 rounded-xl text-xs cursor-pointer">
                                 {% for code, cfg in industry_config.items() %}
@@ -1177,7 +1284,8 @@
                             </select>
                         </div>
 
-                        <input type="email" id="regEmail" name="email" placeholder="Email quản trị" data-i18n-placeholder="index_login_email_placeholder" required
+                        <input type="email" id="regEmail" name="email" placeholder="Email quản trị"
+                            data-i18n-placeholder="index_login_email_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
                         <div class="relative">
@@ -1185,17 +1293,19 @@
                                 class="block text-rose-400 text-[10px] font-bold mb-1 uppercase tracking-widest"><i
                                     class="fas fa-key mr-1"></i> Nhập License Key Bản Quyền</label>
                             <div class="relative">
-                                <input type="text" id="reg_license" name="license_key" placeholder="VD: BITPAW-TR8D8T5S" data-i18n-placeholder="index_reg_license_placeholder"
-                                    required
+                                <input type="text" id="reg_license" name="license_key" placeholder="VD: BITPAW-TR8D8T5S"
+                                    data-i18n-placeholder="index_reg_license_placeholder" required
                                     class="w-full bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 pl-10 text-white outline-none focus:border-rose-400 font-mono tracking-widest uppercase text-sm">
                                 <i class="fas fa-lock absolute left-3.5 top-3.5 text-rose-400 text-sm"></i>
                             </div>
                         </div>
 
                         <input type="password" id="regPassword" name="password"
-                            placeholder="Mật khẩu (tối thiểu 6 ký tự)" data-i18n-placeholder="index_reg_password_placeholder" required
+                            placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+                            data-i18n-placeholder="index_reg_password_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
-                        <input type="password" id="regConfirm" name="confirm" placeholder="Xác nhận mật khẩu" data-i18n-placeholder="index_reg_confirm_placeholder" required
+                        <input type="password" id="regConfirm" name="confirm" placeholder="Xác nhận mật khẩu"
+                            data-i18n-placeholder="index_reg_confirm_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
 
                         <button type="submit" id="btnRegister" data-i18n="index_reg_submit_btn"
@@ -1206,7 +1316,8 @@
                         <div class="text-center">
                             <button type="button" onclick="setActiveTab('login')"
                                 class="text-gray-400 text-xs hover:text-white transition-all duration-300 flex items-center justify-center gap-1 mx-auto mt-2">
-                                <span id="txt_have_account" data-i18n="index_have_account_text" class="opacity-80">Đã có tài khoản?</span>
+                                <span id="txt_have_account" data-i18n="index_have_account_text" class="opacity-80">Đã có
+                                    tài khoản?</span>
                                 <span id="txt_login_now" data-i18n="index_login_now_btn"
                                     class="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500/30 hover:border-purple-400 transition-colors pb-0.5">Đăng
                                     nhập</span>
@@ -1216,7 +1327,8 @@
                 </div>
 
                 <!-- Mini telemetry system status row (NEW!) -->
-                <div class="border-t border-white/5 pt-4 mt-6 flex justify-between items-center text-[10px] font-mono text-slate-500 relative z-10">
+                <div
+                    class="border-t border-white/5 pt-4 mt-6 flex justify-between items-center text-[10px] font-mono text-slate-500 relative z-10">
                     <span class="flex items-center gap-1.5 hover:text-cyan-400 transition-colors">
                         <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
                         <span data-i18n="index_telemetry_secure_session">Secure Session</span>
@@ -1249,19 +1361,22 @@
                             <div
                                 class="absolute inset-0 bg-gradient-to-tr from-cyan-500/30 to-purple-500/30 animate-pulse">
                             </div>
-                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-lg object-cover relative z-10 p-0.5 bg-[#08061a]">
+                            <img src="{{ url_for('static', filename='cho1.jpg') }}"
+                                class="w-full h-full rounded-lg object-cover relative z-10 p-0.5 bg-[#08061a]">
                         </div>
                         <div>
                             <h2 class="text-sm font-black text-white tracking-wide uppercase flex items-center gap-2">
                                 BitPaw AI OS Core
                                 <span
                                     class="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[7px] text-emerald-400 uppercase font-mono font-bold tracking-wider"><span
-                                        class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> <span data-i18n="index_secure_online_badge">Secure /
-                                    Online</span></span>
+                                        class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> <span
+                                        data-i18n="index_secure_online_badge">Secure /
+                                        Online</span></span>
                             </h2>
                             <span
                                 class="text-[9px] text-gray-500 uppercase tracking-widest font-mono flex items-center gap-1">
-                                <i class="fas fa-project-diagram text-[8px] text-cyan-400"></i> <span data-i18n="index_live_ecosystem_map">Live Ecosystem Map</span>
+                                <i class="fas fa-project-diagram text-[8px] text-cyan-400"></i> <span
+                                    data-i18n="index_live_ecosystem_map">Live Ecosystem Map</span>
                             </span>
                         </div>
                     </div>
@@ -1289,7 +1404,8 @@
                         <div class="central-orb"></div>
 
                         <!-- Rotating AI core hologram ThreeJS canvas overlay -->
-                        <canvas id="hologram-canvas" class="absolute w-full h-full object-cover z-3 opacity-75 mix-blend-screen pointer-events-none"></canvas>
+                        <canvas id="hologram-canvas"
+                            class="absolute w-full h-full object-cover z-3 opacity-75 mix-blend-screen pointer-events-none"></canvas>
 
                         <!-- Float Module Chips -->
                         <div class="module-floating-chip chip-pos">
@@ -1317,8 +1433,11 @@
                         <div class="cyber-node" style="bottom: 38%; right: 22%;"></div>
 
                         <!-- Concentric faint orbits links -->
-                        <div class="absolute w-[130px] h-[130px] border border-cyan-500/10 border-dashed rounded-full pointer-events-none"></div>
-                        <div class="absolute w-[210px] h-[210px] border border-purple-500/10 border-dashed rounded-full pointer-events-none animate-spin" style="animation-duration: 36s;"></div>
+                        <div
+                            class="absolute w-[130px] h-[130px] border border-cyan-500/10 border-dashed rounded-full pointer-events-none">
+                        </div>
+                        <div class="absolute w-[210px] h-[210px] border border-purple-500/10 border-dashed rounded-full pointer-events-none animate-spin"
+                            style="animation-duration: 36s;"></div>
                     </div>
 
                     <div class="relative text-center z-10 pointer-events-none mt-2">
@@ -1330,17 +1449,19 @@
                             class="text-base font-black text-white mt-2 tracking-wide flex items-center justify-center gap-1.5">
                             <i class="fas fa-globe text-cyan-400 text-sm"></i> 3D HOLOGRAPHIC ECOSYSTEM
                         </h3>
-                        <p class="text-[10px] text-gray-400 mt-1 max-w-sm leading-relaxed">Hệ điều hành vận hành POS đa ngành, kết nối Zalo/Facebook, chốt đơn tự động bằng AI Copilot trợ lý.</p>
+                        <p class="text-[10px] text-gray-400 mt-1 max-w-sm leading-relaxed">A multi-tenant OS for
+                            operating POS, connecting Zalo/Facebook, and automatically closing deals with AI Copilot Assistant.</p>
                     </div>
                 </div>
 
                 <!-- Real-time AI chat chốt đơn typewriter simulation widget -->
-                <div
-                    class="bg-black/45 border border-white/5 p-4 rounded-2xl mb-6 z-10 relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-300 flex flex-col justify-between" style="min-height: 240px;">
+                <div class="bg-black/45 border border-white/5 p-4 rounded-2xl mb-6 z-10 relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-300 flex flex-col justify-between"
+                    style="min-height: 240px;">
                     <div class="flex justify-between items-center mb-2">
                         <div class="flex items-center gap-1.5">
                             <i class="fas fa-comments-alt text-purple-400 text-xs animate-pulse"></i>
-                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">AI Sales Bot Live Simulation</h4>
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">AI Sales Bot Live
+                                Simulation</h4>
                         </div>
                         <span
                             class="text-[8px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded font-mono uppercase tracking-widest flex items-center gap-1">
@@ -1349,17 +1470,21 @@
                     </div>
 
                     <!-- Typewriter Chat Simulation Area -->
-                    <div id="simulationChatBox" class="space-y-2 my-2 overflow-y-auto max-h-[85px] scrollbar-thin"></div>
+                    <div id="simulationChatBox" class="space-y-2 my-2 overflow-y-auto max-h-[85px] scrollbar-thin">
+                    </div>
 
                     <!-- Two-Column Telemetry Logs & Stats -->
                     <div class="border-t border-white/5 pt-2.5 mt-1 grid grid-cols-12 gap-3 z-10 relative">
                         <!-- Left: Live Logs -->
-                        <div class="col-span-7 flex flex-col gap-1.5 text-[9px] font-mono text-slate-400 border-r border-white/5 pr-2">
+                        <div
+                            class="col-span-7 flex flex-col gap-1.5 text-[9px] font-mono text-slate-400 border-r border-white/5 pr-2">
                             <div class="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
                                 <span>SYSTEM LIVE LOGS</span>
                                 <span class="flex items-center gap-1">
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" style="animation-delay: 0.2s;"></span>
+                                    <span
+                                        class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"
+                                        style="animation-delay: 0.2s;"></span>
                                 </span>
                             </div>
                             <div class="flex items-center gap-1 text-slate-300">
@@ -1381,13 +1506,15 @@
                         </div>
 
                         <!-- Right: Mini telemetry indicators -->
-                        <div class="col-span-5 flex flex-col justify-between gap-1 text-[9px] font-mono text-slate-400 pl-1">
+                        <div
+                            class="col-span-5 flex flex-col justify-between gap-1 text-[9px] font-mono text-slate-400 pl-1">
                             <div class="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
                                 <span>STATUS DIAGS</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span>Lead Cap:</span>
-                                <span class="text-cyan-400 font-bold">142 <span class="text-[7px] text-emerald-400 font-normal">(+28)</span></span>
+                                <span class="text-cyan-400 font-bold">142 <span
+                                        class="text-[7px] text-emerald-400 font-normal">(+28)</span></span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span>Bot Resp:</span>
@@ -1402,7 +1529,8 @@
 
                     <!-- Micro progress scanner -->
                     <div class="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-2.5">
-                        <div class="bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 h-full rounded-full animate-pulse" style="width: 82%;"></div>
+                        <div class="bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 h-full rounded-full animate-pulse"
+                            style="width: 82%;"></div>
                     </div>
                 </div>
             </div>
@@ -1423,17 +1551,20 @@
                         <i class="fas fa-fingerprint"></i>
                     </div>
                     <h2 class="text-lg font-black text-white" data-i18n="index_fastcheckin_title">Xác Thực Nhân Sự</h2>
-                    <p class="text-xs text-gray-400 mt-1" data-i18n="index_fastcheckin_desc">Nhập Mã NV để checkin điểm danh ca làm.</p>
+                    <p class="text-xs text-gray-400 mt-1" data-i18n="index_fastcheckin_desc">Nhập Mã NV để checkin điểm
+                        danh ca làm.</p>
                 </div>
                 <div class="space-y-4">
                     <div class="relative">
                         <i class="fas fa-id-badge absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                        <input type="text" id="fc_empCode" placeholder="VD: NV001" data-i18n-placeholder="index_fastcheckin_placeholder"
+                        <input type="text" id="fc_empCode" placeholder="VD: NV001"
+                            data-i18n-placeholder="index_fastcheckin_placeholder"
                             class="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white uppercase font-mono tracking-widest focus:border-emerald-400 outline-none transition-colors text-sm">
                     </div>
                     <button onclick="proceedToCamera()" id="btnProceedCheckin"
                         class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3.5 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:scale-[1.02] transition flex justify-center items-center gap-2 text-xs uppercase tracking-wider">
-                        <span data-i18n="index_fastcheckin_continue_btn">TIẾP TỤC</span> <i class="fas fa-arrow-right"></i>
+                        <span data-i18n="index_fastcheckin_continue_btn">TIẾP TỤC</span> <i
+                            class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -1460,7 +1591,8 @@
                 <h2 id="txt_reset_title" class="text-lg font-black text-cyan-400 mb-2">Khôi Phục Mật Khẩu</h2>
                 <p id="txt_reset_desc" class="text-xs text-gray-400 mb-6">Nhập Email quản trị của Sếp, hệ thống sẽ gửi
                     liên kết đổi mật khẩu mới.</p>
-                <input type="email" id="resetEmail" placeholder="Nhập Email của bạn" data-i18n-placeholder="index_reset_email_placeholder"
+                <input type="email" id="resetEmail" placeholder="Nhập Email của bạn"
+                    data-i18n-placeholder="index_reset_email_placeholder"
                     class="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 text-white focus:border-cyan-400 outline-none mb-4 text-sm">
                 <div class="flex justify-end gap-3">
                     <button onclick="closeForgotModal()" data-i18n="index_forgot_cancel_btn"
@@ -1646,10 +1778,10 @@
                 if (!chatBox) return;
 
                 const dialogs = [
-                    { sender: 'Khách hàng', text: 'Chào shop, tư vấn gói làm Nails & chăm sóc da mụn chiều nay.' },
-                    { sender: 'BitPaw AI', text: 'Dạ chào chị! Trợ lý BitPaw AI xin gợi ý gói chăm sóc da thải độc thải chì cùng combo làm móng đắp bột hoa hồng Pháp. Chị muốn chọn làm lúc 15:30 chiều nay nhé?' },
-                    { sender: 'Khách hàng', text: 'Ok đặt lịch giúp mình, số điện thoại mình là 090xxxxxxx' },
-                    { sender: 'BitPaw AI', text: 'Tuyệt vời! BitPaw AI đã tự động đăng ký thông tin của chị vào hệ thống CRM. Thông báo lịch hẹn đã gửi trực tiếp tới Zalo của chị. Hẹn gặp chị chiều nay nhé! ✨' }
+                    { sender: 'Customer', text: 'Hello shop, need consultation on the Nails package & acne skin care this afternoon.' },
+                    { sender: 'BitPaw AI', text: 'Hi there! BitPaw AI Assistant suggests a detox skin care package along with a French rose gel-polish nail combo. Would you like to book it for 3:30 PM this afternoon?' },
+                    { sender: 'Customer', text: 'Ok please book it for me, my phone number is 090xxxxxxx' },
+                    { sender: 'BitPaw AI', text: 'Great! BitPaw AI has automatically registered your information into the CRM system. The appointment notification has been sent directly to your Zalo. See you this afternoon! ✨' }
                 ];
 
                 let dialogIndex = 0;
@@ -1662,7 +1794,7 @@
 
                     const msg = dialogs[dialogIndex];
                     const msgEl = document.createElement('div');
-                    msgEl.className = `p-2 rounded-xl text-xs transition-all duration-300 transform translate-y-2 opacity-0 ${msg.sender === 'Khách hàng'
+                    msgEl.className = `p-2 rounded-xl text-xs transition-all duration-300 transform translate-y-2 opacity-0 ${msg.sender === 'Customer'
                         ? 'bg-white/5 text-gray-300 ml-4 border-l-2 border-gray-400'
                         : 'bg-cyan-500/10 text-cyan-300 mr-4 border-l-2 border-cyan-400'
                         }`;
@@ -2100,7 +2232,7 @@
                     if (backToTop) {
                         backToTop.style.setProperty('display', 'none', 'important');
                     }
-                    
+
                     // 2. Configure mascot icon image at the top of the stack with multi-tier error fallbacks
                     const mascotBtn = document.getElementById('mascot-toggle-btn');
                     if (mascotBtn) {
@@ -2113,15 +2245,15 @@
                         const img = mascotBtn.querySelector('img');
                         if (img) {
                             // Define error fallbacks programmatically matching user's exact priorities
-                            img.onerror = function() {
+                            img.onerror = function () {
                                 // Fallback 1: try /static/cho1.jpg (verified working local mascot)
-                                this.onerror = function() {
+                                this.onerror = function () {
                                     // Fallback 2: try /static/chol.jpg
-                                    this.onerror = function() {
+                                    this.onerror = function () {
                                         // Fallback 3: try /static/uploads/chol1.jpg
-                                        this.onerror = function() {
+                                        this.onerror = function () {
                                             // Fallback 4: try /static/uploads/cho1.jpg
-                                            this.onerror = function() {
+                                            this.onerror = function () {
                                                 // Fallback 5: final fallback if all others fail
                                                 this.onerror = null;
                                                 this.src = 'https://cdn-icons-png.flaticon.com/512/616/616408.png';
