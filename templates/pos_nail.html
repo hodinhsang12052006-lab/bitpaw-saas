@@ -1038,15 +1038,13 @@
                 checkoutBtn.disabled = true;
             } else {
                 checkoutBtn.disabled = false;
+                const fallbackImg = placeholderImageDataUri();
                 wrap.innerHTML = cart.map((item, idx) => {
-                    const visual = categoryVisual(item);
+                    const imgUrl = item.image || getServiceImage(item);
                     return `
                     <div class="cart-item">
                         <div class="flex items-start gap-4 mb-4">
-                            <div class="cart-item-avatar shrink-0 overflow-hidden relative" style="background: linear-gradient(135deg, ${visual.c1}25, ${visual.c2}25); border: 1px solid ${visual.c1}30;">
-                                <i class="fas ${visual.icon} absolute inset-0 m-auto text-white/20 text-sm"></i>
-                                <img src="${item.image || getServiceImage(item)}" class="absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-300" onerror="this.style.opacity='0';">
-                            </div>
+                            <img src="${imgUrl}" alt="${escapeHtml(item.name)}" class="w-12 h-12 object-cover rounded-md flex-shrink-0" onerror="this.onerror=null;this.src='${fallbackImg}';">
                             <div class="min-w-0 flex-1">
                                 <div class="text-lg font-bold text-white truncate mb-1 leading-tight">${escapeHtml(item.name)}</div>
                                 <div class="text-pink-400 font-mono text-xl font-black">$${(item.price * item.quantity).toFixed(2)}</div>

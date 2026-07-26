@@ -142,14 +142,14 @@ def register_demo_tenant():
 # STEP 3 — INJECT a large, realistic Australian Nail-salon data set
 # ============================================================================
 NAIL_PRODUCTS = [
-    ("SNS Dipping Powder Full Set", "Dipping Powder", 75.00, "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=500&q=80"),
-    ("Acrylic Full Set (Ombre/Design)", "Acrylic", 95.00, "https://images.unsplash.com/photo-1632345031435-8797b2d58045?w=500&q=80"),
-    ("Gel-X Extensions", "Gel Extensions", 85.00, "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=500&q=80"),
-    ("Russian Manicure", "Manicure", 60.00, "https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=500&q=80"),
-    ("Deluxe Spa Pedicure", "Pedicure", 70.00, "https://images.unsplash.com/photo-1519415510236-8a59ddadf584?w=500&q=80"),
-    ("Classic Manicure & Pedicure Combo", "Packages", 90.00, "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80"),
-    ("Callus Treatment & Heel Scrub", "Pedicure", 25.00, "https://images.unsplash.com/photo-1607779097040-26e80aa78e66?w=500&q=80"),
-    ("Custom Nail Art (Per Finger)", "Add-on", 5.00, "https://images.unsplash.com/photo-1629732047847-50b7ecf0cbf1?w=500&q=80"),
+    ("SNS Dipping Powder Full Set", "Dipping Powder", 75.00, "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=500&q=80"),
+    ("Acrylic Full Set (Ombre/Design)", "Acrylic", 95.00, "https://images.unsplash.com/photo-1772322586785-3a34772cbc61?w=500&q=80"),
+    ("Gel-X Extensions", "Gel Extensions", 85.00, "https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=500&q=80"),
+    ("Russian Manicure", "Manicure", 60.00, "https://images.unsplash.com/photo-1457972729786-0411a3b2b626?w=500&q=80"),
+    ("Deluxe Spa Pedicure", "Pedicure", 70.00, "https://images.unsplash.com/photo-1577117633143-a2437fb9bdda?w=500&q=80"),
+    ("Classic Manicure & Pedicure Combo", "Packages", 90.00, "https://images.unsplash.com/photo-1529982412356-901cc3a363cf?w=500&q=80"),
+    ("Callus Treatment & Heel Scrub", "Pedicure", 25.00, "https://images.unsplash.com/photo-1519419451778-14599a49ec41?w=500&q=80"),
+    ("Custom Nail Art (Per Finger)", "Add-on", 5.00, "https://images.unsplash.com/photo-1773808605530-17926a0463e9?w=500&q=80"),
 ]
 
 STAFF_MEMBERS = [
