@@ -1008,18 +1008,36 @@
                 const tasks = tasksBody.data || [];
                 myJobsDiv.innerHTML = ''; availJobsDiv.innerHTML = ''; let hasMyJobs = false, hasAvailJobs = false;
 
+                // Job id is passed via data-task-id (looked up in `tasks` on click) rather than
+                // interpolated into onclick='...' — customer name/address/notes are free text
+                // (entered elsewhere in the app), so embedding them raw was both a stored-XSS
+                // vector and broke the handler outright for any address/note containing a quote.
                 if(tasks) tasks.forEach(t => {
-                    const card = `<div class="bg-[#0a192f]/60 backdrop-blur-md border border-cyan-500/20 rounded-2xl p-4 shadow-lg mb-3 hover:border-cyan-400/50 transition-colors group relative overflow-hidden">
+                    const card = `<div class="bg-[#0a192f]/60 backdrop-blur-md border border-cyan-500/20 rounded-2xl p-4 shadow-lg mb-3 hover:border-cyan-400/50 transition-colors group relative overflow-hidden" data-task-id="${t.id}">
                         <div class="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-cyan-400 to-blue-600"></div>
-                        <div class="flex justify-between items-center mb-3"><h5 class="font-bold text-white text-sm truncate pr-2">${t.ten_khach}</h5><span class="text-[10px] font-mono bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded text-cyan-300">#${t.id}</span></div>
-                        <p class="text-[11px] text-gray-400 mb-1 flex items-start"><i class="fas fa-map-marker-alt w-4 mt-0.5 text-cyan-500/70"></i> <span class="flex-1 leading-tight">${t.dia_chi}</span></p>
-                        <p class="text-[11px] text-gray-400 mb-3 flex items-center"><i class="fas fa-phone w-4 text-emerald-500/70"></i> ${t.sdt}</p>
-                        <div class="bg-black/40 p-3 rounded-xl text-xs text-gray-300 italic mb-4 border border-white/5 shadow-inner leading-relaxed">${t.noi_dung}</div>
-                        ${t.trang_thai === 'Chờ Nhận' ? `<button onclick="nhanViec(${t.id})" class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black tracking-widest uppercase rounded-xl text-xs shadow-lg active:scale-95 transition-all"><i class="fas fa-hand-paper mr-2"></i> NHẬN JOB NÀY</button>` : t.trang_thai === 'Đã Nhận' && t.nguoi_nhan === currentUser.name ? `<button onclick="hoanThanhViec(${t.id}, '${t.dia_chi}', '${t.noi_dung.replace(/'/g,"")}')" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black tracking-widest uppercase rounded-xl text-xs shadow-lg active:scale-95 transition-all"><i class="fas fa-check-double mr-2"></i> HOÀN THÀNH JOB</button>` : ''}
+                        <div class="flex justify-between items-center mb-3"><h5 class="font-bold text-white text-sm truncate pr-2">${escapeHtml(t.ten_khach)}</h5><span class="text-[10px] font-mono bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded text-cyan-300">#${t.id}</span></div>
+                        <p class="text-[11px] text-gray-400 mb-1 flex items-start"><i class="fas fa-map-marker-alt w-4 mt-0.5 text-cyan-500/70"></i> <span class="flex-1 leading-tight">${escapeHtml(t.dia_chi)}</span></p>
+                        <p class="text-[11px] text-gray-400 mb-3 flex items-center"><i class="fas fa-phone w-4 text-emerald-500/70"></i> ${escapeHtml(t.sdt)}</p>
+                        <div class="bg-black/40 p-3 rounded-xl text-xs text-gray-300 italic mb-4 border border-white/5 shadow-inner leading-relaxed">${escapeHtml(t.noi_dung)}</div>
+                        ${t.trang_thai === 'Chờ Nhận' ? `<button data-action="nhan" class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black tracking-widest uppercase rounded-xl text-xs shadow-lg active:scale-95 transition-all"><i class="fas fa-hand-paper mr-2"></i> NHẬN JOB NÀY</button>` : t.trang_thai === 'Đã Nhận' && t.nguoi_nhan === currentUser.name ? `<button data-action="hoanthanh" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black tracking-widest uppercase rounded-xl text-xs shadow-lg active:scale-95 transition-all"><i class="fas fa-check-double mr-2"></i> HOÀN THÀNH JOB</button>` : ''}
                     </div>`;
-                    if (t.trang_thai === 'Đã Nhận' && t.nguoi_nhan === currentUser.name) { myJobsDiv.innerHTML += card; hasMyJobs = true; } 
+                    if (t.trang_thai === 'Đã Nhận' && t.nguoi_nhan === currentUser.name) { myJobsDiv.innerHTML += card; hasMyJobs = true; }
                     else if (t.trang_thai === 'Chờ Nhận') { availJobsDiv.innerHTML += card; hasAvailJobs = true; }
                 });
+                if (!myJobsDiv.dataset.delegated) {
+                    myJobsDiv.dataset.delegated = '1'; availJobsDiv.dataset.delegated = '1';
+                    const jobClickHandler = (e) => {
+                        const card = e.target.closest('[data-task-id]');
+                        if (!card) return;
+                        const task = (window.__lastLoadedTasks || []).find(x => String(x.id) === card.dataset.taskId);
+                        if (!task) return;
+                        if (e.target.closest('[data-action="nhan"]')) nhanViec(task.id);
+                        else if (e.target.closest('[data-action="hoanthanh"]')) hoanThanhViec(task.id, task.dia_chi, task.noi_dung);
+                    };
+                    myJobsDiv.addEventListener('click', jobClickHandler);
+                    availJobsDiv.addEventListener('click', jobClickHandler);
+                }
+                window.__lastLoadedTasks = tasks || [];
                 if(!hasMyJobs) myJobsDiv.innerHTML = '<div class="text-center text-[11px] font-bold uppercase tracking-widest text-gray-600 py-4 border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Chưa có nhiệm vụ.</div>';
                 if(!hasAvailJobs) availJobsDiv.innerHTML = '<div class="text-center text-[11px] font-bold uppercase tracking-widest text-gray-600 py-4 border-2 border-dashed border-gray-700/50 rounded-2xl bg-white/5">Khu vực đang trống Job.</div>';
             } catch (err) {
@@ -1027,6 +1045,10 @@
             }
         }
         
+        function escapeHtml(str) {
+            const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML;
+        }
+
         async function nhanViec(id) {
             if(await showConfirm("Bạn chắc chắn muốn chốt nhận Job này?")) {
                 await hrApi(`/api/tasks/${id}`, {

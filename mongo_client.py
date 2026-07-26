@@ -34,6 +34,7 @@ MONGO_URI = os.environ.get('MONGO_URI')
 
 db = None
 fs = None
+client = None
 MONGO_STATUS = "NOT CONFIGURED"
 
 if MONGO_URI:

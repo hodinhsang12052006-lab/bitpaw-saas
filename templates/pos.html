@@ -925,7 +925,10 @@
                     <button class="btn-delete-product absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-rose-400 hover:bg-rose-500 hover:text-white transition z-10 hidden group-hover:flex items-center justify-center" data-id="${p.id}" data-name="${escapeHtml(p.name)}">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
-                    ${p.image ? `<img src="${p.image}" class="w-full h-28 object-cover rounded-xl mb-2 bg-black/30">` : `<div class="w-full h-28 rounded-xl mb-2 bg-black/30 flex items-center justify-center text-4xl">🍽️</div>`}
+                    <div class="relative w-full h-28 rounded-xl mb-2 bg-black/30 flex items-center justify-center text-4xl overflow-hidden">
+                        <span>🍽️</span>
+                        ${p.image ? `<img src="${escapeHtml(p.image)}" class="absolute inset-0 w-full h-full object-cover bg-black/30" onerror="this.remove();">` : ''}
+                    </div>
                     <div class="text-center">
                         <h3 class="font-bold text-white text-sm">${escapeHtml(p.name)}</h3>
                         <p class="text-cyan-400 font-mono text-sm">${formatMoney(p.price)}</p>
@@ -1424,7 +1427,32 @@
                 const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
 
                 if (isLocal) {
-                    // Local drafts reset
+                    // Local/seeded draft tables have no real dining_tables/table_orders record, so
+                    // this can't go through /api/payment/start+confirm (those require a real
+                    // table_id to verify ownership and re-price server-side). Instead it posts the
+                    // itemized cart straight to /api/payment/local_checkout, which still writes a
+                    // real, auditable order/payment record — rather than silently clearing the
+                    // cart and reporting success with zero transaction trace.
+                    const localResponse = await fetch('/api/payment/local_checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            items: activeOrders.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+                            discount_percent: totals.discPercent,
+                            tax_percent: TAX_RATE * 100,
+                            tip_amount: Math.round(totals.tipVal),
+                            table_name: selectedTableName,
+                            method: 'POS',
+                            industry: ind
+                        })
+                    });
+                    const localResult = await localResponse.json();
+                    if (!localResult.success) {
+                        showToast(t('pos_toast_payment_init_error') + localResult.message, true);
+                        showLoading(false);
+                        return;
+                    }
+
                     localStorage.removeItem('pos_orders_' + selectedTableId);
                     let localTables = JSON.parse(localStorage.getItem('pos_local_tables') || '[]');
                     const localTbl = localTables.find(t => t.id == selectedTableId);
@@ -1448,6 +1476,9 @@
                     body: JSON.stringify({
                         table_id: selectedTableId,
                         amount: Math.round(totals.grandTotal),
+                        discount_percent: totals.discPercent,
+                        tax_percent: TAX_RATE * 100,
+                        tip_amount: Math.round(totals.tipVal),
                         method: 'POS',
                         industry: ind
                     })
@@ -1610,7 +1641,10 @@
 
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+            // Also escape quotes — this is interpolated into double-quoted HTML attributes
+            // (data-product-name="...") and single-quoted onclick(...) strings elsewhere; a
+            // product/table name containing a quote used to break out of the attribute/string.
+            return str.replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
         }
 
         // Global QR Action Helpers

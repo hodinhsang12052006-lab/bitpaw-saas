@@ -554,9 +554,10 @@
                 <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><i class="fas fa-money-bill-wave block mb-1.5 text-lg text-emerald-400"></i> <span data-i18n="npos_pay_cash">Cash</span></div>
                 <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><i class="fas fa-credit-card block mb-1.5 text-lg text-pink-400"></i> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
                 <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><i class="fas fa-arrows-split-up-and-left block mb-1.5 text-lg text-purple-400"></i> <span data-i18n="npos_pay_split">Split</span></div>
+                <div class="pay-method-btn" data-method="square_terminal" onclick="selectPayMethod('square_terminal')"><i class="fas fa-satellite-dish block mb-1.5 text-lg text-cyan-400"></i> <span data-i18n="npos_pay_square">Square Terminal</span></div>
             </div>
 
-            <!-- Card / Terminal sync simulation -->
+            <!-- Card / Terminal sync simulation (manual card entry — no live Square hardware call) -->
             <div id="cardSyncSection" class="hidden bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-4 mb-4">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs uppercase tracking-wider font-bold text-gray-400" data-i18n="npos_card_sync_label">Card Details</span>
@@ -572,6 +573,22 @@
                     <span class="ml-auto text-xs text-gray-500 font-mono tracking-widest">•••• •••• •••• 4242</span>
                 </div>
                 <p class="text-[11px] text-gray-500 text-center font-medium" data-i18n="npos_card_sync_hint">Tap, Insert, or Swipe Card on Terminal</p>
+            </div>
+
+            <!-- Real Square Terminal checkout — pushes a live card-present charge to the paired
+                 physical device and waits for Square's webhook to confirm before anything is
+                 committed to the ledger/payroll. -->
+            <div id="squareTerminalSection" class="hidden bg-white/[0.03] backdrop-blur-md border border-cyan-500/20 rounded-2xl p-4 mb-4 text-center">
+                <div id="squareTerminalIdle" class="text-[11px] text-gray-500 font-medium" data-i18n="npos_square_idle_hint">Tap "Confirm Payment" to push this charge to the Square Terminal.</div>
+                <div id="squareTerminalWaiting" class="hidden">
+                    <i class="fas fa-satellite-dish fa-fade text-2xl text-cyan-400 mb-2 block"></i>
+                    <p class="text-xs font-bold text-cyan-300 uppercase tracking-widest" data-i18n="npos_square_waiting">Waiting for card tap on Terminal...</p>
+                    <p class="text-[10px] text-gray-500 mt-1 mb-3" data-i18n="npos_square_waiting_hint">Do not close this screen.</p>
+                    <button type="button" id="squareCancelBtn" onclick="cancelSquareTerminalPayment()" class="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 text-rose-400 font-bold text-xs uppercase tracking-widest py-2 px-4 rounded-xl transition">
+                        <i class="fas fa-ban mr-1.5"></i> <span data-i18n="npos_square_cancel_btn">Cancel Square Payment</span>
+                    </button>
+                </div>
+                <div id="squareTerminalError" class="hidden text-rose-400 text-[11px] font-bold"></div>
             </div>
 
             <div id="splitPaymentFields" class="hidden grid grid-cols-2 gap-3 mb-4">
@@ -881,6 +898,15 @@
                 npos_toast_refund_ok: 'Refund processed successfully!', npos_toast_refund_fail: 'Refund failed: ',
                 npos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
                 npos_terminal_status: 'Online',
+                npos_pay_square: 'Square Terminal',
+                npos_square_idle_hint: 'Tap "Confirm Payment" to push this charge to the Square Terminal.',
+                npos_square_waiting: 'Waiting for card tap on Terminal...', npos_square_waiting_hint: 'Do not close this screen.',
+                npos_square_declined: 'Card declined or checkout canceled on the Terminal.',
+                npos_square_timeout: 'Timed out waiting for the Terminal. Please check the device and try again.',
+                npos_square_cancel_btn: 'Cancel Square Payment',
+                npos_square_canceled: 'Square Terminal payment canceled.',
+                npos_square_cancel_too_late: 'Could not cancel — the customer may have already tapped their card. Checking status...',
+                npos_square_cancel_failed: 'Failed to cancel: ',
             },
             vi: {
                 npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
@@ -964,11 +990,15 @@
             // primary photo 404s/fails, so the card keeps its exact h-36/w-full/object-cover
             // geometry locked regardless of whether the real photo loads.
             const fallbackImg = placeholderImageDataUri();
+            // Service id is passed via a `data-service-id` attribute (looked up in SERVICES on
+            // click) rather than embedding JSON.stringify(s) inline in an onclick='...' attribute
+            // — JSON.stringify escapes " but not ', so a service name containing an apostrophe
+            // (e.g. "Jane's Mani-Pedi") used to break out of the single-quoted attribute and
+            // silently kill the Add-to-cart handler for that card.
             grid.innerHTML = filtered.map(s => {
                 const imgUrl = getServiceImage(s);
-                const serviceJson = JSON.stringify(s);
                 return `
-                <div class="service-card cursor-pointer active:scale-95 transition-all" onclick='addToCart(${serviceJson})'>
+                <div class="service-card cursor-pointer active:scale-95 transition-all" data-service-id="${s.id}">
                     <div class="thumb">
                         <img src="${imgUrl}" alt="${escapeHtml(s.name)}" loading="lazy" class="w-full h-36 object-cover rounded-t-xl" onerror="this.onerror=null;this.src='${fallbackImg}';">
                     </div>
@@ -978,13 +1008,22 @@
                             <span class="text-pink-400 font-black text-2xl tracking-tight">$${Number(s.price).toFixed(2)}</span>
                             <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider font-mono">AUD</span>
                         </div>
-                        <button type="button" onclick='event.stopPropagation(); addToCart(${serviceJson});' class="mt-3 w-full bg-pink-500 hover:bg-pink-400 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                        <button type="button" class="mt-3 w-full bg-pink-500 hover:bg-pink-400 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
                             <i class="fas fa-plus"></i> Add Item
                         </button>
                     </div>
                 </div>
                 `;
             }).join('');
+            if (!grid.dataset.delegated) {
+                grid.dataset.delegated = '1';
+                grid.addEventListener('click', (e) => {
+                    const card = e.target.closest('[data-service-id]');
+                    if (!card) return;
+                    const service = SERVICES.find(x => String(x.id) === card.dataset.serviceId);
+                    if (service) addToCart(service);
+                });
+            }
         }
 
         function escapeHtml(str) {
@@ -1350,7 +1389,15 @@
             document.querySelectorAll('.pay-method-btn[data-method]').forEach(b => b.classList.toggle('active', b.dataset.method === method));
             document.getElementById('splitPaymentFields').classList.toggle('hidden', method !== 'split');
             document.getElementById('cardSyncSection').classList.toggle('hidden', method !== 'card');
+            document.getElementById('squareTerminalSection').classList.toggle('hidden', method !== 'square_terminal');
+            resetSquareTerminalUI();
             validateSplit();
+        }
+        function resetSquareTerminalUI() {
+            document.getElementById('squareTerminalIdle').classList.remove('hidden');
+            document.getElementById('squareTerminalWaiting').classList.add('hidden');
+            const errBox = document.getElementById('squareTerminalError');
+            errBox.classList.add('hidden'); errBox.innerText = '';
         }
         function validateSplit() {
             if (selectedPayMethod !== 'split') { document.getElementById('confirmPaymentBtn').disabled = false; return; }
@@ -1363,12 +1410,57 @@
         }
 
         // ===== Checkout =====
-        async function submitCheckout() {
-            const btn = document.getElementById('confirmPaymentBtn');
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        // The charge is already confirmed server-side by the time this runs — anything that
+        // throws while rendering the receipt must NOT resurface as "Checkout failed" (the money
+        // was already taken; showing that message would risk the cashier re-submitting and
+        // double-charging). Every field is defensively guarded and isolated in its own try/catch
+        // from the success/failure determination in the caller.
+        function populateReceipt(json) {
+            const num = (v) => Number(v) || 0;
+            try {
+                document.getElementById('receiptOrderId').innerText = `Order #${json.order_id ?? ''}`;
+                document.getElementById('receiptTimestamp').innerText = new Date().toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                });
 
+                document.getElementById('receiptItemsList').innerHTML = cart.map(item => `
+                    <tr>
+                        <td class="py-1 pr-1 align-top">${escapeHtml(item.name)}</td>
+                        <td class="py-1 pr-1 align-top text-gray-500">${item.tech_name ? escapeHtml(item.tech_name) : '—'}</td>
+                        <td class="py-1 text-center align-top">${item.quantity}</td>
+                        <td class="py-1 text-right align-top font-bold">$${(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('receiptSubtotal').innerText = `$${num(json.subtotal).toFixed(2)}`;
+                const receiptDiscRow = document.getElementById('receiptDiscountRow');
+                if (num(json.discount_amount) > 0) {
+                    receiptDiscRow.classList.remove('hidden');
+                    document.getElementById('receiptDiscount').innerText = `-$${num(json.discount_amount).toFixed(2)}`;
+                } else {
+                    receiptDiscRow.classList.add('hidden');
+                }
+                document.getElementById('receiptTax').innerText = `$${num(json.tax_amount).toFixed(2)}`;
+                document.getElementById('receiptTip').innerText = `$${num(json.tip_amount).toFixed(2)}`;
+                document.getElementById('receiptGrandTotal').innerText = `$${num(json.total_amount).toFixed(2)} AUD`;
+                document.getElementById('receiptPaymentMethod').innerText = selectedPayMethod;
+                document.getElementById('receiptBarcodeNum').innerText = String(json.order_id ?? '').padStart(12, '0');
+
+                const techBox = document.getElementById('receiptTechBreakdown');
+                if (json.techs_paid && json.techs_paid.length) {
+                    techBox.innerHTML = json.techs_paid.map(tp => {
+                        const tech = TECHNICIANS.find(x => x.ma_nv === tp.ma_nv);
+                        return `<div class="flex justify-between"><span class="text-gray-500">${escapeHtml(tech ? tech.ho_ten : tp.ma_nv)}</span><span class="text-gray-700 font-bold">$${num(tp.commission).toFixed(2)} ${t('npos_commission_word')} + $${num(tp.tip).toFixed(2)} ${t('npos_tip_word')}</span></div>`;
+                    }).join('');
+                } else {
+                    techBox.innerHTML = '';
+                }
+            } catch (renderErr) {
+                console.error('Receipt render error (checkout itself already succeeded):', renderErr);
+            }
+        }
+
+        function buildCheckoutPayload() {
             const supplyPercent = parseFloat(document.getElementById('supplyPercent').value) || 0;
             const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
             const cashTip = parseFloat(document.getElementById('cashTip').value) || 0;
@@ -1391,7 +1483,25 @@
                 discount_type: discount.value > 0 ? discount.type : null,
                 discount_value: discount.value > 0 ? discount.value : 0,
             };
+            if (selectedPayMethod === 'split') {
+                payload.cash_amount = parseFloat(document.getElementById('splitCashAmount').value) || 0;
+                payload.card_amount = parseFloat(document.getElementById('splitCardAmount').value) || 0;
+            }
+            return payload;
+        }
 
+        async function submitCheckout() {
+            const btn = document.getElementById('confirmPaymentBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+            if (selectedPayMethod === 'square_terminal') {
+                await submitSquareTerminalCheckout(btn, originalHtml);
+                return;
+            }
+
+            const payload = buildCheckoutPayload();
             try {
                 const res = await fetch('/api/nail_pos/checkout', {
                     method: 'POST',
@@ -1401,46 +1511,7 @@
                 const json = await res.json();
                 if (!json.success) throw new Error(json.message || 'Unknown error');
 
-                // ----- Populate the thermal-receipt ticket (cart is still intact here —
-                // it's only cleared later when the user taps "Start New Ticket") -----
-                document.getElementById('receiptOrderId').innerText = `Order #${json.order_id}`;
-                document.getElementById('receiptTimestamp').innerText = new Date().toLocaleString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                });
-
-                document.getElementById('receiptItemsList').innerHTML = cart.map(item => `
-                    <tr>
-                        <td class="py-1 pr-1 align-top">${escapeHtml(item.name)}</td>
-                        <td class="py-1 pr-1 align-top text-gray-500">${item.tech_name ? escapeHtml(item.tech_name) : '—'}</td>
-                        <td class="py-1 text-center align-top">${item.quantity}</td>
-                        <td class="py-1 text-right align-top font-bold">$${(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                `).join('');
-
-                document.getElementById('receiptSubtotal').innerText = `$${json.subtotal.toFixed(2)}`;
-                const receiptDiscRow = document.getElementById('receiptDiscountRow');
-                if (json.discount_amount > 0) {
-                    receiptDiscRow.classList.remove('hidden');
-                    document.getElementById('receiptDiscount').innerText = `-$${json.discount_amount.toFixed(2)}`;
-                } else {
-                    receiptDiscRow.classList.add('hidden');
-                }
-                document.getElementById('receiptTax').innerText = `$${json.tax_amount.toFixed(2)}`;
-                document.getElementById('receiptTip').innerText = `$${json.tip_amount.toFixed(2)}`;
-                document.getElementById('receiptGrandTotal').innerText = `$${json.total_amount.toFixed(2)} AUD`;
-                document.getElementById('receiptPaymentMethod').innerText = selectedPayMethod;
-                document.getElementById('receiptBarcodeNum').innerText = String(json.order_id).padStart(12, '0');
-
-                const techBox = document.getElementById('receiptTechBreakdown');
-                if (json.techs_paid && json.techs_paid.length) {
-                    techBox.innerHTML = json.techs_paid.map(tp => {
-                        const tech = TECHNICIANS.find(x => x.ma_nv === tp.ma_nv);
-                        return `<div class="flex justify-between"><span class="text-gray-500">${escapeHtml(tech ? tech.ho_ten : tp.ma_nv)}</span><span class="text-gray-700 font-bold">$${tp.commission.toFixed(2)} ${t('npos_commission_word')} + $${tp.tip.toFixed(2)} ${t('npos_tip_word')}</span></div>`;
-                    }).join('');
-                } else {
-                    techBox.innerHTML = '';
-                }
-
+                populateReceipt(json);
                 closePaymentModal();
                 document.getElementById('receiptModal').classList.add('active');
                 showToast(t('npos_toast_checkout_ok'));
@@ -1450,6 +1521,139 @@
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
+        }
+
+        // ===== Square Terminal (real card-present, async — waits for Square's webhook) =====
+        // Module-level so the Cancel button (static markup, no per-order args) can reach the
+        // in-flight order/poll without threading state through the button's onclick attribute.
+        let squareActiveOrderId = null;
+        let squarePollCancelled = false;
+        let squareActiveBtnHtml = null;
+
+        async function submitSquareTerminalCheckout(btn, originalHtml) {
+            document.getElementById('squareTerminalIdle').classList.add('hidden');
+            const errBox = document.getElementById('squareTerminalError');
+            errBox.classList.add('hidden'); errBox.innerText = '';
+            squarePollCancelled = false;
+            squareActiveOrderId = null;
+            squareActiveBtnHtml = originalHtml;
+
+            const payload = buildCheckoutPayload();
+            try {
+                const res = await fetch('/api/nail_pos/square_checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message || 'Unknown error');
+
+                squareActiveOrderId = json.order_id;
+                document.getElementById('squareTerminalWaiting').classList.remove('hidden');
+                await pollSquareTerminalStatus(json.order_id, btn, originalHtml);
+            } catch (e) {
+                errBox.innerText = e.message;
+                errBox.classList.remove('hidden');
+                document.getElementById('squareTerminalIdle').classList.remove('hidden');
+                document.getElementById('squareTerminalWaiting').classList.add('hidden');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // Lets the cashier back out of a pending Terminal checkout instantly — switch to Cash/
+        // another method right away instead of waiting out the ~5 min poll timeout.
+        async function cancelSquareTerminalPayment() {
+            if (!squareActiveOrderId) return;
+            const orderId = squareActiveOrderId;
+            const cancelBtn = document.getElementById('squareCancelBtn');
+            const cancelOrigHtml = cancelBtn.innerHTML;
+            cancelBtn.disabled = true;
+            cancelBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            try {
+                const res = await fetch('/api/payments/square/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId }),
+                });
+                const json = await res.json();
+                if (json.success && json.status === 'failed') {
+                    // Canceled on Square's side before the customer tapped — stop polling and
+                    // hand control straight back to the cashier to pick another payment method.
+                    squarePollCancelled = true;
+                    const btn = document.getElementById('confirmPaymentBtn');
+                    resetSquareTerminalUI();
+                    btn.disabled = false;
+                    btn.innerHTML = squareActiveBtnHtml || t('npos_modal_confirm');
+                    showToast(t('npos_square_canceled'));
+                } else if (json.success) {
+                    // Square refused to cancel because the checkout already resolved (customer
+                    // tapped right as Cancel was pressed) — let the existing poll loop pick up
+                    // the real (likely completed) status on its next tick instead of fighting it.
+                    showToast(t('npos_square_cancel_too_late'));
+                } else {
+                    showToast(t('npos_square_cancel_failed') + (json.message || ''));
+                }
+            } catch (e) {
+                showToast(t('npos_square_cancel_failed') + e.message);
+            } finally {
+                cancelBtn.disabled = false;
+                cancelBtn.innerHTML = cancelOrigHtml;
+            }
+        }
+
+        function pollSquareTerminalStatus(orderId, btn, originalHtml) {
+            // Square Terminal checkouts have their own expiry on the device side; polling for
+            // ~5 minutes (150 x 2s) comfortably covers a normal tap/insert/swipe without leaving
+            // the cashier stuck waiting indefinitely if the customer walks away.
+            const MAX_ATTEMPTS = 150;
+            const errBox = document.getElementById('squareTerminalError');
+            return new Promise((resolve) => {
+                let attempts = 0;
+                const tick = async () => {
+                    if (squarePollCancelled) { resolve(); return; }
+                    attempts++;
+                    try {
+                        const res = await fetch(`/api/payments/square/status/${orderId}`);
+                        const json = await res.json();
+                        if (json.success && json.data) {
+                            const status = json.data.status;
+                            if (status === 'completed') {
+                                populateReceipt(json.data);
+                                closePaymentModal();
+                                document.getElementById('receiptModal').classList.add('active');
+                                showToast(t('npos_toast_checkout_ok'));
+                                btn.disabled = false; btn.innerHTML = originalHtml;
+                                resolve();
+                                return;
+                            }
+                            if (status === 'failed') {
+                                errBox.innerText = t('npos_square_declined');
+                                errBox.classList.remove('hidden');
+                                document.getElementById('squareTerminalIdle').classList.remove('hidden');
+                                document.getElementById('squareTerminalWaiting').classList.add('hidden');
+                                btn.disabled = false; btn.innerHTML = originalHtml;
+                                resolve();
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Square status poll error:', e);
+                    }
+                    if (squarePollCancelled) { resolve(); return; }
+                    if (attempts >= MAX_ATTEMPTS) {
+                        errBox.innerText = t('npos_square_timeout');
+                        errBox.classList.remove('hidden');
+                        document.getElementById('squareTerminalIdle').classList.remove('hidden');
+                        document.getElementById('squareTerminalWaiting').classList.add('hidden');
+                        btn.disabled = false; btn.innerHTML = originalHtml;
+                        resolve();
+                        return;
+                    }
+                    setTimeout(tick, 2000);
+                };
+                tick();
+            });
         }
 
         function startNewTicket() {

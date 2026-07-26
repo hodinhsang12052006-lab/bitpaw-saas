@@ -126,7 +126,7 @@
                         <div class="flex-1 w-full">
                             <label class="block text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2" data-i18n="chamcongfnb_tip_amount_label">Nhập Tổng Số Tiền Tips (VND)</label>
                             <div class="relative">
-                                <input type="number" id="tong_quy_tips" placeholder="VD: 500000" data-i18n-placeholder="chamcongfnb_tip_amount_placeholder" class="w-full bg-black/60 border border-orange-500/50 rounded-2xl p-4 pr-12 text-orange-400 font-black text-2xl outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.3)] shadow-inner transition-shadow">
+                                <input type="number" id="tong_quy_tips" min="0" placeholder="VD: 500000" data-i18n-placeholder="chamcongfnb_tip_amount_placeholder" class="w-full bg-black/60 border border-orange-500/50 rounded-2xl p-4 pr-12 text-orange-400 font-black text-2xl outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.3)] shadow-inner transition-shadow">
                                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-black">₫</span>
                             </div>
                         </div>
@@ -236,14 +236,14 @@
                                 <div>
                                     <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-wider" title="Thưởng nóng, thưởng chỉ tiêu" data-i18n-title="chamcongfnb_bonus_tooltip" data-i18n="chamcongfnb_target_bonus_label">Thưởng Chỉ Tiêu</label>
                                     <div class="relative">
-                                        <input type="number" id="tien_thuong" class="fnb-input text-emerald-400 font-mono pr-8 text-lg" value="0">
+                                        <input type="number" id="tien_thuong" min="0" class="fnb-input text-emerald-400 font-mono pr-8 text-lg" value="0">
                                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-wider" title="Tiền tips thu riêng" data-i18n-title="chamcongfnb_tips_tooltip" data-i18n="chamcongfnb_tips_service_label">Tips / Phí Dịch Vụ</label>
                                     <div class="relative">
-                                        <input type="number" id="tien_tips" class="fnb-input text-purple-400 font-mono pr-8 text-lg" value="0">
+                                        <input type="number" id="tien_tips" min="0" class="fnb-input text-purple-400 font-mono pr-8 text-lg" value="0">
                                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₫</span>
                                     </div>
                                 </div>
@@ -627,12 +627,23 @@
             return body;
         }
 
-        document.getElementById('pos_date').valueAsDate = new Date();
+        // Local calendar date (not UTC) — new Date().toISOString() reads the UTC day, which is
+        // the PREVIOUS day for anyone in a positive UTC offset (AU/VN) during early-morning local
+        // hours, silently misfiling shifts/tips into the wrong payroll day near midnight.
+        function localDateInputValue(d) {
+            d = d || new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        document.getElementById('pos_date').value = localDateInputValue();
         let currentWorkerId = "";
         let globalEmployees = [];
 
         function getFormattedDate() {
-            const rawDate = document.getElementById('pos_date').value || new Date().toISOString().split('T')[0];
+            const rawDate = document.getElementById('pos_date').value || localDateInputValue();
             const parts = rawDate.split('-');
             if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
             return rawDate;
@@ -643,6 +654,10 @@
             loadWorkers();
         };
 
+        function escapeHtml(str) {
+            const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML;
+        }
+
         async function loadWorkers() {
             try {
                 const body = await hrApi('/api/hr/employees?sort=ho_ten');
@@ -652,7 +667,7 @@
                 const grid = document.getElementById('employeeGrid');
                 grid.innerHTML = '';
 
-                const selectOptions = `<option value="">${t('chamcongfnb_select_employee_option')}</option>` + data.map(e => `<option value="${e.ma_nv}">${e.ho_ten} (${e.ma_nv})</option>`).join('');
+                const selectOptions = `<option value="">${t('chamcongfnb_select_employee_option')}</option>` + data.map(e => `<option value="${escapeHtml(e.ma_nv)}">${escapeHtml(e.ho_ten)} (${escapeHtml(e.ma_nv)})</option>`).join('');
                 document.getElementById('nv_nghi').innerHTML = selectOptions;
                 document.getElementById('nv_thay').innerHTML = selectOptions;
 
@@ -661,10 +676,14 @@
                     return;
                 }
 
-                data.forEach((emp, index) => {
+                // Employee id/name are passed via data-* attributes (looked up on click) rather
+                // than interpolated into onclick='...' attributes — a name containing an
+                // apostrophe used to break the handler, and unescaped ho_ten/ma_nv rendered as
+                // innerHTML text was a stored-XSS vector for any employee-name free-text field.
+                grid.innerHTML = data.map((emp, index) => {
                     const delay = index * 50;
-                    const card = `
-                        <div class="cascade-item glass-panel hover:border-orange-500/50 hover:bg-orange-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1" style="animation-delay: ${delay}ms;" onclick="openPos('${emp.ma_nv}', '${emp.ho_ten}')">
+                    return `
+                        <div class="cascade-item glass-panel hover:border-orange-500/50 hover:bg-orange-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1" style="animation-delay: ${delay}ms;" data-ma-nv="${escapeHtml(emp.ma_nv)}">
                             <div class="flex items-center gap-4 lg:gap-5 z-10 w-full md:w-auto">
                                 <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 p-[2px] shadow-lg group-hover:scale-105 transition-transform shrink-0">
                                     <div class="w-full h-full bg-[#0f0a0a] rounded-full flex items-center justify-center text-2xl font-black text-white overflow-hidden border border-[#0f0a0a]">
@@ -672,20 +691,34 @@
                                     </div>
                                 </div>
                                 <div class="text-left min-w-0">
-                                    <h3 class="font-black text-white text-lg lg:text-xl group-hover:text-orange-400 transition-colors truncate drop-shadow-md">${emp.ho_ten}</h3>
-                                    <p class="text-[11px] text-gray-400 font-mono mt-0.5 uppercase tracking-widest"><i class="fas fa-id-badge text-orange-500/50 mr-1"></i>${emp.ma_nv}</p>
+                                    <h3 class="font-black text-white text-lg lg:text-xl group-hover:text-orange-400 transition-colors truncate drop-shadow-md">${escapeHtml(emp.ho_ten)}</h3>
+                                    <p class="text-[11px] text-gray-400 font-mono mt-0.5 uppercase tracking-widest"><i class="fas fa-id-badge text-orange-500/50 mr-1"></i>${escapeHtml(emp.ma_nv)}</p>
                                     <div class="mt-1.5">
-                                        <span class="text-[9px] bg-white/10 text-gray-300 px-2 py-0.5 rounded border border-white/10 font-bold uppercase tracking-widest">${emp.chuc_vu || t('chamcongfnb_default_role')}</span>
+                                        <span class="text-[9px] bg-white/10 text-gray-300 px-2 py-0.5 rounded border border-white/10 font-bold uppercase tracking-widest">${escapeHtml(emp.chuc_vu) || t('chamcongfnb_default_role')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 mt-4 md:mt-0 z-10 w-full md:w-auto">
-                                <button class="w-full md:w-auto bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] group-hover:shadow-[0_0_20px_rgba(245,158,11,0.6)] flex items-center justify-center gap-2 whitespace-nowrap"><i class="fas fa-clock text-lg"></i> ${t('chamcongfnb_start_shift_btn')}</button>
-                                <button id="btn-export-${emp.ma_nv}" onclick="event.stopPropagation(); exportReport('${emp.ma_nv}', '${emp.ho_ten}')" class="bg-black/50 border border-white/10 hover:border-cyan-400 hover:text-cyan-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-print"></i></button>
+                                <button class="w-full md:w-auto bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] group-hover:shadow-[0_0_20px_rgba(245,158,11,0.6)] flex items-center justify-center gap-2 whitespace-nowrap" data-action="open"><i class="fas fa-clock text-lg"></i> ${t('chamcongfnb_start_shift_btn')}</button>
+                                <button id="btn-export-${escapeHtml(emp.ma_nv)}" data-action="export" class="bg-black/50 border border-white/10 hover:border-cyan-400 hover:text-cyan-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-print"></i></button>
                             </div>
                         </div>`;
-                    grid.innerHTML += card;
-                });
+                }).join('');
+                if (!grid.dataset.delegated) {
+                    grid.dataset.delegated = '1';
+                    grid.addEventListener('click', (e) => {
+                        const card = e.target.closest('[data-ma-nv]');
+                        if (!card) return;
+                        const emp = globalEmployees.find(x => x.ma_nv === card.dataset.maNv);
+                        if (!emp) return;
+                        if (e.target.closest('[data-action="export"]')) {
+                            e.stopPropagation();
+                            exportReport(emp.ma_nv, emp.ho_ten);
+                        } else {
+                            openPos(emp.ma_nv, emp.ho_ten);
+                        }
+                    });
+                }
                 setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
             } catch(e) { showToast(t('chamcongfnb_toast_load_staff_failed'), "error"); }
         }
@@ -724,6 +757,12 @@
 
             const ngayHienTai = getFormattedDate();
             const btn = document.querySelector('button[onclick="chiaDeuTips()"]');
+            // Re-entrancy guard: unlike submitFnb(), this used to leave the button clickable
+            // during the in-flight PATCH loop — a fast double-click/double-tap (common on a
+            // touchscreen) fired two overlapping runs that each re-read the same starting
+            // tien_tips and PATCHed on top of it, silently doubling every employee's tip payout.
+            if (btn.disabled) return;
+            btn.disabled = true;
             const origHTML = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${t('chamcongfnb_splitting_btn')}`;
 
@@ -733,8 +772,9 @@
 
                 const nguoiDiLam = records.filter(r => !r.trang_thai.includes('Nghỉ'));
                 if (nguoiDiLam.length === 0) {
-                    btn.innerHTML = origHTML;
-                    return showToast(t('chamcongfnb_toast_no_one_clocked_in'), "warning");
+                    showToast(t('chamcongfnb_toast_no_one_clocked_in'), "warning");
+                    btn.innerHTML = origHTML; btn.disabled = false;
+                    return;
                 }
 
                 const soNguoi = nguoiDiLam.length;
@@ -754,6 +794,7 @@
             } catch (e) {
                 showToast(t('chamcongfnb_toast_error_splitting_tips_prefix') + e.message, "error");
             }
+            btn.disabled = false;
             btn.innerHTML = origHTML;
         }
 
@@ -827,16 +868,16 @@
                 if(!data || data.length === 0) { box.innerHTML = `<p class="text-gray-500 text-[11px] font-bold uppercase tracking-widest text-center mt-8 border-2 border-dashed border-gray-700/50 p-4 rounded-xl">${t('chamcongfnb_no_history')}</p>`; return; }
 
                 data.forEach((r, index) => {
-                    let noteHTML = r.ghi_chu ? `<p class="text-[11px] text-gray-400 mt-2.5 bg-black/60 p-2.5 rounded-lg border border-white/5 shadow-inner"><i class="fas fa-comment-alt text-orange-500/70 mr-1.5"></i> ${r.ghi_chu}</p>` : '';
-                    let colorLeft = r.trang_thai.includes('Nghỉ') ? 'border-l-rose-500' : 'border-l-orange-500';
-                    let timeHTML = (r.gio_den || r.gio_ve) ? `<p class="text-xs text-cyan-400 font-mono mt-1 font-bold">${t('chamcongfnb_history_in_label')}: ${r.gio_den||'--'} | ${t('chamcongfnb_history_out_label')}: ${r.gio_ve||'--'} (${r.so_gio||0}h)</p>` : '';
+                    let noteHTML = r.ghi_chu ? `<p class="text-[11px] text-gray-400 mt-2.5 bg-black/60 p-2.5 rounded-lg border border-white/5 shadow-inner"><i class="fas fa-comment-alt text-orange-500/70 mr-1.5"></i> ${escapeHtml(r.ghi_chu)}</p>` : '';
+                    let colorLeft = (r.trang_thai || '').includes('Nghỉ') ? 'border-l-rose-500' : 'border-l-orange-500';
+                    let timeHTML = (r.gio_den || r.gio_ve) ? `<p class="text-xs text-cyan-400 font-mono mt-1 font-bold">${t('chamcongfnb_history_in_label')}: ${escapeHtml(r.gio_den||'--')} | ${t('chamcongfnb_history_out_label')}: ${escapeHtml(r.gio_ve||'--')} (${Number(r.so_gio||0)}h)</p>` : '';
 
                     const delay = index * 50;
                     box.innerHTML += `
                         <div class="cascade-item glass-panel p-4 lg:p-5 rounded-2xl border-l-[6px] ${colorLeft} shadow-md relative overflow-hidden group hover:bg-white/5 transition-colors" style="animation-delay: ${delay}ms;">
                             <div class="flex justify-between items-start">
                                 <div>
-                                    <p class="font-black text-white text-sm tracking-wide drop-shadow-md">${r.ngay_cham} <span class="text-[10px] text-orange-400 font-bold bg-orange-500/10 px-2 py-0.5 rounded ml-1 border border-orange-500/20">${r.trang_thai}</span></p>
+                                    <p class="font-black text-white text-sm tracking-wide drop-shadow-md">${escapeHtml(r.ngay_cham)} <span class="text-[10px] text-orange-400 font-bold bg-orange-500/10 px-2 py-0.5 rounded ml-1 border border-orange-500/20">${escapeHtml(r.trang_thai)}</span></p>
                                     ${timeHTML}
                                 </div>
                                 <div class="text-right text-[10px] font-mono font-bold space-y-1.5 bg-black/50 p-2.5 rounded-xl border border-white/5 shadow-inner">
@@ -864,8 +905,8 @@
                 data.forEach(r => {
                     rows += `
                         <tr style="border-bottom: 1px dashed #ccc;">
-                            <td style="padding: 10px 0;">${r.ngay_cham}</td>
-                            <td style="padding: 10px 0;">${r.trang_thai}<br><span style="font-size:12px; color:#666">${r.gio_den||'--'} - ${r.gio_ve||'--'} (${r.so_gio||0}h)</span></td>
+                            <td style="padding: 10px 0;">${escapeHtml(r.ngay_cham)}</td>
+                            <td style="padding: 10px 0;">${escapeHtml(r.trang_thai)}<br><span style="font-size:12px; color:#666">${escapeHtml(r.gio_den||'--')} - ${escapeHtml(r.gio_ve||'--')} (${Number(r.so_gio||0)}h)</span></td>
                             <td style="padding: 10px 0;">${Number(r.phu_cap||0).toLocaleString()}</td>
                             <td style="padding: 10px 0;">${Number(r.tien_tips||0).toLocaleString()}</td>
                         </tr>`;

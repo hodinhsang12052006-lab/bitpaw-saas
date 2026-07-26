@@ -33,11 +33,14 @@ from functools import wraps
 import requests
 # Đã gỡ bỏ hoàn toàn Supabase khỏi backend — toàn bộ dữ liệu giờ đọc/ghi qua MongoDB Atlas
 # (pymongo) bên dưới.
-from mongo_client import db, fs, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
+from mongo_client import db, fs, client as mongo_client_instance, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
 from i18n import get_translations, resolve_lang, LANG_COOKIE_NAME
 from pymongo import UpdateOne, ReturnDocument
 from cryptography.fernet import Fernet
 from gridfs import GridFS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 from gridfs.errors import NoFile
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -112,6 +115,55 @@ if not _flask_secret_key:
         "Đặt biến này trong .env (dev) hoặc Vercel Project Settings -> Environment Variables (production) trước khi chạy."
     )
 app.secret_key = _flask_secret_key
+
+# Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
+# nhất thay vì phải tự giới hạn tay ở từng route. 10MB đủ rộng cho ảnh chụp điện thoại upload qua
+# /api/storage/upload, /api/portal/upload... (ảnh thật thường 2-8MB) nhưng vẫn chặn được payload
+# cỡ GB. Vượt giới hạn -> Flask tự trả 413 (RequestEntityTooLarge), xử lý ở error handler bên dưới.
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
+# Rate limiting (chống brute-force/spam) — áp dụng default_limits cho MỌI route tự động, cộng
+# thêm giới hạn CHẶT hơn khai báo riêng ở /login và /register (xem 2 route đó). Lưu ý triển khai
+# thật: storage mặc định "memory://" chỉ đếm request TRONG CÙNG 1 process — trên Vercel
+# serverless (nhiều instance/cold start riêng biệt), giới hạn này là best-effort PER-INSTANCE,
+# không phải giới hạn toàn cục chính xác tuyệt đối. Muốn chặn brute-force chính xác 100% khi
+# chạy nhiều instance đồng thời, cần trỏ storage_uri sang Redis dùng chung (vd: Upstash) qua biến
+# môi trường RATELIMIT_STORAGE_URI — đã đọc sẵn bên dưới nếu có cấu hình, fallback về memory://
+# nếu chưa (không crash nếu thiếu Redis, vẫn có bảo vệ tốt hơn KHÔNG rate limit gì cả).
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
+)
+
+
+@app.errorhandler(429)
+def _rate_limit_exceeded(e):
+    """429 (Too Many Requests) — API routes get a clean JSON error; HTML routes (login/register)
+    get the same login page back with a flash message instead of Flask-Limiter's plain-text
+    default body, so the cashier/owner sees a normal-looking page, not a raw error dump."""
+    if request.path.startswith('/api/'):
+        return jsonify({"success": False, "message": "Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút."}), 429
+    flash('Quá nhiều lần thử. Vui lòng đợi vài phút rồi thử lại.', 'danger')
+    return render_template('index.html', active_tab='login'), 429
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def _request_too_large(e):
+    """413 — payload vượt MAX_CONTENT_LENGTH ở trên. Trả JSON rõ ràng cho API, tránh Flask hiện
+    trang lỗi HTML mặc định (không hữu ích cho 1 fetch() JS đang chờ JSON)."""
+    return jsonify({"success": False, "message": "Dữ liệu gửi lên quá lớn (giới hạn 10MB)."}), 413
+
+
+@app.errorhandler(BadRequest)
+def _bad_request(e):
+    """400 — bắt luôn các trường hợp request.json/request.form parse lỗi (JSON malformed,
+    Content-Type sai...) ở TẤT CẢ route, trả JSON gọn thay vì trang lỗi HTML mặc định của
+    Werkzeug — nhất quán với convention {success: False, message: ...} toàn bộ API dùng."""
+    if request.path.startswith('/api/'):
+        return jsonify({"success": False, "message": "Dữ liệu gửi lên không hợp lệ (malformed request)."}), 400
+    return e
 
 # Mã hoá thông tin đăng nhập sàn TMĐT (ecommerce_sync.html) tại nghỉ — KHÔNG BAO GIỜ lưu
 # plaintext (bản Supabase cũ gửi thẳng api_key/api_secret dạng chữ thường lên Supabase, không
@@ -503,6 +555,7 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
 
 # ========== ROUTE XÁC THỰC ==========
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes")
 def register():
     if request.method == 'POST':
         email = request.form['email']
@@ -664,6 +717,7 @@ def _superadmin_emergency_login(email):
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes")
 def login():
     if request.method == 'POST':
         email = request.form['email']
@@ -1970,20 +2024,84 @@ def api_square_checkout():
 @app.route('/api/payments/square/status/<int:order_id>', methods=['GET'])
 @login_required
 def api_square_payment_status(order_id):
-    """Web POS poll route này sau khi gọi api_square_checkout(), hiện 'Đang chờ khách quẹt
-    thẻ...' cho tới khi status chuyển 'PAID' (webhook đã xử lý xong) hoặc 'failed'."""
+    """Web POS poll route này sau khi gọi api_square_checkout()/api_nail_pos_square_checkout(),
+    hiện 'Đang chờ khách quẹt thẻ...' cho tới khi status chuyển 'PAID'/'completed' (webhook đã
+    xử lý xong) hoặc 'failed'. Dùng chung cho cả 2 luồng (F&B/retail và Nail POS)."""
     business_id = session.get('business_id') or session['user_id']
     order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
     if not order_doc:
         return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
-    return jsonify({
-        "success": True,
-        "data": {
-            "order_id": order_doc['id'],
-            "status": order_doc.get('status'),
-            "total_amount": order_doc.get('total_amount'),
+    result = {
+        "order_id": order_doc['id'],
+        "status": order_doc.get('status'),
+        "total_amount": order_doc.get('total_amount'),
+        "subtotal": order_doc.get('subtotal'),
+        "discount_amount": order_doc.get('discount_amount'),
+        "tax_amount": order_doc.get('tax_amount'),
+        "tip_amount": order_doc.get('tip_amount'),
+    }
+    # Once a Nail POS Square Terminal order is fully committed, pull back the per-technician
+    # payout the webhook just wrote so the cashier's receipt can show the same commission/tip
+    # breakdown the synchronous (Cash/Card/Split) checkout returns inline.
+    if order_doc.get('channel') == 'nail_pos_square' and order_doc.get('status') == 'completed':
+        note_pattern = r'^\[NAILS POS SQUARE\] Order #' + str(order_id) + r'(?!\d)'
+        techs_paid = [
+            {'ma_nv': rec.get('ma_nv'), 'commission': rec.get('tien_tua'), 'tip': rec.get('tien_tips')}
+            for rec in db.chamcong.find({'business_id': business_id, 'ghi_chu': {'$regex': note_pattern}}, {'_id': 0})
+        ]
+        result['techs_paid'] = techs_paid
+    return jsonify({"success": True, "data": result})
+
+
+@app.route('/api/payments/square/cancel', methods=['POST'])
+@login_required
+def api_square_payment_cancel():
+    """Hủy 1 Square Terminal checkout đang chờ (device vẫn đang hiện màn hình chờ quẹt thẻ) —
+    cho thu ngân thoát ngay lập tức để chuyển sang Cash/phương thức khác, thay vì phải chờ
+    Square tự hết hạn checkout trên thiết bị (thường vài phút). Dùng chung cho cả luồng F&B/
+    retail (api_square_checkout) lẫn Nail POS (api_nail_pos_square_checkout) vì cả 2 đều lưu
+    square_checkout_id trên order theo cùng field."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    order_id = data.get('order_id')
+    if not order_id:
+        return jsonify({"success": False, "message": "Missing order_id."}), 400
+    try:
+        order_id = int(order_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid order_id."}), 400
+
+    order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
+    if not order_doc:
+        return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
+    checkout_id = order_doc.get('square_checkout_id')
+    if not checkout_id:
+        return jsonify({"success": False, "message": "Đơn hàng này không có Square checkout để hủy."}), 400
+    if order_doc.get('status') != 'pending':
+        # Đã xử lý xong (completed/failed) rồi — không có gì để hủy, tránh ghi đè trạng thái
+        # thật bằng 'failed' nếu webhook COMPLETED đã chạy trước request Cancel này.
+        return jsonify({"success": True, "message": "Đơn hàng đã được xử lý xong.", "status": order_doc.get('status')})
+
+    result = payment_us_engine.cancel_terminal_checkout(checkout_id)
+    if not result.get('configured'):
+        return jsonify({"success": False, "message": result.get('message')}), 503
+    if not result.get('success'):
+        # Có thể khách đã quẹt thẻ đúng lúc thu ngân bấm Hủy — Square từ chối hủy vì checkout
+        # đã COMPLETED. KHÔNG tự ý đánh dấu order 'failed' trong trường hợp này; để webhook xử
+        # lý đúng theo trạng thái thật khi nó tới.
+        return jsonify({"success": False, "message": result.get('message')}), 502
+
+    db.orders.update_one(
+        {'id': order_id, 'business_id': business_id},
+        {
+            '$set': {'status': 'failed', 'square_canceled_at': datetime.now().isoformat()},
+            '$unset': {
+                '_pending_order_items': '', '_pending_per_tech_revenue': '',
+                '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+            },
         }
-    })
+    )
+    return jsonify({"success": True, "status": "failed"})
 
 
 @app.route('/api/webhooks/square', methods=['POST'])
@@ -2028,17 +2146,34 @@ def api_webhook_square():
             return jsonify({"success": True, "message": "No matching order (ignored)."}), 200
 
         if checkout_status == 'COMPLETED':
-            # Idempotent: nếu Square gửi trùng webhook (retry) mà đơn đã PAID rồi thì bỏ qua,
-            # không cộng loyalty/hoa hồng 2 lần.
-            if order_doc.get('status') != 'PAID':
-                db.orders.update_one(
-                    {'id': order_doc['id']},
-                    {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()}}
-                )
-                order_doc['status'] = 'PAID'
-                _finalize_paid_order(order_doc)
+            # Idempotent: nếu Square gửi trùng webhook (retry) mà đơn đã xử lý xong rồi (PAID
+            # cho luồng retail cũ, 'completed' cho luồng Nail POS) thì bỏ qua, không cộng loyalty/
+            # hoa hồng 2 lần.
+            already_done = order_doc.get('status') in ('PAID', 'completed')
+            if not already_done:
+                if order_doc.get('channel') == 'nail_pos_square':
+                    # Đây là lúc DUY NHẤT order_items/chamcong của bill Nail Square Terminal
+                    # thực sự được ghi — commit atomically qua cùng transaction dùng ở
+                    # api_nail_pos_checkout, đảm bảo trả tiền thợ giống hệt luồng Cash/Card/Split.
+                    _finalize_nail_square_order(order_doc)
+                else:
+                    db.orders.update_one(
+                        {'id': order_doc['id']},
+                        {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()}}
+                    )
+                    order_doc['status'] = 'PAID'
+                    _finalize_paid_order(order_doc)
         elif checkout_status in ('CANCELED', 'FAILED'):
-            db.orders.update_one({'id': order_doc['id']}, {'$set': {'status': 'failed'}})
+            db.orders.update_one(
+                {'id': order_doc['id']},
+                {
+                    '$set': {'status': 'failed'},
+                    '$unset': {
+                        '_pending_order_items': '', '_pending_per_tech_revenue': '',
+                        '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                    },
+                }
+            )
     except Exception as e:
         current_app.logger.error(f"[SQUARE WEBHOOK] Lỗi xử lý webhook: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -2069,14 +2204,30 @@ def api_dashboard_sales_summary():
         tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
         orders_today = list(db.orders.find(
             {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}},
-            {'total_amount': 1, 'payment_bucket': 1, 'customer_phone': 1, '_id': 0}
+            {
+                'total_amount': 1, 'payment_bucket': 1, 'customer_phone': 1,
+                'split_cash_amount': 1, 'split_card_amount': 1, '_id': 0,
+            }
         ))
         stats['total_orders_today'] = len(orders_today)
         stats['total_revenue_today'] = round(sum(o.get('total_amount') or 0 for o in orders_today), 2)
-        stats['cash_revenue_today'] = round(
-            sum(o.get('total_amount') or 0 for o in orders_today if o.get('payment_bucket') == 'cash'), 2)
-        stats['card_revenue_today'] = round(
-            sum(o.get('total_amount') or 0 for o in orders_today if o.get('payment_bucket') == 'card'), 2)
+        # 'split' orders carry their own cash/card breakdown (split_cash_amount/split_card_amount,
+        # written by /api/nail_pos/checkout) — previously this bucket matched neither the cash
+        # nor the card sum below, so a split ticket's full amount counted toward total revenue
+        # but $0 toward either bucket, making the cash drawer never reconcile on a split-ticket day.
+        cash_total = 0.0
+        card_total = 0.0
+        for o in orders_today:
+            bucket = o.get('payment_bucket')
+            if bucket == 'cash':
+                cash_total += o.get('total_amount') or 0
+            elif bucket == 'card':
+                card_total += o.get('total_amount') or 0
+            elif bucket == 'split':
+                cash_total += o.get('split_cash_amount') or 0
+                card_total += o.get('split_card_amount') or 0
+        stats['cash_revenue_today'] = round(cash_total, 2)
+        stats['card_revenue_today'] = round(card_total, 2)
         stats['total_customers_today'] = len({o['customer_phone'] for o in orders_today if o.get('customer_phone')})
     except Exception as e:
         print(f"[api_dashboard_sales_summary] Lỗi tính doanh thu hôm nay: {str(e)}")
@@ -5020,6 +5171,23 @@ def api_payment_start():
 
         txn_id = f"{industry.upper()}-{uuid.uuid4().hex[:8].upper()}"
 
+        # Persist the discount%/tax%/tip the cashier applied on-screen so /api/payment/confirm
+        # can re-apply them against the server-verified subtotal — without this, confirm had no
+        # way to know about them at all and silently recomputed revenue from raw line items only,
+        # which never matched the receipt the customer actually saw.
+        try:
+            discount_percent = max(0.0, min(100.0, float(data.get('discount_percent') or 0)))
+        except (TypeError, ValueError):
+            discount_percent = 0.0
+        try:
+            tax_percent = max(0.0, float(data.get('tax_percent') or 0))
+        except (TypeError, ValueError):
+            tax_percent = 0.0
+        try:
+            tip_amount = max(0.0, float(data.get('tip_amount') or 0))
+        except (TypeError, ValueError):
+            tip_amount = 0.0
+
         # Insert payment_transactions with status = pending
         try:
             db.payment_transactions.insert_one({
@@ -5032,6 +5200,9 @@ def api_payment_start():
                 'method': method,
                 'status': 'pending',
                 'business_id': business_id,
+                'discount_percent': discount_percent,
+                'tax_percent': tax_percent,
+                'tip_amount': tip_amount,
                 'created_at': datetime.now().isoformat()
             })
         except Exception as db_err:
@@ -5153,12 +5324,12 @@ def api_payment_confirm():
             )
         }
 
-        total_bill = 0
+        subtotal = 0
         stock_updates = []
         for item in orders_data:
             prod = products_map.get(item['product_id'])
             if prod:
-                total_bill += item['quantity'] * prod['price']
+                subtotal += item['quantity'] * prod['price']
                 new_stock = prod['stock'] - item['quantity']
                 stock_updates.append(UpdateOne(
                     {'id': item['product_id'], 'business_id': business_id}, {'$set': {'stock': new_stock}}
@@ -5166,16 +5337,34 @@ def api_payment_confirm():
         if stock_updates:
             db.products.bulk_write(stock_updates)
 
+        # Re-apply the discount%/tax%/tip stored at /api/payment/start (see there) against this
+        # server-verified subtotal — NOT the raw amount the client sent — so the final revenue
+        # figure can't be tampered with client-side while still matching what the customer saw.
+        pending_txn = db.payment_transactions.find_one({'transaction_id': txn_id, 'business_id': business_id}, {'_id': 0})
+        discount_percent = max(0.0, min(100.0, float((pending_txn or {}).get('discount_percent') or 0)))
+        tax_percent = max(0.0, float((pending_txn or {}).get('tax_percent') or 0))
+        tip_amount = max(0.0, float((pending_txn or {}).get('tip_amount') or 0))
+
+        discount_amount = round(subtotal * (discount_percent / 100), 2)
+        discount_amount = max(0.0, min(discount_amount, subtotal))
+        taxable_base = subtotal - discount_amount
+        tax_amount = round(taxable_base * (tax_percent / 100), 2)
+        total_bill = round(taxable_base + tax_amount + tip_amount, 2)
+
         # Lấy industry từ transaction hoặc mặc định fnb
         industry = 'fnb'
         customer_phone = (data.get('customer_phone') or '').strip() or None
 
-        # 3. Tạo order mới trong orders
+        # 3. Tạo order mới trong orders — lưu cả breakdown để đối soát khớp đúng hoá đơn khách thấy
         order_id = next_mongo_id('orders')
         db.orders.insert_one({
             'id': order_id,
             'order_code': txn_id,
             'channel': industry,
+            'subtotal': subtotal,
+            'discount_amount': discount_amount,
+            'tax_amount': tax_amount,
+            'tip_amount': tip_amount,
             'total_amount': total_bill,
             'business_id': business_id,
             'customer_phone': customer_phone,
@@ -5222,6 +5411,95 @@ def api_payment_confirm():
         })
     except Exception as e:
         print(f"Error in api_payment_confirm: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/local_checkout', methods=['POST'])
+@login_required
+def api_payment_local_checkout():
+    """Checkout cho bàn 'local-'/'seeded-' (demo/offline draft, không có bản ghi dining_tables/
+    table_orders thật trong DB) — trước đây bấm Checkout chỉ xoá localStorage và coi như thành
+    công, không tạo bất kỳ bản ghi giao dịch nào (falsified success). Vì các bàn này không có
+    table_orders để đối chiếu giá server-side, route này buộc phải tin cart do client gửi lên —
+    nhưng vẫn validate chặt từng field (tên/số lượng/giá) và ghi lại thành order/order_items/
+    payment_transactions THẬT, có thể tra soát, thay vì âm thầm không để lại dấu vết gì."""
+    try:
+        data = request.get_json() or {}
+        items = data.get('items') or []
+        table_name = (data.get('table_name') or 'Local Table').strip()[:120]
+        method = data.get('method', 'POS')
+        industry = data.get('industry', 'fnb')
+
+        if not items:
+            return jsonify({'success': False, 'message': 'Empty cart'}), 400
+
+        business_id = session.get('business_id') or session['user_id']
+
+        subtotal = 0.0
+        clean_items = []
+        for it in items:
+            try:
+                name = str(it.get('name') or '').strip()[:200]
+                qty = int(it.get('quantity'))
+                price = float(it.get('price'))
+            except (TypeError, ValueError, AttributeError):
+                return jsonify({'success': False, 'message': 'Invalid item in cart'}), 400
+            if not name or qty <= 0 or price < 0:
+                return jsonify({'success': False, 'message': 'Invalid item in cart'}), 400
+            line_total = round(qty * price, 2)
+            subtotal += line_total
+            clean_items.append({'name': name, 'quantity': qty, 'price': price, 'total_price': line_total})
+        subtotal = round(subtotal, 2)
+
+        try:
+            discount_percent = max(0.0, min(100.0, float(data.get('discount_percent') or 0)))
+        except (TypeError, ValueError):
+            discount_percent = 0.0
+        try:
+            tax_percent = max(0.0, float(data.get('tax_percent') or 0))
+        except (TypeError, ValueError):
+            tax_percent = 0.0
+        try:
+            tip_amount = max(0.0, float(data.get('tip_amount') or 0))
+        except (TypeError, ValueError):
+            tip_amount = 0.0
+
+        discount_amount = round(subtotal * (discount_percent / 100), 2)
+        discount_amount = max(0.0, min(discount_amount, subtotal))
+        taxable_base = subtotal - discount_amount
+        tax_amount = round(taxable_base * (tax_percent / 100), 2)
+        grand_total = round(taxable_base + tax_amount + tip_amount, 2)
+
+        txn_id = f"{industry.upper()}-LOCAL-{uuid.uuid4().hex[:8].upper()}"
+        now_iso = datetime.now().isoformat()
+
+        order_id = next_mongo_id('orders')
+        db.orders.insert_one({
+            'id': order_id, 'order_code': txn_id, 'channel': f'{industry}_local_demo',
+            'subtotal': subtotal, 'discount_amount': discount_amount, 'tax_amount': tax_amount,
+            'tip_amount': tip_amount, 'total_amount': grand_total, 'table_name': table_name,
+            'business_id': business_id, 'created_at': now_iso,
+        })
+
+        order_items_docs = [{
+            'id': next_mongo_id('order_items'), 'order_id': order_id, 'product_id': None,
+            'name': it['name'], 'quantity': it['quantity'], 'price': it['price'],
+            'total_price': it['total_price'], 'business_id': business_id,
+        } for it in clean_items]
+        if order_items_docs:
+            db.order_items.insert_many(order_items_docs)
+
+        db.payment_transactions.insert_one({
+            'id': next_mongo_id('payment_transactions'), 'transaction_id': txn_id,
+            'customer_name': 'Khách POS Vãng Lai (Local Demo Table)',
+            'customer_email': 'pos_walkin@bitpaw.com', 'amount': grand_total, 'currency': 'VND',
+            'method': method, 'status': 'completed', 'business_id': business_id,
+            'created_at': now_iso, 'updated_at': now_iso,
+        })
+
+        return jsonify({'success': True, 'txn_id': txn_id, 'amount': grand_total})
+    except Exception as e:
+        print(f"Error in api_payment_local_checkout: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -5548,38 +5826,23 @@ def sell():
     return render_template('sell.html')
 
 
-@app.route('/api/nail_pos/checkout', methods=['POST'])
-@login_required
-def api_nail_pos_checkout():
-    """Checkout riêng cho Nail POS (pos_nail.html) — khác api_sales_checkout() ở chỗ CHO
-    PHÉP gán thợ RIÊNG cho từng dòng dịch vụ (1 bill có thể do nhiều thợ cùng phục vụ), và
-    tính hoa hồng/tip đúng công thức chamcong_nail.html đã dùng (supply trừ theo % tổng bill
-    TRƯỚC khi chia hoa hồng; tip thẻ trừ phí cà thẻ trước khi chia cho thợ, khách vẫn thấy
-    đúng số tip gốc đã nhập trên hoá đơn).
-
-    Ghi ĐỒNG THỜI 2 nơi để không phá tính năng nào đang có, và vá luôn 1 lỗ hổng cũ:
-      - orders/order_items: để doanh thu Nails LẦN ĐẦU TIÊN xuất hiện đúng trong
-        report_consolidated/dashboard — luồng tính bill cũ thuần ở chamcong_nail.html
-        KHÔNG hề tạo order nào, nên doanh thu Nails trước giờ không hề được đối soát.
-      - chamcong (1 bản ghi/thợ được gán, không phải 1 bản ghi/dòng dịch vụ): để Salon Staff
-        Management/Payroll (chamcong_nail.html) đọc được y hệt như khi tự bấm "Đã chốt" thủ
-        công — không cần đổi màn hình đó, không cần đổi cách tính lương đã quen dùng.
-    """
-    business_id = session.get('business_id') or session['user_id']
-    data = request.json or {}
+def _compute_nail_pos_order(business_id, data):
+    """Cart -> subtotal/supply/discount/tax/tip/commission computation shared by BOTH the
+    synchronous nail_pos checkout AND the async Square Terminal checkout — kept as ONE function
+    so the two payment paths can never compute a different commission/tax/discount for the same
+    cart (duplicating this formula across routes was flagged as a real drift risk in a prior
+    audit). Raises ValueError on bad input (cart empty/invalid) for the caller to turn into a
+    400 response; anything else propagates as-is for a 500."""
     items = data.get('items') or []
     if not items:
-        return jsonify({"success": False, "message": "Giỏ hàng trống."}), 400
+        raise ValueError("Giỏ hàng trống.")
 
-    try:
-        product_ids = [it.get('product_id') for it in items]
-        products_map = {
-            p['id']: p for p in db.products.find(
-                {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
-            )
-        }
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    product_ids = [it.get('product_id') for it in items]
+    products_map = {
+        p['id']: p for p in db.products.find(
+            {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
+        )
+    }
 
     order_items_docs = []
     subtotal = 0.0
@@ -5619,14 +5882,16 @@ def api_nail_pos_checkout():
             per_tech_revenue[ma_nv] = per_tech_revenue.get(ma_nv, 0) + line_total
 
     if not order_items_docs:
-        return jsonify({"success": False, "message": "Không có dịch vụ hợp lệ trong giỏ hàng."}), 400
+        raise ValueError("Không có dịch vụ hợp lệ trong giỏ hàng.")
     subtotal = round(subtotal, 2)
 
     # Supply: % của TỔNG bill khấu trừ TRƯỚC khi chia hoa hồng (đúng model chamcong_nail.html)
     # — chi phí vật tư (gel/bột...), không phải phụ phí khách nhìn thấy trên hoá đơn.
-    supply_percent = float(data.get('supply_percent') or 0)
+    # Clamp 0-100 và net_revenue >= 0 — nếu không, supply% > 100 (fat-finger hoặc override) sẽ
+    # tạo net_revenue âm, khiến tien_tua ghi vào db.chamcong bị âm, âm thầm trừ lương thợ.
+    supply_percent = max(0.0, min(100.0, float(data.get('supply_percent') or 0)))
     supply_amount = round(subtotal * (supply_percent / 100), 2)
-    net_revenue = subtotal - supply_amount
+    net_revenue = max(0.0, subtotal - supply_amount)
 
     cash_tip = round(float(data.get('cash_tip') or 0), 2)
     card_tip = round(float(data.get('card_tip') or 0), 2)
@@ -5663,84 +5928,297 @@ def api_nail_pos_checkout():
         payment_bucket = 'card'
     total_amount = round(subtotal - discount_amount + tax_amount + total_tip, 2)
 
+    # Split payment: capture the exact cash/card breakdown the cashier entered so end-of-day
+    # cash-drawer reconciliation can credit each portion correctly — previously only
+    # `payment_bucket: 'split'` was stored with no amounts, so the dashboard's cash/card totals
+    # silently excluded split tickets entirely.
+    split_cash_amount = 0.0
+    split_card_amount = 0.0
+    if payment_bucket == 'split':
+        try:
+            split_cash_amount = round(max(0.0, float(data.get('cash_amount') or 0)), 2)
+        except (TypeError, ValueError):
+            split_cash_amount = 0.0
+        try:
+            split_card_amount = round(max(0.0, float(data.get('card_amount') or 0)), 2)
+        except (TypeError, ValueError):
+            split_card_amount = 0.0
+        if abs((split_cash_amount + split_card_amount) - total_amount) > 0.02:
+            split_cash_amount = total_amount
+            split_card_amount = 0.0
+
     commission_rate = data.get('commission_rate')
     try:
         commission_rate = float(commission_rate) if commission_rate is not None else _get_business_commission_rate(business_id)
     except (TypeError, ValueError):
         commission_rate = _get_business_commission_rate(business_id)
+    commission_rate = max(0.0, min(100.0, commission_rate))
+
+    return {
+        'order_items_docs': order_items_docs, 'subtotal': subtotal, 'supply_amount': supply_amount,
+        'net_revenue': net_revenue, 'discount_amount': discount_amount, 'tax_amount': tax_amount,
+        'total_tip': total_tip, 'worker_total_tip': worker_total_tip, 'total_amount': total_amount,
+        'payment_method': payment_method, 'payment_bucket': payment_bucket,
+        'split_cash_amount': split_cash_amount, 'split_card_amount': split_card_amount,
+        'commission_rate': commission_rate, 'per_tech_revenue': per_tech_revenue,
+        'currency': data.get('currency') or 'AUD',
+    }
+
+
+def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAILS POS]'):
+    """Builds the per-technician db.chamcong docs for a nail order from _compute_nail_pos_order's
+    output — shared by the synchronous checkout and the Square webhook finalizer so a bill paid
+    either way credits technicians with the exact same commission/tip formula."""
+    now_dt = datetime.now()
+    chamcong_docs = []
+    techs_paid = []
+    per_tech_revenue = computed['per_tech_revenue']
+    if per_tech_revenue:
+        subtotal = computed['subtotal']
+        net_revenue = computed['net_revenue']
+        commission_rate = computed['commission_rate']
+        tip_share = round(computed['worker_total_tip'] / len(per_tech_revenue), 2)
+        for ma_nv, tech_revenue_share in per_tech_revenue.items():
+            tech_net_share = round(tech_revenue_share * (net_revenue / subtotal), 2) if subtotal else 0
+            worker_tua = round(tech_net_share * (commission_rate / 100), 2)
+            chamcong_docs.append({
+                'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': ma_nv,
+                # DD/MM/YYYY — KHÔNG phải ISO YYYY-MM-DD — phải khớp đúng định dạng
+                # getFormattedDate() ghi ở chamcong_nail.html, vì bangluong.html lọc
+                # theo tháng bằng ngay_cham.split('/')[1]/[2] (month/year); ghi sai định
+                # dạng khiến mọi bill Nails POS bị lọc mất khỏi báo cáo lương tháng đó.
+                'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                'ghi_chu': f"{note_prefix} Order #{order_id} — {commission_rate}% hoa hồng",
+                'tien_tua': worker_tua, 'tien_tips': tip_share, 'phu_cap': 0, 'so_gio': 0,
+                'tang_ca': 0,
+            })
+            techs_paid.append({'ma_nv': ma_nv, 'commission': worker_tua, 'tip': tip_share})
+    return chamcong_docs, techs_paid
+
+
+@app.route('/api/nail_pos/checkout', methods=['POST'])
+@login_required
+def api_nail_pos_checkout():
+    """Checkout riêng cho Nail POS (pos_nail.html) — khác api_sales_checkout() ở chỗ CHO
+    PHÉP gán thợ RIÊNG cho từng dòng dịch vụ (1 bill có thể do nhiều thợ cùng phục vụ), và
+    tính hoa hồng/tip đúng công thức chamcong_nail.html đã dùng. Dùng cho thanh toán Cash/Card
+    thủ công/Split — biết kết quả NGAY (khác luồng Square Terminal thật ở
+    api_nail_pos_square_checkout(), phải chờ webhook vì khách quẹt thẻ tại quầy).
+
+    Ghi ĐỒNG THỜI 2 nơi để không phá tính năng nào đang có, và vá luôn 1 lỗ hổng cũ:
+      - orders/order_items: để doanh thu Nails LẦN ĐẦU TIÊN xuất hiện đúng trong
+        report_consolidated/dashboard — luồng tính bill cũ thuần ở chamcong_nail.html
+        KHÔNG hề tạo order nào, nên doanh thu Nails trước giờ không hề được đối soát.
+      - chamcong (1 bản ghi/thợ được gán, không phải 1 bản ghi/dòng dịch vụ): để Salon Staff
+        Management/Payroll (chamcong_nail.html) đọc được y hệt như khi tự bấm "Đã chốt" thủ
+        công — không cần đổi màn hình đó, không cần đổi cách tính lương đã quen dùng.
+    """
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        computed = _compute_nail_pos_order(business_id, data)
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
     try:
         order_id = next_mongo_id('orders')
-        now_dt = datetime.now()
-        now_iso = now_dt.isoformat()
+        now_iso = datetime.now().isoformat()
         order_doc = {
             'id': order_id, 'business_id': business_id, 'status': 'completed',
-            'created_at': now_iso, 'subtotal': subtotal, 'supply_amount': supply_amount,
-            'discount_amount': discount_amount, 'tax_amount': tax_amount,
-            'tip_amount': total_tip, 'total_amount': total_amount,
-            'payment_method': payment_method, 'payment_bucket': payment_bucket,
-            'currency': data.get('currency') or 'AUD', 'channel': 'nail_pos',
+            'created_at': now_iso, 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
+            'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
+            'tip_amount': computed['total_tip'], 'total_amount': computed['total_amount'],
+            'payment_method': computed['payment_method'], 'payment_bucket': computed['payment_bucket'],
+            'currency': computed['currency'], 'channel': 'nail_pos',
         }
+        if computed['payment_bucket'] == 'split':
+            order_doc['split_cash_amount'] = computed['split_cash_amount']
+            order_doc['split_card_amount'] = computed['split_card_amount']
         customer_phone = (data.get('customer_phone') or '').strip()
         if customer_phone:
             order_doc['customer_phone'] = customer_phone
-        db.orders.insert_one(order_doc)
 
+        order_items_docs = computed['order_items_docs']
         for oi in order_items_docs:
             oi['id'] = next_mongo_id('order_items')
             oi['order_id'] = order_id
             oi['business_id'] = business_id
             if customer_phone:
                 oi['customer_phone'] = customer_phone
-        db.order_items.insert_many(order_items_docs)
 
-        # 1 bản ghi chamcong / thợ được gán trong bill này — tip chia đều cho các thợ được
-        # gán (đơn giản, minh bạch); nếu chỉ 1 thợ, thợ đó nhận trọn tip, khớp hành vi cũ.
-        techs_paid = []
-        if per_tech_revenue:
-            tip_share = round(worker_total_tip / len(per_tech_revenue), 2)
-            for ma_nv, tech_revenue_share in per_tech_revenue.items():
-                # net_revenue được phân bổ theo đúng tỷ trọng doanh thu dịch vụ của từng thợ
-                # trong bill (không chia đều) — công bằng khi các dịch vụ có giá khác nhau.
-                tech_net_share = round(tech_revenue_share * (net_revenue / subtotal), 2) if subtotal else 0
-                worker_tua = round(tech_net_share * (commission_rate / 100), 2)
-                db.chamcong.insert_one({
-                    'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': ma_nv,
-                    # DD/MM/YYYY — KHÔNG phải ISO YYYY-MM-DD — phải khớp đúng định dạng
-                    # getFormattedDate() ghi ở chamcong_nail.html, vì bangluong.html lọc
-                    # theo tháng bằng ngay_cham.split('/')[1]/[2] (month/year); ghi sai định
-                    # dạng khiến mọi bill Nails POS bị lọc mất khỏi báo cáo lương tháng đó.
-                    'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
-                    'ghi_chu': f"[NAILS POS] Order #{order_id} — {commission_rate}% hoa hồng",
-                    'tien_tua': worker_tua, 'tien_tips': tip_share, 'phu_cap': 0, 'so_gio': 0,
-                    'tang_ca': 0,
-                })
-                techs_paid.append({'ma_nv': ma_nv, 'commission': worker_tua, 'tip': tip_share})
+        chamcong_docs, techs_paid = _build_nail_chamcong_docs(order_id, business_id, computed)
+
+        # Order + order_items + every technician's chamcong record commit together as ONE
+        # MongoDB transaction — previously a mid-write failure (e.g. a dropped connection after
+        # the 2nd of 3 assigned technicians) could leave the order marked 'completed' with some
+        # techs paid and others silently unpaid, or a retry double-paying the first tech.
+        with mongo_client_instance.start_session() as db_session:
+            with db_session.start_transaction():
+                db.orders.insert_one(order_doc, session=db_session)
+                if order_items_docs:
+                    db.order_items.insert_many(order_items_docs, session=db_session)
+                if chamcong_docs:
+                    db.chamcong.insert_many(chamcong_docs, session=db_session)
 
         if customer_phone:
             _finalize_paid_order(order_doc)
 
         return jsonify({
-            "success": True, "order_id": order_id, "subtotal": subtotal,
-            "supply_amount": supply_amount, "discount_amount": discount_amount,
-            "tax_amount": tax_amount, "tip_amount": total_tip,
-            "total_amount": total_amount, "techs_paid": techs_paid,
+            "success": True, "order_id": order_id, "subtotal": computed['subtotal'],
+            "supply_amount": computed['supply_amount'], "discount_amount": computed['discount_amount'],
+            "tax_amount": computed['tax_amount'], "tip_amount": computed['total_tip'],
+            "total_amount": computed['total_amount'], "techs_paid": techs_paid,
         })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/nail_pos/square_checkout', methods=['POST'])
+@login_required
+def api_nail_pos_square_checkout():
+    """Real Square Terminal (card-present) checkout for the Nail POS. Uses the EXACT same
+    _compute_nail_pos_order() math as the synchronous /api/nail_pos/checkout, but does NOT write
+    order_items/chamcong yet — it only creates a 'pending' order stub carrying everything needed
+    to finish the write later, pushes the checkout to the physical Square Terminal, and returns
+    immediately. The actual order/chamcong commit happens in api_webhook_square() once Square
+    confirms COMPLETED (see _finalize_nail_square_order) — never before, so a customer who walks
+    away without tapping their card never generates a phantom paid order or technician commission."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        computed = _compute_nail_pos_order(business_id, data)
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    if not payment_us_engine.is_configured() or not payment_us_engine.SQUARE_DEVICE_ID:
+        # Same 3-flag config_status pattern as api_square_checkout() — graceful, non-crashing
+        # error telling the admin exactly which env var is missing, never a silent/fake success.
+        return jsonify({
+            "success": False,
+            "message": "Square Terminal chưa được cấu hình đầy đủ. Vui lòng vào Payment Settings để nhập SQUARE_ACCESS_TOKEN / SQUARE_LOCATION_ID / SQUARE_DEVICE_ID (Terminal ID).",
+            "config_status": {
+                "SQUARE_ACCESS_TOKEN_set": bool(payment_us_engine.SQUARE_ACCESS_TOKEN),
+                "SQUARE_LOCATION_ID_set": bool(payment_us_engine.SQUARE_LOCATION_ID),
+                "SQUARE_DEVICE_ID_set": bool(payment_us_engine.SQUARE_DEVICE_ID),
+            }
+        }), 503
+
+    try:
+        order_id = next_mongo_id('orders')
+        now_iso = datetime.now().isoformat()
+        txn_id = f"NAILSQ-{order_id}-{uuid.uuid4().hex[:6].upper()}"
+
+        order_doc = {
+            'id': order_id, 'business_id': business_id, 'status': 'pending',
+            'created_at': now_iso, 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
+            'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
+            'tip_amount': computed['total_tip'], 'total_amount': computed['total_amount'],
+            'payment_method': 'square', 'payment_bucket': 'card',
+            'currency': computed['currency'], 'channel': 'nail_pos_square',
+            'commission_rate': computed['commission_rate'],
+        }
+        customer_phone = (data.get('customer_phone') or '').strip()
+        if customer_phone:
+            order_doc['customer_phone'] = customer_phone
+
+        square_result = payment_us_engine.create_terminal_checkout(
+            computed['total_amount'], txn_id, note=f"BitPaw Nail POS Order #{order_id}"
+        )
+        if not square_result.get('configured'):
+            return jsonify({"success": False, "message": square_result.get('message')}), 503
+        if not square_result.get('success'):
+            return jsonify({"success": False, "message": square_result.get('message')}), 502
+
+        order_doc['square_checkout_id'] = square_result.get('checkout_id')
+        order_doc['square_txn_id'] = txn_id
+        # Stashed for the webhook to finish the write — never re-derived from client input a
+        # 2nd time, so what Square actually charged is exactly what gets committed and paid out.
+        order_doc['_pending_order_items'] = computed['order_items_docs']
+        order_doc['_pending_per_tech_revenue'] = computed['per_tech_revenue']
+        order_doc['_pending_net_revenue'] = computed['net_revenue']
+        order_doc['_pending_worker_total_tip'] = computed['worker_total_tip']
+        db.orders.insert_one(order_doc)
+
+        return jsonify({
+            "success": True, "order_id": order_id,
+            "checkout_id": square_result.get('checkout_id'),
+            "terminal_status": square_result.get('terminal_status'),
+            "total_amount": computed['total_amount'],
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+def _finalize_nail_square_order(order_doc):
+    """Commits the order_items/chamcong write for a nail-salon Square Terminal checkout once
+    Square's webhook confirms COMPLETED — mirrors the transaction used in
+    api_nail_pos_checkout so a bill paid via physical Terminal persists identically (order
+    marked completed + order_items + per-technician chamcong, atomically) to one paid via
+    Cash/Card/Split."""
+    order_id = order_doc['id']
+    business_id = order_doc['business_id']
+    order_items_docs = order_doc.get('_pending_order_items') or []
+    computed = {
+        'subtotal': order_doc.get('subtotal') or 0,
+        'net_revenue': order_doc.get('_pending_net_revenue') or 0,
+        'commission_rate': order_doc.get('commission_rate') or 0,
+        'worker_total_tip': order_doc.get('_pending_worker_total_tip') or 0,
+        'per_tech_revenue': order_doc.get('_pending_per_tech_revenue') or {},
+    }
+    customer_phone = (order_doc.get('customer_phone') or '').strip()
+
+    for oi in order_items_docs:
+        oi['id'] = next_mongo_id('order_items')
+        oi['order_id'] = order_id
+        oi['business_id'] = business_id
+        if customer_phone:
+            oi['customer_phone'] = customer_phone
+
+    chamcong_docs, _techs_paid = _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAILS POS SQUARE]')
+
+    with mongo_client_instance.start_session() as db_session:
+        with db_session.start_transaction():
+            db.orders.update_one(
+                {'id': order_id, 'business_id': business_id},
+                {
+                    '$set': {'status': 'completed', 'square_paid_at': datetime.now().isoformat()},
+                    '$unset': {
+                        '_pending_order_items': '', '_pending_per_tech_revenue': '',
+                        '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                    },
+                },
+                session=db_session
+            )
+            if order_items_docs:
+                db.order_items.insert_many(order_items_docs, session=db_session)
+            if chamcong_docs:
+                db.chamcong.insert_many(chamcong_docs, session=db_session)
+
+    if customer_phone:
+        _finalize_paid_order(order_doc)
 
 
 @app.route('/api/nail_pos/refund', methods=['POST'])
 @login_required
 def api_nail_pos_refund():
     """Return/Refund cho Nail POS — ghi 1 order âm liên kết tới order gốc để trừ vào doanh
-    thu/báo cáo (report_consolidated đọc db.orders nên chỉ cần ghi record là đủ khớp sổ),
-    KHÔNG đảo ngược hoa hồng/chamcong đã chốt cho thợ (out of scope — xử lý thủ công nếu cần)."""
+    thu/báo cáo (report_consolidated đọc db.orders nên chỉ cần ghi record là đủ khớp sổ), VÀ
+    đảo ngược (clawback) đúng phần hoa hồng/tip đã chốt cho (các) thợ liên quan tới order gốc,
+    theo tỉ lệ số tiền hoàn / tổng hoá đơn gốc — trước đây route này hoàn tiền khách nhưng thợ
+    vẫn giữ nguyên 100% hoa hồng/tip của dịch vụ đã bị hoàn, âm thầm ăn mòn lợi nhuận salon."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     original_order_id = data.get('order_id')
     if not original_order_id:
         return jsonify({"success": False, "message": "Vui lòng nhập mã hoá đơn (Order #) cần hoàn tiền."}), 400
+    try:
+        original_order_id = int(original_order_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Mã hoá đơn không hợp lệ."}), 400
     try:
         amount = round(float(data.get('amount') or 0), 2)
     except (TypeError, ValueError):
@@ -5755,18 +6233,66 @@ def api_nail_pos_refund():
     if not original_order:
         return jsonify({"success": False, "message": f"Không tìm thấy hoá đơn #{original_order_id}."}), 404
 
+    order_total = round(float(original_order.get('total_amount') or 0), 2)
+    already_refunded = round(float(original_order.get('refunded_amount') or 0), 2)
+    remaining = round(order_total - already_refunded, 2)
+    if amount > remaining + 0.01:
+        return jsonify({
+            "success": False,
+            "message": f"Số tiền hoàn (${amount}) vượt quá số dư có thể hoàn của hoá đơn này (${remaining})."
+        }), 400
+
     try:
         refund_id = next_mongo_id('orders')
+        now_dt = datetime.now()
+        now_iso = now_dt.isoformat()
+
+        # Clawback: chỉ khớp đúng các bản ghi chamcong mà CHÍNH order này đã tạo lúc checkout
+        # (note bắt đầu bằng "[NAILS POS]" — không khớp nhầm vào các bản ghi [REFUND] clawback
+        # của lần hoàn tiền trước, nếu không tỉ lệ hoàn sẽ bị tính chồng lên chính nó ở lần hoàn
+        # thứ 2 trở đi). Dùng lookahead (?!\d) để "Order #1" không khớp nhầm "Order #12"/"#100".
+        refund_ratio = (amount / order_total) if order_total > 0 else 0.0
+        refund_ratio = max(0.0, min(1.0, refund_ratio))
+        note_pattern = r'^\[NAILS POS\] Order #' + str(original_order_id) + r'(?!\d)'
+        original_chamcong_records = list(db.chamcong.find(
+            {'business_id': business_id, 'ghi_chu': {'$regex': note_pattern}}, {'_id': 0}
+        ))
+
+        techs_clawed_back = []
+        for rec in original_chamcong_records:
+            clawback_tua = round(float(rec.get('tien_tua') or 0) * refund_ratio, 2)
+            clawback_tip = round(float(rec.get('tien_tips') or 0) * refund_ratio, 2)
+            if clawback_tua == 0 and clawback_tip == 0:
+                continue
+            db.chamcong.insert_one({
+                'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': rec.get('ma_nv'),
+                'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                'ghi_chu': f"[REFUND] Deduction for Order #{original_order_id} — linked to original chamcong #{rec.get('id')}",
+                'tien_tua': -clawback_tua, 'tien_tips': -clawback_tip, 'phu_cap': 0, 'so_gio': 0,
+                'tang_ca': 0,
+            })
+            techs_clawed_back.append({'ma_nv': rec.get('ma_nv'), 'commission_deducted': clawback_tua, 'tip_deducted': clawback_tip})
+
+        new_refunded_amount = round(already_refunded + amount, 2)
+        new_status = 'refunded' if new_refunded_amount >= order_total - 0.01 else 'partially_refunded'
+        db.orders.update_one(
+            {'id': original_order_id, 'business_id': business_id},
+            {'$set': {'status': new_status, 'refunded_amount': new_refunded_amount}}
+        )
+
         db.orders.insert_one({
             'id': refund_id, 'business_id': business_id, 'status': 'refunded',
-            'created_at': datetime.now().isoformat(), 'subtotal': -amount, 'supply_amount': 0,
+            'created_at': now_iso, 'subtotal': -amount, 'supply_amount': 0,
             'discount_amount': 0, 'tip_amount': 0, 'total_amount': -amount,
             'payment_method': original_order.get('payment_method', 'cash'),
             'payment_bucket': original_order.get('payment_bucket', 'cash'),
             'currency': original_order.get('currency') or 'AUD', 'channel': 'nail_pos_refund',
             'original_order_id': original_order_id, 'refund_reason': (data.get('reason') or '').strip(),
         })
-        return jsonify({"success": True, "refund_id": refund_id})
+        return jsonify({
+            "success": True, "refund_id": refund_id, "order_status": new_status,
+            "techs_clawed_back": techs_clawed_back,
+        })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -8002,6 +8528,12 @@ def api_checkin():
                 note TEXT
             )
         ''')
+        # Reject a 2nd check-in while one is already open (retry, two devices, etc.) — this
+        # used to silently create a duplicate open shift with no way to know which one is real.
+        c.execute('SELECT id FROM local_attendance WHERE staff_id = ? AND clock_out IS NULL', (str(staff_id),))
+        if c.fetchone():
+            conn.close()
+            return jsonify({"success": False, "error": "Nhân viên này đang có 1 ca làm chưa checkout — vui lòng checkout trước khi checkin lại."}), 409
         clock_in_time = datetime.now().isoformat()
         c.execute('''
             INSERT INTO local_attendance (staff_id, clock_in, latitude, longitude, status, note)
@@ -8012,16 +8544,20 @@ def api_checkin():
         conn.close()
 
         try:
-            db.attendance.insert_one({
-                'id': next_mongo_id('attendance'),
-                'staff_id': int(staff_id),
-                'clock_in': clock_in_time,
-                'clock_out': None,
-                'latitude_in': lat,
-                'longitude_in': lng,
-                'status': 'Present',
-                'business_id': business_id
-            })
+            if db.attendance.find_one({'staff_id': int(staff_id), 'business_id': business_id, 'clock_out': None}, {'_id': 0}):
+                pass  # SQLite check above is the source of truth; don't insert a 2nd open Mongo doc either.
+            else:
+                db.attendance.insert_one({
+                    'id': next_mongo_id('attendance'),
+                    'staff_id': int(staff_id),
+                    'clock_in': clock_in_time,
+                    'created_at': clock_in_time,  # needed so checkout's sort-by-most-recent-open-shift actually works
+                    'clock_out': None,
+                    'latitude_in': lat,
+                    'longitude_in': lng,
+                    'status': 'Present',
+                    'business_id': business_id
+                })
         except Exception:
             pass
 
@@ -8070,12 +8606,16 @@ def api_checkout():
                 note TEXT
             )
         ''')
+        # Close only the SINGLE most-recent open shift for this staff member — the previous
+        # `WHERE staff_id = ? AND clock_out IS NULL` (no LIMIT) closed every open row at once,
+        # stamping the same clock_out on all of them if more than one was ever left open.
+        c.execute('SELECT id FROM local_attendance WHERE staff_id = ? AND clock_out IS NULL ORDER BY id DESC LIMIT 1', (str(staff_id),))
+        open_row = c.fetchone()
+        if not open_row:
+            conn.close()
+            return jsonify({"success": False, "error": "Không tìm thấy ca làm đang mở để checkout."}), 400
         clock_out_time = datetime.now().isoformat()
-        c.execute('''
-            UPDATE local_attendance
-            SET clock_out = ?
-            WHERE staff_id = ? AND clock_out IS NULL
-        ''', (clock_out_time, str(staff_id)))
+        c.execute('UPDATE local_attendance SET clock_out = ? WHERE id = ?', (clock_out_time, open_row[0]))
         conn.commit()
         conn.close()
 
@@ -8470,6 +9010,23 @@ def api_hr_chamcong_list():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# Financial fields on db.chamcong (commission, tips, allowance, hours, overtime) must never
+# persist as negative regardless of which screen/client math produced them (e.g. supply% >
+# total bill on the nail Tua screen, or a bad client value on the F&B tip-split) — clamped here
+# at the actual write boundary so it's guaranteed rather than relying on every caller to be correct.
+_CHAMCONG_MONEY_FIELDS = ('tien_tua', 'tien_tips', 'phu_cap', 'so_gio', 'tang_ca')
+
+
+def _clamp_chamcong_money_fields(fields):
+    for field in _CHAMCONG_MONEY_FIELDS:
+        if field in fields:
+            try:
+                fields[field] = max(0.0, float(fields[field] or 0))
+            except (TypeError, ValueError):
+                fields[field] = 0.0
+    return fields
+
+
 @app.route('/api/hr/chamcong', methods=['POST'])
 @login_required
 def api_hr_chamcong_create():
@@ -8478,7 +9035,7 @@ def api_hr_chamcong_create():
     if not (data.get('ma_nv') or '').strip():
         return jsonify({"success": False, "error": "Missing employee ID (ma_nv)."}), 400
     try:
-        doc = dict(data)
+        doc = _clamp_chamcong_money_fields(dict(data))
         doc['id'] = next_mongo_id('chamcong')
         doc['business_id'] = business_id
         db.chamcong.insert_one(doc)
@@ -8496,6 +9053,7 @@ def api_hr_chamcong_update(record_id):
     updates = {k: v for k, v in data.items() if k != 'id' and k != 'business_id' and k != 'ma_nv'}
     if not updates:
         return jsonify({"success": False, "error": "No valid fields to update."}), 400
+    updates = _clamp_chamcong_money_fields(updates)
     try:
         result = db.chamcong.update_one({'id': record_id, 'business_id': business_id}, {'$set': updates})
         if result.matched_count == 0:

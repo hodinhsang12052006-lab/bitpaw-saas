@@ -133,6 +133,33 @@ def create_terminal_checkout(amount_usd, txn_id, note='BitPaw POS Order'):
         return {'success': False, 'configured': True, 'message': f'Square API error: {str(e)}'}
 
 
+def cancel_terminal_checkout(checkout_id):
+    """Square Terminal API — cancels an in-progress checkout still waiting on the physical
+    device. Docs: POST /v2/terminals/checkouts/{checkout_id}/cancel
+    Lets the cashier back out of a Terminal checkout immediately (customer changed their mind,
+    walked away, wrong amount) instead of waiting for Square's own device-side expiry."""
+    if not is_configured():
+        return {
+            'success': False,
+            'configured': False,
+            'message': 'Square Sandbox chưa được cấu hình (thiếu SQUARE_ACCESS_TOKEN/SQUARE_LOCATION_ID).'
+        }
+    try:
+        resp = requests.post(f'{SQUARE_API_BASE}/v2/terminals/checkouts/{checkout_id}/cancel',
+                              headers=_headers(), timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+        checkout = data.get('checkout', {})
+        return {
+            'success': True,
+            'configured': True,
+            'checkout_id': checkout.get('id') or checkout_id,
+            'terminal_status': checkout.get('status'),
+        }
+    except requests.exceptions.RequestException as e:
+        return {'success': False, 'configured': True, 'message': f'Square API error: {str(e)}'}
+
+
 def start_us_payment(amount_usd, txn_id, description='BitPaw POS Order'):
     """Entry point used by /api/us-payment/start. Prefers a physical Terminal checkout
     when a device is paired to the tenant, otherwise falls back to a hosted payment link
