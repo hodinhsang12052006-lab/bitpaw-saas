@@ -10,14 +10,15 @@ def format_money(amount, currency='VND'):
 
     VND: '1.200.000đ' (period thousands separator, đ suffix, no decimals — VND
     has no minor unit in everyday display).
-    USD: '$1,200.50' (comma thousands separator, 2 decimals, $ prefix).
+    USD/AUD: '$1,200.50' (comma thousands separator, 2 decimals, $ prefix — same
+    formatting for both since neither uses an FX conversion, just the display).
     """
     try:
         value = float(amount or 0)
     except (TypeError, ValueError):
         value = 0.0
 
-    if (currency or 'VND').upper() == 'USD':
+    if (currency or 'VND').upper() in ('USD', 'AUD'):
         return f"${value:,.2f}"
 
     # VND

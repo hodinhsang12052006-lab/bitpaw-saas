@@ -42,6 +42,10 @@ from gridfs.errors import NoFile
 from bson import ObjectId
 from bson.errors import InvalidId
 from ai_context_engine import AIContextEngine
+from ai_sales_prompts import compose_system_prompt, classify_objection
+from ai_memory_engine import get_conversation_memory, maybe_distill_memory_async
+from ai_vector_rag import retrieve_relevant_knowledge, reindex_business_knowledge
+from ai_nurturing_engine import AINurturingEngine
 from email_service import EmailService
 
 # Các module cho US market pivot (tenant_engine/currency_utils/payment_us_engine) từng làm
@@ -248,7 +252,12 @@ INDUSTRY_CONFIG = {
 
 @app.context_processor
 def inject_industry_config():
-    business_mode = session.get('business_mode', 'retail')
+    # .strip().lower() phòng thủ: mọi điểm GHI business_mode (register()/setup()) đã tự
+    # chuẩn hoá lowercase, nhưng session/system_settings có thể còn dữ liệu cũ từ TRƯỚC khi
+    # chuẩn hoá này tồn tại — INDUSTRY_CONFIG chỉ có key lowercase ('nail', 'fnb'...), lệch
+    # case dù chỉ 1 ký tự cũng khiến active_cfg/active_industry_code rơi về None/sai ngành
+    # một cách im lặng (không lỗi, không log), y hệt bug sidebar Nails vừa gặp.
+    business_mode = (session.get('business_mode') or 'retail').strip().lower()
     if business_mode not in INDUSTRY_CONFIG:
         active_cfg = None
     else:
@@ -317,53 +326,11 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS customer_profiles (
-            id TEXT PRIMARY KEY,
-            business_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            phone TEXT,
-            email TEXT,
-            industry TEXT,
-            source_platform TEXT,
-            last_purchase_at TIMESTAMP,
-            total_spending REAL DEFAULT 0,
-            services_of_interest TEXT,
-            nurturing_status TEXT DEFAULT 'NEW',
-            ai_notes TEXT,
-            potential_score REAL DEFAULT 50,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS campaign_messages (
-            id TEXT PRIMARY KEY,
-            business_id TEXT NOT NULL,
-            campaign_id TEXT NOT NULL,
-            customer_id TEXT NOT NULL,
-            step_delay INTEGER NOT NULL,
-            message_body TEXT NOT NULL,
-            approval_status TEXT DEFAULT 'PENDING',
-            scheduled_send_at TIMESTAMP,
-            sent_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS nurturing_campaigns (
-            id TEXT PRIMARY KEY,
-            business_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            target_segment_id TEXT,
-            campaign_goal TEXT,
-            channel TEXT,
-            tone TEXT,
-            is_active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    # customer_profiles/nurturing_campaigns/campaign_messages (SQLite) đã bị loại bỏ hoàn
+    # toàn — AI Nurturing Engine giờ đọc/ghi trực tiếp trên db.customers (MongoDB, cùng
+    # collection mọi module khác đang dùng) và 2 collection Mongo mới db.nurturing_campaigns/
+    # db.campaign_messages, không còn shadow copy nào tách biệt (xem app.py các route
+    # /api/ai/nurture/* và ai_nurturing_engine.py).
     c.execute('''
         CREATE TABLE IF NOT EXISTS bot_scenarios (
             id TEXT PRIMARY KEY,
@@ -540,7 +507,12 @@ def register():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        business_type = request.form['business_type']
+        # Chuẩn hoá lowercase NGAY tại điểm nhận vào — INDUSTRY_CONFIG chỉ có key lowercase
+        # ('nail', 'fnb'...); dropdown UI hiện tại luôn gửi đúng key, nhưng chuẩn hoá ở đây
+        # để KHÔNG phụ thuộc vào việc UI luôn "cư xử đúng" (vd: gọi thẳng API, hoặc dữ liệu
+        # cũ trước khi có chuẩn hoá này) — tránh business_mode lệch case khiến toàn bộ so
+        # sánh == 'nail' ở sidebar/route điều hướng lặng lẽ rơi về nhánh mặc định sai ngành.
+        business_type = (request.form['business_type'] or '').strip().lower()
         business_name = (request.form.get('business_name') or '').strip()
         fullname = (request.form.get('fullname') or '').strip()
         license_key = request.form.get('license_key', '').strip()
@@ -796,7 +768,7 @@ def login():
             try:
                 business_mode_key = f'business_mode_{user_id}'
                 mode_doc = db.system_settings.find_one({'key': business_mode_key})
-                mode = mode_doc['value'] if mode_doc else 'none'
+                mode = (mode_doc['value'] if mode_doc else 'none').strip().lower()
             except Exception as db_err:
                 print(f"MongoDB system_settings select skipped: {str(db_err)}")
                 mode = 'none'
@@ -1011,11 +983,11 @@ def root():
 @app.route('/index.html')
 def home():
     if 'user_id' in session:
-        mode = session.get('business_mode')
+        mode = (session.get('business_mode') or '').strip().lower()
         if not mode:
             try:
                 mode_doc = db.system_settings.find_one({'key': f"business_mode_{session['user_id']}"}, {'value': 1, '_id': 0})
-                mode = mode_doc['value'] if mode_doc else 'none'
+                mode = (mode_doc['value'] if mode_doc else 'none').strip().lower()
                 session['business_mode'] = mode
             except Exception as db_err:
                 print(f"MongoDB system_settings select skipped: {str(db_err)}")
@@ -1047,11 +1019,11 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
         
-    mode = session.get('business_mode')
+    mode = (session.get('business_mode') or '').strip().lower()
     if not mode:
         try:
             mode_doc = db.system_settings.find_one({'key': f"business_mode_{session['user_id']}"}, {'value': 1, '_id': 0})
-            mode = mode_doc['value'] if mode_doc else 'none'
+            mode = (mode_doc['value'] if mode_doc else 'none').strip().lower()
             session['business_mode'] = mode
         except Exception as db_err:
             print(f"MongoDB system_settings select skipped: {str(db_err)}")
@@ -1539,7 +1511,9 @@ def solutions_page(industry_code):
 @login_required
 def setup():
     if request.method == 'POST':
-        mode = request.form['mode']
+        # Chuẩn hoá lowercase — cùng lý do đã áp dụng ở register() (INDUSTRY_CONFIG chỉ có
+        # key lowercase, mọi so sánh == 'nail' ở nơi khác đều giả định giá trị đã sạch).
+        mode = (request.form['mode'] or '').strip().lower()
         session['business_mode'] = mode
         try:
             business_mode_key = f"business_mode_{session['user_id']}"
@@ -1558,7 +1532,7 @@ def setup():
 def add_product():
     try:
         mode_doc = db.system_settings.find_one({'key': f"business_mode_{session['user_id']}"}, {'value': 1, '_id': 0})
-        current_mode = mode_doc['value'] if mode_doc else 'none'
+        current_mode = (mode_doc['value'] if mode_doc else 'none').strip().lower()
     except Exception as db_err:
         print(f"MongoDB system_settings select failed: {str(db_err)}")
         current_mode = 'none'
@@ -5538,7 +5512,264 @@ def payment_success():
 @app.route('/sell')
 @login_required
 def sell():
+    """Nails có màn hình POS chuyên biệt riêng (pos_nail.html: lưới dịch vụ theo category,
+    giỏ hàng, gán thợ theo TỪNG dòng dịch vụ để tính hoa hồng — /sell cũ chỉ bán được 1 sản
+    phẩm/lần và không gán thợ). Các ngành khác (Retail...) vẫn dùng sell.html như trước,
+    hành vi không đổi."""
+    business_mode = (session.get('business_mode') or '').strip().lower()
+    if business_mode == 'nail':
+        business_id = session.get('business_id') or session['user_id']
+        try:
+            services = list(db.products.find(
+                {'business_id': business_id, 'is_active': 1},
+                {'id': 1, 'name': 1, 'category': 1, 'price': 1, 'image': 1, '_id': 0}
+            ).sort('name', 1))
+        except Exception as e:
+            print(f"[sell/nail] Lỗi tải danh mục dịch vụ: {str(e)}")
+            services = []
+        try:
+            # Thợ lấy từ db.employees (linh_vuc='Nails') — ĐÚNG nguồn dữ liệu Salon Staff
+            # Management (chamcong_nail.html) đã và đang dùng, KHÔNG dùng db.staff (hệ thống
+            # commission riêng của sell.html/spa.html cũ) — 2 tenant chưa từng đồng bộ với
+            # nhau, dùng chung nguồn với màn Payroll hiện tại để không cần tạo dữ liệu 2 lần.
+            technicians = list(db.employees.find(
+                {'business_id': business_id, 'linh_vuc': 'Nails'},
+                {'ma_nv': 1, 'ho_ten': 1, '_id': 0}
+            ).sort('ho_ten', 1))
+        except Exception as e:
+            print(f"[sell/nail] Lỗi tải danh sách thợ: {str(e)}")
+            technicians = []
+        return render_template(
+            'pos_nail.html',
+            services=services,
+            technicians=technicians,
+            default_commission_rate=_get_business_commission_rate(business_id),
+        )
     return render_template('sell.html')
+
+
+@app.route('/api/nail_pos/checkout', methods=['POST'])
+@login_required
+def api_nail_pos_checkout():
+    """Checkout riêng cho Nail POS (pos_nail.html) — khác api_sales_checkout() ở chỗ CHO
+    PHÉP gán thợ RIÊNG cho từng dòng dịch vụ (1 bill có thể do nhiều thợ cùng phục vụ), và
+    tính hoa hồng/tip đúng công thức chamcong_nail.html đã dùng (supply trừ theo % tổng bill
+    TRƯỚC khi chia hoa hồng; tip thẻ trừ phí cà thẻ trước khi chia cho thợ, khách vẫn thấy
+    đúng số tip gốc đã nhập trên hoá đơn).
+
+    Ghi ĐỒNG THỜI 2 nơi để không phá tính năng nào đang có, và vá luôn 1 lỗ hổng cũ:
+      - orders/order_items: để doanh thu Nails LẦN ĐẦU TIÊN xuất hiện đúng trong
+        report_consolidated/dashboard — luồng tính bill cũ thuần ở chamcong_nail.html
+        KHÔNG hề tạo order nào, nên doanh thu Nails trước giờ không hề được đối soát.
+      - chamcong (1 bản ghi/thợ được gán, không phải 1 bản ghi/dòng dịch vụ): để Salon Staff
+        Management/Payroll (chamcong_nail.html) đọc được y hệt như khi tự bấm "Đã chốt" thủ
+        công — không cần đổi màn hình đó, không cần đổi cách tính lương đã quen dùng.
+    """
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    items = data.get('items') or []
+    if not items:
+        return jsonify({"success": False, "message": "Giỏ hàng trống."}), 400
+
+    try:
+        product_ids = [it.get('product_id') for it in items]
+        products_map = {
+            p['id']: p for p in db.products.find(
+                {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
+            )
+        }
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    order_items_docs = []
+    subtotal = 0.0
+    # Gom net revenue theo từng thợ được gán (ma_nv) để tính hoa hồng 1 LẦN/THỢ, không phải
+    # 1 lần/dòng — 1 thợ có thể được gán nhiều dịch vụ khác nhau trong cùng 1 bill.
+    per_tech_revenue = {}
+    for it in items:
+        qty = max(1, int(it.get('quantity', 1)))
+        ma_nv = (it.get('ma_nv') or '').strip() or None
+        prod = products_map.get(it.get('product_id'))
+        custom_name = None
+        if prod:
+            price = prod.get('price', 0)
+            pid = prod['id']
+        else:
+            # Dòng "Add Custom Item" của pos_nail.html — không gắn product có sẵn, cashier
+            # tự nhập tên + giá tại quầy (phụ phí phát sinh...) — vẫn cho gán thợ/tính hoa
+            # hồng như 1 dòng dịch vụ thường, chỉ khác là không tồn tại product_id thật.
+            custom_name = (it.get('custom_name') or '').strip()
+            try:
+                price = round(float(it.get('custom_price')), 2)
+            except (TypeError, ValueError):
+                price = None
+            if not custom_name or price is None or price < 0:
+                continue  # chặn bán dịch vụ không thuộc tenant này hoặc dòng custom thiếu dữ liệu
+            pid = None
+        line_total = round(qty * price, 2)
+        subtotal += line_total
+        oi_doc = {
+            'product_id': pid, 'quantity': qty, 'price': price,
+            'total_price': line_total, 'ma_nv': ma_nv,
+        }
+        if custom_name:
+            oi_doc['custom_name'] = custom_name
+        order_items_docs.append(oi_doc)
+        if ma_nv:
+            per_tech_revenue[ma_nv] = per_tech_revenue.get(ma_nv, 0) + line_total
+
+    if not order_items_docs:
+        return jsonify({"success": False, "message": "Không có dịch vụ hợp lệ trong giỏ hàng."}), 400
+    subtotal = round(subtotal, 2)
+
+    # Supply: % của TỔNG bill khấu trừ TRƯỚC khi chia hoa hồng (đúng model chamcong_nail.html)
+    # — chi phí vật tư (gel/bột...), không phải phụ phí khách nhìn thấy trên hoá đơn.
+    supply_percent = float(data.get('supply_percent') or 0)
+    supply_amount = round(subtotal * (supply_percent / 100), 2)
+    net_revenue = subtotal - supply_amount
+
+    cash_tip = round(float(data.get('cash_tip') or 0), 2)
+    card_tip = round(float(data.get('card_tip') or 0), 2)
+    cc_fee_percent = float(data.get('cc_fee_percent') or 0)
+    card_tip_fee = round(card_tip * (cc_fee_percent / 100), 2)
+    net_card_tip = round(card_tip - card_tip_fee, 2)
+    total_tip = round(cash_tip + card_tip, 2)  # khách thấy đúng số tip đã nhập trên hoá đơn
+    worker_total_tip = round(cash_tip + net_card_tip, 2)  # thợ thực nhận (tip thẻ đã trừ phí cà thẻ)
+
+    # Discount áp trực tiếp lên giá khách trả (KHÔNG đụng subtotal/supply/hoa hồng thợ ở trên)
+    # — thợ vẫn được tính công đúng giá trị dịch vụ đã làm, salon chịu phần giảm giá.
+    discount_type = (data.get('discount_type') or '').strip().lower()
+    discount_value = float(data.get('discount_value') or 0)
+    if discount_type == 'percent':
+        discount_amount = round(subtotal * (discount_value / 100), 2)
+    elif discount_type == 'fixed':
+        discount_amount = round(discount_value, 2)
+    else:
+        discount_amount = 0.0
+    discount_amount = max(0.0, min(discount_amount, subtotal))
+
+    # Tax/GST — cộng thêm SAU khi đã trừ discount, không đụng supply/hoa hồng thợ ở trên.
+    # Mặc định 0% vì không phải salon nào cũng đăng ký GST — chủ salon tự bật nếu cần.
+    tax_percent = float(data.get('tax_percent') or 0)
+    taxable_amount = max(0.0, subtotal - discount_amount)
+    tax_amount = round(taxable_amount * (tax_percent / 100), 2) if tax_percent > 0 else 0.0
+
+    payment_method = (data.get('payment_method') or 'cash').strip().lower()
+    if payment_method == 'split':
+        payment_bucket = 'split'
+    elif payment_method == 'cash':
+        payment_bucket = 'cash'
+    else:
+        payment_bucket = 'card'
+    total_amount = round(subtotal - discount_amount + tax_amount + total_tip, 2)
+
+    commission_rate = data.get('commission_rate')
+    try:
+        commission_rate = float(commission_rate) if commission_rate is not None else _get_business_commission_rate(business_id)
+    except (TypeError, ValueError):
+        commission_rate = _get_business_commission_rate(business_id)
+
+    try:
+        order_id = next_mongo_id('orders')
+        now_dt = datetime.now()
+        now_iso = now_dt.isoformat()
+        order_doc = {
+            'id': order_id, 'business_id': business_id, 'status': 'completed',
+            'created_at': now_iso, 'subtotal': subtotal, 'supply_amount': supply_amount,
+            'discount_amount': discount_amount, 'tax_amount': tax_amount,
+            'tip_amount': total_tip, 'total_amount': total_amount,
+            'payment_method': payment_method, 'payment_bucket': payment_bucket,
+            'currency': data.get('currency') or 'AUD', 'channel': 'nail_pos',
+        }
+        customer_phone = (data.get('customer_phone') or '').strip()
+        if customer_phone:
+            order_doc['customer_phone'] = customer_phone
+        db.orders.insert_one(order_doc)
+
+        for oi in order_items_docs:
+            oi['id'] = next_mongo_id('order_items')
+            oi['order_id'] = order_id
+            oi['business_id'] = business_id
+            if customer_phone:
+                oi['customer_phone'] = customer_phone
+        db.order_items.insert_many(order_items_docs)
+
+        # 1 bản ghi chamcong / thợ được gán trong bill này — tip chia đều cho các thợ được
+        # gán (đơn giản, minh bạch); nếu chỉ 1 thợ, thợ đó nhận trọn tip, khớp hành vi cũ.
+        techs_paid = []
+        if per_tech_revenue:
+            tip_share = round(worker_total_tip / len(per_tech_revenue), 2)
+            for ma_nv, tech_revenue_share in per_tech_revenue.items():
+                # net_revenue được phân bổ theo đúng tỷ trọng doanh thu dịch vụ của từng thợ
+                # trong bill (không chia đều) — công bằng khi các dịch vụ có giá khác nhau.
+                tech_net_share = round(tech_revenue_share * (net_revenue / subtotal), 2) if subtotal else 0
+                worker_tua = round(tech_net_share * (commission_rate / 100), 2)
+                db.chamcong.insert_one({
+                    'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': ma_nv,
+                    # DD/MM/YYYY — KHÔNG phải ISO YYYY-MM-DD — phải khớp đúng định dạng
+                    # getFormattedDate() ghi ở chamcong_nail.html, vì bangluong.html lọc
+                    # theo tháng bằng ngay_cham.split('/')[1]/[2] (month/year); ghi sai định
+                    # dạng khiến mọi bill Nails POS bị lọc mất khỏi báo cáo lương tháng đó.
+                    'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                    'ghi_chu': f"[NAILS POS] Order #{order_id} — {commission_rate}% hoa hồng",
+                    'tien_tua': worker_tua, 'tien_tips': tip_share, 'phu_cap': 0, 'so_gio': 0,
+                    'tang_ca': 0,
+                })
+                techs_paid.append({'ma_nv': ma_nv, 'commission': worker_tua, 'tip': tip_share})
+
+        if customer_phone:
+            _finalize_paid_order(order_doc)
+
+        return jsonify({
+            "success": True, "order_id": order_id, "subtotal": subtotal,
+            "supply_amount": supply_amount, "discount_amount": discount_amount,
+            "tax_amount": tax_amount, "tip_amount": total_tip,
+            "total_amount": total_amount, "techs_paid": techs_paid,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/nail_pos/refund', methods=['POST'])
+@login_required
+def api_nail_pos_refund():
+    """Return/Refund cho Nail POS — ghi 1 order âm liên kết tới order gốc để trừ vào doanh
+    thu/báo cáo (report_consolidated đọc db.orders nên chỉ cần ghi record là đủ khớp sổ),
+    KHÔNG đảo ngược hoa hồng/chamcong đã chốt cho thợ (out of scope — xử lý thủ công nếu cần)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    original_order_id = data.get('order_id')
+    if not original_order_id:
+        return jsonify({"success": False, "message": "Vui lòng nhập mã hoá đơn (Order #) cần hoàn tiền."}), 400
+    try:
+        amount = round(float(data.get('amount') or 0), 2)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Số tiền hoàn không hợp lệ."}), 400
+    if amount <= 0:
+        return jsonify({"success": False, "message": "Số tiền hoàn phải lớn hơn 0."}), 400
+
+    try:
+        original_order = db.orders.find_one({'id': original_order_id, 'business_id': business_id}, {'_id': 0})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    if not original_order:
+        return jsonify({"success": False, "message": f"Không tìm thấy hoá đơn #{original_order_id}."}), 404
+
+    try:
+        refund_id = next_mongo_id('orders')
+        db.orders.insert_one({
+            'id': refund_id, 'business_id': business_id, 'status': 'refunded',
+            'created_at': datetime.now().isoformat(), 'subtotal': -amount, 'supply_amount': 0,
+            'discount_amount': 0, 'tip_amount': 0, 'total_amount': -amount,
+            'payment_method': original_order.get('payment_method', 'cash'),
+            'payment_bucket': original_order.get('payment_bucket', 'cash'),
+            'currency': original_order.get('currency') or 'AUD', 'channel': 'nail_pos_refund',
+            'original_order_id': original_order_id, 'refund_reason': (data.get('reason') or '').strip(),
+        })
+        return jsonify({"success": True, "refund_id": refund_id})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 
 # ========== MỚI: ROUTE CHO CƠ SỞ DỮ LIỆU NHÂN SỰ VÀ SUPER ADMIN ==========
 @app.route('/nhanvien')
@@ -5934,19 +6165,19 @@ def super_admin():
 @login_required
 def ai_bot():
     business_id = session.get('business_id', 'mock-business-123')
-    user_email = session.get('user_email', 'Chưa có dữ liệu doanh nghiệp')
+    user_email = session.get('user_email', 'Not set')
     industry = session.get('business_mode', 'retail')
-    
-    brand_name = 'Chưa có dữ liệu doanh nghiệp'
+
+    brand_name = 'No Business Profile Yet'
     brand_email = user_email
-    brand_phone = 'Chưa thiết lập SĐT'
-    brand_zalo = 'Chưa có Zalo OA'
-    brand_fb = 'Chưa kết nối Facebook'
-    brand_industry = INDUSTRY_CONFIG.get(industry, {}).get('name', 'Bán lẻ (Retail)')
+    brand_phone = 'Phone Not Set'
+    brand_zalo = 'No Zalo OA Connected'
+    brand_fb = 'Facebook Not Connected'
+    brand_industry = INDUSTRY_CONFIG.get(industry, {}).get('name', 'Retail')
     brand_tier = 'BitPaw Trial'
-    brand_staff = '0 nhân sự'
+    brand_staff = '0 Staff'
     brand_joined = '2026-05-29'
-    brand_branch = 'Chưa xác định'
+    brand_branch = 'Not Set'
     
     has_profile = False
     
@@ -5977,7 +6208,7 @@ def ai_bot():
         c.execute("SELECT COUNT(*) FROM staff WHERE business_id = ?", (business_id,))
         staff_count = c.fetchone()[0]
         if staff_count > 0:
-            brand_staff = f"{staff_count} nhân sự"
+            brand_staff = f"{staff_count} Staff"
 
         conn.close()
     except Exception as db_err:
@@ -5997,7 +6228,7 @@ def ai_bot():
 
     profile = {
         "has_profile": has_profile,
-        "name": brand_name if has_profile or brand_name != 'Chưa có dữ liệu doanh nghiệp' else "Chưa có dữ liệu doanh nghiệp",
+        "name": brand_name if has_profile or brand_name != 'No Business Profile Yet' else "No Business Profile Yet",
         "email": brand_email,
         "phone": brand_phone,
         "zalo": brand_zalo,
@@ -6215,9 +6446,12 @@ def secure_ai_generate():
     else:
         business_id = data.get('business_id')
     industry = data.get('industry') or session.get('business_mode', 'general')
-    # Persona/phong cách do client gửi (KHÔNG chứa số liệu doanh nghiệp thật) — số liệu luôn
-    # được server tự nhúng bên dưới, lọc đúng theo business_id, không tin client.
-    client_persona = data.get('systemPrompt', '')
+    # LƯU Ý: KHÔNG còn đọc client's "systemPrompt" để dựng prompt nữa (loophole cũ: browser
+    # có thể tự gửi bất kỳ prompt text nào lên, tự ý đổi hành vi/persona của bot). Persona giờ
+    # được lắp ráp HOÀN TOÀN server-side qua ai_sales_prompts.compose_system_prompt() — client
+    # chỉ còn được quyền chọn industry CODE (1 trong danh sách cố định), không phải nội dung
+    # prompt thô. Xem ai_sales_prompts.py để hiểu kiến trúc 4 lớp (Master Persona/Industry
+    # Delta/Tenant Data/Objection Guidance).
     user_prompt = data.get('userPrompt', '')
     temperature = data.get('temperature', 0.7)
     max_tokens = data.get('max_tokens', 1500)
@@ -6228,12 +6462,42 @@ def secure_ai_generate():
                                                 include_private_data=is_authenticated)
     tenant_context = ctx['prompt']
     business_name = ctx['business_name'] or 'BitPaw'
-    system_prompt = f"{tenant_context}\n{client_persona}".strip()
+
+    # customer_id dùng để khoá trí nhớ hội thoại (ai_memory_engine) — CÙNG quy ước
+    # "business_id:phone" mà _persist_chat_turn()/bot_customers.id đã dùng ở khắp nơi
+    # trong app.py. Chỉ có khi đã biết cả business_id lẫn customer_phone.
+    customer_id = f"{business_id}:{customer_phone}" if (business_id and customer_phone) else None
 
     # === Nối chuỗi hội thoại thật (không để AI mất ngữ cảnh khi khách trả lời cụt lủn) ===
     # Ưu tiên lịch sử client đang giữ trong phiên chat hiện tại; nếu client không gửi gì (vd:
     # vừa refresh trang) thì khôi phục lại từ DB theo đúng business_id + SĐT khách.
     history = client_history if client_history else _load_recent_chat_history(business_id, customer_phone)
+
+    # === Lightweight objection router (Phase 1) ===
+    # Phân loại tin nhắn MỚI NHẤT của khách vào 1 trong các nhóm phản đối đã định nghĩa ở
+    # OBJECTION_PLAYBOOK (giá, tin tưởng, đối thủ, chần chừ, nghi ngờ tính năng) bằng 1 lệnh
+    # gọi DeepSeek riêng, rẻ và nhanh (temperature=0, max_tokens=8, timeout 8s). Best-effort:
+    # bất kỳ lỗi/timeout nào cũng chỉ trả về None (không chèn objection guidance), KHÔNG BAO
+    # GIỜ được phép làm chậm/gãy luồng trả lời chính. classify_objection() tự bỏ qua bằng
+    # regex trước khi gọi LLM cho các tin nhắn rõ ràng không phải phản đối (Phase 2 optimization).
+    latest_customer_message = user_prompt or (history[-1]['content'] if history else '')
+    objection_category = classify_objection(latest_customer_message, history)
+
+    # === Phase 2: distilled memory + Vector RAG (cả 2 đều tự no-op an toàn nếu chưa cấu
+    # hình/chưa có dữ liệu — xem docstring ai_memory_engine.py / ai_vector_rag.py) ===
+    conversation_memory = get_conversation_memory(customer_id) if customer_id else ""
+    retrieved_knowledge = retrieve_relevant_knowledge(business_id, latest_customer_message)
+    extra_context_parts = []
+    if conversation_memory:
+        extra_context_parts.append(f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}")
+    if retrieved_knowledge:
+        extra_context_parts.append(
+            "MOST RELEVANT PRODUCTS/SERVICES TO THEIR CURRENT QUESTION:\n"
+            + "\n".join(f"- {chunk}" for chunk in retrieved_knowledge)
+        )
+    extra_context = "\n\n".join(extra_context_parts) if extra_context_parts else None
+
+    system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
 
     messages = [{"role": "system", "content": system_prompt}]
     for turn in history[-12:]:
@@ -6247,7 +6511,7 @@ def secure_ai_generate():
         messages.append({"role": "user", "content": user_prompt})
 
     # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
-    _persist_chat_turn(business_id, customer_phone, user_prompt or (history[-1]['content'] if history else ''), sender_type='customer')
+    _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer')
 
     # Câu chốt sale dự phòng thông minh — thay cho câu báo lỗi cứng cũ, luôn gắn đúng tên
     # cửa hàng của tenant (hoặc "BitPaw" nếu là bot marketing chung không gắn tenant nào).
@@ -6282,6 +6546,18 @@ def secure_ai_generate():
         try:
             ai_text = result['choices'][0]['message']['content']
             _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai')
+
+            # Phase 2: throttled, background-thread distillation of the running memory —
+            # never awaited, never allowed to slow down this response (xem ai_memory_engine.py).
+            if customer_id and db is not None:
+                customer_turn_count = db.bot_messages.count_documents(
+                    {'customer_id': customer_id, 'sender_type': 'customer'}
+                )
+                recent_turns = history[-6:] + [
+                    {'role': 'user', 'content': latest_customer_message},
+                    {'role': 'assistant', 'content': ai_text},
+                ]
+                maybe_distill_memory_async(customer_id, recent_turns, customer_turn_count)
         except Exception:
             pass
         return jsonify(result)
@@ -6294,6 +6570,19 @@ def secure_ai_generate():
     except requests.exceptions.RequestException as e:
         return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
                          "error": f"Lỗi kết nối AI service: {str(e)}"})
+
+
+@app.route('/api/ai/reindex_knowledge', methods=['POST'])
+@login_required
+def api_ai_reindex_knowledge():
+    """Trigger thủ công việc reindex catalog sản phẩm của tenant hiện tại vào
+    business_knowledge cho Vector RAG (ai_vector_rag.py) — gọi lại sau khi thêm/sửa sản
+    phẩm đáng kể. Không tự động chạy theo trigger sự kiện ở phase này (xem ghi chú
+    trong ai_vector_rag.py); đây là điểm vào thủ công duy nhất."""
+    business_id = session.get('business_id') or session['user_id']
+    count = reindex_business_knowledge(business_id)
+    return jsonify({"success": True, "reindexed": count})
+
 
 @app.route('/app_chat')
 @login_required
@@ -6709,10 +6998,11 @@ def nurture_connect_status():
                 "config_data": row[3]
             }
         
-        # Count customers from database to use as real lead counts
-        c.execute("SELECT COUNT(*) FROM customer_profiles WHERE business_id = ?", (business_id,))
-        sqlite_leads = c.fetchone()[0]
         conn.close()
+
+        # Count customers to use as real lead counts — giờ đọc trực tiếp từ db.customers
+        # (MongoDB), không còn shadow copy customer_profiles (SQLite) nữa.
+        real_leads = db.customers.count_documents({'business_id': business_id}) if db is not None else 0
         
         platforms = ['messenger', 'fb_page', 'zalo_oa', 'whatsapp', 'mascot_chat', 'pos_sync']
         data = {}
@@ -6743,7 +7033,7 @@ def nurture_connect_status():
                 
             if status_str == "CONNECTED":
                 last_sync = p_data["updated_at"] or "2026-05-30 00:30"
-                leads_count = sqlite_leads if p == 'pos_sync' else (18 + (hash(p) % 45))
+                leads_count = real_leads if p == 'pos_sync' else (18 + (hash(p) % 45))
             else:
                 last_sync = "Chưa đồng bộ"
                 leads_count = 0
@@ -7017,32 +7307,40 @@ def cskh_lead_submit():
 @app.route('/api/ai/nurture/customers', methods=['GET'])
 @login_required
 def nurture_customers():
-    business_id = session.get('business_id', 'mock-business-123')
+    """Đọc trực tiếp db.customers (MongoDB) — không còn shadow copy customer_profiles
+    (SQLite). Các field nurturing (status/ai_notes/potential_score/last_purchase_at)
+    có thể chưa tồn tại trên khách hàng cũ nào chưa từng được chấm điểm — mặc định về
+    đúng giá trị gốc trước đây ('NEW'/50/None) trong trường hợp đó, KHÔNG lỗi/thiếu field."""
+    business_id = session.get('business_id') or session['user_id']
 
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("SELECT id, name, phone, email, industry, source_platform, last_purchase_at, total_spending, services_of_interest, nurturing_status, ai_notes, potential_score FROM customer_profiles WHERE business_id = ? ORDER BY total_spending DESC", (business_id,))
-        rows = c.fetchall()
-        conn.close()
-        
+        rows = list(db.customers.find(
+            {'business_id': business_id},
+            {'id': 1, 'name': 1, 'phone': 1, 'email': 1, 'industry': 1, 'source_platform': 1,
+             'last_purchase_at': 1, 'total_spent': 1, 'services_of_interest': 1,
+             'nurturing_status': 1, 'ai_notes': 1, 'potential_score': 1, '_id': 0}
+        ).sort('total_spent', -1))
+
         customers = []
         for r in rows:
             customers.append({
-                "id": r[0],
-                "name": r[1],
-                "phone": r[2],
-                "email": r[3],
-                "industry": r[4],
-                "source": r[5],
-                "last_purchase": r[6],
-                "total_spend": r[7],
-                "service_interest": r[8],
-                "status": r[9],
-                "ai_notes": r[10],
-                "potential_score": r[11]
+                # id ép về string: JS phía client so khớp id kiểu strict "===" sau khi đã
+                # nhúng qua thuộc tính onclick (luôn ra string) — giữ nguyên type string
+                # tránh lệch kiểu int-vs-string y hệt hành vi cũ (customer_profiles.id TEXT).
+                "id": str(r.get('id')),
+                "name": r.get('name'),
+                "phone": r.get('phone'),
+                "email": r.get('email'),
+                "industry": r.get('industry'),
+                "source": r.get('source_platform'),
+                "last_purchase": r.get('last_purchase_at'),
+                "total_spend": r.get('total_spent') or 0,
+                "service_interest": r.get('services_of_interest'),
+                "status": r.get('nurturing_status') or 'NEW',
+                "ai_notes": r.get('ai_notes'),
+                "potential_score": r.get('potential_score') if r.get('potential_score') is not None else 50,
             })
-            
+
         return jsonify({"success": True, "data": customers})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -7092,98 +7390,130 @@ def customer_service_photos():
 @app.route('/api/ai/nurture/import-data', methods=['POST'])
 @login_required
 def nurture_import_data():
-    business_id = session.get('business_id', 'mock-business-123')
-    industry = session.get('business_mode', 'retail')
+    """Trước đây: đồng bộ 1 chiều db.customers -> shadow copy SQLite, luôn set
+    nurturing_status='NEW' không bao giờ đổi. Giờ: tính lại RFM THẬT cho từng khách
+    (recency từ đơn hàng gần nhất trong db.orders + total_spent có sẵn) và ghi thẳng
+    kết quả lên CHÍNH document db.customers — không còn shadow copy nào để lệch dữ liệu."""
+    business_id = session.get('business_id') or session['user_id']
+
+    if db is None:
+        return jsonify({"success": False, "message": "MongoDB chưa kết nối."}), 503
 
     try:
-        # Đồng bộ từ đúng collection customers thật của tenant (MongoDB) — không còn xóa dữ liệu
-        # thật rồi nhét khách hàng mẫu giả vào nữa.
-        rows_data = list(db.customers.find(
-            {'business_id': business_id}, {'name': 1, 'phone': 1, 'email': 1, 'total_spent': 1, '_id': 0}
-        )) if db is not None else []
+        customers = list(db.customers.find(
+            {'business_id': business_id}, {'id': 1, 'phone': 1, 'total_spent': 1, '_id': 0}
+        ))
+        now = datetime.now()
+        recomputed = 0
 
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        synced = 0
-        for cust in rows_data:
+        for cust in customers:
             phone = cust.get('phone')
+            total_spent = cust.get('total_spent') or 0
             if not phone:
                 continue
-            profile_id = f"{business_id}:{phone}"
-            c.execute("""
-                INSERT INTO customer_profiles (id, business_id, name, phone, email, industry, source_platform,
-                    last_purchase_at, total_spending, services_of_interest, nurturing_status, ai_notes, potential_score)
-                VALUES (?, ?, ?, ?, ?, ?, 'pos', NULL, ?, NULL, 'NEW', NULL, NULL)
-                ON CONFLICT(id) DO UPDATE SET
-                    name=excluded.name, email=excluded.email, total_spending=excluded.total_spending
-            """, (profile_id, business_id, cust.get('name'), phone, cust.get('email'), industry, cust.get('total_spent') or 0))
-            synced += 1
-        conn.commit()
-        conn.close()
-        return jsonify({"success": True, "message": f"Đã đồng bộ {synced} khách hàng từ hệ thống POS/CRM thành công!"})
+
+            last_order = db.orders.find_one(
+                {'business_id': business_id, 'customer_phone': phone},
+                {'created_at': 1, '_id': 0}
+            , sort=[('created_at', -1)])
+
+            update_fields = {'source_platform': 'pos'}
+            if last_order and last_order.get('created_at'):
+                try:
+                    last_purchase_days = (now - datetime.fromisoformat(last_order['created_at'])).days
+                except Exception:
+                    last_purchase_days = None
+                if last_purchase_days is not None:
+                    status, score, notes = AINurturingEngine.predict_churn_risk(
+                        last_purchase_days, total_spent, source_platform='pos'
+                    )
+                    update_fields.update({
+                        'nurturing_status': status,
+                        'potential_score': score,
+                        'ai_notes': notes,
+                        'last_purchase_at': last_order['created_at'],
+                    })
+            else:
+                # Chưa từng có đơn hàng nào — giữ nguyên trạng thái mặc định gốc, không
+                # đoán mò nguy cơ rời bỏ cho khách chưa từng mua gì.
+                update_fields.update({'nurturing_status': 'NEW', 'potential_score': 50, 'ai_notes': None})
+
+            db.customers.update_one({'id': cust['id'], 'business_id': business_id}, {'$set': update_fields})
+            recomputed += 1
+
+        return jsonify({"success": True, "message": f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng thành công!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/api/ai/nurture/generate-campaign', methods=['POST'])
 @login_required
 def nurture_generate_campaign():
+    """Giờ target segment (ALL/VIP/CHURN) được lọc trực tiếp trên db.customers thật,
+    và nội dung nhắn được AINurturingEngine.generate_nurturing_copy() sinh THẬT qua
+    DeepSeek, có nhúng đúng lịch sử mua hàng thật của từng khách (tái dùng
+    AIContextEngine._load_purchase_history — không viết lại logic join order_items)."""
     data = request.json or {}
-    segment = data.get('segment') # 'ALL', 'VIP', 'CHURN', etc.
+    segment = data.get('segment')  # 'ALL', 'VIP', 'CHURN'
     goal = data.get('goal', 'RECALL')
     channel = data.get('channel', 'ZALO')
     tone = data.get('tone', 'friendly')
-    
-    business_id = session.get('business_id', 'mock-business-123')
+
+    business_id = session.get('business_id') or session['user_id']
     industry = session.get('business_mode', 'retail')
-    
-    campaign_id = f"camp-{random.randint(1000, 9999)}"
+
+    if db is None:
+        return jsonify({"success": False, "message": "MongoDB chưa kết nối."}), 503
+
+    campaign_id = f"camp-{next_mongo_id('nurturing_campaigns')}"
     campaign_name = f"Chiến dịch {goal} qua kênh {channel} ({tone.upper()})"
-    
+
     try:
-        from ai_nurturing_engine import AINurturingEngine
-        
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        
-        # Register campaign
-        c.execute("INSERT INTO nurturing_campaigns (id, business_id, name, target_segment_id, campaign_goal, channel, tone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
-                  (campaign_id, business_id, campaign_name, segment, goal, channel, tone))
-        
-        # Query target profiles
-        query = "SELECT id, name FROM customer_profiles WHERE business_id = ?"
-        params = [business_id]
+        biz = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0})
+        business_name = (biz or {}).get('name') or 'BitPaw'
+
+        query = {'business_id': business_id}
         if segment == 'VIP':
-            query += " AND total_spending > 5000000"
+            query['total_spent'] = {'$gt': 5000000}
         elif segment == 'CHURN':
-            query += " AND nurturing_status = 'CHURN_RISK'"
-            
-        c.execute(query, tuple(params))
-        customers = c.fetchall()
-        
+            query['nurturing_status'] = 'CHURN_RISK'
+        # 'ALL' (hoặc bất kỳ giá trị khác) -> không lọc thêm
+
+        customers = list(db.customers.find(query, {'id': 1, 'name': 1, 'phone': 1, '_id': 0}))
+
+        db.nurturing_campaigns.insert_one({
+            'id': campaign_id, 'business_id': business_id, 'name': campaign_name,
+            'target_segment_id': segment, 'campaign_goal': goal, 'channel': channel,
+            'tone': tone, 'is_active': True, 'created_at': datetime.now().isoformat(),
+        })
+
         generated_count = 0
-        
-        # Generate nurture copy sequences (3d, 7d, 14d) and push to approval queue
         for cust in customers:
-            cust_id, cust_name = cust[0], cust[1]
-            copy_seq = AINurturingEngine.generate_nurturing_copy(industry, goal, tone, cust_name)
-            
-            # Step 1: 3 days
-            c.execute("INSERT INTO campaign_messages (id, business_id, campaign_id, customer_id, step_delay, message_body, approval_status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)",
-                      (f"{campaign_id}-{cust_id}-3d", business_id, campaign_id, cust_id, 3, copy_seq["3days"]))
-            # Step 2: 7 days
-            c.execute("INSERT INTO campaign_messages (id, business_id, campaign_id, customer_id, step_delay, message_body, approval_status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)",
-                      (f"{campaign_id}-{cust_id}-7d", business_id, campaign_id, cust_id, 7, copy_seq["7days"]))
-            # Step 3: 14 days
-            c.execute("INSERT INTO campaign_messages (id, business_id, campaign_id, customer_id, step_delay, message_body, approval_status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)",
-                      (f"{campaign_id}-{cust_id}-14d", business_id, campaign_id, cust_id, 14, copy_seq["14days"]))
-            generated_count += 3
-            
-        conn.commit()
-        conn.close()
-        
+            cust_id, cust_name, cust_phone = cust.get('id'), cust.get('name'), cust.get('phone')
+            purchase_history = (
+                AIContextEngine._load_purchase_history(business_id, cust_phone) if cust_phone else []
+            )
+            copy_seq = AINurturingEngine.generate_nurturing_copy(
+                business_name, industry, goal, tone, cust_name, purchase_history
+            )
+
+            for step_key, days in (('3days', 3), ('7days', 7), ('14days', 14)):
+                # message id giữ dạng string ghép (giống hệt quy ước cũ) — KHÔNG dùng
+                # next_mongo_id() ở đây: frontend so khớp id bằng "===" sau khi đã đi qua
+                # thuộc tính onclick (luôn thành string), nên id phải luôn là string để
+                # tránh lệch kiểu int-vs-string.
+                db.campaign_messages.insert_one({
+                    'id': f"{campaign_id}-{cust_id}-{days}d",
+                    'business_id': business_id, 'campaign_id': campaign_id,
+                    'customer_id': cust_id,  # int, khớp kiểu với db.customers.id để $lookup hoạt động
+                    'step_delay': days, 'message_body': copy_seq[step_key],
+                    'approval_status': 'PENDING', 'created_at': datetime.now().isoformat(),
+                })
+                generated_count += 1
+
         return jsonify({
-            "success": True, 
-            "campaign_id": campaign_id, 
+            "success": True,
+            "campaign_id": campaign_id,
             "campaign_name": campaign_name,
             "target_count": len(customers),
             "messages_count": generated_count
@@ -7191,57 +7521,51 @@ def nurture_generate_campaign():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @app.route('/api/ai/nurture/approval-queue', methods=['GET'])
 @login_required
 def nurture_approval_queue():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id = session.get('business_id') or session['user_id']
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        # Query with customer names
-        c.execute("""
-            SELECT m.id, m.campaign_id, m.customer_id, m.step_delay, m.message_body, m.approval_status, p.name 
-            FROM campaign_messages m
-            JOIN customer_profiles p ON m.customer_id = p.id
-            WHERE m.business_id = ?
-            ORDER BY m.created_at DESC
-        """, (business_id,))
-        rows = c.fetchall()
-        conn.close()
-        
-        queue = []
-        for r in rows:
-            queue.append({
-                "id": r[0],
-                "campaign_id": r[1],
-                "customer_id": r[2],
-                "delay": r[3],
-                "body": r[4],
-                "status": r[5],
-                "customer_name": r[6]
-            })
+        pipeline = [
+            {'$match': {'business_id': business_id}},
+            {'$sort': {'created_at': -1}},
+            {'$lookup': {'from': 'customers', 'localField': 'customer_id', 'foreignField': 'id', 'as': '_cust'}},
+            {'$addFields': {'customer_name': {'$arrayElemAt': ['$_cust.name', 0]}}},
+            {'$project': {'_cust': 0, '_id': 0}},
+        ]
+        rows = list(db.campaign_messages.aggregate(pipeline))
+
+        queue = [{
+            "id": r.get('id'),
+            "campaign_id": r.get('campaign_id'),
+            "customer_id": r.get('customer_id'),
+            "delay": r.get('step_delay'),
+            "body": r.get('message_body'),
+            "status": r.get('approval_status'),
+            "customer_name": r.get('customer_name'),
+        } for r in rows]
         return jsonify({"success": True, "data": queue})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/api/ai/nurture/approve-message', methods=['POST'])
 @login_required
 def nurture_approve_message():
     data = request.json or {}
     message_id = data.get('message_id')
-    action = data.get('action') # 'APPROVED' or 'REJECTED'
-    
+    action = data.get('action')  # 'APPROVED' or 'REJECTED'
+
     if not message_id or not action:
         return jsonify({"success": False, "message": "Missing message_id or action parameters"}), 400
-        
-    business_id = session.get('business_id', 'mock-business-123')
+
+    business_id = session.get('business_id') or session['user_id']
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("UPDATE campaign_messages SET approval_status = ?, sent_at = CURRENT_TIMESTAMP WHERE id = ? AND business_id = ?",
-                  (action, message_id, business_id))
-        conn.commit()
-        conn.close()
+        db.campaign_messages.update_one(
+            {'id': message_id, 'business_id': business_id},
+            {'$set': {'approval_status': action, 'sent_at': datetime.now().isoformat()}}
+        )
         return jsonify({"success": True, "message": f"Tin nhắn đã được Sếp phê duyệt sang trạng thái: {action}!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -7499,14 +7823,22 @@ def test_bot_scenario(scenario_id):
             
         scen_name, channel, template = scen_row
         
-        # 2. Fetch customer details or use a generic placeholder for a dry-run test
+        # 2. Fetch customer details or use a generic placeholder for a dry-run test —
+        # trước đây tra ở customer_profiles (SQLite, đã bị loại bỏ), giờ tra thẳng
+        # db.customers (MongoDB). customer_id ở đây là ô nhập tay tự do trên UI, không
+        # đảm bảo đúng định dạng, nên thử ép kiểu int an toàn, lỗi/không khớp thì rơi về
+        # placeholder gốc (hành vi y hệt trước đây).
         cust_name = "Khách hàng mẫu"
         cust_phone = "0900000000"
-        if customer_id:
-            c.execute("SELECT name, phone FROM customer_profiles WHERE id = ? AND business_id = ?", (customer_id, business_id))
-            cust_row = c.fetchone()
-            if cust_row:
-                cust_name, cust_phone = cust_row[0], cust_row[1]
+        if customer_id and db is not None:
+            try:
+                cust_doc = db.customers.find_one(
+                    {'id': int(customer_id), 'business_id': business_id}, {'name': 1, 'phone': 1, '_id': 0}
+                )
+            except (ValueError, TypeError):
+                cust_doc = None
+            if cust_doc:
+                cust_name, cust_phone = cust_doc.get('name') or cust_name, cust_doc.get('phone') or cust_phone
                 
         # 3. Check connection status of the channel
         c.execute("SELECT connection_status, config_data FROM platform_connections WHERE business_id = ? AND platform = ?", (business_id, channel))

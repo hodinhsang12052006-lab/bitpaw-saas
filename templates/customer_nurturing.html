@@ -201,7 +201,7 @@
                     <div class="grid grid-cols-2 gap-4 mt-5 mb-4 shrink-0">
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
                             <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_spend_label">Total Spend</span>
-                            <strong id="detailTotalSpend" class="text-emerald-400 text-base font-black">0₫</strong>
+                            <strong id="detailTotalSpend" class="text-emerald-400 text-base font-black">{{ '$0.00' if tenant_currency in ('USD', 'AUD') else '0₫' }}</strong>
                         </div>
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
                             <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_score_label">Potential Score (AI)</span>
@@ -290,6 +290,20 @@
     </main>
 
     <script>
+        // Đọc đúng tiền tệ của tenant (đã inject sẵn cho MỌI template qua context processor
+        // ở app.py — TenantEngine.get_region_config(business_id)), thay vì hardcode "₫" bất kể
+        // tenant thật đang ở thị trường nào. Cùng quy ước TENANT_CURRENCY/formatMoney() đã dùng
+        // ở sell.html/pos.html/dashboard.html... (xem template đó nếu cần đối chiếu).
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+
+        function formatMoney(amount) {
+            const value = Number(amount) || 0;
+            if (TENANT_CURRENCY === 'USD' || TENANT_CURRENCY === 'AUD') {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(value).toLocaleString('vi-VN') + '₫';
+        }
+
         let allCustomers = [];
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -324,7 +338,7 @@
                     <tr class="customer-row border-b border-white/5" onclick="selectCustomer('${c.id}', this)">
                         <td class="p-4 font-bold text-white">${c.name}</td>
                         <td class="p-4 uppercase text-[10px] font-bold text-cyan-400">${c.source}</td>
-                        <td class="p-4 font-black text-gray-200">${c.total_spend.toLocaleString()}₫</td>
+                        <td class="p-4 font-black text-gray-200">${formatMoney(c.total_spend)}</td>
                         <td class="p-4 text-gray-500 font-medium">${c.last_purchase.split(" ")[0]}</td>
                         <td class="p-4 text-center">
                             <span class="text-[9px] font-black border px-2.5 py-0.5 rounded-full ${badgeColor}">${c.potential_score}%</span>
@@ -353,7 +367,7 @@
             // Format dynamic Dates for Timeline
             const cleanDate = c.last_purchase.split(" ")[0];
             document.getElementById("detailLastPurchase").innerText = c.last_purchase;
-            document.getElementById("detailTotalSpend").innerText = c.total_spend.toLocaleString() + "₫";
+            document.getElementById("detailTotalSpend").innerText = formatMoney(c.total_spend);
             document.getElementById("detailPotentialScore").innerText = `${c.potential_score}/100`;
             document.getElementById("detailAINotes").innerText = c.ai_notes;
             

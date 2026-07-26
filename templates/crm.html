@@ -114,7 +114,7 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_total_customers">Total Customers</div><div class="text-2xl font-bold text-cyan-400" id="totalCustomers">0</div></div>
             <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_vip_customers">VIP Customers (Gold/Platinum)</div><div class="text-2xl font-bold text-yellow-400" id="totalVip">0</div></div>
-            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_total_spend">Total Spend (VND)</div><div class="text-2xl font-bold text-emerald-400" id="totalSpent">0₫</div></div>
+            <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_total_spend">Total Spend</div><div class="text-2xl font-bold text-emerald-400" id="totalSpent">{{ '$0.00' if tenant_currency in ('USD', 'AUD') else '0₫' }}</div></div>
             <div class="glass-card p-4 text-center"><div class="text-gray-400 text-sm mb-1" data-i18n="crm_stat_loyalty_points">Loyalty Points</div><div class="text-2xl font-bold text-purple-400" id="totalPoints">0</div></div>
         </div>
 
@@ -213,7 +213,7 @@
                 crm_add_customer_btn: 'Thêm khách hàng',
                 crm_stat_total_customers: 'Tổng khách hàng',
                 crm_stat_vip_customers: 'Khách VIP (Vàng/Bạch kim)',
-                crm_stat_total_spend: 'Tổng chi tiêu (VND)',
+                crm_stat_total_spend: 'Tổng chi tiêu',
                 crm_stat_loyalty_points: 'Điểm tích lũy',
                 crm_filter_search_label: 'Tìm kiếm',
                 crm_filter_search_ph: 'Tên, số điện thoại, email...',
@@ -292,7 +292,7 @@
                 crm_add_customer_btn: 'Add Customer',
                 crm_stat_total_customers: 'Total Customers',
                 crm_stat_vip_customers: 'VIP Customers (Gold/Platinum)',
-                crm_stat_total_spend: 'Total Spend (VND)',
+                crm_stat_total_spend: 'Total Spend',
                 crm_stat_loyalty_points: 'Loyalty Points',
                 crm_filter_search_label: 'Search',
                 crm_filter_search_ph: 'Name, phone, email...',
@@ -439,7 +439,17 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        function formatCurrency(amount) { return amount.toLocaleString('vi-VN') + '₫'; }
+        // Đọc đúng tiền tệ của tenant (đã inject sẵn cho MỌI template qua context processor
+        // ở app.py — TenantEngine.get_region_config(business_id)), thay vì hardcode "₫" bất kể
+        // tenant thật đang ở thị trường nào. Cùng quy ước đã dùng ở sell.html/pos.html...
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatCurrency(amount) {
+            const value = Number(amount) || 0;
+            if (TENANT_CURRENCY === 'USD' || TENANT_CURRENCY === 'AUD') {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return value.toLocaleString('vi-VN') + '₫';
+        }
         function getTierBadge(tier) {
             const map = { Gold: 'vip-gold', Silver: 'vip-silver', Platinum: 'vip-platinum', Normal: 'vip-normal' };
             return `<span class="vip-badge ${map[tier]}">${tier}</span>`;

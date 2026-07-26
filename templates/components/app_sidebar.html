@@ -15,7 +15,7 @@
 {% set is_staff = session.get('role') == 'staff' %}
 {% set modules = (active_industry_cfg.modules if active_industry_cfg else []) %}
 
-<aside class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
+<aside id="app-sidebar" class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
     <div>
         <div class="h-40 flex flex-col items-center justify-center border-b border-white/10 pt-6 pb-4">
             <div class="relative w-20 h-20 rounded-full border-2 border-cyan-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)]">
@@ -33,38 +33,55 @@
         {% if profile %}
         {% if profile.has_profile %}
         <div class="mx-4 my-4 bg-[#0a0f25]/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
-            <div class="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-black text-lg shadow-[0_0_10px_rgba(6,182,212,0.5)] shrink-0">
                     {{ profile.name[0] | upper if profile.name else '?' }}
                 </div>
-                <div class="overflow-hidden">
-                    <h3 class="text-white font-bold text-[13px] truncate">{{ profile.name }}</h3>
-                    <p class="text-cyan-400 text-[9px] uppercase tracking-widest font-bold mt-0.5">
-                        <span data-i18n="ai_bot_profile_business_label">Doanh Nghiệp</span>
-                    </p>
+                <div class="min-w-0">
+                    <h3 class="text-white font-bold text-[13px] truncate leading-tight">{{ profile.name }}</h3>
+                    <p class="text-cyan-400 text-[9px] uppercase tracking-widest font-bold mt-1">Business Profile</p>
                 </div>
             </div>
-            <div class="space-y-2.5 text-[11px] text-gray-300 font-medium">
-                <div class="flex items-center gap-2.5"><i class="fas fa-envelope text-gray-500 w-3 text-center"></i><span class="truncate">{{ profile.email }}</span></div>
-                <div class="flex items-center gap-2.5"><i class="fas fa-phone-alt text-gray-500 w-3 text-center"></i><span>{{ profile.phone }}</span></div>
-                <div class="flex items-center gap-2.5"><span class="text-blue-400 font-bold w-3 text-center text-[10px]">Zalo</span><span>{{ profile.zalo }}</span></div>
 
-                <div class="pt-2 border-t border-white/5 flex items-start gap-2.5">
-                    <i class="fas fa-briefcase text-gray-500 w-3 text-center mt-0.5"></i>
-                    <span class="leading-relaxed"><span class="text-gray-500 uppercase text-[9px]" data-i18n="ai_bot_profile_industry_label">Ngành nghề KD:</span><br><span>{{ profile.industry }}</span></span>
+            <div class="space-y-3 text-[11px] text-gray-300 font-medium">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-envelope text-gray-500 w-4 text-center shrink-0"></i>
+                    <span class="truncate">{{ profile.email }}</span>
                 </div>
-                <div class="pt-2 border-t border-white/5 space-y-2">
-                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-crown text-yellow-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_tier_label">Gói dịch vụ:</span></span><span class="text-emerald-400 font-bold">{{ profile.tier }}</span></div>
-                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-users text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_staff_label">NV quản lý:</span></span><span class="text-white font-bold">{{ profile.staff }}</span></div>
-                    <div class="flex items-center justify-between"><span class="flex items-center gap-2"><i class="fas fa-calendar-check text-gray-500 w-3 text-center"></i> <span data-i18n="ai_bot_profile_joined_label">Tham gia:</span></span><span class="text-white font-bold">{{ profile.joined }}</span></div>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-phone-alt text-gray-500 w-4 text-center shrink-0"></i>
+                    <span class="truncate">{{ profile.phone }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-blue-400 font-black text-[8px] uppercase w-4 text-center shrink-0">Zalo</span>
+                    <span class="truncate">{{ profile.zalo }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-briefcase text-gray-500 w-4 text-center shrink-0"></i>
+                    <span class="truncate">{{ profile.industry }}</span>
+                </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-white/5 space-y-2.5">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="flex items-center gap-2 text-gray-500 text-[10px] uppercase tracking-wide shrink-0"><i class="fas fa-crown text-yellow-500 w-3 text-center"></i> Plan</span>
+                    <span class="text-emerald-400 font-bold text-[11px] truncate">{{ profile.tier }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="flex items-center gap-2 text-gray-500 text-[10px] uppercase tracking-wide shrink-0"><i class="fas fa-users w-3 text-center"></i> Staff</span>
+                    <span class="text-white font-bold text-[11px]">{{ profile.staff }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="flex items-center gap-2 text-gray-500 text-[10px] uppercase tracking-wide shrink-0"><i class="fas fa-calendar-check w-3 text-center"></i> Joined</span>
+                    <span class="text-white font-bold text-[11px]">{{ profile.joined }}</span>
                 </div>
             </div>
         </div>
         {% else %}
         <div class="mx-4 my-4 bg-[#0a0f25]/40 backdrop-blur-md border border-dashed border-white/10 rounded-xl p-4 text-center">
             <i class="fas fa-briefcase text-gray-600 text-lg mb-2 block"></i>
-            <p class="text-xs text-gray-500 font-bold" data-i18n="ai_bot_profile_missing_title">Chưa có dữ liệu doanh nghiệp</p>
-            <p class="text-[9px] text-gray-600 mt-1" data-i18n="ai_bot_profile_missing_desc">Vui lòng thiết lập thông tin hoặc kích hoạt license.</p>
+            <p class="text-xs text-gray-500 font-bold">No Business Profile Yet</p>
+            <p class="text-[9px] text-gray-600 mt-1">Please set up your business info or activate a license.</p>
         </div>
         {% endif %}
         {% endif %}
@@ -114,9 +131,12 @@
             {% endif %}
             {% endif %}
 
-            {# Nails/Spa: POS Dịch vụ + Booking nổi bật, không có Kitchen/Tables #}
+            {# Nails/Spa: POS Dịch vụ + Booking nổi bật, không có Kitchen/Tables.
+               Nails KHÔNG dùng chung màn hình /pos (đó là Floor Plan bàn ăn của F&B) — màn
+               hình POS thật của Nails là /sell (Salon Staff Management / tính hoa hồng). #}
             {% if 'spa_services' in modules or 'nail_services' in modules %}
-            <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+            {% set pos_service_url = url_for('sell') if active_industry_code == 'nail' else url_for('pos') %}
+            <a href="{{ pos_service_url }}" class="flex items-center space-x-4 {% if request.path == pos_service_url %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                 <span data-i18n="menu_pos_service">{{ menu_i18n.pos_service }}</span>
             </a>

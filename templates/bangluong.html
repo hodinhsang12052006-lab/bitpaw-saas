@@ -103,7 +103,7 @@
                 </div>
 
                 <div class="glass-panel p-2.5 rounded-2xl flex items-center gap-3">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="label_vnd">VND (₫)</span>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest" id="label_vnd">{{ tenant_currency }} ({{ '$' if tenant_currency in ['USD', 'AUD'] else 'đ' }})</span>
                     <div class="relative inline-block w-12 mr-2 align-middle select-none">
                         <input type="checkbox" name="toggle" id="currencyToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" onclick="toggleCurrency()"/>
                         <label for="currencyToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer border border-white/10"></label>
@@ -142,7 +142,7 @@
 
                 <div class="text-right relative z-10 bg-black/50 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
                     <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1"><i class="fas fa-chart-line mr-1 text-emerald-500"></i> <span data-i18n="bl_total_fund">TỔNG QUỸ LƯƠNG XUẤT RA</span></h3>
-                    <span id="totalPayroll" class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 drop-shadow-md">0 ₫</span>
+                    <span id="totalPayroll" class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 drop-shadow-md">{{ '$0.00' if tenant_currency in ['USD', 'AUD'] else '0đ' }}</span>
                 </div>
             </div>
         </div>
@@ -167,7 +167,7 @@
                     <label class="block text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2"><i class="fas fa-coins mr-1"></i> <span data-i18n="bl_tips_input_label">Tổng quỹ Tips / SVC thu được</span></label>
                     <div class="relative">
                         <input type="number" id="inputTotalTips" placeholder="VD: 5000000" data-i18n-placeholder="bl_tips_input_placeholder" class="w-full bg-black/60 border border-pink-500/50 p-4 rounded-xl text-pink-400 font-black text-2xl outline-none focus:border-pink-400 text-center shadow-inner transition-colors">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold" id="currency_symbol_modal">₫</span>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold" id="currency_symbol_modal">{{ '$' if tenant_currency in ['USD', 'AUD'] else 'đ' }}</span>
                     </div>
                 </div>
 
@@ -321,7 +321,11 @@
         const now = new Date();
         document.getElementById('monthFilter').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-        let currentCurrency = 'VND';
+        // Tiền tệ thật của tenant (context processor inject_industry_config() trong app.py) —
+        // KHÔNG mặc định VND cho mọi tenant, tenant AU dùng AUD và phải format kiểu "$", không
+        // phải "đ". Toggle switch cho phép xem đối chiếu nhanh sang USD nếu khác USD sẵn.
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        let currentCurrency = TENANT_CURRENCY;
         let globalPayrollData = []; let rawEmployeesData = []; let rawRecordsData = [];
 
         // ========== MULTI-REGION i18n ==========
@@ -395,8 +399,18 @@
             return str;
         }
         function applyStaticTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            // Bỏ qua sidebar dùng chung (đã tự đúng ngôn ngữ server-side qua menu_i18n) — sweep
+            // toàn trang từng đè nhầm text sidebar bằng chính TÊN KEY thô (vd "menu_dashboard")
+            // vì translations của trang này không định nghĩa các key đó. Đã vá y hệt lỗi này ở
+            // 7 file chamcong_*.html và pos_nail.html — áp dụng lại guard tương tự ở đây.
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                if (el.closest('#app-sidebar')) return;
+                el.innerHTML = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                if (el.closest('#app-sidebar')) return;
+                el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+            });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
         }
@@ -434,7 +448,6 @@
             if (myIndustry.includes('Nails') || myIndustry.includes('Spa')) {
                 h1 = t('bl_h1_nails'); h2 = t('bl_h2_nails'); h3 = t('bl_h3_nails');
                 btnTips.classList.add('hidden');
-                if (myIndustry.includes('Nails')) { document.getElementById('currencyToggle').checked = true; currentCurrency = 'USD'; }
             } else if (myIndustry.includes('Sản xuất') || myIndustry.includes('Xưởng')) {
                 h1 = t('bl_h1_prod'); h2 = t('bl_h2_prod'); h3 = t('bl_h3_prod');
                 btnTips.classList.add('hidden');
@@ -449,28 +462,42 @@
             updateCurrencyUI();
         }
 
+        // Ký hiệu hiển thị cho từng mã tiền tệ — khớp đúng quy tắc format_money() phía backend
+        // (currency_utils.py): USD/AUD dùng ký hiệu "$", còn lại (VND...) dùng "đ" hậu tố.
+        function currencySymbolFor(code) { return ['USD', 'AUD'].includes(code) ? '$' : 'đ'; }
+
         function toggleCurrency() {
             const toggle = document.getElementById('currencyToggle');
-            currentCurrency = toggle.checked ? 'USD' : 'VND';
+            // Toggle luôn là "tiền tệ thật của tenant" ⇄ "USD" (bỏ qua nếu tenant vốn dĩ đã là
+            // USD — cả 2 vị trí sẽ hiển thị giống hệt nhau vì cùng format "$", không sao cả).
+            currentCurrency = toggle.checked ? 'USD' : TENANT_CURRENCY;
             updateCurrencyUI();
-            if(globalPayrollData.length > 0) renderPayroll(globalPayrollData); 
+            if (globalPayrollData.length > 0) renderPayroll(globalPayrollData);
         }
 
         function updateCurrencyUI() {
+            const labelTenant = document.getElementById('label_vnd');
+            const labelUsd = document.getElementById('label_usd');
+            labelTenant.innerText = `${TENANT_CURRENCY} (${currencySymbolFor(TENANT_CURRENCY)})`;
             if (currentCurrency === 'USD') {
-                document.getElementById('label_usd').classList.replace('text-gray-400', 'text-emerald-400');
-                document.getElementById('label_vnd').classList.replace('text-emerald-400', 'text-gray-400');
+                labelUsd.classList.replace('text-gray-400', 'text-emerald-400');
+                labelTenant.classList.replace('text-emerald-400', 'text-gray-400');
                 document.getElementById('currency_symbol_modal').innerText = '$';
             } else {
-                document.getElementById('label_vnd').classList.replace('text-gray-400', 'text-emerald-400');
-                document.getElementById('label_usd').classList.replace('text-emerald-400', 'text-gray-400');
-                document.getElementById('currency_symbol_modal').innerText = '₫';
+                labelTenant.classList.replace('text-gray-400', 'text-emerald-400');
+                labelUsd.classList.replace('text-emerald-400', 'text-gray-400');
+                document.getElementById('currency_symbol_modal').innerText = currencySymbolFor(TENANT_CURRENCY);
             }
         }
 
         function formatMoney(amount) {
-            if (currentCurrency === 'USD') return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-            else return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+            const value = Number(amount) || 0;
+            // Khớp CHÍNH XÁC quy tắc format_money() ở currency_utils.py — USD/AUD dùng "$" +
+            // 2 số thập phân, còn lại (VND...) làm tròn nguyên + dấu chấm ngăn cách + hậu tố "đ".
+            if (['USD', 'AUD'].includes(currentCurrency)) {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return Math.round(value).toLocaleString('en-US').replace(/,/g, '.') + 'đ';
         }
 
         async function loadBangLuong() {
@@ -496,9 +523,16 @@
             try {
                 const empsBody = await hrApi('/api/hr/employees');
                 const industryLower = myIndustry.toLowerCase();
-                const emps = (empsBody.data || []).filter(e =>
-                    (e.linh_vuc || '').toLowerCase().includes(industryLower) || (e.linh_vuc || '') === 'Chưa phân bổ'
-                );
+                const emps = (empsBody.data || []).filter(e => {
+                    const linhVucLower = (e.linh_vuc || '').toLowerCase();
+                    // Dropdown option is labelled "Spa & Nails" but its value is literally "Spa" —
+                    // nail techs are stored with linh_vuc="Nails" (chamcong_nail.html/employees
+                    // API), which never contains the substring "spa", so they silently never
+                    // matched this filter despite the label promising otherwise.
+                    const matchesIndustry = linhVucLower.includes(industryLower)
+                        || (industryLower === 'spa' && linhVucLower.includes('nail'));
+                    return matchesIndustry || (e.linh_vuc || '') === 'Chưa phân bổ';
+                });
                 const recordsBody = await hrApi('/api/hr/chamcong');
                 const records = recordsBody.data || [];
 

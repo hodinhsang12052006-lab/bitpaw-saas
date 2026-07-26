@@ -973,8 +973,11 @@
             <!-- Right Launcher Grid: 8 premium cards focusing on Operating modules -->
             <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                <!-- Card 1: POS Screen -->
-                <a href="{{ url_for('pos') }}" class="launcher-card p-6 flex flex-col justify-between">
+                <!-- Card 1: POS Screen — /pos là Floor Plan bàn ăn F&B, KHÔNG áp dụng cho Nails
+                     (màn POS/hoa hồng thật của Nails là /sell). Đây là card bị lộ khi user ĐÃ
+                     đăng nhập nhưng vẫn ghé /login, /register (GET, không có guard chuyển
+                     hướng) hoặc trang lỗi 404 — cùng gốc bug đã fix ở sidebar. -->
+                <a href="{{ url_for('sell') if active_industry_code == 'nail' else url_for('pos') }}" class="launcher-card p-6 flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-4">
                         <div
                             class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(16,185,129,0.1)]">

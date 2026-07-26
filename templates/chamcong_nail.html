@@ -67,7 +67,41 @@
 
         /* Custom Input Styles */
         .pos-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; color: #fff; width: 100%; outline: none; transition: 0.3s; font-size: 1.1rem; font-weight: bold; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+        /* Icon-clearance padding override — .pos-input's own padding shorthand above always
+           wins the cascade over a plain pl- utility class on the same element (it is declared
+           after Tailwind's compiled utilities), silently erasing the left padding an
+           icon-adjacent input needs. Apply this class in addition to pos-input whenever a
+           left-positioned icon or currency symbol sits inside the input's bounding box. */
+        .icon-input-pl { padding-left: 48px !important; }
+        .icon-input-pr { padding-right: 40px !important; }
         .pos-input:focus { border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244,63,94,0.2), inset 0 2px 5px rgba(0,0,0,0.5); background: rgba(255,255,255,0.05); }
+        /* Chrome/Edge tô nền vàng/xanh mặc định cho input number/text được trình duyệt coi là
+           "có thể autofill" (vd: số tiền) — trên nền tối của trang này, lớp phủ đó hiện ra như
+           một mảng highlight xanh lệch tông ngay khi gõ/focus. Ép lại nền + màu chữ đúng theme,
+           delay transition cực dài để Chrome không kịp "chớp" màu gốc trước khi override có hiệu lực. */
+        .pos-input:-webkit-autofill,
+        .pos-input:-webkit-autofill:hover,
+        .pos-input:-webkit-autofill:focus,
+        .pos-input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px rgba(0,0,0,0.5) inset !important;
+            -webkit-text-fill-color: #fff !important;
+            caret-color: #fff;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        /* #val_total (Tổng Giá Bill) cố tình dùng viền/shadow emerald riêng (Tailwind
+           focus:border-emerald-500/focus:shadow-[...]) để nổi bật khỏi các input khác — ép
+           thắng rõ ràng thay vì để "đấu" specificity ngầm với box-shadow rose mặc định ở trên. */
+        #val_total:focus {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 15px rgba(16,185,129,0.3), inset 0 2px 5px rgba(0,0,0,0.5) !important;
+        }
+        #val_total:-webkit-autofill,
+        #val_total:-webkit-autofill:hover,
+        #val_total:-webkit-autofill:focus,
+        #val_total:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px rgba(6,78,59,0.3) inset !important;
+            -webkit-text-fill-color: #34d399 !important;
+        }
         
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; font-weight: 500; }
         
@@ -171,7 +205,7 @@
                     <div>
                         <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_shift_total_hours">Tổng Số Giờ</label>
                         <div class="relative">
-                            <input type="number" id="shift_so_gio" class="pos-input text-emerald-400 bg-emerald-900/10 border-emerald-500/30 text-base h-12 pr-8" readonly placeholder="0">
+                            <input type="number" id="shift_so_gio" class="pos-input icon-input-pr text-emerald-400 bg-emerald-900/10 border-emerald-500/30 text-base h-12 pr-8" readonly placeholder="0">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">h</span>
                         </div>
                     </div>
@@ -195,13 +229,13 @@
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_total_bill">1. Tổng Giá Bill</label>
                             <div class="relative">
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-black text-xl">$</span>
-                                <input type="number" id="val_total" value="100" oninput="calculatePos()" class="pos-input pl-10 text-3xl h-16 text-emerald-400 border-emerald-500/30 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-emerald-900/10">
+                                <input type="number" autocomplete="off" id="val_total" value="100" oninput="calculatePos()" class="pos-input icon-input-pl pl-10 text-3xl h-16 text-emerald-400 border-emerald-500/30 focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-emerald-900/10">
                             </div>
                         </div>
                         <div>
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_split_rate">2. Tỉ Lệ Chia</label>
                             <div class="relative">
-                                <input type="number" id="val_split" value="60" oninput="calculatePos()" class="pos-input text-center text-cyan-400 text-2xl h-16 bg-cyan-900/10 border-cyan-500/30 pr-8">
+                                <input type="number" autocomplete="off" id="val_split" value="60" oninput="calculatePos()" class="pos-input icon-input-pr text-center text-cyan-400 text-2xl h-16 bg-cyan-900/10 border-cyan-500/30 pr-8">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500/50 font-black text-lg">%</span>
                             </div>
                         </div>
@@ -209,7 +243,7 @@
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_label_supply_fee">3. Phí Supply</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-black text-lg">$</span>
-                                <input type="number" id="val_supply" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-400 text-2xl h-16 bg-rose-900/10 border-rose-500/30">
+                                <input type="number" autocomplete="off" id="val_supply" value="3" oninput="calculatePos()" class="pos-input icon-input-pl pl-10 text-center text-rose-400 text-2xl h-16 bg-rose-900/10 border-rose-500/30">
                             </div>
                         </div>
                     </div>
@@ -219,20 +253,20 @@
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cash_tip" data-i18n="cnl_label_cash_tip">4. Tip Mặt</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-bold">$</span>
-                                <input type="number" id="val_cash_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-emerald-300 font-mono">
+                                <input type="number" autocomplete="off" id="val_cash_tip" value="0" oninput="calculatePos()" class="pos-input icon-input-pl pl-10 text-center text-emerald-300 font-mono">
                             </div>
                         </div>
                         <div>
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cc_tip" data-i18n="cnl_label_cc_tip">5. Tip Thẻ</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500/50 font-bold">$</span>
-                                <input type="number" id="val_cc_tip" value="0" oninput="calculatePos()" class="pos-input text-center text-purple-300 font-mono">
+                                <input type="number" autocomplete="off" id="val_cc_tip" value="0" oninput="calculatePos()" class="pos-input icon-input-pl pl-10 text-center text-purple-300 font-mono">
                             </div>
                         </div>
                         <div>
                             <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n-title="cnl_title_cc_fee" data-i18n="cnl_label_cc_fee">6. Phí C/C Tip</label>
                             <div class="relative">
-                                <input type="number" id="val_cc_fee" value="3" oninput="calculatePos()" class="pos-input text-center text-rose-300 font-mono pr-6">
+                                <input type="number" autocomplete="off" id="val_cc_fee" value="3" oninput="calculatePos()" class="pos-input icon-input-pr text-center text-rose-300 font-mono pr-6">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500/50 font-bold">%</span>
                             </div>
                         </div>
@@ -959,9 +993,9 @@
             return str;
         }
         function applyStaticTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
-            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { if (el.closest('#app-sidebar')) return; el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { if (el.closest('#app-sidebar')) return; el.title = t(el.getAttribute('data-i18n-title')); });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
         }

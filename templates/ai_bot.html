@@ -5,7 +5,7 @@
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="ai_bot_title">BitPaw AI Copilot | Trợ Lý Chỉ Huy</title>
+    <title data-i18n="ai_bot_title">BitPaw AI Copilot | Command Center</title>
 
     <script>
         // Suppress Tailwind CSS CDN warning in the developer console
@@ -146,6 +146,10 @@
             width: 100%;
             font-weight: 500;
         }
+        /* Icon-clearance padding — .glass-input's own `padding` shorthand above always wins
+           the cascade over any pl-* utility applied alongside it (it's loaded after Tailwind's
+           compiled utilities), silently erasing the left padding a left-icon input needs. */
+        .icon-input-pl { padding-left: 40px !important; }
 
         .glass-input:focus {
             border-color: #8b5cf6;
@@ -301,18 +305,18 @@
                         Copilot</span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span> Trợ
-                    lý Phân tích & Điều phối Tự động
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+                    Automated Analytics &amp; Dispatch Assistant
                 </p>
             </div>
             <div class="hidden md:flex gap-3">
                 <a href="/ai/connect-platforms"
                     class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/50 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                    <i class="fas fa-network-wired"></i> Kết nối kênh CSKH
+                    <i class="fas fa-network-wired"></i> Connect Support Channels
                 </a>
                 <a href="/ai/customer-nurturing"
                     class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
-                    <i class="fas fa-users-cog"></i> Khách hàng & Chiến dịch
+                    <i class="fas fa-users-cog"></i> Customers &amp; Campaigns
                 </a>
             </div>
         </div>
@@ -324,31 +328,31 @@
                 <div class="p-4 border-b border-white/10 bg-black/40 space-y-3 shrink-0">
                     <div class="relative">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm khách hàng..."
-                            class="glass-input pl-10 py-3 text-sm rounded-2xl bg-black/50">
+                        <input type="text" id="searchInput" placeholder="Search customers..."
+                            class="glass-input icon-input-pl pl-10 py-3 text-sm rounded-2xl bg-black/50">
                     </div>
 
                     <!-- Nurturing segment selectors -->
                     <div>
-                        <label class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block mb-1">Hộp thư &
-                            Phân khúc</label>
+                        <label class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block mb-1">Inbox &amp;
+                            Segments</label>
                         <select id="nurtureFilter" onchange="applyNurtureFilter()"
                             class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
-                            <option value="ALL">📬 Inbox Đa Kênh (Tất cả)</option>
-                            <option value="NEW">🆕 Khách Hàng Mới</option>
-                            <option value="HOT">🔥 Lead Nóng (Potential > 80%)</option>
-                            <option value="NEEDS_CARE">⚠️ Khách Cần Chăm Lại</option>
-                            <option value="REMARKETING">🔄 Khách Cũ Remarketing</option>
-                            <option value="CAMPAIGNS">🎯 Kịch Bản Đang Chạy</option>
+                            <option value="ALL">📬 Multi-channel Inbox (All)</option>
+                            <option value="NEW">🆕 New Customers</option>
+                            <option value="HOT">🔥 Hot Leads (Potential > 80%)</option>
+                            <option value="NEEDS_CARE">⚠️ Needs Follow-up</option>
+                            <option value="REMARKETING">🔄 Remarketing (Past Customers)</option>
+                            <option value="CAMPAIGNS">🎯 Active Campaigns</option>
                         </select>
                     </div>
 
                     <!-- Demo Mode toggle switch -->
                     <div class="flex items-center justify-between px-1">
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Chế độ hiển
-                            thị</span>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Display
+                            Mode</span>
                         <div class="flex items-center gap-2">
-                            <span class="text-[9px] text-gray-400 font-bold" id="demoModeLabel">Dữ liệu thật</span>
+                            <span class="text-[9px] text-gray-400 font-bold" id="demoModeLabel">Live Data</span>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="demoModeSwitch" class="sr-only peer"
                                     onchange="toggleDemoMode()">
@@ -379,15 +383,15 @@
                             <span id="chatAvatar">👤</span>
                         </div>
                         <div>
-                            <h3 id="chatCustomerName" class="font-bold text-white text-sm">Chưa chọn khách</h3>
+                            <h3 id="chatCustomerName" class="font-bold text-white text-sm">No customer selected</h3>
                             <p class="text-[10px] text-cyan-400 tracking-wider flex items-center gap-1"><span
-                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đang hoạt động</p>
+                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active</p>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-3 bg-black/50 px-4 py-2 rounded-xl border border-white/5">
                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                            id="modeLabelOff">Chat Tay</span>
+                            id="modeLabelOff">Manual Chat</span>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="aiToggleSwitch" class="sr-only peer" checked>
                             <div
@@ -396,40 +400,40 @@
                         </label>
                         <span
                             class="text-[10px] font-black text-cyan-400 uppercase tracking-widest drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]"
-                            id="modeLabelOn">AI Trực</span>
+                            id="modeLabelOn">AI Active</span>
                     </div>
                 </div>
 
-                <!-- AI suggestion to close deal (Gợi ý AI chốt đơn) -->
+                <!-- AI suggestion to close the deal -->
                 <div id="aiClosingAlert"
                     class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-magic text-purple-400 animate-pulse text-sm"></i>
-                        <span><strong class="text-cyan-400 font-bold">AI Gợi Ý Chốt Đơn:</strong> <span
-                                id="aiClosingText">Tặng voucher giảm giá 15% hóa đơn chốt dịch vụ ngay hôm
-                                nay!</span></span>
+                        <span><strong class="text-cyan-400 font-bold">AI Deal-Closing Tip:</strong> <span
+                                id="aiClosingText">Offer a 15% discount voucher to close the service booking
+                                today!</span></span>
                     </div>
                     <button onclick="applyAISuggestion()"
                         class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i
-                            class="fas fa-check mr-1"></i> Sử dụng gợi ý</button>
+                            class="fas fa-check mr-1"></i> Use Suggestion</button>
                 </div>
 
 
                 <div
                     class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0">
-                    <button onclick="sendQuickMessage('Gợi ý cho tôi chiến dịch tăng doanh thu trong tuần này?')"
+                    <button onclick="sendQuickMessage('Suggest a revenue-boosting campaign for this week?')"
                         class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-chart-line mr-1"></i> Gợi ý doanh thu</button>
-                    <button onclick="sendQuickMessage('Kịch bản tin nhắn chăm sóc và giữ chân khách hàng cũ hiệu quả?')"
+                            class="fas fa-chart-line mr-1"></i> Revenue Tips</button>
+                    <button onclick="sendQuickMessage('Effective retention messaging for past customers?')"
                         class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-heart mr-1"></i> Gợi ý chăm sóc khách</button>
-                    <button onclick="sendQuickMessage('Phân tích tồn kho và gợi ý phương án thanh lý vật tư cận date?')"
+                            class="fas fa-heart mr-1"></i> Customer Care Tips</button>
+                    <button onclick="sendQuickMessage('Analyze stock and suggest clearance options for near-expiry inventory?')"
                         class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-boxes mr-1"></i> Gợi ý tồn kho</button>
+                            class="fas fa-boxes mr-1"></i> Inventory Tips</button>
                     <button
-                        onclick="sendQuickMessage('Tối ưu hóa lịch làm việc và sắp xếp ca trực nhân sự thông minh?')"
+                        onclick="sendQuickMessage('Optimize scheduling and smart staff shift planning?')"
                         class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-users mr-1"></i> Gợi ý nhân sự</button>
+                            class="fas fa-users mr-1"></i> Staffing Tips</button>
                 </div>
 
                 <div id="chatBox"
@@ -443,8 +447,8 @@
                                 class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">
                                 BitPaw Copilot</p>
                             <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">
-                                Chào Sếp! Chọn một khách hàng bên trái để bắt đầu trò chuyện nhé. Em đang ở chế độ trực
-                                tự động! 🚀
+                                Hi there! Select a customer on the left to start chatting. I'm in auto-response
+                                mode! 🚀
                             </div>
                         </div>
                     </div>
@@ -452,7 +456,7 @@
 
                 <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
                     <form id="aiForm" class="flex items-center gap-3 relative" onsubmit="handleUserSubmit(event)">
-                        <input type="text" id="userInput" placeholder="Nhắn tin cho khách hàng..." autocomplete="off"
+                        <input type="text" id="userInput" placeholder="Message the customer..." autocomplete="off"
                             class="glass-input pl-5 pr-16 font-medium text-sm rounded-2xl">
                         <button type="submit" id="btnSend"
                             class="absolute right-2 top-1/2 transform -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all hover:scale-110 active:scale-95 border border-cyan-400">
@@ -590,13 +594,13 @@
                 modeLabelOn.classList.remove('text-gray-500');
                 modeLabelOff.classList.remove('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
                 modeLabelOff.classList.add('text-gray-500');
-                showToast('Đã BẬT chế độ Bot AI tự động', 'success');
+                showToast('AI Bot mode turned ON', 'success');
             } else {
                 modeLabelOn.classList.remove('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
                 modeLabelOn.classList.add('text-gray-500');
                 modeLabelOff.classList.add('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
                 modeLabelOff.classList.remove('text-gray-500');
-                showToast('Đã TẮT Bot. Chuyển sang chat thủ công!', 'error');
+                showToast('Bot turned OFF. Switched to manual chat!', 'error');
             }
         });
 
@@ -612,29 +616,36 @@
             setTimeout(() => { toast.classList.add('-translate-y-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
 
+        // Rich demo dataset for a premium Australian nail salon — each profile carries a real
+        // `status`/`potential_score` so it flows through the SAME segment filter logic as live
+        // data (see applyNurtureFilter below), not a hardcoded per-id special case.
         const mockCustomers = [
-            { id: 'mock-1', full_name: 'Nhà hàng Sen Vàng (F&B)', last_message: 'Sếp ơi gợi ý tăng doanh thu tuần này?', last_message_time: new Date().toISOString() },
-            { id: 'mock-2', full_name: 'Boutique Paris (Retail)', last_message: 'Hàng tồn kho cận date xử lý sao sếp?', last_message_time: new Date().toISOString() },
-            { id: 'mock-3', full_name: 'An Nhiên Spa (Spa)', last_message: 'Kịch bản chăm sóc khách cũ thế nào sếp?', last_message_time: new Date().toISOString() },
-            { id: 'mock-4', full_name: 'Karaoke Dragon (Karaoke)', last_message: 'Tối ưu ca trực nhân sự cuối tuần sếp ơi.', last_message_time: new Date().toISOString() },
-            { id: 'mock-5', full_name: 'Nail Art Studio (Nails)', last_message: 'Mẫu móng mới có nên chạy quảng cáo không sếp?', last_message_time: new Date().toISOString() }
+            { id: 'mock-1', full_name: 'Amelia Chen (VIP)', last_message: "Hi! Could I book my usual gel set with the chrome nail art before my cousin's wedding on Saturday?", last_message_time: new Date().toISOString(), status: 'VIP', potential_score: 96 },
+            { id: 'mock-2', full_name: 'Sophie Walsh', last_message: "Hey, it's been a few weeks since my last visit — is the loyalty comeback discount still running?", last_message_time: new Date().toISOString(), status: 'CHURN_RISK', potential_score: 38 },
+            { id: 'mock-3', full_name: 'Chloe Nguyen (Regular)', last_message: 'Same time next Thursday for my fortnightly manicure? Also keen to try the new dip powder colours.', last_message_time: new Date().toISOString(), status: 'LOYAL', potential_score: 85 },
+            { id: 'mock-4', full_name: 'Isabella Ford', last_message: 'Hi there! Do you do BIAB nails? This would be my first time as a customer.', last_message_time: new Date().toISOString(), status: 'NEW', potential_score: 60 },
+            { id: 'mock-5', full_name: 'Grace Mitchell', last_message: 'Hi, my gel polish chipped after only 3 days. Could I come in to get it touched up?', last_message_time: new Date().toISOString(), status: 'NEEDS_CARE', potential_score: 50 },
+            { id: 'mock-6', full_name: 'Olivia Bennett (VIP)', last_message: 'Loved my last acrylic set! Can I book the same style for my birthday next week? 🎂', last_message_time: new Date().toISOString(), status: 'HOT', potential_score: 92 }
         ];
 
         const mockMessages = {
             'mock-1': [
-                { sender_type: 'customer', content: 'Chào sếp! Nhà hàng Sen Vàng đang cần lập chiến lược tăng doanh thu tuần này. Sếp gợi ý hộ em.', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: "Hi! Could I book my usual gel set with the chrome nail art before my cousin's wedding on Saturday?", created_at: new Date().toISOString() }
             ],
             'mock-2': [
-                { sender_type: 'customer', content: 'Sếp ơi, kho bên shop Boutique Paris còn nhiều đồ cận date quá. Có phương án nào xử lý không?', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: "Hey, it's been a few weeks since my last visit — is the loyalty comeback discount still running?", created_at: new Date().toISOString() }
             ],
             'mock-3': [
-                { sender_type: 'customer', content: 'Bên An Nhiên Spa đang rảnh lịch. Em muốn gửi tin nhắn chăm sóc khách cũ mà chưa biết soạn sao.', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Same time next Thursday for my fortnightly manicure? Also keen to try the new dip powder colours.', created_at: new Date().toISOString() }
             ],
             'mock-4': [
-                { sender_type: 'customer', content: 'Quán Karaoke Dragon cuối tuần hay bị chồng chéo nhân sự. Sếp gợi ý cách sắp xếp ca trực tối ưu đi sếp.', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Hi there! Do you do BIAB nails? This would be my first time as a customer.', created_at: new Date().toISOString() }
             ],
             'mock-5': [
-                { sender_type: 'customer', content: 'Bên tiệm Nails của mình vừa ra bộ sưu tập móng nhung mới sếp ạ. Chạy marketing sao cho hot sếp?', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Hi, my gel polish chipped after only 3 days. Could I come in to get it touched up?', created_at: new Date().toISOString() }
+            ],
+            'mock-6': [
+                { sender_type: 'customer', content: 'Loved my last acrylic set! Can I book the same style for my birthday next week? 🎂', created_at: new Date().toISOString() }
             ]
         };
 
@@ -650,7 +661,7 @@
                 isMockMode = false;
                 applyNurtureFilter();
             } catch (err) {
-                console.warn("Không tải được danh sách khách hàng (trống hoặc lỗi mạng).", err);
+                console.warn("Could not load customer list (empty or network error).", err);
                 if (isDemoMode) {
                     isMockMode = true;
                     allCustomers = mockCustomers;
@@ -669,20 +680,20 @@
                     <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 animate-pulse">
                         <i class="fas fa-users-slash text-lg"></i>
                     </div>
-                    <h4 class="text-xs font-black text-white uppercase tracking-wider">Chưa có khách hàng</h4>
-                    <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Hãy kết nối Zalo/Facebook hoặc thu lead từ Landing Page.</p>
+                    <h4 class="text-xs font-black text-white uppercase tracking-wider">No Customers Yet</h4>
+                    <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Connect Zalo/Facebook or capture leads from your landing page.</p>
                 </div>
             `;
 
             // Reset chat area
-            chatCustomerName.innerText = "Chưa chọn khách";
+            chatCustomerName.innerText = "No customer selected";
             chatAvatar.innerText = "👤";
             document.getElementById("aiClosingAlert").classList.add("hidden");
             chatBox.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-20 px-8 text-center bg-black/10 rounded-3xl border border-white/5">
                     <i class="fas fa-comments text-5xl text-cyan-500/20 mb-4 animate-pulse"></i>
-                    <h3 class="font-bold text-gray-300 text-sm">Hộp thư trống</h3>
-                    <p class="text-xs text-gray-600 mt-2 max-w-sm">Hệ thống đang hoạt động. Khi có tin nhắn từ Zalo/Facebook Page, cuộc hội thoại sẽ xuất hiện lập tức tại đây.</p>
+                    <h3 class="font-bold text-gray-300 text-sm">Inbox is Empty</h3>
+                    <p class="text-xs text-gray-600 mt-2 max-w-sm">The system is active. When a message arrives from Zalo/Facebook Page, the conversation will appear here instantly.</p>
                 </div>
             `;
         }
@@ -698,12 +709,12 @@
                 labelReal.classList.replace("text-gray-400", "text-gray-600");
                 labelDemo.classList.replace("text-yellow-500/50", "text-yellow-400");
                 labelDemo.classList.add("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
-                showToast("Đã kích hoạt Chế độ Demo (Demo Mode)", "success");
+                showToast("Demo Mode activated", "success");
             } else {
                 labelReal.classList.replace("text-gray-600", "text-gray-400");
                 labelDemo.classList.replace("text-yellow-400", "text-yellow-500/50");
                 labelDemo.classList.remove("font-black", "drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]");
-                showToast("Đã chuyển về hiển thị Dữ liệu thực từ hệ thống", "error");
+                showToast("Switched back to live system data", "error");
             }
 
             fetchCustomers();
@@ -719,13 +730,13 @@
             }
 
             if (filterValue === 'NEW') {
-                filtered = filtered.filter(c => c.status === 'NEW' || c.id === 'mock-5');
+                filtered = filtered.filter(c => c.status === 'NEW');
             } else if (filterValue === 'HOT') {
-                filtered = filtered.filter(c => (c.potential_score && c.potential_score > 80) || c.id === 'mock-1' || c.id === 'mock-3');
+                filtered = filtered.filter(c => c.potential_score && c.potential_score > 80);
             } else if (filterValue === 'NEEDS_CARE') {
-                filtered = filtered.filter(c => c.status === 'NEEDS_CARE' || c.id === 'mock-4');
+                filtered = filtered.filter(c => c.status === 'NEEDS_CARE');
             } else if (filterValue === 'REMARKETING') {
-                filtered = filtered.filter(c => c.status === 'HIBERNATING' || c.status === 'CHURN_RISK' || c.id === 'mock-2');
+                filtered = filtered.filter(c => c.status === 'HIBERNATING' || c.status === 'CHURN_RISK');
             }
 
             renderCustomerList(filtered);
@@ -734,24 +745,35 @@
         function renderCampaignsList() {
             customerListDiv.innerHTML = `
                 <div class="p-2 space-y-3 shrink-0">
+                    <div class="glass-card p-3 rounded-xl border border-amber-500/20 bg-amber-950/20">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
+                            <span class="text-[8px] text-gray-500 font-bold">SMS + Zalo OA</span>
+                        </div>
+                        <h4 class="text-[11px] font-black text-white">Re-engage: 3-Week Retention Promo</h4>
+                        <p class="text-[9px] text-gray-400 mt-1">Targets customers with no visit in 3+ weeks. Sent: 62/90 automated messages.</p>
+                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-amber-400" style="width: 69%;"></div>
+                        </div>
+                    </div>
                     <div class="glass-card p-3 rounded-xl border border-cyan-500/20 bg-cyan-950/20">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Đang chạy</span>
+                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
                             <span class="text-[8px] text-gray-500 font-bold">Zalo OA</span>
                         </div>
-                        <h4 class="text-[11px] font-black text-white">Chiến dịch Phục Hồi Khách Churn</h4>
-                        <p class="text-[9px] text-gray-400 mt-1">Đã gửi: 120/150 tin nhắn tự động.</p>
+                        <h4 class="text-[11px] font-black text-white">Churn Recovery Campaign</h4>
+                        <p class="text-[9px] text-gray-400 mt-1">Sent: 120/150 automated messages.</p>
                         <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
                             <div class="h-full bg-cyan-400" style="width: 80%;"></div>
                         </div>
                     </div>
                     <div class="glass-card p-3 rounded-xl border border-purple-500/20 bg-purple-950/20">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Đang chạy</span>
+                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
                             <span class="text-[8px] text-gray-500 font-bold">Facebook Messenger</span>
                         </div>
-                        <h4 class="text-[11px] font-black text-white">Tri Ân Khách Hàng Mới VIP</h4>
-                        <p class="text-[9px] text-gray-400 mt-1">Đã gửi: 45/45 tin nhắn tự động.</p>
+                        <h4 class="text-[11px] font-black text-white">VIP Loyalty Appreciation</h4>
+                        <p class="text-[9px] text-gray-400 mt-1">Sent: 45/45 automated messages.</p>
                         <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
                             <div class="h-full bg-purple-500" style="width: 100%;"></div>
                         </div>
@@ -762,14 +784,14 @@
 
         window.applyAISuggestion = function () {
             const closingText = document.getElementById("aiClosingText").innerText;
-            userInput.value = `[AI Chốt đơn] Gửi ưu đãi đặc biệt: ${closingText}`;
+            userInput.value = `[AI Closing] Send special offer: ${closingText}`;
             userInput.focus();
         }
 
         function renderCustomerList(customers) {
             customerListDiv.innerHTML = '';
             if (customers.length === 0) {
-                customerListDiv.innerHTML = `<p class="text-center text-gray-500 text-xs py-8 font-medium">Không tìm thấy khách hàng</p>`;
+                customerListDiv.innerHTML = `<p class="text-center text-gray-500 text-xs py-8 font-medium">No customers found</p>`;
                 return;
             }
 
@@ -782,9 +804,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
-                            <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${cus.full_name || 'Khách'}</p>
+                            <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${cus.full_name || 'Customer'}</p>
                         </div>
-                        <p class="text-[11px] text-gray-500 truncate font-medium">${cus.last_message || 'Chưa có tin nhắn'}</p>
+                        <p class="text-[11px] text-gray-500 truncate font-medium">${cus.last_message || 'No messages yet'}</p>
                     </div>
                 `;
                 item.addEventListener('click', () => onSelectCustomer(cus));
@@ -796,7 +818,7 @@
             currentCustomerId = customer.id;
             currentCustomerPhone = customer.phone || null; // để AI cá nhân hoá theo hạng/lịch sử chi tiêu nếu tra được
             conversationHistory = [];
-            chatCustomerName.innerText = customer.full_name || 'Khách';
+            chatCustomerName.innerText = customer.full_name || 'Customer';
             chatAvatar.innerText = customer.full_name?.charAt(0) || '👤';
 
             // Show AI Closing suggestion
@@ -805,17 +827,19 @@
             if (aiClosingAlert && aiClosingText) {
                 aiClosingAlert.classList.remove("hidden");
                 if (customer.id.includes('mock-1')) {
-                    aiClosingText.innerText = "Tặng voucher giảm giá 15% cho hóa đơn gọi món nướng hải sản cuối tuần!";
+                    aiClosingText.innerText = "Offer a complimentary luxury hand massage add-on with her bridal party gel set booking!";
                 } else if (customer.id.includes('mock-2')) {
-                    aiClosingText.innerText = "Mã ưu đãi giảm 35% cho các combo quần áo thời trang cận date để xả kho ngay!";
+                    aiClosingText.innerText = "Offer a $15 'We Miss You' comeback voucher valid this week to win her back!";
                 } else if (customer.id.includes('mock-3')) {
-                    aiClosingText.innerText = "Tặng suất Massage đá nóng miễn phí khi đặt lịch hẹn dịch vụ Spa trước chiều mai!";
+                    aiClosingText.innerText = "Offer 10% off her next dip powder set as a loyalty thank-you for her fortnightly visits!";
                 } else if (customer.id.includes('mock-4')) {
-                    aiClosingText.innerText = "Giảm 20% phí phòng hát giờ vàng kèm free nước ngọt cho ca sinh nhật!";
+                    aiClosingText.innerText = "Offer 15% off her first BIAB set to make a great first impression!";
                 } else if (customer.id.includes('mock-5')) {
-                    aiClosingText.innerText = "Ưu đãi 15% gói combo vẽ móng nhung thiết kế nghệ thuật mới ra mắt!";
+                    aiClosingText.innerText = "Offer a free gel touch-up today plus a $10 credit for the inconvenience!";
+                } else if (customer.id.includes('mock-6')) {
+                    aiClosingText.innerText = "Offer a free nail art upgrade on her birthday acrylic set as a loyalty treat!";
                 } else {
-                    aiClosingText.innerText = "Voucher ưu đãi 10% hóa đơn chốt đơn chăm sóc khách hàng tự động!";
+                    aiClosingText.innerText = "Offer a 10% discount voucher to close the automated customer care booking!";
                 }
             }
 
@@ -831,7 +855,7 @@
             }
             if (isMockMode || String(customerId).startsWith('mock-')) {
                 chatBox.innerHTML = '';
-                const msgs = mockMessages[customerId] || [{ sender_type: 'customer', content: 'Chào sếp! Sếp tư vấn giúp em phương án tối ưu vận hành nhé.', created_at: new Date().toISOString() }];
+                const msgs = mockMessages[customerId] || [{ sender_type: 'customer', content: 'Hi there! Could you advise on the best way to optimize our operations?', created_at: new Date().toISOString() }];
                 msgs.forEach(msg => {
                     if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
                     else appendAIMessageStatic(msg.content, msg.created_at);
@@ -845,7 +869,7 @@
                 chatBox.innerHTML = '';
 
                 if (data.length === 0) {
-                    appendAIMessageStatic("Hệ thống đã kết nối. Chờ khách hàng nhắn tin...");
+                    appendAIMessageStatic("System connected. Waiting for a customer message...");
                 } else {
                     data.forEach(msg => {
                         if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
@@ -856,13 +880,13 @@
             } catch (err) {
                 console.error(err);
                 if (!silent) {
-                    chatBox.innerHTML = '<div class="text-center text-rose-400 py-10">Lỗi tải tin nhắn</div>';
+                    chatBox.innerHTML = '<div class="text-center text-rose-400 py-10">Failed to load messages</div>';
                 }
             }
         }
 
         function appendUserMessageStatic(text, time = null) {
-            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-end">
@@ -874,12 +898,12 @@
         }
 
         function appendAIMessageStatic(text, time = null) {
-            const timeStr = time ? new Date(time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
                     <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[10px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Khách hàng</p>
+                        <p class="text-[10px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
                         <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${text}</div>
                         <p class="text-[9px] text-gray-500 mt-1 ml-2 font-bold">${timeStr}</p>
                     </div>
@@ -888,7 +912,7 @@
         }
 
         function appendCopilotMessageStatic(text) {
-            const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
@@ -905,7 +929,7 @@
         function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
 
         window.sendQuickMessage = function (text) {
-            if (!currentCustomerId) { showToast('Vui lòng chọn một khách hàng hoặc chi nhánh bên trái trước!', 'error'); return; }
+            if (!currentCustomerId) { showToast('Please select a customer or branch on the left first!', 'error'); return; }
             userInput.value = text;
             handleUserSubmit(new Event('submit'));
         }
@@ -937,7 +961,7 @@
             if (e) e.preventDefault();
             const text = userInput.value.trim();
             if (!text) return;
-            if (!currentCustomerId) { showToast('Vui lòng chọn khách hàng bên trái trước!', 'error'); return; }
+            if (!currentCustomerId) { showToast('Please select a customer on the left first!', 'error'); return; }
 
             userInput.value = '';
             appendUserMessageStatic(text);
@@ -967,37 +991,37 @@
                         body: JSON.stringify({ customer_id: currentCustomerId, content: text })
                     });
                 } catch (ex) {
-                    console.error("Gửi tin nhắn thất bại:", ex);
-                    showToast('Gửi tin nhắn thất bại', 'error');
+                    console.error("Failed to send message:", ex);
+                    showToast('Failed to send message', 'error');
                 }
             }
 
             let aiResponse = "";
             try {
-                const systemPrompt = `Bạn là BitPaw AI Tư Vấn, một nhân viên tư vấn phần mềm thật, không phải chatbot văn mẫu.
-NGÔN NGỮ: Khách hàng chủ yếu là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ (Việt Kiều). Hãy trả lời bằng cách trộn tiếng Anh và tiếng Việt một cách tự nhiên, chuyên nghiệp, đúng chất song ngữ của người Việt hải ngoại — KHÔNG dịch cứng 100% sang 1 thứ tiếng. Ưu tiên tiếng Anh cho thuật ngữ hệ thống/tính năng (dashboard, POS, Pro Plan, Nails module, Restaurant module, upgrade, feature...), giữ tiếng Việt cho xưng hô/ngữ khí thân mật (anh/chị, dạ, ạ, nhé). Ví dụ phong cách: "Hi there! Chào mừng anh/chị đến với hệ thống quản lý POS. The system fully supports both Nails and Restaurant modules. Anh/chị cần tư vấn thêm về tính năng nào ạ?"
-Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ” ở mọi câu.
-Không tự hứa đã gửi link/bảng giá nếu hệ thống chưa thực hiện hành động đó.
-Không tự báo giá cụ thể nếu chưa có bảng giá chính thức trong dữ liệu.
-Nếu khách hỏi giá, hãy nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.”
-Luôn nhớ ngữ cảnh trong cuộc trò chuyện hiện tại.
-Khi khách đã cung cấp ngành/quy mô, hãy tóm tắt lại bằng 1 câu rồi đề xuất bước tiếp theo.
-Trả lời tối đa 2–4 câu, dưới 350 ký tự.
-Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm.
-Không spam hotline. Chỉ nhắc Zalo/hotline khi khách muốn demo, báo giá, hoặc cần người hỗ trợ.
-Nếu khách muốn dùng thử, không nói “em sẽ gửi link” nếu chưa có link thật. Hãy nói: “Em có thể chuyển thông tin này cho đội tư vấn để setup demo phù hợp.”
+                const systemPrompt = `You are BitPaw AI Advisor, a genuine software consultant — not a generic scripted chatbot.
+LANGUAGE: Always respond in clear, professional English, matching the tone expected by Australian small-business owners.
+Don't repeat filler openers like “Hi there” or “Great question” in every single reply.
+Never claim to have sent a link or price list unless the system has actually performed that action.
+Never quote a specific price unless official pricing data is available.
+If asked about pricing, say: “Cost depends on the modules and scale you need — let's nail down your core requirements first so I can recommend the right plan.”
+Always keep track of context within the current conversation.
+Once the customer has shared their industry/scale, summarize it back in one sentence and suggest the next step.
+Keep replies to 2-4 sentences, under 350 characters.
+Ask at most one short, focused follow-up question.
+Don't push contact details repeatedly — only mention support channels when the customer asks for a demo, pricing, or human assistance.
+If the customer wants a trial, don't say “I'll send you a link” unless a real link exists. Instead say: “I can pass this along to our team to set up a demo tailored to you.”
 
-BitPaw OS hỗ trợ POS, QR Order, HRM, chấm công, tính lương, CRM, AI CSKH, marketing, tồn kho, báo cáo, thanh toán.
-Nếu hỏi thanh toán QR: nói rõ demo đang xác nhận thủ công; tự động nhận diện tiền cần webhook/ngân hàng/cổng thanh toán.
-Không hứa tính năng chưa chắc có.
-Hotline/Zalo khi cần: 0794.678.904.`;
+BitPaw OS supports POS, QR ordering, HR management, attendance, payroll, CRM, AI customer support, marketing, inventory, reporting, and payments.
+If asked about QR payments: explain that demo transactions are confirmed manually; automatic payment detection requires a webhook/bank/payment-gateway integration.
+Don't promise features that may not exist.
+Direct customers to the in-app support channels when they need further assistance.`;
 
                 // Build rolling chat history context
-                const historyContext = conversationHistory.slice(-6).map(item => `${item.role === "user" ? "Khách" : "BitPaw AI"}: ${item.content}`).join("\n");
-                const rollingContext = `Danh sách lịch sử hội thoại gần nhất:
+                const historyContext = conversationHistory.slice(-6).map(item => `${item.role === "user" ? "Customer" : "BitPaw AI"}: ${item.content}`).join("\n");
+                const rollingContext = `Recent conversation history:
 ${historyContext}
 
-Tin nhắn mới nhất của khách:
+Customer's latest message:
 ${text}`;
 
                 const response = await fetch('/api/ai/studio/generate', {
@@ -1025,7 +1049,7 @@ ${text}`;
                 }
             } catch (err) {
                 console.error("API Call error:", err);
-                aiResponse = "Em đang hơi chậm chút, nhưng em vẫn ghi nhận nhu cầu của anh/chị. Mình đang ưu tiên setup phần nào trước ạ?";
+                aiResponse = "I'm running a little slow right now, but I've noted your request. Which part should we prioritize setting up first?";
             } finally {
                 // Xóa typing và enable lại input/button
                 removeTypingIndicator();

@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="npos_title">Nail Salon POS | BitPaw OS</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: #06070c; 
+            color: #f1f3f9; 
+            -webkit-font-smoothing: antialiased; 
+        }
+
+        .font-title { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ===== Standalone full-screen POS shell — NO admin sidebar ===== */
+        #pos-shell { 
+            height: 100vh; 
+            width: 100vw; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            background: radial-gradient(circle at 10% 10%, rgba(236,72,153,0.14), transparent 45%), 
+                        radial-gradient(circle at 90% 85%, rgba(139,92,246,0.14), transparent 45%), 
+                        radial-gradient(circle at 50% 50%, rgba(6,182,212,0.05), transparent 50%), 
+                        #06070c; 
+            position: relative;
+            z-index: 10;
+        }
+        #pos-topbar { 
+            background: rgba(10, 12, 22, 0.4); 
+            backdrop-filter: blur(24px); 
+            -webkit-backdrop-filter: blur(24px); 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+        .exit-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0aec0;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 11px 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.2s ease;
+        }
+        .exit-btn:hover { 
+            color: #fff; 
+            border-color: rgba(255, 255, 255, 0.15); 
+            background: rgba(255, 255, 255, 0.06); 
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+        }
+
+        .pos-grid { display: grid; grid-template-columns: 1fr; min-height: 0; flex: 1; }
+        @media (min-width: 768px) { .pos-grid { grid-template-columns: 56% 44%; } }
+
+        .cat-tab {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #a0aec0;
+            padding: 13px 24px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+        .cat-tab:hover { 
+            border-color: rgba(236, 72, 153, 0.4); 
+            color: #fff; 
+            background: rgba(236, 72, 153, 0.04);
+        }
+        .cat-tab.active { 
+            background: linear-gradient(135deg, #ec4899, #8b5cf6); 
+            border-color: transparent; 
+            color: #fff; 
+            box-shadow: 0 0 16px rgba(236, 72, 153, 0.45), 0 0 4px rgba(139, 92, 246, 0.25); 
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ===== Premium touch-friendly service card — normal flow (thumb on top,
+           details below), NOT an absolute overlay — guarantees the image is never
+           squashed/cropped-by-text since it has its own fixed-height box. ===== */
+        .service-card {
+            background: #0d0f17;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1.5rem;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .service-card:hover {
+            border-color: rgba(236, 72, 153, 0.45);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.55), 0 0 20px rgba(236, 72, 153, 0.18);
+        }
+        .service-card:active { 
+            transform: scale(0.96) translateY(0); 
+            border-color: rgba(236, 72, 153, 0.75);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(236, 72, 153, 0.25); 
+        }
+        .service-card .thumb {
+            position: relative;
+            width: 100%;
+            height: 9rem;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .service-card .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .service-card:hover .thumb img { transform: scale(1.08); }
+        .service-card .card-details {
+            padding: 14px 16px 16px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            flex: 1;
+        }
+
+        .cart-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 22px;
+            transition: all 0.2s ease;
+        }
+        .cart-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        .cart-item-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            color: #fff;
+            flex-shrink: 0;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
+        }
+
+        .pos-input {
+            background: rgba(13, 15, 24, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px 16px;
+            color: #fff;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+        .pos-input:focus { 
+            border-color: rgba(236, 72, 153, 0.4); 
+            background: rgba(13, 15, 24, 0.7); 
+            box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.15); 
+        }
+        .pos-input:-webkit-autofill, .pos-input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px rgba(13, 15, 24, 0.7) inset !important;
+            -webkit-text-fill-color: #fff !important;
+        }
+        select.pos-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0aec0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 1rem;
+            padding-right: 38px;
+        }
+        /* Icon-clearance padding — .pos-input's own `padding` shorthand above is loaded after
+           Tailwind's compiled utilities, so it always wins the cascade over any pl- or pr-
+           utility class applied alongside it, silently erasing the left padding an
+           icon-adjacent input needs and letting the icon render on top of the text. Add this
+           class (in addition to pos-input) on any input/select preceded by a left-icon. */
+        .icon-input-pl { padding-left: 44px !important; }
+
+        .modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(3, 5, 10, 0.85); 
+            backdrop-filter: blur(12px); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10001; 
+            visibility: hidden; 
+            opacity: 0; 
+            transition: all 0.25s ease-out; 
+            padding: 1rem; 
+        }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-container { 
+            background: linear-gradient(180deg, #0e111a 0%, #08090d 100%); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 1.5rem; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 100%; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+            transform: scale(0.92); 
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(236, 72, 153, 0.12); 
+        }
+        .modal-overlay.active .modal-container { transform: scale(1); }
+
+        .pay-method-btn {
+            flex: 1;
+            padding: 16px 8px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.02);
+            color: #a0aec0;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .pay-method-btn:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+        .pay-method-btn.active { 
+            border-color: #ec4899; 
+            background: rgba(236, 72, 153, 0.1); 
+            color: #fff; 
+            box-shadow: 0 0 16px rgba(236, 72, 153, 0.25); 
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 9px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            background: linear-gradient(135deg, #151822 0%, #0d0e15 100%);
+            color: #a0aec0;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .action-btn i { font-size: 1rem; }
+        .action-btn:hover { 
+            border-color: rgba(255, 255, 255, 0.12); 
+            background: linear-gradient(135deg, #1d2130 0%, #11131c 100%); 
+            color: #fff; 
+            transform: translateY(-1px); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+        }
+        .action-btn.info { border-left: 2px solid #06b6d4; }
+        .action-btn.info i { color: #06b6d4; }
+        .action-btn.info:hover { border-color: rgba(6, 182, 212, 0.6); box-shadow: 0 4px 14px rgba(6,182,212,0.18); }
+        
+        .action-btn.warn { border-left: 2px solid #f59e0b; }
+        .action-btn.warn i { color: #f59e0b; }
+        .action-btn.warn:hover { border-color: rgba(245, 158, 11, 0.6); box-shadow: 0 4px 14px rgba(245,158,11,0.18); }
+        
+        .action-btn.danger { border-left: 2px solid #ef4444; }
+        .action-btn.danger i { color: #ef4444; }
+        .action-btn.danger:hover { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 4px 14px rgba(239,68,68,0.18); }
+        
+        .action-btn.default { border-left: 2px solid #a855f7; }
+        .action-btn.default i { color: #a855f7; }
+        .action-btn.default:hover { border-color: rgba(168, 85, 247, 0.6); box-shadow: 0 4px 14px rgba(168,85,247,0.18); }
+
+        @keyframes payNowPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236,72,153,0.5); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 12px rgba(236,72,153,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236,72,153,0); }
+        }
+        @keyframes pulseBg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .pay-now-btn { 
+            background: linear-gradient(90deg, #ec4899, #8b5cf6, #ec4899);
+            background-size: 200% auto;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 15px rgba(236,72,153,0.3);
+        }
+        .pay-now-btn:not(:disabled) { 
+            animation: payNowPulse 2s infinite, pulseBg 4s linear infinite; 
+        }
+        .pay-now-btn:not(:disabled):hover {
+            background-position: right center;
+            transform: scale(1.025);
+            box-shadow: 0 8px 25px rgba(236,72,153,0.55);
+        }
+        .pay-now-btn:active { transform: scale(0.98); }
+        .pay-now-btn:disabled { animation: none; opacity: 0.4; pointer-events: none; }
+
+        /* ===== Thermal-receipt style ticket for the Payment Complete modal — deliberately
+           breaks from the dark app theme (light paper + monospace) since an authentic
+           receipt reads as a printed paper ticket, not another app panel. ===== */
+        .receipt-ticket {
+            background: #faf8f2;
+            color: #1f2328;
+            border-radius: 6px;
+            padding: 26px 24px 30px;
+            max-width: 380px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            position: relative;
+            box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6), 0 8px 30px rgba(0,0,0,0.4);
+            transform: scale(0.92);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            clip-path: polygon(
+                0% 0%, 100% 0%, 100% 97%,
+                95% 100%, 90% 97%, 85% 100%, 80% 97%, 75% 100%, 70% 97%, 65% 100%, 60% 97%,
+                55% 100%, 50% 97%, 45% 100%, 40% 97%, 35% 100%, 30% 97%, 25% 100%, 20% 97%,
+                15% 100%, 10% 97%, 5% 100%, 0% 97%
+            );
+        }
+        .modal-overlay.active .receipt-ticket { transform: scale(1); }
+        .receipt-ticket .receipt-dashed { border-top: 2px dashed #c9c3b4; margin: 14px 0; }
+        .receipt-barcode {
+            width: 100%;
+            height: 42px;
+            background-image: repeating-linear-gradient(90deg,
+                #1f2328, #1f2328 2px, transparent 2px, transparent 4px,
+                #1f2328 4px, #1f2328 6px, transparent 6px, transparent 9px,
+                #1f2328 9px, #1f2328 10px, transparent 10px, transparent 14px);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(100%); 
+            background: rgba(10, 12, 22, 0.95); 
+            border: 1px solid rgba(236,72,153,0.4); 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 15px rgba(236,72,153,0.15);
+            color: white; 
+            padding: 12px 28px; 
+            border-radius: 40px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            z-index: 10010; 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease; 
+            opacity: 0; 
+            visibility: hidden; 
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: linear-gradient(180deg, rgba(236,72,153,0.3) 0%, rgba(139,92,246,0.3) 100%); 
+            border-radius: 10px; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(236,72,153,0.5) 0%, rgba(139,92,246,0.5) 100%);
+        }
+    </style>
+</head>
+<body>
+    <!-- Ambient background glows -->
+    <div class="fixed -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-pink-500/5 blur-[120px] pointer-events-none z-0"></div>
+    <div class="fixed -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-purple-500/5 blur-[120px] pointer-events-none z-0"></div>
+    <div class="fixed top-1/2 left-1/3 w-[400px] h-[400px] rounded-full bg-cyan-500/3 blur-[100px] pointer-events-none z-0"></div>
+
+    <!-- ================= STANDALONE FULL-SCREEN POS — NO admin sidebar ================= -->
+    <div id="pos-shell" class="relative z-10 h-screen w-screen flex flex-col overflow-hidden">
+        <div id="pos-topbar" class="flex items-center justify-between px-6 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
+            <div class="flex items-center gap-4">
+                <!-- ================= BRANDING: white-labeled BitPaw identity — clean flex
+                     alignment with ample breathing room (py-2/px-4/gap-3), no cramped overlap ================= -->
+                <div class="flex items-center gap-3 py-2 px-4 mr-2 border-r border-white/10">
+                    <div class="relative w-10 h-10 rounded-full border border-cyan-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.3)] shrink-0 bg-black/30 overflow-hidden">
+                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex flex-col leading-tight justify-center">
+                        <span class="text-lg font-black tracking-wide font-title text-white whitespace-nowrap">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 font-bold">POS</span></span>
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] font-title mt-1 whitespace-nowrap">Salon Terminal</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('index') }}" class="exit-btn"><i class="fas fa-arrow-left"></i> <span data-i18n="npos_exit_btn">Exit POS</span></a>
+            </div>
+            <div class="flex flex-col items-center">
+                <h1 class="text-xl font-extrabold flex items-center gap-2 tracking-wide font-title"><i class="fas fa-spa text-pink-400 drop-shadow-[0_0_8px_rgba(244,114,182,0.4)]"></i> <span data-i18n="npos_header_title">Nail Salon POS</span></h1>
+                <span id="liveClock" class="text-xs text-gray-500 font-mono tracking-widest uppercase mt-0.5"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title shadow-sm shadow-emerald-500/5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span data-i18n="npos_terminal_status">Online</span>
+                </div>
+                <button id="pageLangToggleBtn" type="button" class="hidden"></button>
+            </div>
+        </div>
+
+        <!-- ================= TWO-COLUMN LAYOUT: 56% catalog / 44% sticky ticket ================= -->
+        <div class="pos-grid flex-1 overflow-hidden">
+            <!-- ================= LEFT: VISUAL SERVICE CATALOG ================= -->
+            <div class="p-6 overflow-y-auto custom-scrollbar min-h-0 bg-slate-950/15 relative z-10">
+                <div id="categoryTabs" class="flex gap-3 mb-6 overflow-x-auto pb-3 custom-scrollbar"></div>
+                <div id="serviceGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="noServicesMsg" class="hidden text-center text-gray-500 py-24">
+                    <i class="fas fa-box-open text-4xl mb-4 block text-gray-600"></i>
+                    <span class="text-base font-semibold" data-i18n="npos_no_services">No services yet. Add products under Nails category first.</span>
+                </div>
+            </div>
+
+            <!-- ================= RIGHT: STICKY TICKET (35%, never squashed) ================= -->
+            <div class="border-l border-white/5 bg-[#090b11] flex flex-col min-h-0 overflow-y-auto custom-scrollbar shadow-2xl relative z-20">
+                <div class="px-5 py-2.5 border-b border-white/5 bg-slate-950/20 flex items-center justify-between shrink-0 gap-2">
+                    <h3 class="text-base font-extrabold uppercase tracking-wider text-pink-400 flex items-center gap-2 font-title shrink-0"><i class="fas fa-receipt text-pink-500"></i> <span data-i18n="npos_ticket_title">Current Ticket</span></h3>
+                    <button type="button" id="heldTicketsIndicator" onclick="resumeHeldTicket()" class="hidden items-center gap-1.5 text-xs bg-amber-500/10 text-amber-400 font-black px-3 py-1 rounded-full border border-amber-500/30 tracking-wider font-title hover:bg-amber-500/20 transition-colors shrink-0">
+                        <i class="fas fa-pause"></i> <span id="heldTicketsCount">0</span> Held
+                    </button>
+                    <span class="text-xs bg-pink-500/10 text-pink-400 font-black px-3 py-1 rounded-full border border-pink-500/20 tracking-wider font-title shrink-0">ACTIVE</span>
+                </div>
+
+                <!-- Customer quick-select -->
+                <div class="px-5 py-2 border-b border-white/5 shrink-0 bg-slate-950/10">
+                    <label class="block text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 font-title" data-i18n="npos_customer_label">Customer</label>
+                    <div class="relative">
+                        <select id="customerSelect" class="pos-input icon-input-pl text-base leading-normal pl-11 font-title">
+                            <option value="" data-i18n="npos_walkin_option">Walk-in (no customer)</option>
+                        </select>
+                        <i class="fas fa-user-circle absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg"></i>
+                    </div>
+                </div>
+
+                <!-- Cart items (only this area scrolls) -->
+                <div id="cartItems" class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5 min-h-[220px] relative z-10">
+                    <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
+                        <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
+                        <span class="font-medium font-title">${t('npos_empty_cart')}</span>
+                    </div>
+                </div>
+
+                <!-- Quick-action POS buttons -->
+                <div class="px-5 pt-2 pb-0.5 shrink-0 bg-slate-950/5">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="action-btn info" onclick="openCustomItemModal()"><i class="fas fa-circle-plus"></i><span data-i18n="npos_custom_item_btn">Add Item</span></div>
+                        <div class="action-btn warn" onclick="openDiscountModal()"><i class="fas fa-tags"></i><span data-i18n="npos_discount_btn">Discount</span></div>
+                        <div class="action-btn danger" onclick="clearTicket()"><i class="fas fa-trash-can"></i><span data-i18n="npos_clear_btn">Clear</span></div>
+                    </div>
+                </div>
+
+                <!-- Administrative utility bar: Return/Refund, Hold Ticket, Print Quote —
+                     deliberately subtle/bordered, distinct from the vibrant primary actions
+                     above, since these are lower-frequency back-office operations. -->
+                <div class="px-5 pt-1.5 pb-1 shrink-0">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="openRefundModal()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fas fa-rotate-left"></i> <span data-i18n="npos_refund_btn">Refund</span>
+                        </button>
+                        <button type="button" onclick="holdTicket()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fas fa-pause"></i> <span data-i18n="npos_hold_btn">Hold Ticket</span>
+                        </button>
+                        <button type="button" onclick="printQuote()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fas fa-print"></i> <span data-i18n="npos_print_quote_btn">Print Quote</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Supply / Tax / Tips / Totals -->
+                <div class="px-5 py-2.5 space-y-2 shrink-0 bg-slate-950/15 border-t border-white/5">
+                    <div class="grid grid-cols-4 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_supply_label">Supply %</label>
+                            <input type="number" autocomplete="off" id="supplyPercent" value="5" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_tax_pct_label">Tax %</label>
+                            <input type="number" autocomplete="off" id="taxPercent" value="0" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cashtip_label">Cash Tip</label>
+                            <input type="number" autocomplete="off" id="cashTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cardtip_label">Card Tip</label>
+                            <input type="number" autocomplete="off" id="cardTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                        </div>
+                    </div>
+
+                    <div class="text-sm space-y-1 pt-2 border-t border-dashed border-white/10 font-medium">
+                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_subtotal_label">Subtotal</span><span id="sumSubtotal" class="font-mono text-white">$0.00 AUD</span></div>
+                        <div id="discountRow" class="hidden flex justify-between items-center text-gray-400">
+                            <span class="flex items-center gap-1.5">
+                                <span data-i18n="npos_discount_row_label">Discount</span>
+                                <span id="discountBadge" class="text-amber-400 font-mono text-xs"></span>
+                                <button onclick="removeDiscount()" class="text-gray-600 hover:text-rose-400 transition" title="Remove discount"><i class="fas fa-xmark"></i></button>
+                            </span>
+                            <span id="sumDiscount" class="font-mono text-amber-400">-$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_tax_label">Tax</span><span id="sumTax" class="font-mono text-cyan-400">+$0.00</span></div>
+                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_tip_label">Tips</span><span id="sumTip" class="font-mono text-emerald-400">+$0.00</span></div>
+                        <div class="flex justify-between items-center py-1.5 px-0.5 border-t border-dashed border-white/10">
+                            <span class="text-sm uppercase font-extrabold tracking-wider text-gray-400" data-i18n="npos_total_label">Final Total</span>
+                            <div class="text-right">
+                                <span id="sumTotal" class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 text-2xl tracking-tight drop-shadow-[0_0_12px_rgba(236,72,153,0.3)]">$0.00 AUD</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="checkoutBtn" onclick="openPaymentModal()" class="pay-now-btn w-full text-white font-black py-3.5 rounded-xl text-base uppercase tracking-widest flex items-center justify-center gap-2" disabled>
+                        <i class="fas fa-cash-register"></i> <span data-i18n="npos_checkout_btn">Pay Now</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PAYMENT MODAL ================= -->
+    <div id="paymentModal" class="modal-overlay">
+        <div class="modal-container">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-credit-card text-pink-400"></i> <span data-i18n="npos_payment_title">Take Payment</span></h3>
+
+            <div class="flex gap-2 mb-4">
+                <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><i class="fas fa-money-bill-wave block mb-1.5 text-lg text-emerald-400"></i> <span data-i18n="npos_pay_cash">Cash</span></div>
+                <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><i class="fas fa-credit-card block mb-1.5 text-lg text-pink-400"></i> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
+                <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><i class="fas fa-arrows-split-up-and-left block mb-1.5 text-lg text-purple-400"></i> <span data-i18n="npos_pay_split">Split</span></div>
+            </div>
+
+            <!-- Card / Terminal sync simulation -->
+            <div id="cardSyncSection" class="hidden bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-4 mb-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs uppercase tracking-wider font-bold text-gray-400" data-i18n="npos_card_sync_label">Card Details</span>
+                    <span class="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span data-i18n="npos_terminal_ready">Terminal Ready</span>
+                    </span>
+                </div>
+                <div class="flex items-center gap-2.5 mb-3">
+                    <i class="fa-brands fa-cc-visa text-2xl text-blue-400"></i>
+                    <i class="fa-brands fa-cc-mastercard text-2xl text-orange-400"></i>
+                    <i class="fa-brands fa-cc-amex text-2xl text-cyan-400"></i>
+                    <span class="ml-auto text-xs text-gray-500 font-mono tracking-widest">•••• •••• •••• 4242</span>
+                </div>
+                <p class="text-[11px] text-gray-500 text-center font-medium" data-i18n="npos_card_sync_hint">Tap, Insert, or Swipe Card on Terminal</p>
+            </div>
+
+            <div id="splitPaymentFields" class="hidden grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1" data-i18n="npos_split_cash_label">Cash Amount</label>
+                    <input type="number" autocomplete="off" id="splitCashAmount" value="0" min="0" oninput="validateSplit()" class="pos-input text-base text-center font-mono">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1" data-i18n="npos_split_card_label">Card Amount</label>
+                    <input type="number" autocomplete="off" id="splitCardAmount" value="0" min="0" oninput="validateSplit()" class="pos-input text-base text-center font-mono">
+                </div>
+                <div id="splitMismatchMsg" class="col-span-2 text-rose-400 text-[11px] font-bold hidden"><i class="fas fa-triangle-exclamation mr-1"></i><span data-i18n="npos_split_mismatch">Cash + Card must equal the total due.</span></div>
+            </div>
+
+            <div class="bg-black/30 border border-white/5 rounded-xl p-4 mb-5 space-y-2.5 text-sm font-medium">
+                <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_subtotal">Subtotal</span><span id="modalSubtotal" class="font-mono text-white">$0.00</span></div>
+                <div id="modalDiscountRow" class="hidden flex justify-between text-gray-400"><span data-i18n="npos_modal_discount">Discount</span><span id="modalDiscount" class="font-mono text-amber-400">-$0.00</span></div>
+                <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_tax">Tax</span><span id="modalTax" class="font-mono text-cyan-400">$0.00</span></div>
+                <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_tip">Tips</span><span id="modalTip" class="font-mono text-emerald-400">$0.00</span></div>
+                <div class="flex justify-between items-center text-lg font-extrabold pt-2.5 border-t border-white/5"><span data-i18n="npos_modal_total">Final Total</span><span id="modalTotal" class="font-mono text-pink-400">$0.00</span></div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closePaymentModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
+                <button id="confirmPaymentBtn" onclick="submitCheckout()" class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_modal_confirm">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ADD CUSTOM ITEM / TIP MODAL ================= -->
+    <div id="customItemModal" class="modal-overlay">
+        <div class="modal-container">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-circle-plus text-cyan-400"></i> <span data-i18n="npos_custom_item_title">Add Custom Item</span></h3>
+
+            <div class="space-y-4.5 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_custom_name_label">Item Name</label>
+                    <input type="text" autocomplete="off" id="customItemName" placeholder="e.g. Nail Art Upgrade / Extra Tip" class="pos-input text-base">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_custom_price_label">Price (AUD)</label>
+                        <input type="number" autocomplete="off" id="customItemPrice" min="0" placeholder="0.00" class="pos-input text-base text-center font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_custom_qty_label">Quantity</label>
+                        <input type="number" autocomplete="off" id="customItemQty" value="1" min="1" class="pos-input text-base text-center font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeCustomItemModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
+                <button onclick="addCustomItem()" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_custom_add_btn">Add to Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DISCOUNT MODAL ================= -->
+    <div id="discountModal" class="modal-overlay">
+        <div class="modal-container">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-tags text-amber-400"></i> <span data-i18n="npos_discount_title">Apply Discount</span></h3>
+
+            <div class="flex gap-2 mb-4">
+                <div class="pay-method-btn active" data-disc-type="percent" onclick="selectDiscountType('percent')"><i class="fas fa-percent block mb-1.5 text-lg"></i> <span data-i18n="npos_discount_type_percent">Percent</span></div>
+                <div class="pay-method-btn" data-disc-type="fixed" onclick="selectDiscountType('fixed')"><i class="fas fa-dollar-sign block mb-1.5 text-lg"></i> <span data-i18n="npos_discount_type_fixed">Fixed $</span></div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" id="discountValueLabel" data-i18n="npos_discount_value_percent_label">Discount %</label>
+                <input type="number" autocomplete="off" id="discountValueInput" value="0" min="0" oninput="previewDiscount()" class="pos-input text-lg text-center font-mono">
+                <p class="text-[10px] text-gray-500 mt-2.5 text-right"><span data-i18n="npos_discount_preview_prefix">Discount amount: </span><span id="discountPreview" class="text-amber-400 font-mono font-bold">$0.00</span></p>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeDiscountModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
+                <button onclick="applyDiscount()" class="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_discount_apply">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RETURN / REFUND MODAL ================= -->
+    <div id="refundModal" class="modal-overlay">
+        <div class="modal-container">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-rotate-left text-rose-400"></i> <span data-i18n="npos_refund_title">Return / Refund</span></h3>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_order_label">Order #</label>
+                    <input type="text" autocomplete="off" id="refundOrderId" placeholder="e.g. 1042" class="pos-input text-base">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_amount_label">Refund Amount</label>
+                    <input type="number" autocomplete="off" id="refundAmount" min="0" placeholder="0.00" class="pos-input text-base font-mono">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_reason_label">Reason (optional)</label>
+                    <textarea id="refundReason" rows="2" class="pos-input text-base resize-none" placeholder=""></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeRefundModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
+                <button id="confirmRefundBtn" onclick="submitRefund()" class="flex-1 bg-gradient-to-r from-rose-500 to-red-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_refund_submit">Process Refund</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RECEIPT / SUCCESS MODAL — thermal-ticket style ================= -->
+    <div id="receiptModal" class="modal-overlay">
+        <div class="receipt-ticket">
+            <!-- Header: logo + brand -->
+            <div class="text-center">
+                <div class="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-2 overflow-hidden">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="w-full h-full object-cover">
+                </div>
+                <div class="text-lg font-black tracking-wide font-title text-gray-900">BitPaw POS</div>
+                <div class="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mt-0.5">Nail Salon Services</div>
+            </div>
+
+            <div class="flex items-center justify-center gap-2 mt-4">
+                <div class="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0">
+                    <i class="fas fa-check text-emerald-600 text-xs"></i>
+                </div>
+                <span class="text-base font-extrabold text-gray-800" data-i18n="npos_receipt_title">Payment Complete</span>
+            </div>
+
+            <div class="receipt-dashed"></div>
+
+            <div class="flex justify-between text-xs text-gray-600 font-bold">
+                <span id="receiptOrderId">Order #—</span>
+                <span id="receiptTimestamp"></span>
+            </div>
+
+            <div class="receipt-dashed"></div>
+
+            <!-- Itemized services -->
+            <table class="w-full text-xs text-gray-800">
+                <thead>
+                    <tr class="text-[10px] uppercase text-gray-400 font-bold">
+                        <th class="text-left pb-1.5" data-i18n="npos_receipt_col_item">Item</th>
+                        <th class="text-left pb-1.5" data-i18n="npos_receipt_col_tech">Tech</th>
+                        <th class="text-center pb-1.5" data-i18n="npos_receipt_col_qty">Qty</th>
+                        <th class="text-right pb-1.5" data-i18n="npos_receipt_col_amt">Amt</th>
+                    </tr>
+                </thead>
+                <tbody id="receiptItemsList"></tbody>
+            </table>
+
+            <div class="receipt-dashed"></div>
+
+            <!-- Totals -->
+            <div class="text-sm text-gray-700 space-y-1.5">
+                <div class="flex justify-between"><span data-i18n="npos_receipt_subtotal">Subtotal</span><span id="receiptSubtotal">$0.00</span></div>
+                <div id="receiptDiscountRow" class="hidden flex justify-between text-amber-600"><span data-i18n="npos_receipt_discount">Discount</span><span id="receiptDiscount">-$0.00</span></div>
+                <div class="flex justify-between"><span data-i18n="npos_receipt_tax">Tax</span><span id="receiptTax">$0.00</span></div>
+                <div class="flex justify-between"><span data-i18n="npos_receipt_tip">Tips</span><span id="receiptTip">$0.00</span></div>
+                <div class="flex justify-between items-baseline text-lg font-black pt-2 border-t-2 border-gray-800">
+                    <span data-i18n="npos_receipt_total">TOTAL</span>
+                    <span id="receiptGrandTotal">$0.00 AUD</span>
+                </div>
+                <div class="flex justify-between text-[11px] text-gray-500 pt-1">
+                    <span data-i18n="npos_receipt_payment_method">Payment Method</span>
+                    <span id="receiptPaymentMethod" class="font-bold uppercase"></span>
+                </div>
+            </div>
+
+            <!-- Technician commission / tip breakdown -->
+            <div id="receiptTechBreakdown" class="text-xs text-gray-600 space-y-1.5"></div>
+
+            <div class="receipt-dashed"></div>
+
+            <p class="text-center text-sm font-bold text-gray-700" data-i18n="npos_receipt_thanks">Thank You For Visiting!</p>
+            <p class="text-center text-[10px] text-gray-400 mt-0.5 mb-4" data-i18n="npos_receipt_see_again">Please come again</p>
+
+            <!-- Placeholder barcode -->
+            <div class="receipt-barcode"></div>
+            <p class="text-center text-[9px] tracking-[0.35em] text-gray-400 mt-1.5 mb-5" id="receiptBarcodeNum"></p>
+
+            <button onclick="startNewTicket()" class="w-full bg-gray-900 hover:bg-black text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest transition" data-i18n="npos_receipt_new_ticket">Start New Ticket</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ===== Server-rendered initial data =====
+        const SERVICES = {{ services | tojson }};
+        const TECHNICIANS = {{ technicians | tojson }};
+        const DEFAULT_COMMISSION_RATE = {{ default_commission_rate | tojson }};
+
+        // ===== State =====
+        let cart = []; // { product_id, name, price, quantity, ma_nv, tech_name, custom? }
+        let activeCategory = 'all';
+        let selectedPayMethod = 'cash';
+        let allCustomers = [];
+        let discount = { type: 'percent', value: 0 }; // client-side ticket discount, mirrored server-side on checkout
+        let selectedDiscountType = 'percent';
+
+        // ===== Category visuals (icon + gradient colors) — drives both the cart-item avatar
+        // AND the generated <img> placeholder on catalog cards when a service has no real photo =====
+        const CUSTOM_VISUAL = { icon: 'fa-pen-to-square', c1: '#64748b', c2: '#334155' };
+        const CATEGORY_VISUALS = [
+            { match: /gel|shellac/i, icon: 'fa-hand-sparkles', c1: '#ec4899', c2: '#a855f7' },
+            { match: /acrylic|dip|powder|enhancement/i, icon: 'fa-hand-back-fist', c1: '#8b5cf6', c2: '#6366f1' },
+            { match: /pedi/i, icon: 'fa-shoe-prints', c1: '#06b6d4', c2: '#3b82f6' },
+            { match: /mani/i, icon: 'fa-hand', c1: '#ec4899', c2: '#f472b6' },
+            { match: /wax/i, icon: 'fa-fire', c1: '#f59e0b', c2: '#ef4444' },
+            { match: /design|art|deco|add-?on/i, icon: 'fa-paintbrush', c1: '#f472b6', c2: '#c084fc' },
+            { match: /kid|child/i, icon: 'fa-child', c1: '#22c55e', c2: '#06b6d4' },
+            { match: /package|bundle/i, icon: 'fa-gift', c1: '#f59e0b', c2: '#ec4899' },
+        ];
+        function categoryVisual(item) {
+            if (item.custom) return CUSTOM_VISUAL;
+            const haystack = `${item.category || ''} ${item.name || ''}`;
+            const found = CATEGORY_VISUALS.find(v => v.match.test(haystack));
+            return found || { icon: 'fa-spa', c1: '#ec4899', c2: '#a855f7' };
+        }
+
+        // Realistic Unsplash images for services
+        // 3 hardcoded premium nail-salon photos (Unsplash) — every service card falls back to
+        // one of these (hashed by name so the same service always gets the same photo) unless
+        // the product has its own real `image` set. Kept to exactly 3 as requested, rather than
+        // a larger pool, to guarantee a small, predictable, always-reliable set of visuals.
+        const NAIL_DEMO_IMAGES = [
+            'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=500&q=80', // modern nail art
+            'https://images.unsplash.com/photo-1632345031435-8797b2d58045?w=500&q=80', // premium manicure
+            'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80', // salon gel polish
+            'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=500&q=80', // nail polish application
+            'https://images.unsplash.com/photo-1607779097040-26e80aa78e66?w=500&q=80', // pink glitter nails
+            'https://images.unsplash.com/photo-1519415510236-8a59ddadf584?w=500&q=80', // foot spa pedicure
+            'https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=500&q=80', // pedicure massage
+            'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=500&q=80', // hot stones spa
+            'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=500&q=80', // aromatherapy massage
+            'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80'  // spa bath & products
+        ];
+        function getServiceImage(s) {
+            if (s.image && s.image.trim() !== '') return s.image;
+            const haystack = `${s.category || ''} ${s.name || ''}`.toLowerCase();
+            if (/pedi|foot|toe|shoe/i.test(haystack)) {
+                return 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=500&q=80';
+            }
+            const hash = [...haystack].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            return NAIL_DEMO_IMAGES[hash % NAIL_DEMO_IMAGES.length];
+        }
+
+        // Offline-safe BRANDED placeholder <img> (data URI) — used as the <img onerror>
+        // fallback if a real photo fails to load. Deliberately NOT per-service (no letter
+        // monogram, no category color) — every card that falls back renders the exact same
+        // premium dark-gradient BitPaw card, never an "alphabet block" placeholder.
+        function placeholderImageDataUri() {
+            const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>`
+                + `<defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'>`
+                + `<stop offset='0' stop-color='#1a1d2b'/><stop offset='1' stop-color='#0a0b12'/>`
+                + `</linearGradient></defs>`
+                + `<rect width='400' height='300' fill='url(#bg)'/>`
+                + `<circle cx='200' cy='118' r='44' fill='none' stroke='#ec4899' stroke-width='2' opacity='0.45'/>`
+                + `<circle cx='200' cy='118' r='4' fill='#ec4899'/>`
+                + `<text x='200' y='128' font-family='Arial, sans-serif' font-size='34' font-weight='800' text-anchor='middle'><tspan fill='#f1f3f9'>Bit</tspan><tspan fill='#22d3ee'>Paw</tspan></text>`
+                + `<text x='200' y='192' font-family='Arial, sans-serif' font-size='13' font-weight='700' letter-spacing='3' text-anchor='middle' fill='#6b7280'>NAIL SALON POS</text>`
+                + `</svg>`;
+            // base64 (not encodeURIComponent) — encodeURIComponent leaves apostrophes
+            // un-escaped, which breaks the single-quoted `this.src='...'` JS string this
+            // gets embedded into via the <img onerror> fallback. base64 output is limited to
+            // [A-Za-z0-9+/=] so it can never collide with any surrounding quote style.
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+
+        // ===== i18n — this screen is locked to English regardless of the business's
+        // configured language or any stored preference. =====
+        let currentLang = 'en';
+        const translations = {
+            en: {
+                npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
+                npos_header_title: 'Nail Salon POS', npos_header_subtitle: 'Tap a service to add it to the ticket',
+                npos_no_services: 'No services yet. Add products under Nails category first.',
+                npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)',
+                npos_empty_cart: 'No services added yet', npos_supply_label: 'Supply %', npos_tax_pct_label: 'Tax %', npos_cashtip_label: 'Cash Tip',
+                npos_cardtip_label: 'Card Tip', npos_subtotal_label: 'Subtotal', npos_discount_row_label: 'Discount', npos_tax_label: 'Tax', npos_tip_label: 'Tips', npos_total_label: 'Final Total',
+                npos_checkout_btn: 'Pay Now', npos_payment_title: 'Take Payment', npos_pay_cash: 'Cash', npos_pay_card: 'Card / Terminal',
+                npos_pay_split: 'Split', npos_split_cash_label: 'Cash Amount', npos_split_card_label: 'Card Amount',
+                npos_split_mismatch: 'Cash + Card must equal the total due.', npos_modal_subtotal: 'Subtotal', npos_modal_discount: 'Discount', npos_modal_tax: 'Tax', npos_modal_tip: 'Tips',
+                npos_modal_total: 'Final Total', npos_modal_cancel: 'Cancel', npos_modal_confirm: 'Confirm Payment',
+                npos_card_sync_label: 'Card Details', npos_terminal_ready: 'Terminal Ready', npos_card_sync_hint: 'Tap, Insert, or Swipe Card on Terminal',
+                npos_receipt_title: 'Payment Complete', npos_receipt_new_ticket: 'Start New Ticket',
+                npos_receipt_col_item: 'Item', npos_receipt_col_tech: 'Tech', npos_receipt_col_qty: 'Qty', npos_receipt_col_amt: 'Amt',
+                npos_receipt_subtotal: 'Subtotal', npos_receipt_discount: 'Discount', npos_receipt_tax: 'Tax', npos_receipt_tip: 'Tips',
+                npos_receipt_total: 'TOTAL', npos_receipt_payment_method: 'Payment Method',
+                npos_receipt_thanks: 'Thank You For Visiting!', npos_receipt_see_again: 'Please come again',
+                npos_cat_all: 'All', npos_remove: 'Remove', npos_assign_tech: 'Assign technician…', npos_toast_added: 'added to ticket',
+                npos_toast_checkout_ok: 'Payment recorded successfully!', npos_toast_checkout_fail: 'Checkout failed: ',
+                npos_commission_word: 'commission', npos_tip_word: 'tip',
+                npos_custom_item_btn: 'Add Item', npos_discount_btn: 'Discount', npos_clear_btn: 'Clear', npos_refund_btn: 'Refund',
+                npos_hold_btn: 'Hold Ticket', npos_print_quote_btn: 'Print Quote',
+                npos_toast_hold_empty: 'Add a service before holding the ticket.', npos_toast_held: 'Ticket held. Start a new one or resume it anytime.',
+                npos_toast_resumed: 'Held ticket resumed.', npos_confirm_resume_overwrite: 'This will replace the current ticket. Continue?',
+                npos_toast_print_empty: 'Add a service before printing a quote.', npos_toast_print_blocked: 'Pop-up blocked — allow pop-ups to print a quote.',
+                npos_custom_item_title: 'Add Custom Item', npos_custom_name_label: 'Item Name', npos_custom_price_label: 'Price (AUD)',
+                npos_custom_qty_label: 'Quantity', npos_custom_add_btn: 'Add to Ticket', npos_toast_custom_missing: 'Enter an item name and a valid price.',
+                npos_discount_title: 'Apply Discount', npos_discount_type_percent: 'Percent', npos_discount_type_fixed: 'Fixed $',
+                npos_discount_value_percent_label: 'Discount %', npos_discount_value_fixed_label: 'Discount Amount ($)',
+                npos_discount_preview_prefix: 'Discount amount: ', npos_discount_apply: 'Apply',
+                npos_toast_discount_applied: 'Discount applied', npos_toast_discount_removed: 'Discount removed',
+                npos_confirm_clear: 'Clear the entire ticket? This cannot be undone.', npos_toast_cleared: 'Ticket cleared',
+                npos_refund_title: 'Return / Refund', npos_refund_order_label: 'Order #', npos_refund_amount_label: 'Refund Amount',
+                npos_refund_reason_label: 'Reason (optional)', npos_refund_submit: 'Process Refund',
+                npos_toast_refund_ok: 'Refund processed successfully!', npos_toast_refund_fail: 'Refund failed: ',
+                npos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
+                npos_terminal_status: 'Online',
+            },
+            vi: {
+                npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
+                npos_header_title: 'Nail Salon POS', npos_header_subtitle: 'Tap a service to add it to the ticket',
+                npos_no_services: 'No services yet. Add products under Nails category first.',
+                npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)',
+                npos_empty_cart: 'No services added yet', npos_supply_label: 'Supply %', npos_tax_pct_label: 'Tax %', npos_cashtip_label: 'Cash Tip',
+                npos_cardtip_label: 'Card Tip', npos_subtotal_label: 'Subtotal', npos_discount_row_label: 'Discount', npos_tax_label: 'Tax', npos_tip_label: 'Tips', npos_total_label: 'Final Total',
+                npos_checkout_btn: 'Pay Now', npos_payment_title: 'Take Payment', npos_pay_cash: 'Cash', npos_pay_card: 'Card',
+                npos_pay_split: 'Split', npos_split_cash_label: 'Cash Amount', npos_split_card_label: 'Card Amount',
+                npos_split_mismatch: 'Cash + Card must equal the total due.', npos_modal_subtotal: 'Subtotal', npos_modal_discount: 'Discount', npos_modal_tax: 'Tax', npos_modal_tip: 'Tips',
+                npos_modal_total: 'Final Total', npos_modal_cancel: 'Cancel', npos_modal_confirm: 'Confirm Payment',
+                npos_receipt_title: 'Payment Complete', npos_receipt_new_ticket: 'Start New Ticket',
+                npos_cat_all: 'All', npos_remove: 'Remove', npos_assign_tech: 'Assign technician…', npos_toast_added: 'added to ticket',
+                npos_toast_checkout_ok: 'Payment recorded successfully!', npos_toast_checkout_fail: 'Checkout failed: ',
+                npos_commission_word: 'commission', npos_tip_word: 'tip',
+                npos_custom_item_btn: 'Add Item', npos_discount_btn: 'Discount', npos_clear_btn: 'Clear', npos_refund_btn: 'Return',
+                npos_custom_item_title: 'Add Custom Item', npos_custom_name_label: 'Item Name', npos_custom_price_label: 'Price (AUD)',
+                npos_custom_qty_label: 'Quantity', npos_custom_add_btn: 'Add to Ticket', npos_toast_custom_missing: 'Enter an item name and a valid price.',
+                npos_discount_title: 'Apply Discount', npos_discount_type_percent: 'Percent', npos_discount_type_fixed: 'Fixed $',
+                npos_discount_value_percent_label: 'Discount %', npos_discount_value_fixed_label: 'Discount Amount ($)',
+                npos_discount_preview_prefix: 'Discount amount: ', npos_discount_apply: 'Apply',
+                npos_toast_discount_applied: 'Discount applied', npos_toast_discount_removed: 'Discount removed',
+                npos_confirm_clear: 'Clear the entire ticket? This cannot be undone.', npos_toast_cleared: 'Ticket cleared',
+                npos_refund_title: 'Return / Refund', npos_refund_order_label: 'Order #', npos_refund_amount_label: 'Refund Amount',
+                npos_refund_reason_label: 'Reason (optional)', npos_refund_submit: 'Process Refund',
+                npos_toast_refund_ok: 'Refund processed successfully!', npos_toast_refund_fail: 'Refund failed: ',
+                npos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
+                npos_terminal_status: 'Online',
+            }
+        };
+        function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key; }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.title = t('npos_title');
+            const toggleBtn = document.getElementById('pageLangToggleBtn');
+            if (toggleBtn) toggleBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+            const label = document.getElementById('discountValueLabel');
+            if (label) label.innerText = t(selectedDiscountType === 'percent' ? 'npos_discount_value_percent_label' : 'npos_discount_value_fixed_label');
+        }
+        function toggleLang() {
+            currentLang = currentLang === 'vi' ? 'en' : 'vi';
+            localStorage.setItem('bitpaw_lang', currentLang);
+            applyStaticTranslations();
+            renderCategoryTabs();
+            renderServiceGrid();
+            renderCart();
+        }
+
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2200);
+        }
+
+        // ===== Categories =====
+        function getCategories() {
+            const cats = Array.from(new Set(SERVICES.map(s => s.category || 'Other')));
+            return ['all', ...cats];
+        }
+        function renderCategoryTabs() {
+            const wrap = document.getElementById('categoryTabs');
+            wrap.innerHTML = getCategories().map(cat => `
+                <div class="cat-tab ${cat === activeCategory ? 'active' : ''}" onclick="setCategory('${cat.replace(/'/g, "\\'")}')">
+                    ${cat === 'all' ? t('npos_cat_all') : cat}
+                </div>
+            `).join('');
+        }
+        function setCategory(cat) { activeCategory = cat; renderCategoryTabs(); renderServiceGrid(); }
+
+        // ===== Service grid =====
+        function renderServiceGrid() {
+            const grid = document.getElementById('serviceGrid');
+            const noMsg = document.getElementById('noServicesMsg');
+            if (!SERVICES.length) { grid.innerHTML = ''; noMsg.classList.remove('hidden'); return; }
+            noMsg.classList.add('hidden');
+            const filtered = activeCategory === 'all' ? SERVICES : SERVICES.filter(s => (s.category || 'Other') === activeCategory);
+            // Offline, self-contained BRANDED fallback (no external network call, identical for
+            // every card — never a letter/watermark placeholder) — swapped in via onerror if the
+            // primary photo 404s/fails, so the card keeps its exact h-36/w-full/object-cover
+            // geometry locked regardless of whether the real photo loads.
+            const fallbackImg = placeholderImageDataUri();
+            grid.innerHTML = filtered.map(s => {
+                const imgUrl = getServiceImage(s);
+                const serviceJson = JSON.stringify(s);
+                return `
+                <div class="service-card cursor-pointer active:scale-95 transition-all" onclick='addToCart(${serviceJson})'>
+                    <div class="thumb">
+                        <img src="${imgUrl}" alt="${escapeHtml(s.name)}" loading="lazy" class="w-full h-36 object-cover rounded-t-xl" onerror="this.onerror=null;this.src='${fallbackImg}';">
+                    </div>
+                    <div class="card-details">
+                        <div class="text-base font-bold text-white/95 leading-snug line-clamp-2">${escapeHtml(s.name)}</div>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-pink-400 font-black text-2xl tracking-tight">$${Number(s.price).toFixed(2)}</span>
+                            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider font-mono">AUD</span>
+                        </div>
+                        <button type="button" onclick='event.stopPropagation(); addToCart(${serviceJson});' class="mt-3 w-full bg-pink-500 hover:bg-pink-400 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML;
+        }
+
+        // ===== Cart =====
+        function addToCart(service) {
+            const existing = cart.find(c => c.product_id === service.id && !c.ma_nv);
+            if (existing) { existing.quantity += 1; } else {
+                cart.push({ 
+                    product_id: service.id, 
+                    name: service.name, 
+                    price: service.price, 
+                    quantity: 1, 
+                    ma_nv: '', 
+                    tech_name: '',
+                    category: service.category,
+                    image: getServiceImage(service)
+                });
+            }
+            renderCart();
+            showToast(`${service.name} ${t('npos_toast_added')}`);
+        }
+        function removeCartItem(index) { cart.splice(index, 1); renderCart(); }
+        function changeQty(index, delta) {
+            cart[index].quantity = Math.max(1, cart[index].quantity + delta);
+            renderCart();
+        }
+        function assignTech(index, maNv) {
+            cart[index].ma_nv = maNv;
+            const tech = TECHNICIANS.find(x => x.ma_nv === maNv);
+            cart[index].tech_name = tech ? tech.ho_ten : '';
+            renderCart();
+        }
+
+        function renderCart() {
+            // Regenerate the whole wrap's innerHTML fresh every call (both empty and
+            // non-empty states) rather than keeping a persistent reference to the empty-state
+            // node and toggling it — wrap.innerHTML = cart.map(...) permanently detaches any
+            // node that used to live in `wrap`, so a stale reference to it crashes on the
+            // very next render once the cart has items.
+            const wrap = document.getElementById('cartItems');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            if (!cart.length) {
+                wrap.innerHTML = `
+                    <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
+                        <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
+                        <span class="font-medium">${t('npos_empty_cart')}</span>
+                    </div>`;
+                checkoutBtn.disabled = true;
+            } else {
+                checkoutBtn.disabled = false;
+                wrap.innerHTML = cart.map((item, idx) => {
+                    const visual = categoryVisual(item);
+                    return `
+                    <div class="cart-item">
+                        <div class="flex items-start gap-4 mb-4">
+                            <div class="cart-item-avatar shrink-0 overflow-hidden relative" style="background: linear-gradient(135deg, ${visual.c1}25, ${visual.c2}25); border: 1px solid ${visual.c1}30;">
+                                <i class="fas ${visual.icon} absolute inset-0 m-auto text-white/20 text-sm"></i>
+                                <img src="${item.image || getServiceImage(item)}" class="absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-300" onerror="this.style.opacity='0';">
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-lg font-bold text-white truncate mb-1 leading-tight">${escapeHtml(item.name)}</div>
+                                <div class="text-pink-400 font-mono text-xl font-black">$${(item.price * item.quantity).toFixed(2)}</div>
+                            </div>
+                            <button onclick="removeCartItem(${idx})" class="text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" title="${t('npos_remove')}">
+                                <i class="fas fa-trash-can text-base"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-3 mt-4">
+                            <div class="flex items-center gap-1 bg-white/[0.03] border border-white/5 rounded-xl p-1 shrink-0">
+                                <button onclick="changeQty(${idx}, -1)" class="w-11 h-11 rounded-lg hover:bg-white/5 text-gray-300 hover:text-white text-xl font-bold transition flex items-center justify-center">−</button>
+                                <span class="text-lg font-mono font-bold w-9 text-center text-white">${item.quantity}</span>
+                                <button onclick="changeQty(${idx}, 1)" class="w-11 h-11 rounded-lg hover:bg-white/5 text-gray-300 hover:text-white text-xl font-bold transition flex items-center justify-center">+</button>
+                            </div>
+                            <div class="flex-1">
+                                <select class="pos-input text-base h-14" onchange="assignTech(${idx}, this.value)">
+                                    <option value="" ${!item.ma_nv ? 'selected' : ''}>${t('npos_assign_tech')}</option>
+                                    ${TECHNICIANS.map(tech => `<option value="${tech.ma_nv}" ${item.ma_nv === tech.ma_nv ? 'selected' : ''}>${escapeHtml(tech.ho_ten)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            }
+            renderTotals();
+        }
+
+        // ===== Totals =====
+        function computeTotals() {
+            const subtotal = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
+            const cashTip = parseFloat(document.getElementById('cashTip').value) || 0;
+            const cardTip = parseFloat(document.getElementById('cardTip').value) || 0;
+            const tip = cashTip + cardTip;
+            let discountAmount = 0;
+            if (discount.value > 0) {
+                discountAmount = discount.type === 'percent' ? subtotal * (discount.value / 100) : discount.value;
+                discountAmount = Math.max(0, Math.min(discountAmount, subtotal));
+            }
+            const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+            const taxable = Math.max(0, subtotal - discountAmount);
+            const taxAmount = taxPercent > 0 ? taxable * (taxPercent / 100) : 0;
+            const total = subtotal - discountAmount + taxAmount + tip;
+            return { subtotal, cashTip, cardTip, tip, discountAmount, taxPercent, taxAmount, total };
+        }
+        function renderTotals() {
+            const { subtotal, tip, discountAmount, taxAmount, total } = computeTotals();
+            document.getElementById('sumSubtotal').innerText = `$${subtotal.toFixed(2)} AUD`;
+            document.getElementById('sumTax').innerText = `+$${taxAmount.toFixed(2)}`;
+            document.getElementById('sumTip').innerText = `+$${tip.toFixed(2)}`;
+            document.getElementById('sumTotal').innerText = `$${total.toFixed(2)} AUD`;
+
+            const discountRow = document.getElementById('discountRow');
+            if (discount.value > 0) {
+                discountRow.classList.remove('hidden');
+                document.getElementById('sumDiscount').innerText = `-$${discountAmount.toFixed(2)}`;
+                document.getElementById('discountBadge').innerText = discount.type === 'percent' ? `(${discount.value}%)` : '(fixed)';
+            } else {
+                discountRow.classList.add('hidden');
+            }
+        }
+
+        // ===== Customers =====
+        async function loadCustomers() {
+            try {
+                const res = await fetch('/api/customers');
+                const json = await res.json();
+                if (json.success) {
+                    allCustomers = json.data || [];
+                    const sel = document.getElementById('customerSelect');
+                    const walkinOpt = sel.querySelector('option[value=""]');
+                    sel.innerHTML = '';
+                    sel.appendChild(walkinOpt);
+                    allCustomers.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.phone || '';
+                        opt.innerText = `${c.name || 'Customer'} (${c.phone || ''})`;
+                        sel.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.log('Customer list load deferred:', e); }
+        }
+
+        // ===== Add Custom Item / Tip modal =====
+        function openCustomItemModal() {
+            document.getElementById('customItemName').value = '';
+            document.getElementById('customItemPrice').value = '';
+            document.getElementById('customItemQty').value = '1';
+            document.getElementById('customItemModal').classList.add('active');
+        }
+        function closeCustomItemModal() { document.getElementById('customItemModal').classList.remove('active'); }
+        function addCustomItem() {
+            const name = document.getElementById('customItemName').value.trim();
+            const price = parseFloat(document.getElementById('customItemPrice').value);
+            const qty = Math.max(1, parseInt(document.getElementById('customItemQty').value, 10) || 1);
+            if (!name || isNaN(price) || price < 0) { showToast(t('npos_toast_custom_missing')); return; }
+            cart.push({ product_id: null, name, price, quantity: qty, ma_nv: '', tech_name: '', custom: true });
+            renderCart();
+            closeCustomItemModal();
+            showToast(`${name} ${t('npos_toast_added')}`);
+        }
+
+        // ===== Discount modal =====
+        function openDiscountModal() {
+            selectedDiscountType = discount.value > 0 ? discount.type : 'percent';
+            document.getElementById('discountValueInput').value = discount.value || 0;
+            document.querySelectorAll('[data-disc-type]').forEach(b => b.classList.toggle('active', b.dataset.discType === selectedDiscountType));
+            document.getElementById('discountValueLabel').innerText = t(selectedDiscountType === 'percent' ? 'npos_discount_value_percent_label' : 'npos_discount_value_fixed_label');
+            previewDiscount();
+            document.getElementById('discountModal').classList.add('active');
+        }
+        function closeDiscountModal() { document.getElementById('discountModal').classList.remove('active'); }
+        function selectDiscountType(type) {
+            selectedDiscountType = type;
+            document.querySelectorAll('[data-disc-type]').forEach(b => b.classList.toggle('active', b.dataset.discType === type));
+            document.getElementById('discountValueLabel').innerText = t(type === 'percent' ? 'npos_discount_value_percent_label' : 'npos_discount_value_fixed_label');
+            previewDiscount();
+        }
+        function previewDiscount() {
+            const { subtotal } = computeTotals();
+            const value = parseFloat(document.getElementById('discountValueInput').value) || 0;
+            let amount = selectedDiscountType === 'percent' ? subtotal * (value / 100) : value;
+            amount = Math.max(0, Math.min(amount, subtotal));
+            document.getElementById('discountPreview').innerText = `$${amount.toFixed(2)}`;
+        }
+        function applyDiscount() {
+            const value = Math.max(0, parseFloat(document.getElementById('discountValueInput').value) || 0);
+            discount = { type: selectedDiscountType, value };
+            closeDiscountModal();
+            renderTotals();
+            showToast(value > 0 ? t('npos_toast_discount_applied') : t('npos_toast_discount_removed'));
+        }
+        function removeDiscount() {
+            discount = { type: 'percent', value: 0 };
+            renderTotals();
+            showToast(t('npos_toast_discount_removed'));
+        }
+
+        // ===== Clear ticket =====
+        function clearTicket() {
+            if (!cart.length && discount.value <= 0) return;
+            if (!confirm(t('npos_confirm_clear'))) return;
+            cart = [];
+            discount = { type: 'percent', value: 0 };
+            renderCart();
+            showToast(t('npos_toast_cleared'));
+        }
+
+        // ===== Hold / Resume ticket — parks the current cart client-side (localStorage) so
+        // staff can serve another walk-in without losing the in-progress ticket, then restores
+        // it later exactly as it was (items, discount, customer). Purely a front-end queue —
+        // no server order is created until the ticket is actually paid via Pay Now. =====
+        function getHeldTickets() {
+            try { return JSON.parse(localStorage.getItem('bitpaw_held_tickets') || '[]'); }
+            catch (e) { return []; }
+        }
+        function renderHeldTicketsIndicator() {
+            const held = getHeldTickets();
+            const btn = document.getElementById('heldTicketsIndicator');
+            document.getElementById('heldTicketsCount').innerText = held.length;
+            btn.classList.toggle('hidden', held.length === 0);
+            btn.classList.toggle('flex', held.length > 0);
+        }
+        function holdTicket() {
+            if (!cart.length) { showToast(t('npos_toast_hold_empty')); return; }
+            const held = getHeldTickets();
+            held.push({
+                id: Date.now(),
+                cart: JSON.parse(JSON.stringify(cart)),
+                discount: { ...discount },
+                customerPhone: document.getElementById('customerSelect').value,
+            });
+            localStorage.setItem('bitpaw_held_tickets', JSON.stringify(held));
+            cart = [];
+            discount = { type: 'percent', value: 0 };
+            document.getElementById('customerSelect').value = '';
+            renderCart();
+            renderHeldTicketsIndicator();
+            showToast(t('npos_toast_held'));
+        }
+        function resumeHeldTicket() {
+            const held = getHeldTickets();
+            if (!held.length) return;
+            if (cart.length && !confirm(t('npos_confirm_resume_overwrite'))) return;
+            const ticket = held.pop();
+            localStorage.setItem('bitpaw_held_tickets', JSON.stringify(held));
+            cart = ticket.cart || [];
+            discount = ticket.discount || { type: 'percent', value: 0 };
+            document.getElementById('customerSelect').value = ticket.customerPhone || '';
+            renderCart();
+            renderHeldTicketsIndicator();
+            showToast(t('npos_toast_resumed'));
+        }
+
+        // ===== Print Quote — opens a clean, printable price estimate in a new window; this is
+        // an unpaid quote (not a receipt/tax invoice), so it never touches the checkout API. =====
+        function printQuote() {
+            if (!cart.length) { showToast(t('npos_toast_print_empty')); return; }
+            const { subtotal, discountAmount, taxAmount, tip, total } = computeTotals();
+            const rows = cart.map(item => `
+                <tr>
+                    <td style="padding:7px 8px;border-bottom:1px solid #e5e5e5;">${escapeHtml(item.name)}</td>
+                    <td style="padding:7px 8px;border-bottom:1px solid #e5e5e5;text-align:center;">${item.quantity}</td>
+                    <td style="padding:7px 8px;border-bottom:1px solid #e5e5e5;text-align:right;">$${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>`).join('');
+            const win = window.open('', '_blank', 'width=420,height=640');
+            if (!win) { showToast(t('npos_toast_print_blocked')); return; }
+            win.document.write(`
+                <html><head><title>BitPaw POS — Price Quote</title>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 28px; color: #111; }
+                    h1 { font-size: 17px; margin-bottom: 2px; }
+                    .subtitle { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+                    th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; border-bottom: 2px solid #111; padding: 6px 8px; }
+                    .totals { margin-top: 10px; }
+                    .totals div { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 13px; color: #444; }
+                    .totals .grand { font-weight: 800; font-size: 19px; color: #111; border-top: 2px solid #111; margin-top: 6px; padding-top: 10px; }
+                    .footnote { margin-top: 24px; font-size: 10px; color: #999; text-align: center; }
+                </style>
+                </head><body>
+                    <h1>BitPaw Nail Salon</h1>
+                    <div class="subtitle">Price Quote — Not a Tax Invoice</div>
+                    <div style="font-size:11px;color:#999;margin-top:6px;">${new Date().toLocaleString('en-AU')}</div>
+                    <table>
+                        <thead><tr><th>Service</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Amount</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div class="totals">
+                        <div><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+                        ${discountAmount > 0 ? `<div><span>Discount</span><span>-$${discountAmount.toFixed(2)}</span></div>` : ''}
+                        <div><span>Tax</span><span>$${taxAmount.toFixed(2)}</span></div>
+                        <div><span>Tips</span><span>$${tip.toFixed(2)}</span></div>
+                        <div class="grand"><span>Estimated Total</span><span>$${total.toFixed(2)} AUD</span></div>
+                    </div>
+                    <p class="footnote">This is an estimate only and is subject to change at time of payment.</p>
+                </body></html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        // ===== Return / Refund modal =====
+        function openRefundModal() {
+            document.getElementById('refundOrderId').value = '';
+            document.getElementById('refundAmount').value = '';
+            document.getElementById('refundReason').value = '';
+            document.getElementById('refundModal').classList.add('active');
+        }
+        function closeRefundModal() { document.getElementById('refundModal').classList.remove('active'); }
+        async function submitRefund() {
+            const orderId = document.getElementById('refundOrderId').value.trim();
+            const amount = parseFloat(document.getElementById('refundAmount').value) || 0;
+            if (!orderId || amount <= 0) { showToast(t('npos_toast_refund_missing')); return; }
+
+            const btn = document.getElementById('confirmRefundBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            try {
+                const res = await fetch('/api/nail_pos/refund', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: isNaN(orderId) ? orderId : Number(orderId), amount, reason: document.getElementById('refundReason').value.trim() }),
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message || 'Unknown error');
+                closeRefundModal();
+                showToast(t('npos_toast_refund_ok'));
+            } catch (e) {
+                showToast(t('npos_toast_refund_fail') + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ===== Payment modal =====
+        function openPaymentModal() {
+            if (!cart.length) return;
+            const { subtotal, tip, discountAmount, taxAmount, total } = computeTotals();
+            document.getElementById('modalSubtotal').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('modalTax').innerText = `$${taxAmount.toFixed(2)}`;
+            document.getElementById('modalTip').innerText = `$${tip.toFixed(2)}`;
+            document.getElementById('modalTotal').innerText = `$${total.toFixed(2)}`;
+            const discRow = document.getElementById('modalDiscountRow');
+            if (discountAmount > 0) {
+                discRow.classList.remove('hidden');
+                document.getElementById('modalDiscount').innerText = `-$${discountAmount.toFixed(2)}`;
+            } else {
+                discRow.classList.add('hidden');
+            }
+            document.getElementById('splitCashAmount').value = total.toFixed(2);
+            document.getElementById('splitCardAmount').value = '0.00';
+            selectPayMethod('cash');
+            document.getElementById('paymentModal').classList.add('active');
+        }
+        function closePaymentModal() { document.getElementById('paymentModal').classList.remove('active'); }
+        function selectPayMethod(method) {
+            selectedPayMethod = method;
+            document.querySelectorAll('.pay-method-btn[data-method]').forEach(b => b.classList.toggle('active', b.dataset.method === method));
+            document.getElementById('splitPaymentFields').classList.toggle('hidden', method !== 'split');
+            document.getElementById('cardSyncSection').classList.toggle('hidden', method !== 'card');
+            validateSplit();
+        }
+        function validateSplit() {
+            if (selectedPayMethod !== 'split') { document.getElementById('confirmPaymentBtn').disabled = false; return; }
+            const { total } = computeTotals();
+            const cashAmt = parseFloat(document.getElementById('splitCashAmount').value) || 0;
+            const cardAmt = parseFloat(document.getElementById('splitCardAmount').value) || 0;
+            const mismatch = Math.abs((cashAmt + cardAmt) - total) > 0.01;
+            document.getElementById('splitMismatchMsg').classList.toggle('hidden', !mismatch);
+            document.getElementById('confirmPaymentBtn').disabled = mismatch;
+        }
+
+        // ===== Checkout =====
+        async function submitCheckout() {
+            const btn = document.getElementById('confirmPaymentBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+            const supplyPercent = parseFloat(document.getElementById('supplyPercent').value) || 0;
+            const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+            const cashTip = parseFloat(document.getElementById('cashTip').value) || 0;
+            const cardTip = parseFloat(document.getElementById('cardTip').value) || 0;
+            const customerPhone = document.getElementById('customerSelect').value;
+
+            const payload = {
+                items: cart.map(c => c.custom
+                    ? { product_id: null, quantity: c.quantity, ma_nv: c.ma_nv || null, custom_name: c.name, custom_price: c.price }
+                    : { product_id: c.product_id, quantity: c.quantity, ma_nv: c.ma_nv || null }),
+                customer_phone: customerPhone || null,
+                payment_method: selectedPayMethod,
+                supply_percent: supplyPercent,
+                tax_percent: taxPercent,
+                cash_tip: cashTip,
+                card_tip: cardTip,
+                cc_fee_percent: 3,
+                commission_rate: DEFAULT_COMMISSION_RATE,
+                currency: 'AUD',
+                discount_type: discount.value > 0 ? discount.type : null,
+                discount_value: discount.value > 0 ? discount.value : 0,
+            };
+
+            try {
+                const res = await fetch('/api/nail_pos/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.message || 'Unknown error');
+
+                // ----- Populate the thermal-receipt ticket (cart is still intact here —
+                // it's only cleared later when the user taps "Start New Ticket") -----
+                document.getElementById('receiptOrderId').innerText = `Order #${json.order_id}`;
+                document.getElementById('receiptTimestamp').innerText = new Date().toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                });
+
+                document.getElementById('receiptItemsList').innerHTML = cart.map(item => `
+                    <tr>
+                        <td class="py-1 pr-1 align-top">${escapeHtml(item.name)}</td>
+                        <td class="py-1 pr-1 align-top text-gray-500">${item.tech_name ? escapeHtml(item.tech_name) : '—'}</td>
+                        <td class="py-1 text-center align-top">${item.quantity}</td>
+                        <td class="py-1 text-right align-top font-bold">$${(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('receiptSubtotal').innerText = `$${json.subtotal.toFixed(2)}`;
+                const receiptDiscRow = document.getElementById('receiptDiscountRow');
+                if (json.discount_amount > 0) {
+                    receiptDiscRow.classList.remove('hidden');
+                    document.getElementById('receiptDiscount').innerText = `-$${json.discount_amount.toFixed(2)}`;
+                } else {
+                    receiptDiscRow.classList.add('hidden');
+                }
+                document.getElementById('receiptTax').innerText = `$${json.tax_amount.toFixed(2)}`;
+                document.getElementById('receiptTip').innerText = `$${json.tip_amount.toFixed(2)}`;
+                document.getElementById('receiptGrandTotal').innerText = `$${json.total_amount.toFixed(2)} AUD`;
+                document.getElementById('receiptPaymentMethod').innerText = selectedPayMethod;
+                document.getElementById('receiptBarcodeNum').innerText = String(json.order_id).padStart(12, '0');
+
+                const techBox = document.getElementById('receiptTechBreakdown');
+                if (json.techs_paid && json.techs_paid.length) {
+                    techBox.innerHTML = json.techs_paid.map(tp => {
+                        const tech = TECHNICIANS.find(x => x.ma_nv === tp.ma_nv);
+                        return `<div class="flex justify-between"><span class="text-gray-500">${escapeHtml(tech ? tech.ho_ten : tp.ma_nv)}</span><span class="text-gray-700 font-bold">$${tp.commission.toFixed(2)} ${t('npos_commission_word')} + $${tp.tip.toFixed(2)} ${t('npos_tip_word')}</span></div>`;
+                    }).join('');
+                } else {
+                    techBox.innerHTML = '';
+                }
+
+                closePaymentModal();
+                document.getElementById('receiptModal').classList.add('active');
+                showToast(t('npos_toast_checkout_ok'));
+            } catch (e) {
+                showToast(t('npos_toast_checkout_fail') + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function startNewTicket() {
+            cart = [];
+            discount = { type: 'percent', value: 0 };
+            document.getElementById('supplyPercent').value = '5';
+            document.getElementById('taxPercent').value = '0';
+            document.getElementById('cashTip').value = '0';
+            document.getElementById('cardTip').value = '0';
+            document.getElementById('customerSelect').value = '';
+            renderCart();
+            document.getElementById('receiptModal').classList.remove('active');
+        }
+
+        // ===== Init =====
+        applyStaticTranslations();
+        renderCategoryTabs();
+        renderServiceGrid();
+        renderCart();
+        renderHeldTicketsIndicator();
+        loadCustomers();
+
+        // Digital Clock
+        function updateClock() {
+            const clock = document.getElementById('liveClock');
+            if (clock) {
+                const now = new Date();
+                clock.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' | ' + now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>

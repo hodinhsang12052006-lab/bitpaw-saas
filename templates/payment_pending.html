@@ -142,7 +142,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
-                <a href="/pos" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_header_back_to_pos">Trở về POS</span></a>
+                <a href="/pos" id="headerBackToPosLink" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_header_back_to_pos">Trở về POS</span></a>
             </div>
         </div>
 
@@ -316,6 +316,11 @@
         const amount = urlParams.get('amount') || '0';
         const method = urlParams.get('method') || 'POS';
         const ind = urlParams.get('industry') || 'fnb';
+        // /pos là Floor Plan bàn ăn F&B — Nails dùng /sell (POS/hoa hồng thật). Tính 1 lần,
+        // dùng lại cho cả link header lẫn 2 chỗ redirect JS bên dưới thay vì hardcode "/pos".
+        const posBasePath = (ind === 'nail') ? '/sell' : '/pos';
+        const backToPosLink = document.getElementById('headerBackToPosLink');
+        if (backToPosLink) backToPosLink.href = `${posBasePath}?industry=${ind}`;
 
         // ========== MULTI-REGION i18n (declared early so it's available to every helper below) ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -570,7 +575,7 @@
 
         // 2. Back to POS (keep the cart and table)
         document.getElementById('backToPosBtn').addEventListener('click', () => {
-            window.location.href = `/pos?industry=${ind}`;
+            window.location.href = `${posBasePath}?industry=${ind}`;
         });
 
         // 3. Cancel transaction (POST /api/payment/cancel)
@@ -590,7 +595,7 @@
                 if (result.success) {
                     showToast(t('payment_pending_toast_canceled'));
                     setTimeout(() => {
-                        window.location.href = `/pos?industry=${ind}`;
+                        window.location.href = `${posBasePath}?industry=${ind}`;
                     }, 1000);
                 } else {
                     showToast(tf('payment_pending_toast_cancel_error', { msg: result.message }), true);
