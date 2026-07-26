@@ -232,10 +232,13 @@
         .modal-overlay.active .modal-container { transform: scale(1); }
 
         .pay-method-btn {
+            /* flex:1 is a no-op (harmlessly ignored) inside the payment modal's grid-cols-2
+               layout below — kept because the Discount modal still reuses this same class in a
+               flex row and relies on it for the 50/50 split there. */
             flex: 1;
-            padding: 16px 8px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 20px 10px;
+            border-radius: 16px;
+            border: 1.5px solid rgba(255, 255, 255, 0.06);
             background: rgba(255, 255, 255, 0.02);
             color: #a0aec0;
             text-align: center;
@@ -245,15 +248,44 @@
             font-size: 0.85rem;
         }
         .pay-method-btn:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
             color: #fff;
+            transform: translateY(-2px);
         }
-        .pay-method-btn.active { 
-            border-color: #ec4899; 
-            background: rgba(236, 72, 153, 0.1); 
-            color: #fff; 
-            box-shadow: 0 0 16px rgba(236, 72, 153, 0.25); 
+        .pay-method-btn.active {
+            border-color: #ec4899;
+            background: rgba(236, 72, 153, 0.14);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.5), 0 0 24px rgba(236, 72, 153, 0.45);
+            transform: translateY(-1px);
+        }
+
+        /* Refund modal's own input variant — deliberately NOT reusing .pos-input (which sets its
+           own background/border in this same <style> block and would win the cascade over any
+           bg-gray-800/border-gray-600 utility classes applied alongside it) so the destructive
+           red focus ring below is guaranteed to render, without touching .pos-input used
+           everywhere else on this screen. */
+        .refund-input {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.6);
+            border-radius: 12px;
+            padding: 15px 16px;
+            color: #fff;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+        .refund-input::placeholder { color: #6b7280; }
+        .refund-input:focus {
+            border-color: #ef4444;
+            background: rgba(31, 41, 55, 0.85);
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+        }
+        #refundModal .modal-container {
+            border-color: rgba(239, 68, 68, 0.15);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(239, 68, 68, 0.12);
         }
 
         .action-btn {
@@ -550,11 +582,11 @@
         <div class="modal-container">
             <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-credit-card text-pink-400"></i> <span data-i18n="npos_payment_title">Take Payment</span></h3>
 
-            <div class="flex gap-2 mb-4">
-                <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><i class="fas fa-money-bill-wave block mb-1.5 text-lg text-emerald-400"></i> <span data-i18n="npos_pay_cash">Cash</span></div>
-                <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><i class="fas fa-credit-card block mb-1.5 text-lg text-pink-400"></i> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
-                <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><i class="fas fa-arrows-split-up-and-left block mb-1.5 text-lg text-purple-400"></i> <span data-i18n="npos_pay_split">Split</span></div>
-                <div class="pay-method-btn" data-method="square_terminal" onclick="selectPayMethod('square_terminal')"><i class="fas fa-satellite-dish block mb-1.5 text-lg text-cyan-400"></i> <span data-i18n="npos_pay_square">Square Terminal</span></div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><i class="fas fa-money-bill-wave block mb-2 text-2xl text-emerald-400"></i> <span data-i18n="npos_pay_cash">Cash</span></div>
+                <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><i class="fas fa-credit-card block mb-2 text-2xl text-pink-400"></i> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
+                <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><i class="fas fa-arrows-split-up-and-left block mb-2 text-2xl text-purple-400"></i> <span data-i18n="npos_pay_split">Split</span></div>
+                <div class="pay-method-btn" data-method="square_terminal" onclick="selectPayMethod('square_terminal')"><i class="fas fa-satellite-dish block mb-2 text-2xl text-cyan-400"></i> <span data-i18n="npos_pay_square">Square Terminal</span></div>
             </div>
 
             <!-- Card / Terminal sync simulation (manual card entry — no live Square hardware call) -->
@@ -603,17 +635,20 @@
                 <div id="splitMismatchMsg" class="col-span-2 text-rose-400 text-[11px] font-bold hidden"><i class="fas fa-triangle-exclamation mr-1"></i><span data-i18n="npos_split_mismatch">Cash + Card must equal the total due.</span></div>
             </div>
 
-            <div class="bg-black/30 border border-white/5 rounded-xl p-4 mb-5 space-y-2.5 text-sm font-medium">
+            <div class="bg-gradient-to-b from-white/[0.05] to-white/[0.015] border border-white/10 rounded-xl p-5 mb-5 space-y-3 text-sm font-medium shadow-inner">
                 <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_subtotal">Subtotal</span><span id="modalSubtotal" class="font-mono text-white">$0.00</span></div>
                 <div id="modalDiscountRow" class="hidden flex justify-between text-gray-400"><span data-i18n="npos_modal_discount">Discount</span><span id="modalDiscount" class="font-mono text-amber-400">-$0.00</span></div>
                 <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_tax">Tax</span><span id="modalTax" class="font-mono text-cyan-400">$0.00</span></div>
                 <div class="flex justify-between text-gray-400"><span data-i18n="npos_modal_tip">Tips</span><span id="modalTip" class="font-mono text-emerald-400">$0.00</span></div>
-                <div class="flex justify-between items-center text-lg font-extrabold pt-2.5 border-t border-white/5"><span data-i18n="npos_modal_total">Final Total</span><span id="modalTotal" class="font-mono text-pink-400">$0.00</span></div>
+                <div class="flex justify-between items-center pt-3 mt-1 border-t border-white/10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-gray-300" data-i18n="npos_modal_total">Final Total</span>
+                    <span id="modalTotal" class="font-mono text-3xl font-black text-pink-400 drop-shadow-[0_0_14px_rgba(236,72,153,0.5)]">$0.00</span>
+                </div>
             </div>
 
-            <div class="flex gap-3">
-                <button onclick="closePaymentModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
-                <button id="confirmPaymentBtn" onclick="submitCheckout()" class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_modal_confirm">Confirm Payment</button>
+            <div class="space-y-2">
+                <button id="confirmPaymentBtn" onclick="submitCheckout()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-4.5 rounded-xl text-base uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_0_28px_rgba(236,72,153,0.45)] transition-all shadow-lg shadow-pink-500/20" data-i18n="npos_modal_confirm">Confirm Payment</button>
+                <button onclick="closePaymentModal()" class="w-full text-gray-500 hover:text-white font-bold py-2.5 text-xs uppercase tracking-wider transition" data-i18n="npos_modal_cancel">Cancel</button>
             </div>
         </div>
     </div>
@@ -673,26 +708,31 @@
     <!-- ================= RETURN / REFUND MODAL ================= -->
     <div id="refundModal" class="modal-overlay">
         <div class="modal-container">
-            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-rotate-left text-rose-400"></i> <span data-i18n="npos_refund_title">Return / Refund</span></h3>
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-3 border-b border-red-500/20 pb-3">
+                <span class="w-9 h-9 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                    <i class="fas fa-triangle-exclamation text-red-400 text-sm"></i>
+                </span>
+                <span data-i18n="npos_refund_title">Return / Refund</span>
+            </h3>
 
             <div class="space-y-4 mb-6">
                 <div>
                     <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_order_label">Order #</label>
-                    <input type="text" autocomplete="off" id="refundOrderId" placeholder="e.g. 1042" class="pos-input text-base">
+                    <input type="text" autocomplete="off" id="refundOrderId" placeholder="e.g. 1042" class="refund-input text-base">
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_amount_label">Refund Amount</label>
-                    <input type="number" autocomplete="off" id="refundAmount" min="0" placeholder="0.00" class="pos-input text-base font-mono">
+                    <input type="number" autocomplete="off" id="refundAmount" min="0" placeholder="0.00" class="refund-input text-base font-mono">
                 </div>
                 <div>
                     <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="npos_refund_reason_label">Reason (optional)</label>
-                    <textarea id="refundReason" rows="2" class="pos-input text-base resize-none" placeholder=""></textarea>
+                    <textarea id="refundReason" rows="2" class="refund-input text-base resize-none" placeholder=""></textarea>
                 </div>
             </div>
 
             <div class="flex gap-3">
                 <button onclick="closeRefundModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider" data-i18n="npos_modal_cancel">Cancel</button>
-                <button id="confirmRefundBtn" onclick="submitRefund()" class="flex-1 bg-gradient-to-r from-rose-500 to-red-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform" data-i18n="npos_refund_submit">Process Refund</button>
+                <button id="confirmRefundBtn" onclick="submitRefund()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-all shadow-lg shadow-red-600/30" data-i18n="npos_refund_submit">Process Refund</button>
             </div>
         </div>
     </div>

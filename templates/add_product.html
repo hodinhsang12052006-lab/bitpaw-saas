@@ -64,11 +64,18 @@
             font-weight: 500;
             font-size: 0.9rem;
         }
-        .glass-input:focus, .glass-select:focus { 
-            border-color: #06b6d4; 
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); 
-            background: rgba(0,0,0,0.8); 
+        .glass-input:focus, .glass-select:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+            background: rgba(0,0,0,0.8);
         }
+        /* .glass-input/.glass-select's own `padding: 12px 16px` shorthand above always wins over
+           Tailwind's pl-11/pr-8 utility classes at equal specificity (this <style> block loads
+           after Tailwind's compiled stylesheet) — collapsing left padding to 16px lets the
+           absolutely-positioned icon overlap the typed text/placeholder. These !important
+           overrides restore real clearance without touching the icon markup. */
+        .icon-input-pl { padding-left: 2.75rem !important; }
+        .icon-input-pr { padding-right: 2rem !important; }
         
         .glass-select option { background-color: #0f111a; color: white; padding: 10px; }
         .glass-select optgroup { color: #06b6d4; font-weight: 900; background: #08061a; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; padding: 5px; }
@@ -210,7 +217,7 @@
                     <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_name_label">Tên sản phẩm / mặt hàng</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-tag text-gray-500 text-sm"></i></div>
-                        <input type="text" name="name" id="productName" required placeholder="VD: Cà phê sữa đá, Áo thun..." data-i18n-placeholder="addproduct_name_placeholder" class="glass-input pl-11">
+                        <input type="text" name="name" id="productName" required placeholder="VD: Cà phê sữa đá, Áo thun..." data-i18n-placeholder="addproduct_name_placeholder" class="glass-input icon-input-pl pl-11">
                     </div>
                 </div>
 
@@ -219,7 +226,7 @@
                     <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_category_label">Danh mục / Ngành hàng</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-layer-group text-gray-500 text-sm"></i></div>
-                        <select name="category" id="productCategory" required class="glass-select pl-11 appearance-none cursor-pointer">
+                        <select name="category" id="productCategory" required class="glass-select icon-input-pl pl-11 appearance-none cursor-pointer">
                             <optgroup label="🍻 Dịch vụ Ẩm thực" data-i18n-label="addproduct_optgroup_fnb">
                                 <option value="Đồ Ăn" data-i18n="addproduct_opt_food">🍛 Đồ ăn / Món nhắm</option>
                                 <option value="Nước Uống" data-i18n="addproduct_opt_drink">🍹 Đồ uống / Cà phê</option>
@@ -248,13 +255,13 @@
                         <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_stock_label">Số lượng tồn</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-boxes text-gray-500 text-sm"></i></div>
-                            <input type="number" name="stock" id="productStock" required value="999" min="0" class="glass-input pl-11 font-mono text-cyan-300">
+                            <input type="number" name="stock" id="productStock" required value="999" min="0" class="glass-input icon-input-pl pl-11 font-mono text-cyan-300">
                         </div>
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addproduct_price_label">Giá bán (VNĐ)</label>
                         <div class="relative">
-                            <input type="text" id="priceDisplay" placeholder="0" class="glass-input pr-8 font-mono text-emerald-400 text-right">
+                            <input type="text" id="priceDisplay" placeholder="0" class="glass-input icon-input-pr pr-8 font-mono text-emerald-400 text-right">
                             <input type="hidden" name="price" id="priceHidden">
                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><span class="text-gray-500 text-sm font-bold">₫</span></div>
                         </div>
