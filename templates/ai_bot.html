@@ -620,32 +620,52 @@
         // `status`/`potential_score` so it flows through the SAME segment filter logic as live
         // data (see applyNurtureFilter below), not a hardcoded per-id special case.
         const mockCustomers = [
-            { id: 'mock-1', full_name: 'Amelia Chen (VIP)', last_message: "Hi! Could I book my usual gel set with the chrome nail art before my cousin's wedding on Saturday?", last_message_time: new Date().toISOString(), status: 'VIP', potential_score: 96 },
-            { id: 'mock-2', full_name: 'Sophie Walsh', last_message: "Hey, it's been a few weeks since my last visit — is the loyalty comeback discount still running?", last_message_time: new Date().toISOString(), status: 'CHURN_RISK', potential_score: 38 },
-            { id: 'mock-3', full_name: 'Chloe Nguyen (Regular)', last_message: 'Same time next Thursday for my fortnightly manicure? Also keen to try the new dip powder colours.', last_message_time: new Date().toISOString(), status: 'LOYAL', potential_score: 85 },
-            { id: 'mock-4', full_name: 'Isabella Ford', last_message: 'Hi there! Do you do BIAB nails? This would be my first time as a customer.', last_message_time: new Date().toISOString(), status: 'NEW', potential_score: 60 },
-            { id: 'mock-5', full_name: 'Grace Mitchell', last_message: 'Hi, my gel polish chipped after only 3 days. Could I come in to get it touched up?', last_message_time: new Date().toISOString(), status: 'NEEDS_CARE', potential_score: 50 },
-            { id: 'mock-6', full_name: 'Olivia Bennett (VIP)', last_message: 'Loved my last acrylic set! Can I book the same style for my birthday next week? 🎂', last_message_time: new Date().toISOString(), status: 'HOT', potential_score: 92 }
+            { id: 'mock-1', full_name: 'Chị Hương', last_message: 'Alo shop cho em hỏi giá đắp bột với vẽ nail nghệ thuật ạ?', last_message_time: new Date().toISOString(), status: 'NEW', potential_score: 65 },
+            { id: 'mock-2', full_name: 'Emily Tran', last_message: 'Hi, do you guys do eyelash extensions too? Looking to book for this weekend', last_message_time: new Date().toISOString(), status: 'LOYAL', potential_score: 82 },
+            { id: 'mock-3', full_name: 'Chị Thảo', last_message: 'Bên em combo tay chân nước giá nhiêu vậy?', last_message_time: new Date().toISOString(), status: 'NEEDS_CARE', potential_score: 45 },
+            { id: 'mock-4', full_name: 'Jessica Nguyen', last_message: 'First time here, is gel-x good for short nails?', last_message_time: new Date().toISOString(), status: 'NEW', potential_score: 70 },
+            { id: 'mock-5', full_name: 'Anh Minh (VIP)', last_message: 'Cho anh đặt lịch làm móng chân + tay như lần trước nha', last_message_time: new Date().toISOString(), status: 'VIP', potential_score: 90 },
+            { id: 'mock-6', full_name: 'Sarah Lee', last_message: 'How much for lash refill and do I need to book?', last_message_time: new Date().toISOString(), status: 'HOT', potential_score: 88 }
         ];
 
         const mockMessages = {
             'mock-1': [
-                { sender_type: 'customer', content: "Hi! Could I book my usual gel set with the chrome nail art before my cousin's wedding on Saturday?", created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Alo shop cho em hỏi giá đắp bột với vẽ nail nghệ thuật ạ?', created_at: '2026-07-28T09:12:00+11:00' },
+                { sender_type: 'ai', content: 'Dạ chào chị 💅 Đắp bột (Acrylic Full Set) bên em $95, có vẽ art thêm $10-15 tùy mẫu chị nha. Chị muốn đặt lịch luôn không ạ?', created_at: '2026-07-28T09:12:19+11:00' },
+                { sender_type: 'customer', content: 'Dạ cho chị đặt thứ 6 chiều được không', created_at: '2026-07-28T09:14:02+11:00' },
+                { sender_type: 'ai', content: 'Dạ thứ 6 bên em còn trống 2:00 PM và 4:00 PM ạ, chị chọn giờ nào em giữ chỗ liền nha!', created_at: '2026-07-28T09:14:20+11:00' },
+                { sender_type: 'customer', content: '4h nha em', created_at: '2026-07-28T09:14:35+11:00' },
+                { sender_type: 'ai', content: 'Dạ em xác nhận lịch: Thứ 6, 4:00 PM — Đắp bột Ombre cho chị Hương ✅ Hẹn gặp chị nha!', created_at: '2026-07-28T09:14:50+11:00' }
             ],
             'mock-2': [
-                { sender_type: 'customer', content: "Hey, it's been a few weeks since my last visit — is the loyalty comeback discount still running?", created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Hi, do you guys do eyelash extensions too? Looking to book for this weekend', created_at: '2026-07-28T11:03:00+11:00' },
+                { sender_type: 'ai', content: 'Hi Emily! 😊 Yes, we do Classic Lash Extensions ($65) and Volume Lash ($85). Saturday we have 11am and 2pm open — which works for you?', created_at: '2026-07-28T11:03:22+11:00' },
+                { sender_type: 'customer', content: '2pm volume lash please', created_at: '2026-07-28T11:04:10+11:00' },
+                { sender_type: 'ai', content: "Perfect, you're booked: Saturday 2:00 PM — Volume Lash Extensions ✅ See you then!", created_at: '2026-07-28T11:04:28+11:00' }
             ],
             'mock-3': [
-                { sender_type: 'customer', content: 'Same time next Thursday for my fortnightly manicure? Also keen to try the new dip powder colours.', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Bên em combo tay chân nước giá nhiêu vậy?', created_at: '2026-07-28T13:20:00+11:00' },
+                { sender_type: 'ai', content: 'Dạ Combo Tay Chân Nước bên em $65, đã gồm ngâm nước ấm + tẩy da chết + sơn dưỡng ạ. Chị đặt lịch hôm nào để em giữ chỗ nha?', created_at: '2026-07-28T13:20:15+11:00' },
+                { sender_type: 'customer', content: 'Để chị coi lịch rồi nhắn lại', created_at: '2026-07-28T13:21:00+11:00' },
+                { sender_type: 'ai', content: 'Dạ không sao ạ, em giữ ưu đãi 10% đặt lịch online cho chị trong 24h nha, chị nhắn em bất cứ lúc nào ạ 💕', created_at: '2026-07-28T13:21:15+11:00' }
             ],
             'mock-4': [
-                { sender_type: 'customer', content: 'Hi there! Do you do BIAB nails? This would be my first time as a customer.', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'First time here, is gel-x good for short nails?', created_at: '2026-07-28T15:02:00+11:00' },
+                { sender_type: 'ai', content: 'Great choice for short nails! Gel-X Extensions ($85) are lightweight and add length without damaging your natural nail. Want me to book you a slot this week?', created_at: '2026-07-28T15:02:25+11:00' },
+                { sender_type: 'customer', content: 'yes please, wed morning', created_at: '2026-07-28T15:03:10+11:00' },
+                { sender_type: 'ai', content: 'Booked! Wednesday 10:00 AM — Gel-X Extensions ✅ Looking forward to seeing you!', created_at: '2026-07-28T15:03:30+11:00' }
             ],
             'mock-5': [
-                { sender_type: 'customer', content: 'Hi, my gel polish chipped after only 3 days. Could I come in to get it touched up?', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'Cho anh đặt lịch làm móng chân + tay như lần trước nha', created_at: '2026-07-28T16:40:00+11:00' },
+                { sender_type: 'ai', content: 'Dạ chào anh Minh 👋 Anh muốn đặt Classic Manicure & Pedicure Combo ($90) giống lần trước đúng không ạ? Anh rảnh khung giờ nào?', created_at: '2026-07-28T16:40:18+11:00' },
+                { sender_type: 'customer', content: 'Chiều mai 3h', created_at: '2026-07-28T16:41:00+11:00' },
+                { sender_type: 'ai', content: 'Dạ đã đặt: Ngày mai 3:00 PM — Classic Mani & Pedi Combo ✅ Cảm ơn anh đã tin tưởng tiệm nha!', created_at: '2026-07-28T16:41:20+11:00' }
             ],
             'mock-6': [
-                { sender_type: 'customer', content: 'Loved my last acrylic set! Can I book the same style for my birthday next week? 🎂', created_at: new Date().toISOString() }
+                { sender_type: 'customer', content: 'How much for lash refill and do I need to book?', created_at: '2026-07-28T18:15:00+11:00' },
+                { sender_type: 'ai', content: 'Lash Refill (2-3 weeks) is $45, and yes booking ahead guarantees your spot 💕 We have Friday 1pm or Saturday 10am open — which suits you?', created_at: '2026-07-28T18:15:20+11:00' },
+                { sender_type: 'customer', content: 'Friday 1pm works', created_at: '2026-07-28T18:16:05+11:00' },
+                { sender_type: 'ai', content: 'All set! Friday 1:00 PM — Lash Refill ✅ See you soon, Sarah!', created_at: '2026-07-28T18:16:22+11:00' }
             ]
         };
 
@@ -827,17 +847,17 @@
             if (aiClosingAlert && aiClosingText) {
                 aiClosingAlert.classList.remove("hidden");
                 if (customer.id.includes('mock-1')) {
-                    aiClosingText.innerText = "Offer a complimentary luxury hand massage add-on with her bridal party gel set booking!";
+                    aiClosingText.innerText = "Booked and confirmed — offer a free nail art design upgrade on her first visit to turn her into a repeat customer!";
                 } else if (customer.id.includes('mock-2')) {
-                    aiClosingText.innerText = "Offer a $15 'We Miss You' comeback voucher valid this week to win her back!";
+                    aiClosingText.innerText = "Booked and confirmed — suggest she add a Classic Manicure to her Volume Lash visit for a bundle discount!";
                 } else if (customer.id.includes('mock-3')) {
-                    aiClosingText.innerText = "Offer 10% off her next dip powder set as a loyalty thank-you for her fortnightly visits!";
+                    aiClosingText.innerText = "Still hesitant — the 10% online booking voucher expires in 24h, send 1 gentle follow-up reminder tomorrow.";
                 } else if (customer.id.includes('mock-4')) {
-                    aiClosingText.innerText = "Offer 15% off her first BIAB set to make a great first impression!";
+                    aiClosingText.innerText = "First-time customer, booked — offer 15% off her next visit to convert her into a regular.";
                 } else if (customer.id.includes('mock-5')) {
-                    aiClosingText.innerText = "Offer a free gel touch-up today plus a $10 credit for the inconvenience!";
+                    aiClosingText.innerText = "VIP repeat customer — offer a complimentary callus treatment add-on as a loyalty thank-you.";
                 } else if (customer.id.includes('mock-6')) {
-                    aiClosingText.innerText = "Offer a free nail art upgrade on her birthday acrylic set as a loyalty treat!";
+                    aiClosingText.innerText = "Booked a refill only — offer a discounted upgrade to a full Volume Lash set on her next visit.";
                 } else {
                     aiClosingText.innerText = "Offer a 10% discount voucher to close the automated customer care booking!";
                 }
