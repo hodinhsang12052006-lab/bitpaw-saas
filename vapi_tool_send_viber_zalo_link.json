@@ -1,0 +1,40 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "send_viber_zalo_link",
+    "description": "Call this tool IMMEDIATELY the moment the customer verbally agrees to receive information, images, a link, or a demo via a messaging app (Zalo or Viber). Trigger phrases include (but are not limited to): 'Ok gửi đi', 'Gửi qua số này nha', 'Để chị xem', 'Gửi Zalo cho chị', 'Nhắn tin cho chị đi'. Do NOT wait for the customer to repeat their phone number if it was already mentioned earlier in the call — reuse it. This tool sends the customer a Zalo/Viber message containing the BitPaw Nail Salon Management System info packet (photos, pricing link, demo video). Use this as soon as consent is detected; do not ask extra confirmation questions once the customer has clearly agreed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_phone": {
+          "type": "string",
+          "description": "The customer's phone number to send the Zalo/Viber message to, in the exact format spoken during the call (digits only, no spaces or dashes if possible, e.g. '0912345678'). If the customer already gave their phone number earlier in the conversation, reuse that number here instead of asking again. This field is required — if no phone number has been captured yet, ask the customer for it before calling this tool."
+        },
+        "customer_vibe": {
+          "type": "string",
+          "enum": ["positive", "busy", "hesitant"],
+          "description": "Your read of the customer's tone and attitude during this part of the call, inferred from HOW they spoke — do not ask the customer this directly. Use 'positive' if they sounded enthusiastic, warm, or eager (e.g. 'Ok gửi đi liền nha em', excited tone). Use 'busy' if they sounded rushed, distracted, or said things like 'gửi đi, chị đang bận' / 'để chị xem sau'. Use 'hesitant' if they sounded unsure, reluctant, or only agreed passively (e.g. 'ừ thôi gửi đi', flat or slow tone, long pauses before agreeing). This signal is used to prioritize and personalize the sales follow-up after the call."
+        }
+      },
+      "required": ["customer_phone"]
+    }
+  },
+  "server": {
+    "url": "https://YOUR_SERVER_DOMAIN/api/vapi/send-viber-zalo-link"
+  },
+  "messages": [
+    {
+      "type": "request-start",
+      "content": "Dạ để em gửi liền qua Zalo cho chị nha, chờ em xíu..."
+    },
+    {
+      "type": "request-complete",
+      "content": "Dạ em gửi xong rồi đó chị, chị check Zalo giúp em nha!"
+    },
+    {
+      "type": "request-failed",
+      "content": "Dạ hệ thống gửi tin hơi chậm xíu, chị đợi em một chút nha, hoặc để em gửi lại sau cuộc gọi."
+    }
+  ]
+}
