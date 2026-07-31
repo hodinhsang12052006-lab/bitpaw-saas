@@ -50,6 +50,8 @@ from ai_memory_engine import get_conversation_memory, maybe_distill_memory_async
 from ai_vector_rag import retrieve_relevant_knowledge, reindex_business_knowledge
 from ai_nurturing_engine import AINurturingEngine
 from email_service import EmailService
+from ai_function_tools import TOOL_SCHEMAS, execute_tool_call
+from ai_deepseek_client import deepseek_chat_completion
 
 # Các module cho US market pivot (tenant_engine/currency_utils/payment_us_engine) từng làm
 # sập TOÀN BỘ app trên Vercel (mọi route, kể cả /favicon.ico, đều 500 FUNCTION_INVOCATION_FAILED
@@ -6955,6 +6957,54 @@ def stream_bot_chat():
     return _sse_change_signal(db, _sse_tenant_match('bot_customers', 'bot_messages'))
 
 
+def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, customer_id, api_key):
+    """Vòng lặp Function Calling: gọi DeepSeek, nếu nó yêu cầu gọi tool (vd book_appointment)
+    thì THỰC SỰ thực thi tool đó trong Python, nối kết quả thật vào messages rồi gọi lại
+    DeepSeek để lấy câu trả lời cuối cùng dựa trên kết quả thật đó — thay vì để AI tự bịa ra
+    câu trả lời như đã xảy ra mà không có gì được ghi vào Database.
+
+    Giới hạn tối đa 3 vòng gọi tool liên tiếp để tránh vòng lặp vô hạn nếu model cứ liên tục
+    yêu cầu gọi tool (lỗi model hoặc tool trả lỗi khiến model thử lại vô hạn)."""
+    working_messages = list(messages)
+    proxy_api_key = os.environ.get('BITPAW_AI_PROXY_KEY')  # set bởi desktop_app/launcher.py sau khi verify license
+
+    for _round in range(3):
+        payload = {
+            "model": "deepseek-chat",
+            "messages": working_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "tools": TOOL_SCHEMAS,
+            "tool_choice": "auto",
+        }
+        # deepseek_chat_completion() tự chọn: gọi thẳng DeepSeek (Web/SaaS) hay qua AI Proxy
+        # ẩn danh (Desktop App) — xem ai_deepseek_client.py. Ở Desktop mode, api_key truyền
+        # vào route này KHÔNG phải DEEPSEEK_API_KEY thật (file .exe không chứa key thật).
+        result = deepseek_chat_completion(
+            payload, business_id=business_id, proxy_api_key=proxy_api_key, direct_api_key=api_key
+        )
+
+        message = result["choices"][0]["message"]
+        tool_calls = message.get("tool_calls")
+        if not tool_calls:
+            return result
+
+        # Model yêu cầu gọi tool — thực thi THẬT rồi vòng lại để lấy câu trả lời cuối cùng
+        working_messages.append(message)
+        for tool_call in tool_calls:
+            tool_call_id, tool_result_json = execute_tool_call(
+                tool_call, business_id=business_id, customer_id=customer_id
+            )
+            working_messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": tool_result_json,
+            })
+
+    # Hết 3 vòng vẫn còn đòi gọi tool — trả về response cuối cùng nhận được thay vì treo vô hạn
+    return result
+
+
 @app.route('/api/ai/studio/generate', methods=['POST'])
 def secure_ai_generate():
     data = request.get_json() or {}
@@ -7046,29 +7096,22 @@ def secure_ai_generate():
         f"gọi lại tư vấn gói tối ưu nhất cho {business_name} luôn nhé!"
     )
 
+    # Ở Desktop mode, không cần DEEPSEEK_API_KEY thật ở đây — ai_deepseek_client.py sẽ gọi
+    # qua AI Proxy bằng BITPAW_AI_PROXY_KEY thay thế (xem _call_deepseek_with_tools()).
     api_key = os.environ.get('DEEPSEEK_API_KEY')
-    if not api_key:
+    is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+    if not api_key and not is_desktop_mode:
         return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
                          "error": "Server chưa cấu hình DEEPSEEK_API_KEY."})
-
-    url = "https://api.deepseek.com/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    payload = {
-        "model": "deepseek-chat",
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens
-    }
 
     try:
         # Timeout nới rộng lên 45s: các câu hỏi có nhúng bảng giá/danh mục sản phẩm dài cho
         # tenant nhiều hàng hoá cần nhiều thời gian xử lý hơn so với persona ngắn cũ.
-        resp = requests.post(url, headers=headers, json=payload, timeout=45)
-        resp.raise_for_status()
-        result = resp.json()
+        # _call_deepseek_with_tools() cho phép AI THỰC SỰ gọi book_appointment() (Function
+        # Calling) thay vì chỉ sinh văn bản "đã đặt lịch" mà không ghi gì vào Database.
+        result = _call_deepseek_with_tools(
+            messages, temperature, max_tokens, business_id, customer_id, api_key
+        )
         try:
             ai_text = result['choices'][0]['message']['content']
             _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai')

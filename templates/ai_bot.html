@@ -171,19 +171,56 @@
             border-radius: 10px;
         }
 
-        /* Chat styles */
+        /* Chat styles — sizing lives HERE (not as Tailwind utility classes on the bubble <div>s)
+           because this <style> block loads after Tailwind's compiled stylesheet and always wins
+           the cascade at equal specificity; keeping padding/font-size out of the JS template
+           strings avoids the "utility class silently overridden" bug this codebase has hit
+           several times elsewhere. Bumped up from the old p-4/text-sm for a roomier,
+           Intercom/Messenger-style bubble that reads as "pro" on a client-facing demo screen. */
+        .chat-ai, .chat-user {
+            padding: 18px 22px;
+            font-size: 15.5px;
+            line-height: 1.65;
+        }
         .chat-ai {
             background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
             border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 4px 20px 20px 20px;
+            border-radius: 6px 24px 24px 24px;
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
         }
 
         .chat-user {
             background: linear-gradient(135deg, rgba(6, 182, 212, 0.8), rgba(59, 130, 246, 0.8));
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px 4px 20px 20px;
+            border-radius: 24px 6px 24px 24px;
             box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+
+        /* "AI is typing..." indicator — 3 dots with a staggered bounce, classic messaging-app feel */
+        .typing-dots { display: inline-flex; align-items: center; gap: 4px; }
+        .typing-dots span {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: rgba(6, 182, 212, 0.8);
+            animation: typingBounce 1.2s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Live Demo trigger rows — deliberately styled apart from real customer rows (glowing
+           green border/tint) so a salesperson demoing in front of a client can visually tell
+           these are demo tools, not actual inbox data. */
+        .live-demo-trigger {
+            border: 1.5px solid rgba(16, 185, 129, 0.45);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.15);
+        }
+        .live-demo-trigger:hover {
+            border-color: rgba(16, 185, 129, 0.8);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
         }
 
         .typing-dot {
@@ -297,7 +334,7 @@
         <div class="ai-core"></div>
 
         <div
-            class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
+            class="flex justify-between items-center mb-4 shrink-0 glass-panel p-4 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
                     <i class="fas fa-fingerprint text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> BitPaw
@@ -324,7 +361,7 @@
         <div class="flex gap-5 flex-1 min-h-0 relative z-10">
 
             <div
-                class="w-1/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+                class="w-1/4 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
                 <div class="p-4 border-b border-white/10 bg-black/40 space-y-3 shrink-0">
                     <div class="relative">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
@@ -374,7 +411,7 @@
 
 
             <div
-                class="w-2/3 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
+                class="w-3/4 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
 
                 <div class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
@@ -437,16 +474,16 @@
                 </div>
 
                 <div id="chatBox"
-                    class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
+                    class="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
                     <div class="flex justify-start gap-4">
                         <div
-                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1">
+                            class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1">
                             <i class="fas fa-robot"></i></div>
-                        <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
+                        <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
                             <p
-                                class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">
+                                class="text-[11px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">
                                 BitPaw Copilot</p>
-                            <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">
+                            <div class="chat-ai text-gray-200 font-medium">
                                 Hi there! Select a customer on the left to start chatting. I'm in auto-response
                                 mode! 🚀
                             </div>
@@ -576,6 +613,89 @@
         let isMockMode = false;
         let isDemoMode = false;
 
+        // Bumped every time ANY chat gets (re)loaded — startLiveDemo()'s multi-second delayed
+        // steps check this before touching the DOM, so switching to a real customer mid-animation
+        // can never have a stale setTimeout callback append a demo bubble into the wrong chat.
+        let chatSessionToken = 0;
+        let liveDemoRunning = false;
+
+        function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        // Always-visible sales demo triggers — pinned above the real inbox (in both the normal
+        // list and the empty-state view) so a salesperson can fire off a live AI-response demo
+        // in front of a client at any time, regardless of whether this tenant has real customers.
+        function renderLiveDemoTriggers() {
+            return `
+                <div class="px-1 pt-1 pb-2">
+                    <p class="text-[9px] text-emerald-400/80 font-black uppercase tracking-widest mb-2 px-2">⚡ Sales Demo Tools</p>
+                    <div class="live-demo-trigger flex items-center gap-3 p-3 rounded-2xl cursor-pointer mb-2" onclick="startLiveDemo('en')">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md shrink-0">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[13px] font-bold text-white truncate">🟢 Live Demo (English)</p>
+                            <p class="text-[11px] text-emerald-300/80 truncate font-medium">Click to simulate a real-time AI reply</p>
+                        </div>
+                    </div>
+                    <div class="live-demo-trigger flex items-center gap-3 p-3 rounded-2xl cursor-pointer" onclick="startLiveDemo('vi')">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md shrink-0">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[13px] font-bold text-white truncate">🟢 Live Demo (Vietnamese)</p>
+                            <p class="text-[11px] text-emerald-300/80 truncate font-medium">Bấm để mô phỏng AI trả lời real-time</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-white/5 mb-1"></div>
+            `;
+        }
+
+        window.startLiveDemo = async function (lang) {
+            if (liveDemoRunning) return;
+            liveDemoRunning = true;
+            const myToken = ++chatSessionToken;
+
+            currentCustomerId = `live-demo-${lang}`;
+            currentCustomerPhone = null;
+            conversationHistory = [];
+            chatCustomerName.innerText = lang === 'en' ? '🟢 Live Demo (English)' : '🟢 Live Demo (Vietnamese)';
+            chatAvatar.innerText = '⚡';
+            document.getElementById('aiClosingAlert').classList.add('hidden');
+
+            // Step 1: wipe the chat window clean
+            chatBox.innerHTML = '';
+
+            const script = {
+                en: {
+                    customer: 'Hi, do you have any slot for a full set acrylic today?',
+                    ai: "Hello! 👋 Yes, we have openings at 2:00 PM and 4:30 PM today for a full set. Would you like me to book one of those slots for you?"
+                },
+                vi: {
+                    customer: 'Alo shop, chiều nay rảnh không làm combo tay chân nước cho mình với?',
+                    ai: 'Dạ em chào chị! 👋 Chiều nay tiệm em còn trống lịch lúc 2:00 PM và 4:30 PM ạ. Chị chọn giờ nào để hệ thống tự động giữ chỗ cho mình nha?'
+                }
+            }[lang];
+
+            // Step 2: wait 1s, then fire the customer's message
+            await sleep(1000);
+            if (myToken !== chatSessionToken) { liveDemoRunning = false; return; }
+            appendAIMessageStatic(script.customer);
+
+            // Step 3: wait 0.5s, then show the typing indicator
+            await sleep(500);
+            if (myToken !== chatSessionToken) { liveDemoRunning = false; return; }
+            appendLiveDemoTypingIndicator();
+
+            // Step 4: wait 2.5s (simulated "thinking"), then swap the indicator for the real reply
+            await sleep(2500);
+            if (myToken !== chatSessionToken) { liveDemoRunning = false; return; }
+            removeLiveDemoTypingIndicator();
+            appendUserMessageStatic(script.ai);
+
+            liveDemoRunning = false;
+        }
+
 
         // DOM Elements
         const customerListDiv = document.getElementById('customerList');
@@ -695,7 +815,7 @@
         }
 
         function renderEmptyState() {
-            customerListDiv.innerHTML = `
+            customerListDiv.innerHTML = renderLiveDemoTriggers() + `
                 <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
                     <div class="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 animate-pulse">
                         <i class="fas fa-users-slash text-lg"></i>
@@ -704,6 +824,12 @@
                     <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Connect Zalo/Facebook or capture leads from your landing page.</p>
                 </div>
             `;
+
+            // Skip resetting the right-hand chat pane if a customer (real or live-demo) is
+            // already open — this fires on every SSE "realtime" ping via fetchCustomers(),
+            // and without this guard it was wiping out an in-progress startLiveDemo() sequence
+            // (or any actively open chat) the moment a ping landed mid-animation.
+            if (currentCustomerId) return;
 
             // Reset chat area
             chatCustomerName.innerText = "No customer selected";
@@ -809,9 +935,9 @@
         }
 
         function renderCustomerList(customers) {
-            customerListDiv.innerHTML = '';
+            customerListDiv.innerHTML = renderLiveDemoTriggers();
             if (customers.length === 0) {
-                customerListDiv.innerHTML = `<p class="text-center text-gray-500 text-xs py-8 font-medium">No customers found</p>`;
+                customerListDiv.insertAdjacentHTML('beforeend', `<p class="text-center text-gray-500 text-xs py-8 font-medium">No customers found</p>`);
                 return;
             }
 
@@ -835,6 +961,7 @@
         }
 
         async function onSelectCustomer(customer) {
+            chatSessionToken++; // invalidates any in-flight startLiveDemo() timers from before
             currentCustomerId = customer.id;
             currentCustomerPhone = customer.phone || null; // để AI cá nhân hoá theo hạng/lịch sử chi tiêu nếu tra được
             conversationHistory = [];
@@ -909,9 +1036,9 @@
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
-                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-end">
-                        <div class="chat-user p-4 text-sm text-white leading-relaxed font-medium">${text}</div>
-                        <p class="text-[9px] text-gray-500 mt-1 mr-2 font-bold"><i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
+                    <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-end">
+                        <div class="chat-user text-white font-medium">${text}</div>
+                        <p class="text-[10px] text-gray-500 mt-1.5 mr-2 font-bold"><i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -921,11 +1048,11 @@
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
-                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[10px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
-                        <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${text}</div>
-                        <p class="text-[9px] text-gray-500 mt-1 ml-2 font-bold">${timeStr}</p>
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
+                    <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
+                        <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${text}</div>
+                        <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -935,11 +1062,11 @@
             const timeStr = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
-                    <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[10px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
-                        <div class="chat-ai p-4 text-sm text-gray-200 leading-relaxed font-medium">${text}</div>
-                        <p class="text-[9px] text-gray-500 mt-1 ml-2 font-bold">${timeStr}</p>
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
+                    <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[11px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
+                        <div class="chat-ai text-gray-200 font-medium">${text}</div>
+                        <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -947,6 +1074,27 @@
         }
 
         function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
+
+        function appendLiveDemoTypingIndicator() {
+            const html = `
+                <div id="liveDemoTypingRow" class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
+                    <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
+                        <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
+                        <div class="chat-ai text-gray-300 font-medium flex items-center gap-2" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
+                            <span class="text-xs italic">AI Copilot is typing</span>
+                            <span class="typing-dots"><span></span><span></span><span></span></span>
+                        </div>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function removeLiveDemoTypingIndicator() {
+            const el = document.getElementById('liveDemoTypingRow');
+            if (el) el.remove();
+        }
 
         window.sendQuickMessage = function (text) {
             if (!currentCustomerId) { showToast('Please select a customer or branch on the left first!', 'error'); return; }
@@ -1104,7 +1252,7 @@ ${text}`;
                 const stream = new EventSource('/api/stream/bot_chat');
                 stream.onmessage = () => {
                     fetchCustomers();
-                    if (currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-')) {
+                    if (currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-') && !String(currentCustomerId).startsWith('live-demo-')) {
                         loadMessages(currentCustomerId, { silent: true });
                     }
                 };

@@ -527,8 +527,36 @@
         </div>
     </div>
 
+    <div id="downloadModal"
+        class="fixed inset-0 z-[999] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div
+            class="bg-[#0a0f25] border border-purple-500/30 rounded-2xl w-full max-w-md shadow-[0_0_40px_rgba(168,85,247,0.2)] transform scale-95 transition-transform duration-300 relative">
+            <div
+                class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-purple-900/40 to-transparent rounded-t-2xl">
+                <h3 class="text-lg font-black text-purple-300 tracking-wider uppercase"><i class="fas fa-download mr-2"></i>Download BitPaw AI Copilot</h3>
+                <button onclick="closeDownloadModal()"
+                    class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-3">
+                <a href="{{ url_for('static', filename='downloads/BitPawOS_Setup.exe') }}"
+                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-black hover:brightness-110 transition">
+                    <i class="fab fa-windows text-xl"></i> Download for Windows (.exe)
+                </a>
+                <button type="button" disabled
+                    title="Mac build coming soon"
+                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-white/5 text-gray-500 border border-white/10 cursor-not-allowed">
+                    <i class="fab fa-apple text-xl"></i> Download for Mac (.dmg) <span class="ml-auto text-[10px] uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-full">Soon</span>
+                </button>
+                <p class="text-xs text-gray-400 leading-relaxed pt-2 border-t border-white/10 mt-2">
+                    <i class="fas fa-circle-info text-purple-400 mr-1"></i>
+                    After installing, please enter your License Key to activate the system.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <header id="main-header"
-        class="fixed w-full top-0 z-50 glass border-b border-white/5 transition-all duration-300 py-3">
+        class="fixed w-full top-0 z-50 glass border-b border-white/5 transition-all duration-300 py-3"
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
             <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
                 <div
@@ -744,6 +772,9 @@
                     </div>
                 </div>
 
+                <button type="button" onclick="openDownloadModal()"
+                    class="hidden md:flex items-center justify-center gap-2 px-5 py-2 rounded-full font-bold text-sm bg-white/5 hover:bg-white/10 transition-colors border border-purple-400/40 text-purple-300 hover:text-purple-200"
+                    data-i18n="nav_download"><i class="fas fa-download"></i> Download Desktop App</button>
                 <a href="{{ url_for('login') }}"
                     class="hidden md:flex items-center justify-center px-6 py-2 rounded-full font-bold text-sm bg-white/10 hover:bg-white/20 transition-colors border border-white/10"
                     data-i18n="nav_login">Admin Login</a>
@@ -818,6 +849,9 @@
                 <button onclick="changeLanguage('en'); toggleMobileMenu()"
                     class="text-2xl hover:scale-110 transition">🇬🇧</button>
             </div>
+            <button type="button" onclick="toggleMobileMenu(); openDownloadModal()"
+                class="flex items-center justify-center gap-2 bg-white/5 text-center py-3 rounded-xl border border-purple-400/40 text-purple-300 hover:bg-white/10 transition-colors"
+                data-i18n="nav_download"><i class="fas fa-download"></i> Download Desktop App</button>
             <a href="{{ url_for('login') }}" class="bg-white/10 text-center py-3 rounded-xl hover:bg-white/20 transition-colors"
                 data-i18n="nav_login">Admin Login</a>
         </nav>
@@ -3192,6 +3226,23 @@
             setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
         }
         document.getElementById('policyModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+        function openDownloadModal() {
+            const modal = document.getElementById('downloadModal');
+            const modalInner = modal.querySelector('div');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modalInner.classList.remove('scale-95'); }, 10);
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDownloadModal() {
+            const modal = document.getElementById('downloadModal');
+            const modalInner = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            modalInner.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
+        }
+        document.getElementById('downloadModal').addEventListener('click', function (e) { if (e.target === this) closeDownloadModal(); });
 
         function toggleMobileMenu() {
             const menu = document.getElementById('mobile-menu');
