@@ -1,0 +1,32 @@
+# ============================================================================
+# BitPaw OS — DESKTOP APP (.exe offline, desktop_app/) + tooling nội bộ (test
+# e2e, screenshot marketing). KHÔNG dùng file này để deploy Vercel.
+#
+# Cài đặt đầy đủ cho máy build desktop (cần CẢ 2 file, file này chỉ chứa PHẦN
+# THÊM so với requirements.txt):
+#   pip install -r requirements.txt -r requirements_desktop.txt
+#
+# auto_build.py tự động lọc bỏ dòng sqlcipher3-binary khỏi bước cài đặt nếu
+# máy build không cài được (wheel hay thiếu trên Windows) — xem ghi chú ở đó.
+# ============================================================================
+
+# --- Đóng gói .exe / mở cửa sổ Desktop (desktop_app/launcher.py, build.spec) ---
+pyinstaller==6.10.0
+pywebview==5.2
+
+# --- Database cục bộ (local_db.py — thay MongoDB khi chạy offline, API tương thích pymongo) ---
+montydb==2.5.6
+
+# --- Mã hoá bảng lịch hẹn cục bộ (desktop_app/secure_db.py, ai_function_tools.py) ---
+sqlalchemy==2.0.36
+sqlcipher3-binary==0.5.4
+keyring==25.5.0
+
+# --- Real-time Cloud Relay (desktop_app/realtime_client.py) ---
+python-socketio==5.11.4
+websocket-client==1.9.0
+
+# --- Test E2E / tooling nội bộ (test_*.py, e2e_*.py, auto_screenshot_marketing.py) —
+#     chỉ chạy tay lúc dev, app.py KHÔNG import các gói này lúc chạy thật ---
+playwright==1.61.0
+selenium==4.45.0
