@@ -542,11 +542,10 @@
                     class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-black hover:brightness-110 transition">
                     <i class="fab fa-windows text-xl"></i> Download for Windows (.exe)
                 </a>
-                <button type="button" disabled
-                    title="Mac build coming soon"
-                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-white/5 text-gray-500 border border-white/10 cursor-not-allowed">
-                    <i class="fab fa-apple text-xl"></i> Download for Mac (.dmg) <span class="ml-auto text-[10px] uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-full">Soon</span>
-                </button>
+                <a href="https://apps.apple.com/" target="_blank" rel="noopener noreferrer"
+                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors">
+                    <i class="fab fa-apple text-xl"></i> Download on the Mac App Store
+                </a>
                 <p class="text-xs text-gray-400 leading-relaxed pt-2 border-t border-white/10 mt-2">
                     <i class="fas fa-circle-info text-purple-400 mr-1"></i>
                     After installing, please enter your License Key to activate the system.
@@ -557,7 +556,7 @@
 
     <header id="main-header"
         class="fixed w-full top-0 z-50 glass border-b border-white/5 transition-all duration-300 py-3">
-        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center gap-x-4 xl:gap-x-8">
+        <div class="max-w-[1500px] mx-auto px-6 2xl:px-8 flex justify-between items-center gap-x-4 2xl:gap-x-8">
             <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
                 <div
                     class="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center border border-cyan-500/50 group-hover:rotate-12 transition-transform overflow-hidden">
@@ -567,7 +566,7 @@
                 </h2>
             </div>
 
-            <nav class="hidden lg:flex items-center gap-4 xl:gap-8 text-sm font-bold text-gray-300 shrink-0">
+            <nav class="hidden lg:flex items-center gap-3 2xl:gap-8 text-sm font-bold text-gray-300 shrink-0">
                 <div class="relative mega-wrapper py-2 cursor-pointer">
                     <span class="hover:text-cyan-400 transition-colors flex items-center gap-1 text-white"
                         data-i18n="nav_ecosystem">Hệ Sinh Thái <i class="fas fa-chevron-down text-[10px]"></i></span>
@@ -755,10 +754,10 @@
                 <a href="#bang-gia" class="hover:text-cyan-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
-            <div class="flex items-center gap-1.5 xl:gap-4 relative shrink-0">
+            <div class="flex items-center gap-1.5 2xl:gap-4 relative shrink-0">
                 <div class="relative lang-wrapper hidden md:block z-50 py-2">
                     <button type="button" onclick="toggleLangDropdown(event)"
-                        class="flex items-center gap-1 xl:gap-2 text-xs xl:text-sm font-bold text-gray-300 hover:text-white transition bg-white/5 px-2 xl:px-3 py-1.5 rounded-lg border border-white/10">
+                        class="flex items-center gap-1 2xl:gap-2 text-xs 2xl:text-sm font-bold text-gray-300 hover:text-white transition bg-white/5 px-2 2xl:px-3 py-1.5 rounded-lg border border-white/10">
                         <span id="current-lang-icon">{{ '🇬🇧' if current_lang == 'en' else '🇻🇳' }}</span> <span id="current-lang-text">{{ 'EN' if current_lang == 'en' else 'VN' }}</span> <i
                             class="fas fa-chevron-down text-[10px]"></i>
                     </button>
@@ -772,14 +771,14 @@
                     </div>
                 </div>
 
-                <button type="button" onclick="openDownloadModal()"
-                    class="hidden md:flex items-center justify-center gap-1.5 xl:gap-2 px-2.5 xl:px-5 py-2 rounded-full font-bold text-xs xl:text-sm bg-white/5 hover:bg-white/10 transition-colors border border-purple-400/40 text-purple-300 hover:text-purple-200 whitespace-nowrap"
-                    data-i18n="nav_download"><i class="fas fa-download"></i> <span class="hidden xl:inline">Download Desktop App</span><span class="xl:hidden">Download</span></button>
+                <button type="button" onclick="openDownloadModal()" title="Download Desktop App"
+                    class="hidden md:flex items-center justify-center gap-2 w-9 h-9 2xl:w-auto 2xl:h-auto 2xl:px-5 2xl:py-2 rounded-full font-bold text-sm bg-white/5 hover:bg-white/10 transition-colors border border-purple-400/40 text-purple-300 hover:text-purple-200 whitespace-nowrap shrink-0"
+                    data-i18n="nav_download"><i class="fas fa-download"></i><span class="hidden 2xl:inline">Download Desktop App</span></button>
                 <a href="{{ url_for('login') }}"
-                    class="hidden md:flex items-center justify-center px-3 xl:px-6 py-2 rounded-full font-bold text-xs xl:text-sm bg-white/10 hover:bg-white/20 transition-colors border border-white/10 whitespace-nowrap"
+                    class="hidden md:flex items-center justify-center px-3 2xl:px-6 py-2 rounded-full font-bold text-xs 2xl:text-sm bg-white/10 hover:bg-white/20 transition-colors border border-white/10 whitespace-nowrap"
                     data-i18n="nav_login">Admin Login</a>
                 <a href="#bang-gia"
-                    class="hidden md:flex btn-neon bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black px-3 xl:px-6 py-2 rounded-full text-xs xl:text-sm items-center gap-1.5 xl:gap-2 whitespace-nowrap">
+                    class="hidden md:flex btn-neon bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black px-3 2xl:px-6 py-2 rounded-full text-xs 2xl:text-sm items-center gap-1.5 2xl:gap-2 whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_call">Mua Ngay</span>
                 </a>
                 <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-cyan-400 p-2 focus:outline-none"><i
