@@ -21,8 +21,9 @@ app.py), a leftover demo-data generator from before real MongoDB data was wired 
 import os
 import json
 import re
-import requests
 import datetime
+
+from ai_deepseek_client import deepseek_chat_completion
 
 
 class AINurturingEngine:
@@ -97,25 +98,49 @@ class AINurturingEngine:
         }
 
     @staticmethod
+    def _goal_meaning(goal):
+        return {
+            'RECALL': "win this customer back — they have not returned in a while",
+            'UPSELL': "encourage this already-engaged customer to buy more / try something new",
+        }.get((goal or '').upper(), "re-engage this customer")
+
+    @staticmethod
+    def _call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=False):
+        """Điểm gọi LLM DUY NHẤT của module này — đi qua ai_deepseek_client.py (Mã "Hợp nhất AI
+        bằng DeepSeek" audit, thay thế Anthropic/Claude đã dùng trước đó). Không có nhánh
+        Desktop-proxy ở đây vì AI Nurture chỉ chạy ở server/worker nền (nurture_scheduler.py),
+        không có luồng Desktop App nào gọi tới."""
+        api_key = os.environ.get('DEEPSEEK_API_KEY')
+        if not api_key:
+            raise RuntimeError("DEEPSEEK_API_KEY chưa được cấu hình.")
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+        result = deepseek_chat_completion(payload, direct_api_key=api_key)
+        return result['choices'][0]['message']['content']
+
+    @staticmethod
     def generate_nurturing_copy(business_name, industry, goal, tone, customer_name, purchase_history=None):
         """
-        Real LLM-generated (DeepSeek), personalized 3/7/14-day nurturing message
-        sequence — grounded in this customer's ACTUAL purchase history when available.
-        Replaces the old static per-industry/goal/tone string templates.
+        Real LLM-generated (DeepSeek — Mã "Hợp nhất AI bằng DeepSeek" audit), personalized
+        3/7/14-day nurturing message sequence — grounded in this customer's ACTUAL purchase
+        history when available. Replaces the old static per-industry/goal/tone string templates.
 
         Returns: {"3days": str, "7days": str, "14days": str}
         """
         name = customer_name or "Sếp"
         history_snippet = AINurturingEngine._format_purchase_history(purchase_history)
 
-        api_key = os.environ.get('DEEPSEEK_API_KEY')
-        if not api_key:
+        if not os.environ.get('DEEPSEEK_API_KEY'):
             return AINurturingEngine._fallback_copy(name)
-
-        goal_meaning = {
-            'RECALL': "win this customer back — they have not returned in a while",
-            'UPSELL': "encourage this already-engaged customer to buy more / try something new",
-        }.get((goal or '').upper(), "re-engage this customer")
 
         history_block = (
             f"Their real recent purchase history:\n{history_snippet}"
@@ -123,33 +148,24 @@ class AINurturingEngine:
             "No purchase history on file yet for this customer — do NOT invent one; keep the message general and welcoming instead."
         )
 
-        prompt = (
-            f"You write short customer-retention messages for {business_name or 'this business'}, "
-            f"a {industry or 'local'} business. Customer name: {name}. Tone: {tone or 'friendly'}. "
-            f"Goal: {goal_meaning}.\n\n{history_block}\n\n"
-            "Write THREE short messages meant to be sent 3 days, 7 days, and 14 days apart (only if the "
-            "customer hasn't already responded/returned by then). Reference their ACTUAL past purchases "
-            "naturally where relevant instead of generic language — but never invent a purchase that wasn't "
-            "listed above. Keep each message warm, human, and under 300 characters — not a corporate blast. "
-            "Write in Vietnamese, natural and conversational.\n\n"
-            'Return STRICT JSON only, exactly this shape: {"3days": "...", "7days": "...", "14days": "..."}'
+        system_prompt = (
+            "You write short customer-retention messages for local Vietnamese businesses. "
+            "Reference the customer's ACTUAL past purchases naturally where relevant instead of "
+            "generic language — but never invent a purchase that wasn't listed. Keep each message "
+            "warm, human, and under 300 characters — not a corporate blast. Write in Vietnamese, "
+            "natural and conversational. Return STRICT JSON only, exactly this shape: "
+            '{"3days": "...", "7days": "...", "14days": "..."}'
+        )
+        user_prompt = (
+            f"Business: {business_name or 'this business'}, a {industry or 'local'} business. "
+            f"Customer name: {name}. Tone: {tone or 'friendly'}. Goal: {AINurturingEngine._goal_meaning(goal)}.\n\n"
+            f"{history_block}\n\n"
+            "Write THREE short messages meant to be sent 3 days, 7 days, and 14 days apart (only if "
+            "the customer hasn't already responded/returned by then)."
         )
 
         try:
-            resp = requests.post(
-                "https://api.deepseek.com/chat/completions",
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.8,
-                    "max_tokens": 500,
-                    "response_format": {"type": "json_object"},
-                },
-                timeout=30,
-            )
-            resp.raise_for_status()
-            raw = resp.json()['choices'][0]['message']['content'].strip()
+            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=True)
             raw = re.sub(r'^```(?:json)?|```$', '', raw.strip(), flags=re.MULTILINE).strip()
             parsed = json.loads(raw)
             if all(k in parsed and parsed[k] for k in ("3days", "7days", "14days")):
@@ -157,6 +173,39 @@ class AINurturingEngine:
             return AINurturingEngine._fallback_copy(name)
         except Exception:
             return AINurturingEngine._fallback_copy(name)
+
+    @staticmethod
+    def generate_single_nurture_message(business_name, industry, goal, tone, customer_name,
+                                         purchase_history=None, trigger_reason=None):
+        """1 tin nhắn DUY NHẤT (không phải chuỗi 3/7/14 ngày) — dùng bởi nurture_scheduler.py
+        khi 1 rule tự động vừa khớp điều kiện (vd 'không ghé 30 ngày'), cần 1 tin gửi NGAY,
+        không phải lên lịch trước 3 mốc thời gian."""
+        name = customer_name or "Sếp"
+        history_snippet = AINurturingEngine._format_purchase_history(purchase_history)
+
+        if not os.environ.get('DEEPSEEK_API_KEY'):
+            return AINurturingEngine._fallback_copy(name)['7days']
+
+        history_block = (
+            f"Their real recent purchase history:\n{history_snippet}" if history_snippet else
+            "No purchase history on file yet — do NOT invent one; keep the message general and welcoming."
+        )
+        system_prompt = (
+            "You write short, warm, human customer-retention messages in Vietnamese for local "
+            "businesses. Never invent purchase history. Output ONLY the message text itself, "
+            "nothing else — no quotes, no labels, no explanation, under 300 characters."
+        )
+        user_prompt = (
+            f"Business: {business_name or 'this business'}, a {industry or 'local'} business. "
+            f"Customer: {name}. Tone: {tone or 'friendly'}.\n"
+            f"Trigger reason this message is being sent now: {trigger_reason or AINurturingEngine._goal_meaning(goal)}.\n"
+            f"Goal: {AINurturingEngine._goal_meaning(goal)}.\n\n{history_block}"
+        )
+        try:
+            text = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=300, temperature=0.8)
+            return text.strip().strip('"')
+        except Exception:
+            return AINurturingEngine._fallback_copy(name)['7days']
 
     @staticmethod
     def get_industry_recommendations(industry):
@@ -189,3 +238,54 @@ class AINurturingEngine:
             {"type": "CAMPAIGN_SUGGESTION", "text": "Cuối tháng là thời điểm nhu cầu mua sắm và chi tiêu tăng cao. Đề xuất chạy chiến dịch 'Flash Sale tri ân khách cũ' kéo tương tác."},
             {"type": "REVENUE_OPTIMIZE", "text": "AI phát hiện 24% đơn hàng có thể upsell bằng cách đính kèm phụ kiện liên quan. Đề xuất tối ưu hóa gợi ý sản phẩm tự động."}
         ])
+
+
+def recompute_customer_segments(business_id):
+    """Tính lại last_purchase_at/nurturing_status/potential_score/ai_notes cho MỌI khách của 1
+    tenant, dựa trên đơn hàng gần nhất THẬT trong db.orders (Mã Nurture Part 2 audit). Hàm
+    module-level (không phải staticmethod của AINurturingEngine) vì thao tác trên nhiều khách
+    + đọc/ghi Mongo trực tiếp, khác các hàm tính toán thuần của class ở trên.
+
+    DÙNG CHUNG bởi route thủ công app.py:/api/ai/nurture/import-data VÀ nurture_scheduler.py
+    (cron tự động) — để 2 nơi không tính "khách bao lâu chưa mua" ra 2 công thức khác nhau,
+    tránh cron tự động và nút bấm thủ công cho ra 2 kết quả lệch nhau."""
+    from mongo_client import db  # import lazy: tránh vòng import khi module này được app.py import ở module-level
+
+    customers = list(db.customers.find(
+        {'business_id': business_id}, {'id': 1, 'phone': 1, 'total_spent': 1, '_id': 0}
+    ))
+    now = datetime.datetime.now()
+    recomputed = 0
+
+    for cust in customers:
+        phone = cust.get('phone')
+        total_spent = cust.get('total_spent') or 0
+        if not phone:
+            continue
+
+        last_order = db.orders.find_one(
+            {'business_id': business_id, 'customer_phone': phone},
+            {'created_at': 1, '_id': 0}, sort=[('created_at', -1)]
+        )
+
+        update_fields = {'source_platform': 'pos'}
+        if last_order and last_order.get('created_at'):
+            try:
+                last_purchase_days = (now - datetime.datetime.fromisoformat(last_order['created_at'])).days
+            except Exception:
+                last_purchase_days = None
+            if last_purchase_days is not None:
+                status, score, notes = AINurturingEngine.predict_churn_risk(
+                    last_purchase_days, total_spent, source_platform='pos'
+                )
+                update_fields.update({
+                    'nurturing_status': status, 'potential_score': score, 'ai_notes': notes,
+                    'last_purchase_at': last_order['created_at'],
+                })
+        else:
+            update_fields.update({'nurturing_status': 'NEW', 'potential_score': 50, 'ai_notes': None})
+
+        db.customers.update_one({'id': cust['id'], 'business_id': business_id}, {'$set': update_fields})
+        recomputed += 1
+
+    return recomputed

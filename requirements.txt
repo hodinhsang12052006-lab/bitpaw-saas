@@ -8,6 +8,7 @@
 
 # --- Flask core ---
 Flask==3.1.3
+Flask-WTF==1.2.2
 Werkzeug==3.1.8
 Jinja2==3.1.6
 MarkupSafe==3.0.3
@@ -21,7 +22,13 @@ limits==5.8.0
 ordered-set==4.1.0
 sortedcontainers==2.4.0
 # Nếu set RATELIMIT_STORAGE_URI=redis://... trên Vercel (khuyến nghị cho production
-# thật, vì 'memory://' không share giữa các serverless instance) — thêm: redis==5.*
+# thật, vì 'memory://' không share giữa các serverless instance) — dùng chung gói redis==5.2.1
+# khai báo ngay dưới đây (đã là dependency thật của redis_queue.py/consumer.py).
+
+# --- Redis Streams cho check-in/check-out GPS (redis_queue.py, consumer.py — Mã 1.2 audit) ---
+# Cần đặt biến môi trường REDIS_URL (vd: redis://user:pass@host:6379/0, hoặc Upstash) ở cả nơi
+# chạy app.py LẪN nơi chạy consumer.py (2 process khác nhau, phải trỏ cùng 1 Redis).
+redis==5.2.1
 
 # --- MongoDB (mongo_client.py — kho dữ liệu chính) ---
 pymongo==4.17.0
@@ -38,3 +45,9 @@ urllib3==2.7.0
 certifi==2026.6.17
 idna==3.18
 charset-normalizer==3.4.7
+
+# --- LLM client (Mã "Hợp nhất AI bằng DeepSeek" audit) ---
+# SDK chính hãng OpenAI, dùng CHỈ để gọi DeepSeek qua base_url tương thích (ai_deepseek_client.py)
+# — KHÔNG gọi tới OpenAI thật ở bất kỳ đâu trong hệ thống. Toàn bộ tác vụ AI text (Bot/Studio/Ads/
+# Nurture) dùng DUY NHẤT DeepSeek qua client này; không còn Anthropic/Claude nào trong codebase.
+openai==2.52.0

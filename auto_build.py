@@ -12,7 +12,14 @@ bằng try/except-rồi-bỏ-qua ở bất kỳ bước nào):
      wheel sẵn cho nhiều bản Python mới).
   2. Tự sinh icon .ico tạm (desktop_app/temp_icon.ico) nếu chưa có icon thật, thuần bằng
      module `struct` — không cần cài Pillow.
-  3. Tự sinh desktop_app/build.spec khớp đúng entry point hiện có của repo.
+  2.5. Nếu máy có cài PyArmor (`pip install pyarmor`), tự obfuscate toàn bộ source .py vào
+     obf_build/ trước khi build — chống dịch ngược bằng pyinstxtractor/decompiler thông
+     thường. KHÔNG BẮT BUỘC: nếu chưa cài PyArmor, script tự bỏ qua bước này và build bản
+     KHÔNG obfuscate (cảnh báo rõ ràng), không chặn build. LƯU Ý: obfuscate không phải bất
+     khả xâm phạm — chỉ chặn được dịch ngược thông thường, không chặn được người cố tình
+     dump bytecode từ memory lúc chạy.
+  3. Tự sinh desktop_app/build.spec khớp đúng entry point hiện có của repo (bản gốc hoặc
+     bản đã obfuscate ở obf_build/, tuỳ bước 2.5 có chạy được không).
   4. Chạy PyInstaller build ra .exe.
   5. Copy .exe vào static/downloads/BitPawOS_Setup.exe.
 
@@ -44,8 +51,17 @@ TEMP_ICON_PATH = os.path.join(ROOT, 'desktop_app', 'temp_icon.ico')
 BUILD_SPEC_PATH = os.path.join(ROOT, 'desktop_app', 'build.spec')
 DIST_DIR = os.path.join(ROOT, 'dist')
 BUILD_DIR = os.path.join(ROOT, 'build')
+OBF_DIR = os.path.join(ROOT, 'obf_build')
 DOWNLOADS_DIR = os.path.join(ROOT, 'static', 'downloads')
 FINAL_EXE_PATH = os.path.join(DOWNLOADS_DIR, 'BitPawOS_Setup.exe')
+
+# Thư mục/pattern KHÔNG obfuscate — build_env/dist/build là output đóng gói, không phải
+# source; scratch/test_*/e2e_* không cần bảo vệ (không chứa logic sản phẩm thật); tools/
+# graphify có venv riêng của nó, obfuscate vào sẽ vô nghĩa và rất chậm.
+PYARMOR_EXCLUDES = [
+    'build_env', 'build', 'dist', 'obf_build', 'node_modules',
+    '__pycache__', 'scratch', 'tools', '.git',
+]
 
 SQLCIPHER_LINE_PATTERN = re.compile(r'^\s*sqlcipher3-binary', re.IGNORECASE)
 
@@ -158,6 +174,66 @@ def _write_placeholder_ico(path, size=32, bgr_color=(212, 182, 6)):
 
 
 # ---------------------------------------------------------------------------
+# 2.5 Obfuscate source bằng PyArmor (tuỳ chọn — bỏ qua nếu chưa cài, không chặn build)
+# ---------------------------------------------------------------------------
+def obfuscate_with_pyarmor(entry_point_rel):
+    """Trả về (entry_point_để_dùng_cho_spec, pathex_bổ_sung). Nếu PyArmor không có sẵn hoặc
+    lệnh gen thất bại, in cảnh báo rõ ràng và trả về entry_point GỐC (build tiếp bản không
+    obfuscate) — obfuscate là lớp bảo vệ THÊM, không phải điều kiện bắt buộc để build ra .exe
+    chạy được, nên không dùng fail() ở đây."""
+    step("2.5/5 — Obfuscate source bằng PyArmor (tuỳ chọn)")
+
+    if shutil.which('pyarmor') is None:
+        print(
+            "[auto_build] Không tìm thấy lệnh 'pyarmor' (chưa cài: pip install pyarmor). "
+            "Bỏ qua bước obfuscate — .exe build ra sẽ chứa source Python THÔ, dễ bị dịch "
+            "ngược bằng pyinstxtractor. Cài pyarmor rồi chạy lại nếu cần bảo vệ source.",
+            file=sys.stderr,
+        )
+        return entry_point_rel, None
+
+    if os.path.exists(OBF_DIR):
+        shutil.rmtree(OBF_DIR)
+
+    exclude_args = []
+    for pattern in PYARMOR_EXCLUDES:
+        exclude_args += ['--exclude', pattern]
+
+    # LƯU Ý: cú pháp CLI của PyArmor đổi khá nhiều giữa các bản lớn (7.x dùng `pyarmor
+    # obfuscate`/`pyarmor pack`, 8.x/9.x dùng `pyarmor gen`). Lệnh dưới đây khớp PyArmor
+    # 8.x/9.x hiện hành — nếu máy bạn cài bản khác và lệnh này báo lỗi cú pháp, chạy
+    # `pyarmor gen --help` để đối chiếu lại đúng flag, KHÔNG suy đoán mù.
+    cmd = [
+        'pyarmor', 'gen',
+        '-O', os.path.relpath(OBF_DIR, ROOT),
+        '-r',
+    ] + exclude_args + ['.']
+
+    print(f"[auto_build] Chạy: {' '.join(cmd)}  (cwd={ROOT})")
+    result = subprocess.run(cmd, cwd=ROOT)
+    if result.returncode != 0:
+        print(
+            "[auto_build] CẢNH BÁO: PyArmor gen thất bại (xem log phía trên) — build tiếp "
+            "bản KHÔNG obfuscate thay vì dừng hẳn. Kiểm tra lại cú pháp bằng "
+            "'pyarmor gen --help' rồi chạy lại auto_build.py.",
+            file=sys.stderr,
+        )
+        return entry_point_rel, None
+
+    obf_entry = os.path.join(OBF_DIR, entry_point_rel)
+    if not os.path.exists(obf_entry):
+        print(
+            f"[auto_build] CẢNH BÁO: PyArmor gen chạy xong nhưng không thấy "
+            f"{obf_entry} — build tiếp bản KHÔNG obfuscate.",
+            file=sys.stderr,
+        )
+        return entry_point_rel, None
+
+    print(f"[auto_build] Đã obfuscate xong vào {OBF_DIR}")
+    return os.path.relpath(obf_entry, ROOT).replace(os.sep, '/'), os.path.relpath(OBF_DIR, ROOT)
+
+
+# ---------------------------------------------------------------------------
 # 3. Sinh desktop_app/build.spec
 # ---------------------------------------------------------------------------
 def resolve_entry_point():
@@ -175,9 +251,32 @@ def resolve_entry_point():
     return 'app.py'
 
 
-def write_build_spec(entry_point, icon_path):
+def _find_pyarmor_runtime_package(obf_dir_abs):
+    """PyArmor gen sinh kèm 1 package runtime tên dạng 'pyarmor_runtime_XXXXXX' bên trong
+    thư mục output — PyInstaller cần biết tên chính xác này để bundle đúng (nó chứa 1 C
+    extension .pyd giải mã bytecode lúc chạy, không tự dò được nếu chỉ quét import tĩnh)."""
+    if not obf_dir_abs or not os.path.isdir(obf_dir_abs):
+        return None
+    for name in os.listdir(obf_dir_abs):
+        if name.startswith('pyarmor_runtime') and os.path.isdir(os.path.join(obf_dir_abs, name)):
+            return name
+    return None
+
+
+def write_build_spec(entry_point, icon_path, extra_pathex=None):
     step("3/5 — Sinh desktop_app/build.spec")
     icon_rel = os.path.relpath(icon_path, ROOT).replace(os.sep, '/')
+    pathex_list = ['.'] + ([extra_pathex] if extra_pathex else [])
+
+    runtime_pkg = _find_pyarmor_runtime_package(os.path.join(ROOT, extra_pathex) if extra_pathex else None)
+    pyarmor_hiddenimports = [runtime_pkg] if runtime_pkg else []
+    if extra_pathex and not runtime_pkg:
+        print(
+            "[auto_build] CẢNH BÁO: đã obfuscate bằng PyArmor nhưng không tìm thấy thư mục "
+            "'pyarmor_runtime_*' trong obf_build/ — .exe build ra có thể thiếu runtime giải "
+            "mã lúc chạy. Kiểm tra lại obf_build/ bằng tay trước khi phát hành.",
+            file=sys.stderr,
+        )
 
     spec_source = f"""# File này được auto_build.py TỰ SINH mỗi lần chạy — sửa tay sẽ bị ghi đè ở lần chạy kế
 # tiếp. Muốn đổi vĩnh viễn, sửa hàm write_build_spec() trong auto_build.py.
@@ -185,7 +284,7 @@ block_cipher = None
 
 a = Analysis(
     [{entry_point!r}],
-    pathex=['.'],
+    pathex={pathex_list!r},
     binaries=[],
     datas=[
         ('templates', 'templates'),
@@ -194,7 +293,10 @@ a = Analysis(
         # KHÔNG đóng gói '.env' — tránh lộ API key dùng chung mọi tenant vào file .exe.
     ],
     hiddenimports=[
-        'ai_context_engine', 'ai_sales_prompts', 'ai_memory_engine', 'ai_vector_rag',
+        # 'ai_vector_rag' đã bị gỡ bỏ (Mã "Hợp nhất AI bằng DeepSeek" audit) — module đó mặc định
+        # gọi OpenAI Embeddings API, không còn dùng nữa (ai_context_engine.py tự nhúng thẳng
+        # bảng giá vào system prompt, không cần semantic search/embeddings).
+        'ai_context_engine', 'ai_sales_prompts', 'ai_memory_engine',
         'ai_nurturing_engine', 'email_service', 'tenant_engine', 'currency_utils',
         'payment_us_engine', 'auth_service', 'i18n', 'blueprints.spa_bp',
         'ai_function_tools', 'ai_deepseek_client',
@@ -210,7 +312,7 @@ a = Analysis(
         'socketio', 'engineio', 'engineio.async_drivers.threading',
         'webview.platforms.edgechromium', 'webview.platforms.winforms', 'clr_loader', 'clr',
         'flask_limiter', 'flask_limiter.util',
-    ],
+    ] + {pyarmor_hiddenimports!r},
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
@@ -293,7 +395,8 @@ def main():
 
     icon_path = ensure_icon()
     entry_point = resolve_entry_point()
-    write_build_spec(entry_point, icon_path)
+    obf_entry_point, obf_pathex = obfuscate_with_pyarmor(entry_point)
+    write_build_spec(obf_entry_point, icon_path, extra_pathex=obf_pathex)
     run_pyinstaller()
     copy_exe_to_downloads()
 

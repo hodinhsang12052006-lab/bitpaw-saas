@@ -15,6 +15,33 @@
 {% set is_staff = session.get('role') == 'staff' %}
 {% set modules = (active_industry_cfg.modules if active_industry_cfg else []) %}
 
+{# Off-canvas trên mobile: viết bằng CSS thuần (không phải class Tailwind mới) vì
+   tailwind.output.css là file build sẵn — 1 class arbitrary mới tinh sẽ KHÔNG có tác dụng
+   cho tới khi ai đó chạy `npm run build`, đã từng gây vỡ layout im lặng nhiều lần trong dự
+   án này. Dưới md (767px trở xuống): sidebar fixed, trượt ra ngoài màn hình bằng transform;
+   từ md trở lên: không đổi gì so với trước (vẫn flex item thường nằm cạnh main). #}
+<style>
+    #app-sidebar { transition: transform 0.3s ease-in-out; }
+    @media (max-width: 767px) {
+        #app-sidebar {
+            position: fixed;
+            top: 0; bottom: 0; left: 0;
+            z-index: 50;
+            transform: translateX(-100%);
+        }
+        #app-sidebar.sidebar-open { transform: translateX(0); }
+    }
+</style>
+
+<button id="sidebarHamburgerBtn" type="button" onclick="toggleAppSidebar()"
+    aria-label="Mở menu"
+    class="md:hidden fixed top-4 left-4 z-[60] w-11 h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl text-white shadow-lg">
+    <i class="fas fa-bars"></i>
+</button>
+
+<div id="sidebarBackdrop" onclick="toggleAppSidebar(false)"
+    class="hidden md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"></div>
+
 <aside id="app-sidebar" class="w-64 bg-white/[0.02] backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-20 shrink-0 h-screen">
     <div>
         <div class="h-40 flex flex-col items-center justify-center border-b border-white/10 pt-6 pb-4">
@@ -229,3 +256,17 @@
         </a>
     </div>
 </aside>
+
+<script>
+    // Bấm hamburger -> mở/đóng sidebar trượt vào (chỉ có tác dụng dưới 768px nhờ CSS ở trên,
+    // ở md+ sidebar luôn hiển thị bình thường nên hàm này không ảnh hưởng gì).
+    function toggleAppSidebar(forceOpen) {
+        var aside = document.getElementById('app-sidebar');
+        var backdrop = document.getElementById('sidebarBackdrop');
+        if (!aside) return;
+        var willOpen = (typeof forceOpen === 'boolean') ? forceOpen : !aside.classList.contains('sidebar-open');
+        aside.classList.toggle('sidebar-open', willOpen);
+        if (backdrop) backdrop.classList.toggle('hidden', !willOpen);
+        document.body.style.overflow = willOpen ? 'hidden' : '';
+    }
+</script>

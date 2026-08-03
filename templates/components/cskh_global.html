@@ -51,11 +51,15 @@
     </div>
 </div>
 <script>
-    // Đa doanh nghiệp (multi-tenant): nếu người dùng đang đăng nhập vào 1 doanh nghiệp cụ thể
-    // (session có business_id), truyền cho widget để nó gọi API kèm đúng business_id đó — backend
-    // sẽ tự tư vấn đúng tên cửa hàng + bảng giá thật của tenant. Trang marketing công khai (chưa
-    // đăng nhập) sẽ có giá trị null, widget tự dùng persona chung theo ngành như cũ.
-    window.BITPAW_BUSINESS_ID = {{ session.get('business_id') | tojson }};
+    // Đa doanh nghiệp (multi-tenant): ƯU TIÊN business_id trang cha tự truyền vào (biến Jinja
+    // `widget_business_id` — dùng cho các trang công khai của ĐÚNG 1 tenant cụ thể, vd trang
+    // đặt lịch/QR menu riêng của 1 tiệm, KHÔNG cần đăng nhập vẫn biết đang phục vụ tenant nào),
+    // rồi mới fallback về session.business_id (dùng khi test nội bộ có đăng nhập). Trước đây
+    // component này CHỈ đọc session — khiến mọi trang công khai (khách ẩn danh, không session)
+    // luôn nhận null dù trang đó rõ ràng thuộc về 1 tenant cụ thể, làm bot mất sạch bảng giá/
+    // persona riêng của tiệm. Trang marketing chung của BitPaw (không thuộc tenant nào) vẫn
+    // đúng đắn nhận null ở cả 2 nguồn, dùng persona chung theo ngành như cũ.
+    window.BITPAW_BUSINESS_ID = {{ (widget_business_id if widget_business_id is defined else session.get('business_id')) | tojson }};
 
     // Bản dịch riêng, độc lập với hệ thống i18n của trang cha (mỗi trang cha có cơ chế
     // đổi ngôn ngữ khác nhau) — component này tự đọc 'bitpaw_lang' đã lưu để hiển thị đúng

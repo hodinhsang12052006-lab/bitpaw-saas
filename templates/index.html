@@ -1217,6 +1217,7 @@
                 <!-- Login Form -->
                 <div id="loginForm" class="form-panel active relative z-10">
                     <form id="loginFormElement" action="{{ url_for('login') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-4 relative group">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i
@@ -1265,6 +1266,7 @@
                 <!-- Register Form -->
                 <div id="registerForm" class="form-panel relative z-10">
                     <form id="registerFormElement" action="{{ url_for('register') }}" method="POST" class="space-y-3.5">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)"
                             data-i18n-placeholder="index_reg_fullname_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">

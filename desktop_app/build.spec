@@ -29,7 +29,7 @@ a = Analysis(
         'socketio', 'engineio', 'engineio.async_drivers.threading',
         'webview.platforms.edgechromium', 'webview.platforms.winforms', 'clr_loader', 'clr',
         'flask_limiter', 'flask_limiter.util',
-    ],
+    ] + [],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],

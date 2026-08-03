@@ -36,6 +36,13 @@ import requests
 from mongo_client import db, fs, client as mongo_client_instance, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
 from i18n import get_translations, resolve_lang, LANG_COOKIE_NAME
 from pymongo import UpdateOne, ReturnDocument
+# Mã 4.1 (Offline-Sync) + Mã 1.2 (Redis Streams check-in/out) audit — lỗi mất kết nối Atlas cần
+# bắt RIÊNG (không phải Exception chung) để route biết chính xác lúc nào nên rơi vào nhánh lưu
+# tạm offline, thay vì coi mọi lỗi (kể cả lỗi dữ liệu/logic) đều là "mất mạng".
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect
+import redis_queue
+import sync_worker
+import nurture_channel_tokens
 from cryptography.fernet import Fernet
 from gridfs import GridFS
 from flask_limiter import Limiter
@@ -47,8 +54,7 @@ from bson.errors import InvalidId
 from ai_context_engine import AIContextEngine
 from ai_sales_prompts import compose_system_prompt, classify_objection
 from ai_memory_engine import get_conversation_memory, maybe_distill_memory_async
-from ai_vector_rag import retrieve_relevant_knowledge, reindex_business_knowledge
-from ai_nurturing_engine import AINurturingEngine
+from ai_nurturing_engine import AINurturingEngine, recompute_customer_segments
 from email_service import EmailService
 from ai_function_tools import TOOL_SCHEMAS, execute_tool_call
 from ai_deepseek_client import deepseek_chat_completion
@@ -118,6 +124,39 @@ if not _flask_secret_key:
     )
 app.secret_key = _flask_secret_key
 
+# --- Session cookie an toàn (Mã 3.3 audit) ---
+# Secure: cookie chỉ gửi qua HTTPS (Vercel production luôn HTTPS nên không ảnh hưởng gì; chỉ
+# lưu ý nếu bạn tự test bằng http://localhost thì trình duyệt sẽ KHÔNG lưu cookie — dùng
+# 127.0.0.1 hoặc chấp nhận điều này khi dev local, đừng tắt Secure để né việc này).
+# HttpOnly: JS phía client không đọc được cookie -> chặn đánh cắp session qua XSS.
+# SameSite=Lax: cookie không bị gửi kèm trong request cross-site (nền tảng của CSRF), vẫn cho
+# phép mở link bình thường từ nơi khác (Lax, không phải Strict, để không phá vỡ luồng redirect
+# sau khi khách bấm link từ Zalo/Facebook/email vẫn giữ được đăng nhập).
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
+
+# --- CSRF Protection (Mã 3.1 audit) ---
+# QUAN TRỌNG: app.py có HÀNG TRĂM route API nhận POST/PUT/DELETE qua fetch() JSON (không phải
+# <form> thường) — nếu bật CSRFProtect ở chế độ mặc định (tự kiểm tra MỌI request), toàn bộ
+# API JSON đó sẽ bị chặn 400 "CSRF token is missing" ngay lập tức vì fetch() hiện tại không gửi
+# token nào cả. Đó là phá vỡ "lan man sang module khác" — không phải mục tiêu của bản vá này.
+#
+# Giải pháp đúng phạm vi: WTF_CSRF_CHECK_DEFAULT=False -> CSRFProtect KHÔNG tự kiểm tra mọi
+# route nữa (opt-out mặc định), chỉ route nào tự gọi csrf.protect() TRONG THÂN HÀM mới bị kiểm
+# tra (protect() là 1 method thường, KHÔNG dùng được như decorator @csrf.protect — gọi kiểu đó
+# ném TypeError ngay lúc import module vì Flask truyền view function vào làm tham số cho
+# protect(), trong khi protect() không nhận tham số nào ngoài self). Chỉ áp dụng cho 2 route
+# render <form method="POST"> HTML cổ điển thật sự có rủi ro CSRF (login, register — xem
+# templates/index.html) — nơi 1 trang độc hại có thể giả mạo submit hộ nạn nhân. Toàn bộ API
+# JSON (fetch()) không bị ảnh hưởng gì.
+from flask_wtf import CSRFProtect  # noqa: E402
+
+app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+csrf = CSRFProtect(app)
+
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
 # nhất thay vì phải tự giới hạn tay ở từng route. 10MB đủ rộng cho ảnh chụp điện thoại upload qua
 # /api/storage/upload, /api/portal/upload... (ảnh thật thường 2-8MB) nhưng vẫn chặn được payload
@@ -145,6 +184,27 @@ def _rate_limit_exceeded(e):
     """429 (Too Many Requests) — API routes get a clean JSON error; HTML routes (login/register)
     get the same login page back with a flash message instead of Flask-Limiter's plain-text
     default body, so the cashier/owner sees a normal-looking page, not a raw error dump."""
+    # Log lại IP bị chặn 429 (Mã 3.5 audit) — dấu hiệu spam/tấn công có chủ đích, đặc biệt quan
+    # trọng với /api/ai/studio/generate vì mỗi request lọt qua đều TỐN TIỀN thật (DeepSeek tính
+    # phí theo request). print() ra console luôn (Vercel Runtime Logs đọc được ngay), CỘNG THÊM
+    # ghi vào Mongo collection 'security_events' nếu DB đang sống — best-effort, lỗi ghi Mongo
+    # KHÔNG được phép làm hỏng việc trả 429 bình thường cho client.
+    client_ip = get_remote_address()
+    print(f"[RATE LIMIT] 429 - IP={client_ip} path={request.path} method={request.method}")
+    try:
+        if db is not None:
+            db.security_events.insert_one({
+                'type': 'rate_limit_exceeded',
+                'ip': client_ip,
+                'path': request.path,
+                'method': request.method,
+                'user_agent': request.headers.get('User-Agent', ''),
+                'business_id': session.get('business_id'),
+                'created_at': datetime.now().isoformat(),
+            })
+    except Exception as log_err:
+        print(f"[RATE LIMIT] Lỗi ghi security_events (không ảnh hưởng response 429): {log_err}")
+
     if request.path.startswith('/api/'):
         return jsonify({"success": False, "message": "Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút."}), 429
     flash('Quá nhiều lần thử. Vui lòng đợi vài phút rồi thử lại.', 'danger')
@@ -484,6 +544,22 @@ def login_required(f):
     return decorated_function
 
 
+def _get_tenant_business_id_or_401():
+    """Dùng ở các route API đã có @login_required nhưng vẫn cần đọc business_id từ session.
+    session['business_id'] LUÔN được set lúc login (xem route login(): user.get('business_id')
+    or user_id) — nếu thiếu ở đây nghĩa là session cũ/hỏng, KHÔNG ĐƯỢC fallback về 1 tenant giả
+    dùng chung (bug cũ: 'mock-business-123' làm token/cấu hình của nhiều tiệm ghi đè lẫn nhau).
+    Trả về (business_id, None) nếu hợp lệ, hoặc (None, response_401) nếu phải chặn request lại
+    ngay — gọi nơi dùng: `business_id, err = _get_tenant_business_id_or_401(); if err: return err`."""
+    business_id = session.get('business_id')
+    if not business_id:
+        return None, (jsonify({
+            "error": "Unauthorized",
+            "message": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn, vui lòng đăng nhập lại.",
+        }), 401)
+    return business_id, None
+
+
 # ========== KHỞI TẠO BẢNG (CHẠY THỦ CÔNG TRONG SUPABASE SQL EDITOR) ==========
 # Các bảng cần có: products, orders, order_items, customers, staff, appointments, dining_tables,
 # table_orders, promotions, expenses, payment_transactions, user_logs, system_settings,
@@ -559,6 +635,11 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("5 per 15 minutes")
 def register():
+    # csrf.protect() PHẢI gọi bên trong thân hàm (không phải @csrf.protect làm decorator —
+    # protect() là 1 method thường, không nhận view function làm tham số, dùng như decorator
+    # sẽ TypeError ngay lúc import module). Tự no-op cho GET (protect() tự bỏ qua method không
+    # nằm trong WTF_CSRF_METHODS mặc định = POST/PUT/PATCH/DELETE), chỉ thực sự chặn ở POST.
+    csrf.protect()
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -721,6 +802,9 @@ def _superadmin_emergency_login(email):
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per 15 minutes")
 def login():
+    # Xem giải thích ở register() ngay phía trên — csrf.protect() gọi trong thân hàm, không
+    # phải decorator.
+    csrf.protect()
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -2073,7 +2157,10 @@ def api_square_payment_cancel():
     except (TypeError, ValueError):
         return jsonify({"success": False, "message": "Invalid order_id."}), 400
 
-    order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
+    try:
+        order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi kết nối Database khi tra cứu đơn hàng: {e}"}), 500
     if not order_doc:
         return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
     checkout_id = order_doc.get('square_checkout_id')
@@ -2093,16 +2180,26 @@ def api_square_payment_cancel():
         # lý đúng theo trạng thái thật khi nó tới.
         return jsonify({"success": False, "message": result.get('message')}), 502
 
-    db.orders.update_one(
-        {'id': order_id, 'business_id': business_id},
-        {
-            '$set': {'status': 'failed', 'square_canceled_at': datetime.now().isoformat()},
-            '$unset': {
-                '_pending_order_items': '', '_pending_per_tech_revenue': '',
-                '_pending_net_revenue': '', '_pending_worker_total_tip': '',
-            },
-        }
-    )
+    try:
+        db.orders.update_one(
+            {'id': order_id, 'business_id': business_id},
+            {
+                '$set': {'status': 'failed', 'square_canceled_at': datetime.now().isoformat()},
+                '$unset': {
+                    '_pending_order_items': '', '_pending_per_tech_revenue': '',
+                    '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                },
+            }
+        )
+    except Exception as e:
+        # Square ĐÃ hủy checkout thành công ở bước trên rồi (result['success'] True) — chỉ riêng
+        # việc ghi lại trạng thái 'failed' vào Mongo bị lỗi. Phải báo rõ cho thu ngân biết order
+        # có thể đang ở trạng thái không khớp với Square, không được im lặng coi như xong.
+        return jsonify({
+            "success": False,
+            "message": f"Square đã hủy checkout nhưng lỗi khi cập nhật trạng thái đơn hàng: {e}. "
+                       "Kiểm tra lại đơn hàng thủ công.",
+        }), 500
     return jsonify({"success": True, "status": "failed"})
 
 
@@ -5087,7 +5184,10 @@ def api_ecommerce_products_list():
 @app.route('/payment_gateway')
 @login_required
 def payment_gateway():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id = session.get('business_id')
+    if not business_id:
+        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        return redirect(url_for('login'))
     config = None
     try:
         doc = db.system_settings.find_one({'key': 'payment_config', 'business_id': business_id}, {'value': 1, '_id': 0})
@@ -5103,7 +5203,9 @@ def payment_gateway():
 @login_required
 def api_save_payment_config():
     try:
-        business_id = session.get('business_id', 'mock-business-123')
+        business_id, _biz_err = _get_tenant_business_id_or_401()
+        if _biz_err:
+            return _biz_err
         config = request.get_json() or {}
 
         if not config:
@@ -5131,7 +5233,10 @@ def payment_history():
 @login_required
 def payment_pending():
     table_id = request.args.get('table_id')
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id = session.get('business_id')
+    if not business_id:
+        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        return redirect(url_for('login'))
     
     if table_id:
         try:
@@ -6024,6 +6129,8 @@ def api_nail_pos_checkout():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+    customer_phone = (data.get('customer_phone') or '').strip()
+
     try:
         order_id = next_mongo_id('orders')
         now_iso = datetime.now().isoformat()
@@ -6038,7 +6145,6 @@ def api_nail_pos_checkout():
         if computed['payment_bucket'] == 'split':
             order_doc['split_cash_amount'] = computed['split_cash_amount']
             order_doc['split_card_amount'] = computed['split_card_amount']
-        customer_phone = (data.get('customer_phone') or '').strip()
         if customer_phone:
             order_doc['customer_phone'] = customer_phone
 
@@ -6072,6 +6178,27 @@ def api_nail_pos_checkout():
             "supply_amount": computed['supply_amount'], "discount_amount": computed['discount_amount'],
             "tax_amount": computed['tax_amount'], "tip_amount": computed['total_tip'],
             "total_amount": computed['total_amount'], "techs_paid": techs_paid,
+        })
+    except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect) as e:
+        # Mã 4.1 audit — rớt mạng tới Atlas giữa lúc tính tiền. CHỈ bản Desktop mới có ổ cứng
+        # cục bộ để lưu tạm (local_db.py/MontyDB); bản Web/Vercel không có nơi nào để buffer
+        # (mỗi lần gọi hàm serverless là 1 instance khác, không có state giữa các lần gọi) nên
+        # vẫn phải báo lỗi thẳng như cũ, không đổi hành vi của Web.
+        is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+        if not is_desktop_mode:
+            return jsonify({"success": False, "message": f"Mất kết nối tới máy chủ, vui lòng thử lại: {str(e)}"}), 503
+        try:
+            client_uuid = sync_worker.queue_offline_order(business_id, computed, customer_phone)
+        except Exception as cache_err:
+            # Cả ghi lên Atlas LẪN lưu tạm cục bộ đều thất bại — đây mới là lỗi thật sự nghiêm
+            # trọng (vd ổ cứng đầy), phải báo lỗi cho cashier biết đơn CHƯA được lưu ở đâu cả.
+            return jsonify({"success": False, "message": f"Mất mạng và lưu tạm cục bộ cũng thất bại: {cache_err}"}), 500
+        return jsonify({
+            "success": True, "order_id": None, "client_uuid": client_uuid, "pending_sync": True,
+            "subtotal": computed['subtotal'], "supply_amount": computed['supply_amount'],
+            "discount_amount": computed['discount_amount'], "tax_amount": computed['tax_amount'],
+            "tip_amount": computed['total_tip'], "total_amount": computed['total_amount'],
+            "message": "Mất mạng — đơn đã được lưu tạm trên máy này và sẽ tự đồng bộ lên hệ thống khi có mạng lại.",
         })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -6692,7 +6819,10 @@ def super_admin():
 @app.route('/ai_bot')
 @login_required
 def ai_bot():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id = session.get('business_id')
+    if not business_id:
+        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        return redirect(url_for('login'))
     user_email = session.get('user_email', 'Not set')
     industry = session.get('business_mode', 'retail')
 
@@ -6768,6 +6898,53 @@ def ai_bot():
         "branch": brand_branch
     }
     return render_template('ai_bot.html', profile=profile)
+
+
+@app.route('/calendar')
+@login_required
+def calendar_view():
+    """Màn hình lịch hẹn trong ngày cho thu ngân — đọc db.appointments (MongoDB), collection
+    dùng chung bởi cả AI Bot (ai_function_tools.py::book_appointment) lẫn trang đặt lịch công
+    khai (blueprints/spa_bp.py::create_appointment). Trước khi có route này, lịch AI đặt được
+    ghi vào DB thật nhưng KHÔNG có màn hình nào đọc lại — đây là điểm hoàn thiện luồng đó."""
+    business_id = session.get('business_id')
+    if not business_id:
+        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        return redirect(url_for('login'))
+
+    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        date_str = datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        appointments = list(db.appointments.find(
+            {
+                'business_id': business_id,
+                'book_time': {'$gte': f'{date_str}T00:00:00', '$lte': f'{date_str}T23:59:59'},
+            },
+            {'_id': 0},
+        ).sort('book_time', 1))
+    except Exception as e:
+        print(f"[calendar_view] Lỗi tra cứu db.appointments (business_id={business_id}): {e}")
+        flash('Không tải được lịch hẹn — vui lòng thử lại.', 'danger')
+        appointments = []
+
+    # Gộp 1 lần tra tên dịch vụ cho toàn bộ danh sách (tránh N+1 query từng dòng).
+    service_ids = list({a['service_id'] for a in appointments if a.get('service_id')})
+    service_names = {}
+    if service_ids:
+        try:
+            for svc in db.products.find({'id': {'$in': service_ids}, 'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0}):
+                service_names[svc['id']] = svc.get('name')
+        except Exception as e:
+            print(f"[calendar_view] Lỗi tra cứu tên dịch vụ: {e}")
+
+    for a in appointments:
+        a['service_name'] = service_names.get(a.get('service_id')) or a.get('service_id') or 'Không rõ dịch vụ'
+
+    return render_template('calendar.html', appointments=appointments, selected_date=date_str)
 
 
 @app.route('/ai-studio')
@@ -7006,6 +7183,7 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
 
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
+@limiter.limit("20 per minute")
 def secure_ai_generate():
     data = request.get_json() or {}
 
@@ -7059,19 +7237,14 @@ def secure_ai_generate():
     latest_customer_message = user_prompt or (history[-1]['content'] if history else '')
     objection_category = classify_objection(latest_customer_message, history)
 
-    # === Phase 2: distilled memory + Vector RAG (cả 2 đều tự no-op an toàn nếu chưa cấu
-    # hình/chưa có dữ liệu — xem docstring ai_memory_engine.py / ai_vector_rag.py) ===
+    # === Phase 2: distilled memory (tự no-op an toàn nếu chưa có dữ liệu — xem docstring
+    # ai_memory_engine.py). Vector RAG (ai_vector_rag.py) đã bị GỠ BỎ (Mã "Hợp nhất AI bằng
+    # DeepSeek" audit) — module đó mặc định gọi OpenAI Embeddings API để tìm sản phẩm liên quan
+    # bằng semantic search, đúng loại phụ thuộc OpenAI cần loại bỏ. ai_context_engine.py đã tự
+    # nhúng thẳng toàn bộ bảng giá/danh mục (tối đa 40 dòng) vào system prompt mỗi lượt chat —
+    # đơn giản hơn, không cần embeddings, không cần Atlas Vector Search index nào cả.
     conversation_memory = get_conversation_memory(customer_id) if customer_id else ""
-    retrieved_knowledge = retrieve_relevant_knowledge(business_id, latest_customer_message)
-    extra_context_parts = []
-    if conversation_memory:
-        extra_context_parts.append(f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}")
-    if retrieved_knowledge:
-        extra_context_parts.append(
-            "MOST RELEVANT PRODUCTS/SERVICES TO THEIR CURRENT QUESTION:\n"
-            + "\n".join(f"- {chunk}" for chunk in retrieved_knowledge)
-        )
-    extra_context = "\n\n".join(extra_context_parts) if extra_context_parts else None
+    extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
     system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
 
@@ -7139,18 +7312,13 @@ def secure_ai_generate():
     except requests.exceptions.RequestException as e:
         return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
                          "error": f"Lỗi kết nối AI service: {str(e)}"})
-
-
-@app.route('/api/ai/reindex_knowledge', methods=['POST'])
-@login_required
-def api_ai_reindex_knowledge():
-    """Trigger thủ công việc reindex catalog sản phẩm của tenant hiện tại vào
-    business_knowledge cho Vector RAG (ai_vector_rag.py) — gọi lại sau khi thêm/sửa sản
-    phẩm đáng kể. Không tự động chạy theo trigger sự kiện ở phase này (xem ghi chú
-    trong ai_vector_rag.py); đây là điểm vào thủ công duy nhất."""
-    business_id = session.get('business_id') or session['user_id']
-    count = reindex_business_knowledge(business_id)
-    return jsonify({"success": True, "reindexed": count})
+    except RuntimeError as e:
+        # ai_deepseek_client.py bọc mọi lỗi HTTP (bao gồm requests.exceptions.HTTPError) thành
+        # RuntimeError để thống nhất thông điệp lỗi giữa 2 nhánh gọi trực tiếp/qua AI Proxy —
+        # nếu không bắt riêng ở đây, lỗi sẽ thoát ra thành 500 thô không có JSON, thay vì
+        # fallback_reply đàng hoàng như các nhánh lỗi khác phía trên.
+        return jsonify({"choices": [{"message": {"content": fallback_reply}}], "fallback": True,
+                         "error": str(e)})
 
 
 @app.route('/app_chat')
@@ -7551,7 +7719,9 @@ def campaign_builder():
 @app.route('/api/ai/nurture/connect-status', methods=['GET'])
 @login_required
 def nurture_connect_status():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -7630,7 +7800,9 @@ def nurture_toggle_connection():
     if not platform:
         return jsonify({"success": False, "message": "Missing platform parameter"}), 400
         
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     
     try:
         conn = sqlite3.connect('database.db')
@@ -7696,21 +7868,57 @@ def nurture_toggle_connection():
 @app.route('/api/ai/nurture/test-connection', methods=['POST'])
 @login_required
 def nurture_test_connection():
+    """Mã Nurture Part 3 audit — TRƯỚC ĐÂY: trả 'Kết nối thử nghiệm thành công' hardcode ngay
+    khi thấy access_token/channel_id không rỗng, KHÔNG hề gọi provider nào để xác minh. GIỜ: gọi
+    thật API của Zalo OA / Facebook để xác thực token, chỉ báo thành công khi provider THẬT SỰ
+    xác nhận, và lưu token đã xác thực (mã hoá) theo business_id để message_delivery_worker.py
+    dùng lại khi gửi tin nhắn nurture thật."""
     data = request.json or {}
-    platform = data.get('platform')
-    account_name = data.get('account_name', '').strip()
-    channel_id = data.get('channel_id', '').strip()
-    access_token = data.get('access_token', '').strip()
-    
-    if not platform:
-        return jsonify({"success": False, "message": "Missing platform parameter"}), 400
-        
-    if not access_token or not channel_id:
-        return jsonify({"success": False, "message": "Chưa cấu hình API key và ID kênh!"}), 400
-        
+    platform = (data.get('platform') or '').strip().lower()
+    access_token = (data.get('access_token') or '').strip()
+
+    if platform not in ('zalo', 'zalo_oa', 'facebook', 'messenger'):
+        return jsonify({"success": False, "message": f"Platform '{platform}' chưa được hỗ trợ thật."}), 400
+    if not access_token:
+        return jsonify({"success": False, "message": "Thiếu access_token."}), 400
+
+    business_id = session.get('business_id') or session['user_id']
+    norm_platform = 'zalo_oa' if platform in ('zalo', 'zalo_oa') else 'facebook'
+
+    try:
+        if norm_platform == 'zalo_oa':
+            resp = requests.get(
+                'https://openapi.zalo.me/v2.0/oa/getoa',
+                headers={'access_token': access_token}, timeout=10,
+            )
+            payload = resp.json()
+            if payload.get('error') not in (0, None):
+                return jsonify({"success": False, "message": f"Zalo từ chối token: {payload.get('message')}"}), 400
+            oa_data = payload.get('data') or {}
+            extra = {'oa_id': oa_data.get('oa_id'), 'oa_name': oa_data.get('name')}
+        else:
+            resp = requests.get(
+                'https://graph.facebook.com/v21.0/me',
+                params={'access_token': access_token, 'fields': 'id,name'}, timeout=10,
+            )
+            payload = resp.json()
+            if 'error' in payload:
+                return jsonify({"success": False, "message": f"Facebook từ chối token: {payload['error'].get('message')}"}), 400
+            extra = {'page_id': payload.get('id'), 'page_name': payload.get('name')}
+    except requests.exceptions.Timeout:
+        return jsonify({"success": False, "message": "Provider API timeout, vui lòng thử lại."}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({"success": False, "message": f"Lỗi kết nối tới provider: {e}"}), 502
+
+    try:
+        nurture_channel_tokens.save_channel_token(business_id, norm_platform, access_token, extra)
+    except RuntimeError as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
     return jsonify({
-        "success": True, 
-        "message": f"Kết nối thử nghiệm tới {platform.upper()} thành công! Phản hồi từ Provider API: OK."
+        "success": True,
+        "message": f"Đã xác thực & lưu token {norm_platform} thật (phản hồi provider: {extra}).",
+        "info": extra,
     })
 
 
@@ -7765,7 +7973,9 @@ def omnichannel_callback(channel):
     access_token = request.args.get('access_token', '').strip()
     if not account_name or not channel_id or not access_token:
         return "Thiếu thông tin cấu hình callback!", 400
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id = session.get('business_id')
+    if not business_id:
+        return "Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.", 401
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -7807,7 +8017,9 @@ def omnichannel_disconnect_api(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
         return jsonify({"success": False, "message": f"Invalid channel: {channel}"}), 400
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -7825,7 +8037,9 @@ def omnichannel_test_api(channel):
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
         return jsonify({"success": False, "message": f"Invalid channel: {channel}"}), 400
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -7960,56 +8174,17 @@ def customer_service_photos():
 @login_required
 def nurture_import_data():
     """Trước đây: đồng bộ 1 chiều db.customers -> shadow copy SQLite, luôn set
-    nurturing_status='NEW' không bao giờ đổi. Giờ: tính lại RFM THẬT cho từng khách
-    (recency từ đơn hàng gần nhất trong db.orders + total_spent có sẵn) và ghi thẳng
-    kết quả lên CHÍNH document db.customers — không còn shadow copy nào để lệch dữ liệu."""
+    nurturing_status='NEW' không bao giờ đổi. Giờ: tính lại RFM THẬT cho từng khách qua
+    recompute_customer_segments() — hàm DÙNG CHUNG với nurture_scheduler.py (Mã Nurture Part 2
+    audit) để nút bấm thủ công này và cron tự động luôn tính "khách bao lâu chưa mua" giống
+    hệt nhau, không lệch công thức."""
     business_id = session.get('business_id') or session['user_id']
 
     if db is None:
         return jsonify({"success": False, "message": "MongoDB chưa kết nối."}), 503
 
     try:
-        customers = list(db.customers.find(
-            {'business_id': business_id}, {'id': 1, 'phone': 1, 'total_spent': 1, '_id': 0}
-        ))
-        now = datetime.now()
-        recomputed = 0
-
-        for cust in customers:
-            phone = cust.get('phone')
-            total_spent = cust.get('total_spent') or 0
-            if not phone:
-                continue
-
-            last_order = db.orders.find_one(
-                {'business_id': business_id, 'customer_phone': phone},
-                {'created_at': 1, '_id': 0}
-            , sort=[('created_at', -1)])
-
-            update_fields = {'source_platform': 'pos'}
-            if last_order and last_order.get('created_at'):
-                try:
-                    last_purchase_days = (now - datetime.fromisoformat(last_order['created_at'])).days
-                except Exception:
-                    last_purchase_days = None
-                if last_purchase_days is not None:
-                    status, score, notes = AINurturingEngine.predict_churn_risk(
-                        last_purchase_days, total_spent, source_platform='pos'
-                    )
-                    update_fields.update({
-                        'nurturing_status': status,
-                        'potential_score': score,
-                        'ai_notes': notes,
-                        'last_purchase_at': last_order['created_at'],
-                    })
-            else:
-                # Chưa từng có đơn hàng nào — giữ nguyên trạng thái mặc định gốc, không
-                # đoán mò nguy cơ rời bỏ cho khách chưa từng mua gì.
-                update_fields.update({'nurturing_status': 'NEW', 'potential_score': 50, 'ai_notes': None})
-
-            db.customers.update_one({'id': cust['id'], 'business_id': business_id}, {'$set': update_fields})
-            recomputed += 1
-
+        recomputed = recompute_customer_segments(business_id)
         return jsonify({"success": True, "message": f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng thành công!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -8122,6 +8297,10 @@ def nurture_approval_queue():
 @app.route('/api/ai/nurture/approve-message', methods=['POST'])
 @login_required
 def nurture_approve_message():
+    """Mã Nurture Part 3 audit — chỉ đổi approval_status, KHÔNG còn set `sent_at` giả ngay lúc
+    bấm duyệt như trước (trước đây coi 'đã duyệt' = 'đã gửi', dù chưa hề gọi API nào tới
+    Zalo/Facebook). `sent_at`/`delivery_status` giờ CHỈ được message_delivery_worker.py ghi,
+    và CHỈ sau khi gọi API gửi thật thành công."""
     data = request.json or {}
     message_id = data.get('message_id')
     action = data.get('action')  # 'APPROVED' or 'REJECTED'
@@ -8133,11 +8312,69 @@ def nurture_approve_message():
     try:
         db.campaign_messages.update_one(
             {'id': message_id, 'business_id': business_id},
-            {'$set': {'approval_status': action, 'sent_at': datetime.now().isoformat()}}
+            {'$set': {'approval_status': action}}
         )
-        return jsonify({"success": True, "message": f"Tin nhắn đã được Sếp phê duyệt sang trạng thái: {action}!"})
+        extra_note = " Tin nhắn sẽ được gửi thật trong ít phút tới." if action == 'APPROVED' else ""
+        return jsonify({"success": True, "message": f"Tin nhắn đã được Sếp phê duyệt sang trạng thái: {action}!{extra_note}"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+# ========== NURTURE SCHEDULE RULES (Mã Nurture Part 2 audit) ==========
+# Cấu hình để nurture_scheduler.py (cron ngày) biết khách nào cần tự động chăm sóc — trước đây
+# KHÔNG có nơi nào tạo được các rule này (toàn bộ campaign phải tạo tay qua nurture_generate_campaign()).
+@app.route('/api/ai/nurture/rules', methods=['GET'])
+@login_required
+def nurture_rules_list():
+    business_id = session.get('business_id') or session['user_id']
+    rules = list(db.nurture_schedule_rules.find({'business_id': business_id}, {'_id': 0}).sort('created_at', -1))
+    return jsonify({"success": True, "data": rules})
+
+
+@app.route('/api/ai/nurture/rules', methods=['POST'])
+@login_required
+def nurture_rules_create():
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    condition_days = data.get('condition_days')
+    channel = (data.get('channel') or 'zalo_oa').strip().lower()
+
+    if not name or not condition_days:
+        return jsonify({"success": False, "message": "Thiếu name hoặc condition_days."}), 400
+    try:
+        condition_days = int(condition_days)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "condition_days phải là số nguyên."}), 400
+    if channel not in ('zalo_oa', 'facebook'):
+        return jsonify({"success": False, "message": "channel phải là 'zalo_oa' hoặc 'facebook'."}), 400
+
+    business_id = session.get('business_id') or session['user_id']
+    rule_id = next_mongo_id('nurture_schedule_rules')
+    db.nurture_schedule_rules.insert_one({
+        'id': rule_id, 'business_id': business_id, 'name': name,
+        'condition_days': condition_days,
+        'goal': (data.get('goal') or 'RECALL').upper(),
+        'tone': data.get('tone') or 'friendly',
+        'channel': channel,
+        'auto_send': bool(data.get('auto_send', False)),  # False -> vào hàng chờ duyệt tay; True -> gửi thẳng
+        'cooldown_days': int(data.get('cooldown_days') or 14),  # tránh nhắn lại cùng 1 khách mỗi ngày 1 lần
+        'is_active': True,
+        'industry': session.get('business_mode', 'retail'),
+        'created_at': datetime.now().isoformat(),
+    })
+    return jsonify({"success": True, "id": rule_id})
+
+
+@app.route('/api/ai/nurture/rules/<int:rule_id>', methods=['DELETE'])
+@login_required
+def nurture_rules_delete(rule_id):
+    business_id = session.get('business_id') or session['user_id']
+    result = db.nurture_schedule_rules.update_one(
+        {'id': rule_id, 'business_id': business_id}, {'$set': {'is_active': False}}
+    )
+    if result.matched_count == 0:
+        return jsonify({"success": False, "message": "Không tìm thấy rule."}), 404
+    return jsonify({"success": True})
+
 
 @app.route('/api/ai/nurture/recommendations', methods=['GET'])
 @login_required
@@ -8156,7 +8393,9 @@ def nurture_recommendations():
 @app.route('/api/bot/scenarios', methods=['GET'])
 @login_required
 def get_bot_scenarios():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -8237,7 +8476,9 @@ def get_bot_scenarios():
 @app.route('/api/bot/scenarios', methods=['POST'])
 @login_required
 def create_bot_scenario():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     data = request.json or {}
     name = data.get('name', '').strip()
     channel = data.get('channel', 'zalo_oa')
@@ -8270,7 +8511,9 @@ def create_bot_scenario():
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['GET'])
 @login_required
 def get_single_bot_scenario(scenario_id):
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -8305,7 +8548,9 @@ def get_single_bot_scenario(scenario_id):
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['PUT'])
 @login_required
 def update_bot_scenario(scenario_id):
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     data = request.json or {}
     name = data.get('name', '').strip()
     message_template = data.get('message_template', '').strip()
@@ -8338,7 +8583,9 @@ def update_bot_scenario(scenario_id):
 @app.route('/api/bot/scenarios/<scenario_id>', methods=['DELETE'])
 @login_required
 def delete_bot_scenario(scenario_id):
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -8352,7 +8599,9 @@ def delete_bot_scenario(scenario_id):
 @app.route('/api/bot/scenarios/<scenario_id>/toggle', methods=['POST'])
 @login_required
 def toggle_bot_scenario(scenario_id):
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -8375,7 +8624,9 @@ def toggle_bot_scenario(scenario_id):
 @app.route('/api/bot/scenarios/<scenario_id>/test', methods=['POST'])
 @login_required
 def test_bot_scenario(scenario_id):
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     data = request.json or {}
     customer_id = data.get('customer_id', '').strip()
     
@@ -8471,7 +8722,9 @@ def test_bot_scenario(scenario_id):
 @app.route('/api/bot/logs', methods=['GET'])
 @login_required
 def get_bot_logs():
-    business_id = session.get('business_id', 'mock-business-123')
+    business_id, _biz_err = _get_tenant_business_id_or_401()
+    if _biz_err:
+        return _biz_err
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -8511,6 +8764,14 @@ except Exception as bp_err:
     print(f"Error registering ad_assistant_bp: {str(bp_err)}")
 
 try:
+    # AI Studio — endpoint RIÊNG, tách khỏi AI Bot (Mã AI Studio Part 1.1 audit). Import SAU
+    # login_required (dòng ~534) vì ai_studio_bp.py làm `from app import login_required`.
+    from ai_studio_bp import ai_studio_bp
+    app.register_blueprint(ai_studio_bp)
+except Exception as bp_err:
+    print(f"Error registering ai_studio_bp: {str(bp_err)}")
+
+try:
     from ad_suggest_api import ad_suggest_bp
     app.register_blueprint(ad_suggest_bp)
 except Exception as bp_err:
@@ -8538,6 +8799,12 @@ except Exception as bp_err:
 @app.route('/api/chamcong/checkin', methods=['POST'])
 @login_required
 def api_checkin():
+    """Mã 1.2 audit — KHÔNG ghi trực tiếp vào DB nữa (SQLite chỉ cho 1 writer tại 1 thời điểm,
+    10.000 thợ check-in cùng lúc 9h sáng sẽ nghẽn cổ chai toàn hệ thống). Đẩy sự kiện vào Redis
+    Stream (XADD) và trả 200 OK NGAY — việc ghi thật vào MongoDB do consumer.py (1 process
+    riêng, ghi tuần tự) đảm nhiệm. Đánh đổi: mất kiểm tra "đã có ca mở chưa" NGAY LÚC NÀY (route
+    này không còn đọc DB đồng bộ) — consumer.py kiểm tra lại việc đó trước khi ghi, vì nó xử lý
+    tuần tự nên làm được an toàn (không có race condition như hàng ngàn request Flask đồng thời)."""
     data = request.json or {}
     staff_id = data.get('staff_id') or data.get('employee_id') or 1
     lat = data.get('latitude')
@@ -8556,67 +8823,34 @@ def api_checkin():
     except Exception as e:
         return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
 
+    clock_in_time = datetime.now().isoformat()
+    event_id = str(uuid.uuid4())
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS local_attendance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                staff_id TEXT,
-                clock_in TEXT,
-                clock_out TEXT,
-                latitude REAL,
-                longitude REAL,
-                status TEXT,
-                note TEXT
-            )
-        ''')
-        # Reject a 2nd check-in while one is already open (retry, two devices, etc.) — this
-        # used to silently create a duplicate open shift with no way to know which one is real.
-        c.execute('SELECT id FROM local_attendance WHERE staff_id = ? AND clock_out IS NULL', (str(staff_id),))
-        if c.fetchone():
-            conn.close()
-            return jsonify({"success": False, "error": "Nhân viên này đang có 1 ca làm chưa checkout — vui lòng checkout trước khi checkin lại."}), 409
-        clock_in_time = datetime.now().isoformat()
-        c.execute('''
-            INSERT INTO local_attendance (staff_id, clock_in, latitude, longitude, status, note)
-            VALUES (?, ?, ?, ?, 'Present', ?)
-        ''', (str(staff_id), clock_in_time, lat, lng, note))
-        conn.commit()
-        row_id = c.lastrowid
-        conn.close()
-
-        try:
-            if db.attendance.find_one({'staff_id': int(staff_id), 'business_id': business_id, 'clock_out': None}, {'_id': 0}):
-                pass  # SQLite check above is the source of truth; don't insert a 2nd open Mongo doc either.
-            else:
-                db.attendance.insert_one({
-                    'id': next_mongo_id('attendance'),
-                    'staff_id': int(staff_id),
-                    'clock_in': clock_in_time,
-                    'created_at': clock_in_time,  # needed so checkout's sort-by-most-recent-open-shift actually works
-                    'clock_out': None,
-                    'latitude_in': lat,
-                    'longitude_in': lng,
-                    'status': 'Present',
-                    'business_id': business_id
-                })
-        except Exception:
-            pass
-
-        return jsonify({
-            "success": True,
-            "id": row_id,
-            "status": "Present",
-            "clock_in": clock_in_time
+        redis_queue.push_attendance_event({
+            'event_id': event_id, 'type': 'checkin', 'staff_id': int(staff_id),
+            'business_id': business_id, 'latitude': lat, 'longitude': lng,
+            'note': note or '', 'timestamp': clock_in_time,
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        # Redis cũng không nhận được -> KHÔNG được nuốt sự kiện (mất chấm công = mất lương thợ),
+        # báo lỗi rõ ràng để app/kiosk có thể tự retry thay vì âm thầm coi như đã checkin.
+        print(f"[api_checkin] Lỗi đẩy Redis Stream: {e}")
+        return jsonify({"success": False, "error": "Hệ thống chấm công đang quá tải/gián đoạn, vui lòng thử lại sau vài giây."}), 503
+
+    return jsonify({
+        "success": True,
+        "event_id": event_id,
+        "status": "Present",
+        "clock_in": clock_in_time,
+        "pending_sync": True,  # sự kiện đang chờ consumer.py ghi vào MongoDB, chưa có id thật
+    })
 
 
 @app.route('/api/chamcong/checkout', methods=['POST'])
 @login_required
 def api_checkout():
+    """Mã 1.2 audit — cùng cơ chế với api_checkin(): đẩy Redis Stream, trả 200 ngay, consumer.py
+    ghi tuần tự vào MongoDB (bao gồm việc tìm đúng ca đang mở gần nhất để đóng lại)."""
     data = request.json or {}
     staff_id = data.get('staff_id') or data.get('employee_id') or 1
     lat = data.get('latitude')
@@ -8634,60 +8868,36 @@ def api_checkout():
     except Exception as e:
         return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
 
+    clock_out_time = datetime.now().isoformat()
+    event_id = str(uuid.uuid4())
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS local_attendance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                staff_id TEXT,
-                clock_in TEXT,
-                clock_out TEXT,
-                latitude REAL,
-                longitude REAL,
-                status TEXT,
-                note TEXT
-            )
-        ''')
-        # Close only the SINGLE most-recent open shift for this staff member — the previous
-        # `WHERE staff_id = ? AND clock_out IS NULL` (no LIMIT) closed every open row at once,
-        # stamping the same clock_out on all of them if more than one was ever left open.
-        c.execute('SELECT id FROM local_attendance WHERE staff_id = ? AND clock_out IS NULL ORDER BY id DESC LIMIT 1', (str(staff_id),))
-        open_row = c.fetchone()
-        if not open_row:
-            conn.close()
-            return jsonify({"success": False, "error": "Không tìm thấy ca làm đang mở để checkout."}), 400
-        clock_out_time = datetime.now().isoformat()
-        c.execute('UPDATE local_attendance SET clock_out = ? WHERE id = ?', (clock_out_time, open_row[0]))
-        conn.commit()
-        conn.close()
-
-        try:
-            open_record = db.attendance.find_one(
-                {'staff_id': int(staff_id), 'business_id': business_id, 'clock_out': None},
-                {'id': 1, '_id': 0},
-                sort=[('created_at', -1)]
-            )
-            if open_record:
-                db.attendance.update_one(
-                    {'id': open_record['id'], 'business_id': business_id},
-                    {'$set': {'clock_out': clock_out_time, 'latitude_out': lat, 'longitude_out': lng}}
-                )
-        except Exception:
-            pass
-
-        return jsonify({
-            "success": True,
-            "message": "Checked out successfully.",
-            "clock_out": clock_out_time
+        redis_queue.push_attendance_event({
+            'event_id': event_id, 'type': 'checkout', 'staff_id': int(staff_id),
+            'business_id': business_id, 'latitude': lat, 'longitude': lng,
+            'timestamp': clock_out_time,
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"[api_checkout] Lỗi đẩy Redis Stream: {e}")
+        return jsonify({"success": False, "error": "Hệ thống chấm công đang quá tải/gián đoạn, vui lòng thử lại sau vài giây."}), 503
+
+    return jsonify({
+        "success": True,
+        "event_id": event_id,
+        "message": "Đã ghi nhận checkout, đang xử lý.",
+        "clock_out": clock_out_time,
+        "pending_sync": True,
+    })
 
 
 @app.route('/api/chamcong/status', methods=['GET'])
 @login_required
 def api_attendance_status():
+    """Đọc trực tiếp từ db.attendance (MongoDB) — KHÔNG còn đọc bảng SQLite local_attendance
+    nữa, vì Mã 1.2 audit đã chuyển check-in/check-out sang ghi qua Redis Stream + consumer.py,
+    bảng SQLite đó không còn ai ghi vào. Đánh đổi: có độ trễ eventual-consistency vài trăm ms
+    tới vài giây giữa lúc bấm check-in và lúc route này thấy trạng thái mới (thời gian
+    consumer.py xử lý xong message trong Stream) — chấp nhận được, vì đây vốn là hệ quả tất
+    yếu của việc bỏ ghi đồng bộ để chống nghẽn khi 10.000 thợ check-in cùng lúc."""
     staff_id = request.args.get('staff_id') or '1'
     business_id = session.get('business_id') or session['user_id']
     if not (isinstance(staff_id, (int, float)) or (isinstance(staff_id, str) and staff_id.isdigit())):
@@ -8702,33 +8912,18 @@ def api_attendance_status():
         return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
 
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS local_attendance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                staff_id TEXT,
-                clock_in TEXT,
-                clock_out TEXT,
-                latitude REAL,
-                longitude REAL,
-                status TEXT,
-                note TEXT
-            )
-        ''')
-        c.execute('SELECT clock_in, clock_out, status FROM local_attendance WHERE staff_id = ? ORDER BY id DESC LIMIT 1', (str(staff_id),))
-        row = c.fetchone()
-        conn.close()
-        
+        row = db.attendance.find_one(
+            {'staff_id': int(staff_id), 'business_id': business_id},
+            {'clock_in': 1, 'clock_out': 1, 'status': 1, '_id': 0},
+            sort=[('id', -1)],
+        )
         if row:
-            clock_in, clock_out, status = row
-            is_checked_in = clock_out is None
             return jsonify({
                 "success": True,
-                "status": status,
-                "is_checked_in": is_checked_in,
-                "clock_in": clock_in,
-                "clock_out": clock_out
+                "status": row.get('status'),
+                "is_checked_in": row.get('clock_out') is None,
+                "clock_in": row.get('clock_in'),
+                "clock_out": row.get('clock_out'),
             })
         else:
             return jsonify({

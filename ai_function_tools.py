@@ -4,9 +4,20 @@ cho chị rồi ạ") mà không ghi gì vào Database thật — khách tưởn
 không có gì được lưu ("ảo giác"). Module này định nghĩa các tool THẬT mà DeepSeek được phép
 gọi, được thực thi thật trong Python, và trả kết quả THẬT về cho AI để nó trả lời khách đúng
 với những gì thực sự đã xảy ra — không còn tự bịa.
+
+LỊCH SỬ: book_appointment() từng ghi vào bảng SQLite mã hoá SQLCipher (desktop_app/secure_db.py)
+riêng cho Desktop App. Đã đổi sang ghi thẳng vào MongoDB `db.appointments` (cùng collection
+blueprints/spa_bp.py dùng cho luồng đặt lịch công khai) vì 2 lý do: (1) app.py LUÔN dùng
+mongo_client.py thật cho `db`, kể cả khi chạy Desktop App — local_db.py/MontyDB chưa từng được
+nối vào app.py, nên bản SQLite kia là 1 kho dữ liệu cô lập, không có màn hình nào đọc lại được;
+(2) route xem lịch (`/calendar`, app.py) chỉ có thể đọc 1 nguồn duy nhất cho cả Web lẫn Desktop
+— Mongo là nguồn duy nhất sẵn có ở cả hai. Đánh đổi: mất tính chất "mã hoá tại chỗ" riêng cho
+lịch hẹn trên máy Desktop — dữ liệu giờ nằm chung MongoDB Atlas như mọi collection khác.
 """
 import json
 from datetime import datetime
+
+from mongo_client import db, next_mongo_id
 
 TOOL_SCHEMAS = [
     {
@@ -44,13 +55,16 @@ class ToolExecutionError(Exception):
 
 
 def book_appointment(business_id, customer_id, service_id, appointment_time):
-    """Ghi 1 lịch hẹn THẬT vào bảng `appointments` (SQLite mã hoá SQLCipher — desktop_app/secure_db.py).
-    Luôn raise ToolExecutionError khi có lỗi, không bao giờ trả về "coi như thành công" khi
-    thực tế ghi DB thất bại."""
+    """Ghi 1 lịch hẹn THẬT vào MongoDB `db.appointments` (cùng collection với
+    blueprints/spa_bp.py::create_appointment — cùng schema để route /calendar đọc chung được
+    cả 2 nguồn). Luôn raise ToolExecutionError khi có lỗi, không bao giờ trả về "coi như thành
+    công" khi thực tế ghi DB thất bại."""
     if not all([business_id, customer_id, service_id, appointment_time]):
         raise ToolExecutionError(
             "Thiếu tham số bắt buộc (business_id/customer_id/service_id/appointment_time) — không thể đặt lịch."
         )
+    if db is None:
+        raise ToolExecutionError("Không có kết nối Database — không thể đặt lịch lúc này.")
 
     try:
         parsed_time = datetime.fromisoformat(appointment_time)
@@ -58,62 +72,62 @@ def book_appointment(business_id, customer_id, service_id, appointment_time):
         raise ToolExecutionError(
             f"appointment_time '{appointment_time}' không đúng định dạng ISO 8601."
         ) from e
-
-    # Import trễ (không phải ở đầu module): desktop_app/secure_db.py cần sqlcipher3 + keyring,
-    # 2 gói chỉ bắt buộc phải cài ở bản Desktop App. Nếu import ở đầu ai_function_tools.py,
-    # môi trường Web/SaaS (không cài 2 gói này) sẽ sập ngay từ `import app` — book_appointment()
-    # chỉ thực sự cần secure_db khi tool này ĐƯỢC GỌI (tức đang chạy Desktop mode, nơi 2 gói đó
-    # chắc chắn đã được cài theo requirements.txt).
-    try:
-        from desktop_app.secure_db import engine
-        from sqlalchemy import text
-        from sqlalchemy.exc import SQLAlchemyError
-    except ImportError as e:
-        raise ToolExecutionError(
-            f"Chức năng đặt lịch chỉ khả dụng trên Desktop App (thiếu sqlalchemy/sqlcipher3/keyring ở môi trường này): {e}"
-        ) from e
+    book_time_str = parsed_time.isoformat()
 
     try:
-        with engine.begin() as conn:
-            # Chặn double-book: cùng 1 tenant, cùng 1 khung giờ, chưa bị huỷ.
-            clash = conn.execute(
-                text("""
-                    SELECT id FROM appointments
-                    WHERE business_id = :business_id
-                      AND appointment_time = :appointment_time
-                      AND status != 'cancelled'
-                """),
-                {"business_id": business_id, "appointment_time": parsed_time.isoformat()},
-            ).fetchone()
-            if clash:
-                raise ToolExecutionError(
-                    f"Khung giờ {appointment_time} đã có khách khác đặt trước, cần chọn giờ khác."
-                )
+        service_doc = db.products.find_one({'id': service_id, 'business_id': business_id}, {'_id': 0})
+    except Exception as e:
+        raise ToolExecutionError(f"Lỗi tra cứu dịch vụ trong Database: {e}") from e
+    if not service_doc:
+        raise ToolExecutionError(f"Không tìm thấy dịch vụ '{service_id}' của tiệm này — kiểm tra lại service_id.")
 
-            result = conn.execute(
-                text("""
-                    INSERT INTO appointments (business_id, customer_id, service_id, appointment_time, status)
-                    VALUES (:business_id, :customer_id, :service_id, :appointment_time, 'confirmed')
-                """),
-                {
-                    "business_id": business_id,
-                    "customer_id": customer_id,
-                    "service_id": service_id,
-                    "appointment_time": parsed_time.isoformat(),
-                },
+    # customer_id theo quy ước "business_id:phone" dùng chung toàn hệ thống (ai_bot.html,
+    # _persist_chat_turn trong app.py) — tách ra để lưu customer_phone riêng, đúng schema cột
+    # của spa_bp.py thay vì nhét customer_id thô vào.
+    customer_phone = customer_id.split(':', 1)[1] if ':' in str(customer_id) else str(customer_id)
+    try:
+        customer_doc = db.bot_customers.find_one({'id': customer_id}, {'full_name': 1, '_id': 0})
+    except Exception:
+        customer_doc = None
+    customer_name = (customer_doc or {}).get('full_name') or f"Khách AI Bot ({customer_phone})"
+
+    try:
+        # Chặn double-book: cùng 1 tenant, cùng 1 khung giờ, chưa bị huỷ.
+        clash = db.appointments.find_one({
+            'business_id': business_id,
+            'book_time': book_time_str,
+            'status': {'$ne': 'cancelled'},
+        })
+        if clash:
+            raise ToolExecutionError(
+                f"Khung giờ {appointment_time} đã có khách khác đặt trước, cần chọn giờ khác."
             )
-            appointment_id = result.lastrowid
+
+        appointment_id = next_mongo_id('appointments')
+        db.appointments.insert_one({
+            'id': appointment_id,
+            'customer_name': customer_name,
+            'customer_phone': customer_phone,
+            'service_id': service_id,
+            'staff_id': None,
+            'book_time': book_time_str,
+            'note': None,
+            'status': 'pending',
+            'business_id': business_id,
+            'source': 'ai_bot',
+            'created_at': datetime.now().isoformat(),
+        })
     except ToolExecutionError:
         raise
-    except SQLAlchemyError as e:
+    except Exception as e:
         raise ToolExecutionError(f"Lỗi ghi Database khi đặt lịch: {e}") from e
 
     return {
         "success": True,
         "appointment_id": appointment_id,
-        "service_id": service_id,
-        "appointment_time": parsed_time.isoformat(),
-        "status": "confirmed",
+        "service_name": service_doc.get('name'),
+        "appointment_time": book_time_str,
+        "status": "pending",
     }
 
 

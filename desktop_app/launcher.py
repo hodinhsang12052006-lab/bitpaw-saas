@@ -63,6 +63,13 @@ def main():
     server.start()
     time.sleep(0.8)  # đợi Flask bind port xong trước khi mở cửa sổ webview
 
+    # Mã 4.1 audit — Offline-Sync: đơn hàng lưu tạm lúc mất mạng (xem sync_worker.queue_offline_order
+    # gọi từ app.py) cần 1 thread nền định kỳ thử đẩy lại lên Atlas. Start SAU khi `app` (ở trên)
+    # đã import xong, để sync_worker's lazy `from app import ...` (chạy trong thread, không phải
+    # ngay dòng này) chắc chắn không đụng độ với app.py đang load dở.
+    import sync_worker
+    sync_worker.start_background_sync()
+
     webview.create_window(
         'BitPaw OS',
         'http://127.0.0.1:5001',
