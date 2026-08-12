@@ -16,6 +16,13 @@ itsdangerous==2.2.0
 click==8.4.2
 blinker==1.9.0
 
+# --- JWT cho Mobile App (Giai đoạn 5 audit — /api/auth/token, login_required hybrid) ---
+PyJWT==2.13.0
+
+# --- WSGI server cho deploy Render/Procfile (app.py không cần khi chạy trên Vercel serverless,
+# nhưng Procfile/render.yaml dùng gunicorn cho phần Web + giữ 3 background worker sống 24/7) ---
+gunicorn==23.0.0
+
 # --- Rate limiting (app.py: Limiter(storage_uri=RATELIMIT_STORAGE_URI or 'memory://')) ---
 Flask-Limiter==4.1.1
 limits==5.8.0

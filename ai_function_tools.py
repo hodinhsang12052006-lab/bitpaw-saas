@@ -17,7 +17,8 @@ lịch hẹn trên máy Desktop — dữ liệu giờ nằm chung MongoDB Atlas 
 import json
 from datetime import datetime
 
-from mongo_client import db, next_mongo_id
+from mongo_client import db
+from booking_engine import book_appointment as _book_appointment_shared, SlotAlreadyBookedError
 
 TOOL_SCHEMAS = [
     {
@@ -91,40 +92,28 @@ def book_appointment(business_id, customer_id, service_id, appointment_time):
         customer_doc = None
     customer_name = (customer_doc or {}).get('full_name') or f"Khách AI Bot ({customer_phone})"
 
+    # Dùng chung booking_engine.book_appointment() với UI đặt lịch công khai
+    # (blueprints/spa_bp.py::create_appointment) — đảm bảo AI Bot và UI áp dụng ĐÚNG 1 rule
+    # chống trùng lịch (theo staff_id + book_time), không lệch logic giữa 2 nguồn ghi.
+    # staff_id=None ở đây vì AI Bot hiện chưa hỏi khách muốn chỉ định thợ nào — book_appointment()
+    # chỉ check trùng khi có staff_id cụ thể, nên staff_id=None không kích hoạt check trùng lịch.
     try:
-        # Chặn double-book: cùng 1 tenant, cùng 1 khung giờ, chưa bị huỷ.
-        clash = db.appointments.find_one({
-            'business_id': business_id,
-            'book_time': book_time_str,
-            'status': {'$ne': 'cancelled'},
-        })
-        if clash:
-            raise ToolExecutionError(
-                f"Khung giờ {appointment_time} đã có khách khác đặt trước, cần chọn giờ khác."
-            )
-
-        appointment_id = next_mongo_id('appointments')
-        db.appointments.insert_one({
-            'id': appointment_id,
-            'customer_name': customer_name,
-            'customer_phone': customer_phone,
-            'service_id': service_id,
-            'staff_id': None,
-            'book_time': book_time_str,
-            'note': None,
-            'status': 'pending',
-            'business_id': business_id,
-            'source': 'ai_bot',
-            'created_at': datetime.now().isoformat(),
-        })
-    except ToolExecutionError:
-        raise
+        appointment = _book_appointment_shared(
+            business_id=business_id,
+            customer_info={'name': customer_name, 'phone': customer_phone},
+            staff_id=None,
+            book_time=book_time_str,
+            service_id=service_id,
+            source='ai_bot',
+        )
+    except SlotAlreadyBookedError as e:
+        raise ToolExecutionError(str(e)) from e
     except Exception as e:
         raise ToolExecutionError(f"Lỗi ghi Database khi đặt lịch: {e}") from e
 
     return {
         "success": True,
-        "appointment_id": appointment_id,
+        "appointment_id": appointment['id'],
         "service_name": service_doc.get('name'),
         "appointment_time": book_time_str,
         "status": "pending",

@@ -1,6 +1,32 @@
+from datetime import datetime, timedelta
+
 from mongo_client import db, MONGO_STATUS
 
+# Chỉ tính doanh thu 30 ngày gần nhất cho context AI (chatbot cần trả lời NHANH, không phải báo
+# cáo kế toán chính xác all-time) — giới hạn cả về THỜI GIAN (30 ngày) LẪN để MongoDB tự cộng
+# tổng bằng $group thay vì kéo toàn bộ mảng order về RAM rồi sum() bằng Python. Business càng
+# nhiều đơn, cách cũ càng chậm tuyến tính và càng dễ khiến request chat timeout trên serverless.
+AI_CONTEXT_REVENUE_WINDOW_DAYS = 30
+
+
 class AIContextEngine:
+    @staticmethod
+    def _sum_recent_revenue(business_id):
+        """Tổng total_amount của business_id trong AI_CONTEXT_REVENUE_WINDOW_DAYS ngày gần nhất
+        — tính HOÀN TOÀN trong MongoDB qua $match + $group($sum), không kéo document nào về
+        Python. Trả về 0 nếu không có đơn nào hoặc lỗi truy vấn."""
+        if MONGO_STATUS != "CONNECTED" or not business_id:
+            return 0
+        since_iso = (datetime.now() - timedelta(days=AI_CONTEXT_REVENUE_WINDOW_DAYS)).isoformat()
+        try:
+            result = list(db.orders.aggregate([
+                {'$match': {'business_id': business_id, 'created_at': {'$gte': since_iso}}},
+                {'$group': {'_id': None, 'revenue_sum': {'$sum': '$total_amount'}}},
+            ]))
+            return result[0]['revenue_sum'] if result else 0
+        except Exception:
+            return 0
+
     @staticmethod
     def _load_purchase_history(business_id, customer_phone, limit=5):
         """Trí nhớ dài hạn: các lần mua hàng/dùng dịch vụ gần nhất của ĐÚNG khách này
@@ -89,16 +115,12 @@ class AIContextEngine:
 
         # Load business metrics if connected — dữ liệu nhạy cảm, chỉ nhúng khi caller đã xác thực.
         revenue_sum = 0
-        if include_private_data and MONGO_STATUS == "CONNECTED" and business_id:
-            try:
-                orders_data = list(db.orders.find({'business_id': business_id}, {'total_amount': 1, '_id': 0}))
-                revenue_sum = sum(o.get('total_amount') or 0 for o in orders_data)
-            except:
-                pass
+        if include_private_data:
+            revenue_sum = AIContextEngine._sum_recent_revenue(business_id)
 
         details = f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise"
         if include_private_data:
-            details += f"\n- Báo cáo doanh thu hiện tại: {revenue_sum} VNĐ."
+            details += f"\n- Báo cáo doanh thu {AI_CONTEXT_REVENUE_WINDOW_DAYS} ngày gần nhất: {revenue_sum} VNĐ."
 
         # Nhúng menu/sản phẩm thật của tenant để AI gợi ý upsell/cross-sell đúng mặt hàng đang bán,
         # không bịa ra sản phẩm không tồn tại.

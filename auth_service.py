@@ -15,20 +15,6 @@ class AuthService:
         return decorated_function
 
     @staticmethod
-    def role_required(required_roles):
-        """Restricts view access to specific security roles (e.g. 'admin', 'superadmin')."""
-        def decorator(f):
-            @wraps(f)
-            def decorated_function(*args, **kwargs):
-                user_role = session.get('role', 'staff')
-                if user_role not in required_roles:
-                    flash('Quyền truy cập bị từ chối!', 'danger')
-                    return redirect(url_for('index'))
-                return f(*args, **kwargs)
-            return decorated_function
-        return decorator
-
-    @staticmethod
     def verify_license_code(license_key, industry_code):
         """Verifies license code validity in MongoDB (license_codes collection)."""
         if not license_key:

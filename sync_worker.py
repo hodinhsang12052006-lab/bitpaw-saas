@@ -72,7 +72,7 @@ def _sync_one_pending(local_db_conn, pending_doc):
 
     # Đã có đơn với client_uuid này trên Atlas rồi (ví dụ: worker lượt trước ghi xong Mongo
     # nhưng crash trước khi xoá cache local) -> chỉ cần dọn cache, KHÔNG ghi lại lần 2.
-    existing = cloud_db.orders.find_one({'client_uuid': client_uuid}, {'_id': 0, 'id': 1})
+    existing = cloud_db.orders.find_one({'metadata.client_uuid': client_uuid}, {'_id': 0, 'id': 1})
     if existing:
         local_db_conn.pending_sync_orders.delete_one({'client_uuid': client_uuid})
         print(f"[sync_worker] client_uuid={client_uuid} đã tồn tại trên Atlas (id={existing['id']}) — chỉ dọn cache.")
@@ -84,20 +84,31 @@ def _sync_one_pending(local_db_conn, pending_doc):
 
     order_id = cloud_next_id('orders')  # ID THẬT — chỉ cấp lúc chắc chắn đang online
     now_iso = datetime.now().isoformat()
-    order_doc = {
-        'id': order_id, 'business_id': business_id, 'status': 'completed',
-        'created_at': now_iso, 'client_uuid': client_uuid,  # khoá idempotency cho upsert bên dưới
+    # Schema chuẩn hoá (Giai đoạn 3 audit) — CHỈ 6 trường lõi ở top-level, mọi trường đặc thù
+    # (kể cả client_uuid — khoá idempotency riêng của luồng offline-sync này) gộp vào 'metadata',
+    # PHẢI khớp đúng shape mà api_nail_pos_checkout() ghi khi online, nếu không 1 đơn Nails được
+    # đồng bộ offline sẽ có hình dạng khác đơn ghi trực tiếp, làm lệch mọi báo cáo đọc metadata.
+    metadata = {
+        'client_uuid': client_uuid, 'channel': 'nail_pos',
         'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
         'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
-        'tip_amount': computed['total_tip'], 'total_amount': computed['total_amount'],
-        'payment_method': computed['payment_method'], 'payment_bucket': computed['payment_bucket'],
-        'currency': computed['currency'], 'channel': 'nail_pos',
+        'tip_amount': computed['total_tip'], 'payment_bucket': computed['payment_bucket'],
+        'currency': computed['currency'], 'commission_rate': computed.get('commission_rate'),
     }
     if computed['payment_bucket'] == 'split':
-        order_doc['split_cash_amount'] = computed['split_cash_amount']
-        order_doc['split_card_amount'] = computed['split_card_amount']
+        metadata['split_cash_amount'] = computed['split_cash_amount']
+        metadata['split_card_amount'] = computed['split_card_amount']
     if customer_phone:
-        order_doc['customer_phone'] = customer_phone
+        metadata['customer_phone'] = customer_phone
+    order_doc = {
+        'id': order_id,
+        'business_id': business_id,
+        'created_at': now_iso,
+        'status': 'completed',
+        'total_amount': computed['total_amount'],
+        'payment_method': computed['payment_method'],
+        'metadata': metadata,
+    }
 
     order_items_docs = []
     for oi in computed['order_items_docs']:
@@ -117,7 +128,7 @@ def _sync_one_pending(local_db_conn, pending_doc):
     with cloud_client.start_session() as db_session:
         with db_session.start_transaction():
             cloud_db.orders.update_one(
-                {'client_uuid': client_uuid}, {'$setOnInsert': order_doc}, upsert=True, session=db_session,
+                {'metadata.client_uuid': client_uuid}, {'$setOnInsert': order_doc}, upsert=True, session=db_session,
             )
             if order_items_docs:
                 cloud_db.order_items.insert_many(order_items_docs, session=db_session)

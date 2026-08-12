@@ -35,7 +35,8 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, jsonify, session
 
 from mongo_client import db, next_mongo_id
-from app import app, login_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get, _deny_if_staff_page
+from app import app, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get
+from booking_engine import book_appointment, SlotAlreadyBookedError
 from werkzeug.utils import secure_filename
 
 
@@ -123,11 +124,12 @@ def checkout_spa():
             order_id = next_mongo_id('orders')
             db.orders.insert_one({
                 'id': order_id,
-                'order_code': order_code,
-                'channel': 'spa',
-                'total_amount': total_price,
                 'business_id': business_id,
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now().isoformat(),
+                'status': 'completed',
+                'total_amount': total_price,
+                'payment_method': 'cash',
+                'metadata': {'order_code': order_code, 'channel': 'spa'},
             })
             db.order_items.insert_one({
                 'id': next_mongo_id('order_items'),
@@ -167,28 +169,25 @@ def create_appointment():
         svc = db.products.find_one({'id': data['service_id']}, {'business_id': 1, '_id': 0})
         if not svc:
             return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
-        appointment_id = next_mongo_id('appointments')
-        db.appointments.insert_one({
-            'id': appointment_id,
-            'customer_name': data['name'],
-            'customer_phone': data['phone'],
-            'service_id': data['service_id'],
-            'staff_id': data.get('staff_id'),
-            'book_time': data['book_time'],
-            'note': data.get('note'),
-            'status': 'pending',
-            'business_id': svc['business_id']
-        })
+        appointment = book_appointment(
+            business_id=svc['business_id'],
+            customer_info={'name': data['name'], 'phone': data['phone']},
+            staff_id=data.get('staff_id'),
+            book_time=data['book_time'],
+            service_id=data['service_id'],
+            note=data.get('note'),
+            source='web',
+        )
+    except SlotAlreadyBookedError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
-    return jsonify({'success': True, 'id': appointment_id})
+    return jsonify({'success': True, 'id': appointment['id']})
 
 
 @app.route('/chamcong/spa')
 @app.route('/chamcong_spa')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_spa():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_spa.html')

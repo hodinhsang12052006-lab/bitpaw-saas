@@ -29,7 +29,12 @@ INDEX_PLAN = [
     # --- orders: tra theo tenant+id (huỷ/refund), báo cáo theo khoảng ngày, webhook Square ---
     ('orders', [('business_id', 1), ('id', 1)], {'name': 'idx_business_id_id'}),
     ('orders', [('business_id', 1), ('created_at', -1)], {'name': 'idx_business_id_created_at'}),
-    ('orders', [('square_checkout_id', 1)], {'sparse': True, 'name': 'idx_square_checkout_id'}),
+    # Giai đoạn 3 audit — schema chuẩn hoá: square_checkout_id/staff_id nay nằm trong metadata
+    # (trường đặc thù theo ngành/pipeline), không còn top-level.
+    ('orders', [('metadata.square_checkout_id', 1)], {'sparse': True, 'name': 'idx_metadata_square_checkout_id'}),
+    ('orders', [('business_id', 1), ('metadata.staff_id', 1), ('created_at', -1)], {'sparse': True, 'name': 'idx_business_id_metadata_staff_id'}),
+    # ai_nurturing_engine.py: tìm đơn gần nhất theo SĐT để tính churn risk (1 query/khách)
+    ('orders', [('business_id', 1), ('metadata.customer_phone', 1), ('created_at', -1)], {'sparse': True, 'name': 'idx_business_id_metadata_customer_phone'}),
 
     # --- order_items: forecast tồn kho theo product_id+created_at, tra theo order_id ---
     ('order_items', [('order_id', 1)], {'name': 'idx_order_id'}),

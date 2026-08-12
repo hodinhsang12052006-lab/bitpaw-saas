@@ -263,8 +263,10 @@ def recompute_customer_segments(business_id):
         if not phone:
             continue
 
+        # customer_phone nằm trong order_doc['metadata'] (schema chuẩn hoá Giai đoạn 3 audit),
+        # không còn top-level.
         last_order = db.orders.find_one(
-            {'business_id': business_id, 'customer_phone': phone},
+            {'business_id': business_id, 'metadata.customer_phone': phone},
             {'created_at': 1, '_id': 0}, sort=[('created_at', -1)]
         )
 

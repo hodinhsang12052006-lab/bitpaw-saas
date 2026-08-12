@@ -15,6 +15,14 @@ import redis
 ATTENDANCE_STREAM = 'bitpaw:attendance:events'
 ATTENDANCE_GROUP = 'attendance_writers'
 
+# Giai đoạn 4 audit — Event Hook cho AI CRM/Nurture: đẩy sự kiện ORDER_COMPLETED sau mỗi lần
+# thanh toán thành công, để 1 worker riêng (vd nurture_scheduler.py mở rộng sau này qua
+# XREADGROUP, cùng mẫu consumer.py đang dùng cho ATTENDANCE_STREAM) LISTEN và xử lý bất đồng bộ
+# (tính điểm loyalty real-time hơn, gửi tin nhắn cảm ơn/upsell...). Stream RIÊNG với
+# ATTENDANCE_STREAM — 2 loại sự kiện có tốc độ phát sinh, người tiêu thụ, và yêu cầu độ tin cậy
+# khác nhau, gộp chung sẽ buộc mọi consumer phải lọc bỏ event không liên quan tới mình.
+ORDER_EVENTS_STREAM = 'bitpaw:order:events'
+
 _redis_client = None
 
 
@@ -46,3 +54,16 @@ def push_attendance_event(event):
     r = get_redis_client()
     safe_event = {k: ('' if v is None else v) for k, v in event.items()}
     return r.xadd(ATTENDANCE_STREAM, safe_event, maxlen=100000, approximate=True)
+
+
+def push_order_completed_event(event):
+    """XADD 1 sự kiện ORDER_COMPLETED vào ORDER_EVENTS_STREAM — dùng cho AI CRM/Nurture phản
+    ứng real-time (Giai đoạn 4 audit) sau khi 1 đơn hàng thanh toán thành công.
+
+    KHÔNG gọi API AI/CRM đồng bộ ở đây — chỉ XADD rồi trả về NGAY, một worker riêng (chạy tách
+    biệt khỏi luồng checkout, tương tự consumer.py cho ATTENDANCE_STREAM) sẽ tự đọc và xử lý sau.
+    maxlen=100000/approximate=True: cùng lý do an toàn vận hành như push_attendance_event() —
+    chặn Redis phình vô hạn nếu chưa có worker nào tiêu thụ stream này."""
+    r = get_redis_client()
+    safe_event = {k: ('' if v is None else v) for k, v in event.items()}
+    return r.xadd(ORDER_EVENTS_STREAM, safe_event, maxlen=100000, approximate=True)

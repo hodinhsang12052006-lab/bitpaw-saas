@@ -1,19 +1,10 @@
-import os
 from flask import session
-from pymongo import MongoClient
 
-# 1. Khởi tạo kết nối MongoDB từ biến môi trường (Chuẩn Vercel)
-MONGO_URI = os.environ.get('MONGO_URI')
-db = None
-
-if MONGO_URI:
-    try:
-        # Cài đặt timeout ngắn để phù hợp với môi trường Serverless
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        # Tự động lấy database mặc định từ chuỗi kết nối
-        db = client.get_default_database(default='bitpaw_db') 
-    except Exception as e:
-        print(f"[!] MongoDB Connection failed: {e}")
+# Dùng LẠI đúng 1 MongoClient (connection pool đã cấu hình maxPoolSize/maxIdleTimeMS) từ
+# mongo_client.py thay vì tự tạo MongoClient riêng ở đây — trước đây file này mở 1 pool
+# connection HOÀN TOÀN TÁCH BIỆT với pool chính của app.py, nhân đôi số connection thật sự
+# cần thiết tới Atlas cho mỗi instance serverless, góp phần vào rủi ro cạn kết nối lúc cao điểm.
+from mongo_client import db
 
 class TenantEngine:
     @staticmethod

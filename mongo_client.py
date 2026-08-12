@@ -41,7 +41,19 @@ if MONGO_URI:
     try:
         # serverSelectionTimeoutMS=5000: bắt buộc cho môi trường Serverless (Vercel) — nếu không
         # set, driver mặc định chờ 30s mới báo lỗi kết nối, dễ làm function bị timeout/treo.
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # maxPoolSize=50: giới hạn số connection TỐI ĐA mà 1 process (1 instance serverless) mở
+        # tới Atlas — không giới hạn, mỗi cold start/instance mới có thể mở hàng trăm connection
+        # riêng, hàng nghìn instance đồng thời lúc cao điểm dễ làm Atlas từ chối connection mới
+        # (lỗi "too many connections") cho TẤT CẢ tenant, không chỉ tenant đang gây tải.
+        # maxIdleTimeMS=10000: đóng sớm connection rảnh > 10s thay vì giữ mở tới khi Atlas tự
+        # timeout — quan trọng trên serverless vì mỗi instance có thể bị đóng bất kỳ lúc nào,
+        # không đóng sớm sẽ để lại connection "mồ côi" treo phía Atlas cho tới khi hết TTL riêng.
+        client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            maxPoolSize=50,
+            maxIdleTimeMS=10000,
+        )
         db = client.get_database('bitpaw_db')
         # Probe kết nối thật (không chỉ khởi tạo object) — ping xong mới coi là CONNECTED,
         # để không đánh lừa phần còn lại của hệ thống khi Atlas thật sự không tới được.

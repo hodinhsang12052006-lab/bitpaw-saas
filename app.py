@@ -16,7 +16,7 @@ def custom_sqlite3_connect(database, *args, **kwargs):
     return _original_sqlite3_connect(database, *args, **kwargs)
 sqlite3.connect = custom_sqlite3_connect
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app, g
 from jinja2.exceptions import TemplateNotFound
 from datetime import datetime, timedelta
 import os
@@ -31,6 +31,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
+import jwt as pyjwt  # PyJWT — Giai đoạn 5 audit: JWT auth cho Mobile App (Flutter/React Native)
 # Đã gỡ bỏ hoàn toàn Supabase khỏi backend — toàn bộ dữ liệu giờ đọc/ghi qua MongoDB Atlas
 # (pymongo) bên dưới.
 from mongo_client import db, fs, client as mongo_client_instance, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
@@ -124,6 +125,24 @@ if not _flask_secret_key:
     )
 app.secret_key = _flask_secret_key
 
+# --- JWT cho Mobile App (Giai đoạn 6 audit — CISO/Pentest) ---
+# BẮT BUỘC biến môi trường JWT_SECRET riêng — KHÔNG được dùng lại FLASK_SECRET_KEY làm key dự
+# phòng (thiết kế ban đầu ở Giai đoạn 5, nay coi là anti-pattern bảo mật): 2 mục đích ký khác
+# nhau (session cookie Web vs JWT Mobile) PHẢI dùng 2 khoá độc lập — nếu 1 trong 2 secret bị lộ
+# (vd log lỗi vô tình in ra, hoặc rotate 1 bên mà quên bên kia), bên còn lại vẫn an toàn/không bị
+# forge theo. Thiếu JWT_SECRET -> crash ngay lúc khởi động, KHÔNG âm thầm dùng key dự phòng.
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    raise RuntimeError(
+        "JWT_SECRET chưa được cấu hình trong biến môi trường. "
+        "Sinh 1 chuỗi ngẫu nhiên mạnh riêng biệt với FLASK_SECRET_KEY (vd: python -c \"import secrets; print(secrets.token_hex(32))\") "
+        "và đặt trong .env (dev) hoặc Environment Variables (production) trước khi chạy."
+    )
+JWT_ALGORITHM = 'HS256'
+# JWT_EXPIRY_HOURS mặc định 30 ngày — app mobile cần "đăng nhập 1 lần, dùng lâu dài", khác web
+# (session hết hạn theo cookie trình duyệt).
+JWT_EXPIRY_HOURS = int(os.environ.get('JWT_EXPIRY_HOURS', '720'))
+
 # --- Session cookie an toàn (Mã 3.3 audit) ---
 # Secure: cookie chỉ gửi qua HTTPS (Vercel production luôn HTTPS nên không ảnh hưởng gì; chỉ
 # lưu ý nếu bạn tự test bằng http://localhost thì trình duyệt sẽ KHÔNG lưu cookie — dùng
@@ -138,24 +157,179 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# --- CSRF Protection (Mã 3.1 audit) ---
-# QUAN TRỌNG: app.py có HÀNG TRĂM route API nhận POST/PUT/DELETE qua fetch() JSON (không phải
-# <form> thường) — nếu bật CSRFProtect ở chế độ mặc định (tự kiểm tra MỌI request), toàn bộ
-# API JSON đó sẽ bị chặn 400 "CSRF token is missing" ngay lập tức vì fetch() hiện tại không gửi
-# token nào cả. Đó là phá vỡ "lan man sang module khác" — không phải mục tiêu của bản vá này.
+# --- CSRF Protection + Hybrid JWT/Session Auth (Giai đoạn 2 + Giai đoạn 5) ---
+# Giai đoạn 2: bật CSRF cho MỌI request POST/PUT/PATCH/DELETE (trước đó tắt hẳn = lỗ hổng: 1
+# trang độc hại có thể forge request bằng session cookie của nạn nhân, cookie tự động gửi kèm).
+# _inject_csrf_bootstrap() bên dưới tự chèn token vào mọi trang HTML để không phá hàng trăm
+# fetch() JSON hiện có của Web.
 #
-# Giải pháp đúng phạm vi: WTF_CSRF_CHECK_DEFAULT=False -> CSRFProtect KHÔNG tự kiểm tra mọi
-# route nữa (opt-out mặc định), chỉ route nào tự gọi csrf.protect() TRONG THÂN HÀM mới bị kiểm
-# tra (protect() là 1 method thường, KHÔNG dùng được như decorator @csrf.protect — gọi kiểu đó
-# ném TypeError ngay lúc import module vì Flask truyền view function vào làm tham số cho
-# protect(), trong khi protect() không nhận tham số nào ngoài self). Chỉ áp dụng cho 2 route
-# render <form method="POST"> HTML cổ điển thật sự có rủi ro CSRF (login, register — xem
-# templates/index.html) — nơi 1 trang độc hại có thể giả mạo submit hộ nạn nhân. Toàn bộ API
-# JSON (fetch()) không bị ảnh hưởng gì.
+# Giai đoạn 5: Mobile App (Flutter/React Native) không load HTML nên KHÔNG BAO GIỜ nhận được
+# token qua cơ chế trên — nhưng Mobile cũng KHÔNG CẦN CSRF: CSRF chỉ có ý nghĩa khi trình duyệt
+# TỰ ĐỘNG đính kèm thông tin xác thực (cookie) vào request mà nạn nhân không hề hay biết; header
+# `Authorization: Bearer <JWT>` không BAO GIỜ được trình duyệt tự gắn vào request của 1 trang
+# khác — về bản chất đã miễn nhiễm CSRF. Flask-WTF không có API public để tắt CSRF động theo
+# từng request, nên _hybrid_auth_and_csrf() bên dưới THAY THẾ hoàn toàn cơ chế before_request tự
+# động của CSRFProtect (đặt WTF_CSRF_CHECK_DEFAULT=False) bằng 1 before_request tự viết: nếu có
+# Bearer JWT hợp lệ -> nạp session từ token rồi bỏ qua CSRF; ngược lại -> gọi csrf.protect() y hệt
+# Giai đoạn 2 (method public, đã dùng ở login()/register() từ trước, không đổi mức bảo vệ Web).
+#
+# Các endpoint KHÔNG thể mang CSRF token hợp lệ vì bản chất KHÔNG qua trình duyệt có session
+# (webhook server-to-server, cron job) hoặc là hành động công khai không gắn quyền hạn phiên
+# đăng nhập nào (analytics/lead công khai) được @csrf.exempt tường minh bên dưới, xem danh sách
+# _CSRF_EXEMPT_ENDPOINTS.
 from flask_wtf import CSRFProtect  # noqa: E402
+from flask_wtf.csrf import generate_csrf  # noqa: E402
 
 app.config['WTF_CSRF_CHECK_DEFAULT'] = False
 csrf = CSRFProtect(app)
+
+
+def _get_bearer_token():
+    """Đọc token từ header 'Authorization: Bearer <token>' — trả None nếu không có/sai format."""
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        return auth_header[7:].strip() or None
+    return None
+
+
+def _load_session_from_jwt(token):
+    """Giải mã JWT (cấp bởi /api/auth/token), nạp claims vào flask.session (chỉ tồn tại trong
+    phạm vi request hiện tại) — CHỦ ĐÍCH để toàn bộ hàng trăm chỗ trong app.py đang đọc
+    session.get('business_id')/session['user_id']/session.get('role') hoạt động ĐÚNG Y NHƯ session
+    cookie Web, không cần sửa từng route riêng lẻ. Trả về True nếu token hợp lệ, False nếu không
+    (hết hạn/sai chữ ký/thiếu claim bắt buộc) — KHÔNG raise, caller tự quyết định phản hồi lỗi."""
+    try:
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except pyjwt.PyJWTError:
+        return False
+    if not payload.get('user_id'):
+        return False
+    session['user_id'] = payload['user_id']
+    session['business_id'] = payload.get('business_id') or payload['user_id']
+    session['user_email'] = payload.get('user_email')
+    session['role'] = payload.get('role', 'admin')
+    session['business_mode'] = payload.get('business_mode', 'none')
+    return True
+
+
+@app.before_request
+def _hybrid_auth_and_csrf():
+    """Chạy TRƯỚC mọi route — xem khối comment CSRF phía trên để hiểu vì sao hàm này thay thế
+    hoàn toàn before_request tự động của CSRFProtect thay vì dùng song song.
+
+    QUAN TRỌNG: csrf.protect() (gọi trực tiếp, không qua before_request tự động của
+    CSRFProtect) KHÔNG hề tự kiểm tra danh sách _CSRF_EXEMPT_ENDPOINTS — logic exempt-view của
+    Flask-WTF chỉ nằm TRONG before_request tự động của chính nó (đã bị tắt hẳn bởi
+    WTF_CSRF_CHECK_DEFAULT=False ở trên), KHÔNG nằm trong protect() — xác nhận bằng cách đọc
+    thẳng source code flask_wtf.csrf.CSRFProtect. Do đó phải tự kiểm tra exempt TẠI ĐÂY trước
+    khi gọi protect(), nếu không toàn bộ webhook/cron/public route trong
+    _CSRF_EXEMPT_ENDPOINTS sẽ bị chặn nhầm (đã xảy ra thật lúc test /api/auth/token)."""
+    token = _get_bearer_token()
+    if token:
+        if _load_session_from_jwt(token):
+            g.auth_via_jwt = True
+            return  # Bearer hợp lệ -> bỏ qua csrf.protect(), request này miễn nhiễm CSRF sẵn.
+        # Có gửi Bearer nhưng SAI/hết hạn -> từ chối thẳng, KHÔNG âm thầm rơi về check cookie
+        # (client Mobile đang cố dùng token, phải biết ngay token hỏng thay vì bị coi như chưa
+        # đăng nhập rồi nhận HTML redirect mà JSON parser phía app không xử lý được).
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Token không hợp lệ hoặc đã hết hạn.'}), 401
+    if request.endpoint in _CSRF_EXEMPT_ENDPOINTS:
+        return
+    csrf.protect()
+
+
+def _wants_json():
+    """True nếu request nên nhận response JSON thay vì HTML/redirect kiểu web cổ điển — Mobile
+    App (luôn xác thực qua JWT Bearer, đánh dấu qua g.auth_via_jwt) HOẶC path bắt đầu '/api/'
+    HOẶC client tự khai muốn JSON qua header Accept. Trình duyệt Web (session cookie, render HTML
+    bình thường) không rơi vào bất kỳ điều kiện nào ở đây -> giữ NGUYÊN hành vi HTML/redirect cũ,
+    không phá giao diện hiện có."""
+    return bool(g.get('auth_via_jwt')) or request.path.startswith('/api/') or \
+        request.accept_mimetypes.best == 'application/json'
+
+_CSRF_BOOTSTRAP_SCRIPT = """
+<script>
+(function() {
+  var CSRF_TOKEN = %s;
+  var UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  var originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    init = init || {};
+    var method = (init.method || (input && input.method) || 'GET').toUpperCase();
+    if (UNSAFE_METHODS.indexOf(method) !== -1) {
+      var url = (typeof input === 'string') ? input : ((input && input.url) || '');
+      var isAbsolute = /^([a-z][a-z0-9+.-]*:)?\\/\\//i.test(url);
+      if (!isAbsolute || url.indexOf(window.location.origin) === 0) {
+        var headers = new Headers(init.headers || {});
+        if (!headers.has('X-CSRFToken')) {
+          headers.set('X-CSRFToken', CSRF_TOKEN);
+        }
+        init.headers = headers;
+      }
+    }
+    return originalFetch.call(this, input, init);
+  };
+  function bootstrapForms() {
+    document.querySelectorAll('form').forEach(function(f) {
+      var method = (f.getAttribute('method') || 'GET').toUpperCase();
+      if (method === 'POST' && !f.querySelector('input[name="csrf_token"]')) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = CSRF_TOKEN;
+        f.appendChild(inp);
+      }
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapForms);
+  } else {
+    bootstrapForms();
+  }
+})();
+</script>
+""".strip()
+
+
+@app.after_request
+def _inject_csrf_bootstrap(response):
+    """Chèn script gắn CSRF token tự động (xem giải thích ở khối comment CSRF phía trên) vào
+    MỌI response HTML thành công — chạy 1 lần/response, an toàn nếu lỗi (không được phép làm
+    hỏng response gốc chỉ vì bootstrap thất bại)."""
+    try:
+        if response.mimetype == 'text/html' and response.status_code < 400 and not response.direct_passthrough:
+            html = response.get_data(as_text=True)
+            if '</body>' in html and 'CSRF_TOKEN' not in html:
+                token_json = json.dumps(generate_csrf())
+                snippet = _CSRF_BOOTSTRAP_SCRIPT % token_json
+                response.set_data(html.replace('</body>', snippet + '</body>', 1))
+    except Exception as e:
+        print(f"[CSRF bootstrap] Chèn script thất bại (không ảnh hưởng response gốc): {e}")
+    return response
+
+
+# Endpoint KHÔNG session trình duyệt (webhook/cron) hoặc hành động công khai không gắn quyền
+# hạn phiên đăng nhập nào (lead công khai, tracking, đặt món qua QR, chat khách vãng lai) —
+# CSRF không có ý nghĩa bảo vệ ở đây (không có "quyền hạn phiên" nào để giả mạo đánh cắp), và
+# 1 số nơi (webhook) về bản chất không thể mang session cookie/token nào cả.
+_CSRF_EXEMPT_ENDPOINTS = [
+    'api_webhook_square',
+    'cron_daily_tasks',
+    'create_cskh_request',
+    'track_cskh_click',
+    'submit_feedback',
+    'api_checkout_signup',
+    'submit_qr_order',
+    'api_table_notify',
+    'api_portal_messages_create',
+    'api_portal_upload',
+    'api_cskh_chat_send',
+    # Giai đoạn 5 audit — endpoint CẤP JWT cho Mobile App: về bản chất "con gà quả trứng", client
+    # gọi route này CHƯA CÓ token (đó chính là lý do nó gọi route này) nên KHÔNG THỂ mang CSRF
+    # token hợp lệ. Không phải lỗ hổng: route không dựa vào cookie ambient — xác thực bằng
+    # email/password tường minh trong body, và response (JWT) trả về JSON mà 1 request CSRF giả
+    # mạo (cross-site form POST) không đọc lại được do same-origin policy của trình duyệt.
+    'api_auth_token',
+]
 
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
 # nhất thay vì phải tự giới hạn tay ở từng route. 10MB đủ rộng cho ảnh chụp điện thoại upload qua
@@ -164,18 +338,35 @@ csrf = CSRFProtect(app)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 # Rate limiting (chống brute-force/spam) — áp dụng default_limits cho MỌI route tự động, cộng
-# thêm giới hạn CHẶT hơn khai báo riêng ở /login và /register (xem 2 route đó). Lưu ý triển khai
-# thật: storage mặc định "memory://" chỉ đếm request TRONG CÙNG 1 process — trên Vercel
-# serverless (nhiều instance/cold start riêng biệt), giới hạn này là best-effort PER-INSTANCE,
-# không phải giới hạn toàn cục chính xác tuyệt đối. Muốn chặn brute-force chính xác 100% khi
-# chạy nhiều instance đồng thời, cần trỏ storage_uri sang Redis dùng chung (vd: Upstash) qua biến
-# môi trường RATELIMIT_STORAGE_URI — đã đọc sẵn bên dưới nếu có cấu hình, fallback về memory://
-# nếu chưa (không crash nếu thiếu Redis, vẫn có bảo vệ tốt hơn KHÔNG rate limit gì cả).
+# thêm giới hạn CHẶT hơn khai báo riêng ở /login, /register, /api/auth/token (xem các route đó).
+#
+# Giai đoạn 6 audit (CISO/Pentest) — "memory://" CHỈ đếm request TRONG CÙNG 1 process: trên
+# serverless (nhiều instance/cold start riêng biệt) HOẶC nhiều worker gunicorn (xem Procfile: 4
+# worker), mỗi process có bộ đếm RIÊNG, nghĩa là giới hạn "5 lần/15 phút" thực tế trở thành "5 ×
+# (số instance/worker đang chạy) lần/15 phút" — hacker brute-force mật khẩu hoặc dội bom
+# /api/ai/studio/generate (tốn tiền DeepSeek mỗi request) có thể NHÂN SỐ LẦN THỬ THEO SỐ INSTANCE
+# đơn giản bằng cách gửi request dồn dập (load balancer/serverless tự rải qua nhiều instance).
+#
+# Fix: dùng CHUNG Redis đã có sẵn cho Streams (REDIS_URL) làm storage backend — 1 bộ đếm DUY
+# NHẤT chia sẻ giữa MỌI process, giới hạn chính xác tuyệt đối bất kể chạy bao nhiêu instance/
+# worker. Key prefix của Flask-Limiter (LIMITER/...) không đụng namespace với Streams
+# (bitpaw:attendance:events, bitpaw:order:events) nên dùng chung 1 Redis an toàn, không cần
+# instance Redis riêng. Ưu tiên RATELIMIT_STORAGE_URI nếu cấu hình riêng (vd muốn tách DB index
+# khác/Redis khác); nếu không có, tự dùng REDIS_URL; chỉ rơi về "memory://" (best-effort, KHÔNG
+# an toàn cho production nhiều instance) khi máy dev local chưa cấu hình Redis nào cả.
+_ratelimit_storage_uri = (
+    os.environ.get('RATELIMIT_STORAGE_URI')
+    or os.environ.get('REDIS_URL')
+    or 'memory://'
+)
+if _ratelimit_storage_uri == 'memory://':
+    print("[!] CANH BAO: Rate limiter dang chay memory:// (khong dung chung giua cac instance). "
+          "Dat REDIS_URL hoac RATELIMIT_STORAGE_URI truoc khi len production.")
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
+    storage_uri=_ratelimit_storage_uri,
 )
 
 
@@ -535,13 +726,46 @@ def parse_datetime(dt_str):
 
 # ========== DECORATOR KIỂM TRA ĐĂNG NHẬP ==========
 def login_required(f):
+    """Hybrid Web/Mobile (Giai đoạn 5 audit): nếu request mang Bearer JWT hợp lệ,
+    _hybrid_auth_and_csrf() (before_request, chạy TRƯỚC decorator này) đã tự nạp session['user_id']
+    từ token rồi — decorator KHÔNG cần biết gì thêm về JWT, chỉ cần đọc session như cũ, y hệt
+    session cookie Web. Chỉ khác: khi thiếu xác thực, trả JSON cho Mobile/API thay vì luôn
+    redirect HTML (Mobile không có khái niệm "trang login" để redirect tới)."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            if _wants_json():
+                return jsonify({'success': False, 'message': 'Vui lòng đăng nhập để tiếp tục.'}), 401
             flash('Vui lòng đăng nhập để tiếp tục', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ========== DECORATOR PHÂN QUYỀN (RBAC) ==========
+def role_required(*allowed_roles):
+    """Decorator chuẩn thay cho việc gọi thủ công _deny_if_staff()/_deny_if_staff_page() rải
+    rác trong từng hàm (dễ quên áp dụng ở route mới, không audit được bằng cách grep 1 chỗ).
+    Dùng ALLOW-LIST (chỉ role nằm trong allowed_roles mới được đi tiếp) thay vì deny-list cũ
+    (chỉ chặn đúng role='staff') — an toàn hơn: 1 role MỚI phát sinh sau này (vd mời nhân viên
+    với role tuỳ biến) sẽ mặc định BỊ CHẶN cho tới khi được thêm tường minh vào allow-list,
+    thay vì mặc định ĐƯỢC PHÉP như deny-list cũ.
+    LUÔN đặt bên dưới @login_required trong decorator stack (chạy sau khi đã xác nhận có
+    session hợp lệ — kể cả session "ảo" nạp từ JWT cho Mobile, xem login_required). Tự nhận diện
+    JSON API/Mobile (_wants_json() -> trả 403 JSON) hay trang HTML Web (redirect kèm flash) để
+    giữ đúng hành vi UX của từng loại client."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_role = session.get('role', 'staff')
+            if user_role not in allowed_roles:
+                if _wants_json():
+                    return jsonify({'success': False, 'message': 'Tài khoản của bạn không có quyền thực hiện thao tác này.'}), 403
+                flash('Tài khoản của bạn không có quyền truy cập trang này.', 'danger')
+                return redirect(url_for('index'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def _get_tenant_business_id_or_401():
@@ -947,6 +1171,128 @@ def login():
     return render_template('index.html', active_tab='login')
 
 
+@app.route('/api/auth/token', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def api_auth_token():
+    """Cấp JWT cho Mobile App (Flutter/React Native) — thay session cookie không dùng được trên
+    native client. Nhận {email, password} JSON, trả về access_token (JWT tự chứa user_id/
+    business_id/role/business_mode) + thông tin user cơ bản. login_required() sau đó chỉ cần
+    _load_session_from_jwt() giải mã lại, KHÔNG cần tra DB mỗi request.
+
+    CỐ Ý KHÔNG hỗ trợ God Mode/Superadmin fallback ở đây (khác /login web) — endpoint này chỉ
+    phục vụ chủ tiệm/nhân viên đăng nhập vào ĐÚNG tenant của họ qua app; tài khoản Super Admin hệ
+    thống không có lý do đăng nhập qua Mobile App của khách hàng."""
+    data = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or not password:
+        return jsonify({"success": False, "message": "Thiếu email hoặc password."}), 400
+    if db is None:
+        return jsonify({"success": False, "message": "Server chưa kết nối Database."}), 503
+
+    user = db.users.find_one({'email': email})
+    if not user or not check_password_hash(user.get('password_hash', ''), password):
+        return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
+
+    user_id = user['id']
+    business_id = user.get('business_id') or user_id
+    role = user.get('role', 'admin')
+    mode = 'none'
+    try:
+        mode_doc = db.system_settings.find_one({'key': f'business_mode_{user_id}'})
+        mode = (mode_doc['value'] if mode_doc else 'none').strip().lower()
+    except Exception:
+        pass
+
+    now = datetime.utcnow()
+    payload = {
+        'user_id': user_id,
+        'business_id': business_id,
+        'user_email': email,
+        'role': role,
+        'business_mode': mode,
+        'iat': now,
+        'exp': now + timedelta(hours=JWT_EXPIRY_HOURS),
+    }
+    token = pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+    try:
+        db.user_logs.insert_one({
+            'id': next_mongo_id('user_logs'), 'business_id': business_id, 'user_email': email,
+            'action': 'login_mobile_token', 'description': 'Dang nhap Mobile App (JWT)',
+            'ip_address': request.remote_addr, 'created_at': datetime.now().isoformat(),
+        })
+    except Exception:
+        pass
+
+    return jsonify({
+        "success": True,
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": JWT_EXPIRY_HOURS * 3600,
+        "user": {
+            "id": user_id, "email": email, "role": role,
+            "business_id": business_id, "business_mode": mode,
+        },
+    })
+
+
+@app.route('/api/users/delete-account', methods=['POST'])
+@login_required
+def api_delete_account():
+    """Xoá tài khoản — bắt buộc theo App Store Review Guideline 5.1.1(v): app phải cho phép
+    user tự yêu cầu xoá tài khoản ngay trong app, không được bắt liên hệ hỗ trợ/vào web riêng.
+
+    SOFT DELETE (không xoá cứng ngay lập tức): tài khoản này là 1 tenant B2B với dữ liệu vận
+    hành thật (đơn hàng, khách hàng, nhân viên, lương...) gắn theo business_id trải khắp hàng
+    chục collection — xoá cứng cascade ngay trong 1 request rủi ro cao (bấm nhầm/token bị lộ =
+    mất vĩnh viễn toàn bộ dữ liệu kinh doanh, không có đường lùi). Soft delete: khoá đăng nhập
+    NGAY LẬP TỨC (scramble password_hash — chặn cả /login web LẪN /api/auth/token mobile, vì cả
+    2 cùng dùng check_password_hash trên field này) + đánh dấu is_deleted/deleted_at. Vẫn tuân
+    thủ yêu cầu Apple: tài khoản không còn đăng nhập được ngay khi user xác nhận xoá. Xoá cứng
+    dữ liệu (nếu cần, theo chính sách lưu trữ/luật) nên chạy bằng 1 job định kỳ riêng quét
+    is_deleted=True quá X ngày — NGOÀI phạm vi endpoint này.
+
+    Bắt buộc xác nhận lại password trước khi xoá — hành động không thể tự hoàn tác dễ dàng,
+    tránh 1 session/token bị đánh cắp có thể tự xoá tài khoản nạn nhân mà không cần biết mật khẩu."""
+    user_id = session['user_id']
+    data = request.json or {}
+    password = data.get('password') or ''
+    if not password:
+        return jsonify({"success": False, "message": "Vui lòng nhập mật khẩu để xác nhận xoá tài khoản."}), 400
+
+    user = db.users.find_one({'id': user_id})
+    if not user or not check_password_hash(user.get('password_hash', ''), password):
+        return jsonify({"success": False, "message": "Mật khẩu xác nhận không đúng."}), 401
+
+    now_iso = datetime.now().isoformat()
+    business_id = user.get('business_id') or user_id
+    try:
+        db.users.update_one(
+            {'id': user_id},
+            {'$set': {
+                'is_deleted': True,
+                'deleted_at': now_iso,
+                # Khoá đăng nhập vĩnh viễn — scramble bằng 1 mật khẩu ngẫu nhiên không ai biết
+                # được, KHÔNG xoá field password_hash (tránh mọi chỗ khác lỡ tra field này lỗi
+                # KeyError thay vì tra được rồi so sánh thất bại như bình thường).
+                'password_hash': generate_password_hash(uuid.uuid4().hex),
+                # Giải phóng email gốc để user khác có thể đăng ký lại đúng email này sau này —
+                # không đổi 'id' (business_id vẫn giữ nguyên để dữ liệu lịch sử tra cứu được).
+                'email': f"deleted_{user_id}_{user.get('email', '')}",
+            }}
+        )
+        db.businesses.update_one(
+            {'id': business_id},
+            {'$set': {'is_deleted': True, 'deleted_at': now_iso}}
+        )
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    session.clear()
+    return jsonify({"success": True, "message": "Tài khoản đã được xoá."}), 200
+
+
 @app.route('/logout')
 def logout():
     if 'user_id' in session:
@@ -1266,25 +1612,6 @@ def index():
 
 
 # ========== DASHBOARD JSON API (thay Supabase JS client-side ở dashboard.html) ==========
-def _deny_if_staff():
-    """Chặn tài khoản role='staff' xem thống kê Dashboard của chủ tiệm — trả về response lỗi
-    403 nếu bị chặn, hoặc None nếu được phép đi tiếp. Hiện luồng đăng ký chính luôn tạo
-    role='admin', nhưng kiểm tra này vẫn bắt buộc để phòng ngừa khi có tính năng mời nhân
-    viên với role giới hạn trong tương lai — không được để sót người chưa đủ quyền."""
-    if session.get('role') == 'staff':
-        return jsonify({'success': False, 'message': 'Tài khoản của bạn không có quyền xem thống kê này.'}), 403
-    return None
-
-
-def _deny_if_staff_page():
-    """Biến thể dùng cho route render_template (không phải JSON API): chặn role='staff'
-    truy cập trực tiếp bằng URL vào các trang nhạy cảm (Lương, Chi phí, Cài đặt, Doanh thu/
-    Báo cáo, Quản lý nhân sự, GPS Radar) — vốn đã bị ẩn khỏi sidebar, nhưng vẫn phải chặn ở
-    route để không sót trường hợp gõ thẳng URL."""
-    if session.get('role') == 'staff':
-        flash('Tài khoản của bạn không có quyền truy cập trang này.', 'danger')
-        return redirect(url_for('index'))
-    return None
 
 
 def _get_task_counts(business_id):
@@ -1297,10 +1624,8 @@ def _get_task_counts(business_id):
 
 @app.route('/api/dashboard/stats', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_dashboard_stats():
-    denied = _deny_if_staff()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     month = request.args.get('month')
     year = request.args.get('year')
@@ -1367,10 +1692,8 @@ def api_dashboard_stats():
 
 @app.route('/api/dashboard/kudo_leaderboard', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_dashboard_kudo_leaderboard():
-    denied = _deny_if_staff()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         top_emps = list(db.employees.find(
@@ -1384,10 +1707,8 @@ def api_dashboard_kudo_leaderboard():
 
 @app.route('/api/dashboard/reconciliation_alerts', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_dashboard_reconciliation_alerts():
-    denied = _deny_if_staff()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         alerts = list(db.reconciliation_alerts.find(
@@ -1400,10 +1721,8 @@ def api_dashboard_reconciliation_alerts():
 
 @app.route('/api/dashboard/reconciliation_alerts/<int:alert_id>/resolve', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_dashboard_resolve_alert(alert_id):
-    denied = _deny_if_staff()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         result = db.reconciliation_alerts.update_one(
@@ -1429,10 +1748,8 @@ SSE_MAX_AWAIT_MS = 5000
 
 @app.route('/api/stream/dashboard_tasks')
 @login_required
+@role_required('admin', 'super_admin')
 def stream_dashboard_tasks():
-    denied = _deny_if_staff()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
 
     def event_stream():
@@ -1692,7 +2009,7 @@ def add_product():
                     filename=secure_filename(image_file.filename),
                     business_id=business_id,
                     kind='product_image',
-                    content_type=image_file.mimetype or 'application/octet-stream'
+                    content_type=_safe_image_content_type(image_file.filename)
                 )
                 image_url = url_for('api_public_storage_file', file_id=str(file_id))
             except Exception as media_err:
@@ -1751,19 +2068,26 @@ def update_product(id):
 @app.route('/delete_product/<int:id>')
 @login_required
 def delete_product(id):
+    """Giai đoạn 5 audit: route kiểu cũ (redirect) vẫn giữ NGUYÊN cho Web — chỉ trả JSON
+    {success, message} khi _wants_json() (Mobile qua JWT, hoặc client tự khai Accept: application/json)."""
     business_id = session.get('business_id') or session['user_id']
     try:
         if not _assert_owns_product(id, business_id):
-            return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
+            msg = "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn."
+            return (jsonify({"success": False, "message": msg}), 403) if _wants_json() else (msg, 403)
     except Exception as e:
-        return f"Lỗi xác thực quyền sở hữu sản phẩm: {str(e)}", 500
+        msg = f"Lỗi xác thực quyền sở hữu sản phẩm: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
     try:
         old_value = db.products.find_one({'id': id}, {'name': 1, 'is_active': 1, '_id': 0})
         db.products.update_one({'id': id, 'business_id': business_id}, {'$set': {'is_active': 0}})
         _log_audit(business_id, 'delete_product', entity_type='product', entity_id=id, old_value=old_value, new_value={'is_active': 0})
     except Exception as e:
-        return f"Lỗi xóa sản phẩm: {str(e)}", 500
+        msg = f"Lỗi xóa sản phẩm: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
+    if _wants_json():
+        return jsonify({"success": True, "message": "Đã xoá sản phẩm."})
     return redirect(request.referrer or url_for('pos'))
 
 
@@ -1868,12 +2192,89 @@ def api_product_get(id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+class InsufficientStockError(Exception):
+    """Raise khi trừ kho nguyên tử thất bại vì tồn kho hiện có < số lượng yêu cầu. Khi được gọi
+    bên trong 1 Mongo session transaction, exception này khiến toàn bộ transaction TỰ ĐỘNG abort
+    (order/order_items/transaction ledger của lần checkout này KHÔNG có gì được giữ lại)."""
+    def __init__(self, product_id, product_name=None):
+        label = product_name or f"#{product_id}"
+        self.product_id = product_id
+        self.product_name = product_name
+        super().__init__(f"Sản phẩm '{label}' không đủ tồn kho để bán.")
+
+
+def _decrement_stock_atomic(business_id, stock_items, db_session=None):
+    """Trừ tồn kho NGUYÊN TỬ từng sản phẩm bằng find_one_and_update($inc âm) kèm điều kiện lọc
+    `stock >= qty` ngay trong query — thay cho kiểu cũ 'đọc số lượng bằng Python rồi $set đè lại'
+    vốn có race condition: nhiều request trừ cùng 1 sản phẩm cùng lúc (giờ cao điểm, nhiều đơn
+    QR order) có thể cùng đọc 1 giá trị cũ rồi cùng ghi đè, làm mất bớt lần trừ kho -> bán vượt
+    tồn kho thực tế (bán âm). $gte trong filter đảm bảo Mongo tự chọn tuần tự hoá các update
+    cạnh tranh trên cùng 1 document — không đơn nào có thể trừ xuống dưới 0.
+    `stock_items`: list các tuple (product_id, quantity, product_name_optional).
+    Raise InsufficientStockError ngay khi có 1 sản phẩm không đủ hàng."""
+    for product_id, qty, *rest in stock_items:
+        if not qty or qty <= 0:
+            continue
+        product_name = rest[0] if rest else None
+        result = db.products.find_one_and_update(
+            {'id': product_id, 'business_id': business_id, 'stock': {'$gte': qty}},
+            {'$inc': {'stock': -qty}},
+            session=db_session,
+            projection={'_id': 0, 'id': 1},
+        )
+        if result is None:
+            raise InsufficientStockError(product_id, product_name)
+
+
+def _restock_atomic(business_id, stock_items, db_session=None):
+    """Cộng lại tồn kho (hoàn hàng/refund, Giai đoạn 5 audit) — ngược chiều
+    _decrement_stock_atomic(), dùng $inc dương nguyên tử. Không cần điều kiện $gte (cộng thêm
+    luôn hợp lệ, không có khái niệm "không đủ chỗ để cộng"). Chỉ áp dụng cho sản phẩm CÓ field
+    'stock' (bỏ qua an toàn nếu sản phẩm không track kho hoặc đã bị xoá)."""
+    for product_id, qty, *rest in stock_items:
+        if not qty or qty <= 0:
+            continue
+        db.products.update_one(
+            {'id': product_id, 'business_id': business_id, 'stock': {'$exists': True}},
+            {'$inc': {'stock': qty}},
+            session=db_session,
+        )
+
+
+def _record_pos_transaction(business_id, order_id, amount, payment_method, created_by=None,
+                             category='sales', transaction_type='income', db_session=None):
+    """Ghi 1 bản ghi sổ cái vào db.transactions ứng với 1 đơn POS đã thanh toán thành công.
+    BẮT BUỘC gọi ngay sau khi 1 order được tạo/xác nhận thanh toán ở MỌI pipeline checkout
+    (F&B/Retail/Nail/Karaoke) — trước đây các luồng checkout chỉ ghi db.orders, khiến báo cáo
+    Tài chính không có sổ cái đáng tin cậy để đối soát. `created_by` mặc định lấy từ session
+    Flask hiện tại (thu ngân đang đăng nhập); truyền tay khi gọi từ webhook (không có session)."""
+    db.transactions.insert_one({
+        'id': next_mongo_id('transactions'),
+        'business_id': business_id,
+        'order_id': order_id,
+        'amount': amount,
+        'type': transaction_type,
+        'category': category,
+        'payment_method': payment_method,
+        'timestamp': datetime.now().isoformat(),
+        'created_by': created_by if created_by is not None else (session.get('user_email') or session.get('user_id')),
+    }, session=db_session)
+
+
 def _compute_cart_order(business_id, data):
     """Tính subtotal/tip/total/payment_bucket/hoa hồng từ payload giỏ hàng — DÙNG CHUNG cho
     cả api_sales_checkout (cash/mock) LẪN api_square_checkout (Square Terminal thật), đảm bảo
     2 luồng luôn tính tiền giống hệt nhau (sửa 1 chỗ, áp dụng cả 2). Raise ValueError(message)
     nếu dữ liệu không hợp lệ — caller tự bắt và trả 400/404 tương ứng.
-    Trả về (order_fields: dict, order_items_docs: list, stock_updates: list)."""
+
+    Trả về (order_fields, metadata_fields, order_items_docs, stock_items):
+      - order_fields: CHỈ chứa các trường LÕI ghi thẳng top-level vào db.orders
+        (total_amount, payment_method) — dùng chung, không đổi hình dạng theo ngành.
+      - metadata_fields: mọi trường ĐẶC THÙ (subtotal, tip_amount, payment_bucket, currency,
+        hoa hồng thợ, customer_phone...) — caller gộp field này vào 'metadata' của order_doc,
+        KHÔNG ghi rời ở top-level nữa (xem khối schema chuẩn hoá ở đầu nhóm route checkout).
+      - stock_items: dùng trực tiếp với _decrement_stock_atomic(), KHÔNG còn là UpdateOne($set)
+        tính sẵn trong Python (nguồn gốc race condition cũ)."""
     items = data.get('items') or []
     if not items:
         raise ValueError("Giỏ hàng trống.")
@@ -1885,7 +2286,7 @@ def _compute_cart_order(business_id, data):
     }
     subtotal = 0
     order_items_docs = []
-    stock_updates = []
+    stock_items = []
     for it in items:
         prod = products_map.get(it['product_id'])
         if not prod:
@@ -1898,9 +2299,7 @@ def _compute_cart_order(business_id, data):
             'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
         })
         if 'stock' in prod:
-            stock_updates.append(UpdateOne(
-                {'id': prod['id'], 'business_id': business_id}, {'$set': {'stock': prod['stock'] - qty}}
-            ))
+            stock_items.append((prod['id'], qty, prod.get('name')))
     if not order_items_docs:
         raise ValueError("Không có sản phẩm hợp lệ trong giỏ hàng.")
 
@@ -1947,28 +2346,64 @@ def _compute_cart_order(business_id, data):
         }
 
     order_fields = {
-        'subtotal': subtotal,
-        'tip_amount': tip_amount,
         'total_amount': total_amount,
         'payment_method': payment_method,
+    }
+    metadata_fields = {
+        'subtotal': subtotal,
+        'tip_amount': tip_amount,
         'payment_bucket': payment_bucket,
         'currency': data.get('currency', 'VND'),
     }
-    order_fields.update(commission_fields)
+    metadata_fields.update(commission_fields)
     if data.get('customer_phone'):
-        order_fields['customer_phone'] = data['customer_phone']
-    return order_fields, order_items_docs, stock_updates
+        metadata_fields['customer_phone'] = data['customer_phone']
+    return order_fields, metadata_fields, order_items_docs, stock_items
 
 
 def _finalize_paid_order(order_doc):
-    """Gọi NGAY SAU KHI 1 đơn hàng được xác nhận thanh toán xong — cộng điểm loyalty/tạo CRM.
-    Dùng chung cho cả luồng đồng bộ (api_sales_checkout, biết ngay kết quả) LẪN luồng bất
-    đồng bộ (webhook Square, chỉ biết kết quả sau khi khách quẹt thẻ xong ở quầy)."""
-    if order_doc.get('customer_phone'):
+    """Gọi NGAY SAU KHI 1 đơn hàng được xác nhận thanh toán xong — cộng điểm loyalty/tạo CRM,
+    và đẩy Event Hook cho AI CRM/Nurture (Giai đoạn 4 audit). Dùng chung cho cả luồng đồng bộ
+    (api_sales_checkout, biết ngay kết quả) LẪN luồng bất đồng bộ (webhook Square, chỉ biết kết
+    quả sau khi khách quẹt thẻ xong ở quầy).
+    customer_phone/currency nằm trong order_doc['metadata'] (schema chuẩn hoá) — KHÔNG còn ở
+    top-level."""
+    metadata = order_doc.get('metadata') or {}
+    customer_phone = metadata.get('customer_phone')
+    if customer_phone:
         _award_loyalty_points(
-            order_doc['business_id'], order_doc['customer_phone'], order_doc['total_amount'],
-            currency=order_doc.get('currency', 'VND')
+            order_doc['business_id'], customer_phone, order_doc['total_amount'],
+            currency=metadata.get('currency', 'VND')
         )
+
+        # Event Hook cho AI CRM/Nurture — chỉ đẩy XADD vào Redis Stream (KHÔNG gọi API AI/CRM
+        # đồng bộ ở đây, tránh làm chậm luồng thanh toán chính). 1 worker riêng (mở rộng
+        # nurture_scheduler.py sau này, theo đúng mẫu consumer.py đang đọc ATTENDANCE_STREAM)
+        # sẽ LISTEN ORDER_EVENTS_STREAM và tự xử lý bất đồng bộ (gửi tin nhắn cảm ơn/upsell qua
+        # Zalo/Messenger, cập nhật churn score...). Chỉ đẩy khi có customer_phone — không có SĐT
+        # thì không có ai để nhắn, đẩy event rỗng chỉ tạo nhiễu cho worker sau này phải lọc bỏ.
+        # Best-effort tuyệt đối: lỗi ở đây KHÔNG BAO GIỜ được phép làm hỏng response thanh toán
+        # đã thành công — khác hẳn api_checkin/api_checkout (nơi mất event = mất dữ liệu lương).
+        try:
+            redis_queue.push_order_completed_event({
+                'event_type': 'ORDER_COMPLETED',
+                'order_id': order_doc.get('id'),
+                'business_id': order_doc.get('business_id'),
+                'customer_phone': customer_phone,
+                'total_amount': order_doc.get('total_amount'),
+                'currency': metadata.get('currency', 'VND'),
+                'timestamp': datetime.now().isoformat(),
+            })
+        except Exception as e:
+            # print() lồng thêm 1 lớp try/except riêng: console Windows (cp1252) từng crash khi
+            # in ký tự có dấu trong message lỗi driver Redis — nếu để print() đó tự văng exception,
+            # nó sẽ thoát khỏi khối try/except này và làm hỏng CẢ response thanh toán đã thành
+            # công (đã xảy ra thật lúc test route này). Tuyệt đối không để lỗi LOG làm hỏng luồng
+            # chính — đây là lý do khối try/except NÀY tồn tại.
+            try:
+                print(f"[_finalize_paid_order] Loi day ORDER_COMPLETED vao Redis (khong anh huong thanh toan da thanh cong): {e}")
+            except Exception:
+                pass
 
 
 @app.route('/api/sales/checkout', methods=['POST'])
@@ -1983,39 +2418,59 @@ def api_sales_checkout():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     try:
-        order_fields, order_items_docs, stock_updates = _compute_cart_order(business_id, data)
+        order_fields, metadata_fields, order_items_docs, stock_items = _compute_cart_order(business_id, data)
     except ValueError as e:
         msg = str(e)
         status_code = 404 if 'không tồn tại' in msg else 400
         return jsonify({"success": False, "message": msg}), status_code
 
+    order_id = next_mongo_id('orders')
+    status = data.get('status', 'completed')
+    # Schema chuẩn hoá: CHỈ 6 trường lõi ở top-level (id, business_id, created_at, total_amount,
+    # status, payment_method) — dùng CHUNG cho mọi ngành/pipeline checkout. Mọi trường đặc thù
+    # (subtotal, tip, hoa hồng, customer_phone...) gộp vào 'metadata' — xem _compute_cart_order.
+    order_doc = {
+        'id': order_id,
+        'business_id': business_id,
+        'created_at': datetime.now().isoformat(),
+        'status': status,
+        'total_amount': order_fields['total_amount'],
+        'payment_method': order_fields['payment_method'],
+        'metadata': metadata_fields,
+    }
+    customer_phone = metadata_fields.get('customer_phone')
+    for oi in order_items_docs:
+        oi['id'] = next_mongo_id('order_items')
+        oi['order_id'] = order_id
+        if customer_phone:
+            oi['customer_phone'] = customer_phone
+
     try:
-        order_id = next_mongo_id('orders')
-        order_doc = {
-            'id': order_id,
-            'business_id': business_id,
-            'status': data.get('status', 'completed'),
-            'created_at': datetime.now().isoformat(),
-        }
-        order_doc.update(order_fields)
-        db.orders.insert_one(order_doc)
-
-        for oi in order_items_docs:
-            oi['id'] = next_mongo_id('order_items')
-            oi['order_id'] = order_id
-            if order_fields.get('customer_phone'):
-                oi['customer_phone'] = order_fields['customer_phone']
-        db.order_items.insert_many(order_items_docs)
-
-        if stock_updates:
-            db.products.bulk_write(stock_updates)
+        # Trừ kho + tạo order/order_items + ghi sổ cái transactions ATOMIC trong cùng 1 Mongo
+        # session transaction — nếu InsufficientStockError xảy ra ở bất kỳ sản phẩm nào, TOÀN
+        # BỘ (kể cả các sản phẩm đã trừ kho thành công trước đó trong cùng đơn) tự động rollback.
+        with mongo_client_instance.start_session() as db_session:
+            with db_session.start_transaction():
+                _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
+                db.orders.insert_one(order_doc, session=db_session)
+                if order_items_docs:
+                    db.order_items.insert_many(order_items_docs, session=db_session)
+                if status == 'completed':
+                    _record_pos_transaction(
+                        business_id, order_id, order_fields['total_amount'],
+                        order_fields['payment_method'], db_session=db_session,
+                    )
 
         # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
         # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
         # trực tiếp (route này) không bao giờ được ghi nhận vào CRM/loyalty dù có nhập SĐT.
         _finalize_paid_order(order_doc)
 
-        return jsonify({"success": True, "order_id": order_id, **order_fields})
+        # Response giữ NGUYÊN hình dạng cũ cho frontend (hoá đơn hiển thị subtotal/tip/...) —
+        # chỉ tài liệu LƯU TRONG DB đổi shape, hợp đồng API không đổi.
+        return jsonify({"success": True, "order_id": order_id, **order_fields, **metadata_fields})
+    except InsufficientStockError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -2036,7 +2491,7 @@ def api_square_checkout():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     try:
-        order_fields, order_items_docs, stock_updates = _compute_cart_order(business_id, data)
+        order_fields, metadata_fields, order_items_docs, stock_items = _compute_cart_order(business_id, data)
     except ValueError as e:
         msg = str(e)
         status_code = 404 if 'không tồn tại' in msg else 400
@@ -2061,17 +2516,19 @@ def api_square_checkout():
 
     try:
         order_id = next_mongo_id('orders')
+        # Luồng Square Terminal luôn là quẹt thẻ thật — ép cứng payment_method/payment_bucket
+        # bất kể client gửi gì, tránh trường hợp gửi nhầm 'cash' vào route quẹt thẻ.
+        metadata_fields['payment_bucket'] = 'card'
+        metadata_fields['square_checkout_id'] = None  # điền thật ngay bên dưới, giữ key ổn định
         order_doc = {
             'id': order_id,
             'business_id': business_id,
-            'status': 'pending',
             'created_at': datetime.now().isoformat(),
+            'status': 'pending',
+            'total_amount': order_fields['total_amount'],
+            'payment_method': 'square',
+            'metadata': metadata_fields,
         }
-        order_doc.update(order_fields)
-        # Luồng Square Terminal luôn là quẹt thẻ thật — ép cứng payment_method/payment_bucket
-        # bất kể client gửi gì, tránh trường hợp gửi nhầm 'cash' vào route quẹt thẻ.
-        order_doc['payment_method'] = 'square'
-        order_doc['payment_bucket'] = 'card'
 
         txn_id = f"SQTERM-{order_id}-{uuid.uuid4().hex[:6].upper()}"
         square_result = payment_us_engine.create_terminal_checkout(
@@ -2082,19 +2539,26 @@ def api_square_checkout():
         if not square_result.get('success'):
             return jsonify({"success": False, "message": square_result.get('message')}), 502
 
-        order_doc['square_checkout_id'] = square_result.get('checkout_id')
-        order_doc['square_txn_id'] = txn_id
-        db.orders.insert_one(order_doc)
+        metadata_fields['square_checkout_id'] = square_result.get('checkout_id')
+        metadata_fields['square_txn_id'] = txn_id
 
+        customer_phone = metadata_fields.get('customer_phone')
         for oi in order_items_docs:
             oi['id'] = next_mongo_id('order_items')
             oi['order_id'] = order_id
-            if order_fields.get('customer_phone'):
-                oi['customer_phone'] = order_fields['customer_phone']
-        db.order_items.insert_many(order_items_docs)
+            if customer_phone:
+                oi['customer_phone'] = customer_phone
 
-        if stock_updates:
-            db.products.bulk_write(stock_updates)
+        # Trừ kho ngay lúc tạo checkout (giữ nguyên hành vi cũ — kể cả khi thẻ chưa quẹt xong,
+        # chỗ hàng đã "giữ chỗ") nhưng nay ATOMIC qua $inc+$gte, không còn race condition khi
+        # nhiều thu ngân/nhiều Terminal cùng bán 1 sản phẩm cùng lúc. Sổ cái transactions CHƯA
+        # ghi ở đây vì đơn còn 'pending' — chỉ ghi khi webhook Square báo COMPLETED thật sự.
+        with mongo_client_instance.start_session() as db_session:
+            with db_session.start_transaction():
+                _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
+                db.orders.insert_one(order_doc, session=db_session)
+                if order_items_docs:
+                    db.order_items.insert_many(order_items_docs, session=db_session)
 
         return jsonify({
             "success": True,
@@ -2103,6 +2567,8 @@ def api_square_checkout():
             "terminal_status": square_result.get('terminal_status'),
             "total_amount": order_doc['total_amount'],
         })
+    except InsufficientStockError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -2117,19 +2583,20 @@ def api_square_payment_status(order_id):
     order_doc = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
     if not order_doc:
         return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
+    metadata = order_doc.get('metadata') or {}
     result = {
         "order_id": order_doc['id'],
         "status": order_doc.get('status'),
         "total_amount": order_doc.get('total_amount'),
-        "subtotal": order_doc.get('subtotal'),
-        "discount_amount": order_doc.get('discount_amount'),
-        "tax_amount": order_doc.get('tax_amount'),
-        "tip_amount": order_doc.get('tip_amount'),
+        "subtotal": metadata.get('subtotal'),
+        "discount_amount": metadata.get('discount_amount'),
+        "tax_amount": metadata.get('tax_amount'),
+        "tip_amount": metadata.get('tip_amount'),
     }
     # Once a Nail POS Square Terminal order is fully committed, pull back the per-technician
     # payout the webhook just wrote so the cashier's receipt can show the same commission/tip
     # breakdown the synchronous (Cash/Card/Split) checkout returns inline.
-    if order_doc.get('channel') == 'nail_pos_square' and order_doc.get('status') == 'completed':
+    if metadata.get('channel') == 'nail_pos_square' and order_doc.get('status') == 'completed':
         note_pattern = r'^\[NAILS POS SQUARE\] Order #' + str(order_id) + r'(?!\d)'
         techs_paid = [
             {'ma_nv': rec.get('ma_nv'), 'commission': rec.get('tien_tua'), 'tip': rec.get('tien_tips')}
@@ -2163,7 +2630,7 @@ def api_square_payment_cancel():
         return jsonify({"success": False, "message": f"Lỗi kết nối Database khi tra cứu đơn hàng: {e}"}), 500
     if not order_doc:
         return jsonify({"success": False, "message": "Không tìm thấy đơn hàng."}), 404
-    checkout_id = order_doc.get('square_checkout_id')
+    checkout_id = (order_doc.get('metadata') or {}).get('square_checkout_id')
     if not checkout_id:
         return jsonify({"success": False, "message": "Đơn hàng này không có Square checkout để hủy."}), 400
     if order_doc.get('status') != 'pending':
@@ -2184,10 +2651,10 @@ def api_square_payment_cancel():
         db.orders.update_one(
             {'id': order_id, 'business_id': business_id},
             {
-                '$set': {'status': 'failed', 'square_canceled_at': datetime.now().isoformat()},
+                '$set': {'status': 'failed', 'metadata.square_canceled_at': datetime.now().isoformat()},
                 '$unset': {
-                    '_pending_order_items': '', '_pending_per_tech_revenue': '',
-                    '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                    'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
+                    'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
                 },
             }
         )
@@ -2239,7 +2706,7 @@ def api_webhook_square():
         return jsonify({"success": False, "message": "Missing checkout id."}), 400
 
     try:
-        order_doc = db.orders.find_one({'square_checkout_id': checkout_id})
+        order_doc = db.orders.find_one({'metadata.square_checkout_id': checkout_id})
         if not order_doc:
             current_app.logger.error(f"[SQUARE WEBHOOK] Không tìm thấy đơn hàng nào với checkout_id={checkout_id}")
             return jsonify({"success": True, "message": "No matching order (ignored)."}), 200
@@ -2250,7 +2717,7 @@ def api_webhook_square():
             # hoa hồng 2 lần.
             already_done = order_doc.get('status') in ('PAID', 'completed')
             if not already_done:
-                if order_doc.get('channel') == 'nail_pos_square':
+                if (order_doc.get('metadata') or {}).get('channel') == 'nail_pos_square':
                     # Đây là lúc DUY NHẤT order_items/chamcong của bill Nail Square Terminal
                     # thực sự được ghi — commit atomically qua cùng transaction dùng ở
                     # api_nail_pos_checkout, đảm bảo trả tiền thợ giống hệt luồng Cash/Card/Split.
@@ -2261,6 +2728,12 @@ def api_webhook_square():
                         {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()}}
                     )
                     order_doc['status'] = 'PAID'
+                    # Đây là lúc DUY NHẤT biết chắc thẻ đã quẹt thành công -> ghi sổ cái ở đây,
+                    # không ghi lúc tạo checkout (khi đó còn 'pending', có thể bị hủy/thất bại).
+                    _record_pos_transaction(
+                        order_doc['business_id'], order_doc['id'], order_doc.get('total_amount'),
+                        'square', created_by='square_webhook',
+                    )
                     _finalize_paid_order(order_doc)
         elif checkout_status in ('CANCELED', 'FAILED'):
             db.orders.update_one(
@@ -2268,8 +2741,8 @@ def api_webhook_square():
                 {
                     '$set': {'status': 'failed'},
                     '$unset': {
-                        '_pending_order_items': '', '_pending_per_tech_revenue': '',
-                        '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                        'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
+                        'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
                     },
                 }
             )
@@ -2303,10 +2776,7 @@ def api_dashboard_sales_summary():
         tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
         orders_today = list(db.orders.find(
             {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}},
-            {
-                'total_amount': 1, 'payment_bucket': 1, 'customer_phone': 1,
-                'split_cash_amount': 1, 'split_card_amount': 1, '_id': 0,
-            }
+            {'total_amount': 1, 'metadata': 1, '_id': 0}
         ))
         stats['total_orders_today'] = len(orders_today)
         stats['total_revenue_today'] = round(sum(o.get('total_amount') or 0 for o in orders_today), 2)
@@ -2316,18 +2786,22 @@ def api_dashboard_sales_summary():
         # but $0 toward either bucket, making the cash drawer never reconcile on a split-ticket day.
         cash_total = 0.0
         card_total = 0.0
+        customer_phones = set()
         for o in orders_today:
-            bucket = o.get('payment_bucket')
+            meta = o.get('metadata') or {}
+            bucket = meta.get('payment_bucket')
             if bucket == 'cash':
                 cash_total += o.get('total_amount') or 0
             elif bucket == 'card':
                 card_total += o.get('total_amount') or 0
             elif bucket == 'split':
-                cash_total += o.get('split_cash_amount') or 0
-                card_total += o.get('split_card_amount') or 0
+                cash_total += meta.get('split_cash_amount') or 0
+                card_total += meta.get('split_card_amount') or 0
+            if meta.get('customer_phone'):
+                customer_phones.add(meta['customer_phone'])
         stats['cash_revenue_today'] = round(cash_total, 2)
         stats['card_revenue_today'] = round(card_total, 2)
-        stats['total_customers_today'] = len({o['customer_phone'] for o in orders_today if o.get('customer_phone')})
+        stats['total_customers_today'] = len(customer_phones)
     except Exception as e:
         print(f"[api_dashboard_sales_summary] Lỗi tính doanh thu hôm nay: {str(e)}")
     return jsonify({"success": True, "data": stats})
@@ -2350,12 +2824,12 @@ def api_staff_income_today(staff_id):
     today_str = now.strftime('%Y-%m-%d')
     tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
     orders_today = list(db.orders.find({
-        'business_id': business_id, 'staff_id': staff_id,
+        'business_id': business_id, 'metadata.staff_id': staff_id,
         'created_at': {'$gte': today_str, '$lt': tomorrow_str}
-    }, {'staff_commission': 1, 'staff_tip_earning': 1, '_id': 0}))
+    }, {'metadata.staff_commission': 1, 'metadata.staff_tip_earning': 1, '_id': 0}))
 
-    commission_earned = round(sum(o.get('staff_commission') or 0 for o in orders_today), 2)
-    tips_earned = round(sum(o.get('staff_tip_earning') or 0 for o in orders_today), 2)
+    commission_earned = round(sum((o.get('metadata') or {}).get('staff_commission') or 0 for o in orders_today), 2)
+    tips_earned = round(sum((o.get('metadata') or {}).get('staff_tip_earning') or 0 for o in orders_today), 2)
 
     return jsonify({
         "success": True,
@@ -2848,11 +3322,9 @@ def add_branch():
 
 @app.route('/report_consolidated')
 @login_required
+@role_required('admin', 'super_admin')
 def report_consolidated():
     """Báo cáo tổng hợp doanh thu/chi phí toàn bộ chi nhánh mà chủ sở hữu đang quản lý."""
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     user_id = session['user_id']
     branches = _get_owned_business_ids(user_id)
     if not branches:
@@ -2917,20 +3389,24 @@ def _log_audit(business_id, action, entity_type=None, entity_id=None, old_value=
 @app.route('/order_item/<int:table_id>', methods=['POST'])
 @login_required
 def order_item(table_id):
+    """Giai đoạn 5 audit: trả JSON {success, message} khi _wants_json() (Mobile/API), giữ
+    NGUYÊN redirect cho Web như cũ."""
     business_id = session.get('business_id') or session['user_id']
     try:
         owns, err = _assert_owns_table(table_id, business_id)
         if not owns:
-            return err, 403
+            return (jsonify({"success": False, "message": err}), 403) if _wants_json() else (err, 403)
     except Exception as e:
-        return f"Lỗi xác thực quyền sở hữu bàn: {str(e)}", 500
+        msg = f"Lỗi xác thực quyền sở hữu bàn: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
     try:
-        product_id = request.form['product_id']
+        product_id = request.form.get('product_id') if not request.is_json else (request.json or {}).get('product_id')
         if not _assert_owns_product(product_id, business_id):
-            return "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.", 403
+            msg = "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn."
+            return (jsonify({"success": False, "message": msg}), 403) if _wants_json() else (msg, 403)
 
-        qty = int(request.form.get('quantity', 1))
+        qty = int((request.form.get('quantity') if not request.is_json else (request.json or {}).get('quantity')) or 1)
         existing = db.table_orders.find_one(
             {'table_id': table_id, 'product_id': product_id, 'business_id': business_id}, {'id': 1, 'quantity': 1, '_id': 0}
         )
@@ -2943,21 +3419,27 @@ def order_item(table_id):
                 'table_id': table_id, 'product_id': product_id, 'quantity': qty, 'business_id': business_id
             })
         db.dining_tables.update_one({'id': table_id, 'business_id': business_id}, {'$set': {'status': 'Đang phục vụ'}})
+        if _wants_json():
+            return jsonify({"success": True, "message": "Đã gọi món."})
         return redirect(url_for('view_table', table_id=table_id))
     except Exception as e:
-        return f"Lỗi khi gọi món: {str(e)}", 500
+        msg = f"Lỗi khi gọi món: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
 
 @app.route('/checkout/<int:table_id>')
 @login_required
 def checkout_table(table_id):
+    """Giai đoạn 5 audit: trả JSON {success, message, order_id} khi _wants_json() (Mobile/API),
+    giữ NGUYÊN redirect cho Web như cũ."""
     business_id = session.get('business_id') or session['user_id']
     try:
         owns, err = _assert_owns_table(table_id, business_id)
         if not owns:
-            return err, 403
+            return (jsonify({"success": False, "message": err}), 403) if _wants_json() else (err, 403)
     except Exception as e:
-        return f"Lỗi xác thực quyền sở hữu bàn: {str(e)}", 500
+        msg = f"Lỗi xác thực quyền sở hữu bàn: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
     try:
         orders_data = list(db.table_orders.find({'table_id': table_id, 'business_id': business_id}, {'_id': 0}))
@@ -2973,29 +3455,16 @@ def checkout_table(table_id):
             }
 
             total_bill = 0
-            stock_updates = []
+            stock_items = []
             for item in orders_data:
                 prod = products_map.get(item['product_id'])
                 if prod:
                     price = prod['price']
                     total_bill += item['quantity'] * price
-                    new_stock = prod['stock'] - item['quantity']
-                    stock_updates.append(UpdateOne(
-                        {'id': item['product_id'], 'business_id': business_id}, {'$set': {'stock': new_stock}}
-                    ))
-            if stock_updates:
-                db.products.bulk_write(stock_updates)
+                    if 'stock' in prod:
+                        stock_items.append((item['product_id'], item['quantity'], prod.get('name')))
 
             order_id = next_mongo_id('orders')
-            db.orders.insert_one({
-                'id': order_id,
-                'order_code': order_code,
-                'channel': 'fnb',
-                'total_amount': total_bill,
-                'business_id': business_id,
-                'created_at': datetime.now().isoformat()
-            })
-
             order_items_docs = []
             for item in orders_data:
                 prod = products_map.get(item['product_id'])
@@ -3010,8 +3479,30 @@ def checkout_table(table_id):
                     'total_price': total_price,
                     'business_id': business_id
                 })
-            if order_items_docs:
-                db.order_items.insert_many(order_items_docs)
+
+            try:
+                # Trừ kho ($inc nguyên tử) + order + order_items + sổ cái transactions cùng 1
+                # Mongo session transaction — không còn race condition khi nhiều bàn/nhiều đơn QR
+                # cùng checkout 1 sản phẩm trong giờ cao điểm.
+                with mongo_client_instance.start_session() as db_session:
+                    with db_session.start_transaction():
+                        _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
+                        db.orders.insert_one({
+                            'id': order_id,
+                            'business_id': business_id,
+                            'created_at': datetime.now().isoformat(),
+                            'status': 'completed',
+                            'total_amount': total_bill,
+                            'payment_method': 'POS',
+                            'metadata': {'order_code': order_code, 'channel': 'fnb', 'table_id': table_id},
+                        }, session=db_session)
+                        if order_items_docs:
+                            db.order_items.insert_many(order_items_docs, session=db_session)
+                        _record_pos_transaction(
+                            business_id, order_id, total_bill, 'POS', db_session=db_session,
+                        )
+            except InsufficientStockError as e:
+                return (jsonify({"success": False, "message": str(e)}), 409) if _wants_json() else (str(e), 409)
 
             # Ghi nhận giao dịch vào payment_transactions — thiếu bước này khiến báo cáo dòng
             # tiền tổng (đối soát payment_transactions <-> orders) không thấy các đơn checkout
@@ -3035,9 +3526,14 @@ def checkout_table(table_id):
 
             db.table_orders.delete_many({'table_id': table_id, 'business_id': business_id})
             db.dining_tables.update_one({'id': table_id, 'business_id': business_id}, {'$set': {'status': 'Còn trống'}})
+            if _wants_json():
+                return jsonify({"success": True, "order_id": order_id, "total_amount": total_bill})
+        elif _wants_json():
+            return jsonify({"success": True, "order_id": None, "message": "Bàn không có món nào để thanh toán."})
         return redirect(url_for('pos'))
     except Exception as e:
-        return f"Lỗi khi thanh toán bàn: {str(e)}", 500
+        msg = f"Lỗi khi thanh toán bàn: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
 
 # ========== QUẢN LÝ CHI TIÊU ==========
@@ -3067,10 +3563,8 @@ def add_expense():
 
 @app.route('/expense_list')
 @login_required
+@role_required('admin', 'super_admin')
 def expense_list():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         expenses_data = list(db.expenses.find({'business_id': business_id}, {'_id': 0}).sort('expense_date', -1))
@@ -3215,10 +3709,8 @@ def delete_promotion(id):
 # ========== QUẢN LÝ NHÂN VIÊN ==========
 @app.route('/staff')
 @login_required
+@role_required('admin', 'super_admin')
 def staff_list():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         staffs_data = list(db.staff.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
@@ -3741,11 +4233,20 @@ def karaoke():
 @app.route('/toggle_room/<int:room_id>')
 @login_required
 def toggle_room(room_id):
+    """Giai đoạn 5 audit: (1) trả JSON khi _wants_json() (Mobile/API), giữ NGUYÊN redirect cho
+    Web; (2) phát hiện đây là 1 luồng checkout karaoke RIÊNG, độc lập với
+    api_karaoke_room_checkout() — đã bị Giai đoạn 3 (chuẩn hoá schema db.orders) bỏ sót vì không
+    cùng route. Cập nhật cho khớp schema chuẩn (core fields + metadata) và bổ sung luôn ghi sổ
+    cái _record_pos_transaction() — route cũ trước đây tạo order nhưng KHÔNG hề ghi transactions,
+    lặp lại đúng lỗ hổng POS->Tài chính mà Giai đoạn 1 đã vá ở các luồng khác."""
     business_id = session.get('business_id') or session['user_id']
     try:
         room = db.karaoke_rooms.find_one({'id': room_id}, {'_id': 0})
         if not room or room.get('business_id') != business_id:
+            if _wants_json():
+                return jsonify({"success": False, "message": "Phòng không tồn tại."}), 404
             return redirect(url_for('karaoke'))
+        order_id = None
         if room['status'] == 'Trống':
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             db.karaoke_rooms.update_one(
@@ -3768,11 +4269,12 @@ def toggle_room(room_id):
                 order_id = next_mongo_id('orders')
                 db.orders.insert_one({
                     'id': order_id,
-                    'order_code': order_code,
-                    'channel': 'karaoke',
-                    'total_amount': total_price,
                     'business_id': business_id,
-                    'created_at': datetime.now().isoformat()
+                    'created_at': datetime.now().isoformat(),
+                    'status': 'completed',
+                    'total_amount': total_price,
+                    'payment_method': 'cash',
+                    'metadata': {'order_code': order_code, 'channel': 'karaoke', 'room_id': room_id},
                 })
                 db.order_items.insert_one({
                     'id': next_mongo_id('order_items'),
@@ -3783,12 +4285,16 @@ def toggle_room(room_id):
                     'total_price': total_price,
                     'business_id': business_id
                 })
+                _record_pos_transaction(business_id, order_id, total_price, 'cash')
             db.karaoke_rooms.update_one(
                 {'id': room_id, 'business_id': business_id}, {'$set': {'status': 'Trống', 'start_time': None}}
             )
+        if _wants_json():
+            return jsonify({"success": True, "order_id": order_id})
         return redirect(url_for('karaoke'))
     except Exception as e:
-        return f"Lỗi xử lý phòng karaoke: {str(e)}", 500
+        msg = f"Lỗi xử lý phòng karaoke: {str(e)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
 
 # ========== KARAOKE JSON API (thay Supabase JS ở karaoke.html) ==========
@@ -3884,16 +4390,18 @@ def api_karaoke_room_checkout(room_id):
         if prod:
             order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
             order_id = next_mongo_id('orders')
+            metadata = {'order_code': order_code, 'channel': 'karaoke', 'room_id': room_id}
+            if customer_phone:
+                metadata['customer_phone'] = customer_phone
             order_doc = {
                 'id': order_id,
-                'order_code': order_code,
-                'channel': 'karaoke',
-                'total_amount': total_price,
                 'business_id': business_id,
                 'created_at': datetime.now().isoformat(),
+                'status': 'completed',
+                'total_amount': total_price,
+                'payment_method': 'cash',
+                'metadata': metadata,
             }
-            if customer_phone:
-                order_doc['customer_phone'] = customer_phone
             db.orders.insert_one(order_doc)
             db.order_items.insert_one({
                 'id': next_mongo_id('order_items'),
@@ -3904,6 +4412,7 @@ def api_karaoke_room_checkout(room_id):
                 'total_price': total_price,
                 'business_id': business_id,
             })
+            _record_pos_transaction(business_id, order_id, total_price, 'cash')
         db.karaoke_rooms.update_one(
             {'id': room_id, 'business_id': business_id}, {'$set': {'status': 'Trống', 'start_time': None}}
         )
@@ -3915,15 +4424,13 @@ def api_karaoke_room_checkout(room_id):
 # ========== BÁO CÁO ==========
 @app.route('/api/report/summary', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_report_summary():
     """Thay toàn bộ fetchReportData() Supabase cũ ở report.html — tính doanh thu/chi
     phí/lợi nhuận theo khoảng ngày do client chọn (today/yesterday/week/month/custom),
     cùng biểu đồ theo ngày, top sản phẩm, phân bổ theo ngành, top khách hàng, chi tiêu gần
     đây. Route /report (bên dưới) chỉ tính all-time cho lần render đầu; route này phục vụ
     mọi lần đổi khoảng ngày sau đó."""
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
 
     period = request.args.get('period', 'month')
@@ -4031,10 +4538,8 @@ def api_report_summary():
 
 @app.route('/report')
 @login_required
+@role_required('admin', 'super_admin')
 def report():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     try:
         orders_data = list(db.orders.find({'business_id': business_id}, {'id': 1, 'total_amount': 1, '_id': 0}))
@@ -4308,10 +4813,34 @@ def list_backups():
 # ảnh JPEG/PNG nhỏ, không cần tách vật lý. ==========
 media_fs = GridFS(db, collection='media') if db is not None else None
 ALLOWED_MEDIA_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+# Giai đoạn 6 audit (CISO/Pentest) — BÁO ĐỘNG ĐỎ đã vá: map đuôi file (đã qua allow-list
+# _allowed_media_file) -> Content-Type CỐ ĐỊNH phía server. TUYỆT ĐỐI không dùng file.mimetype
+# (client tự khai trong multipart request, có thể là BẤT KỲ giá trị nào — vd 1 file thật sự tên
+# "logo.png" nhưng client cố tình khai Content-Type: text/html chứa payload <script>...</script>)
+# để lưu/replay lại lúc GET. Nếu lưu thẳng giá trị client khai rồi trả y nguyên ở
+# api_storage_file()/api_public_storage_file(), ai mở thẳng URL file đó (không qua thẻ <img>, vd
+# copy link/click chuột phải "mở ảnh trong tab mới") sẽ khiến trình duyệt DIỄN GIẢI VÀ CHẠY nội
+# dung đó như HTML/JS thật — Stored XSS chiếm được session của bất kỳ ai xem link (đặc biệt nguy
+# hiểm ở api_public_storage_file(): không cần đăng nhập vẫn khai thác được, vì brand_logo/
+# product_image/portal_chat công khai cho toàn bộ khách vãng lai).
+_SAFE_IMAGE_CONTENT_TYPES = {
+    'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+    'gif': 'image/gif', 'webp': 'image/webp',
+}
 
 
 def _allowed_media_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_MEDIA_EXTENSIONS
+
+
+def _safe_image_content_type(filename):
+    """Content-Type AN TOÀN suy ra từ đúng đuôi file đã qua allow-list — KHÔNG BAO GIỜ dùng
+    file.mimetype (client tự khai, không đáng tin). Gọi hàm này SAU khi đã xác nhận
+    _allowed_media_file(filename) == True; trả 'application/octet-stream' (tải xuống, trình
+    duyệt KHÔNG BAO GIỜ tự thực thi) nếu vì lý do gì đó đuôi file không khớp map — fail-safe,
+    không đoán bừa."""
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    return _SAFE_IMAGE_CONTENT_TYPES.get(ext, 'application/octet-stream')
 
 
 @app.route('/api/storage/upload', methods=['POST'])
@@ -4336,7 +4865,7 @@ def api_storage_upload():
             filename=filename,
             business_id=business_id,
             kind=kind,
-            content_type=file.mimetype or 'application/octet-stream'
+            content_type=_safe_image_content_type(filename)
         )
         return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_storage_file', file_id=str(file_id))})
     except Exception as e:
@@ -4829,13 +5358,11 @@ def _brand_setting_set(business_id, key, value):
 
 @app.route('/brand_settings', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def brand_settings():
     # ĐÃ CHUYỂN SANG PER-TENANT (quyết định sản phẩm): brand_name/brand_color/logo/cover/font
     # trước đây là 1 giá trị TOÀN CỤC dùng chung mọi tenant — nay mỗi khoá đều lọc thêm
     # business_id, giống mọi key khác trong system_settings (payment_config, inventory_thresholds).
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     business_id = session.get('business_id') or session['user_id']
     if request.method == 'POST':
         try:
@@ -4878,15 +5405,13 @@ def api_brand_settings_get():
 
 @app.route('/api/brand_settings', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_brand_settings_save():
     """multipart/form-data: brand_name, brand_color, font_family (text) + logo/cover (file,
     tuỳ chọn) — hoàn thiện phần "Xử lý upload logo và cover nếu có" trước đây chỉ là TODO chưa
     từng cài đặt. Ảnh lưu GridFS kind='brand_logo'/'brand_cover' (công khai qua
     /api/public/storage/file/<id>, xem whitelist _PUBLIC_MEDIA_KINDS)."""
     business_id = session.get('business_id') or session['user_id']
-    denied = _deny_if_staff_page()
-    if denied:
-        return jsonify({"success": False, "message": "Không có quyền."}), 403
     try:
         if 'brand_name' in request.form:
             _brand_setting_set(business_id, 'brand_name', request.form['brand_name'])
@@ -4907,7 +5432,7 @@ def api_brand_settings_save():
                     filename=secure_filename(file.filename),
                     business_id=business_id,
                     kind=kind,
-                    content_type=file.mimetype or 'application/octet-stream'
+                    content_type=_safe_image_content_type(file.filename)
                 )
                 _brand_setting_set(business_id, setting_key, url_for('api_public_storage_file', file_id=str(file_id)))
 
@@ -5432,17 +5957,13 @@ def api_payment_confirm():
         }
 
         subtotal = 0
-        stock_updates = []
+        stock_items = []
         for item in orders_data:
             prod = products_map.get(item['product_id'])
             if prod:
                 subtotal += item['quantity'] * prod['price']
-                new_stock = prod['stock'] - item['quantity']
-                stock_updates.append(UpdateOne(
-                    {'id': item['product_id'], 'business_id': business_id}, {'$set': {'stock': new_stock}}
-                ))
-        if stock_updates:
-            db.products.bulk_write(stock_updates)
+                if 'stock' in prod:
+                    stock_items.append((item['product_id'], item['quantity'], prod.get('name')))
 
         # Re-apply the discount%/tax%/tip stored at /api/payment/start (see there) against this
         # server-verified subtotal — NOT the raw amount the client sent — so the final revenue
@@ -5464,19 +5985,26 @@ def api_payment_confirm():
 
         # 3. Tạo order mới trong orders — lưu cả breakdown để đối soát khớp đúng hoá đơn khách thấy
         order_id = next_mongo_id('orders')
-        db.orders.insert_one({
-            'id': order_id,
+        metadata = {
             'order_code': txn_id,
             'channel': industry,
+            'table_id': table_id,
             'subtotal': subtotal,
             'discount_amount': discount_amount,
             'tax_amount': tax_amount,
             'tip_amount': tip_amount,
-            'total_amount': total_bill,
+        }
+        if customer_phone:
+            metadata['customer_phone'] = customer_phone
+        order_doc = {
+            'id': order_id,
             'business_id': business_id,
-            'customer_phone': customer_phone,
-            'created_at': datetime.now().isoformat()
-        })
+            'created_at': datetime.now().isoformat(),
+            'status': 'completed',
+            'total_amount': total_bill,
+            'payment_method': method,
+            'metadata': metadata,
+        }
 
         # 4. Tạo chi tiết trong order_items (dùng lại products_map đã fetch ở bước 2, không query lại)
         order_items_docs = []
@@ -5493,8 +6021,22 @@ def api_payment_confirm():
                     'business_id': business_id,
                     'customer_phone': customer_phone
                 })
-        if order_items_docs:
-            db.order_items.insert_many(order_items_docs)
+
+        # Trừ kho nguyên tử + order + order_items + sổ cái transactions cùng 1 Mongo session
+        # transaction — đây chính là điểm chốt của luồng "khách quét QR gọi món -> thanh toán",
+        # nơi nhiều bàn/nhiều khách có thể cùng thanh toán trùng lúc giờ cao điểm.
+        try:
+            with mongo_client_instance.start_session() as db_session:
+                with db_session.start_transaction():
+                    _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
+                    db.orders.insert_one(order_doc, session=db_session)
+                    if order_items_docs:
+                        db.order_items.insert_many(order_items_docs, session=db_session)
+                    _record_pos_transaction(
+                        business_id, order_id, total_bill, method, db_session=db_session,
+                    )
+        except InsufficientStockError as e:
+            return jsonify({'success': False, 'message': str(e)}), 409
 
         # 5. Update payment_transactions status = completed
         db.payment_transactions.update_one(
@@ -5582,10 +6124,17 @@ def api_payment_local_checkout():
 
         order_id = next_mongo_id('orders')
         db.orders.insert_one({
-            'id': order_id, 'order_code': txn_id, 'channel': f'{industry}_local_demo',
-            'subtotal': subtotal, 'discount_amount': discount_amount, 'tax_amount': tax_amount,
-            'tip_amount': tip_amount, 'total_amount': grand_total, 'table_name': table_name,
-            'business_id': business_id, 'created_at': now_iso,
+            'id': order_id,
+            'business_id': business_id,
+            'created_at': now_iso,
+            'status': 'completed',
+            'total_amount': grand_total,
+            'payment_method': method,
+            'metadata': {
+                'order_code': txn_id, 'channel': f'{industry}_local_demo', 'table_name': table_name,
+                'subtotal': subtotal, 'discount_amount': discount_amount, 'tax_amount': tax_amount,
+                'tip_amount': tip_amount,
+            },
         })
 
         order_items_docs = [{
@@ -5603,6 +6152,7 @@ def api_payment_local_checkout():
             'method': method, 'status': 'completed', 'business_id': business_id,
             'created_at': now_iso, 'updated_at': now_iso,
         })
+        _record_pos_transaction(business_id, order_id, grand_total, method)
 
         return jsonify({'success': True, 'txn_id': txn_id, 'amount': grand_total})
     except Exception as e:
@@ -5760,9 +6310,12 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
         return 0
 
     orders_data = list(db.orders.find(
-        {'business_id': business_id, 'created_at': {'$gte': since_iso}}, {'order_code': 1, 'total_amount': 1, '_id': 0}
+        {'business_id': business_id, 'created_at': {'$gte': since_iso}},
+        {'metadata.order_code': 1, 'total_amount': 1, '_id': 0}
     ))
-    orders_by_code = {o['order_code']: o for o in orders_data if o.get('order_code')}
+    orders_by_code = {
+        (o.get('metadata') or {}).get('order_code'): o for o in orders_data if (o.get('metadata') or {}).get('order_code')
+    }
 
     stale_pending_hours = 2  # giao dịch pending quá 2 tiếng coi như nghi ngờ tiền chưa vào
 
@@ -5956,6 +6509,11 @@ def _compute_nail_pos_order(business_id, data):
     # Gom net revenue theo từng thợ được gán (ma_nv) để tính hoa hồng 1 LẦN/THỢ, không phải
     # 1 lần/dòng — 1 thợ có thể được gán nhiều dịch vụ khác nhau trong cùng 1 bill.
     per_tech_revenue = {}
+    # Giai đoạn 5 audit — Nail POS trước đây KHÔNG hề trừ tồn kho cho bất kỳ dòng nào, kể cả
+    # sản phẩm vật lý bán kèm (sơn, phụ kiện) có field 'stock' thật — chỉ dịch vụ thuần (không
+    # track kho) mới hợp lý bỏ qua. Gom list này để cả 2 route checkout (sync + Square Terminal)
+    # đều gọi _decrement_stock_atomic() với ĐÚNG 1 nguồn tính toán, không lệch logic.
+    stock_items = []
     for it in items:
         qty = max(1, int(it.get('quantity', 1)))
         ma_nv = (it.get('ma_nv') or '').strip() or None
@@ -5987,6 +6545,8 @@ def _compute_nail_pos_order(business_id, data):
         order_items_docs.append(oi_doc)
         if ma_nv:
             per_tech_revenue[ma_nv] = per_tech_revenue.get(ma_nv, 0) + line_total
+        if prod and 'stock' in prod:
+            stock_items.append((prod['id'], qty, prod.get('name')))
 
     if not order_items_docs:
         raise ValueError("Không có dịch vụ hợp lệ trong giỏ hàng.")
@@ -6068,7 +6628,7 @@ def _compute_nail_pos_order(business_id, data):
         'payment_method': payment_method, 'payment_bucket': payment_bucket,
         'split_cash_amount': split_cash_amount, 'split_card_amount': split_card_amount,
         'commission_rate': commission_rate, 'per_tech_revenue': per_tech_revenue,
-        'currency': data.get('currency') or 'AUD',
+        'currency': data.get('currency') or 'AUD', 'stock_items': stock_items,
     }
 
 
@@ -6134,19 +6694,26 @@ def api_nail_pos_checkout():
     try:
         order_id = next_mongo_id('orders')
         now_iso = datetime.now().isoformat()
-        order_doc = {
-            'id': order_id, 'business_id': business_id, 'status': 'completed',
-            'created_at': now_iso, 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
+        metadata = {
+            'channel': 'nail_pos', 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
             'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
-            'tip_amount': computed['total_tip'], 'total_amount': computed['total_amount'],
-            'payment_method': computed['payment_method'], 'payment_bucket': computed['payment_bucket'],
-            'currency': computed['currency'], 'channel': 'nail_pos',
+            'tip_amount': computed['total_tip'], 'payment_bucket': computed['payment_bucket'],
+            'currency': computed['currency'], 'commission_rate': computed['commission_rate'],
         }
         if computed['payment_bucket'] == 'split':
-            order_doc['split_cash_amount'] = computed['split_cash_amount']
-            order_doc['split_card_amount'] = computed['split_card_amount']
+            metadata['split_cash_amount'] = computed['split_cash_amount']
+            metadata['split_card_amount'] = computed['split_card_amount']
         if customer_phone:
-            order_doc['customer_phone'] = customer_phone
+            metadata['customer_phone'] = customer_phone
+        order_doc = {
+            'id': order_id,
+            'business_id': business_id,
+            'created_at': now_iso,
+            'status': 'completed',
+            'total_amount': computed['total_amount'],
+            'payment_method': computed['payment_method'],
+            'metadata': metadata,
+        }
 
         order_items_docs = computed['order_items_docs']
         for oi in order_items_docs:
@@ -6164,11 +6731,20 @@ def api_nail_pos_checkout():
         # techs paid and others silently unpaid, or a retry double-paying the first tech.
         with mongo_client_instance.start_session() as db_session:
             with db_session.start_transaction():
+                # Giai đoạn 5 audit — trừ kho nguyên tử NGAY TRONG transaction này: trước đây
+                # Nail POS không hề trừ tồn kho cho sản phẩm vật lý bán kèm (sơn, phụ kiện...),
+                # để tồn kho lệch dần vô thời hạn. Nếu InsufficientStockError -> transaction tự
+                # rollback toàn bộ (order/order_items/chamcong CHƯA có gì được ghi).
+                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=db_session)
                 db.orders.insert_one(order_doc, session=db_session)
                 if order_items_docs:
                     db.order_items.insert_many(order_items_docs, session=db_session)
                 if chamcong_docs:
                     db.chamcong.insert_many(chamcong_docs, session=db_session)
+                _record_pos_transaction(
+                    business_id, order_id, computed['total_amount'], computed['payment_method'],
+                    db_session=db_session,
+                )
 
         if customer_phone:
             _finalize_paid_order(order_doc)
@@ -6179,6 +6755,8 @@ def api_nail_pos_checkout():
             "tax_amount": computed['tax_amount'], "tip_amount": computed['total_tip'],
             "total_amount": computed['total_amount'], "techs_paid": techs_paid,
         })
+    except InsufficientStockError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect) as e:
         # Mã 4.1 audit — rớt mạng tới Atlas giữa lúc tính tiền. CHỈ bản Desktop mới có ổ cứng
         # cục bộ để lưu tạm (local_db.py/MontyDB); bản Web/Vercel không có nơi nào để buffer
@@ -6241,18 +6819,15 @@ def api_nail_pos_square_checkout():
         now_iso = datetime.now().isoformat()
         txn_id = f"NAILSQ-{order_id}-{uuid.uuid4().hex[:6].upper()}"
 
-        order_doc = {
-            'id': order_id, 'business_id': business_id, 'status': 'pending',
-            'created_at': now_iso, 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
+        metadata = {
+            'channel': 'nail_pos_square', 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
             'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
-            'tip_amount': computed['total_tip'], 'total_amount': computed['total_amount'],
-            'payment_method': 'square', 'payment_bucket': 'card',
-            'currency': computed['currency'], 'channel': 'nail_pos_square',
-            'commission_rate': computed['commission_rate'],
+            'tip_amount': computed['total_tip'], 'payment_bucket': 'card',
+            'currency': computed['currency'], 'commission_rate': computed['commission_rate'],
         }
         customer_phone = (data.get('customer_phone') or '').strip()
         if customer_phone:
-            order_doc['customer_phone'] = customer_phone
+            metadata['customer_phone'] = customer_phone
 
         square_result = payment_us_engine.create_terminal_checkout(
             computed['total_amount'], txn_id, note=f"BitPaw Nail POS Order #{order_id}"
@@ -6262,15 +6837,30 @@ def api_nail_pos_square_checkout():
         if not square_result.get('success'):
             return jsonify({"success": False, "message": square_result.get('message')}), 502
 
-        order_doc['square_checkout_id'] = square_result.get('checkout_id')
-        order_doc['square_txn_id'] = txn_id
+        metadata['square_checkout_id'] = square_result.get('checkout_id')
+        metadata['square_txn_id'] = txn_id
         # Stashed for the webhook to finish the write — never re-derived from client input a
         # 2nd time, so what Square actually charged is exactly what gets committed and paid out.
-        order_doc['_pending_order_items'] = computed['order_items_docs']
-        order_doc['_pending_per_tech_revenue'] = computed['per_tech_revenue']
-        order_doc['_pending_net_revenue'] = computed['net_revenue']
-        order_doc['_pending_worker_total_tip'] = computed['worker_total_tip']
-        db.orders.insert_one(order_doc)
+        metadata['_pending_order_items'] = computed['order_items_docs']
+        metadata['_pending_per_tech_revenue'] = computed['per_tech_revenue']
+        metadata['_pending_net_revenue'] = computed['net_revenue']
+        metadata['_pending_worker_total_tip'] = computed['worker_total_tip']
+        order_doc = {
+            'id': order_id,
+            'business_id': business_id,
+            'created_at': now_iso,
+            'status': 'pending',
+            'total_amount': computed['total_amount'],
+            'payment_method': 'square',
+            'metadata': metadata,
+        }
+        # Giai đoạn 5 audit — trừ kho NGAY lúc tạo checkout (giữ chỗ hàng trong lúc chờ khách
+        # quẹt thẻ xong), cùng thời điểm với api_square_checkout() (retail) — nhất quán giữa 2
+        # luồng Square Terminal. Trước đây Nail POS Square hoàn toàn không trừ tồn kho.
+        with mongo_client_instance.start_session() as db_session:
+            with db_session.start_transaction():
+                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=db_session)
+                db.orders.insert_one(order_doc, session=db_session)
 
         return jsonify({
             "success": True, "order_id": order_id,
@@ -6278,6 +6868,8 @@ def api_nail_pos_square_checkout():
             "terminal_status": square_result.get('terminal_status'),
             "total_amount": computed['total_amount'],
         })
+    except InsufficientStockError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -6290,15 +6882,16 @@ def _finalize_nail_square_order(order_doc):
     Cash/Card/Split."""
     order_id = order_doc['id']
     business_id = order_doc['business_id']
-    order_items_docs = order_doc.get('_pending_order_items') or []
+    metadata = order_doc.get('metadata') or {}
+    order_items_docs = metadata.get('_pending_order_items') or []
     computed = {
-        'subtotal': order_doc.get('subtotal') or 0,
-        'net_revenue': order_doc.get('_pending_net_revenue') or 0,
-        'commission_rate': order_doc.get('commission_rate') or 0,
-        'worker_total_tip': order_doc.get('_pending_worker_total_tip') or 0,
-        'per_tech_revenue': order_doc.get('_pending_per_tech_revenue') or {},
+        'subtotal': metadata.get('subtotal') or 0,
+        'net_revenue': metadata.get('_pending_net_revenue') or 0,
+        'commission_rate': metadata.get('commission_rate') or 0,
+        'worker_total_tip': metadata.get('_pending_worker_total_tip') or 0,
+        'per_tech_revenue': metadata.get('_pending_per_tech_revenue') or {},
     }
-    customer_phone = (order_doc.get('customer_phone') or '').strip()
+    customer_phone = (metadata.get('customer_phone') or '').strip()
 
     for oi in order_items_docs:
         oi['id'] = next_mongo_id('order_items')
@@ -6314,10 +6907,10 @@ def _finalize_nail_square_order(order_doc):
             db.orders.update_one(
                 {'id': order_id, 'business_id': business_id},
                 {
-                    '$set': {'status': 'completed', 'square_paid_at': datetime.now().isoformat()},
+                    '$set': {'status': 'completed', 'metadata.square_paid_at': datetime.now().isoformat()},
                     '$unset': {
-                        '_pending_order_items': '', '_pending_per_tech_revenue': '',
-                        '_pending_net_revenue': '', '_pending_worker_total_tip': '',
+                        'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
+                        'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
                     },
                 },
                 session=db_session
@@ -6326,6 +6919,10 @@ def _finalize_nail_square_order(order_doc):
                 db.order_items.insert_many(order_items_docs, session=db_session)
             if chamcong_docs:
                 db.chamcong.insert_many(chamcong_docs, session=db_session)
+            _record_pos_transaction(
+                business_id, order_id, order_doc.get('total_amount'), 'square',
+                created_by='square_webhook', db_session=db_session,
+            )
 
     if customer_phone:
         _finalize_paid_order(order_doc)
@@ -6362,8 +6959,9 @@ def api_nail_pos_refund():
     if not original_order:
         return jsonify({"success": False, "message": f"Không tìm thấy hoá đơn #{original_order_id}."}), 404
 
+    original_metadata = original_order.get('metadata') or {}
     order_total = round(float(original_order.get('total_amount') or 0), 2)
-    already_refunded = round(float(original_order.get('refunded_amount') or 0), 2)
+    already_refunded = round(float(original_metadata.get('refunded_amount') or 0), 2)
     remaining = round(order_total - already_refunded, 2)
     if amount > remaining + 0.01:
         return jsonify({
@@ -6406,17 +7004,41 @@ def api_nail_pos_refund():
         new_status = 'refunded' if new_refunded_amount >= order_total - 0.01 else 'partially_refunded'
         db.orders.update_one(
             {'id': original_order_id, 'business_id': business_id},
-            {'$set': {'status': new_status, 'refunded_amount': new_refunded_amount}}
+            {'$set': {'status': new_status, 'metadata.refunded_amount': new_refunded_amount}}
         )
 
+        # Hoàn tồn kho (Giai đoạn 5 audit) — CHỈ khi hoàn ĐỦ 100% hoá đơn (new_status=='refunded').
+        # Hoàn 1 PHẦN theo SỐ TIỀN (route này không nhận input theo từng dòng dịch vụ cụ thể)
+        # không đủ dữ liệu để biết CHÍNH XÁC sản phẩm/số lượng nào bị trả — hoàn theo tỉ lệ số
+        # tiền dễ tạo số lượng lẻ vô nghĩa cho sản phẩm vật lý (vd hoàn 0.37 đơn vị). Hoàn đủ
+        # 100% thì chắc chắn: mọi dòng của order gốc đều được trả lại nguyên vẹn.
+        if new_status == 'refunded':
+            try:
+                original_items = list(db.order_items.find(
+                    {'order_id': original_order_id}, {'product_id': 1, 'quantity': 1, '_id': 0}
+                ))
+                restock_items = [(oi['product_id'], oi['quantity'], None) for oi in original_items if oi.get('product_id')]
+                if restock_items:
+                    _restock_atomic(business_id, restock_items)
+            except Exception as e:
+                # Best-effort — hoàn tiền/hoa hồng đã ghi xong ở trên là phần quan trọng nhất,
+                # lỗi hoàn kho KHÔNG được phép chặn response hoàn tiền đã thành công.
+                print(f"[api_nail_pos_refund] Loi hoan ton kho (khong chan luong hoan tien): {e}")
+
         db.orders.insert_one({
-            'id': refund_id, 'business_id': business_id, 'status': 'refunded',
-            'created_at': now_iso, 'subtotal': -amount, 'supply_amount': 0,
-            'discount_amount': 0, 'tip_amount': 0, 'total_amount': -amount,
+            'id': refund_id,
+            'business_id': business_id,
+            'created_at': now_iso,
+            'status': 'refunded',
+            'total_amount': -amount,
             'payment_method': original_order.get('payment_method', 'cash'),
-            'payment_bucket': original_order.get('payment_bucket', 'cash'),
-            'currency': original_order.get('currency') or 'AUD', 'channel': 'nail_pos_refund',
-            'original_order_id': original_order_id, 'refund_reason': (data.get('reason') or '').strip(),
+            'metadata': {
+                'channel': 'nail_pos_refund', 'subtotal': -amount, 'supply_amount': 0,
+                'discount_amount': 0, 'tip_amount': 0,
+                'payment_bucket': original_metadata.get('payment_bucket', 'cash'),
+                'currency': original_metadata.get('currency') or 'AUD',
+                'original_order_id': original_order_id, 'refund_reason': (data.get('reason') or '').strip(),
+            },
         })
         return jsonify({
             "success": True, "refund_id": refund_id, "order_status": new_status,
@@ -6434,63 +7056,49 @@ def nhanvien():
 
 @app.route('/bangluong')
 @login_required
+@role_required('admin', 'super_admin')
 def bangluong():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('bangluong.html')
 
 @app.route('/chamcong')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong.html')
 
 @app.route('/chamcong/congnhan')
 @app.route('/chamcong_congnhan')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_congnhan():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_congnhan.html')
 
 @app.route('/chamcong/fnb')
 @app.route('/chamcong_fnb')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_fnb():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_fnb.html')
 
 @app.route('/chamcong/khachsan')
 @app.route('/chamcong_khachsan')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_khachsan():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_khachsan.html')
 
 @app.route('/chamcong/kythuat')
 @app.route('/chamcong_kythuat')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_kythuat():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_kythuat.html')
 
 @app.route('/chamcong/nail')
 @app.route('/chamcong_nail')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_nail():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_nail.html')
 
 # chamcong_spa (/chamcong/spa, /chamcong_spa) đã chuyển sang blueprints/spa_bp.py
@@ -6498,19 +7106,15 @@ def chamcong_nail():
 @app.route('/chamcong/vanphong')
 @app.route('/chamcong_vanphong')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_vanphong():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('chamcong_vanphong.html')
 
 @app.route('/chamcong/<industry_code>')
 @app.route('/chamcong_<industry_code>')
 @login_required
+@role_required('admin', 'super_admin')
 def chamcong_industry(industry_code):
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     template_name = f"chamcong_{industry_code}.html"
     if os.path.exists(os.path.join(app.template_folder, template_name)):
         return render_template(template_name)
@@ -6554,10 +7158,8 @@ def table_order():
 
 @app.route('/baocao_loinhuan')
 @login_required
+@role_required('admin', 'super_admin')
 def baocao_loinhuan():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('baocao_loinhuan.html')
 
 @app.route('/cauhinh_luong')
@@ -6751,7 +7353,7 @@ def api_portal_upload():
             filename=filename,
             business_id=customer['business_id'],
             kind='portal_chat',
-            content_type=file.mimetype or 'application/octet-stream'
+            content_type=_safe_image_content_type(filename)
         )
         return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_public_storage_file', file_id=str(file_id))})
     except Exception as e:
@@ -6777,10 +7379,8 @@ def api_portal_stream():
 
 @app.route('/quanly_congno')
 @login_required
+@role_required('admin', 'super_admin')
 def quanly_congno():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('quanly_congno.html')
 
 @app.route('/quanly_dichvu')
@@ -6795,10 +7395,8 @@ def quanly_kho():
 
 @app.route('/quanly_thuchi')
 @login_required
+@role_required('admin', 'super_admin')
 def quanly_thuchi():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('quanly_thuchi.html')
 
 def _is_superadmin():
@@ -7338,10 +7936,8 @@ def crm_automation():
 
 @app.route('/map_dashboard')
 @login_required
+@role_required('admin', 'super_admin')
 def map_dashboard():
-    denied = _deny_if_staff_page()
-    if denied:
-        return denied
     return render_template('map_dashboard.html')
 
 @app.route('/app_nhanvien')
@@ -7965,17 +8561,23 @@ def omnichannel_connect_portal(channel):
 @app.route('/omnichannel/callback/<channel>', methods=['GET'])
 @login_required
 def omnichannel_callback(channel):
+    """Trang callback OAuth-style hiển thị cho popup trình duyệt (không phải route Mobile gọi
+    trực tiếp) — GIỮ NGUYÊN HTML ở nhánh thành công. Giai đoạn 5 audit: chỉ JSON-hoá các nhánh
+    LỖI khi _wants_json(), để nhất quán/an toàn nếu 1 client REST gọi nhầm route này."""
     target = CHANNEL_MAP.get(channel.lower())
     if not target:
-        return f"Invalid channel: {channel}", 400
+        msg = f"Invalid channel: {channel}"
+        return (jsonify({"success": False, "message": msg}), 400) if _wants_json() else (msg, 400)
     account_name = request.args.get('account_name', '').strip()
     channel_id = request.args.get('channel_id', '').strip()
     access_token = request.args.get('access_token', '').strip()
     if not account_name or not channel_id or not access_token:
-        return "Thiếu thông tin cấu hình callback!", 400
+        msg = "Thiếu thông tin cấu hình callback!"
+        return (jsonify({"success": False, "message": msg}), 400) if _wants_json() else (msg, 400)
     business_id = session.get('business_id')
     if not business_id:
-        return "Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.", 401
+        msg = "Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại."
+        return (jsonify({"success": False, "message": msg}), 401) if _wants_json() else (msg, 401)
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -7990,7 +8592,8 @@ def omnichannel_callback(channel):
         conn.commit()
         conn.close()
     except Exception as db_err:
-        return f"Lỗi lưu trữ cấu hình: {str(db_err)}", 500
+        msg = f"Lỗi lưu trữ cấu hình: {str(db_err)}"
+        return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
     return f"""
     <!DOCTYPE html>
     <html>
@@ -8796,6 +9399,82 @@ except Exception as bp_err:
 
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========
 
+GEOFENCE_RADIUS_METERS = 50
+
+
+def _haversine_distance_meters(lat1, lon1, lat2, lon2):
+    """Khoảng cách đường chim bay (mét) giữa 2 toạ độ GPS theo công thức Haversine."""
+    R = 6371000.0  # bán kính Trái Đất (mét)
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(min(1.0, a)))
+
+
+def _enforce_checkin_geofence(business_id, lat, lng):
+    """Chặn gian lận chấm công (giả GPS/checkin từ xa) — so khoảng cách Haversine giữa vị trí
+    nhân viên gửi lên và toạ độ chi nhánh (office_latitude/office_longitude trên db.businesses),
+    từ chối (403) nếu > GEOFENCE_RADIUS_METERS. Nếu chi nhánh CHƯA cấu hình toạ độ (chưa gọi
+    /api/business/geofence để set), bỏ qua kiểm tra để không phá chấm công của các tenant hiện
+    có — tenant tự bật tính năng này bằng cách cấu hình toạ độ chi nhánh.
+    Trả về (True, None) nếu cho qua, (False, (response, status_code)) nếu bị từ chối."""
+    try:
+        biz = db.businesses.find_one(
+            {'id': business_id}, {'office_latitude': 1, 'office_longitude': 1, '_id': 0}
+        )
+    except Exception:
+        biz = None
+    office_lat = (biz or {}).get('office_latitude')
+    office_lng = (biz or {}).get('office_longitude')
+    if office_lat is None or office_lng is None:
+        return True, None
+
+    if lat is None or lng is None:
+        return False, (jsonify({
+            "success": False,
+            "error": "Không lấy được vị trí GPS từ thiết bị. Vui lòng bật định vị và thử lại.",
+        }), 403)
+    try:
+        lat_f, lng_f = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return False, (jsonify({"success": False, "error": "Toạ độ GPS không hợp lệ."}), 403)
+
+    distance = _haversine_distance_meters(lat_f, lng_f, float(office_lat), float(office_lng))
+    if distance > GEOFENCE_RADIUS_METERS:
+        return False, (jsonify({
+            "success": False,
+            "error": f"Bạn đang cách chi nhánh khoảng {distance:.0f}m — vượt phạm vi cho phép "
+                     f"({GEOFENCE_RADIUS_METERS}m) để chấm công. Vui lòng đến gần chi nhánh hơn.",
+        }), 403)
+    return True, None
+
+
+@app.route('/api/business/geofence', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_set_business_geofence():
+    """Cấu hình toạ độ chi nhánh (office_latitude/office_longitude) dùng để geofence chấm công
+    GPS — chỉ chủ tiệm/super_admin mới được đổi. Truyền latitude=null (hoặc bỏ trống 2 field)
+    để TẮT geofence, quay lại hành vi cũ (không kiểm tra vị trí)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    lat, lng = data.get('latitude'), data.get('longitude')
+    update = {}
+    if lat is None and lng is None:
+        update = {'office_latitude': None, 'office_longitude': None}
+    else:
+        try:
+            update = {'office_latitude': float(lat), 'office_longitude': float(lng)}
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "Toạ độ không hợp lệ."}), 400
+    try:
+        db.businesses.update_one({'id': business_id}, {'$set': update})
+        return jsonify({"success": True, "data": update})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/chamcong/checkin', methods=['POST'])
 @login_required
 def api_checkin():
@@ -8822,6 +9501,10 @@ def api_checkin():
             return jsonify({"success": False, "error": "Nhân viên không thuộc quyền quản lý của bạn."}), 403
     except Exception as e:
         return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
+
+    geofence_ok, geofence_error = _enforce_checkin_geofence(business_id, lat, lng)
+    if not geofence_ok:
+        return geofence_error
 
     clock_in_time = datetime.now().isoformat()
     event_id = str(uuid.uuid4())
@@ -8867,6 +9550,10 @@ def api_checkout():
             return jsonify({"success": False, "error": "Nhân viên không thuộc quyền quản lý của bạn."}), 403
     except Exception as e:
         return jsonify({"success": False, "error": f"Không xác thực được nhân viên: {str(e)}"}), 500
+
+    geofence_ok, geofence_error = _enforce_checkin_geofence(business_id, lat, lng)
+    if not geofence_ok:
+        return geofence_error
 
     clock_out_time = datetime.now().isoformat()
     event_id = str(uuid.uuid4())
@@ -9603,6 +10290,7 @@ def expense_alias():
 
 # ========== API QR CODE DYNAMIC (PHASE 1) ==========
 @app.route('/api/workspace/generate-qr', methods=['POST'])
+@login_required
 def generate_qr():
     import secrets
     from datetime import datetime, timedelta
@@ -9636,6 +10324,7 @@ def generate_qr():
 
 
 @app.route('/api/workspace/validate-qr', methods=['POST'])
+@login_required
 def validate_qr():
     from datetime import datetime
     
@@ -9695,6 +10384,21 @@ def handle_missing_template(e):
     xây đủ các trang này — chỉ chặn crash trong lúc chờ."""
     print(f"[!] Template không tồn tại: {str(e)}")
     return render_template('index.html', active_tab='login'), 404
+
+
+# Sanity-check khởi động: mọi tên trong _CSRF_EXEMPT_ENDPOINTS phải khớp đúng 1 route thật đã
+# đăng ký (app.view_functions chỉ đầy đủ ở đây, SAU khi mọi route load xong) — báo ngay lúc
+# start server nếu 1 tên bị gõ sai/route đã đổi tên, thay vì âm thầm không exempt được và chỉ
+# phát hiện khi endpoint đó lỗi CSRF thật giữa lúc vận hành. Việc EXEMPT THẬT SỰ nằm ở check
+# `request.endpoint in _CSRF_EXEMPT_ENDPOINTS` bên trong _hybrid_auth_and_csrf() — csrf.exempt()
+# gọi ở đây không còn tác dụng thực thi từ khi chuyển sang gọi csrf.protect() thủ công (Giai
+# đoạn 5), giữ lại object exempt của Flask-WTF cho nhất quán/debug, không phải cơ chế chính.
+for _endpoint_name in _CSRF_EXEMPT_ENDPOINTS:
+    _view_func = app.view_functions.get(_endpoint_name)
+    if _view_func is not None:
+        csrf.exempt(_view_func)
+    else:
+        print(f"[!] CSRF exempt: không tìm thấy endpoint '{_endpoint_name}' (route đã đổi tên?).")
 
 
 if __name__ == '__main__':

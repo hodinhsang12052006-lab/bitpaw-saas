@@ -1,0 +1,82 @@
+# render.yaml — Blueprint triển khai Render.com cho BitPaw OS (Giai đoạn 5 audit)
+#
+# Vercel (serverless) KHÔNG chạy được tiến trình nền dài hạn — đây là lý do consumer.py/
+# nurture_scheduler.py/message_delivery_worker.py "mồ côi" (không có nơi nào giữ chúng chạy 24/7)
+# dù có sẵn trong repo. Render hỗ trợ "type: worker" (always-on, không request-response) — đúng
+# nhu cầu 3 worker này. web + 3 worker đọc CHUNG 1 MONGO_URI/REDIS_URL (đặt cùng giá trị ở mọi
+# service bên dưới, xem envVarGroups để không phải nhập lặp lại 4 lần).
+#
+# LƯU Ý QUAN TRỌNG VỀ CONNECTION POOL: mongo_client.py set maxPoolSize=50 — mỗi process Python
+# (mỗi gunicorn worker CỦA web, CỘNG mỗi worker riêng bên dưới) mở 1 pool RIÊNG. Với 4 gunicorn
+# worker (xem Procfile) + 3 background worker = 7 process, tổng connection tối đa lý thuyết tới
+# Atlas ≈ 7 × 50 = 350 — PHẢI đối chiếu con số này với giới hạn connection thật của Atlas tier
+# đang dùng trước khi lên production, không phải chỉ set 50 rồi yên tâm.
+
+envVarGroups:
+  - name: bitpaw-shared-secrets
+    envVars:
+      # --- Bắt buộc để app chạy được ---
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: FLASK_SECRET_KEY
+        sync: false
+      # JWT_SECRET: để trống (sync: false, không set giá trị) sẽ tự dùng chung FLASK_SECRET_KEY
+      # (xem app.py) — chỉ cần set riêng nếu muốn xoay vòng độc lập với session cookie Web.
+      - key: JWT_SECRET
+        sync: false
+      # --- Khuyến nghị cho production thật (rate limit dùng chung giữa các instance) ---
+      - key: RATELIMIT_STORAGE_URI
+        sync: false
+      # --- Superadmin / license / AI / thanh toán — set đúng giá trị thật trong Render Dashboard,
+      # danh sách đầy đủ xem .env.example. Liệt kê vài biến hay dùng nhất để không quên: ---
+      - key: SUPERADMIN_FALLBACK_HASH_B64
+        sync: false
+      - key: SUPERADMIN_EMAILS
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+
+services:
+  - type: web
+    name: bitpaw-web
+    env: python
+    plan: standard
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --threads 2 --timeout 120
+    healthCheckPath: /
+    envVarGroups:
+      - bitpaw-shared-secrets
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+
+  - type: worker
+    name: bitpaw-worker-attendance
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python consumer.py
+    envVarGroups:
+      - bitpaw-shared-secrets
+
+  - type: worker
+    name: bitpaw-worker-nurture
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python nurture_scheduler.py --loop
+    envVarGroups:
+      - bitpaw-shared-secrets
+
+  - type: worker
+    name: bitpaw-worker-messages
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python message_delivery_worker.py --loop
+    envVarGroups:
+      - bitpaw-shared-secrets
