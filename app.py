@@ -362,8 +362,42 @@ _ratelimit_storage_uri = (
 if _ratelimit_storage_uri == 'memory://':
     print("[!] CANH BAO: Rate limiter dang chay memory:// (khong dung chung giua cac instance). "
           "Dat REDIS_URL hoac RATELIMIT_STORAGE_URI truoc khi len production.")
+
+
+def _get_real_client_ip():
+    """Địa chỉ IP THẬT của khách — Giai đoạn 7 (SRE) audit.
+
+    Sau khi bọc domain qua Cloudflare (Proxied/orange cloud), request.remote_addr mặc định của
+    Flask (và get_remote_address() mặc định của Flask-Limiter dùng chính giá trị này) LUÔN LÀ IP
+    CỦA CLOUDFLARE EDGE SERVER, không phải IP khách thật (Cloudflare là proxy, kết nối TCP tới
+    Vercel origin xuất phát từ chính Cloudflare). Hậu quả nếu không sửa: (1) rate limit/brute-force
+    protection coi HÀNG NGHÌN khách khác nhau là "cùng 1 IP" (dải IP Cloudflare rất hẹp) -> 1
+    khách bị chặn kéo theo chặn nhầm mọi khách khác đang đi qua cùng edge node, HOẶC ngược lại
+    tuỳ round-robin của Cloudflare mà giới hạn không còn tác dụng thật; (2) audit log
+    (user_logs.ip_address) ghi sai hoàn toàn, vô dụng khi điều tra sự cố đăng nhập.
+
+    Ưu tiên CF-Connecting-IP — Cloudflare LUÔN tự ĐỘNG GHI ĐÈ header này bằng IP kết nối TCP thật
+    trước khi forward tới origin; client KHÔNG có cách nào tự khai giá trị giả cho header này KHI
+    đi qua Cloudflare (Cloudflare strip mọi CF-Connecting-IP client tự gửi trước khi gán lại giá
+    trị thật). Fallback X-Forwarded-For (IP đầu chuỗi — chuẩn de-facto), rồi request.remote_addr
+    (dev local/test, không qua Cloudflare).
+
+    CẢNH BÁO BẢO MẬT CÒN LẠI: helper này chỉ đáng tin nếu origin Vercel KHÔNG thể bị truy cập
+    trực tiếp bỏ qua Cloudflare — Vercel (khác Cloudflare) KHÔNG tự strip CF-Connecting-IP, nên
+    ai gọi thẳng *.vercel.app (thay vì domain qua Cloudflare) vẫn tự khai được header này. Xem
+    khuyến nghị chặn truy cập trực tiếp Vercel trong báo cáo SRE đi kèm — PHẢI làm cùng lúc với
+    patch này để có hiệu lực đầy đủ."""
+    cf_ip = request.headers.get('CF-Connecting-IP')
+    if cf_ip:
+        return cf_ip.strip()
+    xff = request.headers.get('X-Forwarded-For')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
+
 limiter = Limiter(
-    get_remote_address,
+    _get_real_client_ip,
     app=app,
     default_limits=["200 per day", "50 per hour"],
     storage_uri=_ratelimit_storage_uri,
@@ -380,7 +414,7 @@ def _rate_limit_exceeded(e):
     # phí theo request). print() ra console luôn (Vercel Runtime Logs đọc được ngay), CỘNG THÊM
     # ghi vào Mongo collection 'security_events' nếu DB đang sống — best-effort, lỗi ghi Mongo
     # KHÔNG được phép làm hỏng việc trả 429 bình thường cho client.
-    client_ip = get_remote_address()
+    client_ip = _get_real_client_ip()
     print(f"[RATE LIMIT] 429 - IP={client_ip} path={request.path} method={request.method}")
     try:
         if db is not None:
@@ -1121,7 +1155,7 @@ def login():
                     'user_email': email,
                     'action': 'login',
                     'description': 'Đăng nhập thành công',
-                    'ip_address': request.remote_addr,
+                    'ip_address': _get_real_client_ip(),
                     'created_at': datetime.now().isoformat()
                 })
             except Exception as db_err:
@@ -1220,7 +1254,7 @@ def api_auth_token():
         db.user_logs.insert_one({
             'id': next_mongo_id('user_logs'), 'business_id': business_id, 'user_email': email,
             'action': 'login_mobile_token', 'description': 'Dang nhap Mobile App (JWT)',
-            'ip_address': request.remote_addr, 'created_at': datetime.now().isoformat(),
+            'ip_address': _get_real_client_ip(), 'created_at': datetime.now().isoformat(),
         })
     except Exception:
         pass
@@ -1304,7 +1338,7 @@ def logout():
                     'user_email': session.get('user_email', 'unknown'),
                     'action': 'logout',
                     'description': 'Đăng xuất',
-                    'ip_address': request.remote_addr,
+                    'ip_address': _get_real_client_ip(),
                     'created_at': datetime.now().isoformat()
                 })
         except Exception as e:
@@ -2519,7 +2553,6 @@ def api_square_checkout():
         # Luồng Square Terminal luôn là quẹt thẻ thật — ép cứng payment_method/payment_bucket
         # bất kể client gửi gì, tránh trường hợp gửi nhầm 'cash' vào route quẹt thẻ.
         metadata_fields['payment_bucket'] = 'card'
-        metadata_fields['square_checkout_id'] = None  # điền thật ngay bên dưới, giữ key ổn định
         order_doc = {
             'id': order_id,
             'business_id': business_id,
@@ -2529,19 +2562,6 @@ def api_square_checkout():
             'payment_method': 'square',
             'metadata': metadata_fields,
         }
-
-        txn_id = f"SQTERM-{order_id}-{uuid.uuid4().hex[:6].upper()}"
-        square_result = payment_us_engine.create_terminal_checkout(
-            order_doc['total_amount'], txn_id, note=f"BitPaw POS Order #{order_id}"
-        )
-        if not square_result.get('configured'):
-            return jsonify({"success": False, "message": square_result.get('message')}), 503
-        if not square_result.get('success'):
-            return jsonify({"success": False, "message": square_result.get('message')}), 502
-
-        metadata_fields['square_checkout_id'] = square_result.get('checkout_id')
-        metadata_fields['square_txn_id'] = txn_id
-
         customer_phone = metadata_fields.get('customer_phone')
         for oi in order_items_docs:
             oi['id'] = next_mongo_id('order_items')
@@ -2549,16 +2569,43 @@ def api_square_checkout():
             if customer_phone:
                 oi['customer_phone'] = customer_phone
 
-        # Trừ kho ngay lúc tạo checkout (giữ nguyên hành vi cũ — kể cả khi thẻ chưa quẹt xong,
-        # chỗ hàng đã "giữ chỗ") nhưng nay ATOMIC qua $inc+$gte, không còn race condition khi
-        # nhiều thu ngân/nhiều Terminal cùng bán 1 sản phẩm cùng lúc. Sổ cái transactions CHƯA
-        # ghi ở đây vì đơn còn 'pending' — chỉ ghi khi webhook Square báo COMPLETED thật sự.
+        # Giai đoạn 7 (SRE) audit — GIỮ CHỖ HÀNG (trừ kho nguyên tử + tạo order 'pending')
+        # TRƯỚC KHI gọi Square charge khách, KHÔNG phải sau như trước đây. Lý do: nếu hết hàng
+        # được phát hiện SAU khi đã đẩy lệnh charge xuống Terminal, khách có thể đã bị trừ tiền
+        # cho 1 đơn không thể giao — đảo thứ tự để KHÔNG BAO GIỜ charge khách cho thứ chắc chắn
+        # không đủ để bán. Sổ cái transactions CHƯA ghi ở đây vì đơn còn 'pending' — chỉ ghi khi
+        # webhook Square báo COMPLETED thật sự.
         with mongo_client_instance.start_session() as db_session:
             with db_session.start_transaction():
                 _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
                 db.orders.insert_one(order_doc, session=db_session)
                 if order_items_docs:
                     db.order_items.insert_many(order_items_docs, session=db_session)
+
+        # Đã giữ chỗ hàng thành công -> giờ mới gọi Square charge khách thật.
+        txn_id = f"SQTERM-{order_id}-{uuid.uuid4().hex[:6].upper()}"
+        square_result = payment_us_engine.create_terminal_checkout(
+            order_doc['total_amount'], txn_id, note=f"BitPaw POS Order #{order_id}"
+        )
+        if not square_result.get('configured') or not square_result.get('success'):
+            # Charge thất bại/chưa cấu hình SAU KHI đã giữ chỗ hàng -> BẮT BUỘC hoàn kho + huỷ
+            # order, nếu không hàng bị "giữ chỗ" vĩnh viễn dù khách chưa hề bị tính tiền.
+            try:
+                _restock_atomic(business_id, stock_items)
+                db.orders.update_one({'id': order_id}, {'$set': {'status': 'failed'}})
+            except Exception as rollback_err:
+                print(f"[api_square_checkout] LOI HOAN KHO sau khi Square charge that bai "
+                      f"(order_id={order_id}) - CAN KIEM TRA TAY: {rollback_err}")
+            status_code = 503 if not square_result.get('configured') else 502
+            return jsonify({"success": False, "message": square_result.get('message')}), status_code
+
+        db.orders.update_one(
+            {'id': order_id},
+            {'$set': {
+                'metadata.square_checkout_id': square_result.get('checkout_id'),
+                'metadata.square_txn_id': txn_id,
+            }}
+        )
 
         return jsonify({
             "success": True,
@@ -6817,34 +6864,22 @@ def api_nail_pos_square_checkout():
     try:
         order_id = next_mongo_id('orders')
         now_iso = datetime.now().isoformat()
-        txn_id = f"NAILSQ-{order_id}-{uuid.uuid4().hex[:6].upper()}"
 
         metadata = {
             'channel': 'nail_pos_square', 'subtotal': computed['subtotal'], 'supply_amount': computed['supply_amount'],
             'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
             'tip_amount': computed['total_tip'], 'payment_bucket': 'card',
             'currency': computed['currency'], 'commission_rate': computed['commission_rate'],
+            # Stashed for the webhook to finish the write — never re-derived from client input a
+            # 2nd time, so what Square actually charged is exactly what gets committed and paid out.
+            '_pending_order_items': computed['order_items_docs'],
+            '_pending_per_tech_revenue': computed['per_tech_revenue'],
+            '_pending_net_revenue': computed['net_revenue'],
+            '_pending_worker_total_tip': computed['worker_total_tip'],
         }
         customer_phone = (data.get('customer_phone') or '').strip()
         if customer_phone:
             metadata['customer_phone'] = customer_phone
-
-        square_result = payment_us_engine.create_terminal_checkout(
-            computed['total_amount'], txn_id, note=f"BitPaw Nail POS Order #{order_id}"
-        )
-        if not square_result.get('configured'):
-            return jsonify({"success": False, "message": square_result.get('message')}), 503
-        if not square_result.get('success'):
-            return jsonify({"success": False, "message": square_result.get('message')}), 502
-
-        metadata['square_checkout_id'] = square_result.get('checkout_id')
-        metadata['square_txn_id'] = txn_id
-        # Stashed for the webhook to finish the write — never re-derived from client input a
-        # 2nd time, so what Square actually charged is exactly what gets committed and paid out.
-        metadata['_pending_order_items'] = computed['order_items_docs']
-        metadata['_pending_per_tech_revenue'] = computed['per_tech_revenue']
-        metadata['_pending_net_revenue'] = computed['net_revenue']
-        metadata['_pending_worker_total_tip'] = computed['worker_total_tip']
         order_doc = {
             'id': order_id,
             'business_id': business_id,
@@ -6854,13 +6889,38 @@ def api_nail_pos_square_checkout():
             'payment_method': 'square',
             'metadata': metadata,
         }
-        # Giai đoạn 5 audit — trừ kho NGAY lúc tạo checkout (giữ chỗ hàng trong lúc chờ khách
-        # quẹt thẻ xong), cùng thời điểm với api_square_checkout() (retail) — nhất quán giữa 2
-        # luồng Square Terminal. Trước đây Nail POS Square hoàn toàn không trừ tồn kho.
+
+        # Giai đoạn 7 (SRE) audit — GIỮ CHỖ HÀNG (trừ kho + tạo order 'pending') TRƯỚC KHI gọi
+        # Square charge khách, không phải sau (xem giải thích đầy đủ ở api_square_checkout() —
+        # cùng lý do: không bao giờ charge khách cho thứ vừa phát hiện không đủ để bán).
         with mongo_client_instance.start_session() as db_session:
             with db_session.start_transaction():
                 _decrement_stock_atomic(business_id, computed['stock_items'], db_session=db_session)
                 db.orders.insert_one(order_doc, session=db_session)
+
+        # Đã giữ chỗ hàng thành công -> giờ mới gọi Square charge khách thật.
+        txn_id = f"NAILSQ-{order_id}-{uuid.uuid4().hex[:6].upper()}"
+        square_result = payment_us_engine.create_terminal_checkout(
+            computed['total_amount'], txn_id, note=f"BitPaw Nail POS Order #{order_id}"
+        )
+        if not square_result.get('configured') or not square_result.get('success'):
+            # Charge thất bại SAU KHI đã giữ chỗ hàng -> BẮT BUỘC hoàn kho + huỷ order.
+            try:
+                _restock_atomic(business_id, computed['stock_items'])
+                db.orders.update_one({'id': order_id}, {'$set': {'status': 'failed'}})
+            except Exception as rollback_err:
+                print(f"[api_nail_pos_square_checkout] LOI HOAN KHO sau khi Square charge that bai "
+                      f"(order_id={order_id}) - CAN KIEM TRA TAY: {rollback_err}")
+            status_code = 503 if not square_result.get('configured') else 502
+            return jsonify({"success": False, "message": square_result.get('message')}), status_code
+
+        db.orders.update_one(
+            {'id': order_id},
+            {'$set': {
+                'metadata.square_checkout_id': square_result.get('checkout_id'),
+                'metadata.square_txn_id': txn_id,
+            }}
+        )
 
         return jsonify({
             "success": True, "order_id": order_id,

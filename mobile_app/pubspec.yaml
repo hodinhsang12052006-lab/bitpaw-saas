@@ -1,0 +1,32 @@
+name: bitpaw_mobile
+description: "BitPaw OS - Mobile POS/ERP App (Flutter, iOS & Android)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # --- Network: Dio + Interceptor tự đính kèm Bearer token vào mọi request ---
+  dio: ^5.4.3+1
+
+  # --- Quản lý State: Provider (đơn giản, ít khái niệm hơn Riverpod, đủ dùng cho luồng auth) ---
+  provider: ^6.1.2
+
+  # --- Lưu token an toàn: Keychain (iOS) / EncryptedSharedPreferences (Android)
+  # TUYỆT ĐỐI không dùng shared_preferences cho JWT — SharedPreferences lưu plaintext,
+  # đọc được dễ dàng trên máy đã root/jailbreak. flutter_secure_storage mã hoá tại chỗ,
+  # dùng đúng keystore/keychain gốc của hệ điều hành. ---
+  flutter_secure_storage: ^9.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
