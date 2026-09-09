@@ -1,3 +1,22 @@
+import sys
+
+# ========== ÉP STDOUT/STDERR DÙNG UTF-8 (bug thật phát hiện lúc audit) ==========
+# Trên Windows, khi stdout không phải console thật (bị pipe/redirect — đúng như `flask run`,
+# Procfile/gunicorn, hoặc double-click .exe không có console UTF-8), Python fallback về codepage
+# ANSI của máy (thường là cp1252), KHÔNG phải UTF-8. Codebase có rất nhiều print() tiếng Việt có
+# dấu ở module-level (chạy ngay lúc import, vd ad_platform_tokens.py cảnh báo AD_TOKEN_ENC_KEY
+# thiếu/sai) — nếu print() đó ném UnicodeEncodeError, exception KHÔNG được try/except nào bắt vì
+# nó xảy ra bên trong chính câu lệnh print() cảnh báo, nên nó làm sập luôn cả import module đó.
+# Hậu quả từng đo được: ad_assistant_bp (toàn bộ tính năng Ad Assistant/Facebook Ads) đăng ký
+# thất bại HOÀN TOÀN (mọi route /ad-assistant/* trả 404), lỗi thật bị nuốt và chỉ lộ ra qua dòng
+# "Error registering ad_assistant_bp: 'charmap' codec can't encode character...". Ép UTF-8 ngay
+# từ dòng đầu file (trước MỌI import khác có thể print) để toàn bộ print() tiếng Việt an toàn bất
+# kể môi trường chạy.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import sqlite3
 
 # ========== MONKEY-PATCH SQLITE3 FOR PRODUCTION STABILITY & CONCURRENCY ==========
@@ -35,7 +54,7 @@ import jwt as pyjwt  # PyJWT — Giai đoạn 5 audit: JWT auth cho Mobile App (
 # Đã gỡ bỏ hoàn toàn Supabase khỏi backend — toàn bộ dữ liệu giờ đọc/ghi qua MongoDB Atlas
 # (pymongo) bên dưới.
 from mongo_client import db, fs, client as mongo_client_instance, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
-from i18n import get_translations, resolve_lang, LANG_COOKIE_NAME
+from i18n import get_translations, resolve_lang
 from pymongo import UpdateOne, ReturnDocument
 # Mã 4.1 (Offline-Sync) + Mã 1.2 (Redis Streams check-in/out) audit — lỗi mất kết nối Atlas cần
 # bắt RIÊNG (không phải Exception chung) để route biết chính xác lúc nào nên rơi vào nhánh lưu
@@ -47,7 +66,6 @@ import nurture_channel_tokens
 from cryptography.fernet import Fernet
 from gridfs import GridFS
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 from gridfs.errors import NoFile
 from bson import ObjectId
@@ -1200,7 +1218,7 @@ def login():
                     except:
                         return redirect(target_url)
             return redirect(url_for('setup'))
-        except Exception as e:
+        except Exception:
             flash('Incorrect email or password', 'danger')
     return render_template('index.html', active_tab='login')
 
@@ -4998,7 +5016,7 @@ def qr_menu(identifier):
             table_data = db.dining_tables.find_one({'id': int(identifier)}, {'_id': 0})
         else:
             table_data = db.dining_tables.find_one({'qr_token': identifier}, {'_id': 0})
-    except Exception as e:
+    except Exception:
         return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
 
     if not table_data:
@@ -5120,6 +5138,7 @@ def submit_qr_order():
                     'table_id': resolved_table_id,
                     'table_name': table_display_name,
                     'items': kitchen_items,
+                    'note': note,
                     'status': 'pending',
                     'created_at': datetime.now().isoformat()
                 })
@@ -6529,6 +6548,7 @@ def sell():
             services=services,
             technicians=technicians,
             default_commission_rate=_get_business_commission_rate(business_id),
+            business_id=business_id,
         )
     return render_template('sell.html')
 
@@ -7599,10 +7619,52 @@ def calendar_view():
         except Exception as e:
             print(f"[calendar_view] Lỗi tra cứu tên dịch vụ: {e}")
 
+    # Tra tên thợ được chỉ định (nếu có) — staff_id có thể tới từ 2 nguồn khác nhau tuỳ ngành
+    # (db.staff cho Spa, db.employees.ma_nv cho Nails — booking.html giờ cho khách tự chọn thợ,
+    # xem blueprints/spa_bp.py::public_booking() / blueprints/nail_bp.py::public_booking_nail()).
+    # Tra CẢ HAI nguồn thay vì đoán theo business_mode — không tốn thêm gì nếu 1 trong 2 rỗng.
+    staff_ids = list({a['staff_id'] for a in appointments if a.get('staff_id')})
+    staff_names = {}
+    if staff_ids:
+        try:
+            for s in db.staff.find({'id': {'$in': staff_ids}, 'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0}):
+                staff_names[s['id']] = s.get('name')
+        except Exception as e:
+            print(f"[calendar_view] Lỗi tra cứu tên thợ (db.staff): {e}")
+        try:
+            for e_doc in db.employees.find({'ma_nv': {'$in': staff_ids}, 'business_id': business_id}, {'ma_nv': 1, 'ho_ten': 1, '_id': 0}):
+                staff_names[e_doc['ma_nv']] = e_doc.get('ho_ten')
+        except Exception as e:
+            print(f"[calendar_view] Lỗi tra cứu tên thợ (db.employees): {e}")
+
     for a in appointments:
         a['service_name'] = service_names.get(a.get('service_id')) or a.get('service_id') or 'Không rõ dịch vụ'
+        a['staff_name'] = staff_names.get(a.get('staff_id')) if a.get('staff_id') else None
 
     return render_template('calendar.html', appointments=appointments, selected_date=date_str)
+
+
+@app.route('/api/appointments/<int:appointment_id>/status', methods=['PATCH'])
+@login_required
+def api_appointment_update_status(appointment_id):
+    """Duyệt/huỷ lịch hẹn từ /calendar — trước đây trang này chỉ ĐỌC (không có cách nào chủ tiệm
+    xác nhận/huỷ ngay trong app, phải tự gọi điện rồi nhớ tay), khiến lịch hẹn đặt qua QR/AI Bot
+    mãi kẹt ở 'pending'. Route chung cho mọi ngành (Spa, Nails...) vì db.appointments không phân
+    biệt ngành — cùng 1 collection, cùng 1 luồng duyệt."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    status = data.get('status')
+    if status not in ('confirmed', 'cancelled', 'completed', 'pending'):
+        return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
+    try:
+        result = db.appointments.update_one(
+            {'id': appointment_id, 'business_id': business_id}, {'$set': {'status': status}}
+        )
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Không tìm thấy lịch hẹn.'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/ai-studio')
@@ -9455,6 +9517,11 @@ try:
     import blueprints.spa_bp  # noqa: F401 — import để đăng ký route, không cần dùng tên module
 except Exception as bp_err:
     print(f"Error registering blueprints.spa_bp: {str(bp_err)}")
+
+try:
+    import blueprints.nail_bp  # noqa: F401 — cổng đặt lịch QR công khai cho ngành Nails
+except Exception as bp_err:
+    print(f"Error registering blueprints.nail_bp: {str(bp_err)}")
 
 
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========

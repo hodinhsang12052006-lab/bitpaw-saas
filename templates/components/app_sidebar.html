@@ -167,7 +167,15 @@
                 <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                 <span data-i18n="menu_pos_service">{{ menu_i18n.pos_service }}</span>
             </a>
-            <a href="/booking" class="flex items-center space-x-4 {% if request.path == '/booking' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+            {# BUG THẬT đã vá (audit): link này trước đây trỏ cứng "/booking" — route công khai
+               CHO KHÁCH của riêng Spa (blueprints/spa_bp.py), không có business_id nên trộn dịch
+               vụ MỌI tiệm Spa lại 1 trang, và với Nails thì luôn rỗng (route đó lọc channel_type
+               ='spa', dịch vụ Nails không có field đó). Chủ tiệm bấm mục này trong sidebar CỦA
+               CHÍNH MÌNH cần thấy LỊCH HẸN THẬT của tiệm mình (duyệt/huỷ) — không phải xem lại
+               form đặt lịch công khai. Đổi sang /calendar (đã ngành-trung-lập sẵn, đọc đúng
+               business_id qua session). Muốn xem/in QR đặt lịch công khai: dùng nút "Booking QR"
+               ngay trong /sell (Nails) hoặc tự ghép /booking/qr/<business_id> (Spa). #}
+            <a href="{{ url_for('calendar_view') }}" class="flex items-center space-x-4 {% if request.path == '/calendar' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                 <span data-i18n="menu_booking">{{ menu_i18n.booking }}</span>
             </a>

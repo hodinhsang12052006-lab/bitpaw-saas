@@ -185,6 +185,45 @@
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 0.8rem;
         }
+        .table-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            min-width: 2rem;
+            height: 2rem;
+            padding: 0 0.5rem;
+            border-radius: 0.6rem;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            color: #9ca3af;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .page-btn:hover:not(:disabled) {
+            border-color: rgba(6, 182, 212, 0.5);
+            color: #22d3ee;
+        }
+        .page-btn.active {
+            background: #06b6d4;
+            border-color: #06b6d4;
+            color: #08061a;
+        }
+        .page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .page-ellipsis {
+            color: #6b7280;
+            font-size: 0.75rem;
+            padding: 0 0.15rem;
+        }
 
         /* CSKH Widget */
         .cskh-widget {
@@ -380,6 +419,7 @@
                     <!-- Sẽ load từ Flask API (fetch) -->
                     <div class="col-span-full text-center py-5 text-gray-500" data-i18n="pos_loading_tables">Đang tải danh sách bàn...</div>
                 </div>
+                <div class="table-pagination" id="tablePagination"></div>
             </div>
 
             <!-- Cột ĐƠN HÀNG ĐANG CHỌN (SIDEBAR) -->
@@ -494,9 +534,16 @@
         let tables = [];
         let activeOrders = []; // Current active table orders
 
+        // Phân trang sơ đồ bàn — tenant F&B mặc định có sẵn 200 bàn (xem app.py::pos()), nhồi cả
+        // 200 vào 1 lưới duy nhất vừa khó nhìn vừa chậm render; chia 15 bàn/trang cho gọn gàng,
+        // chuyên nghiệp hơn.
+        const TABLES_PER_PAGE = 15;
+        let tablesCurrentPage = 1;
+
         // DOM elements
         const menuGrid = document.getElementById('menuGrid');
         const tableGrid = document.getElementById('tableGrid');
+        const tablePagination = document.getElementById('tablePagination');
         const selectedTableBadge = document.getElementById('selectedTableBadge');
         const selectedTableNameSpan = document.getElementById('selectedTableName');
         const tableCountSpan = document.getElementById('tableCount');
@@ -574,6 +621,8 @@
                 pos_add_table_btn_nail: '+ Thêm Ghế',
                 pos_add_table_btn_spa: '+ Thêm Giường',
                 pos_loading_tables: 'Đang tải danh sách bàn...',
+                pos_page_prev: 'Trang trước',
+                pos_page_next: 'Trang sau',
                 pos_current_order_title: 'Đơn hiện tại',
                 pos_select_table_prompt: 'Vui lòng chọn bàn/ghế/phòng...',
                 pos_no_table_selected: 'Chưa chọn bàn hoặc bàn trống',
@@ -663,6 +712,8 @@
                 pos_add_table_btn_nail: '+ Add Chair',
                 pos_add_table_btn_spa: '+ Add Bed',
                 pos_loading_tables: 'Loading tables...',
+                pos_page_prev: 'Previous page',
+                pos_page_next: 'Next page',
                 pos_current_order_title: 'Current Order',
                 pos_select_table_prompt: 'Please select a table/chair/room...',
                 pos_no_table_selected: 'No table selected or table is empty',
@@ -987,9 +1038,19 @@
             if (!tables.length) {
                 tableGrid.innerHTML = `<div class="col-span-full text-center py-5 text-gray-500">${t('pos_no_tables_yet').replace('{noun}', noun)}</div>`;
                 tableCountSpan.innerText = `0 ${noun}`;
+                tablePagination.innerHTML = '';
                 return;
             }
-            tableGrid.innerHTML = tables.map(tbl => {
+
+            // Phân trang: 200 bàn mặc định nhồi hết vào 1 lưới vừa rối mắt vừa chậm — chỉ render
+            // đúng 1 trang (15 bàn) tại 1 thời điểm, còn lại đi qua nút chuyển trang bên dưới.
+            const totalPages = Math.max(1, Math.ceil(tables.length / TABLES_PER_PAGE));
+            if (tablesCurrentPage > totalPages) tablesCurrentPage = totalPages;
+            if (tablesCurrentPage < 1) tablesCurrentPage = 1;
+            const pageStart = (tablesCurrentPage - 1) * TABLES_PER_PAGE;
+            const pageItems = tables.slice(pageStart, pageStart + TABLES_PER_PAGE);
+
+            tableGrid.innerHTML = pageItems.map(tbl => {
                 let token = tbl.qr_token || 'demo-token-' + tbl.id;
                 let paramName = 'table';
                 if (ind === 'nail') paramName = 'chair';
@@ -1027,7 +1088,7 @@
             }).join('');
 
             tableCountSpan.innerText = `${tables.length} ${noun}`;
-            
+
             // Gắn sự kiện chọn bàn
             document.querySelectorAll('.table-item').forEach(el => {
                 el.addEventListener('click', () => {
@@ -1036,6 +1097,46 @@
                     selectTable(id, name);
                 });
             });
+
+            renderTablePagination(totalPages);
+        }
+
+        // Nút "Trước / [số trang] / Sau" — tối đa 5 số trang hiển thị cùng lúc, trang xa hơn thu
+        // gọn bằng dấu "…" (giữ nguyên logic quen thuộc kiểu Google Search) để không tràn ngang
+        // dù có tới 14 trang (200 bàn / 15 bàn mỗi trang).
+        function renderTablePagination(totalPages) {
+            if (totalPages <= 1) { tablePagination.innerHTML = ''; return; }
+
+            const page = tablesCurrentPage;
+            const pageNumbers = [];
+            const windowSize = 1;
+            for (let p = 1; p <= totalPages; p++) {
+                if (p === 1 || p === totalPages || Math.abs(p - page) <= windowSize) {
+                    pageNumbers.push(p);
+                } else if (pageNumbers[pageNumbers.length - 1] !== '...') {
+                    pageNumbers.push('...');
+                }
+            }
+
+            const btn = (label, target, opts = {}) => `
+                <button type="button" class="page-btn${opts.active ? ' active' : ''}"
+                    ${opts.disabled ? 'disabled' : `onclick="goToTablesPage(${target})"`}
+                    title="${opts.title || ''}">${label}</button>
+            `;
+
+            let html = btn('<i class="fas fa-chevron-left"></i>', page - 1, { disabled: page <= 1, title: t('pos_page_prev') });
+            html += pageNumbers.map(p => p === '...'
+                ? `<span class="page-ellipsis">…</span>`
+                : btn(String(p), p, { active: p === page })
+            ).join('');
+            html += btn('<i class="fas fa-chevron-right"></i>', page + 1, { disabled: page >= totalPages, title: t('pos_page_next') });
+
+            tablePagination.innerHTML = html;
+        }
+
+        function goToTablesPage(page) {
+            tablesCurrentPage = page;
+            renderTables(tables);
         }
 
         // Load active orders for the selected table & compute checkout numbers
@@ -1293,6 +1394,9 @@
                 showToast(tf('pos_toast_saved_draft', {name: formattedName}), false);
             }
 
+            // Bàn mới luôn được thêm vào CUỐI danh sách — nhảy thẳng tới trang cuối (thay vì kẹt
+            // ở trang 1) để chủ tiệm thấy ngay bàn vừa thêm mà không phải tự bấm "Sau" nhiều lần.
+            tablesCurrentPage = Number.MAX_SAFE_INTEGER;
             await loadAndRender();
             showLoading(false);
         }

@@ -12,6 +12,19 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%);
+            background: rgba(0,0,0,0.9); border: 1px solid rgba(6,182,212,0.5); color: white;
+            padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000;
+            transition: transform 0.3s ease; white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { border-color: #ef4444; }
+        .action-btn {
+            padding: 0.4rem 0.85rem; border-radius: 0.75rem; font-size: 0.72rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.03em; transition: 0.15s; cursor: pointer; border: 1px solid transparent;
+        }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body class="min-h-screen flex text-white font-sans">
@@ -25,8 +38,8 @@
                     <i class="fas fa-calendar-check text-cyan-400"></i> Lịch hẹn
                 </h2>
                 <p class="text-gray-400 mt-2 text-sm">
-                    Lịch hẹn do AI Bot và trang đặt lịch công khai ghi nhận — ngày
-                    <span class="text-cyan-400 font-bold">{{ selected_date }}</span>.
+                    Lịch hẹn do AI Bot và trang đặt lịch công khai (QR) ghi nhận — ngày
+                    <span class="text-cyan-400 font-bold">{{ selected_date }}</span>. Duyệt hoặc huỷ ngay tại đây.
                 </p>
             </div>
             <form method="get" class="flex items-center gap-2">
@@ -50,26 +63,44 @@
                             <th class="px-6 py-4">Tên khách</th>
                             <th class="px-6 py-4">Số điện thoại</th>
                             <th class="px-6 py-4">Dịch vụ yêu cầu</th>
+                            <th class="px-6 py-4">Thợ chỉ định</th>
                             <th class="px-6 py-4">Trạng thái</th>
+                            <th class="px-6 py-4">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/5">
+                    <tbody class="divide-y divide-white/5" id="appointmentsBody">
                         {% for a in appointments %}
-                        <tr class="hover:bg-white/[0.03] transition-colors">
+                        <tr class="hover:bg-white/[0.03] transition-colors" data-appt-id="{{ a.id }}">
                             <td class="px-6 py-4 font-bold text-cyan-300 whitespace-nowrap">
                                 {{ a.book_time.split('T')[1][:5] if 'T' in a.book_time else a.book_time }}
                             </td>
                             <td class="px-6 py-4 font-medium">{{ a.customer_name or 'Không rõ' }}</td>
                             <td class="px-6 py-4 text-gray-300">{{ a.customer_phone or '—' }}</td>
                             <td class="px-6 py-4">{{ a.service_name }}</td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 text-gray-400">{{ a.staff_name or '—' }}</td>
+                            <td class="px-6 py-4" data-status-cell>
                                 {% if a.status == 'confirmed' %}
                                 <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>
                                 {% elif a.status == 'cancelled' %}
                                 <span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>
+                                {% elif a.status == 'completed' %}
+                                <span class="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-bold">Hoàn tất</span>
                                 {% else %}
                                 <span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>
                                 {% endif %}
+                            </td>
+                            <td class="px-6 py-4" data-actions-cell>
+                                <div class="flex gap-2">
+                                    {% if a.status == 'pending' %}
+                                    <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ a.id }}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ a.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    {% elif a.status == 'confirmed' %}
+                                    <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus({{ a.id }}, 'completed', this)"><i class="fas fa-flag-checkered"></i> Hoàn tất</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ a.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    {% else %}
+                                    <span class="text-gray-600 text-xs">—</span>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -84,5 +115,58 @@
         </div>
         {% endif %}
     </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const STATUS_BADGE = {
+            confirmed: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>',
+            cancelled: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>',
+            completed: '<span class="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-bold">Hoàn tất</span>',
+            pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>',
+        };
+        const NEXT_ACTIONS = {
+            pending: (id) => `
+                <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus(${id}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+            confirmed: (id) => `
+                <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus(${id}, 'completed', this)"><i class="fas fa-flag-checkered"></i> Hoàn tất</button>
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+            cancelled: () => '<span class="text-gray-600 text-xs">—</span>',
+            completed: () => '<span class="text-gray-600 text-xs">—</span>',
+        };
+
+        function showToast(msg, isError) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function updateStatus(id, status, btn) {
+            const row = document.querySelector(`tr[data-appt-id="${id}"]`);
+            const buttons = row.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+            try {
+                const res = await fetch(`/api/appointments/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status }),
+                });
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message || 'Lỗi không xác định');
+
+                row.querySelector('[data-status-cell]').innerHTML = STATUS_BADGE[status];
+                row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2">${NEXT_ACTIONS[status](id)}</div>`;
+
+                const labelMap = { confirmed: 'Đã duyệt lịch hẹn', cancelled: 'Đã huỷ lịch hẹn', completed: 'Đã đánh dấu hoàn tất' };
+                showToast(labelMap[status] || 'Đã cập nhật');
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, true);
+                buttons.forEach(b => b.disabled = false);
+            }
+        }
+    </script>
 </body>
 </html>

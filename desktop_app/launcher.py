@@ -8,6 +8,17 @@ import sys
 import threading
 import time
 
+# Ép stdout/stderr UTF-8 NGAY ĐẦU file — đây là entry point THẬT của bản .exe đóng gói
+# (PyInstaller), chạy TRƯỚC cả app.py. Nhiều print() tiếng Việt có dấu (license_manager.py,
+# updater.py, và toàn bộ app.py sau khi import) sẽ ném UnicodeEncodeError nếu console/pipe của
+# tiến trình không phải UTF-8 (mặc định trên Windows khi không có console thật hoặc bị pipe) —
+# cùng lớp bug đã phát hiện làm sập đăng ký ad_assistant_bp trong app.py, nhưng ở đây nghiêm
+# trọng hơn vì có thể chặn luôn bước xác thực license trước khi cửa sổ app kịp mở.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import webview
 from werkzeug.serving import make_server
 

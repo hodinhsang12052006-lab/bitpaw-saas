@@ -380,6 +380,14 @@
             </div>
         </div>
 
+        <div id="fbStatusBanner" class="hidden mb-6 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-sm text-red-300">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span id="fbStatusBannerText" data-i18n="ad_assistant_fb_token_expired">⚠️ Kết nối Facebook Ads đã hết hạn — quảng cáo mới sẽ KHÔNG tạo được cho tới khi bạn kết nối lại.</span>
+            </div>
+            <button type="button" id="fbStatusReconnectBtn" class="shrink-0 bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg" data-i18n="ad_assistant_fb_reconnect_btn">Kết nối lại</button>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Cột trái: Form + Chart -->
             <div class="glass-card p-6">
@@ -544,7 +552,10 @@
                 ad_assistant_chat_filled: '✅ Đã điền form và lấy gợi ý cho "{name}" trên {platform} với ngân sách {budget}đ.',
                 ad_assistant_fill_all_fields: 'Vui lòng nhập đầy đủ thông tin',
                 ad_assistant_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
-                ad_assistant_cannot_get_suggestions: 'Không thể lấy gợi ý'
+                ad_assistant_cannot_get_suggestions: 'Không thể lấy gợi ý',
+                ad_assistant_fb_token_expired: '⚠️ Kết nối Facebook Ads đã hết hạn — quảng cáo mới sẽ KHÔNG tạo được cho tới khi bạn kết nối lại.',
+                ad_assistant_fb_reconnect_btn: 'Kết nối lại',
+                ad_assistant_fb_reconnected: '✅ Đã kết nối lại Facebook Ads thành công.'
             },
             en: {
                 ad_assistant_back_dashboard: '← Back to Dashboard',
@@ -596,7 +607,10 @@
                 ad_assistant_chat_filled: '✅ Form filled and suggestions fetched for "{name}" on {platform} with a budget of {budget}₫.',
                 ad_assistant_fill_all_fields: 'Please fill in all the information',
                 ad_assistant_support_sent: '✅ Request sent! We will contact you back within 15 minutes.',
-                ad_assistant_cannot_get_suggestions: 'Unable to get suggestions'
+                ad_assistant_cannot_get_suggestions: 'Unable to get suggestions',
+                ad_assistant_fb_token_expired: '⚠️ Your Facebook Ads connection has expired — new campaigns will NOT be created until you reconnect.',
+                ad_assistant_fb_reconnect_btn: 'Reconnect',
+                ad_assistant_fb_reconnected: '✅ Facebook Ads reconnected successfully.'
             }
         };
 
@@ -952,9 +966,52 @@
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
+        // ==================== TRẠNG THÁI KẾT NỐI FACEBOOK (banner "kết nối lại") ====================
+        const fbStatusBanner = document.getElementById('fbStatusBanner');
+        const fbStatusReconnectBtn = document.getElementById('fbStatusReconnectBtn');
+
+        async function checkFacebookStatus() {
+            try {
+                const response = await fetch('/ad-assistant/api/facebook-status');
+                const data = await response.json();
+                if (data.success && data.connected && data.status === 'expired') {
+                    fbStatusBanner.classList.remove('hidden');
+                } else {
+                    fbStatusBanner.classList.add('hidden');
+                }
+            } catch (err) {
+                // Lỗi mạng khi check trạng thái không nên chặn phần còn lại của trang.
+            }
+        }
+
+        fbStatusReconnectBtn.addEventListener('click', async () => {
+            const accessToken = prompt(currentLang === 'vi' ? 'Dán System User Access Token của Facebook:' : 'Paste your Facebook System User Access Token:');
+            if (!accessToken) return;
+            const adAccountId = prompt(currentLang === 'vi' ? 'Ad Account ID (VD: act_1234567890):' : 'Ad Account ID (e.g. act_1234567890):');
+            if (!adAccountId) return;
+            const pageId = prompt(currentLang === 'vi' ? 'Page ID (tuỳ chọn, để trống nếu không có):' : 'Page ID (optional, leave blank if none):') || '';
+            try {
+                const response = await fetch('/ad-assistant/api/connect-facebook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: accessToken, ad_account_id: adAccountId, page_id: pageId })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(t('ad_assistant_fb_reconnected'));
+                    checkFacebookStatus();
+                } else {
+                    showToast(t('ad_assistant_error_prefix') + (data.error || ''), true);
+                }
+            } catch (err) {
+                showToast(t('ad_assistant_connection_error'), true);
+            }
+        });
+
         // ==================== KHỞI TẠO ====================
         updateChart(2000000);
         fetchSuggestions();
+        checkFacebookStatus();
 
         // ==================== 3D BACKGROUND ====================
         (function init3D() {

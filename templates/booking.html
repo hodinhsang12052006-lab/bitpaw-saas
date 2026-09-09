@@ -189,6 +189,14 @@
                 <div class="absolute -top-2 left-4 px-1 bg-[#0f172a] text-[9px] font-bold text-cyan-400 uppercase tracking-widest z-10 rounded">Service Type</div>
             </div>
 
+            <div class="relative" id="staffFieldWrap" style="display:none;">
+                <i class="fas fa-user-ninja input-icon text-cyan-500/70"></i>
+                <select id="cus_staff" class="select-field">
+                    <option value="">-- No preference (salon will assign) --</option>
+                </select>
+                <div class="absolute -top-2 left-4 px-1 bg-[#0f172a] text-[9px] font-bold text-cyan-400 uppercase tracking-widest z-10 rounded">Preferred Technician</div>
+            </div>
+
             <div class="relative">
                 <i class="far fa-calendar-alt input-icon text-cyan-500/70"></i>
                 <input type="datetime-local" id="cus_datetime" required class="select-field font-medium">
@@ -297,6 +305,10 @@
         // Danh sách dịch vụ đã được /booking, /booking/qr/<spa_id>, /booking/service/<service_id>
         // lọc theo đúng tiệm (business_id) từ phía server — inline luôn vào trang, khỏi cần fetch thêm lần nữa.
         const services = {{ services | tojson }};
+        // Thợ khả dụng của tiệm (nếu có) — Spa: db.staff, Nails: db.employees(linh_vuc='Nails'),
+        // đã chuẩn hoá về {id, name} từ server (xem spa_bp.py::public_booking() /
+        // nail_bp.py::public_booking_nail()) nên form KHÔNG cần biết đang ở ngành nào.
+        const technicians = {{ technicians | default([]) | tojson }};
 
         let globalMenuData = [];
         // business_id của tiệm (spa_id trong QR chính là business_id) — dùng để lọc/gắn đúng tenant, chặn lộ chéo dữ liệu
@@ -318,7 +330,24 @@
             document.getElementById('cus_datetime').min = now.toISOString().slice(0,16);
             
             loadServices();
+            loadTechnicians();
         };
+
+        function loadTechnicians() {
+            // Ô chọn thợ CHỈ hiện khi tiệm thực sự có danh sách thợ trả về — ẩn hẳn (thay vì hiện
+            // dropdown rỗng vô nghĩa) nếu tiệm chưa khai báo thợ nào, hoặc route không truyền
+            // business_id (link demo /booking trần trên landing page).
+            if (!technicians.length) return;
+            const wrap = document.getElementById('staffFieldWrap');
+            const selectEl = document.getElementById('cus_staff');
+            technicians.forEach(tech => {
+                const opt = document.createElement('option');
+                opt.value = tech.id;
+                opt.innerText = tech.name;
+                selectEl.appendChild(opt);
+            });
+            wrap.style.display = '';
+        }
 
         function loadServices() {
             const selectEl = document.getElementById('cus_service');
@@ -327,12 +356,23 @@
 
                 if (data.length > 0) {
                     globalMenuData = data;
-                    let options = '<option value="" disabled selected class="text-gray-500">-- Click to select a service --</option>';
+                    selectEl.innerHTML = '';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = ''; placeholder.disabled = true; placeholder.selected = true;
+                    placeholder.className = 'text-gray-500';
+                    placeholder.innerText = '-- Click to select a service --';
+                    selectEl.appendChild(placeholder);
+                    // dùng createElement/innerText (KHÔNG ghép chuỗi HTML) — dv.name do chính
+                    // tenant tự đặt qua Quản lý Kho, không được tin tưởng render thẳng vào
+                    // innerHTML: 1 tên dịch vụ chứa thẻ HTML/script sẽ chạy được trong trình
+                    // duyệt của MỌI khách ghé trang đặt lịch công khai này.
                     data.forEach(dv => {
                         const price = dv.price ? new Intl.NumberFormat('vi-VN').format(dv.price) + ' ₫' : 'Contact us';
-                        options += `<option value="${dv.id}">${dv.name} (${price})</option>`;
+                        const opt = document.createElement('option');
+                        opt.value = dv.id;
+                        opt.innerText = `${dv.name} (${price})`;
+                        selectEl.appendChild(opt);
                     });
-                    selectEl.innerHTML = options;
                 } else {
                     selectEl.innerHTML = '<option value="" disabled selected>This store has not set up any services yet</option>';
                 }
@@ -360,6 +400,7 @@
             const phone = document.getElementById('cus_phone').value.trim();
             const address = document.getElementById('cus_address').value.trim();
             const serviceId = document.getElementById('cus_service').value;
+            const staffId = document.getElementById('cus_staff').value || null;
             const datetimeInput = document.getElementById('cus_datetime').value;
             const note = document.getElementById('cus_note').value.trim();
 
@@ -387,6 +428,7 @@
                         name: name,
                         phone: phone,
                         service_id: serviceId,
+                        staff_id: staffId,
                         book_time: datetimeInput,
                         note: finalNote
                     })

@@ -109,6 +109,21 @@
             50% { border-color: #06b6d4; box-shadow: 0 0 20px rgba(6,182,212,0.8); }
             100% { border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 0 0 rgba(6,182,212,0); }
         }
+        /* Vé chờ quá lâu (xem URGENT_AFTER_MIN trong phần JS) — đỏ nhấp nháy liên tục để bếp
+           không lỡ 1 vé bị "chìm" giữa nhiều vé khác trên màn hình lớn. */
+        .order-card.urgent {
+            border-color: #ef4444;
+            animation: urgent-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes urgent-pulse {
+            0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.35); }
+            50% { box-shadow: 0 0 26px rgba(239,68,68,0.85); }
+        }
+        .urgent-badge {
+            background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid #ef4444;
+            animation: urgent-badge-blink 1.4s ease-in-out infinite;
+        }
+        @keyframes urgent-badge-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
         .btn-complete {
             background: linear-gradient(135deg, #10b981, #059669);
             border: none;
@@ -250,6 +265,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <button id="soundToggleBtn" type="button" onclick="toggleKitchenSound()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5" title="Bật/tắt âm báo đơn mới">
+                    <i id="soundToggleIcon" class="fas fa-volume-high"></i>
+                </button>
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
                 <div class="bg-emerald-500/20 border border-emerald-500/50 rounded-full px-3 py-1 text-xs font-bold text-emerald-400 flex items-center gap-1">
                     <i class="fas fa-circle text-[6px] animate-pulse"></i> <span data-i18n="kitchen_display_online">Online</span>
@@ -321,6 +339,14 @@
             completed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
         };
 
+        // Vé chờ quá URGENT_AFTER_MIN phút mà vẫn chưa 'completed' -> tự đổi viền đỏ nhấp nháy +
+        // badge "QUÁ HẠN", giúp bếp không lỡ 1 vé bị chìm giữa nhiều vé khác trên màn hình lớn.
+        const URGENT_AFTER_MIN = 10;
+        function minutesWaiting(order) {
+            if (!order.created_at) return 0;
+            return (Date.now() - new Date(order.created_at).getTime()) / 60000;
+        }
+
         function renderOrders() {
             if (!orders.length) {
                 ordersContainer.innerHTML = `<div class="col-span-full text-center text-gray-500 py-20"><i class="fas fa-check-circle text-4xl mb-2 opacity-30"></i><br>${t('kitchen_display_no_orders_waiting')}</div>`;
@@ -328,11 +354,12 @@
             }
             ordersContainer.innerHTML = orders.map(order => {
                 const status = order.status || 'pending';
+                const isUrgent = minutesWaiting(order) >= URGENT_AFTER_MIN;
                 const actionBtn = status === 'cooking'
                     ? `<button class="btn-complete text-sm px-3 py-1.5" onclick="completeOrder(${order.id})"><i class="fas fa-check mr-1"></i> ${t('kitchen_display_btn_complete')}</button>`
                     : `<button class="btn-complete text-sm px-3 py-1.5" onclick="startCooking(${order.id})"><i class="fas fa-fire mr-1"></i> ${t('kitchen_display_btn_start_cooking')}</button>`;
                 return `
-                <div class="order-card p-4 flex flex-col gap-3" data-order-id="${order.id}">
+                <div class="order-card p-4 flex flex-col gap-3${isUrgent ? ' urgent' : ''}" data-order-id="${order.id}">
                     <div class="flex justify-between items-start">
                         <div>
                             <h3 class="font-bold text-white text-lg">${escapeHtml(order.table_name || ('Table ' + order.table_id))}</h3>
@@ -340,6 +367,7 @@
                         </div>
                         <div class="flex flex-col items-end gap-2">
                             <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_BADGE_CLASS[status] || STATUS_BADGE_CLASS.pending}">${t(STATUS_LABEL_KEY[status]) || status}</span>
+                            ${isUrgent ? `<span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full urgent-badge"><i class="fas fa-triangle-exclamation mr-1"></i>${t('kitchen_display_status_urgent')}</span>` : ''}
                             ${actionBtn}
                         </div>
                     </div>
@@ -356,20 +384,73 @@
             }).join('');
         }
 
+        // ===== Âm báo đơn mới (Web Audio API — không cần file .mp3 riêng, không có rủi ro
+        // 404/thiếu asset). AudioContext chỉ được trình duyệt cho phép phát SAU 1 tương tác thật
+        // của người dùng (autoplay policy) — khởi tạo LAZY ở lần click/chạm đầu tiên bất kỳ đâu
+        // trên trang, không phải lúc load trang. =====
+        let audioCtx = null;
+        let soundEnabled = localStorage.getItem('kds_sound_enabled') !== 'off'; // mặc định BẬT
+        function ensureAudioCtx() {
+            if (!audioCtx) {
+                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* trình duyệt không hỗ trợ — bỏ qua, không chặn KDS */ }
+            }
+            return audioCtx;
+        }
+        document.addEventListener('click', ensureAudioCtx, { once: true });
+
+        function playNewOrderChime() {
+            if (!soundEnabled) return;
+            const ctx = ensureAudioCtx();
+            if (!ctx) return;
+            // 2 nốt ngắn tăng dần (như "ting-ting" bếp nhà hàng thật) thay vì 1 tiếng bíp đơn điệu.
+            [880, 1174.66].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const startAt = ctx.currentTime + i * 0.16;
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(0.35, startAt + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.32);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(startAt);
+                osc.stop(startAt + 0.34);
+            });
+        }
+
+        function updateSoundToggleUI() {
+            const icon = document.getElementById('soundToggleIcon');
+            if (icon) icon.className = soundEnabled ? 'fas fa-volume-high' : 'fas fa-volume-xmark text-gray-500';
+        }
+        window.toggleKitchenSound = () => {
+            soundEnabled = !soundEnabled;
+            localStorage.setItem('kds_sound_enabled', soundEnabled ? 'on' : 'off');
+            updateSoundToggleUI();
+            ensureAudioCtx();
+            showToast(soundEnabled ? t('kitchen_display_sound_on') : t('kitchen_display_sound_off'), false);
+        };
+
         let lastOrderIds = new Set();
+        let hasLoadedOnce = false; // chặn beep/toast dội bom cho MỌI đơn có sẵn ngay lúc mở trang lần đầu
         function checkNewOrders(newOrders) {
             const newIds = new Set(newOrders.map(o => o.id));
+            let hasNew = false;
             newOrders.forEach(order => {
                 if (!lastOrderIds.has(order.id)) {
+                    hasNew = true;
                     const card = document.querySelector(`.order-card[data-order-id="${order.id}"]`);
                     if (card) {
                         card.classList.add('new-order');
                         setTimeout(() => card.classList.remove('new-order'), 1500);
-                        showToast(`🆕 ${tf('kitchen_display_toast_new_order', { table: order.table_name || 'Table ' + order.table_id })}`, false);
+                        if (hasLoadedOnce) {
+                            showToast(`🆕 ${tf('kitchen_display_toast_new_order', { table: order.table_name || 'Table ' + order.table_id })}`, false);
+                        }
                     }
                 }
             });
+            if (hasNew && hasLoadedOnce) playNewOrderChime();
             lastOrderIds = newIds;
+            hasLoadedOnce = true;
         }
 
         window.startCooking = async (orderId) => {
@@ -445,6 +526,12 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+        updateSoundToggleUI();
+
+        // Vé "quá hạn" (URGENT_AFTER_MIN) tính theo thời gian TRÔI QUA, không phải theo dữ liệu
+        // mới từ server — phải tự vẽ lại định kỳ để 1 vé đang chờ sẵn TỰ chuyển sang đỏ đúng lúc,
+        // không cần đợi SSE báo có thay đổi (đơn đó có thể không đổi status trong nhiều phút liền).
+        setInterval(renderOrders, 30000);
 
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
@@ -469,6 +556,8 @@
                 kitchen_display_status_pending: 'Chờ xử lý',
                 kitchen_display_status_cooking: 'Đang chế biến',
                 kitchen_display_status_done: 'Hoàn thành',
+                kitchen_display_status_urgent: 'Quá hạn',
+                kitchen_display_sound_on: 'Đã bật âm báo', kitchen_display_sound_off: 'Đã tắt âm báo',
                 kitchen_display_btn_complete: 'Hoàn thành',
                 kitchen_display_btn_start_cooking: 'Bắt đầu nấu',
                 kitchen_display_toast_new_order: 'Đơn hàng mới từ {table}',
@@ -491,6 +580,8 @@
                 kitchen_display_status_pending: 'Pending',
                 kitchen_display_status_cooking: 'Cooking',
                 kitchen_display_status_done: 'Done',
+                kitchen_display_status_urgent: 'Overdue',
+                kitchen_display_sound_on: 'Sound alerts on', kitchen_display_sound_off: 'Sound alerts off',
                 kitchen_display_btn_complete: 'Complete',
                 kitchen_display_btn_start_cooking: 'Start Cooking',
                 kitchen_display_toast_new_order: 'New order from {table}',

@@ -464,6 +464,10 @@
                 <span id="liveClock" class="text-xs text-gray-500 font-mono tracking-widest uppercase mt-0.5"></span>
             </div>
             <div class="flex items-center gap-3">
+                <button type="button" onclick="openBookingQrModal()" class="flex items-center gap-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title transition" title="Cổng đặt lịch online của tiệm">
+                    <i class="fas fa-qrcode"></i>
+                    <span data-i18n="npos_booking_qr_btn">Booking QR</span>
+                </button>
                 <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title shadow-sm shadow-emerald-500/5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span data-i18n="npos_terminal_status">Online</span>
@@ -509,7 +513,7 @@
                 <div id="cartItems" class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5 min-h-[220px] relative z-10">
                     <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
                         <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
-                        <span class="font-medium font-title">${t('npos_empty_cart')}</span>
+                        <span class="font-medium font-title" data-i18n="npos_empty_cart">No services added yet</span>
                     </div>
                 </div>
 
@@ -719,6 +723,23 @@
         </div>
     </div>
 
+    <!-- ================= BOOKING QR MODAL — cổng đặt lịch online công khai của tiệm ================= -->
+    <div id="bookingQrModal" class="modal-overlay">
+        <div class="modal-container">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-qrcode text-pink-400"></i> <span data-i18n="npos_booking_qr_title">Online Booking QR</span></h3>
+            <p class="text-xs text-gray-400 mb-4 leading-relaxed" data-i18n="npos_booking_qr_desc">Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.</p>
+            <div class="bg-white p-4 rounded-2xl inline-block mb-4 shadow-md mx-auto block w-fit">
+                <img id="bookingQrImg" src="" alt="Booking QR" class="w-48 h-48">
+            </div>
+            <p id="bookingQrUrl" class="text-xs text-gray-400 mb-4 break-all px-3 py-2.5 rounded-xl border border-white/5 bg-black/40 font-mono select-all"></p>
+            <div class="flex gap-3">
+                <button onclick="copyBookingQrLink()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider"><i class="fas fa-copy mr-1"></i> <span data-i18n="npos_booking_qr_copy">Copy Link</span></button>
+                <button onclick="printBookingQr()" class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform"><i class="fas fa-print mr-1"></i> <span data-i18n="npos_booking_qr_print">Print</span></button>
+            </div>
+            <button onclick="closeBookingQrModal()" class="w-full mt-3 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-wider py-2" data-i18n="npos_modal_cancel">Cancel</button>
+        </div>
+    </div>
+
     <!-- ================= RETURN / REFUND MODAL ================= -->
     <div id="refundModal" class="modal-overlay">
         <div class="modal-container">
@@ -833,6 +854,8 @@
         const SERVICES = {{ services | tojson }};
         const TECHNICIANS = {{ technicians | tojson }};
         const DEFAULT_COMMISSION_RATE = {{ default_commission_rate | tojson }};
+        const BUSINESS_ID = {{ business_id | tojson }};
+        const BOOKING_QR_URL = `${window.location.origin}/booking/nail/qr/${BUSINESS_ID}`;
 
         // ===== State =====
         let cart = []; // { product_id, name, price, quantity, ma_nv, tech_name, custom? }
@@ -961,6 +984,9 @@
                 npos_square_canceled: 'Square Terminal payment canceled.',
                 npos_square_cancel_too_late: 'Could not cancel — the customer may have already tapped their card. Checking status...',
                 npos_square_cancel_failed: 'Failed to cancel: ',
+                npos_booking_qr_btn: 'Booking QR', npos_booking_qr_title: 'Online Booking QR',
+                npos_booking_qr_desc: 'Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.',
+                npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
             },
             vi: {
                 npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
@@ -990,6 +1016,9 @@
                 npos_toast_refund_ok: 'Refund processed successfully!', npos_toast_refund_fail: 'Refund failed: ',
                 npos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
                 npos_terminal_status: 'Online',
+                npos_booking_qr_btn: 'Booking QR', npos_booking_qr_title: 'Online Booking QR',
+                npos_booking_qr_desc: 'Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.',
+                npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key; }
@@ -1229,6 +1258,37 @@
             document.getElementById('customItemModal').classList.add('active');
         }
         function closeCustomItemModal() { document.getElementById('customItemModal').classList.remove('active'); }
+
+        // ===== Booking QR modal — cổng đặt lịch online công khai (khách quét = tự đặt lịch,
+        // không cần gọi điện) =====
+        function openBookingQrModal() {
+            document.getElementById('bookingQrImg').src =
+                `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(BOOKING_QR_URL)}`;
+            document.getElementById('bookingQrUrl').innerText = BOOKING_QR_URL;
+            document.getElementById('bookingQrModal').classList.add('active');
+        }
+        function closeBookingQrModal() { document.getElementById('bookingQrModal').classList.remove('active'); }
+        function copyBookingQrLink() {
+            navigator.clipboard.writeText(BOOKING_QR_URL);
+            showToast(t('npos_booking_qr_copied'));
+        }
+        function printBookingQr() {
+            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(BOOKING_QR_URL)}`;
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html><head><title>Booking QR</title><style>
+                    body { font-family: sans-serif; text-align: center; padding: 40px; }
+                    img { width: 320px; height: 320px; }
+                    p { font-size: 12px; color: #555; word-break: break-all; margin-top: 16px; }
+                </style></head><body>
+                    <h2>${t('npos_booking_qr_title')}</h2>
+                    <img src="${qrImgUrl}">
+                    <p>${BOOKING_QR_URL}</p>
+                    <script>window.onload = () => window.print();<\/script>
+                </body></html>
+            `);
+            win.document.close();
+        }
         function addCustomItem() {
             const name = document.getElementById('customItemName').value.trim();
             const price = parseFloat(document.getElementById('customItemPrice').value);

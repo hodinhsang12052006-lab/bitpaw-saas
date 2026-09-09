@@ -9,8 +9,17 @@ CÁCH CHẠY:
 Production: chạy dưới supervisor/systemd/pm2 (hoặc cron mỗi 15 phút gọi sync_all_once() 1 lần
 thay vì vòng lặp vô hạn) — đây là 1 script chạy vô hạn (while True), không phải request-response.
 """
+import sys
 import time
 from datetime import datetime
+
+# Ép stdout/stderr UTF-8 khi chạy standalone trên Windows (không qua app.py) — cùng lớp bug với
+# app.py: log tiếng Việt có dấu ném UnicodeEncodeError nếu console/pipe không phải UTF-8, làm
+# process worker chết ngay lúc khởi động thay vì chạy nền vô hạn như thiết kế.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 import ad_platform_tokens
 import facebook_ads_client
@@ -22,18 +31,22 @@ DATE_PRESET = 'yesterday'    # đổi thành 'today' nếu chấp nhận số li
 
 
 def _sync_one_campaign(campaign_doc):
+    """Trả về True nếu campaign này THẬT SỰ được đồng bộ, False nếu bị bỏ qua (chưa kết nối/token
+    hết hạn) — để sync_all_once() đếm đúng số campaign đã đồng bộ, không tính nhầm campaign bị
+    skip là đã đồng bộ (trước đây log "Đã đồng bộ N campaign" luôn == tổng số campaign platform=
+    facebook, kể cả khi toàn bộ bị skip vì chưa ai kết nối Facebook — gây hiểu lầm khi debug)."""
     business_id = campaign_doc['business_id']
     campaign_id = campaign_doc['campaign_id']
 
     token_info = ad_platform_tokens.get_facebook_token(business_id)
     if not token_info:
         print(f"[ads_metrics_worker] Bỏ qua campaign {campaign_id}: tenant {business_id} không còn token Facebook.")
-        return
+        return False
     if token_info.get('status') == 'expired':
         # Đã biết token này hết hạn từ lượt trước — không gọi Facebook lại vô ích mỗi 15 phút,
         # chờ tenant tự kết nối lại (save_facebook_token() sẽ tự reset status='active').
         print(f"[ads_metrics_worker] Bỏ qua campaign {campaign_id}: token Facebook của tenant {business_id} đã hết hạn, chờ kết nối lại.")
-        return
+        return False
 
     try:
         insights = facebook_ads_client.fetch_campaign_insights(
@@ -44,7 +57,7 @@ def _sync_one_campaign(campaign_doc):
         # retry vô ích các lượt sau, (2) UI đọc được để báo "kết nối lại Facebook" cho chủ tiệm.
         ad_platform_tokens.mark_facebook_token_invalid(business_id, str(e))
         print(f"[ads_metrics_worker] Token Facebook hết hạn (business_id={business_id}), đã đánh dấu status='expired': {e}")
-        return
+        return False
     today = datetime.now().strftime('%Y-%m-%d')
 
     # upsert theo (campaign_id, date): chạy worker nhiều lần/ngày chỉ ghi ĐÈ đúng 1 dòng của
@@ -67,6 +80,7 @@ def _sync_one_campaign(campaign_doc):
     )
     print(f"[ads_metrics_worker] Đồng bộ xong campaign {campaign_id}: "
           f"impressions={insights.get('impressions')} clicks={insights.get('clicks')} spend={insights.get('spend')}")
+    return True
 
 
 def sync_all_once():
@@ -75,8 +89,8 @@ def sync_all_once():
     synced = 0
     for c in campaigns:
         try:
-            _sync_one_campaign(c)
-            synced += 1
+            if _sync_one_campaign(c):
+                synced += 1
         except Exception as e:
             print(f"[ads_metrics_worker] Lỗi đồng bộ campaign {c.get('campaign_id')}: {e}")
     return synced

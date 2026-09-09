@@ -80,3 +80,17 @@ services:
     startCommand: python message_delivery_worker.py --loop
     envVarGroups:
       - bitpaw-shared-secrets
+
+  # Trước đây "mồ côi" giống 3 worker trên (code hoàn chỉnh, tự vòng lặp while True mỗi 15 phút
+  # trong chính ads_metrics_worker.py — không cần cờ --loop), nhưng CHƯA từng được khai báo ở
+  # đây lẫn Procfile nên KHÔNG BAO GIỜ chạy trên production: mọi campaign Facebook Ads tạo qua
+  # Ad Assistant sẽ không bao giờ có impressions/clicks/spend đồng bộ về (dashboard báo cáo
+  # quảng cáo mãi trống dù campaign chạy thật trên Facebook).
+  - type: worker
+    name: bitpaw-worker-ads-metrics
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python ads_metrics_worker.py
+    envVarGroups:
+      - bitpaw-shared-secrets

@@ -18,6 +18,14 @@ import time
 import traceback
 from datetime import datetime
 
+# Ép stdout/stderr UTF-8 khi chạy standalone trên Windows (không qua app.py) — cùng lớp bug với
+# app.py: log tiếng Việt có dấu ném UnicodeEncodeError nếu console/pipe không phải UTF-8, làm
+# process worker chết ngay lúc khởi động thay vì chạy nền vô hạn như thiết kế.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import redis
 
 from redis_queue import get_redis_client, ATTENDANCE_STREAM, ATTENDANCE_GROUP
