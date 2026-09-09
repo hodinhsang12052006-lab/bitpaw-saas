@@ -32,13 +32,11 @@
 import os
 import uuid
 from datetime import datetime
-from html import escape as _html_escape
 from flask import render_template, request, redirect, url_for, jsonify, session
 
 from mongo_client import db, next_mongo_id
 from app import app, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get
 from booking_engine import book_appointment, SlotAlreadyBookedError
-from email_service import EmailService
 from werkzeug.utils import secure_filename
 
 
@@ -202,56 +200,10 @@ def create_appointment():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
 
-    _notify_owner_new_appointment(svc, appointment)
+    # Báo email chủ tiệm giờ nằm NGAY TRONG book_appointment() (booking_engine.py) — chạy cho
+    # MỌI nguồn tạo lịch hẹn (QR công khai LẪN AI Bot), không riêng route này nữa. Xem comment
+    # đầu file booking_engine.py để biết lý do dời (bug thật: AI Bot từng không báo được).
     return jsonify({'success': True, 'id': appointment['id']})
-
-
-def _notify_owner_new_appointment(svc, appointment):
-    """Báo NGƯỜI TIỆM (không phải khách — Zalo OA không gửi được cho SĐT lạ chưa từng chat với
-    OA, và hệ thống chưa tích hợp nhà cung cấp SMS nào) ngay khi có booking mới qua QR/link công
-    khai (Spa lẫn Nails, route này dùng chung). Trước đây booking rơi thẳng vào db.appointments,
-    không ai được báo — chủ tiệm chỉ biết khi tự mở lịch lên xem, dễ bỏ sót/trễ xác nhận với
-    khách. Best-effort tuyệt đối: lỗi gửi email KHÔNG BAO GIỜ được làm hỏng response đặt lịch đã
-    thành công của khách — hàm này gọi SAU khi book_appointment() đã insert xong."""
-    try:
-        owner = db.users.find_one(
-            {'business_id': appointment['business_id'], 'role': 'admin'}, {'email': 1, '_id': 0}
-        )
-        owner_email = (owner or {}).get('email')
-        if not owner_email:
-            return
-        try:
-            book_time_display = datetime.fromisoformat(appointment['book_time']).strftime('%H:%M, %d/%m/%Y')
-        except (TypeError, ValueError):
-            book_time_display = appointment['book_time']
-        # Escape TOÀN BỘ dữ liệu khách tự nhập (tên/SĐT/ghi chú) trước khi nhét vào HTML email —
-        # đây là input công khai, không xác thực (route /create_appointment không có session),
-        # thiếu escape thì 1 khách gõ tên/ghi chú chứa thẻ HTML sẽ chèn được HTML tuỳ ý vào email
-        # thật của chủ tiệm (hiển thị sai lệch/giả mạo nội dung khi họ mở email trên client HTML).
-        safe_name = _html_escape(appointment['customer_name'] or '')
-        safe_phone = _html_escape(appointment['customer_phone'] or '')
-        safe_service = _html_escape((svc or {}).get('name') or '')
-        safe_note = _html_escape(appointment.get('note') or '') or '(không có)'
-        body = f"""
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
-                <h2 style="color:#06b6d4;">🔔 Lịch hẹn mới qua cổng đặt lịch online</h2>
-                <table style="width:100%;border-collapse:collapse;font-size:14px;">
-                    <tr><td style="padding:6px 0;color:#666;">Khách hàng</td><td style="padding:6px 0;font-weight:bold;">{safe_name}</td></tr>
-                    <tr><td style="padding:6px 0;color:#666;">Số điện thoại</td><td style="padding:6px 0;font-weight:bold;">{safe_phone}</td></tr>
-                    <tr><td style="padding:6px 0;color:#666;">Dịch vụ</td><td style="padding:6px 0;font-weight:bold;">{safe_service}</td></tr>
-                    <tr><td style="padding:6px 0;color:#666;">Giờ hẹn</td><td style="padding:6px 0;font-weight:bold;color:#06b6d4;">{book_time_display}</td></tr>
-                    <tr><td style="padding:6px 0;color:#666;vertical-align:top;">Ghi chú</td><td style="padding:6px 0;">{safe_note}</td></tr>
-                </table>
-                <p style="color:#999;font-size:12px;margin-top:16px;">Vui lòng gọi lại xác nhận với khách sớm nhất có thể — lịch hẹn đang ở trạng thái "pending" chờ tiệm duyệt trên Lịch (Calendar).</p>
-            </div>
-        """
-        ok, msg = EmailService.send_email(
-            owner_email, f"🔔 Lịch hẹn mới: {safe_name} — {book_time_display}", body
-        )
-        if not ok:
-            print(f"[create_appointment] Gửi email báo lịch hẹn mới thất bại (business_id={appointment['business_id']}): {msg}")
-    except Exception as e:
-        print(f"[create_appointment] Lỗi báo lịch hẹn mới qua email (không ảnh hưởng booking đã tạo): {str(e)}")
 
 
 @app.route('/chamcong/spa')
