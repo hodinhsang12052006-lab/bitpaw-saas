@@ -1,0 +1,551 @@
+<title>BitPaw OS — Video Simulation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #F6F7FA;
+    --surface: #FFFFFF;
+    --surface-2: #EEF0F4;
+    --ink: #12141C;
+    --ink-dim: #5B6472;
+    --border: rgba(18,20,28,.10);
+    --accent: #06B6D4;
+    --accent-ink: #043B45;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B0D14;
+      --surface: #12141F;
+      --surface-2: #191C29;
+      --ink: #E9EBF2;
+      --ink-dim: #8B93A6;
+      --border: rgba(233,235,242,.10);
+      --accent: #22D3EE;
+      --accent-ink: #04222A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B0D14; --surface: #12141F; --surface-2: #191C29;
+    --ink: #E9EBF2; --ink-dim: #8B93A6; --border: rgba(233,235,242,.10);
+    --accent: #22D3EE; --accent-ink: #04222A;
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F7FA; --surface: #FFFFFF; --surface-2: #EEF0F4;
+    --ink: #12141C; --ink-dim: #5B6472; --border: rgba(18,20,28,.10);
+    --accent: #06B6D4; --accent-ink: #043B45;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "SF Pro Text", Roboto, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 64px;
+    gap: 22px;
+  }
+
+  .intro { max-width: 460px; text-align: center; }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .intro h1 {
+    font-size: 22px;
+    line-height: 1.25;
+    margin: 8px 0 6px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .intro p { color: var(--ink-dim); font-size: 14px; line-height: 1.55; margin: 0; }
+
+  /* ---- Phone bezel ---- */
+  .bezel {
+    width: min(340px, 82vw);
+    aspect-ratio: 9 / 19.5;
+    background: #05060B;
+    border-radius: 40px;
+    padding: 12px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.04) inset;
+    position: relative;
+  }
+  .bezel::before {
+    content: "";
+    position: absolute;
+    top: 22px; left: 50%; transform: translateX(-50%);
+    width: 70px; height: 6px; border-radius: 4px;
+    background: rgba(255,255,255,.16);
+    z-index: 5;
+  }
+
+  /* ---- Stage: the "video" itself — intentionally theme-locked, this IS the
+     recorded content, not page chrome, so it must not shift with the viewer's
+     light/dark toggle (same reason a video embed doesn't repaint on dark mode). ---- */
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    background: #08061A;
+    color: #F5F7FA;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .progress-track {
+    position: absolute; top: 10px; left: 10px; right: 10px; height: 3px;
+    background: rgba(255,255,255,.14); border-radius: 3px; z-index: 20;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; background: #22D3EE; border-radius: 3px;
+  }
+  .stage.playing .progress-fill { animation: barGrow 32s linear; }
+
+  .timer {
+    position: absolute; top: 17px; right: 12px; z-index: 20;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 10px; letter-spacing: .04em; color: rgba(255,255,255,.55);
+  }
+
+  .scene {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 34px 26px 26px;
+    text-align: center;
+    opacity: 0;
+    gap: 14px;
+  }
+  .stage.playing .s1 { animation: sceneFade 3.3s ease both 0s; }
+  .stage.playing .s2 { animation: sceneFade 3.5s ease both 3.1s; }
+  .stage.playing .s3a { animation: sceneFade 2.3s ease both 6.5s; }
+  .stage.playing .s3b { animation: sceneFade 2.3s ease both 8.6s; }
+  .stage.playing .s3c { animation: sceneFade 2.4s ease both 10.7s; }
+  .stage.playing .s4 { animation: sceneFade 4.6s ease both 12.9s; }
+  .stage.playing .s5 { animation: sceneFade 4.6s ease both 17.3s; }
+  .stage.playing .s6 { animation: sceneFade 3.4s ease both 21.7s; }
+  .stage.playing .s6b { animation: sceneFade 3.4s ease both 24.9s; }
+  .stage.playing .s7 { animation: sceneFadeHold 3.9s ease both 28.1s; }
+
+  @keyframes sceneFade {
+    0% { opacity: 0; transform: translateY(8px); }
+    9% { opacity: 1; transform: translateY(0); }
+    88% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+  @keyframes sceneFadeHold {
+    0% { opacity: 0; transform: translateY(8px); }
+    12% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes barGrow { from { width: 0%; } to { width: 100%; } }
+
+  /* ---------- Scene 1: chaos ---------- */
+  .chip-field { position: relative; width: 100%; height: 84px; margin-bottom: 4px; }
+  .chip {
+    position: absolute;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 10px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(251,113,133,.14);
+    border: 1px solid rgba(251,113,133,.4);
+    color: #FECDD3;
+    white-space: nowrap;
+  }
+  .stage.playing .chip { animation: jitter 1.6s ease-in-out infinite; }
+  .chip1 { top: 0; left: 6%; animation-delay: 0s !important; }
+  .chip2 { top: 14px; right: 4%; animation-delay: .3s !important; }
+  .chip3 { bottom: 18px; left: 14%; animation-delay: .6s !important; }
+  .chip4 { bottom: 0; right: 12%; animation-delay: .9s !important; }
+  @keyframes jitter {
+    0%, 100% { transform: rotate(-2deg) translateY(0); }
+    50% { transform: rotate(2deg) translateY(-3px); }
+  }
+  .s1 h2 { font-size: 17px; line-height: 1.4; font-weight: 600; margin: 0; text-wrap: balance; }
+  .s1 .sub { font-size: 12px; color: rgba(255,255,255,.5); }
+
+  /* ---------- Scene 2: logo reveal ---------- */
+  .sweep {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(34,211,238,.22) 48%, transparent 65%);
+    transform: translateX(-120%);
+  }
+  .stage.playing .s2 .sweep { animation: sweepMove 1.4s ease-out .1s both; }
+  @keyframes sweepMove { to { transform: translateX(20%); } }
+  .lockup { display: flex; align-items: center; gap: 8px; position: relative; z-index: 2; }
+  .paw-icon { flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(34,211,238,.5)); }
+  .wordmark {
+    font-size: 34px; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #FFFFFF, #B3E9F5);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tagline {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: #22D3EE; position: relative; z-index: 2;
+  }
+
+  /* ---------- Scene 3: feature cards ---------- */
+  .card {
+    width: 100%; max-width: 240px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    padding: 16px 18px;
+    text-align: left;
+  }
+  .card .k { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #22D3EE; }
+  .card .line { display: flex; justify-content: space-between; font-size: 12.5px; color: rgba(255,255,255,.72); margin-top: 8px; }
+  .card .total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,.15); }
+  .badge-ok { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11.5px; color: #7DEBC4; }
+  .badge-ok .dot { width: 6px; height: 6px; border-radius: 50%; background: #34D399; box-shadow: 0 0 8px #34D399; }
+
+  .bars { display: flex; align-items: flex-end; gap: 8px; height: 64px; margin: 6px 0 4px; }
+  .bar { width: 14px; background: linear-gradient(180deg, #22D3EE, #0891B2); border-radius: 4px 4px 0 0; transform-origin: bottom; }
+  .stage.playing .s3c .bar { animation: growBar 1s ease-out both; }
+  .b1 { height: 30%; animation-delay: .05s !important; }
+  .b2 { height: 55%; animation-delay: .15s !important; }
+  .b3 { height: 40%; animation-delay: .25s !important; }
+  .b4 { height: 78%; animation-delay: .35s !important; }
+  .b5 { height: 100%; animation-delay: .45s !important; }
+  @keyframes growBar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  .revenue-num { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .revenue-delta { font-size: 11.5px; color: #7DEBC4; }
+
+  /* ---------- Scene 4: AI chat ---------- */
+  .chatwrap { width: 100%; max-width: 250px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .bubble { padding: 9px 13px; border-radius: 14px; font-size: 12.5px; line-height: 1.4; max-width: 88%; text-align: left; }
+  .bubble.user { align-self: flex-end; background: rgba(255,255,255,.10); border-bottom-right-radius: 4px; }
+  .bubble.ai { background: rgba(34,211,238,.16); border: 1px solid rgba(34,211,238,.35); border-bottom-left-radius: 4px; opacity: 0; }
+  .stage.playing .bubble.ai { animation: popIn .4s ease 1.6s both; }
+  @keyframes popIn { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .dots { display: inline-flex; gap: 3px; align-self: flex-start; background: rgba(255,255,255,.10); padding: 9px 12px; border-radius: 14px; border-bottom-left-radius: 4px; opacity: 0; }
+  .stage.playing .dots { animation: popIn .3s ease .9s both, fadeOutQuick .3s ease 1.6s both; }
+  @keyframes fadeOutQuick { to { opacity: 0; } }
+  .dots span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.6); animation: bounce 1s infinite ease-in-out; }
+  .dots span:nth-child(2) { animation-delay: .15s; }
+  .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
+  .s4 .badge-ok { opacity: 0; }
+  .stage.playing .s4 .badge-ok { animation: popIn .35s ease 2.6s both; }
+
+  /* ---------- Scene 5: multi-industry ---------- */
+  .industries { display: flex; gap: 14px; width: 100%; justify-content: center; }
+  .ind { flex: 1; max-width: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0; }
+  .stage.playing .ind1 { animation: popIn .45s ease .2s both; }
+  .stage.playing .ind2 { animation: popIn .45s ease .5s both; }
+  .stage.playing .ind3 { animation: popIn .45s ease .8s both; }
+  .ind-icon { width: 48px; height: 48px; border-radius: 14px; background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.3); display: flex; align-items: center; justify-content: center; }
+  .ind span.label { font-size: 11px; color: rgba(255,255,255,.75); }
+  .baseline { width: 84%; height: 1px; background: linear-gradient(90deg, transparent, rgba(34,211,238,.5), transparent); margin-top: 6px; }
+
+  /* ---------- Scene 6: mobile ---------- */
+  .mini-phone {
+    width: 108px; height: 200px; border-radius: 20px;
+    border: 2.5px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.03);
+    padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    transform: rotateY(35deg) rotateX(2deg);
+    transform-style: preserve-3d;
+    opacity: 0;
+  }
+  .stage.playing .mini-phone { animation: phoneIn .8s cubic-bezier(.2,.8,.3,1) .15s both; }
+  @keyframes phoneIn { from { opacity: 0; transform: rotateY(70deg) translateX(20px); } to { opacity: 1; transform: rotateY(20deg) translateX(0); } }
+  .lock { width: 26px; height: 26px; border-radius: 50%; background: rgba(34,211,238,.18); border: 1px solid rgba(34,211,238,.5); display: flex; align-items: center; justify-content: center; margin-top: 10px; }
+  .field { width: 100%; height: 9px; border-radius: 5px; background: rgba(255,255,255,.08); }
+  .btn-mini { width: 100%; height: 16px; border-radius: 6px; background: #22D3EE; margin-top: 4px; }
+
+  /* ---------- Scene 6b: ecosystem + mascot review ---------- */
+  .eco-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 240px; opacity: 0; }
+  .stage.playing .eco-row { animation: popIn .4s ease .1s both; }
+  .eco-chip {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 10px; padding: 6px 9px; border-radius: 8px;
+    background: rgba(34,211,238,.10); border: 1px solid rgba(34,211,238,.3);
+    color: #B3E9F5; white-space: nowrap;
+  }
+  .mascot-wrap { position: relative; display: flex; flex-direction: column; align-items: center; margin-top: 6px; opacity: 0; }
+  .stage.playing .mascot-wrap { animation: mascotIn .6s cubic-bezier(.3,1.4,.4,1) .9s both; }
+  @keyframes mascotIn {
+    0% { opacity: 0; transform: translateY(14px) scale(.85); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .speech {
+    position: absolute; top: -34px; right: -18px;
+    background: #F5F7FA; color: #08061A;
+    font-size: 11px; font-weight: 700;
+    padding: 6px 11px; border-radius: 12px; border-bottom-right-radius: 3px;
+    white-space: nowrap; opacity: 0;
+  }
+  .stage.playing .speech { animation: popIn .35s ease 1.7s both; }
+  .stamp {
+    position: absolute; bottom: -6px; left: -22px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #34D399; display: flex; align-items: center; justify-content: center;
+    color: #052E1E; font-size: 16px; font-weight: 800;
+    box-shadow: 0 0 0 3px #08061A;
+    opacity: 0; transform: rotate(-18deg) scale(.5);
+  }
+  .stage.playing .stamp { animation: stampIn .35s cubic-bezier(.3,1.6,.4,1) 2.1s both; }
+  @keyframes stampIn { to { opacity: 1; transform: rotate(-12deg) scale(1); } }
+  .eco-caption { font-size: 12px; color: rgba(255,255,255,.7); max-width: 230px; }
+
+  /* ---------- Scene 7: CTA ---------- */
+  .cta-btn {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px; font-weight: 600; letter-spacing: .02em;
+    color: #04222A; background: #22D3EE;
+    padding: 10px 20px; border-radius: 999px;
+    box-shadow: 0 0 0 0 rgba(34,211,238,.5);
+  }
+  .stage.playing .s7 .cta-btn { animation: pulseGlow 1.8s ease-in-out .6s infinite; }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,.35); }
+    50% { box-shadow: 0 0 0 10px rgba(34,211,238,0); }
+  }
+  .url { font-size: 11px; color: rgba(255,255,255,.5); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage.playing .scene, .stage.playing .chip, .stage.playing .bar,
+    .stage.playing .bubble.ai, .stage.playing .dots, .stage.playing .ind1,
+    .stage.playing .ind2, .stage.playing .ind3, .stage.playing .mini-phone,
+    .stage.playing .s7 .cta-btn, .stage.playing .progress-fill, .stage.playing .s2 .sweep,
+    .stage.playing .eco-row, .stage.playing .mascot-wrap, .stage.playing .speech, .stage.playing .stamp {
+      animation: none !important;
+    }
+    .s7 { opacity: 1 !important; position: static !important; }
+    .s1, .s2, .s3a, .s3b, .s3c, .s4, .s5, .s6, .s6b { display: none !important; }
+  }
+
+  /* ---- controls / footer ---- */
+  .controls { display: flex; align-items: center; gap: 10px; }
+  .replay-btn {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 9px 18px; cursor: pointer;
+  }
+  .replay-btn:hover { border-color: var(--accent); }
+  .replay-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .howto {
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .howto .k { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .howto ol { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-dim); line-height: 1.7; }
+  .howto strong { color: var(--ink); }
+</style>
+
+<div class="intro">
+  <div class="eyebrow">Video simulation · 32s</div>
+  <h1>BitPaw OS — bản mô phỏng video quảng cáo</h1>
+  <p>Trang này tự chạy đúng 32 giây theo kịch bản đã lên. Quay lại màn hình (screen record) trong lúc phát để có file video thật.</p>
+</div>
+
+<div class="bezel">
+  <div class="stage playing" id="stage">
+    <div class="progress-track"><div class="progress-fill"></div></div>
+    <div class="timer" id="timer">00:00 / 00:32</div>
+
+    <div class="scene s1">
+      <div class="chip-field">
+        <div class="chip chip1">📋 Sổ chấm công</div>
+        <div class="chip chip2">💬 Zalo</div>
+        <div class="chip chip3">📊 Excel</div>
+        <div class="chip chip4">💵 App tính tiền</div>
+      </div>
+      <h2>Quản lý tiệm mà mỗi thứ&nbsp;1 phần mềm?</h2>
+      <div class="sub">Mệt chưa nè...</div>
+    </div>
+
+    <div class="scene s2">
+      <div class="sweep"></div>
+      <div class="lockup">
+        <svg class="paw-icon" width="30" height="30" viewBox="0 0 24 24" fill="#22D3EE">
+          <ellipse cx="12" cy="16.2" rx="6.1" ry="5"/>
+          <circle cx="4.8" cy="9" r="2.6"/>
+          <circle cx="10.4" cy="5.8" r="2.6"/>
+          <circle cx="15.6" cy="5.8" r="2.6"/>
+          <circle cx="19.2" cy="9" r="2.6"/>
+        </svg>
+        <div class="wordmark">BitPaw OS</div>
+      </div>
+      <div class="tagline">1 hệ thống · Mọi ngành</div>
+    </div>
+
+    <div class="scene s3a">
+      <div class="card">
+        <div class="k">POS · Đơn #482</div>
+        <div class="line"><span>Gel Manicure</span><span>350.000đ</span></div>
+        <div class="line"><span>Đắp bột</span><span>250.000đ</span></div>
+        <div class="total"><span>Tổng</span><span>600.000đ</span></div>
+        <div class="badge-ok"><span class="dot"></span>Thanh toán thành công</div>
+      </div>
+    </div>
+
+    <div class="scene s3b">
+      <div class="card">
+        <div class="k">Chấm công · GPS</div>
+        <div class="line"><span>Nhân viên</span><span>Ngọc — NV003</span></div>
+        <div class="line"><span>Vị trí</span><span>Trong 50m ✓</span></div>
+        <div class="total"><span>Check-in</span><span>08:02</span></div>
+        <div class="badge-ok"><span class="dot"></span>Đã xác minh vị trí</div>
+      </div>
+    </div>
+
+    <div class="scene s3c">
+      <div class="card">
+        <div class="k">Doanh thu hôm nay</div>
+        <div class="bars">
+          <div class="bar b1"></div><div class="bar b2"></div><div class="bar b3"></div><div class="bar b4"></div><div class="bar b5"></div>
+        </div>
+        <div class="revenue-num">18.420.000đ</div>
+        <div class="revenue-delta">▲ 18% so với hôm qua</div>
+      </div>
+    </div>
+
+    <div class="scene s4">
+      <div class="chatwrap">
+        <div class="bubble user">Còn slot 3h chiều không ạ?</div>
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="bubble ai">Dạ còn ạ! Em đặt lịch giúp mình luôn nhé 💅</div>
+      </div>
+      <div class="badge-ok"><span class="dot"></span>Đã lên đơn tự động</div>
+    </div>
+
+    <div class="scene s5">
+      <h2 style="font-size:14px;margin-bottom:2px;">Ngành nào cũng chạy được</h2>
+      <div class="industries">
+        <div class="ind ind1">
+          <div class="ind-icon">🍜</div><span class="label">F&amp;B</span>
+        </div>
+        <div class="ind ind2">
+          <div class="ind-icon">💅</div><span class="label">Nail &amp; Spa</span>
+        </div>
+        <div class="ind ind3">
+          <div class="ind-icon">🛍️</div><span class="label">Bán lẻ</span>
+        </div>
+      </div>
+      <div class="baseline"></div>
+    </div>
+
+    <div class="scene s6">
+      <div class="mini-phone">
+        <div class="lock">🔒</div>
+        <div class="field"></div>
+        <div class="field"></div>
+        <div class="btn-mini"></div>
+      </div>
+      <div class="sub" style="font-size:12px;">Giờ đã có trên điện thoại</div>
+    </div>
+
+    <div class="scene s6b">
+      <div class="eco-row">
+        <div class="eco-chip">💳 POS</div>
+        <div class="eco-chip">📍 Chấm công</div>
+        <div class="eco-chip">📊 Báo cáo</div>
+        <div class="eco-chip">🤖 AI Chat</div>
+      </div>
+      <div class="mascot-wrap">
+        <div class="speech">Xịn ghê! 🐾</div>
+        <svg width="76" height="76" viewBox="0 0 72 72" fill="none">
+          <ellipse cx="16" cy="18" rx="10" ry="14" fill="#0E7490" transform="rotate(-25 16 18)"/>
+          <ellipse cx="56" cy="18" rx="10" ry="14" fill="#0E7490" transform="rotate(25 56 18)"/>
+          <circle cx="36" cy="34" r="22" fill="#164E63"/>
+          <ellipse cx="36" cy="44" rx="13" ry="10" fill="#1E293B"/>
+          <circle cx="27" cy="30" r="3.2" fill="#F5F7FA"/>
+          <circle cx="45" cy="30" r="3.2" fill="#F5F7FA"/>
+          <circle cx="27.8" cy="30" r="1.6" fill="#0B0D14"/>
+          <circle cx="45.8" cy="30" r="1.6" fill="#0B0D14"/>
+          <ellipse cx="36" cy="42" rx="3.4" ry="2.4" fill="#22D3EE"/>
+          <path d="M30 48 Q36 52 42 48" stroke="#22D3EE" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <g transform="translate(54,42)">
+            <ellipse cx="0" cy="6" rx="7" ry="6" fill="#22D3EE"/>
+            <circle cx="-5" cy="-1" r="2.4" fill="#22D3EE"/>
+            <circle cx="0" cy="-3" r="2.4" fill="#22D3EE"/>
+            <circle cx="5" cy="-1" r="2.4" fill="#22D3EE"/>
+          </g>
+        </svg>
+        <div class="stamp">✓</div>
+      </div>
+      <div class="eco-caption">Cả hệ sinh thái, BitPaw lo hết</div>
+    </div>
+
+    <div class="scene s7">
+      <div class="lockup">
+        <svg class="paw-icon" width="24" height="24" viewBox="0 0 24 24" fill="#22D3EE">
+          <ellipse cx="12" cy="16.2" rx="6.1" ry="5"/>
+          <circle cx="4.8" cy="9" r="2.6"/>
+          <circle cx="10.4" cy="5.8" r="2.6"/>
+          <circle cx="15.6" cy="5.8" r="2.6"/>
+          <circle cx="19.2" cy="9" r="2.6"/>
+        </svg>
+        <div class="wordmark" style="font-size:26px;">BitPaw OS</div>
+      </div>
+      <div class="sub" style="font-size:13px;">Vận hành thông minh hơn.</div>
+      <div class="cta-btn">Dùng thử miễn phí →</div>
+      <div class="url">bitpawsoftware.com</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="replay-btn" id="replayBtn">↻ Phát lại</button>
+</div>
+
+<div class="howto">
+  <div class="k">Cách quay thành video thật</div>
+  <ol>
+    <li>Bấm <strong>Phát lại</strong> để reset về giây 0.</li>
+    <li>Bật <strong>screen record</strong> (điện thoại: vuốt xuống → Ghi màn hình; máy tính: QuickTime/OBS) khung hình vừa cái điện thoại này.</li>
+    <li>Bấm Phát lại lần nữa ngay lúc bắt đầu ghi, để đủ trọn 32 giây.</li>
+    <li>Xuất file, crop lại đúng khung điện thoại là có video 9:16 để đăng.</li>
+  </ol>
+</div>
+
+<script>
+  var stage = document.getElementById('stage');
+  var timerEl = document.getElementById('timer');
+  var replayBtn = document.getElementById('replayBtn');
+  var tickHandle = null;
+  var startedAt = Date.now();
+
+  var TOTAL = 32;
+
+  function tick() {
+    var elapsed = (Date.now() - startedAt) / 1000;
+    var clamped = Math.min(TOTAL, Math.max(0, elapsed));
+    var secs = Math.floor(clamped);
+    timerEl.textContent = '00:' + String(secs).padStart(2, '0') + ' / 00:' + TOTAL;
+    if (clamped >= TOTAL && tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+  }
+
+  function play() {
+    stage.classList.remove('playing');
+    void stage.offsetWidth;
+    stage.classList.add('playing');
+    startedAt = Date.now();
+    if (tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(tick, 200);
+    tick();
+  }
+
+  replayBtn.addEventListener('click', play);
+  tickHandle = setInterval(tick, 200);
+</script>
