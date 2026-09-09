@@ -66,7 +66,7 @@ import nurture_channel_tokens
 from cryptography.fernet import Fernet
 from gridfs import GridFS
 from flask_limiter import Limiter
-from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
+from werkzeug.exceptions import RequestEntityTooLarge, BadRequest, HTTPException
 from gridfs.errors import NoFile
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -469,6 +469,37 @@ def _bad_request(e):
     if request.path.startswith('/api/'):
         return jsonify({"success": False, "message": "Dữ liệu gửi lên không hợp lệ (malformed request)."}), 400
     return e
+
+
+@app.errorhandler(Exception)
+def _unhandled_exception(e):
+    """Lưới an toàn CUỐI CÙNG cho MỌI exception không route nào tự bắt — phát hiện thật lúc audit
+    (giả lập session thật qua test_client(), gọi lần lượt ~157 route: đa số /api/* đã tự
+    try/except quanh db.<collection>.find(...) và trả JSON 500 gọn gàng, NHƯNG 1 nhóm nhỏ (SSE
+    /api/stream/kitchen, /api/stream/hr_employees, /api/stream/inventory, /api/stream/job_market,
+    /api/ai/nurture/rules, /api/bot/messages) gọi thẳng db.<collection>.find(...)/watch(...)
+    KHÔNG bọc try/except nào cả). Nếu MongoDB chưa kết nối lúc app khởi động (mongo_client.py:
+    db=None — hoàn toàn có thể xảy ra trên Vercel serverless, mỗi cold start tự kết nối lại Atlas,
+    và cụm free-tier M0 tự "pause" sau thời gian không ai dùng), các route đó ném AttributeError
+    không ai bắt -> trước khi có handler này, Flask trả nguyên trang lỗi 500 HTML mặc định cho 1
+    request đang chờ JSON, khiến fetch() phía client vỡ kép (lỗi gốc + lỗi parse "Unexpected
+    token '<'" khi cố .json() 1 trang HTML). Handler chung ở đây là lưới an toàn cho CẢ nhóm nhỏ
+    này LẪN bất kỳ route tương lai nào lỡ quên try/except — không đổi hành vi bất kỳ route nào
+    đang chạy đúng (kể cả các route đã tự xử lý lỗi và trả 500 riêng — handler này không được
+    gọi tới trong trường hợp đó vì exception đã bị chính route đó bắt trước rồi).
+
+    KHÔNG được nuốt HTTPException hợp lệ (404/403/429 do abort()/route khác chủ động raise) — những
+    cái đó đã đúng ý đồ, chỉ raise lại nguyên vẹn. Chỉ trả JSON gọn cho /api/*, các route HTML
+    khác giữ NGUYÊN hành vi cũ (raise lại) để không đổi trải nghiệm trang thường ngoài ý muốn."""
+    if isinstance(e, HTTPException):
+        return e
+    print(f"[unhandled_exception] {request.method} {request.path}: {type(e).__name__}: {e}")
+    if request.path.startswith('/api/'):
+        return jsonify({
+            "success": False,
+            "message": "Lỗi hệ thống tạm thời (có thể do gián đoạn kết nối cơ sở dữ liệu) — vui lòng thử lại sau ít phút."
+        }), 503
+    raise e
 
 # Mã hoá thông tin đăng nhập sàn TMĐT (ecommerce_sync.html) tại nghỉ — KHÔNG BAO GIỜ lưu
 # plaintext (bản Supabase cũ gửi thẳng api_key/api_secret dạng chữ thường lên Supabase, không
