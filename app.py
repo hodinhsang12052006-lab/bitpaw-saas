@@ -4861,6 +4861,22 @@ def restore_backup():
             return jsonify({'success': False, 'error': 'Backup file không thuộc tenant hiện tại.'}), 403
 
         # Khôi phục theo thứ tự bảng: xóa dữ liệu cũ CỦA ĐÚNG business_id này, rồi insert lại từ backup
+        # Ghi audit_logs TRƯỚC KHI xoá (không phải sau) — nếu insert_many phía dưới lỗi giữa
+        # chừng, vẫn có vết "đã restore file X lúc nào, xoá bao nhiêu dòng mỗi bảng" để tra soát,
+        # thay vì mất dấu hoàn toàn (trước bản vá này route restore KHÔNG hề ghi audit log nào —
+        # 1 tenant tự restore nhầm backup cũ/rỗng đè mất dữ liệu thật sẽ không có cách nào tra lại
+        # được chuyện gì đã xảy ra, xem thêm route mới /audit_log).
+        restore_summary = {}
+        for table in BACKUP_TABLES:
+            rows = data.get(table)
+            if rows is None:
+                continue
+            existing_count = db[table].count_documents({'business_id': business_id})
+            restore_summary[table] = {'existing_before': existing_count, 'restored_count': len(rows)}
+        _log_audit(
+            business_id, 'restore_backup', entity_type='backup', entity_id=filename,
+            old_value={'row_counts_before': restore_summary}, new_value={'filename': filename},
+        )
         for table in BACKUP_TABLES:
             rows = data.get(table)
             if rows is None:
@@ -7503,6 +7519,42 @@ def quanly_dichvu():
 @login_required
 def quanly_kho():
     return render_template('quanly_kho.html')
+
+
+@app.route('/audit_log')
+@login_required
+@role_required('admin', 'super_admin')
+def audit_log_view():
+    """Xem lại nhật ký thao tác nhạy cảm (_log_audit) — BUG THẬT đã vá: db.audit_logs từ trước
+    tới nay CHỈ ĐƯỢC GHI, chưa từng có route/trang nào đọc lại được, nên khi 1 tenant hỏi "ai xoá
+    sản phẩm của tôi / lúc nào" thì không ai (kể cả đội vận hành) tra được — phải đoán mò. Route
+    này là nơi ĐỌC đầu tiên của collection đó. Lưu ý phạm vi ghi log hiện tại còn hẹp (mới có
+    update_price/delete_product/cancel_order/restore_backup) — thao tác không nằm trong danh sách
+    này sẽ KHÔNG có vết ở đây, không phải bằng chứng "không có gì xảy ra"."""
+    business_id = session.get('business_id') or session['user_id']
+    entity_type_filter = (request.args.get('entity_type') or '').strip()
+    query = {'business_id': business_id}
+    if entity_type_filter:
+        query['entity_type'] = entity_type_filter
+    try:
+        logs = list(db.audit_logs.find(query, {'_id': 0}).sort('created_at', -1).limit(300))
+    except Exception as e:
+        print(f"[audit_log_view] Lỗi tra cứu audit_logs: {e}")
+        logs = []
+
+    user_ids = list({log.get('user_id') for log in logs if log.get('user_id')})
+    user_emails = {}
+    if user_ids:
+        try:
+            for u in db.users.find({'id': {'$in': user_ids}}, {'id': 1, 'email': 1, '_id': 0}):
+                user_emails[u['id']] = u.get('email')
+        except Exception as e:
+            print(f"[audit_log_view] Lỗi tra cứu email người thao tác: {e}")
+
+    for log in logs:
+        log['user_email'] = user_emails.get(log.get('user_id')) or log.get('user_id') or 'Không rõ'
+
+    return render_template('audit_log.html', logs=logs, entity_type_filter=entity_type_filter)
 
 @app.route('/quanly_thuchi')
 @login_required
