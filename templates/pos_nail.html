@@ -472,7 +472,7 @@
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span data-i18n="npos_terminal_status">Online</span>
                 </div>
-                <button id="pageLangToggleBtn" type="button" class="hidden"></button>
+                <button id="pageLangToggleBtn" type="button" onclick="toggleLang()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition">EN</button>
             </div>
         </div>
 
@@ -934,9 +934,16 @@
             return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
         }
 
-        // ===== i18n — this screen is locked to English regardless of the business's
-        // configured language or any stored preference. =====
-        let currentLang = 'en';
+        // ===== i18n — BUG THẬT đã vá (khách báo trực tiếp): màn hình này trước đây bị khoá cứng
+        // tiếng Anh (currentLang = 'en' hardcode), nút chuyển ngôn ngữ bị ẩn (class="hidden") và
+        // KHÔNG hề có sự kiện click nào gắn vào nó — với 1 tiệm Nail Việt Nam/nhân viên nói tiếng
+        // Việt, đây là màn hình thao tác NHIỀU NHẤT trong cả app (mọi giao dịch đều qua đây), bị
+        // khoá tiếng Anh gây khó dùng nghiêm trọng. Tệ hơn: khối dịch "vi" cũ thực chất là
+        // NGUYÊN VĂN TIẾNG ANH copy dán — bấm sang "VI" (nếu mở khoá) cũng không đổi được gì. Đã
+        // dịch lại toàn bộ khối vi bên dưới + đọc đúng lựa chọn ngôn ngữ đã lưu (giống mọi màn
+        // hình khác trong app: pos.html, kitchen_display.html, ad_assistant.html...), không còn
+        // hardcode tiếng Anh nữa.
+        let currentLang = localStorage.getItem('bitpaw_lang') || 'en';
         const translations = {
             en: {
                 npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
@@ -989,36 +996,54 @@
                 npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
             },
             vi: {
-                npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
-                npos_header_title: 'Nail Salon POS', npos_header_subtitle: 'Tap a service to add it to the ticket',
-                npos_no_services: 'No services yet. Add products under Nails category first.',
-                npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)',
-                npos_empty_cart: 'No services added yet', npos_supply_label: 'Supply %', npos_tax_pct_label: 'Tax %', npos_cashtip_label: 'Cash Tip',
-                npos_cardtip_label: 'Card Tip', npos_subtotal_label: 'Subtotal', npos_discount_row_label: 'Discount', npos_tax_label: 'Tax', npos_tip_label: 'Tips', npos_total_label: 'Final Total',
-                npos_checkout_btn: 'Pay Now', npos_payment_title: 'Take Payment', npos_pay_cash: 'Cash', npos_pay_card: 'Card',
-                npos_pay_split: 'Split', npos_split_cash_label: 'Cash Amount', npos_split_card_label: 'Card Amount',
-                npos_split_mismatch: 'Cash + Card must equal the total due.', npos_modal_subtotal: 'Subtotal', npos_modal_discount: 'Discount', npos_modal_tax: 'Tax', npos_modal_tip: 'Tips',
-                npos_modal_total: 'Final Total', npos_modal_cancel: 'Cancel', npos_modal_confirm: 'Confirm Payment',
-                npos_receipt_title: 'Payment Complete', npos_receipt_new_ticket: 'Start New Ticket',
-                npos_cat_all: 'All', npos_remove: 'Remove', npos_assign_tech: 'Assign technician…', npos_toast_added: 'added to ticket',
-                npos_toast_checkout_ok: 'Payment recorded successfully!', npos_toast_checkout_fail: 'Checkout failed: ',
-                npos_commission_word: 'commission', npos_tip_word: 'tip',
-                npos_custom_item_btn: 'Add Item', npos_discount_btn: 'Discount', npos_clear_btn: 'Clear', npos_refund_btn: 'Return',
-                npos_custom_item_title: 'Add Custom Item', npos_custom_name_label: 'Item Name', npos_custom_price_label: 'Price (AUD)',
-                npos_custom_qty_label: 'Quantity', npos_custom_add_btn: 'Add to Ticket', npos_toast_custom_missing: 'Enter an item name and a valid price.',
-                npos_discount_title: 'Apply Discount', npos_discount_type_percent: 'Percent', npos_discount_type_fixed: 'Fixed $',
-                npos_discount_value_percent_label: 'Discount %', npos_discount_value_fixed_label: 'Discount Amount ($)',
-                npos_discount_preview_prefix: 'Discount amount: ', npos_discount_apply: 'Apply',
-                npos_toast_discount_applied: 'Discount applied', npos_toast_discount_removed: 'Discount removed',
-                npos_confirm_clear: 'Clear the entire ticket? This cannot be undone.', npos_toast_cleared: 'Ticket cleared',
-                npos_refund_title: 'Return / Refund', npos_refund_order_label: 'Order #', npos_refund_amount_label: 'Refund Amount',
-                npos_refund_reason_label: 'Reason (optional)', npos_refund_submit: 'Process Refund',
-                npos_toast_refund_ok: 'Refund processed successfully!', npos_toast_refund_fail: 'Refund failed: ',
-                npos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
-                npos_terminal_status: 'Online',
-                npos_booking_qr_btn: 'Booking QR', npos_booking_qr_title: 'Online Booking QR',
-                npos_booking_qr_desc: 'Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.',
-                npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
+                npos_title: 'POS Tiệm Nail | BitPaw OS', npos_exit_btn: 'Thoát POS',
+                npos_header_title: 'POS Tiệm Nail', npos_header_subtitle: 'Chạm vào dịch vụ để thêm vào hoá đơn',
+                npos_no_services: 'Chưa có dịch vụ nào. Vui lòng thêm sản phẩm trong danh mục Nails trước.',
+                npos_ticket_title: 'Hoá Đơn Hiện Tại', npos_customer_label: 'Khách hàng', npos_walkin_option: 'Khách vãng lai (không chọn khách)',
+                npos_empty_cart: 'Chưa có dịch vụ nào được thêm', npos_supply_label: 'Phí vật tư %', npos_tax_pct_label: 'Thuế %', npos_cashtip_label: 'Tip tiền mặt',
+                npos_cardtip_label: 'Tip thẻ', npos_subtotal_label: 'Tạm tính', npos_discount_row_label: 'Giảm giá', npos_tax_label: 'Thuế', npos_tip_label: 'Tiền tip', npos_total_label: 'Tổng cộng',
+                npos_checkout_btn: 'Thanh toán ngay', npos_payment_title: 'Nhận thanh toán', npos_pay_cash: 'Tiền mặt', npos_pay_card: 'Thẻ / Máy quẹt',
+                npos_pay_split: 'Chia đôi', npos_split_cash_label: 'Số tiền mặt', npos_split_card_label: 'Số tiền thẻ',
+                npos_split_mismatch: 'Tiền mặt + Thẻ phải bằng tổng số tiền cần thanh toán.', npos_modal_subtotal: 'Tạm tính', npos_modal_discount: 'Giảm giá', npos_modal_tax: 'Thuế', npos_modal_tip: 'Tiền tip',
+                npos_modal_total: 'Tổng cộng', npos_modal_cancel: 'Huỷ', npos_modal_confirm: 'Xác nhận thanh toán',
+                npos_card_sync_label: 'Chi tiết thẻ', npos_terminal_ready: 'Máy quẹt sẵn sàng', npos_card_sync_hint: 'Chạm, cắm hoặc quẹt thẻ trên máy',
+                npos_receipt_title: 'Thanh toán hoàn tất', npos_receipt_new_ticket: 'Tạo hoá đơn mới',
+                npos_receipt_col_item: 'Dịch vụ', npos_receipt_col_tech: 'Thợ', npos_receipt_col_qty: 'SL', npos_receipt_col_amt: 'Thành tiền',
+                npos_receipt_subtotal: 'Tạm tính', npos_receipt_discount: 'Giảm giá', npos_receipt_tax: 'Thuế', npos_receipt_tip: 'Tiền tip',
+                npos_receipt_total: 'TỔNG CỘNG', npos_receipt_payment_method: 'Phương thức thanh toán',
+                npos_receipt_thanks: 'Cảm ơn quý khách đã ghé thăm!', npos_receipt_see_again: 'Hẹn gặp lại quý khách',
+                npos_cat_all: 'Tất cả', npos_remove: 'Xoá', npos_assign_tech: 'Chọn thợ…', npos_toast_added: 'đã thêm vào hoá đơn',
+                npos_toast_checkout_ok: 'Đã ghi nhận thanh toán thành công!', npos_toast_checkout_fail: 'Thanh toán thất bại: ',
+                npos_commission_word: 'hoa hồng', npos_tip_word: 'tiền tip',
+                npos_custom_item_btn: 'Thêm mục', npos_discount_btn: 'Giảm giá', npos_clear_btn: 'Xoá hết', npos_refund_btn: 'Hoàn tiền',
+                npos_hold_btn: 'Giữ hoá đơn', npos_print_quote_btn: 'In báo giá',
+                npos_toast_hold_empty: 'Vui lòng thêm dịch vụ trước khi giữ hoá đơn.', npos_toast_held: 'Đã giữ hoá đơn. Bạn có thể tạo hoá đơn mới hoặc tiếp tục bất cứ lúc nào.',
+                npos_toast_resumed: 'Đã tiếp tục hoá đơn đang giữ.', npos_confirm_resume_overwrite: 'Thao tác này sẽ thay thế hoá đơn hiện tại. Tiếp tục?',
+                npos_toast_print_empty: 'Vui lòng thêm dịch vụ trước khi in báo giá.', npos_toast_print_blocked: 'Cửa sổ pop-up bị chặn — vui lòng cho phép pop-up để in báo giá.',
+                npos_custom_item_title: 'Thêm mục tuỳ chỉnh', npos_custom_name_label: 'Tên mục', npos_custom_price_label: 'Giá (AUD)',
+                npos_custom_qty_label: 'Số lượng', npos_custom_add_btn: 'Thêm vào hoá đơn', npos_toast_custom_missing: 'Vui lòng nhập tên mục và giá hợp lệ.',
+                npos_discount_title: 'Áp dụng giảm giá', npos_discount_type_percent: 'Phần trăm', npos_discount_type_fixed: 'Số tiền cố định',
+                npos_discount_value_percent_label: 'Phần trăm giảm', npos_discount_value_fixed_label: 'Số tiền giảm ($)',
+                npos_discount_preview_prefix: 'Số tiền giảm: ', npos_discount_apply: 'Áp dụng',
+                npos_toast_discount_applied: 'Đã áp dụng giảm giá', npos_toast_discount_removed: 'Đã bỏ giảm giá',
+                npos_confirm_clear: 'Xoá toàn bộ hoá đơn? Thao tác này không thể hoàn tác.', npos_toast_cleared: 'Đã xoá hoá đơn',
+                npos_refund_title: 'Trả hàng / Hoàn tiền', npos_refund_order_label: 'Mã đơn hàng', npos_refund_amount_label: 'Số tiền hoàn',
+                npos_refund_reason_label: 'Lý do (không bắt buộc)', npos_refund_submit: 'Xử lý hoàn tiền',
+                npos_toast_refund_ok: 'Đã hoàn tiền thành công!', npos_toast_refund_fail: 'Hoàn tiền thất bại: ',
+                npos_toast_refund_missing: 'Vui lòng nhập mã đơn hàng và số tiền hoàn lớn hơn 0.',
+                npos_terminal_status: 'Trực tuyến',
+                npos_pay_square: 'Máy Square',
+                npos_square_idle_hint: 'Nhấn "Xác nhận thanh toán" để gửi giao dịch này tới máy Square.',
+                npos_square_waiting: 'Đang chờ khách quẹt/chạm thẻ trên máy...', npos_square_waiting_hint: 'Vui lòng không đóng màn hình này.',
+                npos_square_declined: 'Thẻ bị từ chối hoặc giao dịch đã bị huỷ trên máy.',
+                npos_square_timeout: 'Hết thời gian chờ máy quẹt thẻ. Vui lòng kiểm tra thiết bị và thử lại.',
+                npos_square_cancel_btn: 'Huỷ thanh toán Square',
+                npos_square_canceled: 'Đã huỷ thanh toán qua máy Square.',
+                npos_square_cancel_too_late: 'Không thể huỷ — khách có thể đã quẹt thẻ rồi. Đang kiểm tra trạng thái...',
+                npos_square_cancel_failed: 'Huỷ thất bại: ',
+                npos_booking_qr_btn: 'QR Đặt lịch', npos_booking_qr_title: 'Mã QR đặt lịch online',
+                npos_booking_qr_desc: 'In mã QR này hoặc chia sẻ link bên dưới — khách quét mã để tự đặt lịch online, 24/7, không cần gọi điện.',
+                npos_booking_qr_copy: 'Sao chép link', npos_booking_qr_print: 'In', npos_booking_qr_copied: 'Đã sao chép link đặt lịch!',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key; }
@@ -1795,7 +1820,11 @@
             const clock = document.getElementById('liveClock');
             if (clock) {
                 const now = new Date();
-                clock.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' | ' + now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                // Locale + định dạng theo đúng ngôn ngữ đang chọn (trước đây hardcode 'en-US' bất
+                // kể currentLang) — có cả năm (trước đây thiếu năm, dễ gây nhầm khi xem lại ảnh
+                // chụp/video màn hình cũ).
+                const locale = currentLang === 'vi' ? 'vi-VN' : 'en-US';
+                clock.innerText = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' | ' + now.toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
             }
         }
         setInterval(updateClock, 1000);
