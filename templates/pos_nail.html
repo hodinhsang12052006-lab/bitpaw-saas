@@ -444,8 +444,8 @@
 
     <!-- ================= STANDALONE FULL-SCREEN POS — NO admin sidebar ================= -->
     <div id="pos-shell" class="relative z-10 h-screen w-screen flex flex-col overflow-hidden">
-        <div id="pos-topbar" class="flex items-center justify-between px-6 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
-            <div class="flex items-center gap-4">
+        <div id="pos-topbar" class="flex items-center justify-between gap-3 px-6 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
+            <div class="flex items-center gap-4 shrink-0">
                 <!-- ================= BRANDING: white-labeled BitPaw identity — clean flex
                      alignment with ample breathing room (py-2/px-4/gap-3), no cramped overlap ================= -->
                 <div class="flex items-center gap-3 py-2 px-4 mr-2 border-r border-white/10">
@@ -457,22 +457,28 @@
                         <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] font-title mt-1 whitespace-nowrap">Salon Terminal</span>
                     </div>
                 </div>
-                <a href="{{ url_for('index') }}" class="exit-btn"><i class="fas fa-arrow-left"></i> <span data-i18n="npos_exit_btn">Exit POS</span></a>
+                <a href="{{ url_for('index') }}" class="exit-btn shrink-0"><i class="fas fa-arrow-left"></i> <span data-i18n="npos_exit_btn">Exit POS</span></a>
             </div>
-            <div class="flex flex-col items-center">
-                <h1 class="text-xl font-extrabold flex items-center gap-2 tracking-wide font-title"><i class="fas fa-spa text-pink-400 drop-shadow-[0_0_8px_rgba(244,114,182,0.4)]"></i> <span data-i18n="npos_header_title">Nail Salon POS</span></h1>
-                <span id="liveClock" class="text-xs text-gray-500 font-mono tracking-widest uppercase mt-0.5"></span>
+            <!-- BUG THẬT đã vá (khách chụp màn hình báo trực tiếp trên iPad): thêm nút "Booking
+                 QR" + mở lại nút chuyển ngôn ngữ (2 việc làm ở phiên trước) khiến khối bên phải
+                 rộng thêm hẳn, không còn đủ chỗ cho tiêu đề giữa trên màn hình vừa (iPad) — tiêu
+                 đề bị ĐÈ CHỒNG lên nút Booking QR, chữ không đọc được. min-w-0 + truncate ở đây
+                 để tiêu đề tự RÚT GỌN kèm "…" khi thiếu chỗ (thay vì đè chồng không đọc được);
+                 shrink-0 ở 2 khối trái/phải để nút bấm KHÔNG BAO GIỜ bị bóp méo/mất nút. -->
+            <div class="flex-1 min-w-0 flex flex-col items-center px-2">
+                <h1 class="max-w-full truncate text-xl font-extrabold flex items-center gap-2 tracking-wide font-title"><i class="fas fa-spa text-pink-400 drop-shadow-[0_0_8px_rgba(244,114,182,0.4)] shrink-0"></i> <span class="truncate" data-i18n="npos_header_title">Nail Salon POS</span></h1>
+                <span id="liveClock" class="text-xs text-gray-500 font-mono tracking-widest uppercase mt-0.5 whitespace-nowrap"></span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 shrink-0">
                 <button type="button" onclick="openBookingQrModal()" class="flex items-center gap-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title transition" title="Cổng đặt lịch online của tiệm">
                     <i class="fas fa-qrcode"></i>
-                    <span data-i18n="npos_booking_qr_btn">Booking QR</span>
+                    <span class="hidden lg:inline" data-i18n="npos_booking_qr_btn">Booking QR</span>
                 </button>
                 <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title shadow-sm shadow-emerald-500/5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span data-i18n="npos_terminal_status">Online</span>
+                    <span class="hidden sm:inline" data-i18n="npos_terminal_status">Online</span>
                 </div>
-                <button id="pageLangToggleBtn" type="button" onclick="toggleLang()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition">EN</button>
+                <button id="pageLangToggleBtn" type="button" onclick="toggleLang()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0">EN</button>
             </div>
         </div>
 
