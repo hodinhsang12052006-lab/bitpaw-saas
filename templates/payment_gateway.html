@@ -617,6 +617,74 @@
 
     <!-- Seeded Vietnamese Banks -->
     <script>
+        // ===== i18n — BUG THẬT đã vá (rà soát toàn bộ templates sau khi phát hiện lỗi tương tự
+        // ở pos_nail.html): trang này có sẵn nút chuyển ngôn ngữ + 18 thẻ data-i18n trong HTML,
+        // nhưng KHÔNG HỀ có 1 dòng JS nào xử lý — không có translations object, không có t(),
+        // không có applyStaticTranslations(), nút bấm hoàn toàn trang trí (bấm không đổi được
+        // gì). Đây là trang cấu hình thanh toán (admin dùng để nhận tiền thật từ khách) nên vẫn
+        // cần đúng đắn dù không phải màn hình dùng liên tục như POS. Thêm đầy đủ hạ tầng dịch +
+        // bản dịch thật cho toàn bộ 18 thẻ data-i18n hiện có.
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                payment_gateway_title: 'BitPay | Cấu hình Cổng thanh toán & Thiết lập nhận tiền',
+                payment_gateway_header_title: '| Cấu hình Cổng thanh toán',
+                payment_gateway_header_subtitle: 'Thiết lập tài khoản nhận tiền đa quốc gia cho POS',
+                payment_gateway_dashboard_btn: 'Dashboard',
+                payment_gateway_tab_vn: '🇻🇳 Việt Nam (VietQR)',
+                payment_gateway_tab_us: '🇺🇸 Hoa Kỳ (Nails & Salon)',
+                payment_gateway_tab_intl: '🌐 Quốc tế (International)',
+                payment_gateway_vn_section_title: 'Thiết lập tài khoản ngân hàng (VietQR/NAPAS)',
+                payment_gateway_bank_search_label: 'Tìm/Chọn Ngân hàng *',
+                payment_gateway_bank_code_label: 'Mã ngân hàng (Bank Code) *',
+                payment_gateway_bank_code_placeholder: 'VD: MB, VCB (Tự động điền hoặc nhập tay)',
+                payment_gateway_account_number_label: 'Số tài khoản *',
+                payment_gateway_account_number_placeholder: 'Nhập số tài khoản nhận tiền',
+                payment_gateway_account_holder_label: 'Tên chủ tài khoản * (VIẾT HOA KHÔNG DẤU)',
+                payment_gateway_transfer_prefix_label: 'Nội dung chuyển khoản mặc định (Prefix) *',
+                payment_gateway_us_section_title: 'Thiết lập Cổng thanh toán tiệm Nails / Salon tại Mỹ',
+                payment_gateway_us_provider_label: 'Chọn Nhà cung cấp (US Payment Provider) *',
+                payment_gateway_option_external_terminal: 'Máy quẹt thẻ ngoài (External Card Terminal)',
+            },
+            en: {
+                payment_gateway_title: 'BitPay | Payment Gateway Configuration & Payout Setup',
+                payment_gateway_header_title: '| Payment Gateway Setup',
+                payment_gateway_header_subtitle: 'Set up multi-country payout accounts for your POS',
+                payment_gateway_dashboard_btn: 'Dashboard',
+                payment_gateway_tab_vn: '🇻🇳 Vietnam (VietQR)',
+                payment_gateway_tab_us: '🇺🇸 United States (Nails & Salon)',
+                payment_gateway_tab_intl: '🌐 International',
+                payment_gateway_vn_section_title: 'Bank Account Setup (VietQR/NAPAS)',
+                payment_gateway_bank_search_label: 'Search/Select Bank *',
+                payment_gateway_bank_code_label: 'Bank Code *',
+                payment_gateway_bank_code_placeholder: 'e.g. MB, VCB (auto-filled or type manually)',
+                payment_gateway_account_number_label: 'Account Number *',
+                payment_gateway_account_number_placeholder: 'Enter the payout account number',
+                payment_gateway_account_holder_label: 'Account Holder Name * (UPPERCASE, NO ACCENTS)',
+                payment_gateway_transfer_prefix_label: 'Default Transfer Note Prefix *',
+                payment_gateway_us_section_title: 'US Nail Salon / Spa Payment Gateway Setup',
+                payment_gateway_us_provider_label: 'Select Provider (US Payment Provider) *',
+                payment_gateway_option_external_terminal: 'External Card Terminal',
+            }
+        };
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
+        }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            document.title = t('payment_gateway_title');
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
         window.VIETNAM_BANKS = [
             { code: "MB", name: "MB (Ngân hàng Quân Đội)" },
             { code: "VCB", name: "Vietcombank" },
