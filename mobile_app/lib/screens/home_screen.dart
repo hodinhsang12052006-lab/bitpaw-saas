@@ -3,13 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import 'attendance_screen.dart';
+import 'pos/fnb_tables_screen.dart';
 import 'pos/nail_pos_screen.dart';
 import 'pos/retail_pos_screen.dart';
 import 'pos/spa_pos_screen.dart';
 import 'reports_screen.dart';
 
 /// business_mode -> màn POS di động tương ứng — chỉ liệt kê ngành ĐÃ build xong (xem TaskList
-/// #43-47 cho các ngành còn lại). Trả về null nghĩa là ngành đó chưa có POS di động, HomeScreen
+/// #44-47 cho các ngành còn lại). Trả về null nghĩa là ngành đó chưa có POS di động, HomeScreen
 /// tự ẩn tab "Bán hàng" thay vì hiện tab trống/lỗi.
 Widget? _posScreenForBusinessMode(String? mode) {
   switch (mode) {
@@ -19,6 +20,8 @@ Widget? _posScreenForBusinessMode(String? mode) {
       return const SpaPosScreen();
     case 'retail':
       return const RetailPosScreen();
+    case 'fnb':
+      return const FnbTablesScreen();
     default:
       return null;
   }
