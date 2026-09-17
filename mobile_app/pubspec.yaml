@@ -23,6 +23,14 @@ dependencies:
   # dùng đúng keystore/keychain gốc của hệ điều hành. ---
   flutter_secure_storage: ^9.2.2
 
+  # --- GPS cho chấm công: backend (_enforce_checkin_geofence, app.py) TỰ so khoảng cách
+  # Haversine giữa toạ độ gửi lên và toạ độ chi nhánh, từ chối nếu quá 50m — geolocator chỉ cần
+  # lấy đúng toạ độ hiện tại + tự xin quyền vị trí, không cần tự tính khoảng cách ở client. ---
+  geolocator: ^13.0.1
+
+  # --- Định dạng ngày/tiền tệ tiếng Việt cho màn Báo cáo (khớp cách web hiển thị) ---
+  intl: ^0.19.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

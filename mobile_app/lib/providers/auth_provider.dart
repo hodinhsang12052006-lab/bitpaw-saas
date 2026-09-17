@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../utils/jwt_decoder.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -28,8 +29,25 @@ class AuthProvider extends ChangeNotifier {
   /// Gọi lúc khởi động app (SplashScreen) — CHỈ kiểm tra có token lưu sẵn hay không, KHÔNG gọi
   /// API xác thực lại token đó (giữ splash screen nhanh, offline-friendly). Nếu token thực ra đã
   /// hết hạn, request API đầu tiên trong HomeScreen sẽ tự nhận 401 và Interceptor tự đá về Login.
+  ///
+  /// Đồng thời TỰ GIẢI MÃ claim trong token (role/business_id...) để phục hồi `_user` — nếu
+  /// không làm bước này, mở lại app sau khi tắt hẳn (không qua LoginScreen) sẽ có `_user == null`
+  /// dù đã đăng nhập, khiến UI ẩn nhầm tab Báo cáo (chỉ admin/super_admin mới thấy).
   Future<void> checkAuthStatus() async {
-    final hasToken = await _storage.hasToken();
+    final token = await _storage.getToken();
+    final hasToken = token != null && token.isNotEmpty;
+    if (hasToken) {
+      final claims = decodeJwtPayload(token);
+      if (claims != null) {
+        _user = UserModel(
+          id: claims['user_id']?.toString() ?? '',
+          email: claims['user_email']?.toString() ?? '',
+          role: claims['role']?.toString() ?? '',
+          businessId: claims['business_id']?.toString() ?? '',
+          businessMode: claims['business_mode']?.toString() ?? '',
+        );
+      }
+    }
     _status = hasToken ? AuthStatus.authenticated : AuthStatus.unauthenticated;
     notifyListeners();
   }

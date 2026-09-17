@@ -1,0 +1,43 @@
+name: Build Mobile APK
+
+# Build tạm thời trên máy ảo Ubuntu sạch của GitHub — máy dev Windows local bị 1 driver
+# mạng chặn kết nối loopback nội bộ mà JDK 17 cần dùng để chạy Gradle (không liên quan gì
+# đến code Flutter, đã xác nhận qua nhiều lần đổi JDK/tắt phần mềm bảo mật trên máy local).
+on:
+  push:
+    branches:
+      - mobile-app-ci
+    paths:
+      - "mobile_app/**"
+      - ".github/workflows/build_mobile_apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.4"
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter build apk --debug
+
+      - name: Publish APK as a release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mobile-debug-latest
+          name: "Mobile App – Debug APK (auto-build)"
+          body: "APK debug tự động build từ nhánh mobile-app-ci, dùng để cài thử trên điện thoại thật. KHÔNG phải bản release nộp CH Play."
+          prerelease: true
+          files: mobile_app/build/app/outputs/flutter-apk/app-debug.apk
