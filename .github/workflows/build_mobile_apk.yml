@@ -35,7 +35,7 @@ jobs:
       - run: flutter analyze || true
       - run: flutter build apk --debug
 
-      - name: Publish APK as a release asset
+      - name: Publish debug APK as a release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: mobile-debug-latest
@@ -43,3 +43,45 @@ jobs:
           body: "APK debug tự động build từ nhánh mobile-app-ci, dùng để cài thử trên điện thoại thật. KHÔNG phải bản release nộp CH Play."
           prerelease: true
           files: mobile_app/build/app/outputs/flutter-apk/app-debug.apk
+
+      # Bản AAB ký thật để nộp Google Play — CHỈ chạy khi đã cấu hình secret
+      # ANDROID_KEYSTORE_BASE64 trong repo (Settings > Secrets and variables > Actions). Không
+      # cấu hình -> bỏ qua an toàn, vẫn có bản debug APK ở trên để test.
+      - name: Check release signing secret
+        id: check_signing
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode release keystore
+        if: steps.check_signing.outputs.has_secret == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties << PROPS
+          storeFile=upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          PROPS
+
+      - name: Build signed release AAB
+        if: steps.check_signing.outputs.has_secret == 'true'
+        run: flutter build appbundle --release
+
+      - name: Publish release AAB as a release asset
+        if: steps.check_signing.outputs.has_secret == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mobile-release-latest
+          name: "Mobile App – Release AAB (ký, nộp CH Play)"
+          body: "Bản .aab đã ký bằng upload key thật — tải file này lên Google Play Console."
+          prerelease: false
+          files: mobile_app/build/app/outputs/bundle/release/app-release.aab
