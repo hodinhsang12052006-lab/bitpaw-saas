@@ -24,20 +24,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
-    <script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; margin: 0; padding: 0; overflow-x: hidden;}
-        
-        html.lenis { height: auto; }
-        .lenis.lenis-smooth { scroll-behavior: auto !important; }
-        .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-        .lenis.lenis-stopped { overflow: hidden; }
-
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; opacity: 0.9; pointer-events: none; }
 
         /* Hiệu ứng scanline và laser */
         .scan-line {
@@ -69,19 +59,16 @@
         .kudo-card { transition: all 0.3s ease; }
         .kudo-card:hover { animation: float 2s ease-in-out infinite; }
 
-        /* Mini 3D Hologram Logo */
-        .hologram-mini { perspective: 800px; transform-style: preserve-3d; display: flex; justify-content: center; align-items: center; }
+        /* Mini Hologram Logo */
+        .hologram-mini { display: flex; justify-content: center; align-items: center; }
         @keyframes float-mini {
-            0% { transform: translateY(0px) rotateX(5deg) rotateY(-5deg); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
-            50% { transform: translateY(-8px) rotateX(-5deg) rotateY(10deg); filter: drop-shadow(0 15px 15px rgba(168, 85, 247, 0.6)); }
-            100% { transform: translateY(0px) rotateX(5deg) rotateY(-5deg); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
+            50% { transform: translateY(-8px); filter: drop-shadow(0 15px 15px rgba(168, 85, 247, 0.6)); }
+            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(6, 182, 212, 0.4)); }
         }
         .animated-mini-3d { animation: float-mini 4s ease-in-out infinite; position: relative; z-index: 10; }
         @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
         .scanner-line { position: absolute; width: 120%; height: 2px; background: #06b6d4; box-shadow: 0 0 10px #06b6d4; left: -10%; animation: scan-laser 2.5s linear infinite; z-index: 20; border-radius: 50%; pointer-events: none; }
-        
-        .stat-card { transform-style: preserve-3d; }
-        .stat-card-inner { transform: translateZ(30px); }
 
         /* Count-up animation (optional) */
         .count-up { transition: all 0.3s ease; }
@@ -91,7 +78,6 @@
 
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
-    <canvas id="bg-canvas"></canvas>
 
     <div class="light-ray top-[10%] -left-[20%] z-0"></div>
     <div class="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-700/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
@@ -152,7 +138,7 @@
                 
                 <!-- 3 Thẻ Thống kê 3D Tilt -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-cyan-500/50 transition-colors flex flex-col justify-between h-40" data-tilt data-tilt-max="5" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2">
+                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-cyan-500/50 transition-colors flex flex-col justify-between h-40">
                         <div class="absolute -right-4 -bottom-4 text-white/5 text-8xl group-hover:scale-110 group-hover:text-cyan-500/10 transition-all duration-500"><i class="fas fa-users"></i></div>
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
@@ -163,7 +149,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition-colors flex flex-col justify-between h-40" data-tilt data-tilt-max="5" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2">
+                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition-colors flex flex-col justify-between h-40">
                         <div class="absolute -right-4 -bottom-4 text-white/5 text-8xl group-hover:scale-110 group-hover:text-emerald-500/10 transition-all duration-500"><i class="fas fa-user-check"></i></div>
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
@@ -177,7 +163,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-fuchsia-500/50 transition-colors flex flex-col justify-between h-40" data-tilt data-tilt-max="5" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2">
+                    <div class="stat-card bg-white/[0.02] backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-fuchsia-500/50 transition-colors flex flex-col justify-between h-40">
                         <div class="absolute -right-4 -bottom-4 text-white/5 text-8xl group-hover:scale-110 group-hover:text-fuchsia-500/10 transition-all duration-500"><i class="fas fa-wallet"></i></div>
                         <div class="stat-card-inner flex flex-col h-full justify-between pointer-events-none">
                             <div class="flex items-center gap-3 mb-2">
@@ -190,7 +176,7 @@
                 </div>
 
                 <!-- Biểu đồ -->
-                <div class="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative w-full h-[320px] group hover:border-cyan-500/30 transition-colors" data-tilt data-tilt-max="2" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.1">
+                <div class="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative w-full h-[320px] group hover:border-cyan-500/30 transition-colors">
                     <div class="flex justify-between items-center mb-2 pointer-events-none">
                         <h3 class="text-lg font-black text-white flex items-center gap-3 tracking-wide"><i class="fas fa-chart-line text-cyan-400"></i> <span data-i18n="dashboard_chart_title">Dòng Chảy Nhân Sự & Lợi Nhuận</span> <span class="text-[10px] text-gray-500 font-normal uppercase tracking-widest" data-i18n="dashboard_chart_subtitle">(10 Ngày Gần Nhất)</span></h3>
                     </div>
@@ -288,115 +274,7 @@
 
     <script>
         // ========================================================
-        // 1. THREE.JS NÂNG CẤP (GIỐNG LANDING PAGE)
-        // ========================================================
-        (function initEnhancedThree() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            // Particle chính (màu biến đổi)
-            const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 700 : 1600;
-            const particlesGeometry = new THREE.BufferGeometry();
-            const posArray = new Float32Array(particlesCount * 3);
-            for(let i = 0; i < particlesCount * 3; i++) { posArray[i] = (Math.random() - 0.5) * 140; }
-            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending });
-            const particlesMesh = new THREE.Points(particlesGeometry, material);
-            scene.add(particlesMesh);
-
-            // Shooting stars (mưa sao băng)
-            const starCount = 120;
-            const starPositions = new Float32Array(starCount * 3);
-            const starVelocities = [];
-            for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
-                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
-            }
-            const starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffaa88, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
-            const starsMesh = new THREE.Points(starGeometry, starMaterial);
-            scene.add(starsMesh);
-
-            // Sương mù (fog)
-            scene.fog = new THREE.FogExp2(0x08061a, 0.01);
-
-            // Tương tác chuột
-            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-            const windowHalfX = window.innerWidth / 2;
-            const windowHalfY = window.innerHeight / 2;
-            document.addEventListener('mousemove', (event) => {
-                mouseX = (event.clientX - windowHalfX) * 0.0006;
-                mouseY = (event.clientY - windowHalfY) * 0.0006;
-            });
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                if (document.hidden) return; // Pause rendering when tab is hidden to save CPU/GPU cycles
-                const elapsedTime = clock.getElapsedTime();
-                // Đổi màu particle
-                const hue = (elapsedTime * 0.04) % 1;
-                material.color.setHSL(hue, 0.9, 0.65);
-                
-                // Xoay theo chuột
-                particlesMesh.rotation.y = elapsedTime * 0.04;
-                particlesMesh.rotation.x = elapsedTime * 0.015;
-                targetX = mouseX * 0.6;
-                targetY = mouseY * 0.6;
-                particlesMesh.rotation.y += 0.5 * (targetX - particlesMesh.rotation.y);
-                particlesMesh.rotation.x += 0.5 * (targetY - particlesMesh.rotation.x);
-
-                // Di chuyển sao băng
-                const positions = starsMesh.geometry.attributes.position.array;
-                for (let i = 0; i < starCount; i++) {
-                    positions[i*3] += starVelocities[i].x;
-                    positions[i*3+1] += starVelocities[i].y;
-                    positions[i*3+2] += starVelocities[i].z;
-                    if (positions[i*3] > 70 || positions[i*3] < -70 || positions[i*3+1] > 45 || positions[i*3+1] < -45) {
-                        positions[i*3] = (Math.random() - 0.5) * 120;
-                        positions[i*3+1] = 40;
-                        positions[i*3+2] = (Math.random() - 0.5) * 50 - 25;
-                    }
-                }
-                starsMesh.geometry.attributes.position.needsUpdate = true;
-                
-                renderer.render(scene, camera);
-            }
-            animate();
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
-
-        // ========================================================
-        // 2. LENIS SMOOTH SCROLL & TILT
-        // ========================================================
-        const lenis = new Lenis({
-            wrapper: document.getElementById('scroll-container'),
-            content: document.querySelector('main > div'),
-            duration: 1.2,
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            smooth: true
-        });
-        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
-        requestAnimationFrame(raf);
-        VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
-
-        // ========================================================
-        // 3. DỮ LIỆU DASHBOARD (Flask API + MongoDB — đã gỡ Supabase JS client-side)
+        // DỮ LIỆU DASHBOARD (Flask API + MongoDB — đã gỡ Supabase JS client-side)
         // ========================================================
         let myChart = null;
 

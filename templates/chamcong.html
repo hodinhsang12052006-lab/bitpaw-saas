@@ -7,16 +7,11 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
-        
-        /* 3D Background Canvas */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
         
         /* Hiệu ứng scanline và laser */
         .scan-line {
@@ -74,7 +69,6 @@
     
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
-    <canvas id="bg-canvas"></canvas>
 
     <div class="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-700/20 rounded-full blur-[150px] pointer-events-none z-0"></div>
     <div class="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] bg-cyan-700/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
@@ -91,14 +85,14 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div onclick="location.href='/chamcong_vanphong'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-blue-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 100ms;">
+            <div onclick="location.href='/chamcong_vanphong'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-blue-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 100ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-laptop text-blue-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_office_title">Văn Phòng</h3>
                 <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_office_desc">Chấm công giờ hành chính, đi trễ, về sớm.</p>
             </div>
             
-            <div onclick="location.href='/chamcong_spa'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-pink-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 200ms;">
+            <div onclick="location.href='/chamcong_spa'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-pink-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 200ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-pink-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-pink-500/10 border border-pink-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-spa text-pink-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_spa_title">Spa & Beauty</h3>
@@ -106,35 +100,35 @@
             </div>
 
             <!-- 🚀 THÊM CARD Nails & Salon MỚI -->
-            <div onclick="location.href='/chamcong_nail'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-rose-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 250ms;">
+            <div onclick="location.href='/chamcong_nail'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-rose-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 250ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-hand-peace text-rose-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_nail_title">Nails & Salon</h3>
                 <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_nail_desc">Chia % Tua, Supply, Tips, phí CC tự động.</p>
             </div>
             
-            <div onclick="location.href='/chamcong_fnb'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-orange-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 300ms;">
+            <div onclick="location.href='/chamcong_fnb'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-orange-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 300ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-utensils text-orange-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_fnb_title">Cafe & Nhà Hàng</h3>
                 <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_fnb_desc">Quản lý ca gãy, nhân sự part-time theo giờ.</p>
             </div>
             
-            <div onclick="location.href='/chamcong_kythuat'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-gray-400/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 400ms;">
+            <div onclick="location.href='/chamcong_kythuat'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-gray-400/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 400ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-gray-400/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-gray-500/10 border border-gray-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-tools text-gray-300 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_tech_title">Kỹ Thuật & Xưởng</h3>
                 <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_tech_desc">Tính công nhật, tăng ca đêm, phụ cấp độc hại.</p>
             </div>
             
-            <div onclick="location.href='/chamcong_congnhan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-emerald-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 500ms;">
+            <div onclick="location.href='/chamcong_congnhan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-emerald-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 500ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-industry text-emerald-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_prod_title">Sản Xuất</h3>
                 <p class="text-gray-400 text-sm relative z-10" data-i18n="chamcong_card_prod_desc">Chấm theo sản lượng sản phẩm, tăng ca kíp.</p>
             </div>
             
-            <div onclick="location.href='/chamcong_khachsan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-purple-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" data-tilt data-tilt-max="5" data-tilt-glare="true" data-tilt-max-glare="0.2" style="animation-delay: 600ms;">
+            <div onclick="location.href='/chamcong_khachsan'" class="cascade-item bg-[#0a1024]/60 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:border-purple-500/50 border border-white/10 cursor-pointer transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden" style="animation-delay: 600ms;">
                 <div class="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                 <div class="w-20 h-20 bg-purple-500/10 border border-purple-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"><i class="fas fa-hotel text-purple-400 text-4xl drop-shadow-[0_0_8px_currentColor]"></i></div>
                 <h3 class="text-xl font-black mb-2 text-white relative z-10" data-i18n="chamcong_card_hotel_title">Khách Sạn</h3>
@@ -172,91 +166,6 @@
 
     <script>
         // ==========================================
-        // THREE.JS BACKGROUND CHUẨN LANDING PAGE
-        // ==========================================
-        (function init3D() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 700 : 1500;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particlesCount * 3);
-            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            // Shooting stars
-            const starCount = 100;
-            const starPositions = new Float32Array(starCount * 3);
-            const starVelocities = [];
-            for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
-                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
-            }
-            const starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
-
-            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
-
-            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX - halfX) * 0.0005;
-                mouseY = (e.clientY - halfY) * 0.0005;
-            });
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.04) % 1;
-                material.color.setHSL(hue, 0.9, 0.65);
-                
-                particles.rotation.y = t * 0.03;
-                particles.rotation.x = t * 0.01;
-                targetX = mouseX * 0.5;
-                targetY = mouseY * 0.5;
-                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
-                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
-
-                const posArr = stars.geometry.attributes.position.array;
-                for (let i = 0; i < starCount; i++) {
-                    posArr[i*3] += starVelocities[i].x;
-                    posArr[i*3+1] += starVelocities[i].y;
-                    posArr[i*3+2] += starVelocities[i].z;
-                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
-                        posArr[i*3] = (Math.random() - 0.5) * 120;
-                        posArr[i*3+1] = 40;
-                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
-                    }
-                }
-                stars.geometry.attributes.position.needsUpdate = true;
-                renderer.render(scene, camera);
-            }
-            animate();
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
-
-        // ==========================================
         // TOAST & CHAT
         // ==========================================
         function showToast(msg, type = 'success') {
@@ -290,10 +199,6 @@
                 chatBox.innerHTML += `<div class="bg-cyan-500/20 p-3 rounded-xl rounded-tl-none border border-cyan-500/30 max-w-[85%] text-white text-xs mt-2">${t('chamcong_cskh_autoreply')}</div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
             }, 1000);
-        }
-
-        if (typeof VanillaTilt !== 'undefined') {
-            VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
         }
 
         // ========== MULTI-REGION i18n ==========

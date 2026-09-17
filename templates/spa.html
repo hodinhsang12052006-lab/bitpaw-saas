@@ -7,7 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 
     <style>
@@ -42,19 +41,7 @@
             z-index: 2;
         }
 
-        /* 3D Background */
-        #bg-canvas { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            z-index: 0; 
-            opacity: 0.6; 
-            pointer-events: none; 
-        }
-
-        .scan-line { 
+        .scan-line {
             position: fixed; 
             top: 0; 
             left: 0; 
@@ -659,7 +646,6 @@
 </head>
 <body class="antialiased">
     
-    <canvas id="bg-canvas"></canvas>
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
 
@@ -1372,58 +1358,6 @@
         
         searchInput.addEventListener('input', filterGrid);
         categoryFilter.addEventListener('change', filterGrid);
-
-        // 3D Background
-        (function init3D() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            
-            const geo = new THREE.BufferGeometry();
-            const pos = new Float32Array(3000);
-            
-            for(let i=0; i<3000; i++) {
-                pos[i] = (Math.random()-0.5)*140;
-            }
-            
-            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-            
-            const mat = new THREE.PointsMaterial({
-                color: 0x06b6d4, 
-                size: 0.15, 
-                transparent: true, 
-                opacity: 0.5
-            });
-            const points = new THREE.Points(geo, mat);
-            scene.add(points);
-            
-            let mouseX = 0, mouseY = 0;
-            document.addEventListener('mousemove', e => { 
-                mouseX = (e.clientX - window.innerWidth/2) * 0.0005; 
-                mouseY = (e.clientY - window.innerHeight/2) * 0.0005; 
-            });
-            
-            function anim() { 
-                requestAnimationFrame(anim); 
-                points.rotation.y += 0.001 + (mouseX - points.rotation.y) * 0.05; 
-                points.rotation.x += (mouseY - points.rotation.x) * 0.05;
-                renderer.render(scene, camera); 
-            }
-            
-            anim();
-            
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";

@@ -7,16 +7,11 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; background-color: #050510; color: white; overflow: hidden; }
         
-        /* 3D Background Canvas */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; opacity: 0.9; }
-
         /* Glass Panels */
         .glass-panel { background: rgba(10, 15, 37, 0.4); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
         .glass-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s; padding: 12px 15px; border-radius: 12px; outline: none; width: 100%; font-weight: 500;}
@@ -56,8 +51,6 @@
 <body class="p-6 md:p-10 relative min-h-screen flex flex-col antialiased">
     
     <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3"></div>
-
-    <canvas id="bg-canvas"></canvas>
 
     <div class="relative z-10 max-w-7xl mx-auto w-full flex-1 flex flex-col h-full">
         
@@ -276,50 +269,6 @@
             }, 3000);
         }
 
-        // 🌌 BACKGROUND 3D HẠT (THREE.JS) CHUẨN ĐỒNG BỘ
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene(); 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); 
-        camera.position.z = 30;
-        
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true }); 
-        renderer.setSize(window.innerWidth, window.innerHeight); 
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
-        const particlesGeometry = new THREE.BufferGeometry(); 
-        const particlesCount = window.innerWidth < 768 ? 400 : 1000; // Giảm hạt tối ưu FPS
-        const posArray = new Float32Array(particlesCount * 3);
-        
-        for(let i = 0; i < particlesCount * 3; i++) { posArray[i] = (Math.random() - 0.5) * 120; }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        
-        const material = new THREE.PointsMaterial({ size: 0.15, color: 0xdb2777, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
-        const particlesMesh = new THREE.Points(particlesGeometry, material); 
-        scene.add(particlesMesh);
-        
-        let mouseX = 0; let mouseY = 0; let targetX = 0; let targetY = 0; 
-        const windowHalfX = window.innerWidth / 2; const windowHalfY = window.innerHeight / 2;
-        
-        if (window.innerWidth >= 768) { 
-            document.addEventListener('mousemove', (event) => { 
-                mouseX = (event.clientX - windowHalfX) * 0.0005; 
-                mouseY = (event.clientY - windowHalfY) * 0.0005; 
-            }); 
-        }
-        
-        const clock = new THREE.Clock();
-        function animateBg() {
-            requestAnimationFrame(animateBg); const elapsedTime = clock.getElapsedTime();
-            particlesMesh.rotation.y = elapsedTime * 0.02; particlesMesh.rotation.x = elapsedTime * 0.01;
-            if (window.innerWidth >= 768) { 
-                targetX = mouseX * 0.5; targetY = mouseY * 0.5; 
-                particlesMesh.rotation.y += 0.5 * (targetX - particlesMesh.rotation.y); 
-                particlesMesh.rotation.x += 0.5 * (targetY - particlesMesh.rotation.x); 
-            }
-            renderer.render(scene, camera);
-        }
-        animateBg();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 
     <script>

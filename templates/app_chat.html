@@ -13,15 +13,11 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     
     <style>
         body { background-color: #08061a; color: white; font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; overscroll-behavior-y: none; }
         .mobile-container { max-width: 480px; margin: 0 auto; height: 100vh; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; background: transparent; }
-        
-        /* 3D Canvas Background */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.8; pointer-events: none; }
-        
+
         /* Glassmorphism */
         .glass-panel { background: rgba(10, 15, 37, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-header { background: rgba(10, 15, 37, 0.7); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
@@ -42,7 +38,6 @@
     </style>
 </head>
 <body class="bg-black">
-    <canvas id="bg-canvas"></canvas>
 
     <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
@@ -280,37 +275,6 @@
             setTimeout(() => { lightbox.classList.add('hidden'); lightbox.classList.remove('flex'); img.src = ''; }, 300);
         }
 
-        // Khởi tạo nền 3D
-        function init3DBackground() {
-            const canvas = document.getElementById('bg-canvas');
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            const particlesGeometry = new THREE.BufferGeometry();
-            const particlesCount = 600;
-            const posArray = new Float32Array(particlesCount * 3);
-            for(let i = 0; i < particlesCount * 3; i++) { posArray[i] = (Math.random() - 0.5) * 100; }
-            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            
-            const material = new THREE.PointsMaterial({ size: 0.15, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
-            const particlesMesh = new THREE.Points(particlesGeometry, material);
-            scene.add(particlesMesh);
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const elapsedTime = clock.getElapsedTime();
-                particlesMesh.rotation.y = elapsedTime * 0.05;
-                particlesMesh.rotation.x = elapsedTime * 0.02;
-                renderer.render(scene, camera);
-            }
-            animate();
-        }
-
         // ========================================================
         // LOGIC CHÍNH — Flask API nội bộ (db.chat_messages/db.chat_presence/db.employees).
         // checkAuth() cũ dựa vào lớp xác thực client THỨ HAI chồng lên Flask session — thừa
@@ -359,7 +323,6 @@
         const chatBox = document.getElementById('chatBox');
 
         window.onload = () => {
-            init3DBackground();
             startChatStream();
             loadDanhBa();
         };

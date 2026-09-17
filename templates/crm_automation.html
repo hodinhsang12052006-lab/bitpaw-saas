@@ -7,14 +7,11 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; background-color: #050510; color: white; overflow: hidden; }
         
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; opacity: 0.85; }
-
         .glass-panel { background: rgba(10, 15, 37, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
         .glass-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s; padding: 12px 15px; border-radius: 12px; outline: none; width: 100%; font-weight: 500; font-size: 13px;}
         .glass-input:focus { border-color: #d946ef; box-shadow: 0 0 15px rgba(217,70,239,0.3); background: rgba(0,0,0,0.8); }
@@ -36,8 +33,6 @@
 </head>
 <body class="flex min-h-screen relative antialiased">
     
-    <canvas id="bg-canvas"></canvas>
-
     <!-- SIDEBAR -->
     <aside class="w-64 glass-panel border-r border-white/5 flex flex-col justify-between z-20 shrink-0 hidden md:flex transition-all">
         <div>
@@ -446,40 +441,6 @@
     <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3"></div>
 
     <script>
-        // ========================================================
-        // 🌌 BACKGROUND 3D HẠT VÀ HIỆU ỨNG (GIỮ NGUYÊN)
-        // ========================================================
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene(); 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); 
-        camera.position.z = 30;
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true }); 
-        renderer.setSize(window.innerWidth, window.innerHeight); 
-        
-        const particlesGeometry = new THREE.BufferGeometry(); 
-        const particlesCount = window.innerWidth < 768 ? 500 : 1200; 
-        const posArray = new Float32Array(particlesCount * 3);
-        const colorArray = new Float32Array(particlesCount * 3);
-        
-        for(let i = 0; i < particlesCount * 3; i+=3) { 
-            posArray[i] = (Math.random() - 0.5) * 120; posArray[i+1] = (Math.random() - 0.5) * 120; posArray[i+2] = (Math.random() - 0.5) * 120;
-            const isFuchsia = Math.random() > 0.5;
-            colorArray[i] = isFuchsia ? 0.85 : 0.54; colorArray[i+1] = isFuchsia ? 0.27 : 0.36; colorArray[i+2] = isFuchsia ? 0.93 : 0.96;
-        }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
-        const material = new THREE.PointsMaterial({ size: 0.2, vertexColors: true, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-        const particlesMesh = new THREE.Points(particlesGeometry, material); 
-        scene.add(particlesMesh);
-        
-        const clock = new THREE.Clock();
-        function animateBg() {
-            requestAnimationFrame(animateBg); const elapsedTime = clock.getElapsedTime();
-            particlesMesh.rotation.y = elapsedTime * 0.02; particlesMesh.rotation.x = elapsedTime * 0.01;
-            renderer.render(scene, camera);
-        }
-        animateBg();
-
         // UI Tabs
         function renderInboxTabBtnHTML() {
             return '<i class="fas fa-comment-dots"></i> ' + t('crm_automation_tab_inbox') + ' <span class="bg-rose-500 text-white px-1.5 rounded-full text-[9px] animate-pulse">' + t('crm_automation_badge_live') + '</span>';

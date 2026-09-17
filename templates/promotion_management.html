@@ -7,7 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}?v=4.4.0"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
@@ -24,8 +23,6 @@
             padding: 1.5rem;
         }
         
-        /* 3D Background & Effects */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
         .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
         .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
         @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
@@ -95,7 +92,6 @@
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
     <div class="absolute-blur"></div>
-    <canvas id="bg-canvas"></canvas>
 
     <div class="relative z-10 max-w-7xl mx-auto">
         <!-- Header -->
@@ -690,78 +686,6 @@
 
         // Khởi tạo
         loadPromotions();
-
-        // 3D Background (giữ nguyên)
-        (function init3D() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 600 : 1200;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particlesCount * 3);
-            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-            const starCount = 80;
-            const starPositions = new Float32Array(starCount * 3);
-            const starVelocities = [];
-            for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
-                starVelocities.push({ x: (Math.random() - 0.5) * 0.05, y: (Math.random() - 0.5) * 0.08 - 0.03, z: (Math.random() - 0.5) * 0.02 });
-            }
-            const starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xa855f7, transparent: true, opacity: 0.6 });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
-            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX - halfX) * 0.0005;
-                mouseY = (e.clientY - halfY) * 0.0005;
-            });
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const elapsed = clock.getElapsedTime();
-                material.color.setHSL((elapsed * 0.03) % 1, 0.8, 0.6);
-                particles.rotation.y = elapsed * 0.02;
-                particles.rotation.x = elapsed * 0.01;
-                targetX = mouseX * 0.5;
-                targetY = mouseY * 0.5;
-                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
-                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
-                const posArr = stars.geometry.attributes.position.array;
-                for (let i = 0; i < starCount; i++) {
-                    posArr[i*3] += starVelocities[i].x;
-                    posArr[i*3+1] += starVelocities[i].y;
-                    posArr[i*3+2] += starVelocities[i].z;
-                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
-                        posArr[i*3] = (Math.random() - 0.5) * 120;
-                        posArr[i*3+1] = 40;
-                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
-                    }
-                }
-                stars.geometry.attributes.position.needsUpdate = true;
-                renderer.render(scene, camera);
-            }
-            animate();
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
     </script>
 </body>
 </html>

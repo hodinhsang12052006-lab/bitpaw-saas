@@ -9,17 +9,12 @@
     <script src="{{ url_for('static', filename='js/avatar_utils.js') }}"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow: hidden; }
-        
-        /* 3D Background Canvas */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.85; pointer-events: none; }
         
         /* Hiệu ứng scanline và laser */
         .scan-line {
@@ -99,7 +94,6 @@
     <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
     <div class="absolute-blur"></div>
     <div class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
-    <canvas id="bg-canvas"></canvas>
 
     <!-- Sidebar đồng bộ với dashboard (chỉ có các mục chính, không có mục "Sản xuất" riêng) -->
     {% include 'components/app_sidebar.html' %}
@@ -308,91 +302,6 @@
 
     <script>
         // ========================================================
-        // THREE.JS BACKGROUND NÂNG CẤP (CHUẨN LANDING PAGE)
-        // ========================================================
-        (function init3D() {
-            const canvas = document.getElementById('bg-canvas');
-            if (!canvas) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            const isMobile = window.innerWidth < 768;
-            const particlesCount = isMobile ? 700 : 1500;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particlesCount * 3);
-            for (let i = 0; i < particlesCount * 3; i++) positions[i] = (Math.random() - 0.5) * 140;
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: isMobile ? 0.14 : 0.2, color: 0x06b6d4, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            // Shooting stars
-            const starCount = 100;
-            const starPositions = new Float32Array(starCount * 3);
-            const starVelocities = [];
-            for (let i = 0; i < starCount; i++) {
-                starPositions[i*3] = (Math.random() - 0.5) * 120;
-                starPositions[i*3+1] = (Math.random() - 0.5) * 70;
-                starPositions[i*3+2] = (Math.random() - 0.5) * 60 - 30;
-                starVelocities.push({ x: (Math.random() - 0.5) * 0.07, y: (Math.random() - 0.5) * 0.1 - 0.04, z: (Math.random() - 0.5) * 0.03 });
-            }
-            const starGeometry = new THREE.BufferGeometry();
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starMaterial = new THREE.PointsMaterial({ size: 0.09, color: 0xffaa88, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
-
-            scene.fog = new THREE.FogExp2(0x08061a, 0.008);
-
-            let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-            const halfX = window.innerWidth / 2, halfY = window.innerHeight / 2;
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX - halfX) * 0.0005;
-                mouseY = (e.clientY - halfY) * 0.0005;
-            });
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const t = clock.getElapsedTime();
-                const hue = (t * 0.04) % 1;
-                material.color.setHSL(hue, 0.9, 0.65);
-                
-                particles.rotation.y = t * 0.03;
-                particles.rotation.x = t * 0.01;
-                targetX = mouseX * 0.5;
-                targetY = mouseY * 0.5;
-                particles.rotation.y += 0.5 * (targetX - particles.rotation.y);
-                particles.rotation.x += 0.5 * (targetY - particles.rotation.x);
-
-                const posArr = stars.geometry.attributes.position.array;
-                for (let i = 0; i < starCount; i++) {
-                    posArr[i*3] += starVelocities[i].x;
-                    posArr[i*3+1] += starVelocities[i].y;
-                    posArr[i*3+2] += starVelocities[i].z;
-                    if (Math.abs(posArr[i*3]) > 70 || Math.abs(posArr[i*3+1]) > 45) {
-                        posArr[i*3] = (Math.random() - 0.5) * 120;
-                        posArr[i*3+1] = 40;
-                        posArr[i*3+2] = (Math.random() - 0.5) * 50 - 25;
-                    }
-                }
-                stars.geometry.attributes.position.needsUpdate = true;
-                renderer.render(scene, camera);
-            }
-            animate();
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        })();
-
-        // ========================================================
         // TOAST, CONFETTI, UTILITIES
         // ========================================================
         function showToast(message, type = 'success') {
@@ -460,7 +369,6 @@
         }
 
         window.onload = () => {
-            VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
             applyStaticTranslations();
             // TODO: Layer 2 - thay bằng SSE/polling nếu trang này cần cập nhật thời gian thực.
             loadWorkers();
@@ -494,7 +402,7 @@
                     const tongSp = productivity[emp.ma_nv] || 0;
                     const delay = index * 50;
                     const card = `
-                        <div class="cascade-item glass-panel hover:border-emerald-500/50 hover:bg-emerald-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" data-tilt data-tilt-max="3" data-tilt-glare="true" data-tilt-max-glare="0.1" style="animation-delay: ${delay}ms;" onclick="openPos('${emp.ma_nv}', '${emp.ho_ten}')">
+                        <div class="cascade-item glass-panel hover:border-emerald-500/50 hover:bg-emerald-900/10 transition-all duration-300 rounded-[1.5rem] p-4 lg:p-5 flex flex-col md:flex-row items-center justify-between group shadow-lg cursor-pointer" style="animation-delay: ${delay}ms;" onclick="openPos('${emp.ma_nv}', '${emp.ho_ten}')">
                             <div class="flex items-center gap-4 lg:gap-5 z-10 w-full md:w-auto">
                                 <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 p-[2px] shadow-lg group-hover:scale-105 transition-transform shrink-0">
                                     <div class="w-full h-full bg-[#050f14] rounded-full flex items-center justify-center text-2xl font-black text-white overflow-hidden border border-[#050f14]">
@@ -517,7 +425,6 @@
                         </div>`;
                     grid.innerHTML += card;
                 });
-                setTimeout(() => VanillaTilt.init(document.querySelectorAll("[data-tilt]")), 100);
             } catch(e) { showToast(t('ccn_toast_load_error'), "error"); }
         }
 
