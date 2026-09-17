@@ -235,6 +235,34 @@
                             </div>
                         </div>
 
+                        <div class="border-t border-white/10 pt-6 mt-2" id="completionEvidenceBlock">
+                            <label class="block text-yellow-400 text-sm font-black uppercase tracking-widest mb-1"><i class="fas fa-file-signature mr-2 drop-shadow-[0_0_5px_currentColor]"></i><span data-i18n="chamcongkythuat_evidence_title">Bằng Chứng Hoàn Thành & Hoá Đơn Phụ Tùng</span></label>
+                            <p class="text-[10px] text-gray-400 mb-4 italic" data-i18n="chamcongkythuat_evidence_hint">Không bắt buộc — chỉ áp dụng khi có gán công việc ở trên. Ảnh + chữ ký khách hàng làm bằng chứng, phụ tùng đã dùng sẽ tự động lên hoá đơn khách.</p>
+
+                            <div class="mb-4">
+                                <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-widest" data-i18n="chamcongkythuat_photos_label">Ảnh hiện trường (tối đa 10)</label>
+                                <input type="file" id="jobPhotosInput" accept="image/*" multiple capture="environment" class="tech-input text-xs">
+                                <div id="jobPhotosPreview" class="flex flex-wrap gap-2 mt-2"></div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-gray-400 text-[10px] font-bold mb-2 uppercase tracking-widest" data-i18n="chamcongkythuat_signature_label">Chữ ký xác nhận của khách</label>
+                                <canvas id="signaturePad" width="500" height="150" class="w-full bg-white rounded-xl cursor-crosshair touch-none"></canvas>
+                                <button type="button" onclick="clearSignature()" class="mt-1.5 text-[10px] text-rose-400 hover:text-rose-300 font-bold uppercase tracking-widest"><i class="fas fa-eraser mr-1"></i> <span data-i18n="chamcongkythuat_clear_signature">Xoá chữ ký</span></button>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-gray-400 text-[10px] font-bold uppercase tracking-widest" data-i18n="chamcongkythuat_parts_label">Phụ tùng đã dùng (tính tiền khách)</label>
+                                    <button type="button" onclick="addPartRow()" class="text-[10px] text-cyan-400 hover:text-white font-bold uppercase tracking-widest"><i class="fas fa-plus-circle mr-1"></i> <span data-i18n="chamcongkythuat_add_part">Thêm phụ tùng</span></button>
+                                </div>
+                                <div id="partsRows" class="space-y-2"></div>
+                                <div class="flex justify-end mt-2 text-sm font-black text-emerald-400">
+                                    <span data-i18n="chamcongkythuat_parts_total">Tổng tiền phụ tùng:</span>&nbsp;<span id="partsTotalDisplay">0₫</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-gray-400 text-[10px] font-black tracking-widest mb-2 uppercase" data-i18n="chamcongkythuat_notes_label">Ghi Chú Thêm</label>
                             <input type="text" id="ghi_chu" class="tech-input font-normal text-sm" placeholder="VD: Sửa máy tại Quận 1, khách thêm tiền tip..." data-i18n-placeholder="chamcongkythuat_notes_placeholder">
@@ -309,6 +337,16 @@
                 chamcongkythuat_pkg_gas: '🔧 Bơm Gas / Lắp Đặt Máy',
                 chamcongkythuat_tools_label: 'Dụng Cụ Xuất (Tick để trừ kho)',
                 chamcongkythuat_checking_inventory: 'Đang kiểm tra kho...',
+                chamcongkythuat_evidence_title: 'Bằng Chứng Hoàn Thành & Hoá Đơn Phụ Tùng',
+                chamcongkythuat_evidence_hint: 'Không bắt buộc — chỉ áp dụng khi có gán công việc ở trên. Ảnh + chữ ký khách hàng làm bằng chứng, phụ tùng đã dùng sẽ tự động lên hoá đơn khách.',
+                chamcongkythuat_photos_label: 'Ảnh hiện trường (tối đa 10)',
+                chamcongkythuat_signature_label: 'Chữ ký xác nhận của khách',
+                chamcongkythuat_clear_signature: 'Xoá chữ ký',
+                chamcongkythuat_parts_label: 'Phụ tùng đã dùng (tính tiền khách)',
+                chamcongkythuat_add_part: 'Thêm phụ tùng',
+                chamcongkythuat_parts_total: 'Tổng tiền phụ tùng:',
+                chamcongkythuat_part_name_placeholder: 'Tên phụ tùng',
+                chamcongkythuat_toast_evidence_error: 'Đã lưu chấm công nhưng lỗi khi chốt bằng chứng/hoá đơn: ',
                 chamcongkythuat_notes_label: 'Ghi Chú Thêm',
                 chamcongkythuat_notes_placeholder: 'VD: Sửa máy tại Quận 1, khách thêm tiền tip...',
                 chamcongkythuat_submit_btn: 'GỬI VÀO HỆ THỐNG',
@@ -378,6 +416,16 @@
                 chamcongkythuat_pkg_gas: '🔧 Gas Refill / Machine Installation',
                 chamcongkythuat_tools_label: 'Tools to Issue (Check to deduct from stock)',
                 chamcongkythuat_checking_inventory: 'Checking inventory...',
+                chamcongkythuat_evidence_title: 'Completion Evidence & Parts Invoice',
+                chamcongkythuat_evidence_hint: 'Optional — only applies when a job is linked above. Photos + customer signature serve as proof, parts used will be automatically billed to the customer.',
+                chamcongkythuat_photos_label: 'Site photos (up to 10)',
+                chamcongkythuat_signature_label: 'Customer confirmation signature',
+                chamcongkythuat_clear_signature: 'Clear signature',
+                chamcongkythuat_parts_label: 'Parts used (billed to customer)',
+                chamcongkythuat_add_part: 'Add part',
+                chamcongkythuat_parts_total: 'Parts total:',
+                chamcongkythuat_part_name_placeholder: 'Part name',
+                chamcongkythuat_toast_evidence_error: 'Attendance saved but failed to finalize evidence/invoice: ',
                 chamcongkythuat_notes_label: 'Additional Notes',
                 chamcongkythuat_notes_placeholder: 'e.g. Fixed unit in District 1, customer added extra tip...',
                 chamcongkythuat_submit_btn: 'SUBMIT TO SYSTEM',
@@ -709,10 +757,93 @@
             document.querySelectorAll('.tool-checkbox').forEach(cb => cb.checked = false);
             document.getElementById('ghi_chu').value = "";
             document.getElementById('screen_list').classList.remove('active');
-            setTimeout(() => { document.getElementById('screen_pos').classList.add('active'); }, 50);
+            setTimeout(() => { document.getElementById('screen_pos').classList.add('active'); initSignaturePad(); }, 50);
             loadHistory(id);
             loadActiveTasksForWorker(name);
             loadInventory();
+            resetCompletionEvidence();
+        }
+
+        // ========================================================
+        // BẰNG CHỨNG HOÀN THÀNH: ẢNH + CHỮ KÝ + HOÁ ĐƠN PHỤ TÙNG
+        // ========================================================
+        let uploadedJobPhotoUrls = [];
+        let signaturePadCtx = null, signaturePadDrawing = false, signaturePadHasStroke = false;
+
+        function resetCompletionEvidence() {
+            uploadedJobPhotoUrls = [];
+            document.getElementById('jobPhotosPreview').innerHTML = '';
+            document.getElementById('jobPhotosInput').value = '';
+            document.getElementById('partsRows').innerHTML = '';
+            updatePartsTotal();
+            clearSignature();
+        }
+
+        function initSignaturePad() {
+            const canvas = document.getElementById('signaturePad');
+            if (!canvas || signaturePadCtx) return;
+            signaturePadCtx = canvas.getContext('2d');
+            signaturePadCtx.strokeStyle = '#000'; signaturePadCtx.lineWidth = 2.5; signaturePadCtx.lineCap = 'round';
+            function pos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+                const p = e.touches ? e.touches[0] : e;
+                return { x: (p.clientX - rect.left) * scaleX, y: (p.clientY - rect.top) * scaleY };
+            }
+            function start(e) { signaturePadDrawing = true; signaturePadHasStroke = true; const p = pos(e); signaturePadCtx.beginPath(); signaturePadCtx.moveTo(p.x, p.y); e.preventDefault(); }
+            function move(e) { if (!signaturePadDrawing) return; const p = pos(e); signaturePadCtx.lineTo(p.x, p.y); signaturePadCtx.stroke(); e.preventDefault(); }
+            function end() { signaturePadDrawing = false; }
+            canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end); canvas.addEventListener('mouseleave', end);
+            canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', move, { passive: false }); canvas.addEventListener('touchend', end);
+        }
+        function clearSignature() {
+            const canvas = document.getElementById('signaturePad');
+            if (canvas && signaturePadCtx) signaturePadCtx.clearRect(0, 0, canvas.width, canvas.height);
+            signaturePadHasStroke = false;
+        }
+
+        document.getElementById('jobPhotosInput')?.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []).slice(0, 10 - uploadedJobPhotoUrls.length);
+            const preview = document.getElementById('jobPhotosPreview');
+            for (const file of files) {
+                const fd = new FormData();
+                fd.append('file', file); fd.append('kind', 'job_photo');
+                const placeholder = document.createElement('div');
+                placeholder.className = 'w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center text-[9px] text-gray-400';
+                placeholder.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                preview.appendChild(placeholder);
+                try {
+                    const res = await fetch('/api/storage/upload', { method: 'POST', body: fd });
+                    const body = await res.json();
+                    if (!res.ok || !body.success) throw new Error(body.error || 'Upload failed');
+                    uploadedJobPhotoUrls.push(body.url);
+                    placeholder.innerHTML = `<img src="${body.url}" class="w-14 h-14 rounded-lg object-cover border border-yellow-500/40">`;
+                } catch (err) {
+                    placeholder.innerHTML = '<i class="fas fa-times text-rose-400"></i>';
+                }
+            }
+            e.target.value = '';
+        });
+
+        function updatePartsTotal() {
+            let total = 0;
+            document.querySelectorAll('.part-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.part-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.part-price').value) || 0;
+                total += qty * price;
+            });
+            document.getElementById('partsTotalDisplay').innerText = Math.round(total).toLocaleString('vi-VN') + '₫';
+        }
+        function addPartRow() {
+            const row = document.createElement('div');
+            row.className = 'part-row flex gap-2';
+            row.innerHTML = `
+                <input type="text" placeholder="${t('chamcongkythuat_part_name_placeholder')}" class="tech-input part-name text-sm" style="flex:2;">
+                <input type="number" placeholder="SL" min="0" step="1" class="tech-input part-qty text-sm" style="flex:1;" oninput="updatePartsTotal()">
+                <input type="number" placeholder="Đơn giá" min="0" class="tech-input part-price text-sm" style="flex:1;" oninput="updatePartsTotal()">
+                <button type="button" onclick="this.closest('.part-row').remove(); updatePartsTotal();" class="text-rose-400 px-2"><i class="fas fa-xmark"></i></button>
+            `;
+            document.getElementById('partsRows').appendChild(row);
         }
 
         function backToList() {
@@ -757,6 +888,37 @@
                         method: 'PATCH',
                         body: JSON.stringify({ trang_thai: 'Hoàn Thành', nguoi_nhan: currentWorkerName }),
                     });
+                    // Bằng chứng hoàn thành (ảnh/chữ ký) + hoá đơn phụ tùng — CHỈ gửi nếu kỹ thuật
+                    // viên thực sự có nhập gì (không bắt buộc), KHÔNG được để lỗi ở bước này làm
+                    // mất luôn bản ghi chấm công + hoàn thành job đã lưu thành công ở trên.
+                    const partsUsed = [];
+                    document.querySelectorAll('.part-row').forEach(row => {
+                        const name = row.querySelector('.part-name').value.trim();
+                        const qty = parseFloat(row.querySelector('.part-qty').value);
+                        const unit_price = parseFloat(row.querySelector('.part-price').value);
+                        if (name && qty > 0 && unit_price >= 0) partsUsed.push({ name, qty, unit_price });
+                    });
+                    let signatureUrl = null;
+                    if (signaturePadHasStroke) {
+                        try {
+                            const blob = await new Promise(resolve => document.getElementById('signaturePad').toBlob(resolve, 'image/png'));
+                            const fd = new FormData();
+                            fd.append('file', blob, 'signature.png'); fd.append('kind', 'job_signature');
+                            const sigRes = await fetch('/api/storage/upload', { method: 'POST', body: fd });
+                            const sigBody = await sigRes.json();
+                            if (sigRes.ok && sigBody.success) signatureUrl = sigBody.url;
+                        } catch (sigErr) { /* non-fatal — parts/photos still get saved below */ }
+                    }
+                    if (partsUsed.length > 0 || signatureUrl || uploadedJobPhotoUrls.length > 0) {
+                        try {
+                            await hrApi(`/api/tasks/${taskIdToLink}/complete`, {
+                                method: 'POST',
+                                body: JSON.stringify({ photo_urls: uploadedJobPhotoUrls, signature_url: signatureUrl, parts_used: partsUsed }),
+                            });
+                        } catch (evErr) {
+                            showToast(t('chamcongkythuat_toast_evidence_error') + evErr.message, "error");
+                        }
+                    }
                 }
                 if (checkedNodes.length > 0) {
                     for (let node of checkedNodes) {
@@ -776,6 +938,7 @@
                 document.getElementById('tang_ca').value = "0"; document.getElementById('phu_cap').value = "0"; document.getElementById('tien_tips').value = "0";
                 document.getElementById('ghi_chu').value = ""; document.getElementById('loai_cong_viec').value = ""; document.getElementById('link_task_id').value = "";
                 document.querySelectorAll('.tool-checkbox').forEach(cb => cb.checked = false);
+                resetCompletionEvidence();
             } catch(e) { showToast(t('chamcongkythuat_toast_save_error_prefix') + e.message, "error"); }
             btn.innerHTML = origHTML; btn.disabled = false;
         }

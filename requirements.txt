@@ -41,6 +41,14 @@ redis==5.2.1
 pymongo==4.17.0
 dnspython==2.8.0
 
+# --- QR code (app.py: sinh QR đặt lịch Nails/bàn F&B NGAY TRÊN SERVER — audit "phát triển QR
+# cho kỹ": trước đây các nút Xem/In QR gọi ảnh từ api.qrserver.com, một dịch vụ ngoài — vừa gửi
+# lộ link đặt lịch/link bàn thật ra bên thứ 3 mỗi lần xem, vừa khiến chủ tiệm KHÔNG in được QR
+# nếu dịch vụ đó chậm/sập/bị chặn mạng, đúng lúc cần in QR gấp để mở tiệm. Dùng image_factory
+# SvgImage (qrcode.image.svg) — THUẦN PYTHON, không cần Pillow, không biên dịch native, nhẹ và
+# an toàn cho Vercel serverless.) ---
+qrcode==8.2
+
 # --- Mã hoá (app.py dùng cryptography.fernet.Fernet) ---
 cryptography==49.0.0
 cffi==2.0.0

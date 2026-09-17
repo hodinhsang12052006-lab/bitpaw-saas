@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pm_title">Nguyên Vật Liệu | BitPaw OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #0f0a05; color: white; }
+        .glass-panel { background: rgba(30, 18, 10, 0.55); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.06); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.4); border-radius: 10px; }
+        .field-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 14px; color: #fff; width: 100%; outline: none; font-weight: 600; font-size: 13px; }
+        .field-input:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); }
+        .row-card { transition: all 0.2s ease; }
+        .row-card:hover { background: rgba(249,115,22,0.06); }
+        .low-stock { color: #ef4444 !important; }
+        .btn-mini { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; border: 1px solid transparent; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl lg:text-4xl font-black flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">
+                <i class="fas fa-boxes-stacked text-orange-400"></i> <span data-i18n="pm_header">Nguyên Vật Liệu</span>
+            </h1>
+            <p class="text-gray-400 mt-2 text-sm" data-i18n="pm_subtitle">Quản lý tồn kho NVL và công thức tiêu hao theo từng công đoạn/sản phẩm — tự động trừ kho khi ghi nhận sản lượng.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- ===== NGUYÊN VẬT LIỆU ===== -->
+            <div class="glass-panel rounded-3xl p-6">
+                <h3 class="font-black text-white mb-4 tracking-widest text-xs uppercase flex items-center gap-2"><i class="fas fa-cubes text-orange-400"></i> <span data-i18n="pm_materials_title">Kho Nguyên Vật Liệu</span></h3>
+
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <input type="text" id="newMaterialName" placeholder="Tên NVL" class="field-input">
+                    <input type="text" id="newMaterialUnit" placeholder="Đơn vị (kg, m, cuộn...)" class="field-input">
+                    <input type="number" id="newMaterialStock" placeholder="Tồn ban đầu" min="0" class="field-input">
+                </div>
+                <button onclick="addMaterial()" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black py-2.5 rounded-xl text-xs uppercase tracking-widest mb-4">
+                    <i class="fas fa-plus mr-1"></i> <span data-i18n="pm_add_material_btn">Thêm NVL</span>
+                </button>
+
+                <div id="materialsList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- ===== CÔNG THỨC ===== -->
+            <div class="glass-panel rounded-3xl p-6">
+                <h3 class="font-black text-white mb-4 tracking-widest text-xs uppercase flex items-center gap-2"><i class="fas fa-flask text-amber-400"></i> <span data-i18n="pm_recipes_title">Công Thức Tiêu Hao</span></h3>
+
+                <input type="text" id="recipeOutputName" placeholder="Tên công đoạn/sản phẩm (khớp CHÍNH XÁC với ô 'Công đoạn' lúc ghi sản lượng)" class="field-input mb-3">
+                <div id="recipeMaterialRows" class="space-y-2 mb-2"></div>
+                <button onclick="addRecipeMaterialRow()" class="text-xs text-orange-400 font-bold mb-3"><i class="fas fa-plus-circle mr-1"></i> <span data-i18n="pm_add_row_btn">Thêm dòng NVL</span></button>
+                <button onclick="saveRecipe()" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black py-2.5 rounded-xl text-xs uppercase tracking-widest mb-4">
+                    <i class="fas fa-save mr-1"></i> <span data-i18n="pm_save_recipe_btn">Lưu Công Thức</span>
+                </button>
+
+                <div id="recipesList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(150%); background:rgba(10,12,22,0.95); border:1px solid rgba(249,115,22,0.4); color:white; padding:12px 28px; border-radius:40px; font-size:13px; font-weight:600; z-index:10010; transition:transform 0.3s ease, opacity 0.3s ease; opacity:0; max-width: 90vw; text-align:center;"></div>
+
+    <script>
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                pm_title: 'Nguyên Vật Liệu | BitPaw OS', pm_header: 'Nguyên Vật Liệu',
+                pm_subtitle: 'Quản lý tồn kho NVL và công thức tiêu hao theo từng công đoạn/sản phẩm — tự động trừ kho khi ghi nhận sản lượng.',
+                pm_materials_title: 'Kho Nguyên Vật Liệu', pm_add_material_btn: 'Thêm NVL',
+                pm_recipes_title: 'Công Thức Tiêu Hao', pm_add_row_btn: 'Thêm dòng NVL', pm_save_recipe_btn: 'Lưu Công Thức',
+                pm_no_materials: 'Chưa có nguyên vật liệu nào.', pm_no_recipes: 'Chưa có công thức nào.',
+                pm_restock_placeholder: 'Nhập thêm', pm_toast_material_missing: 'Vui lòng nhập tên và đơn vị tính.',
+                pm_toast_saved: 'Đã lưu!', pm_toast_error: 'Lỗi: ', pm_toast_deleted: 'Đã xoá.',
+                pm_confirm_delete_material: 'Xoá nguyên vật liệu này?', pm_confirm_delete_recipe: 'Xoá công thức này?',
+                pm_toast_recipe_missing: 'Vui lòng nhập tên công đoạn và ít nhất 1 dòng NVL hợp lệ.',
+                pm_select_material: '-- Chọn NVL --',
+            },
+            en: {
+                pm_title: 'Materials | BitPaw OS', pm_header: 'Raw Materials',
+                pm_subtitle: 'Manage material stock and consumption recipes per stage/product — auto-deducted when output is logged.',
+                pm_materials_title: 'Materials Stock', pm_add_material_btn: 'Add Material',
+                pm_recipes_title: 'Consumption Recipes', pm_add_row_btn: 'Add material row', pm_save_recipe_btn: 'Save Recipe',
+                pm_no_materials: 'No materials yet.', pm_no_recipes: 'No recipes yet.',
+                pm_restock_placeholder: 'Restock', pm_toast_material_missing: 'Please enter a name and unit.',
+                pm_toast_saved: 'Saved!', pm_toast_error: 'Error: ', pm_toast_deleted: 'Deleted.',
+                pm_confirm_delete_material: 'Delete this material?', pm_confirm_delete_recipe: 'Delete this recipe?',
+                pm_toast_recipe_missing: 'Please enter a stage name and at least 1 valid material row.',
+                pm_select_material: '-- Select material --',
+            }
+        };
+        function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.title = t('pm_title');
+        }
+        applyStaticTranslations();
+
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.style.transform = 'translateX(-50%) translateY(0)'; el.style.opacity = '1';
+            setTimeout(() => { el.style.transform = 'translateX(-50%) translateY(150%)'; el.style.opacity = '0'; }, 3000);
+        }
+        function escapeHtml(str) { const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML; }
+        async function hrApi(path, options) {
+            const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options && options.headers) } });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+            return body;
+        }
+
+        let materialsCache = [];
+
+        async function loadMaterials() {
+            try {
+                const body = await hrApi('/api/production/materials');
+                materialsCache = body.data || [];
+                const box = document.getElementById('materialsList');
+                if (!materialsCache.length) { box.innerHTML = `<p class="text-gray-500 text-sm text-center py-6">${t('pm_no_materials')}</p>`; }
+                else {
+                    box.innerHTML = materialsCache.map(m => `
+                        <div class="row-card rounded-xl p-3 border border-white/5 flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-white truncate">${escapeHtml(m.name)}</div>
+                                <div class="text-[11px] ${m.stock_qty < 0 ? 'low-stock' : 'text-gray-500'}">${m.stock_qty.toLocaleString()} ${escapeHtml(m.unit)}</div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <input type="number" class="field-input" style="width:80px; padding:6px 8px;" placeholder="${t('pm_restock_placeholder')}" id="restock-${m.id}">
+                                <button class="btn-mini bg-emerald-500/15 text-emerald-300 border-emerald-500/40" onclick="restockMaterial(${m.id})"><i class="fas fa-plus"></i></button>
+                                <button class="btn-mini bg-rose-500/15 text-rose-300 border-rose-500/40" onclick="deleteMaterial(${m.id})"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>`).join('');
+                }
+                refreshRecipeMaterialSelects();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        async function addMaterial() {
+            const name = document.getElementById('newMaterialName').value.trim();
+            const unit = document.getElementById('newMaterialUnit').value.trim();
+            const stock_qty = parseFloat(document.getElementById('newMaterialStock').value) || 0;
+            if (!name || !unit) return showToast(t('pm_toast_material_missing'));
+            try {
+                await hrApi('/api/production/materials', { method: 'POST', body: JSON.stringify({ name, unit, stock_qty }) });
+                document.getElementById('newMaterialName').value = ''; document.getElementById('newMaterialUnit').value = ''; document.getElementById('newMaterialStock').value = '';
+                showToast(t('pm_toast_saved'));
+                loadMaterials();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        async function restockMaterial(id) {
+            const input = document.getElementById(`restock-${id}`);
+            const qty = parseFloat(input.value);
+            if (!qty || qty <= 0) return;
+            try {
+                await hrApi(`/api/production/materials/${id}`, { method: 'PATCH', body: JSON.stringify({ restock_qty: qty }) });
+                showToast(t('pm_toast_saved'));
+                loadMaterials();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        async function deleteMaterial(id) {
+            if (!confirm(t('pm_confirm_delete_material'))) return;
+            try {
+                await hrApi(`/api/production/materials/${id}`, { method: 'DELETE' });
+                showToast(t('pm_toast_deleted'));
+                loadMaterials();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        // ===== RECIPES =====
+        function materialOptionsHtml(selectedId) {
+            return `<option value="">${t('pm_select_material')}</option>` +
+                materialsCache.map(m => `<option value="${m.id}" ${String(m.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(m.name)} (${escapeHtml(m.unit)})</option>`).join('');
+        }
+        function addRecipeMaterialRow(materialId, qty) {
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 recipe-row';
+            row.innerHTML = `
+                <select class="field-input recipe-material-select">${materialOptionsHtml(materialId)}</select>
+                <input type="number" class="field-input recipe-qty-input" style="width:110px;" placeholder="Định mức/đvsp" min="0" step="0.01" value="${qty || ''}">
+                <button class="btn-mini bg-rose-500/15 text-rose-300 border-rose-500/40" onclick="this.closest('.recipe-row').remove()"><i class="fas fa-xmark"></i></button>
+            `;
+            document.getElementById('recipeMaterialRows').appendChild(row);
+        }
+        function refreshRecipeMaterialSelects() {
+            document.querySelectorAll('.recipe-material-select').forEach(sel => {
+                const current = sel.value;
+                sel.innerHTML = materialOptionsHtml(current);
+            });
+        }
+        addRecipeMaterialRow();
+
+        async function saveRecipe() {
+            const output_name = document.getElementById('recipeOutputName').value.trim();
+            const materials = [];
+            document.querySelectorAll('.recipe-row').forEach(row => {
+                const material_id = row.querySelector('.recipe-material-select').value;
+                const qty_per_unit = row.querySelector('.recipe-qty-input').value;
+                if (material_id && qty_per_unit) materials.push({ material_id: parseInt(material_id), qty_per_unit: parseFloat(qty_per_unit) });
+            });
+            if (!output_name || !materials.length) return showToast(t('pm_toast_recipe_missing'));
+            try {
+                await hrApi('/api/production/recipes', { method: 'POST', body: JSON.stringify({ output_name, materials }) });
+                document.getElementById('recipeOutputName').value = '';
+                document.getElementById('recipeMaterialRows').innerHTML = '';
+                addRecipeMaterialRow();
+                showToast(t('pm_toast_saved'));
+                loadRecipes();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        async function loadRecipes() {
+            try {
+                const body = await hrApi('/api/production/recipes');
+                const rows = body.data || [];
+                const box = document.getElementById('recipesList');
+                if (!rows.length) { box.innerHTML = `<p class="text-gray-500 text-sm text-center py-6">${t('pm_no_recipes')}</p>`; return; }
+                box.innerHTML = rows.map(r => `
+                    <div class="row-card rounded-xl p-3 border border-white/5">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-white">${escapeHtml(r.output_name)}</span>
+                            <button class="btn-mini bg-rose-500/15 text-rose-300 border-rose-500/40" onclick="deleteRecipe(${r.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div class="text-[11px] text-gray-500">${r.materials.map(m => {
+                            const mat = materialsCache.find(x => x.id === m.material_id);
+                            return `${mat ? escapeHtml(mat.name) : '#' + m.material_id}: ${m.qty_per_unit}${mat ? escapeHtml(mat.unit) : ''}/đvsp`;
+                        }).join(', ')}</div>
+                    </div>`).join('');
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        async function deleteRecipe(id) {
+            if (!confirm(t('pm_confirm_delete_recipe'))) return;
+            try {
+                await hrApi(`/api/production/recipes/${id}`, { method: 'DELETE' });
+                showToast(t('pm_toast_deleted'));
+                loadRecipes();
+            } catch (e) { showToast(t('pm_toast_error') + e.message); }
+        }
+
+        (async function init() {
+            await loadMaterials();
+            await loadRecipes();
+        })();
+    </script>
+</body>
+</html>

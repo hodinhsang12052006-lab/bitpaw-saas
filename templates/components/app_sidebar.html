@@ -181,10 +181,44 @@
             </a>
             {% endif %}
 
+            {# BUG THẬT đã vá (audit ghép nối màn hình theo ngành): Hotel (room_management) và
+               Karaoke (room_timing/pos_ordering) trước đây KHÔNG có link nào trong sidebar dẫn
+               về màn hình vận hành chính của chính ngành họ (/hotel_rooms, /karaoke) — chủ
+               tiệm rời sang trang khác (Nhân sự, Báo cáo...) là mất luôn đường quay lại, phải
+               tự gõ URL. #}
+            {% if 'room_management' in modules %}
+            <a href="{{ url_for('hotel_rooms_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel_rooms' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-hotel w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                <span data-i18n="menu_hotel_rooms">{{ menu_i18n.hotel_rooms or 'Quản Lý Phòng' }}</span>
+            </a>
+            <a href="{{ url_for('hotel_reservations_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel/reservations' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-calendar-days w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                <span data-i18n="menu_hotel_reservations">{{ menu_i18n.hotel_reservations or 'Đặt Phòng Trước' }}</span>
+            </a>
+            {% endif %}
+            {% if 'room_timing' in modules or 'pos_ordering' in modules %}
+            <a href="{{ url_for('karaoke') }}" class="flex items-center space-x-4 {% if request.path == '/karaoke' %} bg-gradient-to-r from-emerald-500/20 to-transparent border-l-4 border-emerald-400 text-emerald-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-music w-5 text-xl group-hover:text-emerald-400 transition-colors"></i>
+                <span data-i18n="menu_karaoke_rooms">{{ menu_i18n.karaoke_rooms or 'Phòng Karaoke' }}</span>
+            </a>
+            {% endif %}
+            {% if 'factory_output' in modules %}
+            <a href="{{ url_for('production_output_page') }}" class="flex items-center space-x-4 {% if request.path == '/production_output' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-industry w-5 text-xl group-hover:text-orange-400 transition-colors"></i>
+                <span data-i18n="menu_production_output">{{ menu_i18n.production_output or 'Sản Lượng' }}</span>
+            </a>
+            {% if session.get('role') in ('admin', 'super_admin') %}
+            <a href="{{ url_for('production_materials_page') }}" class="flex items-center space-x-4 {% if request.path == '/production/materials' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <i class="fas fa-boxes-stacked w-5 text-xl group-hover:text-orange-400 transition-colors"></i>
+                <span data-i18n="menu_production_materials">{{ menu_i18n.production_materials or 'Nguyên Vật Liệu' }}</span>
+            </a>
+            {% endif %}
+            {% endif %}
+
             {% if not is_staff %}
                 {# Retail / bán lẻ đơn giản #}
                 {% if 'sales' in modules and 'ordering' not in modules and 'spa_services' not in modules and 'nail_services' not in modules %}
-                <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                <a href="{{ url_for('retail_pos') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                     <span data-i18n="menu_sales">{{ menu_i18n.sales }}</span>
                 </a>
@@ -212,6 +246,12 @@
                     <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                     <span data-i18n="menu_payroll">{{ menu_i18n.payroll }}</span>
                 </a>
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <a href="{{ url_for('leave_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-calendar-times w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>
+                </a>
+                {% endif %}
                 {% endif %}
 
                 {% if 'dispatch_gps' in modules %}

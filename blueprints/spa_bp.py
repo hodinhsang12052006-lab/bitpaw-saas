@@ -149,15 +149,24 @@ def checkout_spa():
 @app.route('/booking/qr/<spa_id>')
 @app.route('/booking/service/<service_id>')
 def public_booking(spa_id=None, service_id=None):
-    try:
-        query_filter = {'is_active': 1, 'channel_type': 'spa', 'name': {'$ne': 'Phí Dịch Vụ Spa'}}
-        # spa_id trong QR chính là business_id của tiệm — chỉ hiện đúng dịch vụ của tiệm đó, không trộn tiệm khác
-        if spa_id:
-            query_filter['business_id'] = spa_id
-        services_data = list(db.products.find(query_filter, {'_id': 0}))
-    except Exception as e:
-        print(f"MongoDB public_booking services select failed: {str(e)}")
-        services_data = []
+    # BUG THẬT NGHIÊM TRỌNG đã vá (audit cách ly QR đa tiệm): thiếu spa_id trước đây vẫn CHẠY
+    # query không lọc business_id -> gộp dịch vụ của MỌI tiệm Spa trong toàn hệ thống vào 1
+    # trang — và landing_spa.html/landing_hotel.html lại gắn link demo url_for('public_booking')
+    # THẲNG RA TRANG MARKETING CÔNG KHAI (không qua QR, không có spa_id), nghĩa là bất kỳ khách
+    # nào bấm vào link "Cổng đặt lịch online" trên trang giới thiệu sản phẩm đều thấy dịch vụ/
+    # giá của MỌI tiệm Spa đang dùng hệ thống trộn chung — đúng kiểu lỗi "quét tiệm này ra tiệm
+    # khác" nghiêm trọng nhất. Sửa theo ĐÚNG mẫu an toàn nail_bp.py::public_booking_nail() đã
+    # áp dụng: thiếu spa_id -> KHÔNG query gì cả, trả về rỗng thay vì trộn dữ liệu.
+    services_data = []
+    if spa_id:
+        try:
+            services_data = list(db.products.find(
+                {'is_active': 1, 'channel_type': 'spa', 'name': {'$ne': 'Phí Dịch Vụ Spa'}, 'business_id': spa_id},
+                {'_id': 0}
+            ))
+        except Exception as e:
+            print(f"MongoDB public_booking services select failed: {str(e)}")
+            services_data = []
     # Cho khách TỰ chọn thợ (tuỳ chọn) thay vì luôn để tiệm tự xếp — db.staff là nguồn nhân sự
     # Spa đang dùng cho commission/chấm công (xem add_staff()), CHỈ trả id+name (không lộ phone/
     # commission_rate — public route, không có session). {id, name} khớp shape với nail_bp.py để

@@ -288,9 +288,34 @@
             </div>
             <div class="flex gap-3 items-center">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-sm font-semibold transition">
-                    <i class="fas fa-home"></i> <span data-i18n="karaoke_nav_dashboard">Dashboard</span>
+                {# BUG THẬT đã vá (audit ghép nối màn hình theo ngành/vai trò): trước đây trỏ
+                   cứng vào index() (/dashboard) — Karaoke không có dashboard chung riêng
+                   (dashboard_route = /karaoke), nên index() redirect NGAY VỀ /karaoke, nút
+                   "Dashboard" chỉ vòng lại đúng màn hình đang đứng — chủ tiệm không có cách
+                   nào tới Quản lý nhân viên/Chấm công/Báo cáo/AI Copilot (không có template
+                   chamcong_karaoke.html riêng nên chamcong_industry() tự fallback về
+                   chamcong.html — vẫn có sidebar đầy đủ). Đổi sang trỏ thẳng vào đó cho
+                   admin; nhân viên (bị chamcong_industry() chặn) trỏ vào đúng trang cá nhân
+                   của họ. #}
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <div class="relative" id="mgmtMenuWrap">
+                    <button type="button" onclick="toggleMgmtMenu(event)" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-sm font-semibold transition flex items-center gap-2">
+                        <i class="fas fa-user-shield"></i> <span data-i18n="karaoke_nav_dashboard">Management</span> <i class="fas fa-chevron-down text-[9px] opacity-70"></i>
+                    </button>
+                    <div id="mgmtMenuPanel" class="hidden absolute right-0 top-full mt-2 w-52 bg-[#0a0f25] border border-white/10 rounded-xl p-2 z-50 shadow-xl backdrop-blur-xl">
+                        <a href="{{ url_for('karaoke_reservations_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-microphone w-4 text-center"></i> <span data-i18n="karaoke_mgmt_reservations">Reservations</span></a>
+                        <a href="{{ url_for('chamcong_industry', industry_code='karaoke') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-calendar-check w-4 text-center"></i> <span data-i18n="karaoke_mgmt_attendance">Attendance</span></a>
+                        <a href="{{ url_for('staff_list') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-users w-4 text-center"></i> <span data-i18n="karaoke_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('bangluong') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-file-invoice-dollar w-4 text-center"></i> <span data-i18n="karaoke_mgmt_payroll">Payroll</span></a>
+                        <a href="{{ url_for('report_consolidated') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-sitemap w-4 text-center"></i> <span data-i18n="karaoke_mgmt_reports">Reports</span></a>
+                        <a href="{{ url_for('brand_settings') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-cog w-4 text-center"></i> <span data-i18n="karaoke_mgmt_settings">Settings</span></a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('app_nhanvien') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-sm font-semibold transition">
+                    <i class="fas fa-user-shield"></i> <span data-i18n="karaoke_nav_my_attendance">My Attendance</span>
                 </a>
+                {% endif %}
             </div>
         </div>
 
@@ -373,6 +398,18 @@
             if (show) overlay.classList.add('active');
             else overlay.classList.remove('active');
         }
+
+        // "Management" quick-access dropdown (Nhân sự/Chấm công/Lương/Báo cáo/Cài đặt) —
+        // đóng khi bấm ra ngoài, giống pattern dropdown chuẩn của trình duyệt.
+        function toggleMgmtMenu(e) {
+            e.stopPropagation();
+            document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('mgmtMenuWrap');
+            const panel = document.getElementById('mgmtMenuPanel');
+            if (wrap && panel && !wrap.contains(e.target)) panel.classList.add('hidden');
+        });
 
         // Load danh sách phòng từ collection karaoke_rooms qua Flask API (GET /api/karaoke/rooms)
         async function loadRooms() {
@@ -558,7 +595,10 @@
             vi: {
                 karaoke_title_suffix: '| Karaoke & Bida',
                 karaoke_subtitle: 'Quản lý phòng hát & bida thông minh',
-                karaoke_nav_dashboard: 'Dashboard',
+                karaoke_nav_dashboard: 'Quản lý',
+                karaoke_nav_my_attendance: 'Chấm công của tôi',
+                karaoke_mgmt_attendance: 'Chấm công', karaoke_mgmt_staff: 'Nhân sự', karaoke_mgmt_payroll: 'Bảng lương',
+                karaoke_mgmt_reports: 'Báo cáo tổng hợp', karaoke_mgmt_settings: 'Cài đặt', karaoke_mgmt_reservations: 'Đặt phòng trước',
                 karaoke_loading_rooms: 'Đang tải danh sách phòng...',
                 karaoke_modal_confirm_title: 'Xác nhận thanh toán',
                 karaoke_time_used: 'Thời gian đã sử dụng',
@@ -594,7 +634,10 @@
             en: {
                 karaoke_title_suffix: '| Karaoke & Billiards',
                 karaoke_subtitle: 'Smart karaoke & billiards room management',
-                karaoke_nav_dashboard: 'Dashboard',
+                karaoke_nav_dashboard: 'Management',
+                karaoke_nav_my_attendance: 'My Attendance',
+                karaoke_mgmt_attendance: 'Attendance', karaoke_mgmt_staff: 'Staff', karaoke_mgmt_payroll: 'Payroll',
+                karaoke_mgmt_reports: 'Consolidated Report', karaoke_mgmt_settings: 'Settings', karaoke_mgmt_reservations: 'Reservations',
                 karaoke_loading_rooms: 'Loading room list...',
                 karaoke_modal_confirm_title: 'Confirm Payment',
                 karaoke_time_used: 'Time used',

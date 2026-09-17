@@ -64,19 +64,114 @@
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
         }
 
-        .pos-grid { display: grid; grid-template-columns: 1fr; min-height: 0; flex: 1; }
-        /* Dưới 768px: 2 panel con (catalog dịch vụ + ticket thanh toán) từng xếp thành 2 hàng
-           "auto" trong grid 1 cột — hàng auto-size theo nội dung khiến panel ticket (chứa nút
-           Pay Now) có thể bị đẩy tràn xuống dưới viewport, và #pos-shell có overflow:hidden
-           nên không có thanh cuộn nào để kéo tới. Đổi sang flex-column với catalog giới hạn
-           max-height (tự cuộn riêng — đã có overflow-y-auto sẵn), ticket lấy flex:1 phần còn
-           lại (đảm bảo luôn đủ chỗ, tự cuộn riêng nếu nội dung ticket vẫn dài hơn khung). */
+        /* ===== Split Card Layout: Queue (left, ~34%) + tabbed Workspace (right) — replaces the
+           old fixed 56/44 catalog|ticket columns with rounded, gapped cards per the requested
+           "Split Card" reference layout. Panels are addressed by id (not :first-child/
+           :last-child) since the queue panel is collapsible on mobile independently. */
+        .pos-grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 14px; min-height: 0; flex: 1; overflow: hidden; }
         @media (max-width: 767px) {
-            .pos-grid { display: flex; flex-direction: column; }
-            .pos-grid > div:first-child { max-height: 42vh; flex-shrink: 0; }
-            .pos-grid > div:last-child { flex: 1 1 auto; min-height: 0; }
+            .pos-grid { display: flex; flex-direction: column; padding: 10px 10px 0; gap: 10px; overflow-y: hidden; }
+            #queuePanel { display: none; max-height: 46vh; flex-shrink: 0; }
+            #queuePanel.queue-open { display: flex; }
+            #workspacePanel { flex: 1 1 auto; min-height: 0; }
         }
-        @media (min-width: 768px) { .pos-grid { grid-template-columns: 56% 44%; } }
+        @media (min-width: 768px) { .pos-grid { grid-template-columns: 34% 1fr; } }
+
+        .split-card {
+            background: #0d0f17;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 1.25rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .functions-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 7px 16px 7px 8px;
+            border-radius: 999px;
+        }
+        .functions-pill .fn-badge {
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            color: #fff;
+            font-size: 0.6rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .quick-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .quick-tab-btn:hover { background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.3); color: #fff; }
+        .quick-tab-icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .quick-tab-icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+        .workspace-tabbar { display: flex; gap: 6px; overflow-x: auto; padding: 10px 14px 0; }
+        .workspace-tab-btn {
+            padding: 10px 16px;
+            border-radius: 12px 12px 0 0;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8b93a7;
+            white-space: nowrap;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .workspace-tab-btn:hover { color: #fff; }
+        .workspace-tab-btn.active { color: #fff; background: rgba(236, 72, 153, 0.08); border-bottom-color: #ec4899; }
+
+        .tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+        .tab-panel.active { display: flex; }
+
+        .queue-entry {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .queue-entry:hover { border-color: rgba(236, 72, 153, 0.35); background: rgba(236, 72, 153, 0.04); }
 
         .cat-tab {
             background: rgba(255, 255, 255, 0.02);
@@ -444,155 +539,173 @@
 
     <!-- ================= STANDALONE FULL-SCREEN POS — NO admin sidebar ================= -->
     <div id="pos-shell" class="relative z-10 h-screen w-screen flex flex-col overflow-hidden">
-        <div id="pos-topbar" class="flex items-center justify-between gap-3 px-6 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
-            <div class="flex items-center gap-4 shrink-0">
-                <!-- ================= BRANDING: white-labeled BitPaw identity — clean flex
-                     alignment with ample breathing room (py-2/px-4/gap-3), no cramped overlap ================= -->
-                <div class="flex items-center gap-3 py-2 px-4 mr-2 border-r border-white/10">
-                    <div class="relative w-10 h-10 rounded-full border border-cyan-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.3)] shrink-0 bg-black/30 overflow-hidden">
+        <div id="pos-topbar" class="flex items-center justify-between gap-3 px-4 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
+            <div class="flex items-center gap-3 shrink-0">
+                <button type="button" onclick="toggleQueuePanel()" id="burgerBtn" class="quick-tab-icon-btn md:hidden" title="Queue">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <!-- ================= BRANDING: white-labeled BitPaw identity (unchanged logo/bg) ================= -->
+                <div class="flex items-center gap-3 py-1 px-3 mr-1 border-r border-white/10">
+                    <div class="relative w-9 h-9 rounded-full border border-cyan-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.3)] shrink-0 bg-black/30 overflow-hidden">
                         <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="w-full h-full object-cover">
                     </div>
-                    <div class="flex flex-col leading-tight justify-center">
-                        <span class="text-lg font-black tracking-wide font-title text-white whitespace-nowrap">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 font-bold">POS</span></span>
-                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] font-title mt-1 whitespace-nowrap">Salon Terminal</span>
+                    <div class="hidden md:flex flex-col leading-tight justify-center">
+                        <span class="text-base font-black tracking-wide font-title text-white whitespace-nowrap">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-400 font-bold">POS</span></span>
+                        <span class="text-[9px] text-gray-500 font-bold uppercase tracking-[0.2em] font-title whitespace-nowrap">Salon Terminal</span>
                     </div>
                 </div>
-                <a href="{{ url_for('index') }}" class="exit-btn shrink-0"><i class="fas fa-arrow-left"></i> <span data-i18n="npos_exit_btn">Exit POS</span></a>
+                <!-- "FUNCTIONS · time" widget — mirrors the reference layout's top-left status pill -->
+                <div class="functions-pill shrink-0">
+                    <span class="fn-badge" data-i18n="npos_functions_badge">FUNCTIONS</span>
+                    <span id="liveClock" class="text-xs text-gray-300 font-mono tracking-widest uppercase whitespace-nowrap"></span>
+                </div>
             </div>
-            <!-- BUG THẬT đã vá (khách chụp màn hình báo trực tiếp trên iPad): thêm nút "Booking
-                 QR" + mở lại nút chuyển ngôn ngữ (2 việc làm ở phiên trước) khiến khối bên phải
-                 rộng thêm hẳn, không còn đủ chỗ cho tiêu đề giữa trên màn hình vừa (iPad) — tiêu
-                 đề bị ĐÈ CHỒNG lên nút Booking QR, chữ không đọc được. min-w-0 + truncate ở đây
-                 để tiêu đề tự RÚT GỌN kèm "…" khi thiếu chỗ (thay vì đè chồng không đọc được);
-                 shrink-0 ở 2 khối trái/phải để nút bấm KHÔNG BAO GIỜ bị bóp méo/mất nút. -->
-            <div class="flex-1 min-w-0 flex flex-col items-center px-2">
-                <h1 class="max-w-full truncate text-xl font-extrabold flex items-center gap-2 tracking-wide font-title"><i class="fas fa-spa text-pink-400 drop-shadow-[0_0_8px_rgba(244,114,182,0.4)] shrink-0"></i> <span class="truncate" data-i18n="npos_header_title">Nail Salon POS</span></h1>
-                <span id="liveClock" class="text-xs text-gray-500 font-mono tracking-widest uppercase mt-0.5 whitespace-nowrap"></span>
+
+            <!-- Quick-action tab row — Balance/Wait/Appt Book/Fast Sale/Search/Home, each wired to
+                 an existing feature (no new sale logic — just faster entry points into it). -->
+            <div class="flex-1 min-w-0 flex items-center justify-center gap-2 overflow-x-auto custom-scrollbar px-2">
+                <div class="quick-tab-btn" onclick="switchTab('closeTicket')"><i class="fas fa-scale-balanced"></i><span data-i18n="npos_qa_balance">Balance</span></div>
+                <div class="quick-tab-btn" onclick="holdTicket()"><i class="fas fa-pause"></i><span data-i18n="npos_qa_wait">Wait</span></div>
+                <div class="quick-tab-btn" onclick="openBookingQrModal()"><i class="fas fa-calendar-check"></i><span data-i18n="npos_qa_apptbook">Appt Book</span></div>
+                <div class="quick-tab-btn" onclick="openCustomItemModal()"><i class="fas fa-bolt"></i><span data-i18n="npos_qa_fastsale">Fast Sale</span></div>
+                <div class="quick-tab-icon-btn" onclick="toggleServiceSearch()" title="Search"><i class="fas fa-magnifying-glass"></i></div>
+                <a href="{{ url_for('index') }}" class="quick-tab-icon-btn" title="Exit POS"><i class="fas fa-house"></i></a>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <button type="button" onclick="openBookingQrModal()" class="flex items-center gap-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title transition" title="Cổng đặt lịch online của tiệm">
-                    <i class="fas fa-qrcode"></i>
-                    <span class="hidden lg:inline" data-i18n="npos_booking_qr_btn">Booking QR</span>
-                </button>
-                <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase font-title shadow-sm shadow-emerald-500/5">
+
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="hidden lg:flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide uppercase font-title">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="hidden sm:inline" data-i18n="npos_terminal_status">Online</span>
+                    <span data-i18n="npos_terminal_status">Online</span>
                 </div>
                 <button id="pageLangToggleBtn" type="button" onclick="toggleLang()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0">EN</button>
             </div>
         </div>
 
-        <!-- ================= TWO-COLUMN LAYOUT: 56% catalog / 44% sticky ticket ================= -->
+        <!-- ================= SPLIT CARD LAYOUT: Queue (~34%) + Tabbed Workspace ================= -->
         <div class="pos-grid flex-1 overflow-hidden">
-            <!-- ================= LEFT: VISUAL SERVICE CATALOG ================= -->
-            <div class="p-6 overflow-y-auto custom-scrollbar min-h-0 bg-slate-950/15 relative z-10">
-                <div id="categoryTabs" class="flex gap-3 mb-6 overflow-x-auto pb-3 custom-scrollbar"></div>
-                <div id="serviceGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
-                <div id="noServicesMsg" class="hidden text-center text-gray-500 py-24">
-                    <i class="fas fa-box-open text-4xl mb-4 block text-gray-600"></i>
-                    <span class="text-base font-semibold" data-i18n="npos_no_services">No services yet. Add products under Nails category first.</span>
+            <!-- ================= LEFT: QUEUE — held tickets waiting to be resumed ================= -->
+            <div id="queuePanel" class="split-card">
+                <div class="px-5 py-3.5 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-pink-400 flex items-center gap-2 font-title"><i class="fas fa-users"></i> <span data-i18n="npos_queue_title">Queue</span></h3>
+                    <span id="queueCountBadge" class="text-xs bg-pink-500/10 text-pink-400 font-black px-2.5 py-1 rounded-full border border-pink-500/20 font-title min-w-[1.75rem] text-center">0</span>
                 </div>
+                <div id="queueList" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3"></div>
             </div>
 
-            <!-- ================= RIGHT: STICKY TICKET (35%, never squashed) ================= -->
-            <div class="border-l border-white/5 bg-[#090b11] flex flex-col min-h-0 overflow-y-auto custom-scrollbar shadow-2xl relative z-20">
-                <div class="px-5 py-2.5 border-b border-white/5 bg-slate-950/20 flex items-center justify-between shrink-0 gap-2">
-                    <h3 class="text-base font-extrabold uppercase tracking-wider text-pink-400 flex items-center gap-2 font-title shrink-0"><i class="fas fa-receipt text-pink-500"></i> <span data-i18n="npos_ticket_title">Current Ticket</span></h3>
-                    <button type="button" id="heldTicketsIndicator" onclick="resumeHeldTicket()" class="hidden items-center gap-1.5 text-xs bg-amber-500/10 text-amber-400 font-black px-3 py-1 rounded-full border border-amber-500/30 tracking-wider font-title hover:bg-amber-500/20 transition-colors shrink-0">
-                        <i class="fas fa-pause"></i> <span id="heldTicketsCount">0</span> Held
-                    </button>
-                    <span class="text-xs bg-pink-500/10 text-pink-400 font-black px-3 py-1 rounded-full border border-pink-500/20 tracking-wider font-title shrink-0">ACTIVE</span>
+            <!-- ================= RIGHT: TABBED WORKSPACE — Service / Waiting List / Turn Details / Close Ticket ================= -->
+            <div id="workspacePanel" class="split-card">
+                <div class="workspace-tabbar shrink-0">
+                    <div class="workspace-tab-btn active" data-tab="service" onclick="switchTab('service')" data-i18n="npos_tab_service">Service</div>
+                    <div class="workspace-tab-btn" data-tab="waitingList" onclick="switchTab('waitingList')" data-i18n="npos_tab_waitinglist">Waiting List</div>
+                    <div class="workspace-tab-btn" data-tab="turnDetails" onclick="switchTab('turnDetails')" data-i18n="npos_tab_turndetails">Turn Details</div>
+                    <div class="workspace-tab-btn" data-tab="closeTicket" onclick="switchTab('closeTicket')" data-i18n="npos_tab_closeticket">Close Ticket</div>
                 </div>
 
-                <!-- Customer quick-select -->
-                <div class="px-5 py-2 border-b border-white/5 shrink-0 bg-slate-950/10">
-                    <label class="block text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 font-title" data-i18n="npos_customer_label">Customer</label>
-                    <div class="relative">
-                        <select id="customerSelect" class="pos-input icon-input-pl text-base leading-normal pl-11 font-title">
-                            <option value="" data-i18n="npos_walkin_option">Walk-in (no customer)</option>
-                        </select>
-                        <i class="fas fa-user-circle absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg"></i>
+                <!-- Persistent ticket-action toolbar — reachable from every tab (same 5 actions
+                     that used to live in the old sidebar, just always-on now instead of tucked
+                     under one specific tab). -->
+                <div class="px-4 pt-3 pb-3 border-b border-white/5 shrink-0">
+                    <div class="grid grid-cols-5 gap-2">
+                        <div class="action-btn info" onclick="openCustomItemModal()"><i class="fas fa-circle-plus"></i><span class="hidden xl:inline" data-i18n="npos_custom_item_btn">Add Item</span></div>
+                        <div class="action-btn warn" onclick="openDiscountModal()"><i class="fas fa-tags"></i><span class="hidden xl:inline" data-i18n="npos_discount_btn">Discount</span></div>
+                        <button type="button" onclick="openRefundModal()" class="action-btn default"><i class="fas fa-rotate-left"></i><span class="hidden xl:inline" data-i18n="npos_refund_btn">Refund</span></button>
+                        <button type="button" onclick="printQuote()" class="action-btn default"><i class="fas fa-print"></i><span class="hidden xl:inline" data-i18n="npos_print_quote_btn">Print Quote</span></button>
+                        <div class="action-btn danger" onclick="clearTicket()"><i class="fas fa-trash-can"></i><span class="hidden xl:inline" data-i18n="npos_clear_btn">Clear</span></div>
                     </div>
                 </div>
 
-                <!-- Cart items (only this area scrolls) -->
-                <div id="cartItems" class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5 min-h-[220px] relative z-10">
-                    <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
-                        <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
-                        <span class="font-medium font-title" data-i18n="npos_empty_cart">No services added yet</span>
-                    </div>
-                </div>
-
-                <!-- Quick-action POS buttons -->
-                <div class="px-5 pt-2 pb-0.5 shrink-0 bg-slate-950/5">
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="action-btn info" onclick="openCustomItemModal()"><i class="fas fa-circle-plus"></i><span data-i18n="npos_custom_item_btn">Add Item</span></div>
-                        <div class="action-btn warn" onclick="openDiscountModal()"><i class="fas fa-tags"></i><span data-i18n="npos_discount_btn">Discount</span></div>
-                        <div class="action-btn danger" onclick="clearTicket()"><i class="fas fa-trash-can"></i><span data-i18n="npos_clear_btn">Clear</span></div>
-                    </div>
-                </div>
-
-                <!-- Administrative utility bar: Return/Refund, Hold Ticket, Print Quote —
-                     deliberately subtle/bordered, distinct from the vibrant primary actions
-                     above, since these are lower-frequency back-office operations. -->
-                <div class="px-5 pt-1.5 pb-1 shrink-0">
-                    <div class="grid grid-cols-3 gap-2">
-                        <button type="button" onclick="openRefundModal()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
-                            <i class="fas fa-rotate-left"></i> <span data-i18n="npos_refund_btn">Refund</span>
-                        </button>
-                        <button type="button" onclick="holdTicket()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
-                            <i class="fas fa-pause"></i> <span data-i18n="npos_hold_btn">Hold Ticket</span>
-                        </button>
-                        <button type="button" onclick="printQuote()" class="border border-slate-700 bg-slate-800 text-slate-300 px-2 py-2 rounded-lg text-[11px] font-semibold tracking-wide hover:bg-slate-700 active:bg-slate-900 transition-colors flex items-center justify-center gap-1.5">
-                            <i class="fas fa-print"></i> <span data-i18n="npos_print_quote_btn">Print Quote</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Supply / Tax / Tips / Totals -->
-                <div class="px-5 py-2.5 space-y-2 shrink-0 bg-slate-950/15 border-t border-white/5">
-                    <div class="grid grid-cols-4 gap-2">
-                        <div>
-                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_supply_label">Supply %</label>
-                            <input type="number" autocomplete="off" id="supplyPercent" value="5" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                <!-- ===== TAB: SERVICE — category filters + visual catalog ===== -->
+                <div id="tabPanel-service" class="tab-panel active">
+                    <div class="p-5 overflow-y-auto custom-scrollbar min-h-0 flex-1">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div id="categoryTabs" class="flex gap-3 overflow-x-auto pb-1 custom-scrollbar flex-1 min-w-0"></div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_tax_pct_label">Tax %</label>
-                            <input type="number" autocomplete="off" id="taxPercent" value="0" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cashtip_label">Cash Tip</label>
-                            <input type="number" autocomplete="off" id="cashTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cardtip_label">Card Tip</label>
-                            <input type="number" autocomplete="off" id="cardTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
-                        </div>
-                    </div>
-
-                    <div class="text-sm space-y-1 pt-2 border-t border-dashed border-white/10 font-medium">
-                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_subtotal_label">Subtotal</span><span id="sumSubtotal" class="font-mono text-white">$0.00 AUD</span></div>
-                        <div id="discountRow" class="hidden flex justify-between items-center text-gray-400">
-                            <span class="flex items-center gap-1.5">
-                                <span data-i18n="npos_discount_row_label">Discount</span>
-                                <span id="discountBadge" class="text-amber-400 font-mono text-xs"></span>
-                                <button onclick="removeDiscount()" class="text-gray-600 hover:text-rose-400 transition" title="Remove discount"><i class="fas fa-xmark"></i></button>
-                            </span>
-                            <span id="sumDiscount" class="font-mono text-amber-400">-$0.00</span>
-                        </div>
-                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_tax_label">Tax</span><span id="sumTax" class="font-mono text-cyan-400">+$0.00</span></div>
-                        <div class="flex justify-between text-gray-400"><span data-i18n="npos_tip_label">Tips</span><span id="sumTip" class="font-mono text-emerald-400">+$0.00</span></div>
-                        <div class="flex justify-between items-center py-1.5 px-0.5 border-t border-dashed border-white/10">
-                            <span class="text-sm uppercase font-extrabold tracking-wider text-gray-400" data-i18n="npos_total_label">Final Total</span>
-                            <div class="text-right">
-                                <span id="sumTotal" class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 text-2xl tracking-tight drop-shadow-[0_0_12px_rgba(236,72,153,0.3)]">$0.00 AUD</span>
+                        <div id="serviceSearchWrap" class="hidden mb-4">
+                            <div class="relative">
+                                <input type="text" autocomplete="off" id="serviceSearchInput" oninput="renderServiceGrid()" data-i18n-placeholder="npos_search_placeholder" placeholder="Search services…" class="pos-input icon-input-pl text-sm">
+                                <i class="fas fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
                             </div>
                         </div>
+                        <div id="serviceGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                        <div id="noServicesMsg" class="hidden text-center text-gray-500 py-24">
+                            <i class="fas fa-box-open text-4xl mb-4 block text-gray-600"></i>
+                            <span class="text-base font-semibold" data-i18n="npos_no_services">No services yet. Add products under Nails category first.</span>
+                        </div>
                     </div>
+                </div>
 
-                    <button id="checkoutBtn" onclick="openPaymentModal()" class="pay-now-btn w-full text-white font-black py-3.5 rounded-xl text-base uppercase tracking-widest flex items-center justify-center gap-2" disabled>
-                        <i class="fas fa-cash-register"></i> <span data-i18n="npos_checkout_btn">Pay Now</span>
-                    </button>
+                <!-- ===== TAB: WAITING LIST — held tickets, full detail (Queue on the left is the
+                     quick-glance version of this same data) ===== -->
+                <div id="tabPanel-waitingList" class="tab-panel">
+                    <div id="waitingListContent" class="p-5 overflow-y-auto custom-scrollbar min-h-0 flex-1 space-y-3"></div>
+                </div>
+
+                <!-- ===== TAB: TURN DETAILS — cart items + which technician's turn serves each ===== -->
+                <div id="tabPanel-turnDetails" class="tab-panel">
+                    <div id="cartItems" class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5 min-h-[220px]">
+                        <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
+                            <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
+                            <span class="font-medium font-title" data-i18n="npos_empty_cart">No services added yet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== TAB: CLOSE TICKET — customer, tax/tip, totals, pay ===== -->
+                <div id="tabPanel-closeTicket" class="tab-panel">
+                    <div class="p-5 overflow-y-auto custom-scrollbar min-h-0 flex-1 space-y-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 font-title" data-i18n="npos_customer_label">Customer</label>
+                            <div class="relative">
+                                <select id="customerSelect" class="pos-input icon-input-pl text-base leading-normal pl-11 font-title">
+                                    <option value="" data-i18n="npos_walkin_option">Walk-in (no customer)</option>
+                                </select>
+                                <i class="fas fa-user-circle absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg"></i>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-2">
+                            <div>
+                                <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_supply_label">Supply %</label>
+                                <input type="number" autocomplete="off" id="supplyPercent" value="5" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_tax_pct_label">Tax %</label>
+                                <input type="number" autocomplete="off" id="taxPercent" value="0" min="0" max="100" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cashtip_label">Cash Tip</label>
+                                <input type="number" autocomplete="off" id="cashTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 font-title truncate" data-i18n="npos_cardtip_label">Card Tip</label>
+                                <input type="number" autocomplete="off" id="cardTip" value="0" min="0" oninput="renderTotals()" class="pos-input text-base text-center font-mono">
+                            </div>
+                        </div>
+
+                        <div class="text-sm space-y-1 pt-2 border-t border-dashed border-white/10 font-medium">
+                            <div class="flex justify-between text-gray-400"><span data-i18n="npos_subtotal_label">Subtotal</span><span id="sumSubtotal" class="font-mono text-white">$0.00 AUD</span></div>
+                            <div id="discountRow" class="hidden flex justify-between items-center text-gray-400">
+                                <span class="flex items-center gap-1.5">
+                                    <span data-i18n="npos_discount_row_label">Discount</span>
+                                    <span id="discountBadge" class="text-amber-400 font-mono text-xs"></span>
+                                    <button onclick="removeDiscount()" class="text-gray-600 hover:text-rose-400 transition" title="Remove discount"><i class="fas fa-xmark"></i></button>
+                                </span>
+                                <span id="sumDiscount" class="font-mono text-amber-400">-$0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-400"><span data-i18n="npos_tax_label">Tax</span><span id="sumTax" class="font-mono text-cyan-400">+$0.00</span></div>
+                            <div class="flex justify-between text-gray-400"><span data-i18n="npos_tip_label">Tips</span><span id="sumTip" class="font-mono text-emerald-400">+$0.00</span></div>
+                            <div class="flex justify-between items-center py-1.5 px-0.5 border-t border-dashed border-white/10">
+                                <span class="text-sm uppercase font-extrabold tracking-wider text-gray-400" data-i18n="npos_total_label">Final Total</span>
+                                <div class="text-right">
+                                    <span id="sumTotal" class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 text-2xl tracking-tight drop-shadow-[0_0_12px_rgba(236,72,153,0.3)]">$0.00 AUD</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="checkoutBtn" onclick="openPaymentModal()" class="pay-now-btn w-full text-white font-black py-3.5 rounded-xl text-base uppercase tracking-widest flex items-center justify-center gap-2" disabled>
+                            <i class="fas fa-cash-register"></i> <span data-i18n="npos_checkout_btn">Pay Now</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1000,6 +1113,9 @@
                 npos_booking_qr_btn: 'Booking QR', npos_booking_qr_title: 'Online Booking QR',
                 npos_booking_qr_desc: 'Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.',
                 npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
+                npos_functions_badge: 'Functions', npos_qa_balance: 'Balance', npos_qa_wait: 'Wait', npos_qa_apptbook: 'Appt Book', npos_qa_fastsale: 'Fast Sale',
+                npos_queue_title: 'Queue', npos_tab_service: 'Service', npos_tab_waitinglist: 'Waiting List', npos_tab_turndetails: 'Turn Details', npos_tab_closeticket: 'Close Ticket',
+                npos_queue_empty: 'No tickets waiting', npos_queue_items_word: 'items', npos_queue_resume_btn: 'Resume', npos_search_placeholder: 'Search services…',
             },
             vi: {
                 npos_title: 'POS Tiệm Nail | BitPaw OS', npos_exit_btn: 'Thoát POS',
@@ -1050,11 +1166,15 @@
                 npos_booking_qr_btn: 'QR Đặt lịch', npos_booking_qr_title: 'Mã QR đặt lịch online',
                 npos_booking_qr_desc: 'In mã QR này hoặc chia sẻ link bên dưới — khách quét mã để tự đặt lịch online, 24/7, không cần gọi điện.',
                 npos_booking_qr_copy: 'Sao chép link', npos_booking_qr_print: 'In', npos_booking_qr_copied: 'Đã sao chép link đặt lịch!',
+                npos_functions_badge: 'Chức năng', npos_qa_balance: 'Số dư', npos_qa_wait: 'Chờ', npos_qa_apptbook: 'Đặt lịch', npos_qa_fastsale: 'Bán nhanh',
+                npos_queue_title: 'Hàng chờ', npos_tab_service: 'Dịch vụ', npos_tab_waitinglist: 'DS chờ', npos_tab_turndetails: 'Chi tiết lượt', npos_tab_closeticket: 'Đóng hoá đơn',
+                npos_queue_empty: 'Không có hoá đơn nào đang chờ', npos_queue_items_word: 'món', npos_queue_resume_btn: 'Tiếp tục', npos_search_placeholder: 'Tìm dịch vụ…',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key; }
         function applyStaticTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder'))); });
             document.title = t('npos_title');
             const toggleBtn = document.getElementById('pageLangToggleBtn');
             if (toggleBtn) toggleBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
@@ -1068,6 +1188,29 @@
             renderCategoryTabs();
             renderServiceGrid();
             renderCart();
+            renderHeldTicketsIndicator();
+        }
+
+        // ===== Split Card layout chrome: tab switching (Service/Waiting List/Turn Details/Close
+        // Ticket), the mobile Queue-panel toggle (burger button), and the catalog search toggle. =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.workspace-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tabPanel-${tabName}`));
+        }
+        function toggleQueuePanel() {
+            document.getElementById('queuePanel').classList.toggle('queue-open');
+        }
+        function toggleServiceSearch() {
+            const wrap = document.getElementById('serviceSearchWrap');
+            const input = document.getElementById('serviceSearchInput');
+            wrap.classList.toggle('hidden');
+            switchTab('service');
+            if (!wrap.classList.contains('hidden')) {
+                input.focus();
+            } else {
+                input.value = '';
+                renderServiceGrid();
+            }
         }
 
         function showToast(msg) {
@@ -1098,7 +1241,10 @@
             const noMsg = document.getElementById('noServicesMsg');
             if (!SERVICES.length) { grid.innerHTML = ''; noMsg.classList.remove('hidden'); return; }
             noMsg.classList.add('hidden');
-            const filtered = activeCategory === 'all' ? SERVICES : SERVICES.filter(s => (s.category || 'Other') === activeCategory);
+            let filtered = activeCategory === 'all' ? SERVICES : SERVICES.filter(s => (s.category || 'Other') === activeCategory);
+            const searchInput = document.getElementById('serviceSearchInput');
+            const query = ((searchInput && searchInput.value) || '').trim().toLowerCase();
+            if (query) filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(query));
             // Offline, self-contained BRANDED fallback (no external network call, identical for
             // every card — never a letter/watermark placeholder) — swapped in via onerror if the
             // primary photo 404s/fails, so the card keeps its exact h-36/w-full/object-cover
@@ -1292,9 +1438,13 @@
 
         // ===== Booking QR modal — cổng đặt lịch online công khai (khách quét = tự đặt lịch,
         // không cần gọi điện) =====
+        // Sinh QR NGAY TRÊN SERVER của chính mình (/api/qr/nail_booking) — không còn gọi ra
+        // api.qrserver.com nữa: trước đây link đặt lịch thật của tiệm bị gửi ra 1 dịch vụ bên
+        // thứ 3 mỗi lần chỉ đơn thuần XEM lại QR, và nếu dịch vụ đó sập/bị chặn mạng thì
+        // KHÔNG in được QR đúng lúc cần gấp. Thêm ?v= để trình duyệt không cache ảnh cũ nếu có.
+        const LOCAL_QR_URL = `/api/qr/nail_booking?v=${Date.now()}`;
         function openBookingQrModal() {
-            document.getElementById('bookingQrImg').src =
-                `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(BOOKING_QR_URL)}`;
+            document.getElementById('bookingQrImg').src = LOCAL_QR_URL;
             document.getElementById('bookingQrUrl').innerText = BOOKING_QR_URL;
             document.getElementById('bookingQrModal').classList.add('active');
         }
@@ -1303,17 +1453,27 @@
             navigator.clipboard.writeText(BOOKING_QR_URL);
             showToast(t('npos_booking_qr_copied'));
         }
-        function printBookingQr() {
-            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(BOOKING_QR_URL)}`;
+        async function printBookingQr() {
+            // Nạp SVG qua fetch() (kèm cookie session) rồi nhúng thẳng inline vào cửa sổ in —
+            // window.open() mới KHÔNG có cookie của tab gốc, <img src="/api/qr/..."> trực tiếp
+            // trong đó sẽ bị 401 vì thiếu session.
+            let svgMarkup = '';
+            try {
+                const res = await fetch('/api/qr/nail_booking');
+                svgMarkup = await res.text();
+            } catch (e) {
+                showToast(t('npos_booking_qr_print_error') || ('Lỗi: ' + e.message));
+                return;
+            }
             const win = window.open('', '_blank');
             win.document.write(`
                 <html><head><title>Booking QR</title><style>
                     body { font-family: sans-serif; text-align: center; padding: 40px; }
-                    img { width: 320px; height: 320px; }
+                    svg { width: 320px; height: 320px; }
                     p { font-size: 12px; color: #555; word-break: break-all; margin-top: 16px; }
                 </style></head><body>
                     <h2>${t('npos_booking_qr_title')}</h2>
-                    <img src="${qrImgUrl}">
+                    ${svgMarkup}
                     <p>${BOOKING_QR_URL}</p>
                     <script>window.onload = () => window.print();<\/script>
                 </body></html>
@@ -1380,17 +1540,79 @@
         // ===== Hold / Resume ticket — parks the current cart client-side (localStorage) so
         // staff can serve another walk-in without losing the in-progress ticket, then restores
         // it later exactly as it was (items, discount, customer). Purely a front-end queue —
-        // no server order is created until the ticket is actually paid via Pay Now. =====
+        // no server order is created until the ticket is actually paid via Pay Now. Rendered in
+        // two places: the compact "Queue" panel (left) and the full-detail "Waiting List" tab
+        // (right) — same underlying held-tickets data, just two densities of the same list. =====
         function getHeldTickets() {
             try { return JSON.parse(localStorage.getItem('bitpaw_held_tickets') || '[]'); }
             catch (e) { return []; }
         }
+        function heldTicketSummary(ticket) {
+            const items = ticket.cart || [];
+            const count = items.reduce((s, i) => s + i.quantity, 0);
+            const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+            return { count, subtotal };
+        }
         function renderHeldTicketsIndicator() {
             const held = getHeldTickets();
-            const btn = document.getElementById('heldTicketsIndicator');
-            document.getElementById('heldTicketsCount').innerText = held.length;
-            btn.classList.toggle('hidden', held.length === 0);
-            btn.classList.toggle('flex', held.length > 0);
+            const countBadge = document.getElementById('queueCountBadge');
+            if (countBadge) countBadge.innerText = held.length;
+            renderQueueList(held);
+            renderWaitingList(held);
+        }
+        function renderQueueList(held) {
+            const wrap = document.getElementById('queueList');
+            if (!wrap) return;
+            if (!held.length) {
+                wrap.innerHTML = `<div class="text-center text-gray-500 text-sm py-16">
+                    <i class="fas fa-inbox text-3xl mb-3 block text-gray-600"></i>
+                    <span class="font-medium">${t('npos_queue_empty')}</span>
+                </div>`;
+                return;
+            }
+            wrap.innerHTML = held.slice().reverse().map(ticket => {
+                const { count, subtotal } = heldTicketSummary(ticket);
+                const customer = ticket.customerPhone ? escapeHtml(ticket.customerPhone) : t('npos_walkin_option');
+                const timeStr = new Date(ticket.id).toLocaleTimeString(currentLang === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                return `
+                <div class="queue-entry" onclick="resumeHeldTicketAt(${ticket.id})">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-bold text-gray-300">${timeStr}</span>
+                        <span class="text-[10px] bg-amber-500/10 text-amber-400 font-black px-2 py-0.5 rounded-full border border-amber-500/20">${count} ${t('npos_queue_items_word')}</span>
+                    </div>
+                    <div class="text-sm text-white font-semibold truncate mb-1">${customer}</div>
+                    <div class="text-pink-400 font-mono font-black text-lg">$${subtotal.toFixed(2)}</div>
+                </div>`;
+            }).join('');
+        }
+        function renderWaitingList(held) {
+            const wrap = document.getElementById('waitingListContent');
+            if (!wrap) return;
+            if (!held.length) {
+                wrap.innerHTML = `<div class="text-center text-gray-500 text-base py-24">
+                    <i class="fas fa-clipboard-list text-4xl mb-4 block text-gray-600"></i>
+                    <span class="font-medium">${t('npos_queue_empty')}</span>
+                </div>`;
+                return;
+            }
+            wrap.innerHTML = held.slice().reverse().map(ticket => {
+                const { subtotal } = heldTicketSummary(ticket);
+                const customer = ticket.customerPhone ? escapeHtml(ticket.customerPhone) : t('npos_walkin_option');
+                const itemsHtml = (ticket.cart || []).map(i => `<div class="flex justify-between text-xs text-gray-400"><span>${escapeHtml(i.name)} × ${i.quantity}</span><span class="font-mono">$${(i.price * i.quantity).toFixed(2)}</span></div>`).join('');
+                const timeStr = new Date(ticket.id).toLocaleString(currentLang === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+                return `
+                <div class="cart-item">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <div class="text-sm font-bold text-white">${customer}</div>
+                            <div class="text-[11px] text-gray-500">${timeStr}</div>
+                        </div>
+                        <button onclick="resumeHeldTicketAt(${ticket.id})" class="bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide transition"><i class="fas fa-play mr-1"></i>${t('npos_queue_resume_btn')}</button>
+                    </div>
+                    <div class="space-y-1 border-t border-white/5 pt-2 mt-2">${itemsHtml}</div>
+                    <div class="flex justify-between mt-2 pt-2 border-t border-dashed border-white/10 text-sm font-bold"><span class="text-gray-400">${t('npos_total_label')}</span><span class="text-pink-400 font-mono">$${subtotal.toFixed(2)}</span></div>
+                </div>`;
+            }).join('');
         }
         function holdTicket() {
             if (!cart.length) { showToast(t('npos_toast_hold_empty')); return; }
@@ -1409,17 +1631,19 @@
             renderHeldTicketsIndicator();
             showToast(t('npos_toast_held'));
         }
-        function resumeHeldTicket() {
+        function resumeHeldTicketAt(id) {
             const held = getHeldTickets();
-            if (!held.length) return;
+            const idx = held.findIndex(h => h.id === id);
+            if (idx === -1) return;
             if (cart.length && !confirm(t('npos_confirm_resume_overwrite'))) return;
-            const ticket = held.pop();
+            const [ticket] = held.splice(idx, 1);
             localStorage.setItem('bitpaw_held_tickets', JSON.stringify(held));
             cart = ticket.cart || [];
             discount = ticket.discount || { type: 'percent', value: 0 };
             document.getElementById('customerSelect').value = ticket.customerPhone || '';
             renderCart();
             renderHeldTicketsIndicator();
+            switchTab('turnDetails');
             showToast(t('npos_toast_resumed'));
         }
 

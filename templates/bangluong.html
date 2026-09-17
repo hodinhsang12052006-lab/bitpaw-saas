@@ -92,6 +92,13 @@
                         <option value="Sản xuất" class="bg-gray-900" data-i18n="bl_ind_prod">Sản xuất / Xưởng</option>
                         <option value="Kỹ Thuật" class="bg-gray-900" data-i18n="bl_ind_tech">Kỹ Thuật / Dịch Vụ</option>
                         <option value="Khách sạn" class="bg-gray-900" data-i18n="bl_ind_hotel">Khách sạn</option>
+                        {# BUG THẬT đã vá (audit ghép nối chấm công/lương): dropdown này trước
+                           đây thiếu hẳn Retail và Karaoke — 2 ngành đó không có cách nào chọn
+                           đúng chế độ lương của mình, nhân viên của họ (linh_vuc='Retail'/
+                           'Karaoke') còn bị lọc mất hoàn toàn khỏi bảng lương vì không khớp
+                           bất kỳ industryLower nào ở dưới. #}
+                        <option value="Retail" class="bg-gray-900" data-i18n="bl_ind_retail">Bán lẻ (Retail)</option>
+                        <option value="Karaoke" class="bg-gray-900" data-i18n="bl_ind_karaoke">Karaoke & Bida</option>
                     </select>
                 </div>
             </div>
@@ -315,7 +322,20 @@
             return body;
         }
 
-        let myIndustry = localStorage.getItem('bp_industry_mode') || 'Spa'; 
+        {# BUG THẬT đã vá (audit chấm công/lương): trước đây myIndustry luôn mặc định 'Spa'
+           qua localStorage cho MỌI tài khoản lần đầu vào trang này — 1 tiệm Retail/Karaoke/
+           Sản xuất... lần đầu mở Bảng lương sẽ bị tính SAI công thức lương (theo kiểu Spa)
+           cho tới khi họ tự tay đổi dropdown (nhiều người không biết phải đổi). Server đã
+           biết chính xác ngành của tài khoản đang đăng nhập qua active_industry_code (context
+           processor inject_industry_config() — session['business_mode']) — dùng nó làm mặc
+           định lần đầu thay vì hardcode 'Spa'; vẫn tôn trọng lựa chọn dropdown đã lưu trước đó
+           trong localStorage nếu người dùng từng tự đổi (không ép buộc ngược lại). #}
+        const SERVER_INDUSTRY_MAP = {
+            'nail': 'Spa', 'spa': 'Spa', 'fnb': 'F&B', 'retail': 'Retail', 'karaoke': 'Karaoke',
+            'hotel': 'Khách sạn', 'production': 'Sản xuất', 'technical': 'Kỹ Thuật', 'office': 'Văn Phòng',
+        };
+        const SERVER_DEFAULT_INDUSTRY = SERVER_INDUSTRY_MAP["{{ active_industry_code }}"] || 'Spa';
+        let myIndustry = localStorage.getItem('bp_industry_mode') || SERVER_DEFAULT_INDUSTRY; 
         document.getElementById('lblIndustry').value = myIndustry;
 
         const now = new Date();
@@ -340,6 +360,7 @@
                 bl_autosync_label: 'Auto-sync đa luồng. Cấu hình:',
                 bl_ind_spa: 'Spa & Nails', bl_ind_office: 'Văn Phòng', bl_ind_fnb: 'F&B / Nhà hàng',
                 bl_ind_prod: 'Sản xuất / Xưởng', bl_ind_tech: 'Kỹ Thuật / Dịch Vụ', bl_ind_hotel: 'Khách sạn',
+                bl_ind_retail: 'Bán lẻ (Retail)', bl_ind_karaoke: 'Karaoke & Bida',
                 bl_print_btn: 'In Báo Cáo',
                 bl_col_staff: 'Nhân Sự', bl_col_net: 'Thực Lãnh',
                 bl_tips_pool_btn: 'Bể Bơi Tiền Tips', bl_autosync_matrix: 'Auto-sync Matrix', bl_total_fund: 'TỔNG QUỸ LƯƠNG XUẤT RA',
@@ -369,6 +390,7 @@
                 bl_autosync_label: 'Multi-stream auto-sync. Config:',
                 bl_ind_spa: 'Spa & Nails', bl_ind_office: 'Office', bl_ind_fnb: 'F&B / Restaurant',
                 bl_ind_prod: 'Production / Workshop', bl_ind_tech: 'Technical / Services', bl_ind_hotel: 'Hotel',
+                bl_ind_retail: 'Retail', bl_ind_karaoke: 'Karaoke & Billiards',
                 bl_print_btn: 'Print Report',
                 bl_col_staff: 'Employee', bl_col_net: 'Net Pay',
                 bl_tips_pool_btn: 'Tips Pool', bl_autosync_matrix: 'Auto-sync Matrix', bl_total_fund: 'TOTAL PAYROLL FUND',
@@ -578,9 +600,18 @@
                         let luongNgay = luongCoBan / 26; luongChinh = Math.round(luongNgay * soNgayLam);
                         cot2 = totalHoaHong; cot3 = phuCapCoDinh + phuCapPhatSinh + (totalTangCa * luongNgay / 8 * 1.5); 
                         thucLanh = luongChinh + cot2 + cot3;
-                    } else if (myIndustry.includes('F&B') || myIndustry.includes('Khách sạn')) {
+                    } else if (myIndustry.includes('F&B') || myIndustry.includes('Khách sạn') || myIndustry.includes('Retail') || myIndustry.includes('Karaoke') || myIndustry.includes('Sản xuất') || myIndustry.includes('Kỹ Thuật')) {
+                        // BUG THẬT đã vá (audit ghép nối chấm công/lương): Retail/Karaoke/Sản
+                        // xuất/Kỹ Thuật trước đây rơi vào nhánh "else" bên dưới — CHỈ tính
+                        // luongCoBan (lương cứng), không có fallback theo giờ làm thực tế. Với
+                        // nhân viên tính lương theo ca/giờ (thu ngân, nhân viên phục vụ, công
+                        // nhân xưởng, kỹ thuật viên hiện trường — không cấu hình lương cứng cố
+                        // định) thì bảng lương hiện $0 dù có đủ dữ liệu chấm công. 4 ngành này
+                        // cùng mô hình "lương theo ca/giờ, có thể có lương cứng ưu tiên nếu cấu
+                        // hình" y hệt F&B/Khách sạn nên gộp chung 1 nhánh, không phải phát minh
+                        // công thức mới.
                         if(luongCoBan > 0) { luongChinh = luongCoBan; } else { luongChinh = totalGioLam * luongTheoGio; }
-                        cot2 = totalHoaHong + phuCapPhatSinh; cot3 = totalTips + phuCapCoDinh + (totalTangCa * luongTheoGio * 1.5); 
+                        cot2 = totalHoaHong + phuCapPhatSinh; cot3 = totalTips + phuCapCoDinh + (totalTangCa * luongTheoGio * 1.5);
                         thucLanh = luongChinh + cot2 + cot3;
                     } else {
                         luongChinh = luongCoBan; cot2 = totalHoaHong; cot3 = totalTips + phuCapCoDinh + phuCapPhatSinh;

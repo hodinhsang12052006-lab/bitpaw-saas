@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>{{ brand_name }} | Đặt phòng trước</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: radial-gradient(circle at top, #2a1330 0%, #08061a 60%);
+            color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+        }
+        .glass-card { background: rgba(30,15,40,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(168,85,247,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .glass-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(168,85,247,0.3); border-radius: 1.2rem; padding: 0.75rem 1rem; width: 100%; color: #fff; font-size: 0.95rem; }
+        .glass-input:focus { outline: none; border-color: #a855f7; box-shadow: 0 0 15px rgba(168,85,247,0.4); }
+        .glass-select { background: rgba(0,0,0,0.6); border: 1px solid rgba(168,85,247,0.3); border-radius: 1.2rem; padding: 0.75rem 1rem; width: 100%; color: #fff; }
+        .glass-select option { background: #1a0f24; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); border: 1px solid #10b981; color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { border-color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-md">
+        <div class="flex justify-center mb-6">
+            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-14 h-14 rounded-full border-2 border-purple-400 object-cover shadow-[0_0_15px_#a855f7]">
+        </div>
+        <div class="glass-card p-6 md:p-8" id="formCard">
+            <h2 class="text-2xl md:text-3xl font-black text-center mb-1">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">🏨 {{ brand_name }}</span>
+            </h2>
+            <p class="text-center text-gray-400 text-sm mb-6">Đặt phòng trước — chúng tôi sẽ xác nhận sớm nhất</p>
+
+            <form id="reserveForm" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Họ tên</label>
+                    <input type="text" name="name" required class="glass-input" placeholder="Nguyễn Văn A">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Số điện thoại</label>
+                    <input type="tel" name="phone" required class="glass-input" placeholder="09xxxxxxxx">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ngày nhận phòng</label>
+                        <input type="date" name="checkin_date" required class="glass-input">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ngày trả phòng</label>
+                        <input type="date" name="checkout_date" required class="glass-input">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Số khách</label>
+                        <input type="number" name="party_size" required min="1" value="2" class="glass-input">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Loại phòng mong muốn</label>
+                        <select name="room_type" class="glass-select">
+                            <option value="">Bất kỳ</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Deluxe">Deluxe</option>
+                            <option value="Suite">Suite</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ghi chú (tuỳ chọn)</label>
+                    <textarea name="note" rows="2" class="glass-input resize-none" placeholder="VD: Tầng cao, view biển..."></textarea>
+                </div>
+                <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2">
+                    <i class="fas fa-hotel"></i> Đặt phòng ngay
+                </button>
+            </form>
+        </div>
+        <div class="glass-card p-8 text-center hidden" id="successCard">
+            <i class="fas fa-check-circle text-5xl text-emerald-400 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Đã gửi yêu cầu đặt phòng!</h3>
+            <p class="text-gray-400 text-sm">Khách sạn sẽ liên hệ xác nhận sớm nhất qua số điện thoại bạn để lại.</p>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const businessId = "{{ business_id }}";
+        const toast = document.getElementById('toast');
+        function showToast(msg, isError) {
+            toast.innerText = msg;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        const checkinInput = document.querySelector('input[name="checkin_date"]');
+        const checkoutInput = document.querySelector('input[name="checkout_date"]');
+        const today = new Date().toISOString().split('T')[0];
+        checkinInput.min = today;
+        checkinInput.value = today;
+        function syncCheckoutMin() {
+            const nextDay = new Date(checkinInput.value || today);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextDayStr = nextDay.toISOString().split('T')[0];
+            checkoutInput.min = nextDayStr;
+            if (!checkoutInput.value || checkoutInput.value <= checkinInput.value) checkoutInput.value = nextDayStr;
+        }
+        checkinInput.addEventListener('change', syncCheckoutMin);
+        syncCheckoutMin();
+
+        const form = document.getElementById('reserveForm');
+        const submitBtn = document.getElementById('submitBtn');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+            try {
+                const res = await fetch(`/api/public/hotel_reservations/${encodeURIComponent(businessId)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: fd.get('name'),
+                        phone: fd.get('phone'),
+                        checkin_date: fd.get('checkin_date'),
+                        checkout_date: fd.get('checkout_date'),
+                        party_size: parseInt(fd.get('party_size')),
+                        room_type: fd.get('room_type'),
+                        note: fd.get('note'),
+                    }),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+                document.getElementById('formCard').classList.add('hidden');
+                document.getElementById('successCard').classList.remove('hidden');
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, true);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-hotel"></i> Đặt phòng ngay';
+            }
+        });
+    </script>
+</body>
+</html>

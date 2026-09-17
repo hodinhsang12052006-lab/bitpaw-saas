@@ -174,6 +174,16 @@ def _random_recent_iso(days_back_min, days_back_max, now):
     return (now - timedelta(days=days_back, hours=random.randint(0, 23))).isoformat()
 
 
+def _random_recent_ddmmyyyy(days_back_min, days_back_max, now):
+    """BUG THẬT đã vá (audit chấm công): bangluong.html lọc chamcong theo tháng bằng
+    `ngay_cham.split('/')` (parts[1]=tháng, parts[2]=năm) — đúng định dạng 'DD/MM/YYYY' mà
+    luồng chấm công thật (app_nhanvien.html: `new Date().toLocaleDateString('en-GB')`) luôn
+    ghi. `when[:10]` (ISO 'YYYY-MM-DD') ở dưới không có ký tự '/' để split — mọi bản ghi
+    chấm công demo trước đây bị lọc mất hết, bảng lương demo hiện $0 dù có đủ dữ liệu."""
+    days_back = random.randint(days_back_min, days_back_max)
+    return (now - timedelta(days=days_back)).strftime('%d/%m/%Y')
+
+
 def inject_demo_data(business_id):
     now = datetime.now()
 
@@ -218,10 +228,9 @@ def inject_demo_data(business_id):
             worker_tua = round(net_rev * (commission_rate / 100), 2)
             cash_tip = round(random.uniform(0, 25), 2)
             cc_tip = round(random.uniform(0, 20), 2)
-            when = _random_recent_iso(0, 21, now)
             db.chamcong.insert_one({
                 'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': ma_nv,
-                'ngay_cham': when[:10], 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                'ngay_cham': _random_recent_ddmmyyyy(0, 21, now), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
                 'ghi_chu': f"[NAILS] Service checkout | Commission {commission_rate}%",
                 'tien_tua': worker_tua, 'tien_tips': round(cash_tip + cc_tip, 2),
                 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0,

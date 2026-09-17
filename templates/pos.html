@@ -380,9 +380,35 @@
                 <a href="{{ url_for('add_product') }}" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1 flex-1 sm:flex-none">
                     <i class="fas fa-plus-circle"></i> <span data-i18n="pos_add_item_btn">Thêm món</span>
                 </a>
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1 flex-1 sm:flex-none">
-                    <i class="fas fa-home"></i> <span data-i18n="pos_dashboard_btn">Dashboard</span>
+                {# BUG THẬT đã vá (audit ghép nối màn hình theo ngành/vai trò): link này trước
+                   đây trỏ cứng vào index() (/dashboard) — với ngành F&B, index() lại redirect
+                   NGAY VỀ /pos (F&B không có dashboard chung, dashboard_route = /pos), nên nút
+                   "Dashboard" chỉ vòng về đúng màn hình đang đứng, không đưa chủ tiệm tới được
+                   Quản lý nhân viên/Chấm công/Lương/Báo cáo/AI Copilot — các trang đó chỉ có
+                   sidebar đầy đủ ở chamcong_fnb.html. Đổi sang trỏ thẳng vào đó cho admin;
+                   nhân viên (bị chamcong_industry() chặn) trỏ vào đúng trang cá nhân của họ. #}
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <div class="relative flex-1 sm:flex-none" id="mgmtMenuWrap">
+                    <button type="button" onclick="toggleMgmtMenu(event)" class="w-full bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1">
+                        <i class="fas fa-user-shield"></i>
+                        <span data-i18n="pos_management_btn">Management</span>
+                        <i class="fas fa-chevron-down text-[9px] ml-0.5 opacity-70"></i>
+                    </button>
+                    <div id="mgmtMenuPanel" class="hidden absolute right-0 top-full mt-2 w-52 glass-panel rounded-xl p-2 z-50 shadow-xl">
+                        <a href="{{ url_for('reservations_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-chair w-4 text-center"></i> <span data-i18n="pos_mgmt_reservations">Reservations</span></a>
+                        <a href="{{ url_for('chamcong_industry', industry_code='fnb') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-calendar-check w-4 text-center"></i> <span data-i18n="pos_mgmt_attendance">Attendance</span></a>
+                        <a href="{{ url_for('staff_list') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-users w-4 text-center"></i> <span data-i18n="pos_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('bangluong') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-file-invoice-dollar w-4 text-center"></i> <span data-i18n="pos_mgmt_payroll">Payroll</span></a>
+                        <a href="{{ url_for('report_consolidated') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-sitemap w-4 text-center"></i> <span data-i18n="pos_mgmt_reports">Reports</span></a>
+                        <a href="{{ url_for('brand_settings') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-cog w-4 text-center"></i> <span data-i18n="pos_mgmt_settings">Settings</span></a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('app_nhanvien') }}" class="bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1 flex-1 sm:flex-none">
+                    <i class="fas fa-user-shield"></i>
+                    <span data-i18n="pos_my_attendance_btn">My Attendance</span>
                 </a>
+                {% endif %}
             </div>
         </div>
 
@@ -605,6 +631,10 @@
                 pos_header_subtitle: 'Sơ đồ bàn & Thực đơn quán',
                 pos_add_item_btn: 'Thêm món',
                 pos_dashboard_btn: 'Dashboard',
+                pos_management_btn: 'Quản lý',
+                pos_my_attendance_btn: 'Chấm công của tôi',
+                pos_mgmt_attendance: 'Chấm công', pos_mgmt_staff: 'Nhân sự', pos_mgmt_payroll: 'Bảng lương',
+                pos_mgmt_reports: 'Báo cáo tổng hợp', pos_mgmt_settings: 'Cài đặt', pos_mgmt_reservations: 'Đặt bàn trước',
                 pos_menu_title: 'Thực đơn',
                 pos_menu_subtitle_fnb: 'Chọn một bàn bên phải trước khi gọi món',
                 pos_menu_subtitle_nail: 'Chọn một ghế bên phải trước khi chọn dịch vụ',
@@ -696,6 +726,10 @@
                 pos_header_subtitle: 'Floor Plan & Menu',
                 pos_add_item_btn: 'Add Item',
                 pos_dashboard_btn: 'Dashboard',
+                pos_management_btn: 'Management',
+                pos_my_attendance_btn: 'My Attendance',
+                pos_mgmt_attendance: 'Attendance', pos_mgmt_staff: 'Staff', pos_mgmt_payroll: 'Payroll',
+                pos_mgmt_reports: 'Consolidated Report', pos_mgmt_settings: 'Settings', pos_mgmt_reservations: 'Reservations',
                 pos_menu_title: 'Menu',
                 pos_menu_subtitle_fnb: 'Select a table on the right before ordering',
                 pos_menu_subtitle_nail: 'Select a chair on the right before choosing a service',
@@ -849,6 +883,18 @@
             if (show) loadingOverlay.classList.add('active');
             else loadingOverlay.classList.remove('active');
         }
+
+        // "Management" quick-access dropdown (Nhân sự/Chấm công/Lương/Báo cáo/Cài đặt) —
+        // đóng khi bấm ra ngoài, giống pattern dropdown chuẩn của trình duyệt.
+        function toggleMgmtMenu(e) {
+            e.stopPropagation();
+            document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('mgmtMenuWrap');
+            const panel = document.getElementById('mgmtMenuPanel');
+            if (wrap && panel && !wrap.contains(e.target)) panel.classList.add('hidden');
+        });
 
         // Initialize dynamic Industry labels
         function initializeIndustryUI() {
@@ -1070,13 +1116,13 @@
 
                     <!-- Actions grid -->
                     <div class="grid grid-cols-4 gap-1 border-t border-white/10 pt-2 text-[10px] mt-2">
-                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_view')}" onclick="event.stopPropagation(); window.viewQR('${escapeHtml(tbl.name)}', '${qrUrl}')">
+                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_view')}" onclick="event.stopPropagation(); window.viewQR(${tbl.id}, '${escapeHtml(tbl.name)}', '${qrUrl}')">
                             <i class="fas fa-qrcode"></i>
                         </button>
                         <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_copy')}" onclick="event.stopPropagation(); window.copyLink('${qrUrl}')">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_print')}" onclick="event.stopPropagation(); window.printQR('${escapeHtml(tbl.name)}', '${qrUrl}')">
+                        <button class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_print')}" onclick="event.stopPropagation(); window.printQR(${tbl.id}, '${escapeHtml(tbl.name)}', '${qrUrl}')">
                             <i class="fas fa-print"></i>
                         </button>
                         <a href="${qrUrl}" target="_blank" class="bg-cyan-500/10 hover:bg-cyan-500/30 text-cyan-400 p-1.5 rounded flex items-center justify-center" title="${t('pos_qr_view_menu')}" onclick="event.stopPropagation();">
@@ -1751,9 +1797,12 @@
             return str.replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
         }
 
-        // Global QR Action Helpers
-        window.viewQR = function(tableName, qrUrl) {
-            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+        // Global QR Action Helpers — sinh QR NGAY TRÊN SERVER của chính mình (/api/qr/table/<id>)
+        // thay vì gọi ra api.qrserver.com: trước đây link bàn thật bị gửi ra 1 dịch vụ bên thứ 3
+        // mỗi lần chỉ đơn thuần XEM lại QR, và nếu dịch vụ đó sập/bị chặn mạng thì KHÔNG in được
+        // QR đúng lúc tiệm cần gấp (mở bàn mới, in lại menu...).
+        window.viewQR = function(tableId, tableName, qrUrl) {
+            const qrImgUrl = `/api/qr/table/${tableId}?v=${Date.now()}`;
             let modal = document.getElementById('qrViewModal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -1771,7 +1820,7 @@
                     <p class="text-xs text-gray-400 mb-4 break-all px-4 font-mono select-all bg-black/40 py-2 rounded-xl border border-white/5">${escapeHtml(qrUrl)}</p>
                     <div class="flex gap-3">
                         <button onclick="window.copyLink('${qrUrl}')" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black py-2 rounded-full font-bold text-xs"><i class="fas fa-copy mr-1"></i>${t('pos_qr_copy')}</button>
-                        <button onclick="window.printQR('${escapeHtml(tableName)}', '${qrUrl}')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold text-xs"><i class="fas fa-print mr-1"></i>${t('pos_qr_print')}</button>
+                        <button onclick="window.printQR(${tableId}, '${escapeHtml(tableName)}', '${qrUrl}')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold text-xs"><i class="fas fa-print mr-1"></i>${t('pos_qr_print')}</button>
                     </div>
                 </div>
             `;
@@ -1792,8 +1841,18 @@
             });
         };
 
-        window.printQR = function(tableName, qrUrl) {
-            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+        window.printQR = async function(tableId, tableName, qrUrl) {
+            // Nạp SVG qua fetch() (kèm cookie session) rồi nhúng thẳng inline — an toàn hơn
+            // <img src="/api/qr/..."> viết trực tiếp vào cửa sổ in mới (base URI của
+            // window.open('', '_blank') không phải lúc nào cũng resolve URL tương đối đúng).
+            let svgMarkup = '';
+            try {
+                const res = await fetch(`/api/qr/table/${tableId}`);
+                svgMarkup = await res.text();
+            } catch (e) {
+                showToast(t('pos_qr_print_error') || ('Error: ' + e.message));
+                return;
+            }
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <html>
@@ -1805,13 +1864,14 @@
                         h1 { font-size: 24px; margin-bottom: 5px; }
                         h2 { font-size: 16px; color: #666; margin-top: 0; }
                         p { font-size: 12px; color: #999; margin-top: 15px; }
+                        svg { width: 200px; height: 200px; }
                     </style>
                 </head>
                 <body onload="window.print(); window.close();">
                     <div class="qr-box">
                         <h1>BITPAW OS</h1>
                         <h2>${tableName}</h2>
-                        <img src="${qrImgUrl}" width="200" height="200">
+                        ${svgMarkup}
                         <p>${t('pos_qr_print_instruction')}</p>
                     </div>
                 </body>

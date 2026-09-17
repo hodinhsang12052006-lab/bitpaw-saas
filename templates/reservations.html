@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặt bàn trước | BitPaw OS</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; margin: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.9); border: 1px solid rgba(6,182,212,0.5); color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000; transition: transform 0.3s ease; white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { border-color: #ef4444; }
+        .action-btn { padding: 0.4rem 0.85rem; border-radius: 0.75rem; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; transition: 0.15s; cursor: pointer; border: 1px solid transparent; }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .table-select { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.6rem; padding: 0.35rem 0.6rem; color: #fff; font-size: 0.78rem; }
+    </style>
+</head>
+<body class="min-h-screen flex text-white font-sans">
+
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 p-6 lg:p-10 h-screen overflow-y-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+            <div>
+                <h2 class="text-3xl font-black tracking-tight flex items-center gap-3">
+                    <i class="fas fa-chair text-cyan-400"></i> Đặt bàn trước
+                </h2>
+                <p class="text-gray-400 mt-2 text-sm">
+                    Yêu cầu đặt bàn từ khách — ngày <span class="text-cyan-400 font-bold">{{ selected_date }}</span>. Duyệt, xếp bàn hoặc huỷ ngay tại đây.
+                </p>
+            </div>
+            <form method="get" class="flex items-center gap-2">
+                <input type="date" name="date" value="{{ selected_date }}"
+                    class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    onchange="this.form.submit()">
+                <button type="submit" class="bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 px-4 py-2 rounded-xl text-sm font-bold transition">
+                    <i class="fas fa-search"></i> Xem
+                </button>
+            </form>
+        </header>
+
+        <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0"><i class="fas fa-qrcode text-cyan-400"></i> Link đặt bàn công khai:</span>
+            <input type="text" readonly value="{{ reservation_link }}" id="reservationLink" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300 w-full">
+            <button onclick="copyLink()" class="bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 px-4 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><i class="fas fa-copy"></i> Sao chép</button>
+        </div>
+
+        {% if reservations %}
+        <div class="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-white/[0.04] text-gray-400 uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Giờ đến</th>
+                            <th class="px-6 py-4">Tên khách</th>
+                            <th class="px-6 py-4">Số điện thoại</th>
+                            <th class="px-6 py-4">Số người</th>
+                            <th class="px-6 py-4">Ghi chú</th>
+                            <th class="px-6 py-4">Bàn</th>
+                            <th class="px-6 py-4">Trạng thái</th>
+                            <th class="px-6 py-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5" id="reservationsBody">
+                        {% for r in reservations %}
+                        <tr class="hover:bg-white/[0.03] transition-colors" data-res-id="{{ r.id }}">
+                            <td class="px-6 py-4 font-bold text-cyan-300 whitespace-nowrap">
+                                {{ r.reserved_time.split('T')[1][:5] if 'T' in r.reserved_time else r.reserved_time }}
+                            </td>
+                            <td class="px-6 py-4 font-medium">{{ r.customer_name or 'Không rõ' }}</td>
+                            <td class="px-6 py-4 text-gray-300">{{ r.customer_phone or '—' }}</td>
+                            <td class="px-6 py-4 text-gray-300"><i class="fas fa-user-friends text-gray-500"></i> {{ r.party_size }}</td>
+                            <td class="px-6 py-4 text-gray-400 max-w-[180px] truncate" title="{{ r.note or '' }}">{{ r.note or '—' }}</td>
+                            <td class="px-6 py-4" data-table-cell>
+                                <select class="table-select" onchange="assignTable({{ r.id }}, this)" {% if r.status in ('cancelled', 'no_show') %}disabled{% endif %}>
+                                    <option value="">-- Chưa xếp --</option>
+                                    {% for t in tables %}
+                                    <option value="{{ t.id }}" {% if r.table_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-6 py-4" data-status-cell>
+                                {% if r.status == 'confirmed' %}
+                                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>
+                                {% elif r.status == 'seated' %}
+                                <span class="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã ngồi bàn</span>
+                                {% elif r.status == 'cancelled' %}
+                                <span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>
+                                {% elif r.status == 'no_show' %}
+                                <span class="bg-gray-500/15 text-gray-400 border border-gray-500/30 px-3 py-1 rounded-full text-xs font-bold">Không đến</span>
+                                {% else %}
+                                <span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4" data-actions-cell>
+                                <div class="flex gap-2 flex-wrap">
+                                    {% if r.status == 'pending' %}
+                                    <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ r.id }}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    {% elif r.status == 'confirmed' %}
+                                    <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus({{ r.id }}, 'seated', this)"><i class="fas fa-chair"></i> Đã đến</button>
+                                    <button class="action-btn bg-gray-500/15 hover:bg-gray-500/25 border-gray-500/40 text-gray-300" onclick="updateStatus({{ r.id }}, 'no_show', this)"><i class="fas fa-user-slash"></i> Không đến</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    {% else %}
+                                    <span class="text-gray-600 text-xs">—</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center justify-center py-24 bg-white/[0.02] border border-white/10 rounded-2xl">
+            <i class="fas fa-chair text-5xl text-gray-600 mb-4"></i>
+            <p class="text-gray-400 font-bold">Không có yêu cầu đặt bàn nào trong ngày {{ selected_date }}.</p>
+        </div>
+        {% endif %}
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        function copyLink() {
+            const input = document.getElementById('reservationLink');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => showToast('Đã sao chép link!'));
+        }
+
+        const STATUS_BADGE = {
+            confirmed: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>',
+            seated: '<span class="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã ngồi bàn</span>',
+            cancelled: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>',
+            no_show: '<span class="bg-gray-500/15 text-gray-400 border border-gray-500/30 px-3 py-1 rounded-full text-xs font-bold">Không đến</span>',
+            pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>',
+        };
+        const NEXT_ACTIONS = {
+            pending: (id) => `
+                <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus(${id}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+            confirmed: (id) => `
+                <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus(${id}, 'seated', this)"><i class="fas fa-chair"></i> Đã đến</button>
+                <button class="action-btn bg-gray-500/15 hover:bg-gray-500/25 border-gray-500/40 text-gray-300" onclick="updateStatus(${id}, 'no_show', this)"><i class="fas fa-user-slash"></i> Không đến</button>
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+            seated: () => '<span class="text-gray-600 text-xs">—</span>',
+            cancelled: () => '<span class="text-gray-600 text-xs">—</span>',
+            no_show: () => '<span class="text-gray-600 text-xs">—</span>',
+        };
+
+        function showToast(msg, isError) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function updateStatus(id, status, btn) {
+            const row = document.querySelector(`tr[data-res-id="${id}"]`);
+            const buttons = row.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+            try {
+                const res = await fetch(`/api/reservations/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status }),
+                });
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message || 'Lỗi không xác định');
+
+                row.querySelector('[data-status-cell]').innerHTML = STATUS_BADGE[status];
+                row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2 flex-wrap">${NEXT_ACTIONS[status](id)}</div>`;
+                const sel = row.querySelector('[data-table-cell] select');
+                if (sel && (status === 'cancelled' || status === 'no_show')) sel.disabled = true;
+
+                const labelMap = { confirmed: 'Đã duyệt yêu cầu đặt bàn', cancelled: 'Đã huỷ đặt bàn', seated: 'Đã đánh dấu khách vào bàn', no_show: 'Đã đánh dấu khách không đến' };
+                showToast(labelMap[status] || 'Đã cập nhật');
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, true);
+                buttons.forEach(b => b.disabled = false);
+            }
+        }
+
+        async function assignTable(id, select) {
+            const tableId = select.value ? parseInt(select.value) : null;
+            select.disabled = true;
+            try {
+                const res = await fetch(`/api/reservations/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table_id: tableId }),
+                });
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message || 'Lỗi không xác định');
+                showToast('Đã xếp bàn');
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, true);
+            } finally {
+                select.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

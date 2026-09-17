@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>{{ brand_name }} | POS Bán lẻ</title>
+
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #08061a;
+            color: #fff;
+            min-height: 100vh;
+            --theme-color: {{ brand_color|default('#6366f1', true) }};
+        }
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--theme-color), transparent);
+            z-index: 9998; pointer-events: none; opacity: 0.5;
+            animation: scanMove 8s linear infinite;
+        }
+        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
+
+        .overlay { padding: 30px 40px; min-height: 100vh; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo-bitpaw { width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--theme-color); box-shadow: 0 0 15px var(--theme-color); object-fit: cover; }
+        .header-left h1 { font-size: 26px; font-weight: 800; color: var(--theme-color); }
+        .header-left p { color: rgba(255,255,255,0.6); font-size: 13px; }
+        .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .btn-glass { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; text-decoration: none; padding: 9px 18px; border-radius: 30px; font-size: 13px; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .btn-glass:hover { background: var(--theme-color); color: #000; border-color: var(--theme-color); box-shadow: 0 0 20px var(--theme-color); }
+
+        .scan-bar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+        .scan-box { flex: 2; min-width: 260px; background: rgba(0,0,0,0.5); border: 1px solid var(--theme-color); border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 0 20px rgba(99,102,241,0.15); }
+        .scan-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; font-size: 15px; }
+        .scan-box i { color: var(--theme-color); font-size: 18px; }
+        .search-box { flex: 1; min-width: 200px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+        .search-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; }
+        .filter-select { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 14px 18px; color: #fff; cursor: pointer; outline: none; }
+
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; padding-bottom: 60px; }
+        .product-card { background: rgba(30,27,56,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: all 0.25s; backdrop-filter: blur(10px); cursor: pointer; }
+        .product-card:hover { border-color: var(--theme-color); transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 0 15px rgba(99,102,241,0.25); }
+        .product-card.out-of-stock { opacity: 0.4; cursor: not-allowed; }
+        .p-img { width: 100%; height: 120px; object-fit: cover; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 34px; }
+        .p-body { padding: 12px 14px; display: flex; flex-direction: column; flex-grow: 1; }
+        .p-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+        .p-price { color: var(--theme-color); font-weight: 800; font-size: 15px; margin-top: auto; }
+        .p-stock { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+        .p-barcode { font-size: 10px; color: rgba(255,255,255,0.3); font-family: monospace; margin-top: 2px; }
+
+        .cart-sidebar { position: fixed; top: 0; right: 0; width: 380px; height: 100vh; background: rgba(8,6,26,0.97); backdrop-filter: blur(20px); border-left: 1px solid var(--theme-color); transform: translateX(100%); transition: transform 0.3s ease; z-index: 1000; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.5); }
+        .cart-sidebar.open { transform: translateX(0); }
+        .cart-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .cart-items { flex: 1; overflow-y: auto; padding: 15px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 8px; }
+        .cart-item-info h4 { font-size: 14px; margin-bottom: 4px; }
+        .cart-item-price { color: var(--theme-color); font-size: 13px; }
+        .cart-item-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .cart-qty-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: #fff; cursor: pointer; }
+        .cart-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .cart-total { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.1rem; font-weight: bold; }
+        .btn-checkout { width: 100%; background: var(--theme-color); border: none; padding: 14px; border-radius: 40px; font-weight: bold; color: #000; cursor: pointer; }
+        .btn-checkout:hover { transform: scale(1.02); }
+        .btn-checkout:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cart-icon { position: fixed; bottom: 20px; right: 20px; background: var(--theme-color); width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90; box-shadow: 0 4px 15px rgba(0,0,0,0.3); color: #000; }
+        .cart-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 10001; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-box { background: rgba(15,17,38,0.97); border: 1px solid var(--theme-color); border-radius: 24px; padding: 28px; width: 90%; max-width: 420px; }
+        .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 22px; }
+        .pm-option { border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 14px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .pm-option.active { border-color: var(--theme-color); background: rgba(99,102,241,0.15); box-shadow: 0 0 12px rgba(99,102,241,0.3); }
+
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.9); border: 1px solid #10b981; color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 20000; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 640px) {
+            .overlay { padding: 16px; }
+            .cart-sidebar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-line"></div>
+    <div class="overlay">
+        <div class="header">
+            <div class="header-left">
+                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="logo-bitpaw" alt="BitPaw">
+                <div>
+                    <h1>{{ brand_name }}</h1>
+                    <p data-i18n="rpos_tagline">Bán hàng nhanh - Quét mã vạch</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="langToggleBtn" type="button" class="btn-glass">EN</button>
+                <a href="{{ url_for('add_product') }}" class="btn-glass"><i class="fas fa-box-open"></i> <span data-i18n="rpos_btn_add_product">Thêm sản phẩm</span></a>
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <div style="position:relative;" id="mgmtMenuWrap">
+                    <button type="button" onclick="toggleMgmtMenu(event)" class="btn-glass">⬅ <span data-i18n="rpos_btn_mgmt">Management</span> <span style="font-size:9px;opacity:0.7;">▾</span></button>
+                    <div id="mgmtMenuPanel" class="hidden" style="position:absolute; right:0; top:calc(100% + 8px); width:210px; background:#0a0f25; border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:8px; z-index:50; box-shadow:0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(20px);">
+                        <a href="{{ url_for('chamcong_industry', industry_code='retail') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📅</span> <span data-i18n="rpos_mgmt_attendance">Attendance</span></a>
+                        <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>👥</span> <span data-i18n="rpos_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>💰</span> <span data-i18n="rpos_mgmt_payroll">Payroll</span></a>
+                        <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📊</span> <span data-i18n="rpos_mgmt_reports">Reports</span></a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('app_nhanvien') }}" class="btn-glass">⬅ <span data-i18n="rpos_btn_my_attendance">My Attendance</span></a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="scan-bar">
+            <div class="scan-box">
+                <i class="fas fa-barcode"></i>
+                <input type="text" id="barcodeInput" autocomplete="off" data-i18n-placeholder="rpos_barcode_placeholder" placeholder="Quét mã vạch rồi Enter...">
+            </div>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" data-i18n-placeholder="rpos_search_placeholder" placeholder="Tìm sản phẩm...">
+            </div>
+            <select id="categoryFilter" class="filter-select">
+                <option value="all" data-i18n="rpos_cat_all">Tất cả danh mục</option>
+            </select>
+        </div>
+
+        <div class="product-grid" id="productsGrid">
+            {% for p in products %}
+            <div class="product-card {% if (p.stock or 0) <= 0 %}out-of-stock{% endif %}" data-id="{{ p.id }}" data-name="{{ p.name }}" data-price="{{ p.price }}" data-stock="{{ p.stock or 0 }}" data-category="{{ p.category }}" data-barcode="{{ p.barcode or '' }}">
+                <div class="p-img">
+                    {% if p.image %}<img src="{{ p.image }}" style="width:100%;height:100%;object-fit:cover;">{% else %}📦{% endif %}
+                </div>
+                <div class="p-body">
+                    <div class="p-name">{{ p.name }}</div>
+                    <div class="p-stock" data-i18n="rpos_stock_prefix">Tồn: <span>{{ p.stock or 0 }}</span></div>
+                    {% if p.barcode %}<div class="p-barcode">{{ p.barcode }}</div>{% endif %}
+                    <div class="p-price">{{ p.price | money(tenant_currency) }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1/-1; text-align:center; padding: 60px 0;">
+                <h2 style="color: var(--theme-color);" class="text-2xl font-bold mb-2" data-i18n="rpos_empty_title">Chưa có sản phẩm</h2>
+                <p style="color: rgba(255,255,255,0.5);" data-i18n="rpos_empty_desc">Bấm "Thêm sản phẩm" để bắt đầu bán hàng</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h3 class="font-bold text-xl"><i class="fas fa-shopping-basket"></i> <span data-i18n="rpos_cart_title">Giỏ hàng</span></h3>
+            <button id="closeCartBtn" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div id="cartItemsList" class="cart-items">
+            <div class="text-center py-5" style="color: rgba(255,255,255,0.4);" data-i18n="rpos_cart_empty">Chưa có sản phẩm</div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span data-i18n="rpos_cart_total_label">Tổng cộng:</span>
+                <span id="cartTotalAmount">0₫</span>
+            </div>
+            <button id="openCheckoutBtn" class="btn-checkout" data-i18n="rpos_btn_checkout">Thanh toán</button>
+        </div>
+    </div>
+
+    <div id="cartIcon" class="cart-icon">
+        <i class="fas fa-shopping-cart fa-lg"></i>
+        <span id="cartCountBadge" class="cart-badge" style="display:none;">0</span>
+    </div>
+
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-box">
+            <h2 class="text-xl font-black mb-1" data-i18n="rpos_checkout_title">Xác nhận thanh toán</h2>
+            <p style="color: rgba(255,255,255,0.5); font-size: 13px;" data-i18n="rpos_checkout_subtitle">Chọn phương thức thanh toán</p>
+            <div class="pm-grid">
+                <div class="pm-option active" data-method="cash"><i class="fas fa-money-bill-wave"></i><div data-i18n="rpos_pm_cash">Tiền mặt</div></div>
+                <div class="pm-option" data-method="bank"><i class="fas fa-university"></i><div data-i18n="rpos_pm_bank">Chuyển khoản</div></div>
+                <div class="pm-option" data-method="momo"><i class="fas fa-mobile-alt"></i><div data-i18n="rpos_pm_momo">Momo</div></div>
+                <div class="pm-option" data-method="card"><i class="fas fa-credit-card"></i><div data-i18n="rpos_pm_card">Thẻ</div></div>
+            </div>
+            <div class="cart-total" style="margin-bottom:20px;">
+                <span data-i18n="rpos_cart_total_label">Tổng cộng:</span>
+                <span id="modalTotalAmount">0₫</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="cancelCheckoutBtn" class="btn-glass" style="flex:1; justify-content:center;" data-i18n="rpos_btn_cancel">Huỷ</button>
+                <button id="confirmCheckoutBtn" class="btn-checkout" style="flex:2;" data-i18n="rpos_btn_confirm">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Thông báo</div>
+
+    <script>
+        // ========== I18N ==========
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                rpos_tagline: 'Bán hàng nhanh - Quét mã vạch',
+                rpos_btn_add_product: 'Thêm sản phẩm',
+                rpos_btn_mgmt: 'Management',
+                rpos_mgmt_attendance: 'Chấm công',
+                rpos_mgmt_staff: 'Nhân viên',
+                rpos_mgmt_payroll: 'Bảng lương',
+                rpos_mgmt_reports: 'Báo cáo',
+                rpos_btn_my_attendance: 'Chấm công của tôi',
+                rpos_barcode_placeholder: 'Quét mã vạch rồi Enter...',
+                rpos_search_placeholder: 'Tìm sản phẩm...',
+                rpos_cat_all: 'Tất cả danh mục',
+                rpos_stock_prefix: 'Tồn:',
+                rpos_empty_title: 'Chưa có sản phẩm',
+                rpos_empty_desc: 'Bấm "Thêm sản phẩm" để bắt đầu bán hàng',
+                rpos_cart_title: 'Giỏ hàng',
+                rpos_cart_empty: 'Chưa có sản phẩm',
+                rpos_cart_total_label: 'Tổng cộng:',
+                rpos_btn_checkout: 'Thanh toán',
+                rpos_checkout_title: 'Xác nhận thanh toán',
+                rpos_checkout_subtitle: 'Chọn phương thức thanh toán',
+                rpos_pm_cash: 'Tiền mặt', rpos_pm_bank: 'Chuyển khoản', rpos_pm_momo: 'Momo', rpos_pm_card: 'Thẻ',
+                rpos_btn_cancel: 'Huỷ', rpos_btn_confirm: 'Xác nhận',
+                rpos_toast_added: '✅ Đã thêm vào giỏ',
+                rpos_toast_barcode_not_found: '❌ Không tìm thấy sản phẩm với mã vạch này',
+                rpos_toast_out_of_stock: '❌ Sản phẩm đã hết hàng',
+                rpos_toast_cart_empty: 'Giỏ hàng đang trống',
+                rpos_toast_sale_success: '✅ Bán hàng thành công!',
+                rpos_toast_error: '❌ Lỗi: ',
+                rpos_processing: 'Đang xử lý...'
+            },
+            en: {
+                rpos_tagline: 'Quick Sale - Barcode Scanning',
+                rpos_btn_add_product: 'Add Product',
+                rpos_btn_mgmt: 'Management',
+                rpos_mgmt_attendance: 'Attendance',
+                rpos_mgmt_staff: 'Staff',
+                rpos_mgmt_payroll: 'Payroll',
+                rpos_mgmt_reports: 'Reports',
+                rpos_btn_my_attendance: 'My Attendance',
+                rpos_barcode_placeholder: 'Scan barcode then Enter...',
+                rpos_search_placeholder: 'Search products...',
+                rpos_cat_all: 'All categories',
+                rpos_stock_prefix: 'Stock:',
+                rpos_empty_title: 'No products yet',
+                rpos_empty_desc: 'Click "Add Product" to start selling',
+                rpos_cart_title: 'Cart',
+                rpos_cart_empty: 'Cart is empty',
+                rpos_cart_total_label: 'Total:',
+                rpos_btn_checkout: 'Checkout',
+                rpos_checkout_title: 'Confirm Payment',
+                rpos_checkout_subtitle: 'Choose a payment method',
+                rpos_pm_cash: 'Cash', rpos_pm_bank: 'Bank Transfer', rpos_pm_momo: 'Momo', rpos_pm_card: 'Card',
+                rpos_btn_cancel: 'Cancel', rpos_btn_confirm: 'Confirm',
+                rpos_toast_added: '✅ Added to cart',
+                rpos_toast_barcode_not_found: '❌ No product found for this barcode',
+                rpos_toast_out_of_stock: '❌ Product is out of stock',
+                rpos_toast_cart_empty: 'Cart is empty',
+                rpos_toast_sale_success: '✅ Sale successful!',
+                rpos_toast_error: '❌ Error: ',
+                rpos_processing: 'Processing...'
+            }
+        };
+        function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        document.getElementById('langToggleBtn').addEventListener('click', () => {
+            currentLang = currentLang === 'vi' ? 'en' : 'vi';
+            localStorage.setItem('bitpaw_lang', currentLang);
+            applyStaticTranslations();
+        });
+        applyStaticTranslations();
+
+        function toggleMgmtMenu(e) {
+            e.stopPropagation();
+            document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('mgmtMenuWrap');
+            const panel = document.getElementById('mgmtMenuPanel');
+            if (wrap && panel && !wrap.contains(e.target)) panel.classList.add('hidden');
+        });
+
+        // ========== STATE ==========
+        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        function formatMoney(amount) {
+            const value = Number(amount) || 0;
+            if (TENANT_CURRENCY === 'USD') return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return Math.round(value).toLocaleString('vi-VN') + '₫';
+        }
+        let cart = [];
+        let selectedMethod = 'cash';
+
+        const toast = document.getElementById('toast');
+        function showToast(msg, isError = false) {
+            toast.innerText = msg;
+            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Populate category filter from actual products on the grid
+        (function populateCategories() {
+            const select = document.getElementById('categoryFilter');
+            const cats = new Set();
+            document.querySelectorAll('.product-card').forEach(c => { if (c.dataset.category) cats.add(c.dataset.category); });
+            cats.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat; opt.textContent = cat;
+                select.appendChild(opt);
+            });
+        })();
+
+        // ========== SEARCH / FILTER ==========
+        function applyFilters() {
+            const q = document.getElementById('searchInput').value.trim().toLowerCase();
+            const cat = document.getElementById('categoryFilter').value;
+            document.querySelectorAll('.product-card').forEach(card => {
+                const matchesQ = !q || card.dataset.name.toLowerCase().includes(q) || (card.dataset.barcode || '').includes(q);
+                const matchesCat = cat === 'all' || card.dataset.category === cat;
+                card.style.display = (matchesQ && matchesCat) ? '' : 'none';
+            });
+        }
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+
+        // ========== CART ==========
+        function addToCart(id, name, price, stock, qty = 1) {
+            if (stock <= 0) { showToast(t('rpos_toast_out_of_stock'), true); return; }
+            const existing = cart.find(item => item.id === id);
+            const currentQty = existing ? existing.qty : 0;
+            if (currentQty + qty > stock) { showToast(t('rpos_toast_out_of_stock'), true); return; }
+            if (existing) existing.qty += qty;
+            else cart.push({ id, name, price, qty, stock });
+            updateCartUI();
+            showToast(t('rpos_toast_added'));
+        }
+
+        function updateCartUI() {
+            const list = document.getElementById('cartItemsList');
+            const totalSpan = document.getElementById('cartTotalAmount');
+            const badge = document.getElementById('cartCountBadge');
+            if (cart.length === 0) {
+                list.innerHTML = `<div class="text-center py-5" style="color: rgba(255,255,255,0.4);">${t('rpos_cart_empty')}</div>`;
+                totalSpan.innerText = formatMoney(0);
+                badge.style.display = 'none';
+                return;
+            }
+            let html = '', total = 0, totalQty = 0;
+            cart.forEach((item, idx) => {
+                const lineTotal = item.price * item.qty;
+                total += lineTotal; totalQty += item.qty;
+                html += `<div class="cart-item">
+                    <div class="cart-item-info"><h4>${escapeHtml(item.name)}</h4><div class="cart-item-price">${formatMoney(item.price)}</div></div>
+                    <div class="cart-item-qty">
+                        <button class="cart-qty-btn" data-idx="${idx}" data-delta="-1">-</button>
+                        <span>${item.qty}</span>
+                        <button class="cart-qty-btn" data-idx="${idx}" data-delta="1">+</button>
+                    </div>
+                </div>`;
+            });
+            list.innerHTML = html;
+            totalSpan.innerText = formatMoney(total);
+            badge.innerText = totalQty;
+            badge.style.display = 'flex';
+            list.querySelectorAll('.cart-qty-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    const delta = parseInt(btn.dataset.delta);
+                    const item = cart[idx];
+                    if (delta > 0 && item.qty + 1 > item.stock) { showToast(t('rpos_toast_out_of_stock'), true); return; }
+                    item.qty += delta;
+                    if (item.qty <= 0) cart.splice(idx, 1);
+                    updateCartUI();
+                });
+            });
+        }
+
+        function escapeHtml(str) { return (str || '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', () => {
+                if (card.classList.contains('out-of-stock')) { showToast(t('rpos_toast_out_of_stock'), true); return; }
+                const id = parseInt(card.dataset.id);
+                const name = card.dataset.name;
+                const price = parseFloat(card.dataset.price);
+                const stock = parseInt(card.dataset.stock);
+                addToCart(id, name, price, stock, 1);
+            });
+        });
+
+        const cartSidebar = document.getElementById('cartSidebar');
+        document.getElementById('cartIcon').addEventListener('click', () => cartSidebar.classList.add('open'));
+        document.getElementById('closeCartBtn').addEventListener('click', () => cartSidebar.classList.remove('open'));
+
+        // ========== BARCODE SCAN ==========
+        const barcodeInput = document.getElementById('barcodeInput');
+        barcodeInput.focus();
+        barcodeInput.addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            const code = barcodeInput.value.trim();
+            if (!code) return;
+            barcodeInput.value = '';
+            try {
+                const res = await fetch('/api/products/lookup_barcode?barcode=' + encodeURIComponent(code));
+                const body = await res.json();
+                if (!res.ok || !body.success) {
+                    showToast(t('rpos_toast_barcode_not_found'), true);
+                    return;
+                }
+                const p = body.data;
+                addToCart(p.id, p.name, p.price, p.stock || 0, 1);
+                cartSidebar.classList.add('open');
+            } catch (err) {
+                showToast(t('rpos_toast_error') + err.message, true);
+            } finally {
+                barcodeInput.focus();
+            }
+        });
+        // Giữ focus vào ô quét mã vạch khi người dùng không đang gõ ở ô khác — máy quét mã
+        // vạch USB hoạt động như bàn phím, cần input đang được focus để nhận ký tự.
+        document.addEventListener('click', (e) => {
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (tag !== 'input' && tag !== 'select' && tag !== 'textarea' && tag !== 'button' && !e.target.closest('.modal-overlay')) {
+                setTimeout(() => barcodeInput.focus(), 50);
+            }
+        });
+
+        // ========== CHECKOUT ==========
+        const checkoutModal = document.getElementById('checkoutModal');
+        document.getElementById('openCheckoutBtn').addEventListener('click', () => {
+            if (cart.length === 0) { showToast(t('rpos_toast_cart_empty'), true); return; }
+            const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+            document.getElementById('modalTotalAmount').innerText = formatMoney(total);
+            checkoutModal.classList.add('active');
+        });
+        document.getElementById('cancelCheckoutBtn').addEventListener('click', () => checkoutModal.classList.remove('active'));
+        document.querySelectorAll('.pm-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.pm-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                selectedMethod = opt.dataset.method;
+            });
+        });
+
+        const confirmBtn = document.getElementById('confirmCheckoutBtn');
+        confirmBtn.addEventListener('click', async () => {
+            if (cart.length === 0) return;
+            confirmBtn.disabled = true;
+            confirmBtn.innerText = t('rpos_processing');
+            try {
+                const res = await fetch('/api/sales/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: cart.map(i => ({ product_id: i.id, quantity: i.qty })),
+                        payment_method: selectedMethod,
+                    }),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+                showToast(t('rpos_toast_sale_success'));
+                checkoutModal.classList.remove('active');
+                cartSidebar.classList.remove('open');
+                setTimeout(() => window.location.reload(), 1200);
+            } catch (err) {
+                showToast(t('rpos_toast_error') + err.message, true);
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = t('rpos_btn_confirm');
+            }
+        });
+    </script>
+</body>
+</html>

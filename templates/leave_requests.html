@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đơn Xin Nghỉ Phép | BitPaw OS</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; margin: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.4); border-radius: 10px; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.9); border: 1px solid rgba(236,72,153,0.5); color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000; transition: transform 0.3s ease; white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { border-color: #ef4444; }
+        .action-btn { padding: 0.4rem 0.85rem; border-radius: 0.75rem; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; transition: 0.15s; cursor: pointer; border: 1px solid transparent; }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .filter-tab { padding: 8px 16px; border-radius: 30px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); color: #9ca3af; }
+        .filter-tab.active { background: rgba(236,72,153,0.2); border-color: rgba(236,72,153,0.5); color: #f472b6; }
+    </style>
+</head>
+<body class="min-h-screen flex text-white font-sans">
+
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 p-6 lg:p-10 h-screen overflow-y-auto">
+        <header class="mb-6">
+            <h2 class="text-3xl font-black tracking-tight flex items-center gap-3">
+                <i class="fas fa-calendar-times text-pink-400"></i> Đơn Xin Nghỉ Phép
+            </h2>
+            <p class="text-gray-400 mt-2 text-sm">Duyệt hoặc từ chối đơn xin nghỉ của nhân viên.</p>
+        </header>
+
+        <div class="flex gap-2 mb-6" id="filterTabs">
+            <div class="filter-tab active" data-status="pending" onclick="setFilter('pending', this)">Chờ duyệt</div>
+            <div class="filter-tab" data-status="approved" onclick="setFilter('approved', this)">Đã duyệt</div>
+            <div class="filter-tab" data-status="rejected" onclick="setFilter('rejected', this)">Từ chối</div>
+            <div class="filter-tab" data-status="all" onclick="setFilter('all', this)">Tất cả</div>
+        </div>
+
+        <div id="listContainer" class="space-y-3"></div>
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-24 bg-white/[0.02] border border-white/10 rounded-2xl">
+            <i class="fas fa-inbox text-5xl text-gray-600 mb-4"></i>
+            <p class="text-gray-400 font-bold">Không có đơn nào.</p>
+        </div>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        let currentFilter = 'pending';
+        let allRequests = [];
+
+        function showToast(msg, isError) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        function escapeHtml(str) { const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML; }
+
+        const STATUS_BADGE = {
+            pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ duyệt</span>',
+            approved: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã duyệt</span>',
+            rejected: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Từ chối</span>',
+        };
+
+        function setFilter(status, el) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderList();
+        }
+
+        function renderList() {
+            const rows = currentFilter === 'all' ? allRequests : allRequests.filter(r => r.status === currentFilter);
+            const container = document.getElementById('listContainer');
+            const empty = document.getElementById('emptyState');
+            if (!rows.length) {
+                container.innerHTML = '';
+                empty.classList.remove('hidden'); empty.classList.add('flex');
+                return;
+            }
+            empty.classList.add('hidden'); empty.classList.remove('flex');
+            container.innerHTML = rows.map(r => `
+                <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4" data-req-id="${r.id}">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="font-bold text-white">${escapeHtml(r.ho_ten)}</span>
+                            <span class="text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-gray-400">${escapeHtml(r.ma_nv)}</span>
+                            <span data-status-badge>${STATUS_BADGE[r.status] || r.status}</span>
+                        </div>
+                        <div class="text-sm text-pink-300 font-bold mb-1">
+                            ${escapeHtml(r.from_date)}${r.to_date && r.to_date !== r.from_date ? ' → ' + escapeHtml(r.to_date) : ''}
+                            <span class="text-gray-500 font-normal ml-2">(${escapeHtml(r.leave_type || 'Nghỉ phép')})</span>
+                        </div>
+                        <div class="text-sm text-gray-400">${escapeHtml(r.reason)}</div>
+                    </div>
+                    <div class="flex gap-2 shrink-0" data-actions>
+                        ${r.status === 'pending' ? `
+                            <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="respond(${r.id}, 'approved')"><i class="fas fa-check"></i> Duyệt</button>
+                            <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="respond(${r.id}, 'rejected')"><i class="fas fa-xmark"></i> Từ chối</button>
+                        ` : '<span class="text-gray-600 text-xs">—</span>'}
+                    </div>
+                </div>`).join('');
+        }
+
+        async function loadRequests() {
+            try {
+                const res = await fetch('/api/leave_requests');
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || 'Lỗi tải dữ liệu');
+                allRequests = body.data || [];
+                renderList();
+            } catch (e) { showToast('Lỗi: ' + e.message, true); }
+        }
+
+        async function respond(id, status) {
+            const row = document.querySelector(`[data-req-id="${id}"]`);
+            row.querySelectorAll('button').forEach(b => b.disabled = true);
+            try {
+                const res = await fetch(`/api/leave_requests/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status }),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || 'Lỗi không xác định');
+                showToast(status === 'approved' ? 'Đã duyệt đơn' : 'Đã từ chối đơn');
+                await loadRequests();
+            } catch (e) {
+                showToast('Lỗi: ' + e.message, true);
+                row.querySelectorAll('button').forEach(b => b.disabled = false);
+            }
+        }
+
+        loadRequests();
+    </script>
+</body>
+</html>

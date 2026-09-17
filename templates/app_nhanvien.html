@@ -344,6 +344,7 @@
                         <h4 class="text-pink-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-calendar-times"></i> Leave Request</h4>
                         <div class="flex gap-3 mb-3">
                             <input type="date" id="app_leave_date" class="bg-black/80 border border-white/10 text-gray-300 p-3 rounded-xl text-xs outline-none flex-1 focus:border-pink-500">
+                            <input type="date" id="app_leave_date_to" placeholder="To (optional)" class="bg-black/80 border border-white/10 text-gray-300 p-3 rounded-xl text-xs outline-none flex-1 focus:border-pink-500">
                             <select id="app_leave_type" class="bg-black/80 border border-white/10 text-gray-300 p-3 rounded-xl text-xs outline-none w-28 focus:border-pink-500 appearance-none text-center">
                                 <option value="Nghỉ Ốm">Sick</option>
                                 <option value="Nghỉ Phép">Leave</option>
@@ -352,6 +353,7 @@
                         </div>
                         <input type="text" id="app_leave_reason" placeholder="Detailed reason..." class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs mb-3 outline-none focus:border-pink-500">
                         <button onclick="sendLeaveRequest()" class="w-full bg-pink-500/10 text-pink-400 hover:bg-pink-500 hover:text-white transition-all border border-pink-500/30 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg group-hover:shadow-pink-500/20"><i class="fas fa-paper-plane mr-2"></i> Send to HR</button>
+                        <div id="myLeaveRequestsBox" class="mt-4 space-y-2"></div>
                     </div>
 
                     <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl hover:border-yellow-500/30 transition-colors group">
@@ -723,7 +725,7 @@
                 if(currentUser.linhVuc && currentUser.linhVuc.includes("F&B")) document.getElementById('box_swap').style.display = "block";
                 
                 setupEvidenceUI(); 
-                loadJobMarket(); loadColleaguesList(); setupJobRealtime();
+                loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); setupJobRealtime();
 
             } else {
                 setTimeout(() => {
@@ -899,7 +901,7 @@
             
             setupEvidenceUI();
             if(currentUser.linhVuc && currentUser.linhVuc.includes("F&B")) document.getElementById('box_swap').style.display = "block";
-            loadJobMarket(); loadColleaguesList(); setupJobRealtime();
+            loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); setupJobRealtime();
             
             showToast(msg, type);
             if(type === 'success') triggerConfetti();
@@ -1129,17 +1131,37 @@
         }
         
         async function sendLeaveRequest() {
-            const date = document.getElementById('app_leave_date').value; const type = document.getElementById('app_leave_type').value; const reason = document.getElementById('app_leave_reason').value;
-            if(!date || !reason) return showToast("Vui lòng chọn ngày và ghi rõ lý do!", 'error');
+            const dateFrom = document.getElementById('app_leave_date').value;
+            const dateTo = document.getElementById('app_leave_date_to').value || dateFrom;
+            const type = document.getElementById('app_leave_type').value; const reason = document.getElementById('app_leave_reason').value;
+            if(!dateFrom || !reason) return showToast("Vui lòng chọn ngày và ghi rõ lý do!", 'error');
             try {
-                const payload = { ngay_cham: new Date(date).toLocaleDateString('en-GB'), ma_nv: currentUser.code, trang_thai: 'Chờ duyệt', ghi_chu: `[Xin ${type}] ${reason}`, nganh_nghe: currentUser.linhVuc };
+                const payload = { ma_nv: currentUser.code, from_date: dateFrom, to_date: dateTo, leave_type: type, reason };
                 if(!navigator.onLine) {
-                    await saveToIndexedDB('reports', payload);
+                    await saveToIndexedDB('reports', { ...payload, _kind: 'leave_request' });
                     showToast("Mất mạng! Đã lưu nháp Đơn xin phép.", 'warning'); document.getElementById('app_leave_reason').value = ''; return;
                 }
-                await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
-                showToast("Đã bắn tín hiệu Xin Phép lên HR!", 'success'); document.getElementById('app_leave_reason').value = '';
-            } catch(e) { showToast("Lỗi gửi đơn!", 'error'); }
+                await hrApi('/api/leave_requests', { method: 'POST', body: JSON.stringify(payload) });
+                showToast("Đã gửi đơn xin nghỉ lên HR — chờ duyệt!", 'success');
+                document.getElementById('app_leave_reason').value = '';
+                loadMyLeaveRequests();
+            } catch(e) { showToast("Lỗi gửi đơn: " + e.message, 'error'); }
+        }
+
+        const LEAVE_STATUS_LABEL = { pending: '⏳ Chờ duyệt', approved: '✅ Đã duyệt', rejected: '❌ Từ chối' };
+        async function loadMyLeaveRequests() {
+            const box = document.getElementById('myLeaveRequestsBox');
+            if (!box || !currentUser || !currentUser.code) return;
+            try {
+                const body = await hrApi(`/api/leave_requests?ma_nv=${encodeURIComponent(currentUser.code)}`);
+                const rows = (body.data || []).slice(0, 5);
+                if (!rows.length) { box.innerHTML = ''; return; }
+                box.innerHTML = rows.map(r => `
+                    <div class="bg-black/40 border border-white/5 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-2">
+                        <span class="text-gray-300 truncate">${r.from_date}${r.to_date && r.to_date !== r.from_date ? ' → ' + r.to_date : ''} · ${r.leave_type || ''}</span>
+                        <span class="font-bold shrink-0">${LEAVE_STATUS_LABEL[r.status] || r.status}</span>
+                    </div>`).join('');
+            } catch (e) { /* non-fatal */ }
         }
         
         async function sendKudo() {

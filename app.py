@@ -51,6 +51,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
 import jwt as pyjwt  # PyJWT — Giai đoạn 5 audit: JWT auth cho Mobile App (Flutter/React Native)
+import qrcode
+import qrcode.image.svg
+import io
 # Đã gỡ bỏ hoàn toàn Supabase khỏi backend — toàn bộ dữ liệu giờ đọc/ghi qua MongoDB Atlas
 # (pymongo) bên dưới.
 from mongo_client import db, fs, client as mongo_client_instance, MONGO_STATUS, next_mongo_id, next_mongo_id_batch
@@ -241,7 +244,22 @@ def _hybrid_auth_and_csrf():
     WTF_CSRF_CHECK_DEFAULT=False ở trên), KHÔNG nằm trong protect() — xác nhận bằng cách đọc
     thẳng source code flask_wtf.csrf.CSRFProtect. Do đó phải tự kiểm tra exempt TẠI ĐÂY trước
     khi gọi protect(), nếu không toàn bộ webhook/cron/public route trong
-    _CSRF_EXEMPT_ENDPOINTS sẽ bị chặn nhầm (đã xảy ra thật lúc test /api/auth/token)."""
+    _CSRF_EXEMPT_ENDPOINTS sẽ bị chặn nhầm (đã xảy ra thật lúc test /api/auth/token).
+
+    BUG THẬT đã vá (audit "làm mới demo định kỳ" phát hiện): check exempt-list trước đây nằm
+    SAU đoạn giải mã Bearer JWT — /api/cron/daily_tasks tự xác thực bằng
+    'Authorization: Bearer <CRON_SECRET>' (secret thô, không phải JWT), đúng như Vercel Cron
+    (xem vercel.json) thật sự gửi. Với thứ tự cũ: có Bearer -> thử decode JWT -> SAI (không
+    phải JWT) -> vì path bắt đầu '/api/' nên trả 401 NGAY, route cron_daily_tasks() còn chưa
+    kịp tự kiểm tra CRON_SECRET của chính nó. Hậu quả: toàn bộ cron hàng ngày (cảnh báo nhập
+    hàng sắp hết, email chúc mừng sinh nhật khách, đối soát thanh toán) nhiều khả năng CHƯA
+    BAO GIỜ chạy được trên production — Vercel gọi đúng cách nhưng luôn bị hook này chặn từ
+    xa trước khi vào tới logic thật. Mọi endpoint trong _CSRF_EXEMPT_ENDPOINTS (cron/webhook/
+    public) đều đã tự có cơ chế xác thực riêng (secret thô, chữ ký webhook, hoặc cố tình công
+    khai) — không endpoint nào trong danh sách đó cần/muốn bị diễn giải theo JWT cả, nên check
+    này phải chạy TRƯỚC bước giải mã Bearer, không phải sau."""
+    if request.endpoint in _CSRF_EXEMPT_ENDPOINTS:
+        return
     token = _get_bearer_token()
     if token:
         if _load_session_from_jwt(token):
@@ -252,8 +270,6 @@ def _hybrid_auth_and_csrf():
         # đăng nhập rồi nhận HTML redirect mà JSON parser phía app không xử lý được).
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Token không hợp lệ hoặc đã hết hạn.'}), 401
-    if request.endpoint in _CSRF_EXEMPT_ENDPOINTS:
-        return
     csrf.protect()
 
 
@@ -312,14 +328,27 @@ _CSRF_BOOTSTRAP_SCRIPT = """
 def _inject_csrf_bootstrap(response):
     """Chèn script gắn CSRF token tự động (xem giải thích ở khối comment CSRF phía trên) vào
     MỌI response HTML thành công — chạy 1 lần/response, an toàn nếu lỗi (không được phép làm
-    hỏng response gốc chỉ vì bootstrap thất bại)."""
+    hỏng response gốc chỉ vì bootstrap thất bại).
+
+    BUG THẬT đã vá — phát hiện khi kiểm thử lại pos_nail.html: trước đây dùng
+    `html.replace('</body>', snippet + '</body>', 1)`, thay thế occurrence ĐẦU TIÊN của
+    '</body>' trong TOÀN BỘ chuỗi HTML. Nhiều trang (vd pos_nail.html's printBookingQr()/
+    printQuote()) build 1 chuỗi HTML khác (cửa sổ in) bằng JS template literal chứa CHÍNH
+    chuỗi '</body></html>' làm nội dung văn bản — chuỗi này luôn nằm TRƯỚC thẻ </body> thật
+    của trang (vì nó nằm trong <script> ở giữa trang). replace(..., 1) khớp nhầm vào đó,
+    chèn nguyên khối <script>...</script> của CSRF bootstrap vào GIỮA 1 template literal JS
+    — phá vỡ cú pháp toàn bộ khối <script> chứa nó (SyntaxError, toàn bộ JS của trang không
+    chạy được nữa). Đổi sang rpartition (occurrence CUỐI CÙNG) — thẻ </body> thật của trang
+    luôn là occurrence cuối cùng trong nguồn (mọi chuỗi HTML-lồng-trong-JS đều nằm ở phần
+    thân trang, tức là TRƯỚC nó), nên an toàn cho mọi trang, không chỉ pos_nail.html."""
     try:
         if response.mimetype == 'text/html' and response.status_code < 400 and not response.direct_passthrough:
             html = response.get_data(as_text=True)
             if '</body>' in html and 'CSRF_TOKEN' not in html:
                 token_json = json.dumps(generate_csrf())
                 snippet = _CSRF_BOOTSTRAP_SCRIPT % token_json
-                response.set_data(html.replace('</body>', snippet + '</body>', 1))
+                head, sep, tail = html.rpartition('</body>')
+                response.set_data(head + snippet + sep + tail)
     except Exception as e:
         print(f"[CSRF bootstrap] Chèn script thất bại (không ảnh hưởng response gốc): {e}")
     return response
@@ -417,7 +446,16 @@ def _get_real_client_ip():
 limiter = Limiter(
     _get_real_client_ip,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    # BUG THẬT đã vá (audit tải 100 tenant đồng thời): "50 per hour" áp dụng cho MỌI route
+    # không tự khai limit riêng — tức MỌI request (tải sản phẩm, dashboard, checkout...) của
+    # CẢ 1 tiệm (thường dùng chung 1 IP văn phòng/router) cộng dồn vào ĐÚNG 1 bộ đếm 50/giờ.
+    # Đo thực tế: mô phỏng 1 tiệm bán lẻ hoạt động bình thường (vài nhân viên, nhiều thao tác/
+    # phút) chạm ngưỡng này chỉ sau vài phút, sau đó MỌI request tiếp theo (kể cả xem
+    # dashboard, không phải tấn công gì) bị 429 cho tới hết giờ — tiệm coi như sập trong giờ
+    # cao điểm. Route thật sự nhạy cảm (đăng nhập, đăng ký, sinh nội dung AI tốn tiền) đã có
+    # @limiter.limit() RIÊNG chặt hơn ngay tại route đó (5/15 phút) — default_limits ở đây chỉ
+    # cần chặn bot/scraper càn quét, không phải giới hạn hoạt động kinh doanh bình thường.
+    default_limits=["20000 per day", "1200 per hour"],
     storage_uri=_ratelimit_storage_uri,
 )
 
@@ -542,10 +580,17 @@ INDUSTRY_CONFIG = {
         'name': 'Cửa hàng Bán lẻ (Retail)',
         'icon': '🛍️',
         'desc': 'Thời trang, Mỹ phẩm, Tạp hóa, Điện tử. Quản lý tồn kho, mã vạch, báo cáo doanh thu.',
-        'redirect_after_login': '/dashboard',
-        'dashboard_route': '/dashboard',
-        'templates': ['dashboard.html', 'add_product.html', 'sell.html'],
-        'modules': ['sales', 'inventory', 'expenses'],
+        'redirect_after_login': '/retail_pos',
+        'dashboard_route': '/retail_pos',
+        'templates': ['retail_pos.html', 'dashboard.html', 'add_product.html', 'sell.html'],
+        # BUG THẬT đã vá (audit ghép nối màn hình theo ngành): thiếu 'attendance' ở đây khiến
+        # app_sidebar.html (điều kiện `'attendance' in modules or 'payroll' in modules`) không
+        # bao giờ hiện link Nhân sự/Chấm công/Lương cho ngành Retail — nhân viên/chấm công vẫn
+        # ghi nhận được bình thường qua /staff, /chamcong_retail (fallback chamcong.html),
+        # /bangluong (route không hề phân biệt ngành), chỉ là KHÔNG có đường dẫn nào trong menu
+        # để chủ tiệm bấm vào. Thêm 'attendance' vào đây — chỉ ảnh hưởng hiển thị sidebar
+        # (app_sidebar.html), không đụng route/logic nào khác.
+        'modules': ['sales', 'inventory', 'expenses', 'attendance'],
         'permissions': ['view_dashboard', 'manage_inventory', 'sell']
     },
     'fnb': {
@@ -589,7 +634,10 @@ INDUSTRY_CONFIG = {
         'redirect_after_login': '/karaoke',
         'dashboard_route': '/karaoke',
         'templates': ['karaoke.html'],
-        'modules': ['room_timing', 'pos_ordering'],
+        # BUG THẬT đã vá (cùng nguyên nhân với Retail phía trên): thiếu 'attendance' khiến
+        # sidebar không hiện link Nhân sự/Chấm công/Lương cho ngành Karaoke, dù nhân viên vẫn
+        # chấm công bình thường qua /chamcong_karaoke (fallback chamcong.html).
+        'modules': ['room_timing', 'pos_ordering', 'attendance'],
         'permissions': ['view_karaoke', 'manage_rooms']
     },
     'hotel': {
@@ -597,9 +645,15 @@ INDUSTRY_CONFIG = {
         'name': 'Khách Sạn',
         'icon': '🏨',
         'desc': 'Khách sạn, Nhà nghỉ, Homestay. Quản lý phòng trống, đặt phòng, dịch vụ đi kèm.',
-        'redirect_after_login': '/chamcong/khachsan',
-        'dashboard_route': '/chamcong/khachsan',
-        'templates': ['chamcong_khachsan.html'],
+        # BUG THẬT đã vá (audit): 'room_management' trước đây chỉ là tên gọi trong modules,
+        # không có route/tính năng nào đứng sau — trang chủ đăng nhập của Hotel vẫn phải là
+        # Chấm công. Giờ đã có /hotel_rooms thật (xem app.py phần "HOTEL ROOM MANAGEMENT"),
+        # đưa nó thành trang chủ ngành Hotel — cùng mô hình F&B (home=/pos)/Nails
+        # (home=/chamcong/nail có sidebar đầy đủ dẫn vào /sell). Chấm công giờ là điểm đến phụ
+        # qua menu "Quản lý" trong /hotel_rooms, không còn là trang chủ nữa.
+        'redirect_after_login': '/hotel_rooms',
+        'dashboard_route': '/hotel_rooms',
+        'templates': ['hotel_rooms.html', 'chamcong_khachsan.html'],
         'modules': ['attendance', 'room_management'],
         'permissions': ['view_hotel', 'clock_in']
     },
@@ -608,9 +662,12 @@ INDUSTRY_CONFIG = {
         'name': 'Sản Xuất',
         'icon': '🏭',
         'desc': 'Nhà xưởng, Cơ sở sản xuất. Quản lý năng suất công nhân, chấm công xưởng.',
-        'redirect_after_login': '/chamcong/congnhan',
-        'dashboard_route': '/chamcong/congnhan',
-        'templates': ['chamcong_congnhan.html'],
+        # BUG THẬT đã vá (audit): 'factory_output' trước đây chỉ là tên gọi, không có route
+        # thật đứng sau — xem cùng lý do đã sửa cho Hotel ở trên. Giờ có /production_output
+        # thật, đưa thành trang chủ ngành Sản xuất; Chấm công thành điểm đến phụ qua sidebar.
+        'redirect_after_login': '/production_output',
+        'dashboard_route': '/production_output',
+        'templates': ['production_output.html', 'chamcong_congnhan.html'],
         'modules': ['attendance', 'factory_output'],
         'permissions': ['view_production', 'clock_in']
     },
@@ -1240,6 +1297,17 @@ def login():
                 if target_url == '/dashboard':
                     return redirect(url_for('index'))
                 elif target_url.startswith('/chamcong/'):
+                    # BUG THẬT đã vá — phát hiện lúc audit: 5 ngành (Nails/Hotel/Sản xuất/Kỹ
+                    # thuật/Văn phòng) có redirect_after_login trỏ vào /chamcong/<code>, route
+                    # này CHỈ cho admin/super_admin (@role_required). Trước đây redirect ở đây
+                    # không phân biệt vai trò — nhân viên đăng nhập xong bị chamcong_industry()
+                    # từ chối, bật flash + đẩy về /dashboard, /dashboard lại đẩy về
+                    # /chamcong/<code> (cùng logic này ở index() bên dưới) -> LẶP VÔ HẠN, nhân
+                    # viên không đăng nhập được vào bất kỳ trang nào. Nhân viên phải vào thẳng
+                    # /app_nhanvien (trang chấm công/hoa hồng cá nhân — không bị chặn, sidebar
+                    # cũng đang trỏ nhân viên vào đúng trang này).
+                    if session.get('role') not in ('admin', 'super_admin'):
+                        return redirect(url_for('app_nhanvien'))
                     ind_code = target_url.split('/')[-1]
                     return redirect(url_for('chamcong_industry', industry_code=ind_code))
                 else:
@@ -1682,6 +1750,13 @@ def index():
             # Điều hướng động cho tất cả các ngành khác dựa trên registry config
             target_url = INDUSTRY_CONFIG[mode]['redirect_after_login']
             if target_url.startswith('/chamcong/'):
+                # BUG THẬT đã vá — xem comment đầy đủ ở nhánh tương tự trong login() phía
+                # trên. Đây chính là điểm "bật ngược lại" tạo thành vòng lặp vô hạn: nhân
+                # viên bị chamcong_industry() (@role_required admin/super_admin) từ chối ->
+                # redirect(url_for('index')) -> rơi vào ĐÚNG nhánh này -> lại redirect về
+                # chamcong_industry() -> lặp mãi, không có gì hiển thị cho nhân viên.
+                if session.get('role') not in ('admin', 'super_admin'):
+                    return redirect(url_for('app_nhanvien'))
                 ind_code = target_url.split('/')[-1]
                 return redirect(url_for('chamcong_industry', industry_code=ind_code))
             else:
@@ -2097,6 +2172,7 @@ def add_product():
                 image_url = url_for('api_public_storage_file', file_id=str(file_id))
             except Exception as media_err:
                 print(f"GridFS product image upload failed: {str(media_err)}")
+        barcode = (request.form.get('barcode') or '').strip() or None
         try:
             db.products.insert_one({
                 'id': next_mongo_id('products'),
@@ -2106,6 +2182,7 @@ def add_product():
                 'stock': int(request.form['stock']),
                 'price': float(request.form['price']),
                 'image': image_url,
+                'barcode': barcode,
                 'is_active': 1,
                 'business_id': business_id
             })
@@ -2141,6 +2218,8 @@ def update_product(id):
         price = float(request.form['price'])
         stock = int(request.form['stock'])
         new_value = {'name': name, 'category': category, 'price': price, 'stock': stock}
+        if 'barcode' in request.form:
+            new_value['barcode'] = (request.form.get('barcode') or '').strip() or None
         db.products.update_one({'id': id, 'business_id': business_id}, {'$set': new_value})
         _log_audit(business_id, 'update_price', entity_type='product', entity_id=id, old_value=old_value, new_value=new_value)
         return jsonify({'success': True})
@@ -2240,6 +2319,134 @@ def add_table():
     return redirect(url_for('pos'))
 
 
+# ========== ĐẶT BÀN TRƯỚC (F&B Table Reservations) ==========
+# Trước khi có khối này, ngành F&B chỉ có sơ đồ bàn cho khách WALK-IN (chọn bàn đang trống ngay
+# lúc đó) — không có cách nào khách đặt trước 1 bàn cho tối thứ 7, khác hẳn Nails/Spa đã có
+# /calendar + booking QR công khai từ trước. Theo ĐÚNG mẫu đã dùng cho lịch hẹn Nails/Spa: 1 trang
+# công khai không cần đăng nhập để khách tự đặt (/reserve/<business_id>), 1 trang quản trị cho chủ
+# quán duyệt/xếp bàn (/reservations, cùng khuôn với /calendar).
+
+@app.route('/reserve/<business_id>')
+def public_table_reservation(business_id):
+    """Trang đặt bàn công khai — KHÔNG cần đăng nhập, giống /booking/qr/<spa_id> của Spa.
+    business_id nằm trong URL (từ QR dán tại quán hoặc link chủ quán chia sẻ)."""
+    try:
+        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
+    except Exception as db_err:
+        print(f"MongoDB brand_name select failed: {str(db_err)}")
+        brand_name = 'BitPaw'
+    return render_template('table_reservation_public.html', business_id=business_id, brand_name=brand_name)
+
+
+@app.route('/api/public/reservations/<business_id>', methods=['POST'])
+def api_public_reservation_create(business_id):
+    """Tạo yêu cầu đặt bàn — route công khai (không session). business_id lấy từ CHÍNH URL
+    (khớp /reserve/<business_id> khách vừa đứng), KHÔNG còn tin field business_id trong JSON
+    body — trước đây (audit cách ly QR đa tiệm) client có thể tự sửa field này để spam đơn đặt
+    bàn giả vào 1 tiệm KHÁC với trang họ đang đứng; giờ giá trị duy nhất được tin là đoạn URL
+    (cũng chính là cái link/QR thật của tiệm), không có field nào trong body ghi đè được.
+    KHÔNG chặn trùng lịch tự động (khác book_appointment cho Nails/Spa — 1 quán có thể có nhiều
+    bàn cùng sức chứa, chủ quán tự nhìn danh sách trên /reservations để xếp bàn phù hợp, không
+    thể đoán bằng máy)."""
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    reserved_time = data.get('reserved_time')
+    try:
+        party_size = int(data.get('party_size') or 1)
+    except (TypeError, ValueError):
+        party_size = 1
+    if not business_id or not name or not phone or not reserved_time:
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt bàn.'}), 400
+    if party_size < 1:
+        party_size = 1
+    try:
+        reservation_doc = {
+            'id': next_mongo_id('table_reservations'),
+            'business_id': business_id,
+            'customer_name': name,
+            'customer_phone': phone,
+            'party_size': party_size,
+            'reserved_time': reserved_time,
+            'table_id': None,
+            'note': (data.get('note') or '').strip() or None,
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+        }
+        db.table_reservations.insert_one(reservation_doc)
+        return jsonify({'success': True, 'id': reservation_doc['id']})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt bàn: {str(e)}'}), 500
+
+
+@app.route('/reservations')
+@login_required
+def reservations_page():
+    """Trang quản trị đặt bàn trước — cùng khuôn với /calendar (Nails/Spa): chọn ngày, duyệt/
+    xếp bàn/huỷ. business_id-scoped."""
+    business_id = session.get('business_id') or session['user_id']
+    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        date_str = datetime.now().strftime('%Y-%m-%d')
+    try:
+        reservations = list(db.table_reservations.find(
+            {
+                'business_id': business_id,
+                'reserved_time': {'$gte': f'{date_str}T00:00:00', '$lte': f'{date_str}T23:59:59'},
+            },
+            {'_id': 0},
+        ).sort('reserved_time', 1))
+    except Exception as e:
+        print(f"[reservations_page] Lỗi tra cứu db.table_reservations (business_id={business_id}): {e}")
+        flash('Không tải được danh sách đặt bàn — vui lòng thử lại.', 'danger')
+        reservations = []
+    try:
+        tables = list(db.dining_tables.find({'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0}).sort('name', 1))
+    except Exception as e:
+        print(f"[reservations_page] Lỗi tra cứu db.dining_tables: {e}")
+        tables = []
+    table_names = {t['id']: t['name'] for t in tables}
+    for r in reservations:
+        r['table_name'] = table_names.get(r.get('table_id'))
+    return render_template(
+        'reservations.html', reservations=reservations, tables=tables, selected_date=date_str,
+        reservation_link=url_for('public_table_reservation', business_id=business_id, _external=True),
+    )
+
+
+@app.route('/api/reservations/<int:reservation_id>', methods=['PATCH'])
+@login_required
+def api_reservation_update(reservation_id):
+    """Duyệt/xếp bàn/huỷ 1 yêu cầu đặt bàn — business_id-scoped, cùng mẫu với
+    api_appointment_update_status()."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    update_fields = {}
+    if 'status' in data:
+        if data['status'] not in ('pending', 'confirmed', 'seated', 'cancelled', 'no_show'):
+            return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
+        update_fields['status'] = data['status']
+    if 'table_id' in data:
+        table_id = data['table_id']
+        if table_id is not None:
+            if not db.dining_tables.find_one({'id': table_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
+                return jsonify({'success': False, 'message': 'Bàn không tồn tại.'}), 404
+        update_fields['table_id'] = table_id
+    if not update_fields:
+        return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
+    try:
+        result = db.table_reservations.update_one(
+            {'id': reservation_id, 'business_id': business_id}, {'$set': update_fields}
+        )
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Không tìm thấy yêu cầu đặt bàn.'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # ========== POS JSON API (dùng cho fetch() ở pos.html — thay thế Supabase JS client-side) ==========
 @app.route('/api/pos/products', methods=['GET'])
 @login_required
@@ -2270,6 +2477,28 @@ def api_product_get(id):
         )
         if not product:
             return jsonify({"success": False, "message": "Không tìm thấy sản phẩm."}), 404
+        return jsonify({"success": True, "data": product})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/products/lookup_barcode', methods=['GET'])
+@login_required
+def api_products_lookup_barcode():
+    """Tra cứu sản phẩm theo mã vạch cho màn hình POS Retail — quét mã (máy quét USB hoạt
+    động như bàn phím + Enter) thay vì tìm tên bằng tay. Scoped business_id, chỉ sản phẩm
+    còn active."""
+    business_id = session.get('business_id') or session['user_id']
+    barcode = (request.args.get('barcode') or '').strip()
+    if not barcode:
+        return jsonify({"success": False, "message": "Thiếu mã vạch."}), 400
+    try:
+        product = db.products.find_one(
+            {'barcode': barcode, 'business_id': business_id, 'is_active': 1},
+            {'id': 1, 'name': 1, 'price': 1, 'stock': 1, 'image': 1, 'barcode': 1, '_id': 0}
+        )
+        if not product:
+            return jsonify({"success": False, "message": f"Không tìm thấy sản phẩm với mã vạch '{barcode}'."}), 404
         return jsonify({"success": True, "data": product})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -2532,17 +2761,29 @@ def api_sales_checkout():
         # Trừ kho + tạo order/order_items + ghi sổ cái transactions ATOMIC trong cùng 1 Mongo
         # session transaction — nếu InsufficientStockError xảy ra ở bất kỳ sản phẩm nào, TOÀN
         # BỘ (kể cả các sản phẩm đã trừ kho thành công trước đó trong cùng đơn) tự động rollback.
+        #
+        # BUG THẬT đã vá (audit tải đồng thời — nhiều khách checkout cùng lúc): `with
+        # db_session.start_transaction():` KHÔNG tự retry khi WriteConflict (2+ giao dịch cùng
+        # sửa 1 document — vd cùng 1 sản phẩm bán chạy — trong cùng khoảnh khắc). MongoDB coi đây
+        # là lỗi TẠM THỜI (TransientTransactionError), THEO ĐÚNG THIẾT KẾ khách hàng phải tự thử
+        # lại giao dịch — nhưng code cũ không hề retry, khiến request đó rơi thẳng vào `except
+        # Exception` bên dưới và trả lỗi 500 cho khách dù họ KHÔNG hề làm gì sai và hàng vẫn còn
+        # đủ. Đo thực tế: 100 lượt checkout đồng thời cùng 1 sản phẩm (giả lập giờ cao điểm) —
+        # chỉ 8/100 thành công, 92 lượt còn lại bị lỗi 500 "Write conflict" dù tồn kho đủ cho tới
+        # tận lượt thứ 50. `with_transaction()` là API pymongo CHÍNH THỨC cho đúng vấn đề này —
+        # tự động thử lại (kèm backoff) cho MỌI lỗi transient, giữ nguyên toàn bộ logic bên trong.
         with mongo_client_instance.start_session() as db_session:
-            with db_session.start_transaction():
-                _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
-                db.orders.insert_one(order_doc, session=db_session)
+            def _do_checkout_txn(s):
+                _decrement_stock_atomic(business_id, stock_items, db_session=s)
+                db.orders.insert_one(order_doc, session=s)
                 if order_items_docs:
-                    db.order_items.insert_many(order_items_docs, session=db_session)
+                    db.order_items.insert_many(order_items_docs, session=s)
                 if status == 'completed':
                     _record_pos_transaction(
                         business_id, order_id, order_fields['total_amount'],
-                        order_fields['payment_method'], db_session=db_session,
+                        order_fields['payment_method'], db_session=s,
                     )
+            db_session.with_transaction(_do_checkout_txn)
 
         # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
         # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
@@ -2625,11 +2866,12 @@ def api_square_checkout():
         # không đủ để bán. Sổ cái transactions CHƯA ghi ở đây vì đơn còn 'pending' — chỉ ghi khi
         # webhook Square báo COMPLETED thật sự.
         with mongo_client_instance.start_session() as db_session:
-            with db_session.start_transaction():
-                _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
-                db.orders.insert_one(order_doc, session=db_session)
+            def _do_reserve_txn(s):
+                _decrement_stock_atomic(business_id, stock_items, db_session=s)
+                db.orders.insert_one(order_doc, session=s)
                 if order_items_docs:
-                    db.order_items.insert_many(order_items_docs, session=db_session)
+                    db.order_items.insert_many(order_items_docs, session=s)
+            db_session.with_transaction(_do_reserve_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
 
         # Đã giữ chỗ hàng thành công -> giờ mới gọi Square charge khách thật.
         txn_id = f"SQTERM-{order_id}-{uuid.uuid4().hex[:6].upper()}"
@@ -3581,8 +3823,8 @@ def checkout_table(table_id):
                 # Mongo session transaction — không còn race condition khi nhiều bàn/nhiều đơn QR
                 # cùng checkout 1 sản phẩm trong giờ cao điểm.
                 with mongo_client_instance.start_session() as db_session:
-                    with db_session.start_transaction():
-                        _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
+                    def _do_table_checkout_txn(s):
+                        _decrement_stock_atomic(business_id, stock_items, db_session=s)
                         db.orders.insert_one({
                             'id': order_id,
                             'business_id': business_id,
@@ -3591,12 +3833,13 @@ def checkout_table(table_id):
                             'total_amount': total_bill,
                             'payment_method': 'POS',
                             'metadata': {'order_code': order_code, 'channel': 'fnb', 'table_id': table_id},
-                        }, session=db_session)
+                        }, session=s)
                         if order_items_docs:
-                            db.order_items.insert_many(order_items_docs, session=db_session)
+                            db.order_items.insert_many(order_items_docs, session=s)
                         _record_pos_transaction(
-                            business_id, order_id, total_bill, 'POS', db_session=db_session,
+                            business_id, order_id, total_bill, 'POS', db_session=s,
                         )
+                    db_session.with_transaction(_do_table_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
             except InsufficientStockError as e:
                 return (jsonify({"success": False, "message": str(e)}), 409) if _wants_json() else (str(e), 409)
 
@@ -4482,7 +4725,22 @@ def api_karaoke_room_checkout(room_id):
         duration_hours = duration_minutes / 60.0
         total_price = duration_hours * room['price_per_hour']
         order_id = None
-        prod = db.products.find_one({'name': 'Phí Giờ Karaoke', 'business_id': business_id}, {'id': 1, '_id': 0})
+        # BUG THẬT đã vá (audit QA cuối trước khi lên production): trước đây route này CHỈ ghi
+        # order/doanh thu nếu tenant đã có SẴN 1 sản phẩm tên đúng y hệt 'Phí Giờ Karaoke' —
+        # không có route/luồng nào tự tạo sản phẩm đó, nên MỌI tenant Karaoke mới (kể cả tài
+        # khoản demo) chốt phòng xong total_amount vẫn tính đúng để hiển thị cho khách, nhưng
+        # KHÔNG có order/transaction nào được ghi — doanh thu chính của cả ngành Karaoke lặng
+        # lẽ không vào sổ sách/báo cáo. Auto-tạo (idempotent, upsert atomic — an toàn nếu 2
+        # lượt chốt phòng đầu tiên chạy cùng lúc) thay vì chỉ đọc rồi bỏ qua khi không thấy.
+        prod = db.products.find_one_and_update(
+            {'name': 'Phí Giờ Karaoke', 'business_id': business_id},
+            {'$setOnInsert': {
+                'id': next_mongo_id('products'), 'business_id': business_id, 'name': 'Phí Giờ Karaoke',
+                'category': 'Phòng', 'price': room['price_per_hour'], 'cost_price': 0, 'stock': 0,
+                'is_active': 1, 'channel_type': 'retail',
+            }},
+            upsert=True, return_document=ReturnDocument.AFTER, projection={'id': 1, '_id': 0}
+        )
         if prod:
             order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
             order_id = next_mongo_id('orders')
@@ -4515,6 +4773,710 @@ def api_karaoke_room_checkout(room_id):
         return jsonify({"success": True, "total_amount": total_price, "order_id": order_id})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== ĐẶT PHÒNG KARAOKE TRƯỚC ==========
+# db.karaoke_rooms chỉ theo dõi trạng thái HIỆN TẠI (Trống/Đang chơi) — không có cách nào giữ
+# chỗ cho 1 nhóm khách sẽ tới lúc 20h tối thứ 7, đặc biệt quan trọng với Karaoke vì phòng hết
+# nhanh vào cuối tuần. Cùng khuôn với /reserve (F&B): 1 trang công khai không cần đăng nhập
+# (/karaoke/reserve/<business_id>), 1 trang quản trị duyệt/xếp phòng (/karaoke/reservations).
+
+@app.route('/karaoke/reserve/<business_id>')
+def public_karaoke_reservation(business_id):
+    """Trang đặt phòng Karaoke công khai — KHÔNG cần đăng nhập, cùng mẫu /reserve (F&B) /
+    /booking/qr/<spa_id> (Spa)."""
+    try:
+        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
+    except Exception as db_err:
+        print(f"MongoDB brand_name select failed: {str(db_err)}")
+        brand_name = 'BitPaw'
+    return render_template('karaoke_reservation_public.html', business_id=business_id, brand_name=brand_name)
+
+
+@app.route('/api/public/karaoke_reservations/<business_id>', methods=['POST'])
+def api_public_karaoke_reservation_create(business_id):
+    """Tạo yêu cầu đặt phòng Karaoke — route công khai (không session), cùng mẫu
+    api_public_reservation_create() (F&B) — business_id lấy từ URL, KHÔNG tin field trong JSON
+    body (chặn spam đơn giả sang tiệm khác — xem giải thích đầy đủ ở route F&B). Không tự chặn
+    trùng giờ (nhiều phòng, chủ quán tự xếp phòng phù hợp trên /karaoke/reservations, giống hệt
+    lý do F&B không tự chặn)."""
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    reserved_time = data.get('reserved_time')
+    try:
+        party_size = int(data.get('party_size') or 1)
+    except (TypeError, ValueError):
+        party_size = 1
+    if not business_id or not name or not phone or not reserved_time:
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt phòng.'}), 400
+    if party_size < 1:
+        party_size = 1
+    try:
+        reservation_doc = {
+            'id': next_mongo_id('karaoke_room_reservations'),
+            'business_id': business_id,
+            'customer_name': name,
+            'customer_phone': phone,
+            'party_size': party_size,
+            'reserved_time': reserved_time,
+            'room_id': None,
+            'note': (data.get('note') or '').strip() or None,
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+        }
+        db.karaoke_room_reservations.insert_one(reservation_doc)
+        return jsonify({'success': True, 'id': reservation_doc['id']})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt phòng: {str(e)}'}), 500
+
+
+@app.route('/karaoke/reservations')
+@login_required
+def karaoke_reservations_page():
+    """Trang quản trị đặt phòng Karaoke — cùng khuôn với /reservations (F&B) / /calendar
+    (Nails/Spa). business_id-scoped."""
+    business_id = session.get('business_id') or session['user_id']
+    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        date_str = datetime.now().strftime('%Y-%m-%d')
+    try:
+        reservations = list(db.karaoke_room_reservations.find(
+            {
+                'business_id': business_id,
+                'reserved_time': {'$gte': f'{date_str}T00:00:00', '$lte': f'{date_str}T23:59:59'},
+            },
+            {'_id': 0},
+        ).sort('reserved_time', 1))
+    except Exception as e:
+        print(f"[karaoke_reservations_page] Lỗi tra cứu db.karaoke_room_reservations (business_id={business_id}): {e}")
+        flash('Không tải được danh sách đặt phòng — vui lòng thử lại.', 'danger')
+        reservations = []
+    try:
+        rooms = list(db.karaoke_rooms.find({'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0}).sort('name', 1))
+    except Exception as e:
+        print(f"[karaoke_reservations_page] Lỗi tra cứu db.karaoke_rooms: {e}")
+        rooms = []
+    room_names = {r['id']: r['name'] for r in rooms}
+    for r in reservations:
+        r['room_name'] = room_names.get(r.get('room_id'))
+    return render_template(
+        'karaoke_reservations.html', reservations=reservations, rooms=rooms, selected_date=date_str,
+        reservation_link=url_for('public_karaoke_reservation', business_id=business_id, _external=True),
+    )
+
+
+@app.route('/api/karaoke_reservations/<int:reservation_id>', methods=['PATCH'])
+@login_required
+def api_karaoke_reservation_update(reservation_id):
+    """Duyệt/xếp phòng/huỷ 1 yêu cầu đặt phòng Karaoke — business_id-scoped, cùng mẫu
+    api_reservation_update() (F&B)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    update_fields = {}
+    if 'status' in data:
+        if data['status'] not in ('pending', 'confirmed', 'arrived', 'cancelled', 'no_show'):
+            return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
+        update_fields['status'] = data['status']
+    if 'room_id' in data:
+        room_id = data['room_id']
+        if room_id is not None:
+            if not db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
+                return jsonify({'success': False, 'message': 'Phòng không tồn tại.'}), 404
+        update_fields['room_id'] = room_id
+    if not update_fields:
+        return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
+    try:
+        result = db.karaoke_room_reservations.update_one(
+            {'id': reservation_id, 'business_id': business_id}, {'$set': update_fields}
+        )
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Không tìm thấy yêu cầu đặt phòng.'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ========== HOTEL ROOM MANAGEMENT ==========
+# Tính năng THẬT cho ngành Hotel — trước đây INDUSTRY_CONFIG['hotel']['modules'] có
+# 'room_management' nhưng chỉ là tên gọi, chưa có route/collection nào đứng sau nó (ngành
+# Hotel chỉ thật sự có Chấm công). Theo đúng mô hình phòng-tính-đêm (khác Karaoke tính theo
+# phút): 1 phòng có thể 'Trống' -> 'Đang ở' (check-in, gắn tên khách + ngày vào) -> 'Đang dọn'
+# (check-out, đã tính tiền theo số đêm, chờ dọn phòng) -> 'Trống' (dọn xong, sẵn sàng khách mới).
+@app.route('/api/hotel/rooms', methods=['GET'])
+@login_required
+def api_hotel_rooms_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rooms = list(db.hotel_rooms.find({'business_id': business_id}, {'_id': 0}).sort('room_number', 1))
+        return jsonify({"success": True, "data": rooms})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_hotel_rooms_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    room_number = (data.get('room_number') or '').strip()
+    if not room_number:
+        return jsonify({"success": False, "message": "Thiếu số phòng."}), 400
+    try:
+        price_per_night = float(data.get('price_per_night', 0))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Giá phòng/đêm không hợp lệ."}), 400
+    try:
+        if db.hotel_rooms.find_one({'room_number': room_number, 'business_id': business_id}, {'id': 1, '_id': 0}):
+            return jsonify({"success": False, "message": f"Phòng '{room_number}' đã tồn tại."}), 409
+        doc = {
+            'id': next_mongo_id('hotel_rooms'), 'business_id': business_id, 'room_number': room_number,
+            'room_type': data.get('room_type') or 'Standard', 'price_per_night': price_per_night,
+            'floor': data.get('floor') or '', 'capacity': int(data.get('capacity') or 2),
+            'status': 'Trống', 'guest_name': None, 'guest_phone': None, 'checkin_date': None,
+        }
+        db.hotel_rooms.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms/<int:room_id>', methods=['PATCH'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_hotel_rooms_update(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    updates = {k: v for k, v in data.items() if k in ('room_type', 'price_per_night', 'floor', 'capacity')}
+    if not updates:
+        return jsonify({"success": False, "message": "Không có trường hợp lệ để cập nhật."}), 400
+    try:
+        result = db.hotel_rooms.update_one({'id': room_id, 'business_id': business_id}, {'$set': updates})
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy phòng."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms/<int:room_id>/checkin', methods=['POST'])
+@login_required
+def api_hotel_room_checkin(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    guest_name = (data.get('guest_name') or '').strip()
+    if not guest_name:
+        return jsonify({"success": False, "message": "Thiếu tên khách."}), 400
+    guest_phone = (data.get('guest_phone') or '').strip() or None
+    now = datetime.now().isoformat()
+    try:
+        # find_one_and_update lọc status='Trống' ngay trong filter -> atomic, tránh 2 lễ tân
+        # cùng check-in 1 phòng 1 lúc (giống race-condition fix của karaoke room start).
+        result = db.hotel_rooms.find_one_and_update(
+            {'id': room_id, 'business_id': business_id, 'status': 'Trống'},
+            {'$set': {'status': 'Đang ở', 'guest_name': guest_name, 'guest_phone': guest_phone, 'checkin_date': now}},
+            return_document=ReturnDocument.AFTER,
+            projection={'_id': 0}
+        )
+        if not result:
+            return jsonify({"success": False, "message": "Phòng không tồn tại hoặc đang không trống."}), 409
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms/<int:room_id>/checkout', methods=['POST'])
+@login_required
+def api_hotel_room_checkout(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        room = db.hotel_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
+        if not room or room.get('status') != 'Đang ở':
+            return jsonify({"success": False, "message": "Phòng không tồn tại hoặc chưa có khách."}), 409
+        checkin_date = parse_datetime(room['checkin_date'])
+        now = datetime.now()
+        nights = max(1, (now.date() - checkin_date.date()).days)
+        total_price = nights * room['price_per_night']
+
+        order_id = next_mongo_id('orders')
+        order_code = f"HTL-{uuid.uuid4().hex[:8].upper()}"
+        db.orders.insert_one({
+            'id': order_id, 'business_id': business_id, 'created_at': now.isoformat(),
+            'status': 'completed', 'total_amount': total_price, 'payment_method': 'cash',
+            'metadata': {
+                'order_code': order_code, 'channel': 'hotel', 'room_id': room_id,
+                'room_number': room.get('room_number'), 'guest_name': room.get('guest_name'),
+                'nights': nights,
+            },
+        })
+        _record_pos_transaction(business_id, order_id, total_price, 'cash')
+
+        # Về 'Đang dọn' (chờ dọn phòng), KHÔNG về thẳng 'Trống' — buồng phòng cần dọn trước khi
+        # nhận khách mới, đúng quy trình khách sạn thật (mark_clean bên dưới mới chuyển tiếp).
+        db.hotel_rooms.update_one(
+            {'id': room_id, 'business_id': business_id},
+            {'$set': {'status': 'Đang dọn', 'guest_name': None, 'guest_phone': None, 'checkin_date': None}}
+        )
+        return jsonify({"success": True, "total_amount": total_price, "nights": nights, "order_id": order_id})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms/<int:room_id>/mark_clean', methods=['POST'])
+@login_required
+def api_hotel_room_mark_clean(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.hotel_rooms.update_one(
+            {'id': room_id, 'business_id': business_id, 'status': 'Đang dọn'},
+            {'$set': {'status': 'Trống'}}
+        )
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Phòng không tồn tại hoặc không ở trạng thái đang dọn."}), 409
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/hotel_rooms')
+@login_required
+def hotel_rooms_page():
+    return render_template('hotel_rooms.html')
+
+
+# ========== ĐẶT PHÒNG KHÁCH SẠN TƯƠNG LAI ==========
+# db.hotel_rooms ở trên chỉ quản lý trạng thái phòng THỜI ĐIỂM HIỆN TẠI (Trống/Đang ở/Đang
+# dọn) — không có cách nào giữ chỗ phòng cho khách sẽ tới tuần sau. Khác F&B/Karaoke (đặt chỗ
+# tại 1 THỜI ĐIỂM), khách sạn đặt theo 1 KHOẢNG NGÀY (check-in -> check-out), nên khi xếp phòng
+# cụ thể PHẢI tự chặn trùng lịch (2 khách cùng được xếp 1 phòng cho các đêm giao nhau) — admin
+# không thể tự nhìn mà tránh được như bàn ăn/phòng hát vì đặt trước cả tháng, danh sách dài.
+
+def _hotel_reservation_overlaps(business_id, room_id, checkin_date, checkout_date, exclude_id=None):
+    """True nếu room_id đã có 1 đặt phòng KHÁC (status pending/confirmed) giao nhau với
+    khoảng [checkin_date, checkout_date). Đêm cuối (checkout_date) khách đã trả phòng buổi
+    sáng nên KHÔNG tính là trùng với khách nhận phòng đúng ngày đó — điều kiện giao nhau chuẩn:
+    existing.checkin < new.checkout AND existing.checkout > new.checkin."""
+    query = {
+        'business_id': business_id, 'room_id': room_id, 'status': {'$in': ['pending', 'confirmed']},
+        'checkin_date': {'$lt': checkout_date}, 'checkout_date': {'$gt': checkin_date},
+    }
+    if exclude_id is not None:
+        query['id'] = {'$ne': exclude_id}
+    return db.hotel_reservations.find_one(query, {'id': 1, '_id': 0}) is not None
+
+
+@app.route('/hotel/reserve/<business_id>')
+def public_hotel_reservation(business_id):
+    """Trang đặt phòng khách sạn công khai — KHÔNG cần đăng nhập, cùng mẫu /reserve (F&B)."""
+    try:
+        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
+    except Exception as db_err:
+        print(f"MongoDB brand_name select failed: {str(db_err)}")
+        brand_name = 'BitPaw'
+    return render_template('hotel_reservation_public.html', business_id=business_id, brand_name=brand_name)
+
+
+@app.route('/api/public/hotel_reservations/<business_id>', methods=['POST'])
+def api_public_hotel_reservation_create(business_id):
+    """Tạo yêu cầu đặt phòng khách sạn — route công khai (không session). business_id lấy từ
+    URL, KHÔNG tin field trong JSON body (chặn spam đơn giả sang tiệm khác — xem giải thích đầy
+    đủ ở route F&B). KHÔNG gán room_id cụ thể ở bước này (khách chỉ chọn loại phòng mong muốn,
+    không biết phòng nào đang trống ngày đó) — admin xếp phòng cụ thể trên /hotel/reservations,
+    lúc đó mới chặn trùng lịch."""
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    checkin_date = (data.get('checkin_date') or '').strip()
+    checkout_date = (data.get('checkout_date') or '').strip()
+    try:
+        party_size = int(data.get('party_size') or 1)
+    except (TypeError, ValueError):
+        party_size = 1
+    if not business_id or not name or not phone or not checkin_date or not checkout_date:
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và ngày nhận/trả phòng.'}), 400
+    if checkout_date <= checkin_date:
+        return jsonify({'success': False, 'message': 'Ngày trả phòng phải sau ngày nhận phòng.'}), 400
+    if party_size < 1:
+        party_size = 1
+    try:
+        reservation_doc = {
+            'id': next_mongo_id('hotel_reservations'),
+            'business_id': business_id,
+            'guest_name': name,
+            'guest_phone': phone,
+            'party_size': party_size,
+            'checkin_date': checkin_date,
+            'checkout_date': checkout_date,
+            'room_type': (data.get('room_type') or '').strip() or None,
+            'room_id': None,
+            'note': (data.get('note') or '').strip() or None,
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+        }
+        db.hotel_reservations.insert_one(reservation_doc)
+        return jsonify({'success': True, 'id': reservation_doc['id']})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt phòng: {str(e)}'}), 500
+
+
+@app.route('/hotel/reservations')
+@login_required
+def hotel_reservations_page():
+    """Trang quản trị đặt phòng khách sạn — KHÁC /reservations (F&B)/karaoke/reservations ở
+    chỗ liệt kê TẤT CẢ đặt phòng còn hiệu lực sắp tới (không lọc theo 1 ngày), vì khách đặt
+    trước hàng tuần/hàng tháng — lọc theo 1 ngày sẽ không thấy được các đặt phòng tương lai xa."""
+    business_id = session.get('business_id') or session['user_id']
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    try:
+        reservations = list(db.hotel_reservations.find(
+            {'business_id': business_id, 'checkout_date': {'$gte': today_str}},
+            {'_id': 0},
+        ).sort('checkin_date', 1))
+    except Exception as e:
+        print(f"[hotel_reservations_page] Lỗi tra cứu db.hotel_reservations (business_id={business_id}): {e}")
+        flash('Không tải được danh sách đặt phòng — vui lòng thử lại.', 'danger')
+        reservations = []
+    try:
+        rooms = list(db.hotel_rooms.find({'business_id': business_id}, {'id': 1, 'room_number': 1, 'room_type': 1, '_id': 0}).sort('room_number', 1))
+    except Exception as e:
+        print(f"[hotel_reservations_page] Lỗi tra cứu db.hotel_rooms: {e}")
+        rooms = []
+    room_labels = {r['id']: r['room_number'] for r in rooms}
+    for r in reservations:
+        r['room_label'] = room_labels.get(r.get('room_id'))
+    return render_template(
+        'hotel_reservations.html', reservations=reservations, rooms=rooms, today=today_str,
+        reservation_link=url_for('public_hotel_reservation', business_id=business_id, _external=True),
+    )
+
+
+@app.route('/api/hotel_reservations/<int:reservation_id>', methods=['PATCH'])
+@login_required
+def api_hotel_reservation_update(reservation_id):
+    """Duyệt/xếp phòng/huỷ 1 yêu cầu đặt phòng khách sạn — business_id-scoped. Xếp phòng cụ thể
+    (room_id) BẮT BUỘC chặn trùng lịch qua _hotel_reservation_overlaps(), khác F&B/Karaoke vì
+    khách sạn đặt theo khoảng ngày dài, admin không thể tự soát bằng mắt như 1 danh sách trong
+    ngày."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    reservation = db.hotel_reservations.find_one({'id': reservation_id, 'business_id': business_id}, {'_id': 0})
+    if not reservation:
+        return jsonify({'success': False, 'message': 'Không tìm thấy yêu cầu đặt phòng.'}), 404
+
+    update_fields = {}
+    if 'status' in data:
+        if data['status'] not in ('pending', 'confirmed', 'cancelled'):
+            return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
+        update_fields['status'] = data['status']
+    if 'room_id' in data:
+        room_id = data['room_id']
+        if room_id is not None:
+            if not db.hotel_rooms.find_one({'id': room_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
+                return jsonify({'success': False, 'message': 'Phòng không tồn tại.'}), 404
+            if _hotel_reservation_overlaps(
+                business_id, room_id, reservation['checkin_date'], reservation['checkout_date'], exclude_id=reservation_id
+            ):
+                return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng khoảng ngày này.'}), 409
+        update_fields['room_id'] = room_id
+    if not update_fields:
+        return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
+    try:
+        db.hotel_reservations.update_one({'id': reservation_id, 'business_id': business_id}, {'$set': update_fields})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ========== PRODUCTION OUTPUT TRACKING (Sản xuất) ==========
+# Tính năng THẬT cho ngành Sản xuất — trước đây INDUSTRY_CONFIG['production']['modules'] có
+# 'factory_output' nhưng chỉ là tên gọi, chưa có route/collection nào (ngành Sản xuất chỉ thật
+# sự có Chấm công, y hệt tình trạng cũ của Hotel). Ghi nhận sản lượng theo công nhân/công
+# đoạn/ngày — dùng ngay 'employees' (ma_nv) đã có, không cần thêm collection nhân sự riêng.
+@app.route('/api/production/output', methods=['GET'])
+@login_required
+def api_production_output_list():
+    business_id = session.get('business_id') or session['user_id']
+    ngay = request.args.get('ngay')
+    query = {'business_id': business_id}
+    if ngay:
+        query['ngay'] = ngay
+    try:
+        rows = list(db.production_output.find(query, {'_id': 0}).sort('id', -1).limit(500))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/output', methods=['POST'])
+@login_required
+def api_production_output_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    ma_nv = (data.get('ma_nv') or '').strip()
+    cong_doan = (data.get('cong_doan') or '').strip()
+    if not ma_nv or not cong_doan:
+        return jsonify({"success": False, "message": "Thiếu công nhân hoặc công đoạn/sản phẩm."}), 400
+    try:
+        so_luong = int(data.get('so_luong', 0))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Số lượng không hợp lệ."}), 400
+    if so_luong <= 0:
+        return jsonify({"success": False, "message": "Số lượng phải lớn hơn 0."}), 400
+    try:
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'ho_ten': 1, '_id': 0})
+        doc = {
+            'id': next_mongo_id('production_output'), 'business_id': business_id, 'ma_nv': ma_nv,
+            'ho_ten': emp.get('ho_ten') if emp else ma_nv, 'cong_doan': cong_doan, 'so_luong': so_luong,
+            'ngay': data.get('ngay') or datetime.now().strftime('%d/%m/%Y'),
+            'ca_lam': data.get('ca_lam') or '', 'ghi_chu': data.get('ghi_chu') or '',
+            'created_at': datetime.now().isoformat(),
+        }
+        db.production_output.insert_one(doc)
+        doc.pop('_id', None)
+        material_warnings = _consume_recipe_materials(business_id, cong_doan, so_luong)
+        return jsonify({"success": True, "data": doc, "material_warnings": material_warnings})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ========== NGUYÊN VẬT LIỆU (trừ kho theo sản lượng) ==========
+# Trước khi có khối này, ghi nhận sản lượng (api_production_output_create ở trên) chỉ lưu SỐ
+# LƯỢNG ĐẦU RA — không liên kết gì tới tồn kho nguyên liệu, nên chủ xưởng không bao giờ biết còn
+# đủ nguyên liệu sản xuất tiếp hay không cho tới khi công nhân báo hết ngay tại chuyền. 2 collection
+# mới: raw_materials (tồn kho từng loại NVL) + product_recipes (công thức: 1 công đoạn/sản phẩm
+# cần bao nhiêu NVL/đơn vị). Khớp theo `cong_doan` (chuỗi công nhân tự nhập, đã có sẵn — không có
+# catalog sản phẩm cố định trong ngành này) — so khớp KHÔNG phân biệt hoa thường/khoảng trắng thừa.
+
+def _consume_recipe_materials(business_id, cong_doan, so_luong):
+    """Trừ NVL theo công thức khớp với `cong_doan` (nếu có) — CHO PHÉP âm tồn kho (khác
+    _decrement_stock_atomic của POS, không chặn ghi nhận sản lượng đã sản xuất xong chỉ vì dữ
+    liệu tồn kho lệch) — chỉ trả về danh sách cảnh báo cho các NVL đã xuống âm để hiển thị cho
+    quản lý xưởng tự bổ sung. Không có công thức khớp -> trả về [] (bỏ qua an toàn, không phải lỗi)."""
+    recipe = db.product_recipes.find_one(
+        {'business_id': business_id, 'output_name_normalized': cong_doan.strip().lower()}, {'_id': 0}
+    )
+    if not recipe:
+        return []
+    warnings = []
+    for item in recipe.get('materials', []):
+        try:
+            qty_to_deduct = float(item['qty_per_unit']) * so_luong
+        except (TypeError, ValueError, KeyError):
+            continue
+        updated = db.raw_materials.find_one_and_update(
+            {'id': item['material_id'], 'business_id': business_id},
+            {'$inc': {'stock_qty': -qty_to_deduct}},
+            return_document=ReturnDocument.AFTER,
+            projection={'name': 1, 'stock_qty': 1, 'unit': 1, '_id': 0},
+        )
+        if updated and updated['stock_qty'] < 0:
+            warnings.append(
+                f"NVL '{updated['name']}' đã âm tồn kho ({updated['stock_qty']:.1f} {updated.get('unit', '')}) — cần nhập thêm."
+            )
+    return warnings
+
+
+@app.route('/api/production/materials', methods=['GET'])
+@login_required
+def api_production_materials_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rows = list(db.raw_materials.find({'business_id': business_id}, {'_id': 0}).sort('name', 1))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/materials', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_materials_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    unit = (data.get('unit') or '').strip()
+    if not name or not unit:
+        return jsonify({"success": False, "message": "Thiếu tên hoặc đơn vị tính nguyên vật liệu."}), 400
+    try:
+        stock_qty = float(data.get('stock_qty') or 0)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Tồn kho ban đầu không hợp lệ."}), 400
+    try:
+        doc = {
+            'id': next_mongo_id('raw_materials'), 'business_id': business_id,
+            'name': name, 'unit': unit, 'stock_qty': stock_qty,
+        }
+        db.raw_materials.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/materials/<int:material_id>', methods=['PATCH'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_materials_update(material_id):
+    """Dùng cho cả sửa tên/đơn vị LẪN nhập thêm kho (restock_qty: cộng dồn thay vì ghi đè, tránh
+    race condition 2 người cùng nhập kho 1 lúc — giống _decrement_stock_atomic dùng $inc)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    try:
+        if 'restock_qty' in data:
+            restock_qty = float(data['restock_qty'])
+            if restock_qty <= 0:
+                return jsonify({"success": False, "message": "Số lượng nhập kho phải lớn hơn 0."}), 400
+            result = db.raw_materials.find_one_and_update(
+                {'id': material_id, 'business_id': business_id},
+                {'$inc': {'stock_qty': restock_qty}},
+                return_document=ReturnDocument.AFTER, projection={'_id': 0},
+            )
+            if not result:
+                return jsonify({"success": False, "message": "Không tìm thấy nguyên vật liệu."}), 404
+            return jsonify({"success": True, "data": result})
+        updates = {k: v for k, v in data.items() if k in ('name', 'unit')}
+        if not updates:
+            return jsonify({"success": False, "message": "Không có trường hợp lệ để cập nhật."}), 400
+        result = db.raw_materials.update_one({'id': material_id, 'business_id': business_id}, {'$set': updates})
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy nguyên vật liệu."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/materials/<int:material_id>', methods=['DELETE'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_materials_delete(material_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.raw_materials.delete_one({'id': material_id, 'business_id': business_id})
+        if result.deleted_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy nguyên vật liệu."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/recipes', methods=['GET'])
+@login_required
+def api_production_recipes_list():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rows = list(db.product_recipes.find({'business_id': business_id}, {'_id': 0}).sort('output_name', 1))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/recipes', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_recipes_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    output_name = (data.get('output_name') or '').strip()
+    materials = data.get('materials') or []
+    if not output_name or not materials:
+        return jsonify({"success": False, "message": "Thiếu tên công đoạn/sản phẩm hoặc danh sách nguyên vật liệu."}), 400
+    clean_materials = []
+    material_ids = []
+    for m in materials:
+        try:
+            material_id = int(m['material_id'])
+            qty_per_unit = float(m['qty_per_unit'])
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"success": False, "message": "Danh sách nguyên vật liệu không hợp lệ."}), 400
+        if qty_per_unit <= 0:
+            return jsonify({"success": False, "message": "Định mức NVL/đơn vị phải lớn hơn 0."}), 400
+        clean_materials.append({'material_id': material_id, 'qty_per_unit': qty_per_unit})
+        material_ids.append(material_id)
+    owned_count = db.raw_materials.count_documents({'id': {'$in': material_ids}, 'business_id': business_id})
+    if owned_count != len(set(material_ids)):
+        return jsonify({"success": False, "message": "Có nguyên vật liệu không tồn tại hoặc không thuộc quyền quản lý của bạn."}), 404
+    try:
+        # Khớp `cong_doan` công nhân tự gõ (tự do, không chọn từ danh sách cố định) với công
+        # thức — upsert theo output_name_normalized để 1 công đoạn chỉ có ĐÚNG 1 công thức tại
+        # 1 thời điểm (tạo lại = ghi đè, không tạo bản trùng).
+        doc = {
+            'id': next_mongo_id('product_recipes'), 'business_id': business_id,
+            'output_name': output_name, 'output_name_normalized': output_name.lower(),
+            'materials': clean_materials,
+        }
+        db.product_recipes.delete_many({'business_id': business_id, 'output_name_normalized': output_name.lower()})
+        db.product_recipes.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/recipes/<int:recipe_id>', methods=['DELETE'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_recipes_delete(recipe_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.product_recipes.delete_one({'id': recipe_id, 'business_id': business_id})
+        if result.deleted_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy công thức."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/production/materials')
+@login_required
+@role_required('admin', 'super_admin')
+def production_materials_page():
+    return render_template('production_materials.html')
+
+
+@app.route('/api/production/output/<int:entry_id>', methods=['DELETE'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_production_output_delete(entry_id):
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.production_output.delete_one({'id': entry_id, 'business_id': business_id})
+        if result.deleted_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy bản ghi."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/production/output/summary', methods=['GET'])
+@login_required
+def api_production_output_summary():
+    """Tổng sản lượng hôm nay theo từng công nhân — cho dashboard, tính bằng 1 aggregation
+    pipeline thay vì kéo hết bản ghi về rồi cộng dồn ở client."""
+    business_id = session.get('business_id') or session['user_id']
+    ngay = request.args.get('ngay') or datetime.now().strftime('%d/%m/%Y')
+    try:
+        pipeline = [
+            {'$match': {'business_id': business_id, 'ngay': ngay}},
+            {'$group': {'_id': '$ma_nv', 'ho_ten': {'$first': '$ho_ten'}, 'total': {'$sum': '$so_luong'}, 'entries': {'$sum': 1}}},
+            {'$sort': {'total': -1}},
+        ]
+        rows = list(db.production_output.aggregate(pipeline))
+        for r in rows:
+            r['ma_nv'] = r.pop('_id')
+        grand_total = sum(r['total'] for r in rows)
+        return jsonify({"success": True, "data": rows, "grand_total": grand_total, "ngay": ngay})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/production_output')
+@login_required
+def production_output_page():
+    return render_template('production_output.html')
 
 
 # ========== BÁO CÁO ==========
@@ -5047,6 +6009,49 @@ def api_public_storage_file(file_id):
         mimetype=grid_file.content_type or 'application/octet-stream',
         headers={'Cache-Control': 'public, max-age=86400'}
     )
+
+
+# ========== QR CODE (sinh tại chỗ trên server, KHÔNG qua bên thứ 3) ==========
+# BUG THẬT đã vá (audit "phát triển QR cho kỹ" — Nails booking + F&B table): trước đây nút Xem/
+# In QR (pos_nail.html, pos.html) load ảnh QR từ https://api.qrserver.com — 1 dịch vụ ngoài,
+# nghĩa là (1) link đặt lịch/link bàn thật của tiệm bị GỬI RA cho bên thứ 3 mỗi lần chủ tiệm chỉ
+# đơn thuần XEM lại mã QR của chính mình, và (2) nếu dịch vụ đó chậm/bị chặn mạng/sập đúng lúc
+# tiệm cần in QR gấp (mở tiệm mới, in lại menu bàn...) thì KHÔNG in được gì cả — "chết dở" ngay
+# giữa lúc cần nhất. _generate_qr_svg() sinh QR THUẦN PYTHON (thư viện qrcode, image_factory=
+# SvgImage — không cần Pillow, không phụ thuộc mạng ngoài, luôn sẵn sàng bất kể Internet của máy
+# chủ hay của bên thứ 3 thế nào).
+def _generate_qr_svg(data):
+    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgImage, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf)
+    return buf.getvalue()
+
+
+@app.route('/api/qr/nail_booking', methods=['GET'])
+@login_required
+def api_qr_nail_booking():
+    """QR đặt lịch Nails — LUÔN sinh cho ĐÚNG business_id của phiên đăng nhập hiện tại, không
+    nhận business_id từ query string (tránh 1 tiệm xem/in được QR của tiệm khác chỉ bằng cách
+    đoán ID)."""
+    business_id = session.get('business_id') or session['user_id']
+    booking_url = url_for('public_booking_nail', business_id=business_id, _external=True)
+    svg = _generate_qr_svg(booking_url)
+    return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'private, max-age=3600'})
+
+
+@app.route('/api/qr/table/<int:table_id>', methods=['GET'])
+@login_required
+def api_qr_table(table_id):
+    """QR đặt món tại bàn — xác nhận bàn thuộc ĐÚNG business_id của phiên đăng nhập trước khi
+    sinh QR (không cho tiệm A tự sinh xem trước QR của bàn thuộc tiệm B chỉ bằng cách đoán
+    table_id, dù bản thân link /table_order khi khách quét đã an toàn theo tenant)."""
+    business_id = session.get('business_id') or session['user_id']
+    table = db.dining_tables.find_one({'id': table_id, 'business_id': business_id}, {'qr_token': 1, '_id': 0})
+    if not table:
+        return jsonify({'success': False, 'message': 'Không tìm thấy bàn.'}), 404
+    order_url = url_for('table_order', table_id=table['qr_token'], _external=True)
+    svg = _generate_qr_svg(order_url)
+    return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'private, max-age=3600'})
 
 
 # ========== QR MENU ==========
@@ -6140,14 +7145,15 @@ def api_payment_confirm():
         # nơi nhiều bàn/nhiều khách có thể cùng thanh toán trùng lúc giờ cao điểm.
         try:
             with mongo_client_instance.start_session() as db_session:
-                with db_session.start_transaction():
-                    _decrement_stock_atomic(business_id, stock_items, db_session=db_session)
-                    db.orders.insert_one(order_doc, session=db_session)
+                def _do_qr_checkout_txn(s):
+                    _decrement_stock_atomic(business_id, stock_items, db_session=s)
+                    db.orders.insert_one(order_doc, session=s)
                     if order_items_docs:
-                        db.order_items.insert_many(order_items_docs, session=db_session)
+                        db.order_items.insert_many(order_items_docs, session=s)
                     _record_pos_transaction(
-                        business_id, order_id, total_bill, method, db_session=db_session,
+                        business_id, order_id, total_bill, method, db_session=s,
                     )
+                db_session.with_transaction(_do_qr_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
         except InsufficientStockError as e:
             return jsonify({'success': False, 'message': str(e)}), 409
 
@@ -6386,6 +7392,59 @@ def _run_birthday_check_for_business(business_id):
     return sent
 
 
+def _run_appointment_reminder_check_for_business(business_id, now):
+    """Quét lịch hẹn (Nails/Spa) trong 24h tới CHƯA được nhắc, tự gửi qua Zalo OA/Messenger nếu
+    khách đã từng tương tác (có zalo_user_id/fb_psid trong db.customers — tái dùng ĐÚNG cơ chế
+    _queue_loyalty_notification đã dùng cho lời chúc sinh nhật), đánh dấu reminder_sent=True để
+    không nhắc trùng ngày hôm sau. Khách CHƯA từng tương tác qua OA (đa số — hệ thống không có
+    SMS gateway trả phí) sẽ không gửi tự động được gì, nhưng vẫn được liệt kê trên /calendar với
+    nút Gọi/Zalo/SMS để nhân viên chủ động liên hệ tay — xem calendar_view()."""
+    window_end = now + timedelta(hours=24)
+    reminded = 0
+    try:
+        appointments = list(db.appointments.find({
+            'business_id': business_id,
+            'status': {'$in': ['pending', 'confirmed']},
+            'book_time': {'$gte': now.isoformat(), '$lte': window_end.isoformat()},
+            'reminder_sent': {'$ne': True},
+        }, {'_id': 0}))
+    except Exception as e:
+        print(f"[appointment_reminder] Loi truy van appointments (business_id={business_id}): {e}")
+        return 0
+    for appt in appointments:
+        try:
+            book_time_display = datetime.fromisoformat(appt['book_time']).strftime('%H:%M %d/%m')
+        except (TypeError, ValueError):
+            book_time_display = appt.get('book_time', '')
+        service_name = ''
+        if appt.get('service_id'):
+            try:
+                svc = db.products.find_one({'id': appt['service_id']}, {'name': 1, '_id': 0})
+                service_name = (svc or {}).get('name') or ''
+            except Exception:
+                service_name = ''
+        message = (
+            f"📅 Nhắc lịch hẹn: {appt.get('customer_name') or 'Quý khách'} có lịch hẹn "
+            f"{f'({service_name}) ' if service_name else ''}lúc {book_time_display}. "
+            f"Vui lòng đến đúng giờ, liên hệ tiệm nếu cần đổi lịch. Cảm ơn quý khách!"
+        )
+        try:
+            customer = db.customers.find_one(
+                {'business_id': business_id, 'phone': appt.get('customer_phone')}, {'_id': 0}
+            ) or {'id': None}
+        except Exception:
+            customer = {'id': None}
+        try:
+            _queue_loyalty_notification(business_id, customer, 'appointment_reminder', message)
+            db.appointments.update_one(
+                {'id': appt['id']}, {'$set': {'reminder_sent': True, 'reminder_sent_at': now.isoformat()}}
+            )
+            reminded += 1
+        except Exception as e:
+            print(f"[appointment_reminder] Loi nhac lich hen id={appt.get('id')}: {e}")
+    return reminded
+
+
 def _get_all_active_business_ids():
     """Liệt kê toàn bộ business_id đang thực sự hoạt động. LƯU Ý: bảng 'businesses' KHÔNG
     được populate ở luồng đăng ký (session['business_id'] = user_id trực tiếp, không tạo
@@ -6492,6 +7551,36 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
     return alerts_created
 
 
+def _refresh_stale_demo_attendance(business_id, now):
+    """Giữ dữ liệu chấm công của các tài khoản demo (setup_demo_nails.py/
+    setup_demo_other_industries.py) luôn 'tươi' — bản ghi mẫu vốn được sinh ngẫu nhiên trong
+    khoảng 0-21 ngày TRƯỚC THỜI ĐIỂM TẠO tài khoản; qua vài tuần/tháng, toàn bộ bản ghi rơi ra
+    ngoài "tháng này", khiến Bảng lương/Chấm công demo hiện trống với bất kỳ khách nào ghé xem
+    sau đó (đúng lỗi thật đã tìm thấy và vá thủ công cho 3 tài khoản Nails đời đầu lúc audit —
+    hàm này tự động hoá việc đó cho MỌI tài khoản demo, mọi ngành, chạy trong cron hàng ngày có
+    sẵn thay vì phải nhớ tự chạy tay). Chỉ refresh khi bản ghi MỚI NHẤT đã cũ hơn 10 ngày —
+    không đụng tới business_id không phải demo, không refresh nếu dữ liệu vẫn còn mới."""
+    latest = db.chamcong.find_one({'business_id': business_id}, sort=[('id', -1)], projection={'ngay_cham': 1, '_id': 0})
+    if not latest or not latest.get('ngay_cham'):
+        return 0
+    m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', latest['ngay_cham'])
+    if not m:
+        return 0
+    day, month, year = m.groups()
+    try:
+        latest_date = datetime(int(year), int(month), int(day))
+    except ValueError:
+        return 0
+    if (now.date() - latest_date.date()).days <= 10:
+        return 0  # vẫn còn mới, không cần refresh
+
+    records = list(db.chamcong.find({'business_id': business_id}, {'_id': 1}))
+    for rec in records:
+        new_date = (now - timedelta(days=random.randint(0, 21))).strftime('%d/%m/%Y')
+        db.chamcong.update_one({'_id': rec['_id']}, {'$set': {'ngay_cham': new_date}})
+    return len(records)
+
+
 @app.route('/api/cron/daily_tasks', methods=['GET', 'POST'])
 def cron_daily_tasks():
     cron_secret = os.environ.get('CRON_SECRET')
@@ -6501,8 +7590,10 @@ def cron_daily_tasks():
 
     lookback_days = 14
     since_iso = (datetime.now() - timedelta(days=lookback_days)).isoformat()
+    now = datetime.now()
     results = {"businesses_scanned": 0, "restock_proposals_created": 0, "birthday_events_queued": 0,
-               "reconciliation_alerts_created": 0, "errors": []}
+               "reconciliation_alerts_created": 0, "demo_attendance_records_refreshed": 0,
+               "appointment_reminders_queued": 0, "errors": []}
 
     business_ids = _get_all_active_business_ids()
 
@@ -6520,6 +7611,21 @@ def cron_daily_tasks():
             results["reconciliation_alerts_created"] += _run_payment_reconciliation_for_business(business_id, lookback_days)
         except Exception as e:
             results["errors"].append(f"reconciliation[{business_id}]: {str(e)}")
+        try:
+            results["appointment_reminders_queued"] += _run_appointment_reminder_check_for_business(business_id, now)
+        except Exception as e:
+            results["errors"].append(f"appointment_reminder[{business_id}]: {str(e)}")
+
+    try:
+        demo_business_ids = [
+            u['business_id'] for u in db.users.find(
+                {'email': {'$regex': r'^demo\.', '$options': 'i'}}, {'business_id': 1, '_id': 0}
+            )
+        ]
+        for business_id in demo_business_ids:
+            results["demo_attendance_records_refreshed"] += _refresh_stale_demo_attendance(business_id, now)
+    except Exception as e:
+        results["errors"].append(f"demo_refresh: {str(e)}")
 
     return jsonify({"success": True, **results})
 
@@ -6844,21 +7950,22 @@ def api_nail_pos_checkout():
         # the 2nd of 3 assigned technicians) could leave the order marked 'completed' with some
         # techs paid and others silently unpaid, or a retry double-paying the first tech.
         with mongo_client_instance.start_session() as db_session:
-            with db_session.start_transaction():
+            def _do_nail_checkout_txn(s):
                 # Giai đoạn 5 audit — trừ kho nguyên tử NGAY TRONG transaction này: trước đây
                 # Nail POS không hề trừ tồn kho cho sản phẩm vật lý bán kèm (sơn, phụ kiện...),
                 # để tồn kho lệch dần vô thời hạn. Nếu InsufficientStockError -> transaction tự
                 # rollback toàn bộ (order/order_items/chamcong CHƯA có gì được ghi).
-                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=db_session)
-                db.orders.insert_one(order_doc, session=db_session)
+                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=s)
+                db.orders.insert_one(order_doc, session=s)
                 if order_items_docs:
-                    db.order_items.insert_many(order_items_docs, session=db_session)
+                    db.order_items.insert_many(order_items_docs, session=s)
                 if chamcong_docs:
-                    db.chamcong.insert_many(chamcong_docs, session=db_session)
+                    db.chamcong.insert_many(chamcong_docs, session=s)
                 _record_pos_transaction(
                     business_id, order_id, computed['total_amount'], computed['payment_method'],
-                    db_session=db_session,
+                    db_session=s,
                 )
+            db_session.with_transaction(_do_nail_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
 
         if customer_phone:
             _finalize_paid_order(order_doc)
@@ -6961,9 +8068,10 @@ def api_nail_pos_square_checkout():
         # Square charge khách, không phải sau (xem giải thích đầy đủ ở api_square_checkout() —
         # cùng lý do: không bao giờ charge khách cho thứ vừa phát hiện không đủ để bán).
         with mongo_client_instance.start_session() as db_session:
-            with db_session.start_transaction():
-                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=db_session)
-                db.orders.insert_one(order_doc, session=db_session)
+            def _do_nail_reserve_txn(s):
+                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=s)
+                db.orders.insert_one(order_doc, session=s)
+            db_session.with_transaction(_do_nail_reserve_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
 
         # Đã giữ chỗ hàng thành công -> giờ mới gọi Square charge khách thật.
         txn_id = f"NAILSQ-{order_id}-{uuid.uuid4().hex[:6].upper()}"
@@ -7030,7 +8138,7 @@ def _finalize_nail_square_order(order_doc):
     chamcong_docs, _techs_paid = _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAILS POS SQUARE]')
 
     with mongo_client_instance.start_session() as db_session:
-        with db_session.start_transaction():
+        def _do_square_webhook_txn(s):
             db.orders.update_one(
                 {'id': order_id, 'business_id': business_id},
                 {
@@ -7040,16 +8148,17 @@ def _finalize_nail_square_order(order_doc):
                         'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
                     },
                 },
-                session=db_session
+                session=s
             )
             if order_items_docs:
-                db.order_items.insert_many(order_items_docs, session=db_session)
+                db.order_items.insert_many(order_items_docs, session=s)
             if chamcong_docs:
-                db.chamcong.insert_many(chamcong_docs, session=db_session)
+                db.chamcong.insert_many(chamcong_docs, session=s)
             _record_pos_transaction(
                 business_id, order_id, order_doc.get('total_amount'), 'square',
-                created_by='square_webhook', db_session=db_session,
+                created_by='square_webhook', db_session=s,
             )
+        db_session.with_transaction(_do_square_webhook_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
 
     if customer_phone:
         _finalize_paid_order(order_doc)
@@ -7684,9 +8793,20 @@ def calendar_view():
         except Exception as e:
             print(f"[calendar_view] Lỗi tra cứu tên thợ (db.employees): {e}")
 
+    now_dt = datetime.now()
+    window_end_iso = (now_dt + timedelta(hours=24)).isoformat()
     for a in appointments:
         a['service_name'] = service_names.get(a.get('service_id')) or a.get('service_id') or 'Không rõ dịch vụ'
         a['staff_name'] = staff_names.get(a.get('staff_id')) if a.get('staff_id') else None
+        # Chỉ hiện gợi ý "cần nhắc" cho lịch còn hiệu lực (chưa huỷ/hoàn tất), rơi trong 24h tới
+        # kể từ lúc mở trang — dùng ĐÚNG cửa sổ 24h mà cron tự động (xem
+        # _run_appointment_reminder_check_for_business) dùng để nhắc tự động qua Zalo/FB, để
+        # nhân viên biết lịch nào cron ĐÃ tự gửi (reminder_sent=True) và lịch nào cần tự gọi tay.
+        a['needs_reminder'] = (
+            a.get('status') in ('pending', 'confirmed')
+            and a.get('book_time', '') <= window_end_iso
+            and not a.get('reminder_sent')
+        )
 
     return render_template('calendar.html', appointments=appointments, selected_date=date_str)
 
@@ -7706,6 +8826,25 @@ def api_appointment_update_status(appointment_id):
     try:
         result = db.appointments.update_one(
             {'id': appointment_id, 'business_id': business_id}, {'$set': {'status': status}}
+        )
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Không tìm thấy lịch hẹn.'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/appointments/<int:appointment_id>/remind', methods=['PATCH'])
+@login_required
+def api_appointment_mark_reminded(appointment_id):
+    """Nhân viên tự gọi/nhắn khách xong (qua nút Gọi/Zalo/SMS trên /calendar) thì bấm 'Đã nhắc'
+    để tắt gợi ý — tránh gọi trùng khách đã liên hệ, và tách bạch với reminder_sent do cron tự
+    động gửi qua Zalo OA (_run_appointment_reminder_check_for_business), dù cùng 1 field."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        result = db.appointments.update_one(
+            {'id': appointment_id, 'business_id': business_id},
+            {'$set': {'reminder_sent': True, 'reminder_sent_at': datetime.now().isoformat(), 'reminder_sent_by': 'staff'}}
         )
         if result.matched_count == 0:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch hẹn.'}), 404
@@ -9570,6 +10709,11 @@ try:
 except Exception as bp_err:
     print(f"Error registering blueprints.nail_bp: {str(bp_err)}")
 
+try:
+    import blueprints.retail_bp  # noqa: F401 — màn POS thật (giỏ hàng + quét mã vạch) cho ngành Retail
+except Exception as bp_err:
+    print(f"Error registering blueprints.retail_bp: {str(bp_err)}")
+
 
 # ========== MOCKUP APIS & ALIAS ROUTES (PHASE 2) ==========
 
@@ -10249,6 +11393,77 @@ def api_tasks_cleanup():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/tasks/<int:task_id>/complete', methods=['POST'])
+@login_required
+def api_tasks_complete(task_id):
+    """Chốt hoàn thành job Kỹ Thuật với BẰNG CHỨNG (ảnh hiện trường + chữ ký khách hàng) và
+    HOÁ ĐƠN PHỤ TÙNG — trước đây chamcong_kythuat.html chỉ trừ kho vật tư nội bộ (data-stock
+    checkbox) khi hoàn thành job, không hề tính tiền khách hàng cho phụ tùng đã dùng và không
+    lưu bằng chứng hoàn thành nào (khách có thể chối đã được sửa/không đồng ý kết quả). Route
+    này BỔ SUNG (không thay thế) luồng PATCH trang_thai='Hoàn Thành' hiện có — gọi thêm khi kỹ
+    thuật viên có ảnh/chữ ký/phụ tùng cần chốt cho job. Ảnh/chữ ký là URL đã upload sẵn qua
+    /api/storage/upload (kind='job_photo'/'job_signature', private theo business_id — xem
+    route đó) — route này CHỈ nhận URL, không nhận file thô.
+
+    Nếu parts_total > 0: tạo order + ghi sổ cái transactions (kênh 'technical_parts') để doanh
+    thu phụ tùng lên đúng báo cáo tài chính — cùng nguyên tắc đã áp dụng cho Karaoke/Hotel
+    checkout (mọi tiền thu từ khách PHẢI qua orders/transactions, không được chỉ nằm trong 1
+    field rời rạc mà báo cáo không bao giờ đọc tới)."""
+    business_id = session.get('business_id') or session['user_id']
+    task = db.tasks.find_one({'id': task_id, 'business_id': business_id}, {'_id': 0})
+    if not task:
+        return jsonify({'success': False, 'message': 'Không tìm thấy công việc.'}), 404
+
+    data = request.json or {}
+    photo_urls = [u for u in (data.get('photo_urls') or []) if isinstance(u, str) and u.strip()][:10]
+    signature_url = (data.get('signature_url') or '').strip() or None
+    raw_parts = data.get('parts_used') or []
+
+    clean_parts = []
+    parts_total = 0.0
+    for p in raw_parts:
+        name = (p.get('name') or '').strip()
+        try:
+            qty = float(p.get('qty', 0))
+            unit_price = float(p.get('unit_price', 0))
+        except (TypeError, ValueError):
+            continue
+        if not name or qty <= 0 or unit_price < 0:
+            continue
+        line_total = round(qty * unit_price, 2)
+        clean_parts.append({'name': name, 'qty': qty, 'unit_price': unit_price, 'line_total': line_total})
+        parts_total += line_total
+    parts_total = round(parts_total, 2)
+
+    now = datetime.now()
+    update_fields = {
+        'completion_photos': photo_urls,
+        'signature_url': signature_url,
+        'parts_used': clean_parts,
+        'parts_total': parts_total,
+        'completed_at': now.isoformat(),
+    }
+    order_id = None
+    try:
+        if parts_total > 0:
+            order_id = next_mongo_id('orders')
+            order_code = f"TECH-{uuid.uuid4().hex[:8].upper()}"
+            db.orders.insert_one({
+                'id': order_id, 'business_id': business_id, 'created_at': now.isoformat(),
+                'status': 'completed', 'total_amount': parts_total, 'payment_method': 'cash',
+                'metadata': {
+                    'order_code': order_code, 'channel': 'technical_parts', 'task_id': task_id,
+                    'customer_name': task.get('ten_khach'), 'parts': clean_parts,
+                },
+            })
+            _record_pos_transaction(business_id, order_id, parts_total, 'cash')
+            update_fields['parts_order_id'] = order_id
+        db.tasks.update_one({'id': task_id, 'business_id': business_id}, {'$set': update_fields})
+        return jsonify({'success': True, 'data': update_fields, 'order_id': order_id})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/api/shift_swaps', methods=['GET'])
 @login_required
 def api_shift_swaps_list():
@@ -10308,6 +11523,95 @@ def api_shift_swaps_update(swap_id):
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ========== ĐƠN XIN NGHỈ PHÉP / DUYỆT PHÉP ==========
+# BUG THẬT đã vá (audit): app_nhanvien.html::sendLeaveRequest() TRƯỚC ĐÂY không hề tạo 1 "đơn
+# xin nghỉ" thật — nó ghi thẳng 1 bản ghi CHẤM CÔNG (db.chamcong) với trang_thai='Chờ duyệt' rồi
+# báo nhân viên "Đã bắn tín hiệu Xin Phép lên HR!" — nhưng KHÔNG CÓ MÀN HÌNH ADMIN NÀO trong toàn
+# bộ hệ thống từng đọc/hiển thị bản ghi đó để duyệt/từ chối (chỉ có duy nhất 1 chỗ đọc lại giá
+# trị 'Chờ duyệt', ở /api/dashboard/stats, và chỉ để hiện 1 chấm trên mini-calendar, không phải
+# hành động duyệt). Nhân viên tưởng đã gửi đơn thành công nhưng đơn "biến mất" vĩnh viễn — đúng
+# loại lỗi nghiêm trọng nhất: giao diện báo THÀNH CÔNG cho 1 việc thực ra không xảy ra gì cả.
+# 3 route dưới đây là hệ thống đơn nghỉ phép THẬT, độc lập khỏi db.chamcong — xem sửa tương ứng
+# ở sendLeaveRequest() (app_nhanvien.html) gọi POST /api/leave_requests thay vì ghi chamcong giả.
+
+@app.route('/api/leave_requests', methods=['GET'])
+@login_required
+def api_leave_requests_list():
+    """Không truyền `ma_nv` -> trả toàn bộ đơn của business (màn admin duyệt). Có truyền
+    `ma_nv` -> chỉ đơn của đúng nhân viên đó (tab "Đơn từ" của app_nhanvien.html)."""
+    business_id = session.get('business_id') or session['user_id']
+    query = {'business_id': business_id}
+    ma_nv = request.args.get('ma_nv')
+    if ma_nv:
+        query['ma_nv'] = ma_nv
+    try:
+        rows = list(db.leave_requests.find(query, {'_id': 0}).sort('id', -1))
+        return jsonify({"success": True, "data": rows})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/leave_requests', methods=['POST'])
+@login_required
+def api_leave_requests_create():
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    ma_nv = (data.get('ma_nv') or '').strip()
+    from_date = (data.get('from_date') or '').strip()
+    to_date = (data.get('to_date') or from_date).strip()
+    reason = (data.get('reason') or '').strip()
+    if not ma_nv or not from_date or not reason:
+        return jsonify({"success": False, "message": "Thiếu mã nhân viên, ngày nghỉ hoặc lý do."}), 400
+    if to_date < from_date:
+        return jsonify({"success": False, "message": "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu."}), 400
+    try:
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'ho_ten': 1, '_id': 0})
+        doc = {
+            'id': next_mongo_id('leave_requests'), 'business_id': business_id, 'ma_nv': ma_nv,
+            'ho_ten': emp.get('ho_ten') if emp else ma_nv, 'from_date': from_date, 'to_date': to_date,
+            'leave_type': data.get('leave_type') or 'Nghỉ phép', 'reason': reason, 'status': 'pending',
+            'approved_by': None, 'created_at': datetime.now().isoformat(), 'responded_at': None,
+        }
+        db.leave_requests.insert_one(doc)
+        doc.pop('_id', None)
+        return jsonify({"success": True, "data": doc})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/leave_requests/<int:request_id>', methods=['PATCH'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_leave_requests_update(request_id):
+    """Duyệt/từ chối đơn nghỉ phép — CHỈ admin/super_admin (nhân viên không thể tự duyệt đơn
+    của chính mình qua route này, khác api_shift_swaps_update vốn cho phép cả 2 bên tự chốt)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    status = data.get('status')
+    if status not in ('approved', 'rejected'):
+        return jsonify({"success": False, "message": "Trạng thái không hợp lệ."}), 400
+    try:
+        result = db.leave_requests.update_one(
+            {'id': request_id, 'business_id': business_id, 'status': 'pending'},
+            {'$set': {
+                'status': status, 'approved_by': session.get('user_email') or session.get('user_id'),
+                'responded_at': datetime.now().isoformat(),
+            }}
+        )
+        if result.matched_count == 0:
+            return jsonify({"success": False, "message": "Không tìm thấy đơn hoặc đơn đã được xử lý."}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/leave_requests')
+@login_required
+@role_required('admin', 'super_admin')
+def leave_requests_page():
+    return render_template('leave_requests.html')
 
 
 # ========== KHO VẬT TƯ & DỊCH VỤ JSON API (thay Supabase JS ở chamcong_kythuat/

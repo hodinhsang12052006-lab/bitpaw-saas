@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>{{ brand_name }} | Đặt phòng trước</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: radial-gradient(circle at top, #0f2e2a 0%, #08061a 60%);
+            color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+        }
+        .glass-card { background: rgba(10,37,30,0.65); backdrop-filter: blur(16px); border: 1px solid rgba(16,185,129,0.35); border-radius: 2rem; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .glass-input { background: rgba(0,0,0,0.6); border: 1px solid rgba(16,185,129,0.3); border-radius: 1.2rem; padding: 0.75rem 1rem; width: 100%; color: #fff; font-size: 0.95rem; }
+        .glass-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.4); }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); border: 1px solid #10b981; color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { border-color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-md">
+        <div class="flex justify-center mb-6">
+            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-14 h-14 rounded-full border-2 border-emerald-400 object-cover shadow-[0_0_15px_#10b981]">
+        </div>
+        <div class="glass-card p-6 md:p-8" id="formCard">
+            <h2 class="text-2xl md:text-3xl font-black text-center mb-1">
+                <span class="text-emerald-400">🎤 {{ brand_name }}</span>
+            </h2>
+            <p class="text-center text-gray-400 text-sm mb-6">Đặt phòng trước — chúng tôi sẽ xác nhận sớm nhất</p>
+
+            <form id="reserveForm" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Họ tên</label>
+                    <input type="text" name="name" required class="glass-input" placeholder="Nguyễn Văn A">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Số điện thoại</label>
+                    <input type="tel" name="phone" required class="glass-input" placeholder="09xxxxxxxx">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Số người</label>
+                        <input type="number" name="party_size" required min="1" value="4" class="glass-input">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ngày</label>
+                        <input type="date" name="date" required class="glass-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Giờ đến</label>
+                    <input type="time" name="time" required class="glass-input">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1">Ghi chú (tuỳ chọn)</label>
+                    <textarea name="note" rows="2" class="glass-input resize-none" placeholder="VD: Phòng lớn, có sinh nhật..."></textarea>
+                </div>
+                <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] flex items-center justify-center gap-2">
+                    <i class="fas fa-microphone"></i> Đặt phòng ngay
+                </button>
+            </form>
+        </div>
+        <div class="glass-card p-8 text-center hidden" id="successCard">
+            <i class="fas fa-check-circle text-5xl text-emerald-400 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Đã gửi yêu cầu đặt phòng!</h3>
+            <p class="text-gray-400 text-sm">Quán sẽ liên hệ xác nhận sớm nhất qua số điện thoại bạn để lại.</p>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const businessId = "{{ business_id }}";
+        const toast = document.getElementById('toast');
+        function showToast(msg, isError) {
+            toast.innerText = msg;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        const dateInput = document.querySelector('input[name="date"]');
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+        dateInput.value = today;
+
+        const form = document.getElementById('reserveForm');
+        const submitBtn = document.getElementById('submitBtn');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const date = fd.get('date');
+            const time = fd.get('time');
+            const reserved_time = `${date}T${time}:00`;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+            try {
+                const res = await fetch(`/api/public/karaoke_reservations/${encodeURIComponent(businessId)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: fd.get('name'),
+                        phone: fd.get('phone'),
+                        party_size: parseInt(fd.get('party_size')),
+                        reserved_time,
+                        note: fd.get('note'),
+                    }),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+                document.getElementById('formCard').classList.add('hidden');
+                document.getElementById('successCard').classList.remove('hidden');
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, true);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-microphone"></i> Đặt phòng ngay';
+            }
+        });
+    </script>
+</body>
+</html>

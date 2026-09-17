@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="hr_title">Quản Lý Phòng | BitPaw OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #0a0714; color: white; }
+        .glass-panel { background: rgba(20, 14, 30, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.06); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 10px; }
+
+        .room-card { transition: all 0.25s ease; cursor: pointer; }
+        .room-card:hover { transform: translateY(-3px); }
+        .room-card.status-trong { background: rgba(16,185,129,0.06); border-color: rgba(16,185,129,0.3); }
+        .room-card.status-trong:hover { box-shadow: 0 10px 25px rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.6); }
+        .room-card.status-occupied { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.3); }
+        .room-card.status-occupied:hover { box-shadow: 0 10px 25px rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.6); }
+        .room-card.status-dirty { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.3); }
+        .room-card.status-dirty:hover { box-shadow: 0 10px 25px rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.6); }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(3,5,10,0.85); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 9999; visibility: hidden; opacity: 0; transition: all 0.2s ease; padding: 1rem; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-box { background: linear-gradient(180deg, #1a1226 0%, #0d0a14 100%); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem; padding: 1.75rem; max-width: 420px; width: 100%; transform: scale(0.94); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .field-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; color: #fff; width: 100%; outline: none; font-weight: 600; }
+        .field-input:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-black flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+                    <i class="fas fa-hotel text-purple-400"></i> <span data-i18n="hr_header">Quản Lý Phòng</span>
+                </h1>
+                <p class="text-gray-400 mt-2 text-sm" data-i18n="hr_subtitle">Theo dõi trạng thái phòng, nhận/trả phòng, tính tiền theo đêm.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4 text-xs font-bold">
+                    <span class="flex items-center gap-1.5 text-emerald-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_currentColor]"></span> <span data-i18n="hr_legend_empty">Trống</span></span>
+                    <span class="flex items-center gap-1.5 text-blue-400"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_currentColor]"></span> <span data-i18n="hr_legend_occupied">Đang ở</span></span>
+                    <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_currentColor]"></span> <span data-i18n="hr_legend_dirty">Đang dọn</span></span>
+                </div>
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <button onclick="openAddRoomModal()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
+                    <i class="fas fa-plus"></i> <span data-i18n="hr_add_room_btn">Thêm phòng</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="roomGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div class="col-span-full text-center text-gray-500 py-16"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+        <div id="noRoomsMsg" class="hidden text-center text-gray-500 py-24">
+            <i class="fas fa-door-closed text-4xl mb-4 block text-gray-600"></i>
+            <span class="text-base font-semibold" data-i18n="hr_no_rooms">Chưa có phòng nào. Bấm "Thêm phòng" để bắt đầu.</span>
+        </div>
+    </main>
+
+    <!-- Check-in modal -->
+    <div id="checkinModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-right-to-bracket text-emerald-400"></i> <span data-i18n="hr_checkin_title">Nhận Phòng</span> <span id="checkinRoomLabel" class="text-purple-400"></span></h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_guest_name_label">Tên khách</label>
+                    <input type="text" id="guestName" class="field-input">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_guest_phone_label">Số điện thoại</label>
+                    <input type="text" id="guestPhone" class="field-input">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('checkinModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button onclick="submitCheckin()" class="flex-1 bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_confirm_checkin">Nhận phòng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout modal -->
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-right-from-bracket text-blue-400"></i> <span data-i18n="hr_checkout_title">Trả Phòng</span> <span id="checkoutRoomLabel" class="text-purple-400"></span></h3>
+            <div class="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
+                <div class="flex justify-between text-gray-400"><span data-i18n="hr_guest_label">Khách</span><span id="checkoutGuestName" class="text-white font-bold"></span></div>
+                <div class="flex justify-between text-gray-400"><span data-i18n="hr_nights_label">Số đêm</span><span id="checkoutNights" class="text-white font-bold"></span></div>
+                <div class="flex justify-between items-center pt-2 border-t border-dashed border-white/10">
+                    <span class="text-xs uppercase font-bold text-gray-400" data-i18n="hr_total_label">Tổng tiền</span>
+                    <span id="checkoutTotal" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400"></span>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('checkoutModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button id="confirmCheckoutBtn" onclick="submitCheckout()" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_confirm_checkout">Xác nhận trả phòng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add room modal -->
+    <div id="addRoomModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-door-open text-purple-400"></i> <span data-i18n="hr_add_room_title">Thêm Phòng Mới</span></h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_room_number_label">Số phòng</label>
+                    <input type="text" id="newRoomNumber" placeholder="101" class="field-input">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_room_type_label">Loại phòng</label>
+                        <select id="newRoomType" class="field-input">
+                            <option value="Standard">Standard</option>
+                            <option value="Deluxe">Deluxe</option>
+                            <option value="Suite">Suite</option>
+                            <option value="Family">Family</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_floor_label">Tầng</label>
+                        <input type="text" id="newRoomFloor" placeholder="2" class="field-input">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_capacity_label">Sức chứa</label>
+                        <input type="number" id="newRoomCapacity" value="2" min="1" class="field-input">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_price_label">Giá/đêm</label>
+                        <input type="number" id="newRoomPrice" value="0" min="0" class="field-input">
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('addRoomModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button onclick="submitAddRoom()" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_save">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(150%); background:rgba(10,12,22,0.95); border:1px solid rgba(168,85,247,0.4); color:white; padding:12px 28px; border-radius:40px; font-size:13px; font-weight:600; z-index:10010; transition:transform 0.3s ease, opacity 0.3s ease; opacity:0;"></div>
+
+    <script>
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        const translations = {
+            vi: {
+                hr_title: 'Quản Lý Phòng | BitPaw OS', hr_header: 'Quản Lý Phòng',
+                hr_subtitle: 'Theo dõi trạng thái phòng, nhận/trả phòng, tính tiền theo đêm.',
+                hr_legend_empty: 'Trống', hr_legend_occupied: 'Đang ở', hr_legend_dirty: 'Đang dọn',
+                hr_add_room_btn: 'Thêm phòng', hr_no_rooms: 'Chưa có phòng nào. Bấm "Thêm phòng" để bắt đầu.',
+                hr_checkin_title: 'Nhận Phòng', hr_guest_name_label: 'Tên khách', hr_guest_phone_label: 'Số điện thoại',
+                hr_cancel: 'Huỷ', hr_confirm_checkin: 'Nhận phòng',
+                hr_checkout_title: 'Trả Phòng', hr_guest_label: 'Khách', hr_nights_label: 'Số đêm', hr_total_label: 'Tổng tiền',
+                hr_confirm_checkout: 'Xác nhận trả phòng',
+                hr_add_room_title: 'Thêm Phòng Mới', hr_room_number_label: 'Số phòng', hr_room_type_label: 'Loại phòng',
+                hr_floor_label: 'Tầng', hr_capacity_label: 'Sức chứa', hr_price_label: 'Giá/đêm', hr_save: 'Lưu',
+                hr_status_empty: 'Trống', hr_status_occupied: 'Đang ở', hr_status_dirty: 'Cần dọn phòng',
+                hr_since_label: 'Từ', hr_mark_clean_btn: 'Đã dọn xong',
+                hr_toast_load_failed: 'Không tải được danh sách phòng.', hr_toast_checkin_missing: 'Vui lòng nhập tên khách.',
+                hr_toast_checkin_ok: 'Đã nhận phòng thành công!', hr_toast_checkout_ok: 'Đã trả phòng, ghi nhận doanh thu!',
+                hr_toast_clean_ok: 'Đã đánh dấu dọn xong.', hr_toast_room_added: 'Đã thêm phòng mới!',
+                hr_toast_room_missing: 'Vui lòng nhập số phòng.', hr_toast_generic_error: 'Lỗi: ',
+            },
+            en: {
+                hr_title: 'Room Management | BitPaw OS', hr_header: 'Room Management',
+                hr_subtitle: 'Track room status, check guests in/out, bill by the night.',
+                hr_legend_empty: 'Empty', hr_legend_occupied: 'Occupied', hr_legend_dirty: 'Cleaning',
+                hr_add_room_btn: 'Add Room', hr_no_rooms: 'No rooms yet. Tap "Add Room" to get started.',
+                hr_checkin_title: 'Check In', hr_guest_name_label: 'Guest Name', hr_guest_phone_label: 'Phone Number',
+                hr_cancel: 'Cancel', hr_confirm_checkin: 'Check In',
+                hr_checkout_title: 'Check Out', hr_guest_label: 'Guest', hr_nights_label: 'Nights', hr_total_label: 'Total',
+                hr_confirm_checkout: 'Confirm Check Out',
+                hr_add_room_title: 'Add New Room', hr_room_number_label: 'Room Number', hr_room_type_label: 'Room Type',
+                hr_floor_label: 'Floor', hr_capacity_label: 'Capacity', hr_price_label: 'Price/Night', hr_save: 'Save',
+                hr_status_empty: 'Empty', hr_status_occupied: 'Occupied', hr_status_dirty: 'Needs Cleaning',
+                hr_since_label: 'Since', hr_mark_clean_btn: 'Mark Clean',
+                hr_toast_load_failed: 'Could not load room list.', hr_toast_checkin_missing: 'Please enter guest name.',
+                hr_toast_checkin_ok: 'Checked in successfully!', hr_toast_checkout_ok: 'Checked out, revenue recorded!',
+                hr_toast_clean_ok: 'Marked as cleaned.', hr_toast_room_added: 'New room added!',
+                hr_toast_room_missing: 'Please enter a room number.', hr_toast_generic_error: 'Error: ',
+            }
+        };
+        function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
+        function applyStaticTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.title = t('hr_title');
+            const langBtn = document.getElementById('langToggleBtn');
+            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
+        }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('bitpaw_lang', lang);
+            applyStaticTranslations();
+            renderRooms();
+        }
+        applyStaticTranslations();
+        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
+
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.style.transform = 'translateX(-50%) translateY(0)'; el.style.opacity = '1';
+            setTimeout(() => { el.style.transform = 'translateX(-50%) translateY(150%)'; el.style.opacity = '0'; }, 2500);
+        }
+        function escapeHtml(str) { const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML; }
+        async function hrApi(path, options) {
+            const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options && options.headers) } });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+            return body;
+        }
+
+        let rooms = [];
+        let activeRoomId = null;
+
+        async function loadRooms() {
+            try {
+                const body = await hrApi('/api/hotel/rooms');
+                rooms = body.data || [];
+                renderRooms();
+            } catch (e) {
+                showToast(t('hr_toast_load_failed'));
+            }
+        }
+
+        function statusMeta(status) {
+            if (status === 'Đang ở') return { cls: 'status-occupied', badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30', label: t('hr_status_occupied') };
+            if (status === 'Đang dọn') return { cls: 'status-dirty', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', label: t('hr_status_dirty') };
+            return { cls: 'status-trong', badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', label: t('hr_status_empty') };
+        }
+
+        function renderRooms() {
+            const grid = document.getElementById('roomGrid');
+            const noMsg = document.getElementById('noRoomsMsg');
+            if (!rooms.length) { grid.innerHTML = ''; noMsg.classList.remove('hidden'); return; }
+            noMsg.classList.add('hidden');
+            grid.innerHTML = rooms.map(r => {
+                const meta = statusMeta(r.status);
+                let body = '';
+                if (r.status === 'Đang ở') {
+                    const since = r.checkin_date ? new Date(r.checkin_date).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US') : '--';
+                    body = `<div class="mt-3 text-xs text-gray-300"><i class="fas fa-user mr-1 text-blue-400"></i>${escapeHtml(r.guest_name || '')}</div>
+                            <div class="mt-1 text-[10px] text-gray-500">${t('hr_since_label')}: ${since}</div>`;
+                } else if (r.status === 'Đang dọn') {
+                    body = `<button onclick="event.stopPropagation(); markClean(${r.id})" class="mt-3 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-broom mr-1"></i>${t('hr_mark_clean_btn')}</button>`;
+                } else {
+                    body = `<div class="mt-3 text-xs text-emerald-400 font-bold"><i class="fas fa-plus-circle mr-1"></i>${t('hr_confirm_checkin')}</div>`;
+                }
+                return `
+                <div class="room-card ${meta.cls} border rounded-2xl p-4" onclick="handleRoomClick(${r.id}, '${r.status}')">
+                    <div class="flex items-center justify-between">
+                        <span class="text-2xl font-black">${escapeHtml(r.room_number)}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border ${meta.badge}">${meta.label}</span>
+                    </div>
+                    <div class="text-[11px] text-gray-500 mt-1">${escapeHtml(r.room_type || '')} · ${t('hr_floor_label')} ${escapeHtml(r.floor || '-')} · <i class="fas fa-user-group"></i> ${r.capacity || '-'}</div>
+                    <div class="text-sm font-bold text-purple-400 mt-1">${Number(r.price_per_night || 0).toLocaleString()}₫<span class="text-[10px] text-gray-500">/${currentLang === 'vi' ? 'đêm' : 'night'}</span></div>
+                    ${body}
+                </div>`;
+            }).join('');
+        }
+
+        function handleRoomClick(roomId, status) {
+            activeRoomId = roomId;
+            if (status === 'Trống') openCheckinModal(roomId);
+            else if (status === 'Đang ở') openCheckoutModal(roomId);
+            // 'Đang dọn' has its own button (markClean), card click does nothing extra.
+        }
+
+        function openCheckinModal(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            document.getElementById('checkinRoomLabel').innerText = room ? `#${room.room_number}` : '';
+            document.getElementById('guestName').value = '';
+            document.getElementById('guestPhone').value = '';
+            document.getElementById('checkinModal').classList.add('active');
+        }
+        async function submitCheckin() {
+            const guestName = document.getElementById('guestName').value.trim();
+            if (!guestName) return showToast(t('hr_toast_checkin_missing'));
+            try {
+                await hrApi(`/api/hotel/rooms/${activeRoomId}/checkin`, {
+                    method: 'POST',
+                    body: JSON.stringify({ guest_name: guestName, guest_phone: document.getElementById('guestPhone').value.trim() }),
+                });
+                closeModal('checkinModal');
+                showToast(t('hr_toast_checkin_ok'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+        }
+
+        function openCheckoutModal(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+            document.getElementById('checkoutRoomLabel').innerText = `#${room.room_number}`;
+            document.getElementById('checkoutGuestName').innerText = room.guest_name || '--';
+            const nights = room.checkin_date ? Math.max(1, Math.ceil((Date.now() - new Date(room.checkin_date).getTime()) / (1000*60*60*24))) : 1;
+            document.getElementById('checkoutNights').innerText = nights;
+            document.getElementById('checkoutTotal').innerText = (nights * (room.price_per_night || 0)).toLocaleString() + '₫';
+            document.getElementById('checkoutModal').classList.add('active');
+        }
+        async function submitCheckout() {
+            const btn = document.getElementById('confirmCheckoutBtn');
+            const orig = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({}) });
+                closeModal('checkoutModal');
+                showToast(t('hr_toast_checkout_ok'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+
+        async function markClean(roomId) {
+            try {
+                await hrApi(`/api/hotel/rooms/${roomId}/mark_clean`, { method: 'POST' });
+                showToast(t('hr_toast_clean_ok'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+        }
+
+        function openAddRoomModal() {
+            document.getElementById('newRoomNumber').value = '';
+            document.getElementById('newRoomType').value = 'Standard';
+            document.getElementById('newRoomFloor').value = '';
+            document.getElementById('newRoomCapacity').value = '2';
+            document.getElementById('newRoomPrice').value = '0';
+            document.getElementById('addRoomModal').classList.add('active');
+        }
+        async function submitAddRoom() {
+            const roomNumber = document.getElementById('newRoomNumber').value.trim();
+            if (!roomNumber) return showToast(t('hr_toast_room_missing'));
+            try {
+                await hrApi('/api/hotel/rooms', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        room_number: roomNumber, room_type: document.getElementById('newRoomType').value,
+                        floor: document.getElementById('newRoomFloor').value.trim(),
+                        capacity: parseInt(document.getElementById('newRoomCapacity').value, 10) || 2,
+                        price_per_night: parseFloat(document.getElementById('newRoomPrice').value) || 0,
+                    }),
+                });
+                closeModal('addRoomModal');
+                showToast(t('hr_toast_room_added'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        loadRooms();
+    </script>
+</body>
+</html>
