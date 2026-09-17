@@ -15,6 +15,16 @@ on:
 permissions:
   contents: write
 
+# Nhiều push liên tiếp trong thời gian ngắn (vd đẩy nhiều tính năng liền nhau) trước đây khiến
+# nhiều run CÙNG chạy song song, tất cả cùng ghi vào 1 release tag cố định
+# (mobile-debug-latest) -> tranh chấp/deadlock ở bước publish, có run bị treo hàng chục phút.
+# concurrency group theo branch + cancel-in-progress: true đảm bảo push mới nhất luôn tự huỷ
+# run cũ đang chạy dở của CÙNG branch trước khi bắt đầu — chỉ 1 run/branch tồn tại tại 1 thời
+# điểm, loại bỏ hoàn toàn kiểu tranh chấp này.
+concurrency:
+  group: mobile-apk-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
