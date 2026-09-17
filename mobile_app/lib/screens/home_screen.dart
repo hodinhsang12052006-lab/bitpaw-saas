@@ -10,6 +10,7 @@ import 'pos/nail_pos_screen.dart';
 import 'pos/production_screen.dart';
 import 'pos/retail_pos_screen.dart';
 import 'pos/spa_pos_screen.dart';
+import 'pos/technical_jobs_screen.dart';
 import 'reports_screen.dart';
 
 /// business_mode -> màn POS di động tương ứng — chỉ liệt kê ngành ĐÃ build xong (xem TaskList
@@ -31,6 +32,8 @@ Widget? _posScreenForBusinessMode(String? mode) {
       return const HotelRoomsScreen();
     case 'production':
       return const ProductionScreen();
+    case 'technical':
+      return const TechnicalJobsScreen();
     default:
       return null;
   }
