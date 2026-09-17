@@ -9,6 +9,7 @@ class ProductModel {
   final String? image;
   final int? stock;
   final String? barcode;
+  final String? channelType;
 
   ProductModel({
     required this.id,
@@ -18,6 +19,7 @@ class ProductModel {
     this.image,
     this.stock,
     this.barcode,
+    this.channelType,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class ProductModel {
       image: json['image']?.toString(),
       stock: json['stock'] == null ? null : (json['stock'] as num).toInt(),
       barcode: json['barcode']?.toString(),
+      channelType: json['channel_type']?.toString(),
     );
   }
 }

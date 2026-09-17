@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../models/employee_model.dart';
 import '../models/product_model.dart';
 import 'api_service.dart';
@@ -35,5 +37,25 @@ class PosService {
     return (data['data'] as List<dynamic>? ?? [])
         .map((e) => EmployeeModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// GET /api/products/lookup_barcode — tra sản phẩm theo mã vạch quét được (màn Retail POS).
+  /// Trả về null nếu không tìm thấy (404) — không phải lỗi hệ thống, caller tự hiển thị
+  /// "Không tìm thấy sản phẩm" thay vì coi là exception.
+  Future<ProductModel?> lookupBarcode(String barcode) async {
+    try {
+      final response = await _apiService.dio.get(
+        '/api/products/lookup_barcode',
+        queryParameters: {'barcode': barcode},
+      );
+      final data = response.data as Map<String, dynamic>;
+      if (data['success'] == true) {
+        return ProductModel.fromJson(data['data'] as Map<String, dynamic>);
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
   }
 }
