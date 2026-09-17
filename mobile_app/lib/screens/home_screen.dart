@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'attendance_screen.dart';
 import 'pos/fnb_tables_screen.dart';
+import 'pos/hotel_rooms_screen.dart';
 import 'pos/karaoke_rooms_screen.dart';
 import 'pos/nail_pos_screen.dart';
 import 'pos/retail_pos_screen.dart';
@@ -25,6 +26,8 @@ Widget? _posScreenForBusinessMode(String? mode) {
       return const FnbTablesScreen();
     case 'karaoke':
       return const KaraokeRoomsScreen();
+    case 'hotel':
+      return const HotelRoomsScreen();
     default:
       return null;
   }
