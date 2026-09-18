@@ -8,6 +8,7 @@
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -675,6 +676,7 @@
                     <div id="mgmtMenuPanel" class="hidden" style="position:absolute; right:0; top:calc(100% + 8px); width:210px; background:#0a0f25; border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:8px; z-index:50; box-shadow:0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(20px);">
                         <a href="{{ url_for('chamcong_industry', industry_code='spa') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📅</span> <span data-i18n="spa_mgmt_attendance">Attendance</span></a>
                         <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>👥</span> <span data-i18n="spa_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('customers') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📇</span> <span data-i18n="spa_mgmt_customers">Customers</span></a>
                         <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>💰</span> <span data-i18n="spa_mgmt_payroll">Payroll</span></a>
                         <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📊</span> <span data-i18n="spa_mgmt_reports">Reports</span></a>
                     </div>
@@ -941,6 +943,9 @@
                 </p>
             </div>
 
+            <button onclick="printReceipt(window.lastReceiptData)" class="w-full bg-white border-2 border-gray-900 hover:bg-gray-100 text-gray-900 py-3 rounded-xl font-bold transition mb-2">
+                <i class="fas fa-print mr-2"></i>In hoá đơn
+            </button>
             <button onclick="window.location.reload()" class="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition" data-i18n="spa_btn_close_home">Đóng & Về trang chủ</button>
         </div>
     </div>
@@ -1315,6 +1320,16 @@
 
                 const orderId = checkoutBody.order_id;
 
+                // Lưu lại dữ liệu hoá đơn TRƯỚC KHI xoá giỏ hàng — nút "In hoá đơn" ở
+                // resultModal cần dùng lại sau khi cart đã bị xoá.
+                window.lastReceiptData = {
+                    businessName: {{ brand_name|tojson }},
+                    items: cart.map(item => ({ name: item.name, qty: item.qty, price: item.price, total: item.price * item.qty })),
+                    subtotal: cart.reduce((s, item) => s + item.price * item.qty, 0),
+                    total: cart.reduce((s, item) => s + item.price * item.qty, 0),
+                    paymentMethod: selectedMethod.toUpperCase(),
+                };
+
                 // Xóa giỏ hàng & Ẩn Checkout Modal
                 cart = [];
                 updateCartUI();
@@ -1368,7 +1383,7 @@
                 spa_btn_customize: 'Tùy Chỉnh',
                 spa_btn_lobby: 'Quản lý',
                 spa_btn_my_attendance: 'Chấm công của tôi',
-                spa_mgmt_attendance: 'Chấm công', spa_mgmt_staff: 'Nhân sự', spa_mgmt_payroll: 'Bảng lương', spa_mgmt_reports: 'Báo cáo tổng hợp',
+                spa_mgmt_attendance: 'Chấm công', spa_mgmt_staff: 'Nhân sự', spa_mgmt_customers: 'Khách hàng', spa_mgmt_payroll: 'Bảng lương', spa_mgmt_reports: 'Báo cáo tổng hợp',
                 spa_placeholder_search: 'Tìm dịch vụ...',
                 spa_cat_all: 'Tất cả danh mục',
                 spa_cat_facial: '✨ Chăm sóc da mặt',
@@ -1438,7 +1453,7 @@
                 spa_btn_customize: 'Customize',
                 spa_btn_lobby: 'Management',
                 spa_btn_my_attendance: 'My Attendance',
-                spa_mgmt_attendance: 'Attendance', spa_mgmt_staff: 'Staff', spa_mgmt_payroll: 'Payroll', spa_mgmt_reports: 'Consolidated Report',
+                spa_mgmt_attendance: 'Attendance', spa_mgmt_staff: 'Staff', spa_mgmt_customers: 'Customers', spa_mgmt_payroll: 'Payroll', spa_mgmt_reports: 'Consolidated Report',
                 spa_placeholder_search: 'Search services...',
                 spa_cat_all: 'All categories',
                 spa_cat_facial: '✨ Facial Care',

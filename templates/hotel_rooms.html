@@ -6,6 +6,7 @@
     <title data-i18n="hr_title">Quản Lý Phòng | BitPaw OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,6 +51,9 @@
                     <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_currentColor]"></span> <span data-i18n="hr_legend_dirty">Đang dọn</span></span>
                 </div>
                 {% if session.get('role') in ('admin', 'super_admin') %}
+                <button onclick="openBulkRateModal()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors">
+                    <i class="fas fa-tags"></i> <span data-i18n="hr_bulk_rate_btn">Giá theo loại phòng</span>
+                </button>
                 <button onclick="openAddRoomModal()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
                     <i class="fas fa-plus"></i> <span data-i18n="hr_add_room_btn">Thêm phòng</span>
                 </button>
@@ -94,6 +98,8 @@
             <div class="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
                 <div class="flex justify-between text-gray-400"><span data-i18n="hr_guest_label">Khách</span><span id="checkoutGuestName" class="text-white font-bold"></span></div>
                 <div class="flex justify-between text-gray-400"><span data-i18n="hr_nights_label">Số đêm</span><span id="checkoutNights" class="text-white font-bold"></span></div>
+                <div class="flex justify-between text-gray-400"><span data-i18n="hr_room_subtotal_label">Tiền phòng</span><span id="checkoutRoomSubtotal" class="text-white font-bold"></span></div>
+                <div id="checkoutChargesList" class="space-y-1"></div>
                 <div class="flex justify-between items-center pt-2 border-t border-dashed border-white/10">
                     <span class="text-xs uppercase font-bold text-gray-400" data-i18n="hr_total_label">Tổng tiền</span>
                     <span id="checkoutTotal" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400"></span>
@@ -102,6 +108,27 @@
             <div class="flex gap-3">
                 <button onclick="closeModal('checkoutModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
                 <button id="confirmCheckoutBtn" onclick="submitCheckout()" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_confirm_checkout">Xác nhận trả phòng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add extra charge modal (dịch vụ đi kèm: minibar, giặt ủi, ăn tại phòng...) -->
+    <div id="addChargeModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-concierge-bell text-amber-400"></i> <span data-i18n="hr_add_charge_title">Thêm Phụ Thu</span> <span id="addChargeRoomLabel" class="text-purple-400"></span></h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_charge_desc_label">Dịch vụ / Mô tả</label>
+                    <input type="text" id="newChargeDesc" placeholder="Minibar, giặt ủi, ăn tại phòng..." class="field-input">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_charge_amount_label">Số tiền</label>
+                    <input type="number" id="newChargeAmount" value="0" min="0" class="field-input">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('addChargeModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button onclick="submitAddCharge()" class="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_charge_add_btn">Thêm</button>
             </div>
         </div>
     </div>
@@ -148,6 +175,28 @@
         </div>
     </div>
 
+    <!-- Bulk rate modal -->
+    <div id="bulkRateModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-tags text-purple-400"></i> <span data-i18n="hr_bulk_rate_title">Áp giá theo loại phòng</span></h3>
+            <p class="text-xs text-gray-400 mb-4" data-i18n="hr_bulk_rate_desc">Đổi giá/đêm cho TẤT CẢ phòng cùng loại cùng lúc, không cần sửa từng phòng.</p>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_room_type_label">Loại phòng</label>
+                    <select id="bulkRateType" class="field-input" onchange="syncBulkRatePriceField()"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_bulk_rate_new_price_label">Giá/đêm mới</label>
+                    <input type="number" id="bulkRateNewPrice" value="0" min="0" class="field-input">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('bulkRateModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button onclick="submitBulkRate()" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_bulk_rate_apply">Áp dụng</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(150%); background:rgba(10,12,22,0.95); border:1px solid rgba(168,85,247,0.4); color:white; padding:12px 28px; border-radius:40px; font-size:13px; font-weight:600; z-index:10010; transition:transform 0.3s ease, opacity 0.3s ease; opacity:0;"></div>
 
     <script>
@@ -170,6 +219,14 @@
                 hr_toast_checkin_ok: 'Đã nhận phòng thành công!', hr_toast_checkout_ok: 'Đã trả phòng, ghi nhận doanh thu!',
                 hr_toast_clean_ok: 'Đã đánh dấu dọn xong.', hr_toast_room_added: 'Đã thêm phòng mới!',
                 hr_toast_room_missing: 'Vui lòng nhập số phòng.', hr_toast_generic_error: 'Lỗi: ',
+                hr_bulk_rate_btn: 'Giá theo loại phòng', hr_bulk_rate_title: 'Áp giá theo loại phòng',
+                hr_bulk_rate_desc: 'Đổi giá/đêm cho TẤT CẢ phòng cùng loại cùng lúc, không cần sửa từng phòng.',
+                hr_bulk_rate_new_price_label: 'Giá/đêm mới', hr_bulk_rate_apply: 'Áp dụng',
+                hr_toast_bulk_rate_ok: 'Đã cập nhật giá cho {count} phòng!', hr_toast_no_room_types: 'Chưa có loại phòng nào.',
+                hr_room_subtotal_label: 'Tiền phòng', hr_add_charge_btn: 'Thêm phụ thu', hr_add_charge_title: 'Thêm Phụ Thu',
+                hr_charge_desc_label: 'Dịch vụ / Mô tả', hr_charge_amount_label: 'Số tiền', hr_charge_add_btn: 'Thêm',
+                hr_toast_charge_desc_missing: 'Vui lòng nhập tên dịch vụ/phụ thu.', hr_toast_charge_amount_invalid: 'Số tiền phải lớn hơn 0.',
+                hr_toast_charge_added: 'Đã thêm phụ thu!',
             },
             en: {
                 hr_title: 'Room Management | BitPaw OS', hr_header: 'Room Management',
@@ -188,6 +245,14 @@
                 hr_toast_checkin_ok: 'Checked in successfully!', hr_toast_checkout_ok: 'Checked out, revenue recorded!',
                 hr_toast_clean_ok: 'Marked as cleaned.', hr_toast_room_added: 'New room added!',
                 hr_toast_room_missing: 'Please enter a room number.', hr_toast_generic_error: 'Error: ',
+                hr_bulk_rate_btn: 'Rate by Room Type', hr_bulk_rate_title: 'Bulk Rate by Room Type',
+                hr_bulk_rate_desc: 'Change the price/night for ALL rooms of one type at once, no need to edit each room.',
+                hr_bulk_rate_new_price_label: 'New Price/Night', hr_bulk_rate_apply: 'Apply',
+                hr_toast_bulk_rate_ok: 'Updated price for {count} room(s)!', hr_toast_no_room_types: 'No room types yet.',
+                hr_room_subtotal_label: 'Room total', hr_add_charge_btn: 'Add Charge', hr_add_charge_title: 'Add Extra Charge',
+                hr_charge_desc_label: 'Service / Description', hr_charge_amount_label: 'Amount', hr_charge_add_btn: 'Add',
+                hr_toast_charge_desc_missing: 'Please enter a service/charge name.', hr_toast_charge_amount_invalid: 'Amount must be greater than 0.',
+                hr_toast_charge_added: 'Charge added!',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
@@ -250,7 +315,8 @@
                 if (r.status === 'Đang ở') {
                     const since = r.checkin_date ? new Date(r.checkin_date).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US') : '--';
                     body = `<div class="mt-3 text-xs text-gray-300"><i class="fas fa-user mr-1 text-blue-400"></i>${escapeHtml(r.guest_name || '')}</div>
-                            <div class="mt-1 text-[10px] text-gray-500">${t('hr_since_label')}: ${since}</div>`;
+                            <div class="mt-1 text-[10px] text-gray-500">${t('hr_since_label')}: ${since}</div>
+                            <button onclick="event.stopPropagation(); openAddChargeModal(${r.id})" class="mt-2 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-concierge-bell mr-1"></i>${t('hr_add_charge_btn')}</button>`;
                 } else if (r.status === 'Đang dọn') {
                     body = `<button onclick="event.stopPropagation(); markClean(${r.id})" class="mt-3 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-broom mr-1"></i>${t('hr_mark_clean_btn')}</button>`;
                 } else {
@@ -297,27 +363,96 @@
             } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }
 
-        function openCheckoutModal(roomId) {
+        let pendingCheckoutInfo = null;
+        let pendingCheckoutCharges = [];
+        function renderCheckoutTotals(nights, pricePerNight, charges) {
+            const roomSubtotal = nights * pricePerNight;
+            const chargesTotal = charges.reduce((s, c) => s + (c.amount || 0), 0);
+            document.getElementById('checkoutRoomSubtotal').innerText = roomSubtotal.toLocaleString() + '₫';
+            document.getElementById('checkoutChargesList').innerHTML = charges.map(c => `
+                <div class="flex justify-between items-center text-gray-400">
+                    <span>${escapeHtml(c.description)}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="text-white font-bold">${Number(c.amount).toLocaleString()}₫</span>
+                        <button onclick="removeCheckoutCharge(${c.id})" class="text-rose-400 hover:text-rose-300"><i class="fas fa-times-circle"></i></button>
+                    </span>
+                </div>`).join('');
+            document.getElementById('checkoutTotal').innerText = (roomSubtotal + chargesTotal).toLocaleString() + '₫';
+        }
+        async function openCheckoutModal(roomId) {
             const room = rooms.find(r => r.id === roomId);
             if (!room) return;
+            activeRoomId = roomId;
             document.getElementById('checkoutRoomLabel').innerText = `#${room.room_number}`;
             document.getElementById('checkoutGuestName').innerText = room.guest_name || '--';
             const nights = room.checkin_date ? Math.max(1, Math.ceil((Date.now() - new Date(room.checkin_date).getTime()) / (1000*60*60*24))) : 1;
             document.getElementById('checkoutNights').innerText = nights;
-            document.getElementById('checkoutTotal').innerText = (nights * (room.price_per_night || 0)).toLocaleString() + '₫';
+            pendingCheckoutCharges = [];
+            renderCheckoutTotals(nights, room.price_per_night || 0, []);
             document.getElementById('checkoutModal').classList.add('active');
+            // Giữ lại thông tin phòng TRƯỚC khi checkout (backend xoá guest_name sau khi trả
+            // phòng thành công) để có đủ dữ liệu in hoá đơn.
+            pendingCheckoutInfo = { roomNumber: room.room_number, guestName: room.guest_name, nights, pricePerNight: room.price_per_night || 0 };
+            try {
+                const body = await hrApi(`/api/hotel/rooms/${roomId}/charges`);
+                pendingCheckoutCharges = body.data || [];
+                renderCheckoutTotals(nights, room.price_per_night || 0, pendingCheckoutCharges);
+            } catch (e) { /* best-effort — checkout vẫn hoạt động đúng nếu tải phụ thu lỗi */ }
+        }
+        async function removeCheckoutCharge(chargeId) {
+            try {
+                await hrApi(`/api/hotel/room_charges/${chargeId}`, { method: 'DELETE' });
+                pendingCheckoutCharges = pendingCheckoutCharges.filter(c => c.id !== chargeId);
+                renderCheckoutTotals(pendingCheckoutInfo.nights, pendingCheckoutInfo.pricePerNight, pendingCheckoutCharges);
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }
         async function submitCheckout() {
             const btn = document.getElementById('confirmCheckoutBtn');
             const orig = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             try {
-                await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({}) });
+                const body = await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({}) });
                 closeModal('checkoutModal');
                 showToast(t('hr_toast_checkout_ok'));
+                if (pendingCheckoutInfo) {
+                    const nights = body.nights || pendingCheckoutInfo.nights;
+                    const roomTotal = body.room_total ?? (nights * pendingCheckoutInfo.pricePerNight);
+                    const total = body.total_amount || roomTotal;
+                    const items = [{ name: `Tiền phòng (${nights} đêm)`, qty: 1, total: roomTotal }];
+                    pendingCheckoutCharges.forEach(c => items.push({ name: c.description, qty: 1, total: c.amount }));
+                    printReceipt({
+                        subtitle: `Phòng #${pendingCheckoutInfo.roomNumber}${pendingCheckoutInfo.guestName ? ' — ' + pendingCheckoutInfo.guestName : ''}`,
+                        items,
+                        subtotal: total,
+                        total,
+                        paymentMethod: 'Tiền mặt',
+                    });
+                }
                 loadRooms();
             } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
             btn.disabled = false; btn.innerHTML = orig;
+        }
+
+        function openAddChargeModal(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            activeRoomId = roomId;
+            document.getElementById('addChargeRoomLabel').innerText = room ? `#${room.room_number}` : '';
+            document.getElementById('newChargeDesc').value = '';
+            document.getElementById('newChargeAmount').value = '0';
+            document.getElementById('addChargeModal').classList.add('active');
+        }
+        async function submitAddCharge() {
+            const description = document.getElementById('newChargeDesc').value.trim();
+            const amount = parseFloat(document.getElementById('newChargeAmount').value) || 0;
+            if (!description) return showToast(t('hr_toast_charge_desc_missing'));
+            if (amount <= 0) return showToast(t('hr_toast_charge_amount_invalid'));
+            try {
+                await hrApi(`/api/hotel/rooms/${activeRoomId}/charges`, {
+                    method: 'POST', body: JSON.stringify({ description, amount }),
+                });
+                closeModal('addChargeModal');
+                showToast(t('hr_toast_charge_added'));
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }
 
         async function markClean(roomId) {
@@ -351,6 +486,35 @@
                 });
                 closeModal('addRoomModal');
                 showToast(t('hr_toast_room_added'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+        }
+
+        function syncBulkRatePriceField() {
+            const roomType = document.getElementById('bulkRateType').value;
+            const match = rooms.find(r => r.room_type === roomType);
+            document.getElementById('bulkRateNewPrice').value = match ? match.price_per_night : 0;
+        }
+        function openBulkRateModal() {
+            const types = [...new Set(rooms.map(r => r.room_type).filter(Boolean))].sort();
+            if (!types.length) return showToast(t('hr_toast_no_room_types'));
+            const select = document.getElementById('bulkRateType');
+            select.innerHTML = types.map(rt => `<option value="${escapeHtml(rt)}">${escapeHtml(rt)}</option>`).join('');
+            const firstTypeRoom = rooms.find(r => r.room_type === types[0]);
+            document.getElementById('bulkRateNewPrice').value = firstTypeRoom ? firstTypeRoom.price_per_night : 0;
+            document.getElementById('bulkRateModal').classList.add('active');
+        }
+        async function submitBulkRate() {
+            const roomType = document.getElementById('bulkRateType').value;
+            const newPrice = parseFloat(document.getElementById('bulkRateNewPrice').value);
+            if (!roomType || isNaN(newPrice) || newPrice < 0) return;
+            try {
+                const body = await hrApi('/api/hotel/room_types/bulk_rate', {
+                    method: 'POST',
+                    body: JSON.stringify({ room_type: roomType, price_per_night: newPrice }),
+                });
+                closeModal('bulkRateModal');
+                showToast(t('hr_toast_bulk_rate_ok').replace('{count}', body.updated_count));
                 loadRooms();
             } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }

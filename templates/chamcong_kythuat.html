@@ -253,6 +253,7 @@
                                 <div class="flex justify-end mt-2 text-sm font-black text-emerald-400">
                                     <span data-i18n="chamcongkythuat_parts_total">Tổng tiền phụ tùng:</span>&nbsp;<span id="partsTotalDisplay">0₫</span>
                                 </div>
+                                <datalist id="techPartsDatalist"></datalist>
                             </div>
                         </div>
 
@@ -533,7 +534,7 @@
         }
 
         window.onload = () => {
-            loadInventory(); loadWorkers();
+            loadInventory(); loadWorkers(); loadTechPartsCache();
         };
 
         // ========================================================
@@ -740,11 +741,36 @@
             });
             document.getElementById('partsTotalDisplay').innerText = Math.round(total).toLocaleString('vi-VN') + '₫';
         }
+        // Kho phụ tùng THẬT (tech_parts) — nạp 1 lần để gợi ý qua <datalist> trên ô tên phụ
+        // tùng: kỹ thuật viên vẫn gõ tay được tên KHÔNG có trong kho (dòng đó không trừ kho gì
+        // cả), nhưng nếu chọn đúng tên khớp 1 phụ tùng đã theo dõi, submitTech() sẽ tự gắn
+        // part_id để backend trừ kho nguyên tử lúc chốt hoàn thành job.
+        let techPartsCache = [];
+        async function loadTechPartsCache() {
+            try {
+                const body = await hrApi('/api/tech_parts');
+                techPartsCache = body.data || [];
+                document.getElementById('techPartsDatalist').innerHTML =
+                    techPartsCache.map(p => `<option value="${p.name.replace(/"/g, '&quot;')}">`).join('');
+            } catch (e) { /* best-effort — không có kho theo dõi vẫn nhập tay bình thường */ }
+        }
+        function findTechPartByName(name) {
+            const norm = (name || '').trim().toLowerCase();
+            return techPartsCache.find(p => p.name.trim().toLowerCase() === norm);
+        }
+        function onPartNameChange(input) {
+            const match = findTechPartByName(input.value);
+            const priceInput = input.closest('.part-row').querySelector('.part-price');
+            if (match && !priceInput.value) {
+                priceInput.value = match.unit_price || 0;
+                updatePartsTotal();
+            }
+        }
         function addPartRow() {
             const row = document.createElement('div');
             row.className = 'part-row flex gap-2';
             row.innerHTML = `
-                <input type="text" placeholder="${t('chamcongkythuat_part_name_placeholder')}" class="tech-input part-name text-sm" style="flex:2;">
+                <input type="text" list="techPartsDatalist" placeholder="${t('chamcongkythuat_part_name_placeholder')}" class="tech-input part-name text-sm" style="flex:2;" onchange="onPartNameChange(this)">
                 <input type="number" placeholder="SL" min="0" step="1" class="tech-input part-qty text-sm" style="flex:1;" oninput="updatePartsTotal()">
                 <input type="number" placeholder="Đơn giá" min="0" class="tech-input part-price text-sm" style="flex:1;" oninput="updatePartsTotal()">
                 <button type="button" onclick="this.closest('.part-row').remove(); updatePartsTotal();" class="text-rose-400 px-2"><i class="fas fa-xmark"></i></button>
@@ -802,7 +828,12 @@
                         const name = row.querySelector('.part-name').value.trim();
                         const qty = parseFloat(row.querySelector('.part-qty').value);
                         const unit_price = parseFloat(row.querySelector('.part-price').value);
-                        if (name && qty > 0 && unit_price >= 0) partsUsed.push({ name, qty, unit_price });
+                        if (name && qty > 0 && unit_price >= 0) {
+                            const line = { name, qty, unit_price };
+                            const match = findTechPartByName(name);
+                            if (match) line.part_id = match.id;
+                            partsUsed.push(line);
+                        }
                     });
                     let signatureUrl = null;
                     if (signaturePadHasStroke) {

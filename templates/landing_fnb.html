@@ -742,8 +742,12 @@
                 <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed font-medium break-words" data-i18n="features_desc">
                     Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp số hóa quán ăn trơn tru:
                 </p>
+                <div class="mt-5 inline-flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-4 py-2 rounded-full">
+                    <i class="fas fa-circle-check"></i>
+                    <span data-i18n="features_trust_badge">100% tính năng thật — bấm vào từng mục để dùng ngay, không phải ảnh minh hoạ</span>
+                </div>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
                 <!-- Feature 1: QR Order -->
                 <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-orange-500/40" data-aos="fade-up" data-aos-delay="100">
@@ -925,6 +929,29 @@
                         </div>
                         <div class="text-sm font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
                             <span data-i18n="feature8_cta">Dùng chăm sóc khách quen</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature 9: Split Bill -->
+                <div class="relative overflow-hidden rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6 lg:p-7 min-h-[280px] flex flex-col justify-between h-full group transition-all duration-300 hover:translate-y-[-4px] hover:border-orange-500/40" data-aos="fade-up" data-aos-delay="900">
+                    <div class="absolute -right-12 -bottom-12 w-28 h-28 bg-gradient-to-br from-orange-500/10 to-transparent rounded-full blur-2xl pointer-events-none group-hover:from-orange-500/20 transition-all duration-300"></div>
+
+                    <div class="relative z-10 flex flex-col justify-between h-full w-full">
+                        <div>
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-14 h-14 rounded-2xl bg-orange-500/10 text-orange-400 text-2xl border border-orange-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.15)] group-hover:scale-110 group-hover:text-orange-300 transition-all duration-300">
+                                    <i class="fas fa-money-bill-transfer"></i>
+                                </div>
+                                <span class="text-xs font-black text-orange-400 bg-orange-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-orange-500/20 shadow-sm">Split Bill</span>
+                            </div>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-orange-400 transition-colors tracking-tight" data-i18n="feature9_title">Chia Hoá Đơn Tiền Mặt/Thẻ</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words" data-i18n="feature9_desc">
+                                Khách trả 1 phần tiền mặt, 1 phần quẹt thẻ cho cùng 1 bàn — hệ thống tự tách đúng số tiền vào từng khoản, báo cáo doanh thu Cash/Card luôn khớp sổ.
+                            </p>
+                        </div>
+                        <div class="text-sm font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
+                            <span data-i18n="feature9_cta">Dùng khi tính tiền bàn</span> <i class="fas fa-arrow-right text-[10px]"></i>
                         </div>
                     </div>
                 </div>
@@ -1778,6 +1805,7 @@
                 features_eyebrow: 'HỆ THỐNG THỰC TẾ',
                 features_title: 'Các tính năng lõi <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">chuyên sâu nhà hàng, cafe</span>',
                 features_desc: 'Tất cả chức năng dưới đây đều được tích hợp đầy đủ trong hệ thống, giúp sếp số hóa quán ăn trơn tru:',
+                features_trust_badge: '100% tính năng thật — bấm vào từng mục để dùng ngay, không phải ảnh minh hoạ',
                 feature1_title: 'QR Gọi Món Tại Bàn',
                 feature1_desc: 'Khách tự quét mã QR chọn món trực tiếp trên điện thoại tại <a href="{{ url_for('qr_menu_base') }}" class="text-orange-400 hover:underline font-bold">QR Menu dịch vụ</a>, tự gọi món và yêu cầu thanh toán dễ dàng.',
                 feature1_cta: 'Dùng trong nhà hàng',
@@ -1807,6 +1835,9 @@
                 feature8_title: 'Hồ Sơ Khách Hàng CRM & AI',
                 feature8_desc: 'Hệ thống tự động ghi nhớ thói quen, lịch sử món ăn của từng khách hàng, AI tự động thiết lập và gợi ý các kịch bản tin nhắn kéo khách tại <a href="{{ url_for('campaign_builder') }}" class="text-orange-400 hover:underline font-bold">Hồ sơ khách hàng CRM</a>.',
                 feature8_cta: 'Dùng chăm sóc khách quen',
+                feature9_title: 'Chia Hoá Đơn Tiền Mặt/Thẻ',
+                feature9_desc: 'Khách trả 1 phần tiền mặt, 1 phần quẹt thẻ cho cùng 1 bàn — hệ thống tự tách đúng số tiền vào từng khoản, báo cáo doanh thu Cash/Card luôn khớp sổ.',
+                feature9_cta: 'Dùng khi tính tiền bàn',
                 calc_title: 'Tính toán hóa đơn bàn ăn <span class="text-gradient-orange">siêu tốc trong 3 giây</span>',
                 calc_desc: 'Cuối giờ không lo nhập thủ công, nhầm tiền thừa hay sai thuế/phí dịch vụ. Hãy điền thử hóa đơn mẫu của nhà hàng/cafe để trải nghiệm Smart POS:',
                 calc_form_title: 'Nhập giá trị bill mẫu',
@@ -2004,6 +2035,7 @@
                 features_eyebrow: 'REAL-WORLD SYSTEM',
                 features_title: 'Core features <span class="text-gradient-orange drop-shadow-[0_2px_10px_rgba(249,115,22,0.3)]">built for restaurants & cafes</span>',
                 features_desc: 'Every feature below is fully integrated into the system, helping owners digitize their venue smoothly:',
+                features_trust_badge: '100% real, working features — click any card to try it now, not a mockup screenshot',
                 feature1_title: 'Table-side QR Ordering',
                 feature1_desc: 'Guests scan a QR code to order directly from their phone on the <a href="{{ url_for('qr_menu_base') }}" class="text-orange-400 hover:underline font-bold">QR Menu service</a>, ordering and requesting payment with ease.',
                 feature1_cta: 'Used in the dining room',
@@ -2033,6 +2065,9 @@
                 feature8_title: 'CRM & AI Customer Profiles',
                 feature8_desc: 'The system automatically remembers each customer\'s habits and order history; AI sets up and suggests messaging scripts to win them back in the <a href="{{ url_for('campaign_builder') }}" class="text-orange-400 hover:underline font-bold">CRM Customer Profiles</a>.',
                 feature8_cta: 'Used for retaining regulars',
+                feature9_title: 'Split Cash/Card Payment',
+                feature9_desc: 'A guest pays part cash, part card for the same table — the system splits the amounts correctly, so Cash/Card revenue reports always reconcile.',
+                feature9_cta: 'Used when billing a table',
                 calc_title: 'Calculate a table bill <span class="text-gradient-orange">in 3 seconds flat</span>',
                 calc_desc: 'No more manual entry at closing time, no miscounted change or wrong tax/service fees. Try filling in a sample restaurant/cafe bill to experience Smart POS:',
                 calc_form_title: 'Enter sample bill values',

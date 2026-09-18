@@ -7,6 +7,7 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -293,6 +294,7 @@
                         <a href="{{ url_for('karaoke_reservations_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-microphone w-4 text-center"></i> <span data-i18n="karaoke_mgmt_reservations">Reservations</span></a>
                         <a href="{{ url_for('chamcong_industry', industry_code='karaoke') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-calendar-check w-4 text-center"></i> <span data-i18n="karaoke_mgmt_attendance">Attendance</span></a>
                         <a href="{{ url_for('staff_list') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-users w-4 text-center"></i> <span data-i18n="karaoke_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('customers') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-address-book w-4 text-center"></i> <span data-i18n="karaoke_mgmt_customers">Customers</span></a>
                         <a href="{{ url_for('bangluong') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-file-invoice-dollar w-4 text-center"></i> <span data-i18n="karaoke_mgmt_payroll">Payroll</span></a>
                         <a href="{{ url_for('report_consolidated') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-sitemap w-4 text-center"></i> <span data-i18n="karaoke_mgmt_reports">Reports</span></a>
                         <a href="{{ url_for('brand_settings') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-cog w-4 text-center"></i> <span data-i18n="karaoke_mgmt_settings">Settings</span></a>
@@ -514,6 +516,13 @@
                 });
                 const amountStr = (body.total_amount || 0).toLocaleString('vi-VN') + '₫';
                 showToast(tf('karaoke_toast_payment_success', { amount: amountStr }));
+                printReceipt({
+                    subtitle: currentRoomName,
+                    items: [{ name: 'Tiền phòng (' + currentRoomName + ')', qty: 1, total: body.total_amount || 0 }],
+                    subtotal: body.total_amount || 0,
+                    total: body.total_amount || 0,
+                    paymentMethod: 'Tiền mặt',
+                });
                 await loadRooms();
             } catch (error) {
                 if (error.status === 409) {
@@ -584,7 +593,7 @@
                 karaoke_subtitle: 'Quản lý phòng hát & bida thông minh',
                 karaoke_nav_dashboard: 'Quản lý',
                 karaoke_nav_my_attendance: 'Chấm công của tôi',
-                karaoke_mgmt_attendance: 'Chấm công', karaoke_mgmt_staff: 'Nhân sự', karaoke_mgmt_payroll: 'Bảng lương',
+                karaoke_mgmt_attendance: 'Chấm công', karaoke_mgmt_staff: 'Nhân sự', karaoke_mgmt_customers: 'Khách hàng', karaoke_mgmt_payroll: 'Bảng lương',
                 karaoke_mgmt_reports: 'Báo cáo tổng hợp', karaoke_mgmt_settings: 'Cài đặt', karaoke_mgmt_reservations: 'Đặt phòng trước',
                 karaoke_loading_rooms: 'Đang tải danh sách phòng...',
                 karaoke_modal_confirm_title: 'Xác nhận thanh toán',
@@ -623,7 +632,7 @@
                 karaoke_subtitle: 'Smart karaoke & billiards room management',
                 karaoke_nav_dashboard: 'Management',
                 karaoke_nav_my_attendance: 'My Attendance',
-                karaoke_mgmt_attendance: 'Attendance', karaoke_mgmt_staff: 'Staff', karaoke_mgmt_payroll: 'Payroll',
+                karaoke_mgmt_attendance: 'Attendance', karaoke_mgmt_staff: 'Staff', karaoke_mgmt_customers: 'Customers', karaoke_mgmt_payroll: 'Payroll',
                 karaoke_mgmt_reports: 'Consolidated Report', karaoke_mgmt_settings: 'Settings', karaoke_mgmt_reservations: 'Reservations',
                 karaoke_loading_rooms: 'Loading room list...',
                 karaoke_modal_confirm_title: 'Confirm Payment',

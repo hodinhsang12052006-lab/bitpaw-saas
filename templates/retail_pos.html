@@ -7,6 +7,7 @@
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -108,8 +109,10 @@
                     <div id="mgmtMenuPanel" class="hidden" style="position:absolute; right:0; top:calc(100% + 8px); width:210px; background:#0a0f25; border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:8px; z-index:50; box-shadow:0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(20px);">
                         <a href="{{ url_for('chamcong_industry', industry_code='retail') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📅</span> <span data-i18n="rpos_mgmt_attendance">Attendance</span></a>
                         <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>👥</span> <span data-i18n="rpos_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('customers') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📇</span> <span data-i18n="rpos_mgmt_customers">Customers</span></a>
                         <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>💰</span> <span data-i18n="rpos_mgmt_payroll">Payroll</span></a>
                         <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📊</span> <span data-i18n="rpos_mgmt_reports">Reports</span></a>
+                        <a href="javascript:void(0)" onclick="openRefundModal()" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#f87171; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='transparent'"><span>↩️</span> <span data-i18n="rpos_mgmt_refund">Refund</span></a>
                     </div>
                 </div>
                 {% else %}
@@ -197,6 +200,29 @@
         </div>
     </div>
 
+    <div id="refundModal" class="modal-overlay">
+        <div class="modal-box">
+            <h2 class="text-xl font-black mb-1" data-i18n="rpos_refund_title">Hoàn tiền / Huỷ đơn</h2>
+            <p style="color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom:16px;" data-i18n="rpos_refund_subtitle">Nhập mã hoá đơn và số tiền cần hoàn</p>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:rgba(255,255,255,0.5); margin-bottom:6px;" data-i18n="rpos_refund_order_label">Mã hoá đơn (Order #)</label>
+                <input type="text" autocomplete="off" id="refundOrderId" placeholder="vd: 1042" class="btn-glass" style="width:100%; text-align:left; cursor:text;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:rgba(255,255,255,0.5); margin-bottom:6px;" data-i18n="rpos_refund_amount_label">Số tiền hoàn</label>
+                <input type="number" autocomplete="off" id="refundAmount" min="0" placeholder="0" class="btn-glass" style="width:100%; text-align:left; cursor:text;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:rgba(255,255,255,0.5); margin-bottom:6px;" data-i18n="rpos_refund_reason_label">Lý do (không bắt buộc)</label>
+                <textarea id="refundReason" rows="2" class="btn-glass" style="width:100%; text-align:left; cursor:text; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="cancelRefundBtn" onclick="closeRefundModal()" class="btn-glass" style="flex:1; justify-content:center;" data-i18n="rpos_btn_cancel">Huỷ</button>
+                <button id="confirmRefundBtn" onclick="submitRefund()" class="btn-checkout" style="flex:2; background:#dc2626;" data-i18n="rpos_refund_submit">Xử lý hoàn tiền</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="toast">Thông báo</div>
 
     <script>
@@ -209,8 +235,19 @@
                 rpos_btn_mgmt: 'Management',
                 rpos_mgmt_attendance: 'Chấm công',
                 rpos_mgmt_staff: 'Nhân viên',
+                rpos_mgmt_customers: 'Khách hàng',
                 rpos_mgmt_payroll: 'Bảng lương',
                 rpos_mgmt_reports: 'Báo cáo',
+                rpos_mgmt_refund: 'Hoàn tiền',
+                rpos_refund_title: 'Hoàn tiền / Huỷ đơn',
+                rpos_refund_subtitle: 'Nhập mã hoá đơn và số tiền cần hoàn',
+                rpos_refund_order_label: 'Mã hoá đơn (Order #)',
+                rpos_refund_amount_label: 'Số tiền hoàn',
+                rpos_refund_reason_label: 'Lý do (không bắt buộc)',
+                rpos_refund_submit: 'Xử lý hoàn tiền',
+                rpos_toast_refund_ok: 'Đã hoàn tiền thành công!',
+                rpos_toast_refund_fail: 'Hoàn tiền thất bại: ',
+                rpos_toast_refund_missing: 'Vui lòng nhập mã hoá đơn và số tiền hoàn lớn hơn 0.',
                 rpos_btn_my_attendance: 'Chấm công của tôi',
                 rpos_barcode_placeholder: 'Quét mã vạch rồi Enter...',
                 rpos_search_placeholder: 'Tìm sản phẩm...',
@@ -240,8 +277,19 @@
                 rpos_btn_mgmt: 'Management',
                 rpos_mgmt_attendance: 'Attendance',
                 rpos_mgmt_staff: 'Staff',
+                rpos_mgmt_customers: 'Customers',
                 rpos_mgmt_payroll: 'Payroll',
                 rpos_mgmt_reports: 'Reports',
+                rpos_mgmt_refund: 'Refund',
+                rpos_refund_title: 'Refund / Void Order',
+                rpos_refund_subtitle: 'Enter the order number and amount to refund',
+                rpos_refund_order_label: 'Order #',
+                rpos_refund_amount_label: 'Refund Amount',
+                rpos_refund_reason_label: 'Reason (optional)',
+                rpos_refund_submit: 'Process Refund',
+                rpos_toast_refund_ok: 'Refund processed successfully!',
+                rpos_toast_refund_fail: 'Refund failed: ',
+                rpos_toast_refund_missing: 'Enter an order number and a refund amount greater than 0.',
                 rpos_btn_my_attendance: 'My Attendance',
                 rpos_barcode_placeholder: 'Scan barcode then Enter...',
                 rpos_search_placeholder: 'Search products...',
@@ -471,6 +519,14 @@
                 showToast(t('rpos_toast_sale_success'));
                 checkoutModal.classList.remove('active');
                 cartSidebar.classList.remove('open');
+                const receiptTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+                printReceipt({
+                    businessName: {{ brand_name|tojson }},
+                    items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
+                    subtotal: receiptTotal,
+                    total: receiptTotal,
+                    paymentMethod: selectedMethod === 'cash' ? 'Tiền mặt' : 'Thẻ/Chuyển khoản',
+                });
                 setTimeout(() => window.location.reload(), 1200);
             } catch (err) {
                 showToast(t('rpos_toast_error') + err.message, true);
@@ -479,6 +535,43 @@
                 confirmBtn.innerText = t('rpos_btn_confirm');
             }
         });
+
+        // ========== REFUND / VOID ==========
+        const refundModal = document.getElementById('refundModal');
+        function openRefundModal() {
+            document.getElementById('refundOrderId').value = '';
+            document.getElementById('refundAmount').value = '';
+            document.getElementById('refundReason').value = '';
+            document.getElementById('mgmtMenuPanel')?.classList.add('hidden');
+            refundModal.classList.add('active');
+        }
+        function closeRefundModal() { refundModal.classList.remove('active'); }
+        async function submitRefund() {
+            const orderId = document.getElementById('refundOrderId').value.trim();
+            const amount = parseFloat(document.getElementById('refundAmount').value) || 0;
+            if (!orderId || amount <= 0) { showToast(t('rpos_toast_refund_missing'), true); return; }
+
+            const btn = document.getElementById('confirmRefundBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = t('rpos_processing');
+            try {
+                const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/refund`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, reason: document.getElementById('refundReason').value.trim() }),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.success) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+                closeRefundModal();
+                showToast(t('rpos_toast_refund_ok'));
+            } catch (err) {
+                showToast(t('rpos_toast_refund_fail') + err.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
     </script>
 </body>
 </html>

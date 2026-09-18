@@ -529,6 +529,15 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(180deg, rgba(236,72,153,0.5) 0%, rgba(139,92,246,0.5) 100%);
         }
+
+        /* In hoá đơn — chỉ hiện đúng khổ vé .receipt-ticket khi in, ẩn toàn bộ phần còn lại
+           của trang (POS grid, cart, nút bấm...) */
+        @media print {
+            body * { visibility: hidden; }
+            .receipt-ticket, .receipt-ticket * { visibility: visible; }
+            .receipt-ticket { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none; }
+            #receiptPrintBtn, #receiptModal button { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -962,6 +971,9 @@
             <div class="receipt-barcode"></div>
             <p class="text-center text-[9px] tracking-[0.35em] text-gray-400 mt-1.5 mb-5" id="receiptBarcodeNum"></p>
 
+            <button id="receiptPrintBtn" onclick="window.print()" class="w-full bg-white border-2 border-gray-900 hover:bg-gray-100 text-gray-900 font-black py-3 rounded-xl text-sm uppercase tracking-widest transition mb-2" data-i18n="npos_receipt_print">
+                <i class="fas fa-print mr-2"></i>In hoá đơn
+            </button>
             <button onclick="startNewTicket()" class="w-full bg-gray-900 hover:bg-black text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest transition" data-i18n="npos_receipt_new_ticket">Start New Ticket</button>
         </div>
     </div>

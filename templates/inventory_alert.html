@@ -174,6 +174,25 @@
         <input type="hidden" id="restockProductId"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="inventory_alert_label_restock_qty">Số lượng nhập thêm</label><input type="number" id="restockQuantity" class="glass-input" placeholder="Nhập số lượng" data-i18n-placeholder="inventory_alert_placeholder_qty"></div><div class="flex gap-3 mt-4"><button id="confirmRestockBtn" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="inventory_alert_confirm_restock_btn">Nhập hàng</button><button id="cancelRestockBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="inventory_alert_cancel_btn">Hủy</button></div></div>
     </div>
 
+    <!-- Modal sửa sản phẩm — mirror update_product route (form-encoded: name/category/price/stock/barcode) -->
+    <div id="editProductModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-amber-400"><i class="fas fa-pen mr-2"></i> Sửa sản phẩm</h3><button id="closeEditProductBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
+            <input type="hidden" id="editProductId">
+            <div class="space-y-3">
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tên sản phẩm</label><input type="text" id="editProductName" class="glass-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Danh mục</label><input type="text" id="editProductCategory" class="glass-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Giá bán</label><input type="number" id="editProductPrice" class="glass-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Tồn kho (chỉnh trực tiếp — dùng khi kiểm kê)</label><input type="number" id="editProductStock" class="glass-input"></div>
+                <div><label class="block text-xs font-bold text-gray-400 mb-1">Mã vạch (tuỳ chọn)</label><input type="text" id="editProductBarcode" class="glass-input"></div>
+            </div>
+            <div class="flex gap-3 mt-4">
+                <button id="confirmEditProductBtn" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 py-2 rounded-xl font-bold">Lưu thay đổi</button>
+                <button id="cancelEditProductBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold">Hủy</button>
+            </div>
+        </div>
+    </div>
+
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="inventory_alert_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast"></div>
 
@@ -335,7 +354,10 @@
                     <td class="text-gray-400">${globalWarningThreshold} / ${globalCriticalThreshold}</td>
                     <td>${getStatusBadge(p.stock)}</td>
                     <td class="font-mono text-emerald-400">${formatMoney((p.stock || 0) * (p.price || 0))}</td>
-                    <td><button class="restock-btn text-cyan-400 hover:text-cyan-300 text-sm" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-truck"></i> ${t('inventory_alert_restock_btn')}</button></td>
+                    <td>
+                        <button class="restock-btn text-cyan-400 hover:text-cyan-300 text-sm mr-3" data-id="${p.id}" data-name="${escapeHtml(p.name)}"><i class="fas fa-truck"></i> ${t('inventory_alert_restock_btn')}</button>
+                        <button class="edit-product-btn text-amber-400 hover:text-amber-300 text-sm" data-id="${p.id}"><i class="fas fa-pen"></i> Sửa</button>
+                    </td>
                 </tr>
             `).join('');
             document.querySelectorAll('.restock-btn').forEach(btn => {
@@ -343,6 +365,19 @@
                     restockProductId.value = btn.getAttribute('data-id');
                     restockQuantity.value = '';
                     restockModal.classList.add('active');
+                });
+            });
+            document.querySelectorAll('.edit-product-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = products.find(x => String(x.id) === btn.getAttribute('data-id'));
+                    if (!p) return;
+                    document.getElementById('editProductId').value = p.id;
+                    document.getElementById('editProductName').value = p.name || '';
+                    document.getElementById('editProductCategory').value = p.category || '';
+                    document.getElementById('editProductPrice').value = p.price || 0;
+                    document.getElementById('editProductStock').value = p.stock || 0;
+                    document.getElementById('editProductBarcode').value = p.barcode || '';
+                    editProductModal.classList.add('active');
                 });
             });
         }
@@ -391,6 +426,47 @@
                 return true;
             } catch (err) { showToast(t('inventory_alert_toast_restock_error_prefix') + err.message, true); return false; }
         }
+
+        // Sửa sản phẩm — update_product/<id> nhận request.form (KHÔNG phải JSON), dùng FormData.
+        const editProductModal = document.getElementById('editProductModal');
+        const closeEditProductBtn = document.getElementById('closeEditProductBtn');
+        const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
+        const confirmEditProductBtn = document.getElementById('confirmEditProductBtn');
+        confirmEditProductBtn.addEventListener('click', async () => {
+            const id = document.getElementById('editProductId').value;
+            const name = document.getElementById('editProductName').value.trim();
+            const category = document.getElementById('editProductCategory').value.trim();
+            const price = parseFloat(document.getElementById('editProductPrice').value);
+            const stock = parseInt(document.getElementById('editProductStock').value);
+            const barcode = document.getElementById('editProductBarcode').value.trim();
+            if (!name || isNaN(price) || price < 0 || isNaN(stock) || stock < 0) {
+                showToast('Vui lòng nhập đầy đủ tên/giá/tồn kho hợp lệ.', true);
+                return;
+            }
+            showLoading(true);
+            try {
+                const fd = new FormData();
+                fd.append('name', name);
+                fd.append('category', category);
+                fd.append('price', price);
+                fd.append('stock', stock);
+                fd.append('barcode', barcode);
+                const res = await fetch(`/update_product/${id}`, { method: 'POST', body: fd });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok || body.success === false) throw new Error(body.message || `Lỗi máy chủ (${res.status})`);
+                const p = products.find(x => String(x.id) === String(id));
+                if (p) { p.name = name; p.category = category; p.price = price; p.stock = stock; p.barcode = barcode || null; }
+                applyFilters();
+                showToast('Đã cập nhật sản phẩm.');
+                editProductModal.classList.remove('active');
+            } catch (err) {
+                showToast('Lỗi cập nhật: ' + err.message, true);
+            }
+            showLoading(false);
+        });
+        closeEditProductBtn.addEventListener('click', () => editProductModal.classList.remove('active'));
+        cancelEditProductBtn.addEventListener('click', () => editProductModal.classList.remove('active'));
+        editProductModal.addEventListener('click', (e) => { if (e.target === editProductModal) editProductModal.classList.remove('active'); });
 
         // Confirm restock
         confirmRestockBtn.addEventListener('click', async () => {

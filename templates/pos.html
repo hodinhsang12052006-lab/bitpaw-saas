@@ -141,6 +141,24 @@
             color: #06b6d4;
         }
 
+        .pos-pm-btn {
+            padding: 0.5rem 0.25rem;
+            border-radius: 0.6rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #d1d5db;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.15s;
+            text-align: center;
+        }
+        .pos-pm-btn.active {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+
         .toast {
             position: fixed;
             bottom: 30px;
@@ -398,6 +416,7 @@
                         <a href="{{ url_for('reservations_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-chair w-4 text-center"></i> <span data-i18n="pos_mgmt_reservations">Reservations</span></a>
                         <a href="{{ url_for('chamcong_industry', industry_code='fnb') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-calendar-check w-4 text-center"></i> <span data-i18n="pos_mgmt_attendance">Attendance</span></a>
                         <a href="{{ url_for('staff_list') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-users w-4 text-center"></i> <span data-i18n="pos_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('customers') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-address-book w-4 text-center"></i> <span data-i18n="pos_mgmt_customers">Customers</span></a>
                         <a href="{{ url_for('bangluong') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-file-invoice-dollar w-4 text-center"></i> <span data-i18n="pos_mgmt_payroll">Payroll</span></a>
                         <a href="{{ url_for('report_consolidated') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-sitemap w-4 text-center"></i> <span data-i18n="pos_mgmt_reports">Reports</span></a>
                         <a href="{{ url_for('brand_settings') }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-white/10 hover:text-white transition"><i class="fas fa-cog w-4 text-center"></i> <span data-i18n="pos_mgmt_settings">Settings</span></a>
@@ -500,6 +519,19 @@
                             <span id="orderTotal" class="text-cyan-400 font-mono text-base">0₫</span>
                         </div>
 
+                        <div class="mb-3">
+                            <div class="text-xs text-gray-400 mb-1.5">Phương thức thanh toán</div>
+                            <div class="grid grid-cols-3 gap-1.5" id="posPaymentMethodGroup">
+                                <button type="button" class="pos-pm-btn active" data-method="cash">Tiền mặt</button>
+                                <button type="button" class="pos-pm-btn" data-method="card">Thẻ</button>
+                                <button type="button" class="pos-pm-btn" data-method="split">Chia đôi</button>
+                            </div>
+                            <div id="posSplitInputs" class="grid grid-cols-2 gap-2 mt-2" style="display:none;">
+                                <input type="number" id="posSplitCash" placeholder="Tiền mặt" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
+                                <input type="number" id="posSplitCard" placeholder="Thẻ" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             {% if tenant_country == 'US' %}
                             <button id="squareCheckoutBtn" class="col-span-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-md">
@@ -600,6 +632,25 @@
         const tipCustomInputWrap = document.getElementById('tipCustomInputWrap');
         const tipCustomInput = document.getElementById('tipCustomInput');
         const orderTotal = document.getElementById('orderTotal');
+        let selectedPosMethod = 'cash';
+        document.querySelectorAll('.pos-pm-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.pos-pm-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPosMethod = btn.getAttribute('data-method');
+                document.getElementById('posSplitInputs').style.display = selectedPosMethod === 'split' ? 'grid' : 'none';
+            });
+        });
+        function getPosPaymentPayload() {
+            // Trả về {method, split_cash_amount, split_card_amount} để gộp thẳng vào body
+            // của cả /api/payment/start LẪN /api/payment/local_checkout. method dùng đúng
+            // quy ước 'cash'/'card'/'split' đã có sẵn (payment_bucket ở backend), KHÔNG dùng
+            // chuỗi 'POS' cũ (không map được vào báo cáo tách Cash/Card).
+            if (selectedPosMethod !== 'split') return { method: selectedPosMethod };
+            const cash = parseFloat(document.getElementById('posSplitCash').value) || 0;
+            const card = parseFloat(document.getElementById('posSplitCard').value) || 0;
+            return { method: 'split', split_cash_amount: cash, split_card_amount: card };
+        }
         const posCheckoutBtn = document.getElementById('posCheckoutBtn');
         const posClearBtn = document.getElementById('posClearBtn');
         const squareCheckoutBtn = document.getElementById('squareCheckoutBtn');
@@ -633,7 +684,7 @@
                 pos_dashboard_btn: 'Dashboard',
                 pos_management_btn: 'Quản lý',
                 pos_my_attendance_btn: 'Chấm công của tôi',
-                pos_mgmt_attendance: 'Chấm công', pos_mgmt_staff: 'Nhân sự', pos_mgmt_payroll: 'Bảng lương',
+                pos_mgmt_attendance: 'Chấm công', pos_mgmt_staff: 'Nhân sự', pos_mgmt_customers: 'Khách hàng', pos_mgmt_payroll: 'Bảng lương',
                 pos_mgmt_reports: 'Báo cáo tổng hợp', pos_mgmt_settings: 'Cài đặt', pos_mgmt_reservations: 'Đặt bàn trước',
                 pos_menu_title: 'Thực đơn',
                 pos_menu_subtitle_fnb: 'Chọn một bàn bên phải trước khi gọi món',
@@ -709,6 +760,9 @@
                 pos_toast_clear_table_error: 'Lỗi hủy bàn: ',
                 pos_confirm_delete_product: 'Xóa món "{name}" khỏi thực đơn?',
                 pos_confirm_cancel_item: 'Hủy món "{name}" khỏi bàn?',
+                pos_prompt_new_price: 'Giá mới cho "{name}":',
+                pos_toast_invalid_price: 'Giá không hợp lệ',
+                pos_toast_price_updated: 'Đã cập nhật giá',
                 pos_confirm_checkout: 'Xác nhận thanh toán cho {table}?',
                 pos_confirm_clear_all: 'Hủy toàn bộ đơn của {table}?',
                 pos_confirm_square_checkout: 'Xác nhận thanh toán Square cho {table}?',
@@ -728,7 +782,7 @@
                 pos_dashboard_btn: 'Dashboard',
                 pos_management_btn: 'Management',
                 pos_my_attendance_btn: 'My Attendance',
-                pos_mgmt_attendance: 'Attendance', pos_mgmt_staff: 'Staff', pos_mgmt_payroll: 'Payroll',
+                pos_mgmt_attendance: 'Attendance', pos_mgmt_staff: 'Staff', pos_mgmt_customers: 'Customers', pos_mgmt_payroll: 'Payroll',
                 pos_mgmt_reports: 'Consolidated Report', pos_mgmt_settings: 'Settings', pos_mgmt_reservations: 'Reservations',
                 pos_menu_title: 'Menu',
                 pos_menu_subtitle_fnb: 'Select a table on the right before ordering',
@@ -804,6 +858,9 @@
                 pos_toast_clear_table_error: 'Error clearing table: ',
                 pos_confirm_delete_product: 'Delete item "{name}" from the menu?',
                 pos_confirm_cancel_item: 'Cancel item "{name}" from the table?',
+                pos_prompt_new_price: 'New price for "{name}":',
+                pos_toast_invalid_price: 'Invalid price',
+                pos_toast_price_updated: 'Price updated',
                 pos_confirm_checkout: 'Confirm checkout for {table}?',
                 pos_confirm_clear_all: 'Clear all orders for {table}?',
                 pos_confirm_square_checkout: 'Confirm Square checkout for {table}?',
@@ -1223,17 +1280,68 @@
                 <div class="flex justify-between items-center bg-black/40 border border-white/5 p-2.5 rounded-xl text-xs">
                     <div class="flex-1 pr-2">
                         <span class="font-bold text-white block">${escapeHtml(item.name)}</span>
-                        <span class="text-[10px] text-gray-400">${item.quantity} x ${formatMoney(item.price)}</span>
+                        <span class="text-[10px] ${item.is_overridden ? 'text-amber-400' : 'text-gray-400'}">${item.quantity} x ${formatMoney(item.price)}${item.is_overridden ? ' <i class="fas fa-tag"></i>' : ''}</span>
                     </div>
                     <div class="font-mono text-cyan-300 font-bold pr-3">
                         ${formatMoney(item.price * item.quantity)}
                     </div>
+                    <button class="btn-edit-order-item-price text-amber-400 hover:text-amber-300 transition mr-2" data-order-item-id="${item.id}" data-name="${escapeHtml(item.name)}" data-price="${item.price}">
+                        <i class="fas fa-pen text-base"></i>
+                    </button>
                     <button class="btn-delete-order-item text-rose-400 hover:text-rose-600 transition" data-order-item-id="${item.id}" data-name="${escapeHtml(item.name)}">
                         <i class="fas fa-minus-circle text-base"></i>
                     </button>
                 </div>
             `).join('');
-            
+
+            // Attach per-line price override (giảm giá riêng 1 món) — dùng cho cả bàn thật (PATCH
+            // server) lẫn bàn demo local (sửa thẳng localStorage, vì local checkout vốn đã tin
+            // giá client gửi lên).
+            document.querySelectorAll('.btn-edit-order-item-price').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const orderItemId = btn.getAttribute('data-order-item-id');
+                    const itemName = btn.getAttribute('data-name');
+                    const currentPrice = btn.getAttribute('data-price');
+                    const input = prompt(tf('pos_prompt_new_price', {name: itemName}) || `Giá mới cho "${itemName}":`, currentPrice);
+                    if (input === null) return;
+                    const trimmed = input.trim();
+                    const newPrice = trimmed === '' ? null : parseFloat(trimmed);
+                    if (newPrice !== null && (isNaN(newPrice) || newPrice < 0)) {
+                        showToast(t('pos_toast_invalid_price') || 'Giá không hợp lệ', true);
+                        return;
+                    }
+                    const isLocal = typeof selectedTableId === 'string' && (selectedTableId.startsWith('seeded-') || selectedTableId.startsWith('local-'));
+                    if (isLocal) {
+                        let localOrders = JSON.parse(localStorage.getItem('pos_orders_' + selectedTableId) || '[]');
+                        const target = localOrders.find(i => i.id === orderItemId);
+                        if (target) target.price = newPrice === null ? target.price : newPrice;
+                        localStorage.setItem('pos_orders_' + selectedTableId, JSON.stringify(localOrders));
+                        activeOrders = await loadActiveTableOrders(selectedTableId);
+                        renderActiveOrders();
+                        showToast(t('pos_toast_price_updated') || 'Đã cập nhật giá');
+                    } else {
+                        showLoading(true);
+                        try {
+                            const res = await fetch('/api/pos/order_items/' + encodeURIComponent(orderItemId) + '/price', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({ price: newPrice })
+                            });
+                            const json = await res.json();
+                            if (!json.success) throw new Error(json.message);
+                            activeOrders = await loadActiveTableOrders(selectedTableId);
+                            renderActiveOrders();
+                            showToast(t('pos_toast_price_updated') || 'Đã cập nhật giá');
+                        } catch (err) {
+                            showToast((t('pos_toast_cancel_item_error') || 'Lỗi: ') + err.message, true);
+                        } finally {
+                            showLoading(false);
+                        }
+                    }
+                });
+            });
+
             // Attach item removal event
             document.querySelectorAll('.btn-delete-order-item').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
@@ -1592,8 +1700,8 @@
                             tax_percent: TAX_RATE * 100,
                             tip_amount: Math.round(totals.tipVal),
                             table_name: selectedTableName,
-                            method: 'POS',
-                            industry: ind
+                            industry: ind,
+                            ...getPosPaymentPayload()
                         })
                     });
                     const localResult = await localResponse.json();
@@ -1629,8 +1737,8 @@
                         discount_percent: totals.discPercent,
                         tax_percent: TAX_RATE * 100,
                         tip_amount: Math.round(totals.tipVal),
-                        method: 'POS',
-                        industry: ind
+                        industry: ind,
+                        ...getPosPaymentPayload()
                     })
                 });
 

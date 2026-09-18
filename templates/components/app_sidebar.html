@@ -224,6 +224,20 @@
                 </a>
                 {% endif %}
 
+                {# Khách hàng (CRM): số điện thoại/email/Facebook-nền tảng đặt lịch đã tự động
+                   gom vào db.customers qua các luồng checkout ghi customer_phone — trang
+                   /customers (crm.html) đã tồn tại đầy đủ CRUD từ lâu nhưng KHÔNG có link nào
+                   trong sidebar dẫn tới (route mồ côi, cùng dạng bug đã vá ở inventory_alert.html).
+                   Chỉ hiện cho các ngành có khách hàng vãng lai/đặt lịch thật sự (bán lẻ, ăn
+                   uống, spa/nail, karaoke, khách sạn) — sản xuất/kỹ thuật/văn phòng không có
+                   khách hàng cá nhân để quản lý theo mô hình này. #}
+                {% if 'sales' in modules or 'ordering' in modules or 'tables' in modules or 'spa_services' in modules or 'nail_services' in modules or 'room_timing' in modules or 'pos_ordering' in modules or 'room_management' in modules %}
+                <a href="{{ url_for('customers') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-address-book w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_customers">{{ menu_i18n.customers }}</span>
+                </a>
+                {% endif %}
+
                 <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <i class="fas fa-robot w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                     <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>
@@ -251,6 +265,10 @@
                     <i class="fas fa-calendar-times w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
                     <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>
                 </a>
+                <a href="{{ url_for('expense_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-hand-holding-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_expense_requests">{{ menu_i18n.expense_requests or 'Đơn Hoàn Ứng' }}</span>
+                </a>
                 {% endif %}
                 {% endif %}
 
@@ -258,6 +276,17 @@
                 <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
                     <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
                     <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>
+                </a>
+                <a href="{{ url_for('technical_parts_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-toolbox w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_tech_parts">{{ menu_i18n.tech_parts }}</span>
+                </a>
+                {% endif %}
+
+                {% if 'inventory' in modules %}
+                <a href="/inventory_alert" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <i class="fas fa-warehouse w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span data-i18n="menu_inventory_management">{{ menu_i18n.inventory_management }}</span>
                 </a>
                 {% endif %}
 
