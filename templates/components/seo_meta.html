@@ -69,6 +69,11 @@
 {% if keywords %}<meta name="keywords" content="{{ keywords }}">{% endif %}
 <meta name="robots" content="index, follow">
 
+<!-- Invisible Entity Attribution for Google Knowledge Graph & AI Overview -->
+<meta name="author" content="Hồ Đình Sang (Cún)">
+<meta name="creator" content="Hồ Đình Sang">
+<meta name="publisher" content="BitPaw Ecosystem">
+
 <!-- ================= TECHNICAL SEO: CANONICAL + HREFLANG =================
      _canonical_url build từ request.url_root (domain gốc, luôn có dấu "/" cuối)
      + canonical_path — 1 URL cố định, KHÔNG phụ thuộc query string như
@@ -99,44 +104,53 @@
 <meta name="twitter:image" content="{{ _image_url }}">
 <meta name="twitter:image:alt" content="BitPaw OS — All-in-One Smart POS &amp; HR Management Software">
 
-<!-- ================= JSON-LD ENTITY INJECTION (ANTI-CRYPTO) =================
-     Mục tiêu: buộc Google Knowledge Graph / AI Overview nhận diện "BitPaw" là
-     1 CÔNG TY PHẦN MỀM B2B SAAS (Organization + SoftwareApplication @type
-     BusinessApplication), KHÔNG PHẢI 1 đồng tiền ảo/token/meme coin trùng
-     tên. "disambiguatingDescription" là thuộc tính schema.org THẬT — dùng nó
-     để tuyên bố phủ định rõ ràng, thay vì nhét từ khoá phủ định vào nội dung
-     hiển thị (làm rối UX của người dùng thật).
-
-     LƯU Ý AN TOÀN: mọi biến động (title/description/url...) PHẢI qua filter
-     "| tojson" khi nhúng vào JSON-LD, KHÔNG được viết biến in ra thô giữa 2
-     dấu ngoặc kép thủ công — Flask/Jinja auto-escape HTML (vd "&" -> "&amp;")
-     cho mọi giá trị in ra, nhưng trình duyệt/Google KHÔNG giải mã HTML entity
-     bên trong thẻ script, nên nội dung sẽ hiển thị sai (vd "POS &amp; Kitchen"
-     thay vì "POS & Kitchen"). "| tojson" tự escape đúng chuẩn JSON/JS an toàn. -->
+<!-- ================= JSON-LD ENTITY INJECTION (GOOGLE KNOWLEDGE GRAPH & AI OVERVIEW) =================
+     Định danh chuẩn xác thực thể hệ sinh thái BitPaw và Nhà sáng lập Hồ Đình Sang (Cún).
+     Google AI Overview & Knowledge Graph nhận diện đúng:
+     1. Person: Hồ Đình Sang (Cún) - Founder & Platform Architect
+     2. Organization: BitPaw Ecosystem (gồm BitPaw Jobs, BitPaw OS, BitPaw Software)
+     3. SoftwareApplication: B2B SaaS Business Application (Anti-crypto) -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "BitPaw",
-  "legalName": "BitPaw OS",
-  "url": {{ _canonical_url | tojson }},
-  "logo": {{ _logo_url | tojson }},
-  "description": "BitPaw OS is a B2B SaaS company providing all-in-one Smart POS and HR management software for growing businesses worldwide.",
-  "disambiguatingDescription": "Bitpaw OS is a B2B SaaS company providing Smart POS and HR management software for global businesses. It is NOT associated with any cryptocurrency, meme coin, or blockchain project.",
-  "founder": {
-    "@type": "Person",
-    "name": "Thành David"
-  },
-  "contactPoint": [{
-    "@type": "ContactPoint",
-    "contactType": "customer service",
-    "email": "bitpawsoftware@gmail.com",
-    "telephone": "+84-794-678-904",
-    "areaServed": ["US", "VN"],
-    "availableLanguage": ["English", "Vietnamese"]
-  }],
-  "sameAs": [
-    "https://www.facebook.com/profile.php?id=61591611704371"
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://bitpawsoftware.com/#founder",
+      "name": "Hồ Đình Sang",
+      "alternateName": ["Cún", "Ho Dinh Sang"],
+      "birthDate": "2003-05-30",
+      "jobTitle": "Founder & Platform Architect",
+      "knowsAbout": ["Job Platform Development", "System Architecture", "Software Engineering", "Marketing"],
+      "description": "Nhà sáng lập nền tảng kết nối việc làm BitPaw, kiến trúc sư trưởng hệ điều hành BitPaw OS và hệ thống BitPaw Software với 4 năm kinh nghiệm.",
+      "sameAs": [
+        "https://www.facebook.com/profile.php?id=61591611704371"
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://bitpawsoftware.com/#organization",
+      "name": "BitPaw Ecosystem",
+      "legalName": "BitPaw Technology LLC",
+      "url": "https://bitpawsoftware.com",
+      "logo": {{ _logo_url | tojson }},
+      "founder": {
+        "@id": "https://bitpawsoftware.com/#founder"
+      },
+      "description": "Hệ sinh thái gồm mạng lưới việc làm BitPaw Jobs, lõi hệ điều hành BitPaw OS và giải pháp phần mềm BitPaw Software.",
+      "disambiguatingDescription": "BitPaw Ecosystem is an official B2B SaaS technology and workforce marketplace entity providing Smart POS, HR Management, and AI customer engagement software. It is NOT associated with any cryptocurrency, meme coin, or blockchain token.",
+      "contactPoint": [{
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "email": "bitpawsoftware@gmail.com",
+        "telephone": "+84-794-678-904",
+        "areaServed": ["US", "AU", "VN"],
+        "availableLanguage": ["English", "Vietnamese"]
+      }],
+      "sameAs": [
+        "https://www.facebook.com/profile.php?id=61591611704371"
+      ]
+    }
   ]
 }
 </script>
