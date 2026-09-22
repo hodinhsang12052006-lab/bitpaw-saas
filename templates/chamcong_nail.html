@@ -771,7 +771,11 @@
         }
 
         // ========== MULTI-REGION i18n ==========
-        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        // Bug thật: route /chamcong/nail render template KHÔNG truyền default_lang, nên
+        // "{{ default_lang }}" luôn render ra chuỗi rỗng -> currentLang = "" (không phải 'vi'/'en')
+        // -> nút đổi ngôn ngữ tính toán SAI trạng thái hiện tại (nghĩ đang ở ngôn ngữ khác ngôn ngữ
+        // thật đang hiển thị), khiến lần bấm đầu tiên trông như không có tác dụng gì.
+        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}" || 'vi';
         const translations = {
             vi: {
                 cnl_nav_overview: 'Tổng quan',

@@ -8047,6 +8047,7 @@ def sell():
             technicians=technicians,
             default_commission_rate=_get_business_commission_rate(business_id),
             business_id=business_id,
+            default_lang=resolve_lang(request),
         )
     return render_template('sell.html')
 
@@ -8255,6 +8256,7 @@ def api_nail_pos_checkout():
         return jsonify({"success": False, "message": str(e)}), 500
 
     customer_phone = (data.get('customer_phone') or '').strip()
+    customer_name = (data.get('customer_name') or '').strip()
 
     try:
         order_id = next_mongo_id('orders')
@@ -8270,6 +8272,8 @@ def api_nail_pos_checkout():
             metadata['split_card_amount'] = computed['split_card_amount']
         if customer_phone:
             metadata['customer_phone'] = customer_phone
+        if customer_name:
+            metadata['customer_name'] = customer_name
         order_doc = {
             'id': order_id,
             'business_id': business_id,
@@ -8629,6 +8633,107 @@ def api_nail_pos_refund():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route('/api/nail_pos/orders', methods=['GET'])
+@login_required
+def api_nail_pos_orders_list():
+    """Payment/Order History cho Nail POS — liệt kê từng bill riêng lẻ trong ngày để cashier tra
+    cứu/in lại/hoàn tiền 1 bill cụ thể (khác báo cáo tổng hợp). pos_nail.html hiện KHÔNG có màn
+    hình nào để xem lại bill đã đóng — sau khi tắt receipt là mất dấu hoàn toàn, dù order vẫn nằm
+    đúng trong DB. Mặc định lọc theo ngày hôm nay; truyền ?date=YYYY-MM-DD để xem ngày khác."""
+    business_id = session.get('business_id') or session['user_id']
+    req_date = (request.args.get('date') or '').strip()
+    now = datetime.now()
+    query_date_iso = req_date if req_date else now.strftime('%Y-%m-%d')
+
+    try:
+        orders = list(db.orders.find({
+            'business_id': business_id,
+            'created_at': {'$regex': f'^{query_date_iso}'},
+            'metadata.channel': {'$in': ['nail_pos', 'nail_pos_square', 'nail_pos_refund']},
+        }, {'_id': 0}).sort('created_at', -1))
+
+        order_ids = [o['id'] for o in orders]
+        items_by_order = {}
+        if order_ids:
+            for oi in db.order_items.find({'order_id': {'$in': order_ids}}, {'_id': 0}):
+                items_by_order.setdefault(oi['order_id'], []).append(oi)
+
+        ma_nv_set = set()
+        phone_set = set()
+        for o in orders:
+            phone = (o.get('metadata') or {}).get('customer_phone')
+            if phone:
+                phone_set.add(phone)
+        for items in items_by_order.values():
+            for oi in items:
+                if oi.get('ma_nv'):
+                    ma_nv_set.add(oi['ma_nv'])
+        techs_map = {
+            e['ma_nv']: e.get('ho_ten', e['ma_nv'])
+            for e in db.employees.find({'business_id': business_id, 'ma_nv': {'$in': list(ma_nv_set)}}, {'ma_nv': 1, 'ho_ten': 1, '_id': 0})
+        }
+        customers_map = {
+            c['phone']: c.get('name', c['phone'])
+            for c in db.customers.find({'business_id': business_id, 'phone': {'$in': list(phone_set)}}, {'phone': 1, 'name': 1, '_id': 0})
+        }
+
+        rows = []
+        for o in orders:
+            meta = o.get('metadata') or {}
+            items = items_by_order.get(o['id'], [])
+            tech_names = sorted({techs_map.get(oi.get('ma_nv'), oi.get('ma_nv')) for oi in items if oi.get('ma_nv')})
+            phone = meta.get('customer_phone')
+            customer_display = meta.get('customer_name') or (customers_map.get(phone) if phone else None) or phone or 'Walk-in'
+            rows.append({
+                'order_id': o['id'],
+                'created_at': o['created_at'],
+                'status': o.get('status'),
+                'total_amount': o.get('total_amount'),
+                'payment_method': o.get('payment_method'),
+                'payment_bucket': meta.get('payment_bucket'),
+                'channel': meta.get('channel'),
+                'customer_name': customer_display,
+                'customer_phone': phone or '',
+                'tech_names': tech_names,
+                'item_count': len(items),
+                'refunded_amount': meta.get('refunded_amount', 0),
+                'original_order_id': meta.get('original_order_id'),
+            })
+        return jsonify({"success": True, "data": rows, "date": query_date_iso})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/nail_pos/orders/<int:order_id>', methods=['GET'])
+@login_required
+def api_nail_pos_order_detail(order_id):
+    """Chi tiết 1 bill cho Payment History — dùng để 'Xem chi tiết' và 'In lại bill' (reprint)."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        order = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
+        if not order:
+            return jsonify({"success": False, "message": f"Không tìm thấy hoá đơn #{order_id}."}), 404
+        items = list(db.order_items.find({'order_id': order_id}, {'_id': 0}))
+
+        ma_nv_list = sorted({oi['ma_nv'] for oi in items if oi.get('ma_nv')})
+        techs_map = {
+            e['ma_nv']: e.get('ho_ten', e['ma_nv'])
+            for e in db.employees.find({'business_id': business_id, 'ma_nv': {'$in': ma_nv_list}}, {'ma_nv': 1, 'ho_ten': 1, '_id': 0})
+        }
+        product_ids = [oi['product_id'] for oi in items if oi.get('product_id')]
+        products_map = {
+            p['id']: p.get('name', '')
+            for p in db.products.find({'id': {'$in': product_ids}, 'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0})
+        }
+        for oi in items:
+            oi['tech_name'] = techs_map.get(oi.get('ma_nv'), oi.get('ma_nv') or '')
+            oi['display_name'] = oi.get('custom_name') or products_map.get(oi.get('product_id'), 'Service')
+
+        return jsonify({"success": True, "data": {"order": order, "items": items}})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ========== MỚI: ROUTE CHO CƠ SỞ DỮ LIỆU NHÂN SỰ VÀ SUPER ADMIN ==========
 @app.route('/nhanvien')
 @login_required
@@ -8680,7 +8785,7 @@ def chamcong_kythuat():
 @login_required
 @role_required('admin', 'super_admin')
 def chamcong_nail():
-    return render_template('chamcong_nail.html')
+    return render_template('chamcong_nail.html', default_lang=resolve_lang(request))
 
 # chamcong_spa (/chamcong/spa, /chamcong_spa) đã chuyển sang blueprints/spa_bp.py
 
