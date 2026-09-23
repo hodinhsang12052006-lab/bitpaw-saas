@@ -258,9 +258,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center border border-red-500/50 overflow-hidden shadow-[0_0_12px_#ef4444]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-full w-full rounded-full object-cover shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <span class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-red-500">Paw</span></span>
@@ -1129,6 +1129,28 @@
                         Hoàn toàn được. BitPaw Technical cung cấp hệ thống API mở giúp kết nối đồng bộ dữ liệu khách hàng từ các CRM nổi tiếng và đẩy doanh số nghiệm thu sang các hệ thống ERP kế toán tự động chớp mắt.
                     </div>
                 </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition-all duration-300 hover:border-red-500/20" data-aos="fade-up" data-aos-delay="400">
+                    <div class="faq-header">
+                        <span class="text-lg font-extrabold text-white" data-i18n="faq5_q">Nếu chưa có thợ nào nhận job mới thì hệ thống xử lý ra sao?</span>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform"></i>
+                    </div>
+                    <div class="faq-content text-sm text-slate-300 leading-relaxed font-medium" data-i18n="faq5_a">
+                        Mọi job mới đều xuất hiện tức thì trên bảng Kanban điều phối trung tâm với trạng thái Chờ nhận. Quản lý theo dõi trực quan job nào đang tồn đọng quá lâu chưa ai nhận và chỉ định thợ phù hợp thủ công chỉ trong một cú kéo-thả, tránh bỏ sót khách hàng.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition-all duration-300 hover:border-red-500/20" data-aos="fade-up" data-aos-delay="500">
+                    <div class="faq-header">
+                        <span class="text-lg font-extrabold text-white" data-i18n="faq6_q">Ngoài kho phụ tùng trên xe thợ, có quản lý được kho phụ tùng trung tâm không?</span>
+                        <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform"></i>
+                    </div>
+                    <div class="faq-content text-sm text-slate-300 leading-relaxed font-medium" data-i18n="faq6_a">
+                        Có. Hệ thống quản lý song song kho trung tâm và kho lưu động trên từng xe thợ. Khi thợ xuất phụ tùng từ kho trung tâm ra xe, tồn kho hai bên tự động cập nhật đối ứng, giúp chủ doanh nghiệp luôn nắm rõ tổng tồn kho toàn hệ thống theo thời gian thực.
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1555,6 +1577,10 @@
                 faq3_a: 'Mọi linh kiện trên xe thợ lưu động đều được quản lý bằng số lượng định biên trong kho thợ di động. Nếu thợ tự ý lắp đặt ngoài hệ thống mà không tạo hóa đơn trên app, khi đối soát kiểm kho cuối tuần sẽ bị phát hiện hao hụt ngay và hệ thống tự trừ lương phạt thợ tự động.',
                 faq4_q: 'BitPaw Technical có thể tích hợp với phần mềm CRM/ERP khác không?',
                 faq4_a: 'Hoàn toàn được. BitPaw Technical cung cấp hệ thống API mở giúp kết nối đồng bộ dữ liệu khách hàng từ các CRM nổi tiếng và đẩy doanh số nghiệm thu sang các hệ thống ERP kế toán tự động chớp mắt.',
+                faq5_q: 'Nếu chưa có thợ nào nhận job mới thì hệ thống xử lý ra sao?',
+                faq5_a: 'Mọi job mới đều xuất hiện tức thì trên bảng Kanban điều phối trung tâm với trạng thái Chờ nhận. Quản lý theo dõi trực quan job nào đang tồn đọng quá lâu chưa ai nhận và chỉ định thợ phù hợp thủ công chỉ trong một cú kéo-thả, tránh bỏ sót khách hàng.',
+                faq6_q: 'Ngoài kho phụ tùng trên xe thợ, có quản lý được kho phụ tùng trung tâm không?',
+                faq6_a: 'Có. Hệ thống quản lý song song kho trung tâm và kho lưu động trên từng xe thợ. Khi thợ xuất phụ tùng từ kho trung tâm ra xe, tồn kho hai bên tự động cập nhật đối ứng, giúp chủ doanh nghiệp luôn nắm rõ tổng tồn kho toàn hệ thống theo thời gian thực.',
                 faq_badge: 'HỎI ĐÁP THƯỜNG GẶP',
                 faq_title: 'Giải đáp thắc mắc về hệ thống điều phối thợ',
                 feat1_title: 'Bản Đồ GPS Vệ Tinh',
@@ -1738,6 +1764,10 @@
                 faq3_a: 'Every part on a technician\'s mobile van is tracked against a fixed inventory count in their mobile stock. If a technician installs a part outside the system without creating an app invoice, the weekly stock reconciliation immediately flags the shortfall and the system automatically deducts the penalty from their pay.',
                 faq4_q: 'Can BitPaw Technical integrate with other CRM/ERP software?',
                 faq4_a: 'Absolutely. BitPaw Technical provides an open API system to sync customer data from popular CRMs and push completed job revenue to accounting ERP systems automatically and instantly.',
+                faq5_q: 'What happens to a new job if no technician has claimed it yet?',
+                faq5_a: "Every new job appears instantly on the central dispatch Kanban board with a Pending status. Managers get a visual view of any job sitting unclaimed too long and can manually assign the right technician with a single drag-and-drop, so no customer request slips through.",
+                faq6_q: "Besides the parts on a technician's van, can I track the central warehouse inventory too?",
+                faq6_a: 'Yes. The system manages both the central warehouse and each technician\'s mobile van stock in parallel. When a technician draws parts from the central warehouse onto their van, both inventories update automatically in sync, so owners always have a real-time view of total parts stock across the whole business.',
                 faq_badge: 'FREQUENTLY ASKED QUESTIONS',
                 faq_title: 'Answers About Our Technician Dispatch System',
                 feat1_title: 'Satellite GPS Map',

@@ -32,7 +32,18 @@ def public_booking_nail(business_id=None, service_id=None):
     # minh hoạ tính năng, không đại diện 1 tiệm cụ thể nào).
     services_data = []
     technicians = []
+    business_name = None
     if business_id:
+        try:
+            # Tên tiệm để hiển thị ngay trên trang booking công khai (thay vì luôn ghi cứng
+            # "BitPaw Services") — để link/QR mỗi chủ tiệm thực sự cảm giác là "website riêng"
+            # của họ. db.businesses là nguồn tên chuẩn app đang dùng cho AI CSKH (xem app.py
+            # register()/AIContextEngine.build_context_prompt), không phải bịa field mới.
+            biz_doc = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0})
+            business_name = (biz_doc or {}).get('name')
+        except Exception as e:
+            print(f"MongoDB public_booking_nail business lookup failed: {str(e)}")
+            business_name = None
         try:
             # Lọc ĐÚNG như app.py::sell() (nhánh nail) đang dùng cho chính màn POS — không lọc
             # channel_type, vì dịch vụ Nails không gắn field đó theo giá trị 'nail' nào cả.
@@ -58,4 +69,5 @@ def public_booking_nail(business_id=None, service_id=None):
     return render_template(
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=business_id,
+        business_name=business_name,
     )

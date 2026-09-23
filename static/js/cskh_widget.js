@@ -267,16 +267,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const contactWidget = document.createElement("div");
     contactWidget.id = "bitpawCskhFloating";
     contactWidget.className = "bitpaw-cskh-floating contact-widget z-[99999]";
+    // Nhóm nút liên hệ nhanh (mail/WhatsApp/Messenger/hotline) trỏ THẲNG tới kênh liên hệ của
+    // chính BitPaw (nhà cung cấp phần mềm) — đúng cho khách đang tham khảo mua phần mềm trên
+    // landing page, nhưng SAI hoàn toàn khi hiện trên trang đặt lịch công khai của 1 tiệm: khách
+    // hàng cuối bấm "Hotline 24/7" tưởng gọi cho tiệm lại vô tình gọi cho BitPaw. Ẩn hẳn nhóm này
+    // ở ngữ cảnh customer_booking, chỉ giữ lại avatar mở chat (đã đổi đúng vai trợ lý đặt lịch).
+    const isBookingContext = window.BITPAW_CHAT_CONTEXT === 'customer_booking';
+    const mascotTooltip = isBookingContext ? 'Cần giúp đặt lịch?<br>Nhắn em ngay!' : 'Sếp cần hỗ trợ?<br>Gọi em ngay!';
     contactWidget.innerHTML = `
         <div class="relative group cursor-pointer mb-1" id="mascot-toggle-btn">
             <div class="absolute right-14 top-2 bg-[#08061a] border border-cyan-500/40 text-[#22d3ee] text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
-                Sếp cần hỗ trợ?<br>Gọi em ngay!
+                ${mascotTooltip}
             </div>
             <div class="w-14 h-14 bg-[#08061a] border-2 border-cyan-400 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow">
                 <img src="/static/cho1.jpg" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/6182/6182181.png';" class="w-full h-full object-cover">
             </div>
         </div>
-
+        ${isBookingContext ? '' : `
         <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 text-xs" data-tooltip="Lên đầu">
             <i class="fas fa-chevron-up"></i>
         </button>
@@ -292,6 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <a href="tel:+61385937410" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
             <i class="fas fa-phone-alt"></i>
         </a>
+        `}
     `;
     document.body.appendChild(contactWidget);
 
@@ -458,7 +466,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const industryCode = getPageIndustry();
     const safeIndustry = industryData[industryCode] ? industryCode : 'general';
-    const dna = industryData[safeIndustry] || industryData.general;
+    // CHAT_CONTEXT: 'customer_booking' khi widget đang chạy trên chính trang đặt lịch công khai
+    // của 1 tiệm (booking.html) — đối tượng đang chat là KHÁCH HÀNG CUỐI của tiệm, không phải
+    // chủ tiệm tiềm năng đang được BitPaw chào bán phần mềm. BUG THẬT đã phát hiện: trước đây
+    // dùng chung industryData[...] ở trên cho mọi trang, nên khách quét QR đặt lịch nail lại bị
+    // chào bằng câu "BitPaw giúp Nail salon chia tua, tính hoa hồng..." — đúng nội dung bán phần
+    // mềm cho CHỦ tiệm, hoàn toàn sai người nghe. Override toàn bộ dna cho đúng vai lễ tân của
+    // chính tiệm khi ở ngữ cảnh này (server cũng branch riêng persona, xem app.py::secure_ai_generate
+    // + ai_sales_prompts.compose_booking_assistant_prompt()).
+    const CHAT_CONTEXT = window.BITPAW_CHAT_CONTEXT || null;
+    const dna = CHAT_CONTEXT === 'customer_booking'
+        ? {
+            title: "Đặt lịch",
+            greeting: "Chào bạn! Mình là trợ lý đặt lịch của tiệm 💅 Bạn muốn đặt dịch vụ gì và vào lúc nào ạ? Mình sẽ xếp lịch giúp bạn ngay.",
+            prompt: "",
+        }
+        : (industryData[safeIndustry] || industryData.general);
 
     // Đa doanh nghiệp (multi-tenant): nếu trang hiện tại là widget nhúng thật của 1 doanh
     // nghiệp đã đăng nhập (session có business_id, xem templates/components/cskh_global.html),
@@ -466,6 +489,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // thật của tenant đó. Trên các trang landing marketing chung (không đăng nhập), giá trị này
     // là null và backend tự dùng persona chung theo ngành như cũ.
     const BUSINESS_ID = window.BITPAW_BUSINESS_ID || null;
+
+    // Dọn lại phần UI tĩnh (không thuộc dna) cho đúng ngữ cảnh đặt lịch: đổi tiêu đề header,
+    // ẩn hàng quick-reply "Nail Salon/Restaurant/Payroll..." (chọn ngành phần mềm — vô nghĩa
+    // với khách đang đặt lịch), ẩn tab "Talk to Human Agent" (dành cho agent Sales của BitPaw,
+    // không phải lễ tân của tiệm), và đổi placeholder ô số điện thoại cho đúng mục đích thật
+    // (để tiệm liên hệ xác nhận lịch, không phải "chuyên viên tư vấn gọi lại").
+    if (CHAT_CONTEXT === 'customer_booking') {
+        const headerTitleEl = chatWidget.querySelector(".font-bold.text-sm");
+        if (headerTitleEl) headerTitleEl.textContent = "Trợ Lý Đặt Lịch";
+        const quickRepliesEl = document.getElementById("quick-replies-container");
+        if (quickRepliesEl) quickRepliesEl.style.display = "none";
+        const humanBtnEl = document.getElementById("chatModeHumanBtn");
+        if (humanBtnEl) humanBtnEl.style.display = "none";
+        const phoneInputEl = document.getElementById("chatPhone");
+        if (phoneInputEl) phoneInputEl.placeholder = "Số điện thoại của bạn";
+    }
 
     // 5. Initialize State Variables and DOM References
     const chatForm = document.getElementById("mascot-chat-form");
@@ -804,7 +843,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }).catch(err => console.log("CRM Capture deferred: " + err));
 
                 let aiReply = "";
-                if (msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
+                if (CHAT_CONTEXT !== 'customer_booking' && msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
                     aiReply = "Dạ tiệm nail thì BitPaw hỗ trợ chia tua, ghi dịch vụ từng thợ và tính hoa hồng cuối ngày cho rõ ràng hơn. Tiệm mình đang có bao nhiêu thợ ạ?";
                 } else {
                     try {
@@ -814,10 +853,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             body: JSON.stringify({
                                 business_id: BUSINESS_ID,
                                 industry: industryCode,
+                                context: CHAT_CONTEXT,
                                 customer_phone: userPhone,
                                 history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
-                                userPrompt: `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
+                                userPrompt: CHAT_CONTEXT === 'customer_booking'
+                                    ? `Khách hàng (SĐT ${userPhone}) vừa nhắn: "${msgVal}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật qua book_appointment. (Trả lời tiếng Việt tự nhiên, dưới 350 ký tự).`
+                                    : `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
                                 max_tokens: 220,
                                 temperature: 0.75
                             })
@@ -826,22 +868,28 @@ document.addEventListener("DOMContentLoaded", () => {
                         const resData = await response.json();
                         if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
+                        } else if (CHAT_CONTEXT === 'customer_booking') {
+                            aiReply = "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!";
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
-                        aiReply = `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
+                        aiReply = CHAT_CONTEXT === 'customer_booking'
+                            ? "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!"
+                            : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }
 
-                // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
-                if (!aiReply.includes("8593 7410") && !aiReply.includes("tư vấn gói tối ưu")) {
-                    aiReply += ` Sếp kết nối nhanh Hotline **🇦🇺 +61 3 8593 7410** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
-                }
+                if (CHAT_CONTEXT !== 'customer_booking') {
+                    // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
+                    if (!aiReply.includes("8593 7410") && !aiReply.includes("tư vấn gói tối ưu")) {
+                        aiReply += ` Sếp kết nối nhanh Hotline **🇦🇺 +61 3 8593 7410** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
+                    }
 
-                if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
-                    aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${userPhone}</span>`;
+                    if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
+                        aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${userPhone}</span>`;
+                    }
                 }
 
                 const elapsed = Date.now() - startTime;
@@ -859,7 +907,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Đặc biệt: Nếu khách hỏi "Tôi làm tiệm nail" (hoặc quick reply tương ứng)
                 let aiReply = "";
-                if (msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
+                if (CHAT_CONTEXT !== 'customer_booking' && msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
                     aiReply = "Dạ tiệm nail thì BitPaw hỗ trợ chia tua, ghi dịch vụ từng thợ và tính hoa hồng cuối ngày cho rõ ràng hơn. Tiệm mình đang có bao nhiêu thợ ạ?";
                 } else {
                     // Lịch sử hội thoại được gửi nguyên vẹn dưới dạng messages array thật (không
@@ -873,6 +921,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             body: JSON.stringify({
                                 business_id: BUSINESS_ID,
                                 industry: industryCode,
+                                context: CHAT_CONTEXT,
                                 customer_phone: userPhone,
                                 history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
@@ -885,18 +934,22 @@ document.addEventListener("DOMContentLoaded", () => {
                         const resData = await response.json();
                         if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
+                        } else if (CHAT_CONTEXT === 'customer_booking') {
+                            aiReply = "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!";
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
-                        aiReply = `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
+                        aiReply = CHAT_CONTEXT === 'customer_booking'
+                            ? "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!"
+                            : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }
 
                 // Chỉ append dòng "Đã ghi nhận..." nếu SĐT hợp lệ và chưa từng thông báo
                 const hasMentionedSuccess = chatHistory.some(h => h.content && h.content.includes("Đã ghi nhận SĐT"));
-                if (hasValidPhone && !hasMentionedSuccess && !aiReply.includes("tư vấn gói tối ưu")) {
+                if (CHAT_CONTEXT !== 'customer_booking' && hasValidPhone && !hasMentionedSuccess && !aiReply.includes("tư vấn gói tối ưu")) {
                     aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${phoneVal}</span>`;
                 }
 

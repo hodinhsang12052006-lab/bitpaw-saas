@@ -158,6 +158,7 @@ def public_booking(spa_id=None, service_id=None):
     # khác" nghiêm trọng nhất. Sửa theo ĐÚNG mẫu an toàn nail_bp.py::public_booking_nail() đã
     # áp dụng: thiếu spa_id -> KHÔNG query gì cả, trả về rỗng thay vì trộn dữ liệu.
     services_data = []
+    business_name = None
     if spa_id:
         try:
             services_data = list(db.products.find(
@@ -167,6 +168,14 @@ def public_booking(spa_id=None, service_id=None):
         except Exception as e:
             print(f"MongoDB public_booking services select failed: {str(e)}")
             services_data = []
+        try:
+            # Tên tiệm để hiển thị ngay trên trang booking công khai thay vì luôn ghi cứng
+            # "BitPaw Services" — khớp mẫu đã áp dụng ở nail_bp.py::public_booking_nail().
+            biz_doc = db.businesses.find_one({'id': spa_id}, {'name': 1, '_id': 0})
+            business_name = (biz_doc or {}).get('name')
+        except Exception as e:
+            print(f"MongoDB public_booking business lookup failed: {str(e)}")
+            business_name = None
     # Cho khách TỰ chọn thợ (tuỳ chọn) thay vì luôn để tiệm tự xếp — db.staff là nguồn nhân sự
     # Spa đang dùng cho commission/chấm công (xem add_staff()), CHỈ trả id+name (không lộ phone/
     # commission_rate — public route, không có session). {id, name} khớp shape với nail_bp.py để
@@ -184,6 +193,7 @@ def public_booking(spa_id=None, service_id=None):
     return render_template(
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=spa_id,
+        business_name=business_name,
     )
 
 
@@ -191,8 +201,20 @@ def public_booking(spa_id=None, service_id=None):
 def create_appointment():
     data = request.json or {}
     try:
-        # Route public (khách đặt lịch, không có session) — xác định business_id qua dịch vụ được chọn
-        svc = db.products.find_one({'id': data['service_id']}, {'business_id': 1, 'name': 1, '_id': 0})
+        # BUG THẬT đã vá (phát hiện khi live-test QR booking Nails): booking.html gửi
+        # service_id qua JS `<select>.value`, LUÔN LUÔN là string — nhưng db.products.id lưu
+        # kiểu int (xem next_mongo_id()/mọi route tạo sản phẩm khác). MongoDB match tuyệt đối
+        # theo kiểu dữ liệu: find_one({'id': "192"}) KHÔNG khớp document có id=192 (int), nên
+        # MỌI lượt đặt lịch qua trang booking công khai/QR trước đây đều rớt 400 "Dịch vụ không
+        # tồn tại" — dù khách chọn đúng dịch vụ thật đang hiển thị ngay trên form. Ép kiểu int
+        # trước khi query (fallback về giá trị gốc nếu không phải số, phòng khi có id dạng chuỗi
+        # ở nơi khác) để khớp đúng kiểu đang lưu thật trong DB.
+        raw_service_id = data.get('service_id')
+        try:
+            service_id = int(raw_service_id)
+        except (TypeError, ValueError):
+            service_id = raw_service_id
+        svc = db.products.find_one({'id': service_id}, {'business_id': 1, 'name': 1, '_id': 0})
         if not svc:
             return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
         appointment = book_appointment(
@@ -200,7 +222,7 @@ def create_appointment():
             customer_info={'name': data['name'], 'phone': data['phone']},
             staff_id=data.get('staff_id'),
             book_time=data['book_time'],
-            service_id=data['service_id'],
+            service_id=service_id,
             note=data.get('note'),
             source='web',
         )

@@ -4,19 +4,19 @@
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPaw Retail | Bán Lẻ Siêu Tốc Quét Mã Vạch & Đồng Bộ Tồn Kho Đa Sàn</title>
+    <title>BitPaw Retail | Bán Lẻ Siêu Tốc Quét Mã Vạch & Đồng Bộ Tồn Kho Đa Chi Nhánh</title>
 
     <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
-    {% set title = "BitPaw Retail | Bán Lẻ Siêu Tốc Quét Mã Vạch & Đồng Bộ Tồn Kho Đa Sàn" %}
-    {% set description = "BitPaw Retail: retail POS software with lightning-fast barcode scanning, real-time supermarket inventory management, omnichannel sync with Shopee & TikTok Shop, automated loyalty points, and AI marketing to win back customers." %}
-    {% set keywords = "retail POS software, supermarket inventory management, barcode scanning POS, omnichannel retail, point of sale system, multi-channel inventory sync, loyalty program software, retail management software" %}
+    {% set title = "BitPaw Retail | Bán Lẻ Siêu Tốc Quét Mã Vạch & Đồng Bộ Tồn Kho Đa Chi Nhánh" %}
+    {% set description = "BitPaw Retail: retail POS software with lightning-fast barcode scanning, real-time centralized inventory management across branches, automated loyalty points, and AI marketing to win back customers." %}
+    {% set keywords = "retail POS software, supermarket inventory management, barcode scanning POS, centralized inventory, point of sale system, multi-branch inventory sync, loyalty program software, retail management software" %}
     {% set canonical_path = "solutions/retail" %}
     {% set og_locale = "vi_VN" %}
     {% set schema_name = "BitPaw Retail" %}
     {% set schema_subcategory = "Retail & Supermarket Point of Sale (POS) Software" %}
     {% set faq_items = [
         {'q': 'Does BitPaw Retail support barcode scanning for fast checkout?', 'a': 'Yes. The POS is built for lightning-fast barcode scanning, letting cashiers ring up sales in seconds even during peak hours.'},
-        {'q': 'Can BitPaw Retail sync inventory with Shopee and TikTok Shop?', 'a': 'Yes. BitPaw Retail provides omnichannel sync so stock levels update automatically across your physical store, Shopee, and TikTok Shop, preventing overselling.'},
+        {'q': 'Does BitPaw Retail keep inventory accurate across branches?', 'a': 'Yes. Every counter sale instantly deducts stock in the central Warehouse system shared across all branches, preventing overselling from out-of-sync manual records. Direct Shopee/TikTok Shop sync is on our roadmap and not yet a live feature.'},
         {'q': 'Does the system have a loyalty program to bring customers back?', 'a': "Yes. BitPaw Retail automatically tracks loyalty points per customer and can trigger AI marketing campaigns to win back customers who haven't purchased recently."}
     ] %}
     {% include 'components/seo_meta.html' %}
@@ -242,9 +242,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/50 overflow-hidden shadow-[0_0_12px_#f59e0b]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-full w-full rounded-full object-cover shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <div class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-amber-400">Paw</span></div>
@@ -319,7 +319,7 @@
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
             <div data-aos="fade-right" data-aos-duration="800" class="bp-hero-copy text-center lg:text-left max-w-[680px] mx-auto lg:mx-0">
                 <div class="inline-block bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-bold px-5 py-2.5 rounded-full mb-6 backdrop-blur-md" data-i18n="hero_badge">
-                    🛍️ BitPaw OS: Số Hóa Bán Hàng Siêu Tốc & Đồng Bộ Kho Đa Sàn
+                    🛍️ BitPaw OS: Số Hóa Bán Hàng Siêu Tốc & Đồng Bộ Kho Đa Chi Nhánh
                 </div>
                 <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_h1">
                     Bán lẻ quét mã vạch, <br class="hidden sm:inline">
@@ -327,7 +327,7 @@
                     <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight break-words">AI tự bám đuổi tăng doanh số cũ.</span>
                 </h1>
                 <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
-                    Màn hình POS quét mã vạch Barcode cực nhanh chốt bill 2 giây, tự động khấu trừ tồn kho thực tế, đồng bộ dữ liệu đa sàn Shopee, TikTok Shop và trợ lý AI gợi ý marketing kích cầu.
+                    Màn hình POS quét mã vạch Barcode cực nhanh chốt bill 2 giây, tự động khấu trừ tồn kho thực tế trên hệ thống Kho Hàng trung tâm và trợ lý AI gợi ý marketing kích cầu.
                 </p>
                 <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-amber bg-amber-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
@@ -339,7 +339,7 @@
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
                     <span class="flex items-center gap-2 bg-amber-500/15 px-3 py-2 rounded-full border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]"><i class="fas fa-barcode text-amber-400"></i> <span data-i18n="hero_pill1">Quét Barcode chốt bill 2 giây</span></span>
-                    <span class="flex items-center gap-2 bg-amber-500/15 px-3 py-2 rounded-full border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]"><i class="fas fa-sync text-amber-400"></i> <span data-i18n="hero_pill2">Đồng bộ tồn kho đa sàn</span></span>
+                    <span class="flex items-center gap-2 bg-amber-500/15 px-3 py-2 rounded-full border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]"><i class="fas fa-sync text-amber-400"></i> <span data-i18n="hero_pill2">Đồng bộ tồn kho đa chi nhánh</span></span>
                     <span class="flex items-center gap-2 bg-amber-500/15 px-3 py-2 rounded-full border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]"><i class="fas fa-users text-amber-400"></i> <span data-i18n="hero_pill3">Tích điểm loyalty tự động</span></span>
                     <span class="flex items-center gap-2 bg-amber-500/15 px-3 py-2 rounded-full border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]"><i class="fas fa-robot text-amber-400"></i> <span data-i18n="hero_pill4">AI CSKH gợi ý tin nhắn</span></span>
                 </div>
@@ -371,7 +371,7 @@
                             <h4 class="text-xs font-black text-gray-300 uppercase tracking-widest" data-i18n="hero_card1_title">Đơn hàng mới nhận</h4>
                         </div>
                         <p class="text-sm text-white font-extrabold truncate" data-i18n="hero_card1_name">Đầm xoè - Chị Hạnh</p>
-                        <p class="text-xs text-amber-300 font-bold mt-1" data-i18n="hero_card1_status">Đồng bộ: Shopee • 16:30 • Chờ giao</p>
+                        <p class="text-xs text-amber-300 font-bold mt-1" data-i18n="hero_card1_status">Đơn Online • 16:30 • Chờ giao</p>
                     </div>
      
                     <!-- 2. Cảnh báo tồn kho card -->
@@ -542,8 +542,8 @@
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-yellow-500/20 transition-all duration-300">
                     <div class="text-yellow-400 text-5xl mb-5"><i class="fas fa-sync"></i></div>
-                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_feat2_title">Đồng Bộ Đa Sàn</h3>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat2_desc">Tự động đồng bộ số lượng tồn kho thực tế lên các sàn Shopee, TikTok Shop tránh overselling.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_feat2_title">Tồn Kho Chính Xác Real-Time</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat2_desc">Mỗi đơn bán tại quầy lập tức trừ kho trên hệ thống Kho Hàng trung tâm — không còn overselling vì sổ sách lệch tay giữa quầy và online.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-amber-500/20 transition-all duration-300">
                     <div class="text-amber-400 text-5xl mb-5"><i class="fas fa-id-card"></i></div>
@@ -566,7 +566,7 @@
                 <span class="text-sm font-black tracking-widest text-amber-500 uppercase" data-i18n="workflow_eyebrow">LUỒNG VẬN HÀNH THỰC TẾ</span>
                 <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="workflow_title">
                     Quy trình chốt bill bán lẻ siêu tốc <br>
-                    <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">đồng bộ kho đa sàn tự động khép kín.</span>
+                    <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">đồng bộ kho đa chi nhánh tự động khép kín.</span>
                 </h2>
                 <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="workflow_desc">
                     Bản đồ quy trình số hóa từ lúc nhập hàng dán nhãn Barcode đến khi khách quét VietQR động thanh toán:
@@ -772,9 +772,9 @@
                         <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 text-xl mb-6 border border-amber-500/20 group-hover:scale-110 transition-transform">
                             <i class="fas fa-sync"></i>
                         </div>
-                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feat2_title">Đồng Bộ Tồn Kho Đa Sàn</h3>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feat2_title">Tồn Kho Tập Trung, Cảnh Báo Hết Hàng Tự Động</h3>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feat2_desc">
-                            Liên kết API tự động trừ và cập nhật tồn kho real-time lên các sàn TMĐT Shopee, TikTok Shop chớp mắt khi bán lẻ tại quầy, tránh phạt hủy đơn.
+                            Mỗi đơn bán tại quầy tự động trừ kho real-time trên hệ thống Kho Hàng trung tâm, cảnh báo ngay khi sản phẩm sắp hết để chủ động nhập thêm. Kết nối đồng bộ trực tiếp lên Shopee/TikTok Shop đang trong lộ trình phát triển.
                         </p>
                     </div>
                 </div>
@@ -1016,6 +1016,12 @@
                             Nhận diện ngày sinh nhật thành viên cũ, tự động gửi tặng mã giảm giá voucher 20% trị giá đơn hàng để thúc đẩy nhu cầu tự thưởng sắm đồ mới.
                         </p>
                     </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight break-words flex items-center gap-2"><i class="fas fa-user-clock text-rose-400"></i> <span data-i18n="aicskh_feat3_title">Kéo khách im ắng quay lại</span></h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_feat3_desc">
+                            Nếu một khách hàng thân thiết không phát sinh đơn hàng mới sau 45 ngày, AI tự động gợi ý gửi tin nhắn hỏi thăm kèm mã giảm giá đặc biệt để mời khách quay lại trước khi mất khách vào tay đối thủ.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Right Visual (Chat simulator) -->
@@ -1075,12 +1081,12 @@
                 <!-- FAQ 1 -->
                 <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
                     <div class="faq-header">
-                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq1_q">Đồng bộ tồn kho đa sàn Shopee, TikTok Shop hoạt động như thế nào?</h3>
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq1_q">Tồn kho được cập nhật real-time như thế nào khi bán tại quầy?</h3>
                         <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
                     </div>
                     <div class="faq-content">
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq1_a">
-                            BitPaw OS liên kết trực tiếp với các sàn thương mại điện tử qua kết nối API bảo mật. Mỗi khi thu ngân quét mã vạch bán lẻ chốt bill 1 chiếc váy tại quầy, hệ thống lập tức cập nhật trừ tồn kho -1 cái tự động lên cả sàn Shopee và TikTok Shop trong nháy mắt.
+                            Mỗi khi thu ngân quét mã vạch chốt bill tại quầy, hệ thống Kho Hàng trung tâm lập tức trừ tồn kho -1 ngay tức thời, áp dụng đồng nhất cho toàn bộ chi nhánh đang dùng chung 1 tài khoản. Kết nối đồng bộ trực tiếp lên Shopee/TikTok Shop hiện đang trong lộ trình phát triển, chưa phải tính năng hoạt động thật.
                         </p>
                     </div>
                 </div>
@@ -1110,6 +1116,45 @@
                         </p>
                     </div>
                 </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq4_q">Chương trình tích điểm khách hàng thân thiết hoạt động ra sao?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq4_a">
+                            Mỗi hóa đơn tính tiền tại quầy tự động cộng điểm thưởng vào đúng hồ sơ khách hàng theo số điện thoại, tích lũy lên hạng thành viên cao hơn theo thời gian — khách quay lại lần sau chỉ cần đọc số điện thoại là quy đổi điểm giảm giá ngay tại quầy.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq5_q">Cửa hàng có nhiều chi nhánh, quản lý tồn kho riêng từng chi nhánh được không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq5_a">
+                            Được. Mỗi chi nhánh có kho hàng và lịch sử bán hàng riêng biệt, trong khi chủ cửa hàng vẫn xem được báo cáo doanh thu và tồn kho gộp toàn hệ thống hoặc lọc riêng từng chi nhánh trên cùng 1 tài khoản quản trị.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq6_q">Hệ thống có cảnh báo khi sản phẩm sắp hết hàng để nhập thêm kịp thời không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq6_a">
+                            Có. Trang Cảnh Báo Tồn Kho liệt kê ngay các sản phẩm đã chạm ngưỡng tối thiểu bạn tự đặt, giúp chủ cửa hàng chủ động đặt hàng bổ sung trước khi thực sự cháy hàng và bỏ lỡ doanh số.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1119,7 +1164,7 @@
         <div class="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 opacity-30 rounded-full blur-[100px] pointer-events-none"></div>
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
             <h2 class="text-3xl md:text-4xl font-bold mb-8 tracking-tight break-words" data-i18n="cta_title">Đã Đến Lúc Nâng Cấp Quầy Thu Ngân Bán Lẻ!</h2>
-            <p class="text-base md:text-lg text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed break-words" data-i18n="cta_desc">Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng quét mã Barcode, đồng bộ tồn kho đa sàn và hệ thống thẻ thành viên loyalty thông minh.</p>
+            <p class="text-base md:text-lg text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed break-words" data-i18n="cta_desc">Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng quét mã Barcode, đồng bộ tồn kho đa chi nhánh và hệ thống thẻ thành viên loyalty thông minh.</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('register') }}" class="btn-neon-amber bg-amber-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
                     <i class="fas fa-rocket"></i> <span data-i18n="cta_btn1">Đăng ký dùng thử miễn phí</span>
@@ -1492,18 +1537,18 @@
 
         const translations = {
             vi: {
-                hero_badge: '🛍️ BitPaw OS: Số Hóa Bán Hàng Siêu Tốc & Đồng Bộ Kho Đa Sàn',
+                hero_badge: '🛍️ BitPaw OS: Số Hóa Bán Hàng Siêu Tốc & Đồng Bộ Kho Đa Chi Nhánh',
                 hero_h1: 'Bán lẻ quét mã vạch, <br class="hidden sm:inline"> <span class="text-gradient-amber drop-shadow-[0_4px_25px_rgba(245,158,11,0.65)] break-words">không còn sai sót, lệch kho.</span> <br class="hidden sm:inline">',
-                hero_desc: 'Màn hình POS quét mã vạch Barcode cực nhanh chốt bill 2 giây, tự động khấu trừ tồn kho thực tế, đồng bộ dữ liệu đa sàn Shopee, TikTok Shop và trợ lý AI gợi ý marketing kích cầu.',
+                hero_desc: 'Màn hình POS quét mã vạch Barcode cực nhanh chốt bill 2 giây, tự động khấu trừ tồn kho thực tế trên hệ thống Kho Hàng trung tâm và trợ lý AI gợi ý marketing kích cầu.',
                 hero_btn1: 'Dùng thử cho shop bán lẻ',
                 hero_btn2: 'Nhận tư vấn qua Zalo',
                 hero_pill1: 'Quét Barcode chốt bill 2 giây',
-                hero_pill2: 'Đồng bộ tồn kho đa sàn',
+                hero_pill2: 'Đồng bộ tồn kho đa chi nhánh',
                 hero_pill3: 'Tích điểm loyalty tự động',
                 hero_pill4: 'AI CSKH gợi ý tin nhắn',
                 hero_card1_title: 'Đơn hàng mới nhận',
                 hero_card1_name: 'Đầm xoè - Chị Hạnh',
-                hero_card1_status: 'Đồng bộ: Shopee • 16:30 • Chờ giao',
+                hero_card1_status: 'Đơn Online • 16:30 • Chờ giao',
                 hero_card2_title: 'Kiểm Kho Động',
                 hero_card2_name: 'Son môi Velvet - Sắp hết',
                 hero_card2_status: 'Tồn kho thực tế: 5 thỏi',
@@ -1540,14 +1585,14 @@
                 promise_desc: 'BitPaw số hóa triệt để và đồng bộ liền mạch quầy thu ngân với kho bãi thực tế, mang lại trải nghiệm thanh toán cao cấp 2 giây cho khách hàng.',
                 promise_feat1_title: 'Bán Lẻ Quét Barcode',
                 promise_feat1_desc: 'Màn hình bán hàng quét mã vạch sản phẩm siêu tốc, chốt bill và in hóa đơn nhiệt chỉ 2 giây.',
-                promise_feat2_title: 'Đồng Bộ Đa Sàn',
-                promise_feat2_desc: 'Tự động đồng bộ số lượng tồn kho thực tế lên các sàn Shopee, TikTok Shop tránh overselling.',
+                promise_feat2_title: 'Tồn Kho Chính Xác Real-Time',
+                promise_feat2_desc: 'Mỗi đơn bán tại quầy lập tức trừ kho trên hệ thống Kho Hàng trung tâm — không còn overselling vì sổ sách lệch tay giữa quầy và online.',
                 promise_feat3_title: 'Tích Điểm Thành Viên',
                 promise_feat3_desc: 'Loyalty tự động tích lũy điểm thưởng theo số điện thoại, nâng hạng thành viên Bạc/Vàng/Kim Cương.',
                 promise_feat4_title: 'Cảnh Báo Hết Hàng',
                 promise_feat4_desc: 'Tự động phát thông báo cảnh báo lên màn hình quản trị khi số lượng tồn kho sản phẩm xuống dưới mức tối thiểu.',
                 workflow_eyebrow: 'LUỒNG VẬN HÀNH THỰC TẾ',
-                workflow_title: 'Quy trình chốt bill bán lẻ siêu tốc <br> <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">đồng bộ kho đa sàn tự động khép kín.</span>',
+                workflow_title: 'Quy trình chốt bill bán lẻ siêu tốc <br> <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">đồng bộ kho đa chi nhánh tự động khép kín.</span>',
                 workflow_desc: 'Bản đồ quy trình số hóa từ lúc nhập hàng dán nhãn Barcode đến khi khách quét VietQR động thanh toán:',
                 workflow_step1_title: 'Khai báo, in mã vạch',
                 workflow_step1_desc: 'Nhập danh mục sản phẩm lên kho cloud, in tem nhãn dán mã vạch Barcode dán lên bao bì hàng hóa.',
@@ -1571,8 +1616,8 @@
                 features_trust_badge: '100% tính năng thật — bấm vào từng mục để dùng ngay, không phải ảnh minh hoạ',
                 feat1_title: 'Màn hình POS Quét Mã Barcode',
                 feat1_desc: 'Tìm kiếm sản phẩm bằng tia quét laser Barcode nhanh chóng, chốt đơn in bill nhiệt chỉ trong 2 giây tại giao diện bán quầy <a href="{{ url_for('sell') }}" class="text-amber-400 underline hover:text-amber-300">sell.html</a>.',
-                feat2_title: 'Đồng Bộ Tồn Kho Đa Sàn',
-                feat2_desc: 'Liên kết API tự động trừ và cập nhật tồn kho real-time lên các sàn TMĐT Shopee, TikTok Shop chớp mắt khi bán lẻ tại quầy, tránh phạt hủy đơn.',
+                feat2_title: 'Tồn Kho Tập Trung, Cảnh Báo Hết Hàng Tự Động',
+                feat2_desc: 'Mỗi đơn bán tại quầy tự động trừ kho real-time trên hệ thống Kho Hàng trung tâm, cảnh báo ngay khi sản phẩm sắp hết để chủ động nhập thêm. Kết nối đồng bộ trực tiếp lên Shopee/TikTok Shop đang trong lộ trình phát triển.',
                 feat3_title: 'Thẻ Thành Viên Loyalty Tự Động',
                 feat3_desc: 'Nhận diện khách quen bằng số điện thoại, tự tích lũy điểm thưởng và tự động nâng hạng thành viên Bạc/Vàng/Kim Cương để nhận chiết khấu.',
                 feat4_title: 'Cảnh Báo Hết Hàng Trong Kho',
@@ -1617,20 +1662,28 @@
                 aicskh_feat1_desc: 'Dựa trên lịch sử mua sắm của khách (size quần áo, gu màu sắc), AI tự động tạo kịch bản tin nhắn rủ rê khi có bộ sưu tập sản phẩm mới nhập kho tương đồng.',
                 aicskh_feat2_title: 'Quà tặng sinh nhật thành viên',
                 aicskh_feat2_desc: 'Nhận diện ngày sinh nhật thành viên cũ, tự động gửi tặng mã giảm giá voucher 20% trị giá đơn hàng để thúc đẩy nhu cầu tự thưởng sắm đồ mới.',
+                aicskh_feat3_title: 'Kéo khách im ắng quay lại',
+                aicskh_feat3_desc: 'Nếu một khách hàng thân thiết không phát sinh đơn hàng mới sau 45 ngày, AI tự động gợi ý gửi tin nhắn hỏi thăm kèm mã giảm giá đặc biệt để mời khách quay lại trước khi mất khách vào tay đối thủ.',
                 aicskh_chat1: 'Phát hiện khách hàng "Chị Linh - Hạng Vàng" vừa hoàn thành đơn hàng mua Son Velvet. Size váy ưa thích: M. Màu sắc: Đỏ thắm.',
                 aicskh_chat2: 'Gợi ý kịch bản Zalo đề xuất bộ đầm váy thiết kế mới về tương thích?',
                 aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fab fa-whatsapp text-amber-400"></i> Đã gửi Zalo thành công:</p> "Chào chị Linh, shop vừa cập bến bộ sưu tập đầm váy thiết kế sắc Đỏ hoa hồng size M cực xinh hợp gu chị. Tặng riêng chị voucher giảm 15% [DAMSANG] để mặc thử nhé!"',
                 faq_eyebrow: 'GIẢI ĐÁP THẮC MẮC',
                 faq_title: 'Hỏi Đáp <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">Về Phần Mềm BitPaw Retail</span>',
                 faq_desc: 'Những thắc mắc thường gặp của các chủ cửa hàng tạp hóa, shop quần áo mỹ phẩm khi số hóa bán lẻ:',
-                faq1_q: 'Đồng bộ tồn kho đa sàn Shopee, TikTok Shop hoạt động như thế nào?',
-                faq1_a: 'BitPaw OS liên kết trực tiếp với các sàn thương mại điện tử qua kết nối API bảo mật. Mỗi khi thu ngân quét mã vạch bán lẻ chốt bill 1 chiếc váy tại quầy, hệ thống lập tức cập nhật trừ tồn kho -1 cái tự động lên cả sàn Shopee và TikTok Shop trong nháy mắt.',
+                faq1_q: 'Tồn kho được cập nhật real-time như thế nào khi bán tại quầy?',
+                faq1_a: 'Mỗi khi thu ngân quét mã vạch chốt bill tại quầy, hệ thống Kho Hàng trung tâm lập tức trừ tồn kho -1 ngay tức thời, áp dụng đồng nhất cho toàn bộ chi nhánh đang dùng chung 1 tài khoản. Kết nối đồng bộ trực tiếp lên Shopee/TikTok Shop hiện đang trong lộ trình phát triển, chưa phải tính năng hoạt động thật.',
                 faq2_q: 'Tôi có thể tự thiết kế và in mã vạch dán lên sản phẩm không?',
                 faq2_a: 'Hoàn toàn được. Phần mềm tích hợp module tự động sinh mã Barcode hoặc mã QR Code cho các sản phẩm chưa có mã vạch sẵn của nhà sản xuất. Bạn chỉ cần điền tên, chọn in nhãn dán dán lên bao bì chốt bill quầy cực kỳ nhanh gọn.',
                 faq3_q: 'Hệ thống có tự động trừ kho nguyên liệu đóng gói không?',
                 faq3_a: 'Có. Bạn có thể định lượng bán thành phẩm và nguyên vật liệu phụ trợ (túi giấy đóng gói, hộp carton, nhãn thương hiệu). Khi hoàn tất bán lẻ, hệ thống tự động trừ kho sản phẩm chính cùng các phụ liệu đi kèm chặt chẽ chống thất thoát.',
+                faq4_q: 'Chương trình tích điểm khách hàng thân thiết hoạt động ra sao?',
+                faq4_a: 'Mỗi hóa đơn tính tiền tại quầy tự động cộng điểm thưởng vào đúng hồ sơ khách hàng theo số điện thoại, tích lũy lên hạng thành viên cao hơn theo thời gian — khách quay lại lần sau chỉ cần đọc số điện thoại là quy đổi điểm giảm giá ngay tại quầy.',
+                faq5_q: 'Cửa hàng có nhiều chi nhánh, quản lý tồn kho riêng từng chi nhánh được không?',
+                faq5_a: 'Được. Mỗi chi nhánh có kho hàng và lịch sử bán hàng riêng biệt, trong khi chủ cửa hàng vẫn xem được báo cáo doanh thu và tồn kho gộp toàn hệ thống hoặc lọc riêng từng chi nhánh trên cùng 1 tài khoản quản trị.',
+                faq6_q: 'Hệ thống có cảnh báo khi sản phẩm sắp hết hàng để nhập thêm kịp thời không?',
+                faq6_a: 'Có. Trang Cảnh Báo Tồn Kho liệt kê ngay các sản phẩm đã chạm ngưỡng tối thiểu bạn tự đặt, giúp chủ cửa hàng chủ động đặt hàng bổ sung trước khi thực sự cháy hàng và bỏ lỡ doanh số.',
                 cta_title: 'Đã Đến Lúc Nâng Cấp Quầy Thu Ngân Bán Lẻ!',
-                cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng quét mã Barcode, đồng bộ tồn kho đa sàn và hệ thống thẻ thành viên loyalty thông minh.',
+                cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng quét mã Barcode, đồng bộ tồn kho đa chi nhánh và hệ thống thẻ thành viên loyalty thông minh.',
                 cta_btn1: 'Đăng ký dùng thử miễn phí',
                 footer_tagline: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
                 footer_company_name: 'Bitpaw Technology LLC',
@@ -1668,18 +1721,18 @@
                 fabsheet_email: 'Gửi Email'
             },
             en: {
-                hero_badge: '🛍️ BitPaw OS: Lightning-Fast Checkout & Multi-Platform Stock Sync',
+                hero_badge: '🛍️ BitPaw OS: Lightning-Fast Checkout & Multi-Branch Stock Sync',
                 hero_h1: 'Barcode-scan retail, <br class="hidden sm:inline"> <span class="text-gradient-amber drop-shadow-[0_4px_25px_rgba(245,158,11,0.65)] break-words">no more errors, no more stock mismatches.</span> <br class="hidden sm:inline">',
-                hero_desc: 'A lightning-fast barcode-scan POS that closes a bill in 2 seconds, auto-deducts real stock, syncs data across Shopee and TikTok Shop, and an AI assistant that suggests demand-boosting marketing.',
+                hero_desc: 'A lightning-fast barcode-scan POS that closes a bill in 2 seconds, auto-deducts real stock in the central Warehouse system, and an AI assistant that suggests demand-boosting marketing.',
                 hero_btn1: 'Try It For Your Retail Shop',
                 hero_btn2: 'Get Zalo Consulting',
                 hero_pill1: '2-Second Barcode Checkout',
-                hero_pill2: 'Multi-Platform Stock Sync',
+                hero_pill2: 'Multi-Branch Stock Sync',
                 hero_pill3: 'Automatic Loyalty Points',
                 hero_pill4: 'AI CSKH Message Suggestions',
                 hero_card1_title: 'New Order Received',
                 hero_card1_name: 'Flared Dress - Ms. Hanh',
-                hero_card1_status: 'Synced: Shopee • 4:30 PM • Awaiting shipment',
+                hero_card1_status: 'Online Order • 4:30 PM • Awaiting shipment',
                 hero_card2_title: 'Live Stock Check',
                 hero_card2_name: 'Velvet Lipstick - Low Stock',
                 hero_card2_status: 'Actual stock: 5 units',
@@ -1716,14 +1769,14 @@
                 promise_desc: 'BitPaw thoroughly digitizes and seamlessly syncs the checkout counter with real warehouse stock, delivering a premium 2-second checkout experience for customers.',
                 promise_feat1_title: 'Barcode-Scan Retail',
                 promise_feat1_desc: 'A lightning-fast product barcode-scanning POS screen that closes the bill and prints a thermal receipt in just 2 seconds.',
-                promise_feat2_title: 'Multi-Platform Sync',
-                promise_feat2_desc: 'Automatically syncs real stock quantities to Shopee and TikTok Shop to prevent overselling.',
+                promise_feat2_title: 'Real-Time Accurate Inventory',
+                promise_feat2_desc: 'Every counter sale instantly deducts stock in the central Warehouse system — no more overselling from out-of-sync manual records.',
                 promise_feat3_title: 'Member Loyalty Points',
                 promise_feat3_desc: 'Loyalty automatically accrues reward points by phone number and upgrades members to Silver/Gold/Diamond tiers.',
                 promise_feat4_title: 'Low-Stock Alerts',
                 promise_feat4_desc: 'Automatically pushes an alert to the admin dashboard when a product\'s stock quantity falls below the minimum threshold.',
                 workflow_eyebrow: 'REAL-WORLD OPERATING FLOW',
-                workflow_title: 'A lightning-fast retail checkout process <br> <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">with automatic, closed-loop multi-platform stock sync.</span>',
+                workflow_title: 'A lightning-fast retail checkout process <br> <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">with automatic, closed-loop multi-branch stock sync.</span>',
                 workflow_desc: 'A digitized process map from labeling incoming stock with barcodes to the customer scanning a dynamic VietQR code to pay:',
                 workflow_step1_title: 'Register & print barcodes',
                 workflow_step1_desc: 'Add product listings to the cloud warehouse, print barcode labels, and affix them to the goods packaging.',
@@ -1747,8 +1800,8 @@
                 features_trust_badge: '100% real, working features — click any card to try it now, not a mockup screenshot',
                 feat1_title: 'Barcode-Scanning POS Screen',
                 feat1_desc: 'Search for products with a fast laser barcode scan, closing the order and printing a thermal receipt in just 2 seconds at the <a href="{{ url_for('sell') }}" class="text-amber-400 underline hover:text-amber-300">sell.html</a> counter interface.',
-                feat2_title: 'Multi-Platform Stock Sync',
-                feat2_desc: 'API integration automatically deducts and updates stock in real time across Shopee and TikTok Shop the instant a retail sale is made at the counter, avoiding cancellation penalties.',
+                feat2_title: 'Centralized Inventory & Auto Low-Stock Alerts',
+                feat2_desc: 'Every counter sale automatically deducts stock in real time on the central Warehouse system, alerting you the moment an item runs low so you can restock proactively. Direct Shopee/TikTok Shop sync is on our roadmap.',
                 feat3_title: 'Automatic Loyalty Membership',
                 feat3_desc: 'Recognizes repeat customers by phone number, automatically accrues reward points, and upgrades members to Silver/Gold/Diamond tiers for discounts.',
                 feat4_title: 'Low-Stock Warehouse Alerts',
@@ -1793,20 +1846,28 @@
                 aicskh_feat1_desc: 'Based on a customer\'s purchase history (clothing size, color preference), AI automatically drafts an outreach message whenever a similar new collection arrives in stock.',
                 aicskh_feat2_title: 'Member birthday gifts',
                 aicskh_feat2_desc: 'Recognizes a member\'s birthday and automatically sends a 20%-off voucher to encourage a self-reward shopping trip.',
+                aicskh_feat3_title: 'Winning back quiet customers',
+                aicskh_feat3_desc: 'If a loyal customer hasn\'t placed a new order in 45 days, AI suggests sending them a check-in message with a special discount code to bring them back before a competitor does.',
                 aicskh_chat1: 'Detected customer "Ms. Linh - Gold Tier" just completed an order for Velvet Lipstick. Preferred dress size: M. Color: Deep red.',
                 aicskh_chat2: 'Suggested Zalo script proposing the new dress collection that just arrived — a match?',
                 aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fab fa-whatsapp text-amber-400"></i> Sent via Zalo successfully:</p> "Hi Linh, we just got in a new dress collection in rose red, size M — a perfect match for your style. Just for you: a 15% discount voucher [DAMSANG] to try it out!"',
                 faq_eyebrow: 'FREQUENTLY ASKED QUESTIONS',
                 faq_title: 'FAQ <span class="text-gradient-amber drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] break-words">About BitPaw Retail Software</span>',
                 faq_desc: 'Common questions from grocery store, clothing, and cosmetics shop owners when digitizing their retail operations:',
-                faq1_q: 'How does multi-platform stock sync with Shopee and TikTok Shop work?',
-                faq1_a: 'BitPaw OS connects directly to e-commerce platforms via a secure API connection. Every time a cashier scans a barcode to close a sale for 1 dress at the counter, the system instantly updates stock by -1 unit automatically on both Shopee and TikTok Shop in the blink of an eye.',
+                faq1_q: 'How is stock updated in real time when a sale happens at the counter?',
+                faq1_a: 'Every time a cashier scans a barcode to close a sale at the counter, the central Warehouse system instantly deducts -1 unit, applied consistently across every branch sharing the same account. Direct Shopee/TikTok Shop sync is currently on our roadmap — it is not yet a live, working feature.',
                 faq2_q: 'Can I design and print my own barcodes to stick on products?',
                 faq2_a: 'Absolutely. The software includes a module that automatically generates a barcode or QR code for products that don\'t already have a manufacturer barcode. Just enter the name, choose to print the label, and stick it on the packaging — closing a sale at the counter is fast and simple.',
                 faq3_q: 'Does the system automatically deduct packaging material stock?',
                 faq3_a: 'Yes. You can set a bill of materials for finished goods and supporting materials (paper bags, cartons, brand labels). Once a retail sale is complete, the system automatically deducts stock for the main product along with its accompanying materials, tightly preventing loss.',
+                faq4_q: 'How does the loyalty points program work?',
+                faq4_a: 'Every counter sale automatically adds reward points to the right customer profile by phone number, building up to higher membership tiers over time — on their next visit, the customer just gives their phone number to redeem points for a discount right at the counter.',
+                faq5_q: 'We have multiple store branches — can inventory be tracked separately per branch?',
+                faq5_a: 'Yes. Each branch has its own separate warehouse and sales history, while the owner can still view consolidated revenue and inventory reports across the whole chain, or filter by individual branch, from a single admin account.',
+                faq6_q: 'Does the system warn us before a product actually runs out of stock?',
+                faq6_a: 'Yes. The Inventory Alert page immediately lists any product that has hit the minimum threshold you set, letting owners proactively reorder before truly running out and losing sales.',
                 cta_title: 'It\'s Time to Upgrade Your Retail Checkout Counter!',
-                cta_desc: 'Sign up for a free 14-day trial with full access to barcode scanning, multi-platform stock sync, and a smart loyalty membership card system.',
+                cta_desc: 'Sign up for a free 14-day trial with full access to barcode scanning, multi-branch stock sync, and a smart loyalty membership card system.',
                 cta_btn1: 'Sign Up For A Free Trial',
                 footer_tagline: 'A pioneering ALL-IN-ONE SaaS software empire applying Radar AI, multi-industry Smart POS, omnichannel sales management, and AI Marketing Agency services in Vietnam.',
                 footer_company_name: 'Bitpaw Technology LLC',

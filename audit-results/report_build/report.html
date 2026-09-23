@@ -1,0 +1,358 @@
+<title>BitPaw Nails — Báo Cáo Kiểm Thử Tự Động</title>
+<style>
+  @font-face {
+    font-family: 'ReportMono';
+    src: local('Cascadia Code'), local('JetBrains Mono'), local('Roboto Mono');
+  }
+  :root {
+    --bg: #0a0e1a;
+    --bg-grain: radial-gradient(circle at 18% 8%, rgba(34,211,238,0.06), transparent 40%),
+                radial-gradient(circle at 85% 92%, rgba(232,121,249,0.05), transparent 42%);
+    --surface: #10152a;
+    --surface-2: #161d38;
+    --border: rgba(150,164,199,0.14);
+    --border-strong: rgba(150,164,199,0.26);
+    --text: #e8ecf6;
+    --text-dim: #8d97b3;
+    --text-faint: #5c6584;
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34,211,238,0.14);
+    --fuchsia: #e879f9;
+    --fuchsia-dim: rgba(232,121,249,0.14);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251,191,36,0.14);
+    --good: #34d399;
+    --font-mono: 'ReportMono', ui-monospace, 'Cascadia Code', 'Roboto Mono', 'SFMono-Regular', Consolas, monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg) var(--bg-grain);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--cyan-dim); color: var(--text); }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+
+  /* ============ Top bar ============ */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(10,14,26,0.86);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px clamp(16px, 4vw, 40px);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em;
+    color: var(--cyan); border: 1px solid var(--border-strong); border-radius: 5px;
+    padding: 3px 7px; text-transform: uppercase;
+  }
+  .brand h1 { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .brand h1 span { color: var(--text-dim); font-weight: 500; }
+  .topbar-meta {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint);
+    letter-spacing: 0.02em;
+  }
+
+  /* ============ Hero / summary ============ */
+  .hero { padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 40px) 8px; max-width: 1180px; margin: 0 auto; }
+  .hero-eyebrow {
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--fuchsia); margin: 0 0 14px;
+  }
+  .hero h2 {
+    font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 14px; font-weight: 800;
+    letter-spacing: -0.02em; text-wrap: balance; max-width: 18ch;
+  }
+  .hero p.lede {
+    color: var(--text-dim); font-size: 15.5px; max-width: 62ch; margin: 0 0 30px;
+  }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .stat-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; border-top: 2px solid var(--cyan);
+  }
+  .stat-tile.acc-fuchsia { border-top-color: var(--fuchsia); }
+  .stat-tile.acc-amber { border-top-color: var(--amber); }
+  .stat-tile.acc-good { border-top-color: var(--good); }
+  .stat-tile .num {
+    font-family: var(--font-mono); font-size: 26px; font-weight: 600; color: var(--text);
+    font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-dim); }
+
+  .proof-banner {
+    margin-top: 22px; display: flex; align-items: flex-start; gap: 12px;
+    background: linear-gradient(135deg, var(--fuchsia-dim), transparent 60%), var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 12px; padding: 14px 18px;
+  }
+  .proof-banner .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--fuchsia); margin-top: 5px; flex-shrink: 0;
+    box-shadow: 0 0 0 4px var(--fuchsia-dim);
+  }
+  .proof-banner b { color: var(--fuchsia); }
+  .proof-banner p { margin: 2px 0 0; font-size: 13.5px; color: var(--text-dim); }
+
+  /* ============ Layout: nav + content ============ */
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 0; max-width: 1180px; margin: 8px auto 0; padding: 0 clamp(16px, 4vw, 40px); }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } .side-nav { display: none; } }
+
+  .side-nav { position: sticky; top: 68px; align-self: start; padding: 34px 20px 40px 0; }
+  .side-nav .nav-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; color: var(--text-faint); text-transform: uppercase; margin-bottom: 12px; }
+  .side-nav a {
+    display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text-dim);
+    font-size: 13px; padding: 7px 0; border-left: 2px solid transparent; padding-left: 10px;
+    transition: color .15s, border-color .15s;
+  }
+  .side-nav a:hover { color: var(--text); border-left-color: var(--border-strong); }
+  .side-nav a .count { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
+
+  main { padding: 34px 0 90px; min-width: 0; }
+
+  section.grp { margin-bottom: 56px; scroll-margin-top: 78px; }
+  .grp-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .grp-head .grp-idx { font-family: var(--font-mono); font-size: 13px; color: var(--text-faint); }
+  .grp-head h3 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: -0.005em; }
+  .grp-head .grp-count {
+    font-family: var(--font-mono); font-size: 11px; color: var(--cyan); background: var(--cyan-dim);
+    border-radius: 20px; padding: 3px 10px; margin-left: auto;
+  }
+  .grp-note { font-size: 13.5px; color: var(--text-dim); margin: -8px 0 18px; max-width: 68ch; }
+
+  /* ============ Video block ============ */
+  .video-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px; margin-bottom: 26px; display: grid; grid-template-columns: 1fr; gap: 14px;
+  }
+  @media (min-width: 720px) { .video-block.two-col { grid-template-columns: 1.4fr 1fr; align-items: center; } }
+  .video-block video { width: 100%; border-radius: 9px; border: 1px solid var(--border-strong); background: #000; display: block; }
+  .video-copy .video-tag {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 6px; display: block;
+  }
+  .video-copy h4 { margin: 0 0 6px; font-size: 15.5px; }
+  .video-copy p { margin: 0; font-size: 13px; color: var(--text-dim); }
+
+  /* ============ Screenshot grid ============ */
+  .shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }
+  .shot-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column; transition: border-color .15s, transform .15s;
+  }
+  .shot-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .shot-frame {
+    background: #05070d; aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; cursor: zoom-in; position: relative;
+  }
+  .shot-frame.portrait { aspect-ratio: 9/12; }
+  .shot-frame img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .shot-num {
+    position: absolute; top: 8px; left: 8px; font-family: var(--font-mono); font-size: 10.5px;
+    background: rgba(10,14,26,0.78); border: 1px solid var(--border-strong); color: var(--cyan);
+    padding: 2px 7px; border-radius: 6px; letter-spacing: 0.04em;
+  }
+  .shot-badge {
+    position: absolute; top: 8px; right: 8px; font-family: var(--font-mono); font-size: 9.5px;
+    background: var(--fuchsia); color: #1a0a1f; padding: 2px 7px; border-radius: 6px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .shot-cap { padding: 12px 14px 14px; font-size: 13px; color: var(--text); flex: 1; }
+
+  /* ============ Lightbox ============ */
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(5,7,13,0.92); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 40px;
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 10px; border: 1px solid var(--border-strong); box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+  .lightbox .lb-cap { position: fixed; bottom: 26px; left: 0; right: 0; text-align: center; font-size: 13px; color: var(--text-dim); font-family: var(--font-mono); }
+
+  footer {
+    max-width: 1180px; margin: 0 auto; padding: 30px clamp(16px, 4vw, 40px) 60px;
+    border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-faint);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  }
+  footer .fmono { font-family: var(--font-mono); }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .shot-card { transition: none; } }
+</style>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="mark">QA·AUTO</span>
+    <h1>BitPaw Nails <span>— Báo cáo kiểm thử tự động</span></h1>
+  </div>
+  <div class="topbar-meta" id="genTime">Đang tải…</div>
+</div>
+
+<div class="hero">
+  <p class="hero-eyebrow">Quy trình test bằng Playwright — không cần bấm tay</p>
+  <h2>Một lượt chạy qua toàn bộ sản phẩm, ghi lại bằng ảnh và video thật</h2>
+  <p class="lede">Bot tự đăng nhập, tự bán hàng, tự đặt lịch qua QR như một khách hàng thật, rồi tự kiểm tra lại từng
+    bước — không phải ảnh dựng, không phải mock. Mỗi tấm ảnh dưới đây là một trạng thái thật của ứng dụng.</p>
+
+  <div class="stat-row">
+    <div class="stat-tile"><span class="num">30</span><span class="label">ảnh chụp toàn trang</span></div>
+    <div class="stat-tile acc-fuchsia"><span class="num">2</span><span class="label">video quay lại thao tác</span></div>
+    <div class="stat-tile acc-amber"><span class="num">4</span><span class="label">luồng nghiệp vụ chính</span></div>
+    <div class="stat-tile acc-good"><span class="num">0</span><span class="label">lỗi trong lượt chạy này</span></div>
+  </div>
+
+  <div class="proof-banner">
+    <span class="dot"></span>
+    <p><b>Bằng chứng real-time:</b> ở mục "Đặt lịch QR", lịch hẹn do khách vừa đặt <b>tự hiện ra</b> trên màn hình
+      chủ tiệm và badge "Đã Check-in" <b>tự tăng số</b> trên POS — không có bước bấm F5 hay reload nào trong kịch bản.</p>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="side-nav">
+    <div class="nav-label">Mục lục</div>
+    <a href="#g-login">Đăng nhập <span class="count">01</span></a>
+    <a href="#g-pos">Bán hàng — POS <span class="count">16</span></a>
+    <a href="#g-booking">Đặt lịch QR & Real-time <span class="count">09</span></a>
+    <a href="#g-payroll">Chấm công & Lương <span class="count">04</span></a>
+  </nav>
+
+  <main>
+
+    <section class="grp" id="g-login">
+      <div class="grp-head"><span class="grp-idx">01</span><h3>Đăng nhập</h3><span class="grp-count">1 bước</span></div>
+      <div class="shot-grid" data-group="login"></div>
+    </section>
+
+    <section class="grp" id="g-pos">
+      <div class="grp-head"><span class="grp-idx">02</span><h3>Bán hàng — POS</h3><span class="grp-count">16 bước</span></div>
+      <p class="grp-note">Từ màn hình trống tới lúc in hoá đơn: chọn dịch vụ, thêm món ngoài menu, gán thợ, giữ/tiếp
+        tục vé, tip, giảm giá, thanh toán tiền mặt, chia đôi hoá đơn, hoàn tiền và Dual Pricing.</p>
+      <div class="video-block two-col">
+        <video controls preload="metadata" poster="img/02_pos_khoi_dong.png">
+          <source src="video/owner.webm" type="video/webm">
+        </video>
+        <div class="video-copy">
+          <span class="video-tag">Video liên tục</span>
+          <h4>Toàn bộ phiên làm việc của chủ tiệm</h4>
+          <p>Quay lại nguyên vẹn từ lúc đăng nhập đến khi kiểm tra xong phiếu lương — xem một lượt để thấy đúng
+            cảm giác thao tác thật, không cắt ghép.</p>
+        </div>
+      </div>
+      <div class="shot-grid" data-group="pos"></div>
+    </section>
+
+    <section class="grp" id="g-booking">
+      <div class="grp-head"><span class="grp-idx">03</span><h3>Đặt lịch QR & Real-time</h3><span class="grp-count">9 bước</span></div>
+      <p class="grp-note">Một khách hàng thật (trình duyệt riêng, không đăng nhập, màn hình điện thoại) quét mã QR,
+        đặt lịch — rồi quay lại màn hình chủ tiệm để chứng minh lịch hẹn và badge check-in tự cập nhật.</p>
+      <div class="video-block two-col">
+        <video controls preload="metadata" poster="img/20_khach_trang_dat_lich.png">
+          <source src="video/guest.webm" type="video/webm">
+        </video>
+        <div class="video-copy">
+          <span class="video-tag">Góc nhìn khách hàng</span>
+          <h4>Quét QR và đặt lịch trên điện thoại</h4>
+          <p>Trình duyệt hoàn toàn ẩn danh, không mang theo phiên đăng nhập của chủ tiệm — mô phỏng đúng một khách
+            lạ quét mã lần đầu.</p>
+        </div>
+      </div>
+      <div class="shot-grid" data-group="booking"></div>
+    </section>
+
+    <section class="grp" id="g-payroll">
+      <div class="grp-head"><span class="grp-idx">04</span><h3>Chấm công & Lương</h3><span class="grp-count">4 bước</span></div>
+      <p class="grp-note">Đối soát ngay sau khi thanh toán: hoa hồng thợ cộng đúng, lưới doanh thu theo từng ngày,
+        và phiếu lương tách 3 dòng Cash Payout / Check-Direct Deposit / Tax Withheld.</p>
+      <div class="shot-grid" data-group="payroll"></div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <span class="fmono">bitpawsoftware — nail_full_product_video_walkthrough.mjs</span>
+  <span class="fmono" id="genTimeFooter">—</span>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <img id="lightboxImg" src="" alt="">
+  <div class="lb-cap" id="lightboxCap"></div>
+</div>
+
+<script>
+  const STEPS = [
+    { n: 1, file: '01_dang_nhap.png', cap: 'Màn hình đăng nhập chủ tiệm', group: 'login' },
+    { n: 2, file: '02_pos_khoi_dong.png', cap: 'Màn hình bán hàng POS — lưới dịch vụ', group: 'pos' },
+    { n: 3, file: '03_pos_chon_dich_vu.png', cap: 'Đã thêm dịch vụ vào giỏ hàng', group: 'pos' },
+    { n: 4, file: '04_pos_custom_item_modal.png', cap: 'Thêm dịch vụ ngoài menu (Custom Item)', group: 'pos' },
+    { n: 5, file: '05_pos_gan_tho.png', cap: 'Gán thợ phụ trách cho từng dịch vụ', group: 'pos' },
+    { n: 6, file: '06_pos_giu_ve.png', cap: 'Giữ vé (Hold Ticket) — hàng chờ nhiều khách cùng lúc', group: 'pos' },
+    { n: 7, file: '07_pos_tiep_tuc_ve.png', cap: 'Tiếp tục vé (Resume) — lấy lại đúng giỏ hàng đã giữ', group: 'pos' },
+    { n: 8, file: '08_pos_tip.png', cap: 'Nhập Tip tiền mặt và Tip thẻ riêng biệt', group: 'pos' },
+    { n: 9, file: '09_pos_giam_gia.png', cap: 'Áp dụng giảm giá 10% cho hoá đơn', group: 'pos' },
+    { n: 10, file: '10_pos_thanh_toan_modal.png', cap: 'Màn hình xác nhận thanh toán tiền mặt', group: 'pos' },
+    { n: 11, file: '11_pos_hoa_don_thanh_cong.png', cap: 'Hoá đơn thanh toán thành công', group: 'pos' },
+    { n: 12, file: '12_pos_lich_su_hoa_don.png', cap: 'Lịch sử hoá đơn trong ngày', group: 'pos' },
+    { n: 13, file: '13_pos_in_lai_bill.png', cap: 'In lại hoá đơn từ lịch sử', group: 'pos' },
+    { n: 14, file: '14_pos_split_payment.png', cap: 'Thanh toán chia đôi tiền mặt/thẻ (Split Payment)', group: 'pos' },
+    { n: 15, file: '15_pos_hoan_tien_modal.png', cap: 'Hoàn tiền một phần cho khách', group: 'pos' },
+    { n: 16, file: '16_pos_hoan_tien_ket_qua.png', cap: 'Kết quả hoàn tiền hiển thị trên hoá đơn', group: 'pos' },
+    { n: 17, file: '17_pos_dual_pricing.png', cap: 'Dual Pricing — phụ phí thẻ hiển thị tách riêng giá tiền mặt', group: 'pos' },
+    { n: 18, file: '18_pos_qr_modal_chu_tiem.png', cap: 'Modal mã QR đặt lịch — góc nhìn chủ tiệm', group: 'booking' },
+    { n: 19, file: '19_lich_hen_truoc_khi_dat.png', cap: 'Lịch hẹn trước khi khách đặt lịch mới', group: 'booking' },
+    { n: 20, file: '20_khach_trang_dat_lich.png', cap: 'Trang đặt lịch công khai — góc nhìn khách hàng', group: 'booking', portrait: true },
+    { n: 21, file: '21_khach_dien_form.png', cap: 'Khách điền thông tin và chọn dịch vụ', group: 'booking', portrait: true },
+    { n: 22, file: '22_khach_dat_lich_thanh_cong.png', cap: 'Đặt lịch thành công — vé điện tử của khách', group: 'booking', portrait: true, badge: 'thành công' },
+    { n: 23, file: '23_lich_hen_tu_cap_nhat.png', cap: 'Lịch hẹn khách vừa đặt TỰ hiện ra — không F5 tay', group: 'booking', badge: 'real-time' },
+    { n: 24, file: '24_lich_hen_checkin.png', cap: 'Nhân viên bấm Check-in khi khách tới tiệm', group: 'booking' },
+    { n: 25, file: '25_pos_checkin_panel.png', cap: 'Panel "Khách Đã Check-in" tự cập nhật trên POS', group: 'booking', badge: 'real-time' },
+    { n: 26, file: '26_pos_vao_ve.png', cap: 'Dịch vụ + thợ tự động vào giỏ hàng, không cần gõ tay', group: 'booking' },
+    { n: 27, file: '27_chamcong_luoi_nhan_vien.png', cap: 'Lưới chấm công toàn bộ nhân viên', group: 'payroll' },
+    { n: 28, file: '28_chamcong_chi_tiet_tho.png', cap: 'Chi tiết chấm công + hoa hồng của 1 thợ', group: 'payroll' },
+    { n: 29, file: '29_chamcong_luoi_theo_ngay.png', cap: 'Lưới doanh thu theo từng ngày trong tháng', group: 'payroll' },
+    { n: 30, file: '30_chamcong_phieu_luong.png', cap: 'Phiếu lương: Cash Payout / Check-Direct Deposit / Tax Withheld', group: 'payroll' },
+  ];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  for (const grid of document.querySelectorAll('.shot-grid')) {
+    const g = grid.dataset.group;
+    const items = STEPS.filter(s => s.group === g);
+    grid.innerHTML = items.map(s => `
+      <div class="shot-card">
+        <div class="shot-frame${s.portrait ? ' portrait' : ''}" data-file="img/${s.file}" data-cap="${pad(s.n)} — ${s.cap.replace(/"/g, '&quot;')}">
+          <span class="shot-num">${pad(s.n)}</span>
+          ${s.badge ? `<span class="shot-badge">${s.badge}</span>` : ''}
+          <img src="img/${s.file}" alt="${s.cap.replace(/"/g, '&quot;')}" loading="lazy">
+        </div>
+        <div class="shot-cap">${s.cap}</div>
+      </div>
+    `).join('');
+  }
+
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxCap = document.getElementById('lightboxCap');
+  document.querySelectorAll('.shot-frame').forEach(frame => {
+    frame.addEventListener('click', () => {
+      lightboxImg.src = frame.dataset.file;
+      lightboxCap.textContent = frame.dataset.cap;
+      lightbox.classList.add('open');
+    });
+  });
+  lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') lightbox.classList.remove('open'); });
+
+  const now = new Date();
+  const stamp = now.toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' });
+  document.getElementById('genTime').textContent = 'Chạy lúc ' + stamp;
+  document.getElementById('genTimeFooter').textContent = 'Tạo báo cáo: ' + stamp;
+</script>

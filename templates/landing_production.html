@@ -241,9 +241,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-teal-500/20 rounded-xl flex items-center justify-center border border-teal-500/50 overflow-hidden shadow-[0_0_12px_#0d9488]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-full w-full rounded-full object-cover shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <div class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-teal-400">Paw</span></div>
@@ -1010,6 +1010,12 @@
                             AI tự động phân tích dữ liệu hiệu suất lò luyện, năng suất tổ đội theo từng khung giờ trong ngày để đề xuất lịch xoay ca kíp tối ưu hóa công suất xưởng.
                         </p>
                     </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-file-pdf text-amber-400"></i> <span data-i18n="aicskh_card3_title">Xuất báo cáo lợi nhuận PDF 1 chạm</span></h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card3_desc">
+                            Báo cáo lợi nhuận P&L đối chiếu chi phí nguyên vật liệu và doanh thu đơn hàng có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với đối tác mà không cần tổng hợp thủ công lại trên Excel.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Right Visual (Chat simulator) -->
@@ -1101,6 +1107,45 @@
                     <div class="faq-content">
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq3_a">
                             Có. Khi một nguyên liệu thô chạm ngưỡng báo động tối thiểu trong kho, hệ thống lập tức phát cảnh báo trực quan trên dashboard, đồng thời gửi thông báo đẩy qua Zalo/Email cho quản đốc kho và chủ doanh nghiệp để kịp thời nhập thêm hàng.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq4_q">Công nhân làm khoán theo sản lượng, lương có tự động tính không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq4_a">
+                            Có. Bạn cấu hình đơn giá khoán theo từng công đoạn/sản phẩm, hệ thống tự cộng dồn sản lượng đã được quản đốc duyệt của từng công nhân theo ngày và tự tính ra lương khoán chính xác đến từng đơn vị sản phẩm, không cần kế toán tổng hợp tay cuối tháng.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq5_q">Xưởng có nhiều chuyền/công đoạn sản xuất khác nhau, theo dõi riêng từng chuyền được không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq5_a">
+                            Được. Mỗi sản lượng ghi nhận đều gắn với đúng công đoạn và công nhân thực hiện, quản đốc lọc báo cáo theo từng chuyền/công đoạn riêng biệt để biết chính xác khâu nào đang chậm tiến độ hoặc phát sinh lỗi nhiều nhất.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq6_q">Cuối tháng có xuất được báo cáo sản lượng, tồn kho cho kế toán không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq6_a">
+                            Có. Báo cáo sản lượng theo công nhân/chuyền và tồn kho nguyên vật liệu đều xuất được trực tiếp từ hệ thống bất cứ lúc nào, kế toán không cần cộng sổ tay từ nhiều bảng Excel rời rạc mỗi kỳ chốt lương.
                         </p>
                     </div>
                 </div>
@@ -1606,6 +1651,8 @@
                 aicskh_card1_desc: 'AI tự bóc tách tốc độ tiêu thụ nguyên liệu và tồn kho thực tế để đưa ra cảnh báo sớm nguy cơ đứt gãy nguồn cung trước khi chạm ngưỡng báo động tối thiểu.',
                 aicskh_card2_title: 'Tối ưu hóa ca kíp sản xuất',
                 aicskh_card2_desc: 'AI tự động phân tích dữ liệu hiệu suất lò luyện, năng suất tổ đội theo từng khung giờ trong ngày để đề xuất lịch xoay ca kíp tối ưu hóa công suất xưởng.',
+                aicskh_card3_title: 'Xuất báo cáo lợi nhuận PDF 1 chạm',
+                aicskh_card3_desc: 'Báo cáo lợi nhuận P&L đối chiếu chi phí nguyên vật liệu và doanh thu đơn hàng có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với đối tác mà không cần tổng hợp thủ công lại trên Excel.',
                 aicskh_chat1: 'Phát hiện tốc độ dệt vải thô tăng vọt 35% trong 3 ngày qua. Tồn kho "Sợi cotton thô" thực tế còn: 150kg. Dự báo sẽ cạn kiệt trong 2 ngày tới.',
                 aicskh_chat2: 'Lập đơn đặt hàng tự động gửi nhà cung cấp sợi cotton?',
                 aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fas fa-truck text-emerald-400"></i> Đã gửi email đặt hàng:</p> "Đã gửi phiếu đặt hàng tự động nhập thêm 500kg sợi cotton thô sang đối tác cung ứng. Lịch dự kiến bàn giao kho: Sáng mai (9:00)."',
@@ -1618,6 +1665,12 @@
                 faq2_a: 'Có. Bạn có thể cấu hình chi tiết định mức nguyên vật liệu phụ trợ tiêu thụ trên mỗi đơn vị thành phẩm (ví dụ: 1 cái áo cần 1.2m vải thô, 3 cái cúc). Khi xuất xưởng thành phẩm, hệ thống tự động tính toán trừ kho nguyên vật liệu tương ứng chính xác.',
                 faq3_q: 'Hệ thống cảnh báo tồn kho tối thiểu có gửi tin nhắn SMS không?',
                 faq3_a: 'Có. Khi một nguyên liệu thô chạm ngưỡng báo động tối thiểu trong kho, hệ thống lập tức phát cảnh báo trực quan trên dashboard, đồng thời gửi thông báo đẩy qua Zalo/Email cho quản đốc kho và chủ doanh nghiệp để kịp thời nhập thêm hàng.',
+                faq4_q: 'Công nhân làm khoán theo sản lượng, lương có tự động tính không?',
+                faq4_a: 'Có. Bạn cấu hình đơn giá khoán theo từng công đoạn/sản phẩm, hệ thống tự cộng dồn sản lượng đã được quản đốc duyệt của từng công nhân theo ngày và tự tính ra lương khoán chính xác đến từng đơn vị sản phẩm, không cần kế toán tổng hợp tay cuối tháng.',
+                faq5_q: 'Xưởng có nhiều chuyền/công đoạn sản xuất khác nhau, theo dõi riêng từng chuyền được không?',
+                faq5_a: 'Được. Mỗi sản lượng ghi nhận đều gắn với đúng công đoạn và công nhân thực hiện, quản đốc lọc báo cáo theo từng chuyền/công đoạn riêng biệt để biết chính xác khâu nào đang chậm tiến độ hoặc phát sinh lỗi nhiều nhất.',
+                faq6_q: 'Cuối tháng có xuất được báo cáo sản lượng, tồn kho cho kế toán không?',
+                faq6_a: 'Có. Báo cáo sản lượng theo công nhân/chuyền và tồn kho nguyên vật liệu đều xuất được trực tiếp từ hệ thống bất cứ lúc nào, kế toán không cần cộng sổ tay từ nhiều bảng Excel rời rạc mỗi kỳ chốt lương.',
                 cta_title: 'Bắt Đầu Số Hóa Vận Hành Nhà Xưởng Ngay Hôm Nay!',
                 cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công sản lượng, cảnh báo tồn kho tối thiểu tự động và quản lý định lượng hao phí nguyên liệu thô.',
                 cta_btn1: 'Trải nghiệm dùng thử miễn phí',
@@ -1779,6 +1832,8 @@
                 aicskh_card1_desc: 'AI breaks down material consumption speed versus actual stock to issue early warnings of supply-chain disruption before hitting the minimum alert threshold.',
                 aicskh_card2_title: 'Production Shift Optimization',
                 aicskh_card2_desc: 'AI automatically analyzes furnace performance and team productivity data by time of day to suggest an optimal shift rotation that maximizes factory capacity.',
+                aicskh_card3_title: 'One-Tap PDF Profit Report Export',
+                aicskh_card3_desc: 'The P&L report comparing raw-material cost against order revenue can be exported instantly as a polished PDF file with a single tap, ready to send to your accountant or present to partners without re-compiling anything manually in Excel.',
                 aicskh_chat1: 'Detected a 35% surge in raw fabric weaving speed over the past 3 days. "Raw cotton yarn" stock actually remaining: 150kg. Forecast to run out within 2 days.',
                 aicskh_chat2: 'Automatically create a purchase order to the cotton yarn supplier?',
                 aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fas fa-truck text-emerald-400"></i> Order email sent:</p> "Automatically sent a purchase order for an additional 500kg of raw cotton yarn to the supply partner. Expected warehouse delivery: Tomorrow morning (9:00 AM)."',
@@ -1791,6 +1846,12 @@
                 faq2_a: 'Yes. You can configure detailed usage norms for auxiliary materials consumed per finished unit (e.g., one shirt requires 1.2m of raw fabric, 3 buttons). When finished goods ship out, the system automatically calculates and deducts the corresponding material stock.',
                 faq3_q: 'Does the minimum stock alert system send SMS notifications?',
                 faq3_a: 'Yes. When a raw material hits the minimum alert threshold in the warehouse, the system immediately displays a visual alert on the dashboard and also sends a push notification via Zalo/Email to the warehouse supervisor and business owner so they can restock in time.',
+                faq4_q: 'Workers are paid piecework by output — is their pay calculated automatically?',
+                faq4_a: 'Yes. You configure a piece rate per production stage/product, and the system automatically totals each worker\'s supervisor-approved daily output and calculates exact piecework pay down to the unit — no manual month-end reconciliation by accounting.',
+                faq5_q: 'Our factory has multiple production lines/stages — can each line be tracked separately?',
+                faq5_a: 'Yes. Every recorded output entry is tagged with the exact stage and worker who produced it, so supervisors can filter reports by line/stage to pinpoint exactly which step is falling behind schedule or generating the most defects.',
+                faq6_q: 'Can we export monthly output and inventory reports for accounting?',
+                faq6_a: 'Yes. Output-by-worker/line reports and raw-material inventory can both be exported directly from the system at any time — accounting no longer needs to manually reconcile scattered Excel sheets every payroll cycle.',
                 cta_title: 'Start Digitizing Your Factory Operations Today!',
                 cta_desc: 'Sign up for a full-featured 14-day free trial including output tracking, automatic minimum stock alerts, and raw material usage norm management.',
                 cta_btn1: 'Try It Free',

@@ -242,9 +242,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center border border-purple-500/50 overflow-hidden shadow-[0_0_12px_#a855f7]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg" loading="lazy">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" class="h-full w-full rounded-full object-cover shadow-lg" loading="lazy">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <h2 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-purple-400">Paw</span></h2>
@@ -1033,6 +1033,12 @@
                             Trước sinh nhật khách 3 ngày, Zalo tự động gửi thư mời kèm voucher miễn phí trang trí phòng hát và tặng 1 đĩa trái cây lớn đặc biệt.
                         </p>
                     </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-user-clock text-cyan-400"></i> <span data-i18n="ai_card3_title">Gọi khách quen lâu ngày vắng phòng</span></h3>
+                        <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="ai_card3_desc">
+                            Nếu một khách quen hay đặt phòng nhóm không quay lại đặt phòng sau 30 ngày, hệ thống tự động gợi ý gửi lời mời kèm ưu đãi giảm giá giờ hát để kéo khách quay lại trước khi khách chuyển sang quán khác.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Right Visual (Chat simulator) -->
@@ -1124,6 +1130,45 @@
                     <div class="faq-content">
                         <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="faq_a3">
                             Có. Phần mềm tương thích tuyệt đối với 99% dòng máy in hóa đơn nhiệt thông dụng trên thị trường (máy in cổng LAN, USB, Wifi). Hóa đơn in ra có sẵn mã QR động giúp khách hàng chỉ cần quét điện thoại là chuyển khoản chính xác số tiền lẻ mà không cần nhập thủ công.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq_q4">Khách gọi thêm bia, nước, đồ ăn trong phòng thì tính tiền vào đâu?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="faq_a4">
+                            Nhân viên order thẳng vào đúng phòng đang hát trên màn hình POS gọi món dùng chung với hệ thống F&B — mọi order được cộng dồn tự động vào bill giờ phòng đó, khi khách trả phòng chỉ cần xuất 1 hóa đơn tổng duy nhất, không cần đối chiếu tay 2 hệ thống riêng biệt.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq_q5">Quán có nhiều phòng đang hát cùng lúc, chủ quán theo dõi tổng quan sao?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="faq_a5">
+                            Màn hình Sơ Đồ Phòng hiển thị real-time toàn bộ phòng đang trống, đang hát, hay đã đặt trước — kèm thời gian giờ chạy và doanh thu tạm tính từng phòng, chủ quán xem từ điện thoại ở bất cứ đâu mà không cần có mặt tại quầy.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq_q6">Khách đặt phòng trước qua điện thoại có bị trùng lịch với khách vãng lai không?</h3>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-gray-300 leading-relaxed break-words" data-i18n="faq_a6">
+                            Không. Cổng đặt phòng công khai (khách tự đặt qua link/QR) và lịch đặt tay của nhân viên đều ghi thẳng vào cùng 1 hệ thống, phòng đã giữ chỗ sẽ tự khóa khỏi danh sách phòng trống — không còn tình trạng 2 nhóm khách cùng đến nhận 1 phòng.
                         </p>
                     </div>
                 </div>
@@ -1605,6 +1650,7 @@
                 ai_desc: 'Hệ thống tự động kích hoạt kịch bản tin nhắn cá nhân hóa gửi qua Zalo/SMS dựa trên chu kỳ đi hát của khách hàng.',
                 ai_card1_title: 'Kích hoạt lấp đầy phòng trống', ai_card1_desc: 'Khi công suất phòng hát dưới 40% vào buổi chiều, AI tự lọc danh sách khách quen hay hát nhóm và gửi mã ưu đãi giảm 20% tiền giờ hát tức thời.',
                 ai_card2_title: 'Tri ân sinh nhật cá nhân hóa', ai_card2_desc: 'Trước sinh nhật khách 3 ngày, Zalo tự động gửi thư mời kèm voucher miễn phí trang trí phòng hát và tặng 1 đĩa trái cây lớn đặc biệt.',
+                ai_card3_title: 'Gọi khách quen lâu ngày vắng phòng', ai_card3_desc: 'Nếu một khách quen hay đặt phòng nhóm không quay lại đặt phòng sau 30 ngày, hệ thống tự động gợi ý gửi lời mời kèm ưu đãi giảm giá giờ hát để kéo khách quay lại trước khi khách chuyển sang quán khác.',
                 ai_chat1: 'Phát hiện công suất phòng chiều thứ 3 chỉ đạt 25%. Kích hoạt chiến dịch lấp phòng trống.',
                 ai_chat2: 'Gửi ưu đãi Zalo cho nhóm khách quen hay hát giờ rảnh?',
                 ai_chat3_label: 'Đã gửi Zalo thành công:',
@@ -1619,6 +1665,12 @@
                 faq_a2: 'Mỗi thao tác "Mở phòng" hay "Chốt phòng" đều được ghi vết lịch sử chi tiết đến từng mili-giây trên hệ thống đám mây. Bạn ở xa có thể đối chiếu công suất phòng thực tế và doanh số bill thu về tức thời, triệt tiêu hoàn toàn cơ hội mở phòng chui của nhân viên.',
                 faq_q3: 'Có hỗ trợ liên kết máy in hóa đơn nhiệt tại quầy thu ngân không?',
                 faq_a3: 'Có. Phần mềm tương thích tuyệt đối với 99% dòng máy in hóa đơn nhiệt thông dụng trên thị trường (máy in cổng LAN, USB, Wifi). Hóa đơn in ra có sẵn mã QR động giúp khách hàng chỉ cần quét điện thoại là chuyển khoản chính xác số tiền lẻ mà không cần nhập thủ công.',
+                faq_q4: 'Khách gọi thêm bia, nước, đồ ăn trong phòng thì tính tiền vào đâu?',
+                faq_a4: 'Nhân viên order thẳng vào đúng phòng đang hát trên màn hình POS gọi món dùng chung với hệ thống F&B — mọi order được cộng dồn tự động vào bill giờ phòng đó, khi khách trả phòng chỉ cần xuất 1 hóa đơn tổng duy nhất, không cần đối chiếu tay 2 hệ thống riêng biệt.',
+                faq_q5: 'Quán có nhiều phòng đang hát cùng lúc, chủ quán theo dõi tổng quan sao?',
+                faq_a5: 'Màn hình Sơ Đồ Phòng hiển thị real-time toàn bộ phòng đang trống, đang hát, hay đã đặt trước — kèm thời gian giờ chạy và doanh thu tạm tính từng phòng, chủ quán xem từ điện thoại ở bất cứ đâu mà không cần có mặt tại quầy.',
+                faq_q6: 'Khách đặt phòng trước qua điện thoại có bị trùng lịch với khách vãng lai không?',
+                faq_a6: 'Không. Cổng đặt phòng công khai (khách tự đặt qua link/QR) và lịch đặt tay của nhân viên đều ghi thẳng vào cùng 1 hệ thống, phòng đã giữ chỗ sẽ tự khóa khỏi danh sách phòng trống — không còn tình trạng 2 nhóm khách cùng đến nhận 1 phòng.',
 
                 cta_title: 'Đã Đến Lúc Số Hóa Quán Karaoke / Bida Chuyên Nghiệp!',
                 cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng số hóa, lấp đầy phòng trống và ngăn chặn thất thoát dòng tiền ngay hôm nay.',
@@ -1740,6 +1792,7 @@
                 ai_desc: 'The system automatically triggers personalized message scripts sent via Zalo/SMS based on each customer\'s visit cycle.',
                 ai_card1_title: 'Trigger empty-room fill campaigns', ai_card1_desc: 'When afternoon room occupancy drops below 40%, AI automatically filters regular group singers and instantly sends a 20% room-time discount code.',
                 ai_card2_title: 'Personalized birthday appreciation', ai_card2_desc: '3 days before a guest\'s birthday, Zalo automatically sends an invitation with a free room decoration voucher and a complimentary large fruit platter.',
+                ai_card3_title: 'Calling back long-quiet regulars', ai_card3_desc: 'If a regular who usually books group rooms hasn\'t booked again in 30 days, the system suggests sending an invitation with a discount on singing-hour rates to win them back before they switch to another venue.',
                 ai_chat1: 'Detected only 25% room occupancy on Tuesday afternoon. Activating empty-room fill campaign.',
                 ai_chat2: 'Send a Zalo offer to the regular group of guests who sing during off-peak hours?',
                 ai_chat3_label: 'Zalo message sent successfully:',
@@ -1754,6 +1807,12 @@
                 faq_a2: 'Every "Open Room" and "Close Room" action is logged in detail down to the millisecond on the cloud system. From anywhere, you can cross-check actual room occupancy against incoming bill revenue in real time, completely eliminating the chance of staff running off-the-books rooms.',
                 faq_q3: 'Do you support connecting a thermal receipt printer at the cashier counter?',
                 faq_a3: 'Yes. The software is fully compatible with 99% of common thermal receipt printers on the market (LAN, USB, and Wifi printers). Printed receipts include a built-in dynamic QR code so guests just scan with their phone to transfer the exact amount without manual entry.',
+                faq_q4: 'A guest orders extra beer, drinks, or food in the room — where does that bill go?',
+                faq_a4: 'Staff order straight into the correct singing room on the same POS screen shared with the F&B system — every order is automatically added to that room\'s running bill, so when the guest checks out there\'s a single combined receipt, no manual reconciliation between two separate systems.',
+                faq_q5: 'We have many rooms singing at once — how does the owner see the overview?',
+                faq_a5: 'The Room Map screen shows every room in real time — free, occupied, or reserved — along with elapsed time and running revenue per room. Owners can check it from their phone anywhere, without being physically at the counter.',
+                faq_q6: 'Can a phone reservation clash with a walk-in guest for the same room?',
+                faq_a6: 'No. The public booking portal (guests self-book via link/QR) and staff manual bookings both write to the same system — a reserved room is automatically locked out of the available-rooms list, so two parties never show up for the same room.',
 
                 cta_title: 'Time To Digitize Your Karaoke / Billiards Venue Professionally!',
                 cta_desc: 'Sign up for a free 14-day trial with every digital feature included, fill your empty rooms, and stop cash-flow leaks starting today.',

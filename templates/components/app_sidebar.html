@@ -22,6 +22,21 @@
    từ md trở lên: không đổi gì so với trước (vẫn flex item thường nằm cạnh main). #}
 <style>
     #app-sidebar { transition: transform 0.3s ease-in-out; }
+    /* Icon chip cho từng mục menu — trước đây icon FA trần trụi, cùng 1 màu xám phẳng lì suốt
+       toàn bộ sidebar, không có khung/độ sâu nào cả (khác hẳn khung icon màu đã làm cho toolbar
+       POS). Bọc icon trong 1 khung bo góc nhẹ để mỗi mục có "trọng lượng" thị giác riêng — màu
+       nền/viền chip ăn theo ĐÚNG màu chữ hiện tại của thẻ <a> cha (currentColor), nên mục đang
+       active (đã có class text-cyan-300/purple-300/...) tự động ra đúng màu accent của ngành đó
+       mà không cần thêm điều kiện Jinja nào mới. */
+    .nav-icon-chip {
+        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: color-mix(in srgb, currentColor 12%, transparent);
+        border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+        transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .nav-icon-chip i { font-size: 15px; }
+    a.group:hover .nav-icon-chip { transform: scale(1.08); background: color-mix(in srgb, currentColor 18%, transparent); }
     @media (max-width: 767px) {
         #app-sidebar {
             position: fixed;
@@ -135,7 +150,7 @@
         <nav class="flex flex-col py-2 space-y-1.5 px-5 overflow-y-auto max-h-[65vh] custom-scrollbar">
             {% if not is_staff %}
             <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
-                <i class="fas fa-chart-pie w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                <span class="nav-icon-chip"><i class="fas fa-chart-pie group-hover:scale-110 transition-transform"></i></span>
                 <span data-i18n="menu_dashboard">{{ menu_i18n.dashboard }}</span>
             </a>
             {% endif %}
@@ -143,16 +158,16 @@
             {# F&B: Smart POS + QR Menu + Kitchen Display (KDS) nổi bật, không có Booking #}
             {% if 'ordering' in modules or 'tables' in modules %}
             <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-cash-register w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-cash-register group-hover:text-cyan-400 transition-colors"></i></span>
                 <span data-i18n="menu_smart_pos">{{ menu_i18n.smart_pos }}</span>
             </a>
             <a href="{{ url_for('kitchen_display') }}" class="flex items-center space-x-4 {% if request.path == url_for('kitchen_display') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-kitchen-set w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-kitchen-set group-hover:text-cyan-400 transition-colors"></i></span>
                 <span data-i18n="menu_kitchen_display">{{ menu_i18n.kitchen_display }}</span>
             </a>
             {% if not is_staff %}
             <a href="/qr_menu/demo" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                <i class="fas fa-qrcode w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-qrcode group-hover:text-cyan-400 transition-colors"></i></span>
                 <span data-i18n="menu_qr_menu">{{ menu_i18n.qr_menu }}</span>
             </a>
             {% endif %}
@@ -164,7 +179,7 @@
             {% if 'spa_services' in modules or 'nail_services' in modules %}
             {% set pos_service_url = url_for('sell') if active_industry_code == 'nail' else url_for('pos') %}
             <a href="{{ pos_service_url }}" class="flex items-center space-x-4 {% if request.path == pos_service_url %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-spa w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-spa group-hover:text-cyan-400 transition-colors"></i></span>
                 <span data-i18n="menu_pos_service">{{ menu_i18n.pos_service }}</span>
             </a>
             {# BUG THẬT đã vá (audit): link này trước đây trỏ cứng "/booking" — route công khai
@@ -176,7 +191,7 @@
                business_id qua session). Muốn xem/in QR đặt lịch công khai: dùng nút "Booking QR"
                ngay trong /sell (Nails) hoặc tự ghép /booking/qr/<business_id> (Spa). #}
             <a href="{{ url_for('calendar_view') }}" class="flex items-center space-x-4 {% if request.path == '/calendar' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-calendar-alt w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-calendar-alt group-hover:text-cyan-400 transition-colors"></i></span>
                 <span data-i18n="menu_booking">{{ menu_i18n.booking }}</span>
             </a>
             {% endif %}
@@ -188,28 +203,28 @@
                tự gõ URL. #}
             {% if 'room_management' in modules %}
             <a href="{{ url_for('hotel_rooms_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel_rooms' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-hotel w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-hotel group-hover:text-purple-400 transition-colors"></i></span>
                 <span data-i18n="menu_hotel_rooms">{{ menu_i18n.hotel_rooms or 'Quản Lý Phòng' }}</span>
             </a>
             <a href="{{ url_for('hotel_reservations_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel/reservations' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-calendar-days w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-calendar-days group-hover:text-purple-400 transition-colors"></i></span>
                 <span data-i18n="menu_hotel_reservations">{{ menu_i18n.hotel_reservations or 'Đặt Phòng Trước' }}</span>
             </a>
             {% endif %}
             {% if 'room_timing' in modules or 'pos_ordering' in modules %}
             <a href="{{ url_for('karaoke') }}" class="flex items-center space-x-4 {% if request.path == '/karaoke' %} bg-gradient-to-r from-emerald-500/20 to-transparent border-l-4 border-emerald-400 text-emerald-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-music w-5 text-xl group-hover:text-emerald-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-music group-hover:text-emerald-400 transition-colors"></i></span>
                 <span data-i18n="menu_karaoke_rooms">{{ menu_i18n.karaoke_rooms or 'Phòng Karaoke' }}</span>
             </a>
             {% endif %}
             {% if 'factory_output' in modules %}
             <a href="{{ url_for('production_output_page') }}" class="flex items-center space-x-4 {% if request.path == '/production_output' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-industry w-5 text-xl group-hover:text-orange-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-industry group-hover:text-orange-400 transition-colors"></i></span>
                 <span data-i18n="menu_production_output">{{ menu_i18n.production_output or 'Sản Lượng' }}</span>
             </a>
             {% if session.get('role') in ('admin', 'super_admin') %}
             <a href="{{ url_for('production_materials_page') }}" class="flex items-center space-x-4 {% if request.path == '/production/materials' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <i class="fas fa-boxes-stacked w-5 text-xl group-hover:text-orange-400 transition-colors"></i>
+                <span class="nav-icon-chip"><i class="fas fa-boxes-stacked group-hover:text-orange-400 transition-colors"></i></span>
                 <span data-i18n="menu_production_materials">{{ menu_i18n.production_materials or 'Nguyên Vật Liệu' }}</span>
             </a>
             {% endif %}
@@ -219,7 +234,7 @@
                 {# Retail / bán lẻ đơn giản #}
                 {% if 'sales' in modules and 'ordering' not in modules and 'spa_services' not in modules and 'nail_services' not in modules %}
                 <a href="{{ url_for('retail_pos') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-shopping-cart w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-shopping-cart group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_sales">{{ menu_i18n.sales }}</span>
                 </a>
                 {% endif %}
@@ -233,40 +248,40 @@
                    khách hàng cá nhân để quản lý theo mô hình này. #}
                 {% if 'sales' in modules or 'ordering' in modules or 'tables' in modules or 'spa_services' in modules or 'nail_services' in modules or 'room_timing' in modules or 'pos_ordering' in modules or 'room_management' in modules %}
                 <a href="{{ url_for('customers') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-address-book w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-address-book group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_customers">{{ menu_i18n.customers }}</span>
                 </a>
                 {% endif %}
 
                 <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-robot w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-robot group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>
                 </a>
                 <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-magic w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-magic group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>
                 </a>
 
                 {% if 'attendance' in modules or 'payroll' in modules %}
                 <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-users w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-users group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_hr">{{ menu_i18n.hr }}</span>
                 </a>
                 <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-calendar-check group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_attendance">{{ menu_i18n.attendance }}</span>
                 </a>
                 <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-file-invoice-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-file-invoice-dollar group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_payroll">{{ menu_i18n.payroll }}</span>
                 </a>
                 {% if session.get('role') in ('admin', 'super_admin') %}
                 <a href="{{ url_for('leave_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-calendar-times w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-calendar-times group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>
                 </a>
                 <a href="{{ url_for('expense_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-dollar group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_expense_requests">{{ menu_i18n.expense_requests or 'Đơn Hoàn Ứng' }}</span>
                 </a>
                 {% endif %}
@@ -274,53 +289,53 @@
 
                 {% if 'dispatch_gps' in modules %}
                 <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <i class="fas fa-map-marked-alt w-5 text-xl group-hover:scale-110 transition-transform"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-map-marked-alt group-hover:scale-110 transition-transform"></i></span>
                     <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>
                 </a>
                 <a href="{{ url_for('technical_parts_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-toolbox w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-toolbox group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_tech_parts">{{ menu_i18n.tech_parts }}</span>
                 </a>
                 {% endif %}
 
                 {% if 'inventory' in modules %}
                 <a href="/inventory_alert" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-warehouse w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-warehouse group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_inventory_management">{{ menu_i18n.inventory_management }}</span>
                 </a>
                 {% endif %}
 
                 {% if 'expenses' in modules or 'inventory' in modules %}
                 <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-usd w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-usd group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_debt">{{ menu_i18n.debt }}</span>
                 </a>
                 <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-coins w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-coins group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_cashflow">{{ menu_i18n.cashflow }}</span>
                 </a>
                 <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-chart-line w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-chart-line group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_profit_report">{{ menu_i18n.profit_report }}</span>
                 </a>
                 {% endif %}
 
                 <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-sitemap w-5 text-xl group-hover:text-purple-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-sitemap group-hover:text-purple-400 transition-colors"></i></span>
                     <span data-i18n="menu_consolidated_report">{{ menu_i18n.consolidated_report }}</span>
                 </a>
                 <a href="/brand_settings" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-cog w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-cog group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_settings">{{ menu_i18n.settings }}</span>
                 </a>
             {% else %}
                 {# Vai trò staff: chỉ giữ Chấm công cá nhân + Hoa hồng/Tip (POS/Booking đã hiện ở trên nếu ngành có) #}
                 <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-calendar-check w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-calendar-check group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_my_attendance">{{ menu_i18n.my_attendance }}</span>
                 </a>
                 <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <i class="fas fa-hand-holding-dollar w-5 text-xl group-hover:text-cyan-400 transition-colors"></i>
+                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-dollar group-hover:text-cyan-400 transition-colors"></i></span>
                     <span data-i18n="menu_my_commission">{{ menu_i18n.my_commission }}</span>
                 </a>
             {% endif %}
@@ -328,7 +343,7 @@
     </div>
     <div class="p-6 border-t border-white/10 shrink-0">
         <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-            <i class="fas fa-sign-out-alt w-5 text-xl group-hover:-translate-x-1 transition-transform"></i>
+            <span class="nav-icon-chip"><i class="fas fa-sign-out-alt group-hover:-translate-x-1 transition-transform"></i></span>
             <span data-i18n="menu_logout">{{ menu_i18n.logout }}</span>
         </a>
     </div>

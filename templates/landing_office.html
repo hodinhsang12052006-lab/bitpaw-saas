@@ -241,9 +241,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-500/50 overflow-hidden shadow-[0_0_12px_#4f46e5]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" loading="lazy" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" loading="lazy" class="h-full w-full rounded-full object-cover shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <h2 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-indigo-400">Paw</span></h2>
@@ -753,7 +753,7 @@
                         </div>
                         <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="feat1_title">Chấm Công GPS & Wifi</h3>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
-                            <span data-i18n="feat1_desc">Chấp nhận chấm công dựa trên định vị văn phòng hoặc trùng địa chỉ MAC Wifi bảo mật tuyệt đối chống chấm công ảo tại <a href="{{ url_for('chamcong_fnb') }}" class="text-indigo-400 underline hover:text-indigo-300">chamcong_vanphong.html</a>.</span>
+                            <span data-i18n="feat1_desc">Chấp nhận chấm công dựa trên định vị văn phòng hoặc trùng địa chỉ MAC Wifi bảo mật tuyệt đối chống chấm công ảo tại <a href="{{ url_for('chamcong_vanphong') }}" class="text-indigo-400 underline hover:text-indigo-300">chamcong_vanphong.html</a>.</span>
                         </p>
                     </div>
                 </div>
@@ -997,6 +997,12 @@
                             <span data-i18n="ai_card2_desc">AI tự phân tích tốc độ tăng trưởng doanh thu so với sự phình to của quỹ lương để đề xuất thời điểm tuyển dụng nhân sự mới an toàn tối ưu chi phí.</span>
                         </p>
                     </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-file-pdf text-amber-400"></i> <span data-i18n="ai_card3_title">Xuất báo cáo lợi nhuận PDF 1 chạm</span></h4>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="ai_card3_desc">Báo cáo lợi nhuận P&L mà AI vừa dự báo có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với nhà đầu tư mà không cần tổng hợp thủ công lại trên Excel.</span>
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Right Visual (Chat simulator) -->
@@ -1088,6 +1094,45 @@
                     <div class="faq-content">
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
                             <span data-i18n="faq3_a">Tuyệt đối an toàn. Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tập trung trên hệ thống đám mây được mã hóa AES-256 cao cấp. Đồng thời, cơ chế phân quyền chặt chẽ giúp chỉ những người được cấp quyền (HR, Kế toán, Giám đốc) mới có thể truy cập xem.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq4_q">Nhân viên xin nghỉ phép hoặc đề nghị hoàn ứng chi phí thì quy trình duyệt ra sao?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq4_a">Nhân viên tự nộp đơn nghỉ phép hoặc đề nghị hoàn ứng ngay trên hệ thống, quản lý trực tiếp nhận thông báo và duyệt/từ chối chỉ với 1 chạm — toàn bộ lịch sử duyệt được lưu vết, không còn tình trạng thất lạc đơn giấy hay nhắn tin xin phép qua Zalo rồi quên mất.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq5_q">Ban giám đốc có xem được báo cáo thu chi, quỹ tiền mặt của văn phòng không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq5_a">Có. Màn hình Quản Lý Thu Chi tổng hợp mọi khoản thu/chi văn phòng theo ngày, tuần, tháng — Ban giám đốc xem báo cáo dòng tiền tức thời trên điện thoại mà không cần đợi kế toán tổng hợp thủ công cuối tháng.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq6_q">Công ty đang dùng file Excel chấm công cũ, chuyển sang BitPaw có mất dữ liệu không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq6_a">Không mất dữ liệu. Đội ngũ hỗ trợ BitPaw giúp bạn nhập liệu hồ sơ nhân sự, lương cơ bản ban đầu từ file Excel cũ trong buổi triển khai đầu tiên — công ty chỉ cần bắt đầu chấm công mới hoàn toàn trên hệ thống từ ngày go-live, không phải làm lại từ đầu.</span>
                         </p>
                     </div>
                 </div>
@@ -1585,6 +1630,8 @@
                 ai_card1_desc: 'AI tự bóc tách hành vi (đi trễ tăng đột biến, xin nghỉ phép nhiều ngày liên tục) để cảnh báo sớm nhân sự cốt cán có nguy cơ nghỉ việc lên màn hình sếp.',
                 ai_card2_title: 'Dự báo lợi nhuận ròng P&L',
                 ai_card2_desc: 'AI tự phân tích tốc độ tăng trưởng doanh thu so với sự phình to của quỹ lương để đề xuất thời điểm tuyển dụng nhân sự mới an toàn tối ưu chi phí.',
+                ai_card3_title: 'Xuất báo cáo lợi nhuận PDF 1 chạm',
+                ai_card3_desc: 'Báo cáo lợi nhuận P&L mà AI vừa dự báo có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với nhà đầu tư mà không cần tổng hợp thủ công lại trên Excel.',
                 chat1: 'Phát hiện nhân sự "Trần Quốc Bảo - Phòng Tech" đi trễ liên tiếp 4 ca trong 2 tuần qua, đồng thời xin nghỉ phép 2 ngày không rõ lý do.',
                 chat2: 'Xuất báo cáo hiệu suất KPI chi tiết của nhân viên này?',
                 chat3_label: 'Cảnh báo sớm:',
@@ -1596,6 +1643,12 @@
                 faq2_a: 'Có. Bạn có thể thiết lập tỷ lệ khấu trừ bảo hiểm xã hội (8% người lao động đóng) và các bậc thuế thu nhập cá nhân (TNCN) lũy tiến theo quy định pháp luật. Hệ thống tự động bóc tách khấu trừ khi chốt lương, giảm tải hoàn toàn công việc cho kế toán hành chính.',
                 faq3_q: 'Dữ liệu hồ sơ nhân sự lưu trữ đám mây có an toàn không?',
                 faq3_a: 'Tuyệt đối an toàn. Toàn bộ hồ sơ bảo hiểm, hợp đồng lao động lưu trữ tập trung trên hệ thống đám mây được mã hóa AES-256 cao cấp. Đồng thời, cơ chế phân quyền chặt chẽ giúp chỉ những người được cấp quyền (HR, Kế toán, Giám đốc) mới có thể truy cập xem.',
+                faq4_q: 'Nhân viên xin nghỉ phép hoặc đề nghị hoàn ứng chi phí thì quy trình duyệt ra sao?',
+                faq4_a: 'Nhân viên tự nộp đơn nghỉ phép hoặc đề nghị hoàn ứng ngay trên hệ thống, quản lý trực tiếp nhận thông báo và duyệt/từ chối chỉ với 1 chạm — toàn bộ lịch sử duyệt được lưu vết, không còn tình trạng thất lạc đơn giấy hay nhắn tin xin phép qua Zalo rồi quên mất.',
+                faq5_q: 'Ban giám đốc có xem được báo cáo thu chi, quỹ tiền mặt của văn phòng không?',
+                faq5_a: 'Có. Màn hình Quản Lý Thu Chi tổng hợp mọi khoản thu/chi văn phòng theo ngày, tuần, tháng — Ban giám đốc xem báo cáo dòng tiền tức thời trên điện thoại mà không cần đợi kế toán tổng hợp thủ công cuối tháng.',
+                faq6_q: 'Công ty đang dùng file Excel chấm công cũ, chuyển sang BitPaw có mất dữ liệu không?',
+                faq6_a: 'Không mất dữ liệu. Đội ngũ hỗ trợ BitPaw giúp bạn nhập liệu hồ sơ nhân sự, lương cơ bản ban đầu từ file Excel cũ trong buổi triển khai đầu tiên — công ty chỉ cần bắt đầu chấm công mới hoàn toàn trên hệ thống từ ngày go-live, không phải làm lại từ đầu.',
                 cta_title: 'Bắt Đầu Chuyển Đổi Văn Phòng Số Ngay Hôm Nay!',
                 cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công Wifi, chốt lương 1-Click và báo cáo tài chính ròng tự động.',
                 cta_btn1: 'Dùng thử miễn phí 14 ngày',
@@ -1627,7 +1680,7 @@
                 faq_title: 'Hỏi Đáp <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">Về Phần Mềm BitPaw Office</span>',
                 bill_note_desc: 'Thay vì kế toán tốn 16 giờ làm việc mệt mỏi cuối tháng để tính tay, BitPaw OS hoàn tất chốt và gửi phiếu lương bảo mật này trong <span class="text-indigo-300 font-bold">1 Click duy nhất</span>.',
                 chat3: 'KPI tháng này đạt 98% (Rất tốt). Nguy cơ nghỉ việc do mất động lực làm việc: 78%. Sếp nên có buổi đối thoại trực tiếp để thấu hiểu nhân viên.',
-                feat1_desc: "Chấp nhận chấm công dựa trên định vị văn phòng hoặc trùng địa chỉ MAC Wifi bảo mật tuyệt đối chống chấm công ảo tại <a href=\"{{ url_for('chamcong_fnb') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">chamcong_vanphong.html</a>.",
+                feat1_desc: "Chấp nhận chấm công dựa trên định vị văn phòng hoặc trùng địa chỉ MAC Wifi bảo mật tuyệt đối chống chấm công ảo tại <a href=\"{{ url_for('chamcong_vanphong') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">chamcong_vanphong.html</a>.",
                 feat2_desc: "Chốt lương cứng, cộng thưởng KPI, trừ phạt đi trễ và bảo hiểm trong nháy mắt thay vì mất 3 ngày làm Excel thủ công tại <a href=\"{{ url_for('bangluong') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">bangluong.html</a>.",
                 feat4_desc: "Số hóa hồ sơ bảo hiểm, thông tin liên hệ và lịch sử hợp đồng lao động lưu trữ tập trung tại <a href=\"{{ url_for('nhanvien') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">nhanvien.html</a>.",
                 feat5_desc: "Ghi nhận các phiếu thu chi vụn vặt, quỹ tiền mặt két sắt và đối soát quỹ tài khoản ngân hàng real-time tại <a href=\"{{ url_for('quanly_thuchi') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">quanly_thuchi.html</a>.",
@@ -1750,6 +1803,8 @@
                 ai_card1_desc: 'AI parses behavior patterns (sudden spikes in lateness, consecutive days of leave requests) to give managers early warning of key staff at risk of quitting.',
                 ai_card2_title: 'Net P&L Profit Forecasting',
                 ai_card2_desc: 'AI analyzes revenue growth rate against payroll fund expansion to recommend the safest, most cost-optimal time to hire new staff.',
+                ai_card3_title: 'One-Tap PDF Profit Report Export',
+                ai_card3_desc: 'The P&L report AI just forecasted can be exported instantly as a polished PDF file with a single tap, ready to send to your accountant or present to investors without re-compiling anything manually in Excel.',
                 chat1: 'Detected staff member "Tran Quoc Bao - Tech Dept" arriving late 4 shifts in a row over the past 2 weeks, and requesting 2 days of leave with no clear reason.',
                 chat2: 'Export a detailed KPI performance report for this employee?',
                 chat3_label: 'Early Warning:',
@@ -1761,6 +1816,12 @@
                 faq2_a: 'Yes. You can configure the social insurance contribution rate (8% employee-paid) and the progressive personal income tax brackets per current regulations. The system automatically applies deductions when closing payroll, completely offloading the work from your accountant.',
                 faq3_q: 'Is cloud-stored employee record data safe?',
                 faq3_a: 'Absolutely safe. All insurance records and labor contracts are stored centrally on a cloud system encrypted with premium AES-256. In addition, a strict permissions mechanism ensures only authorized personnel (HR, Accounting, Director) can access and view them.',
+                faq4_q: 'What\'s the approval process for leave requests or expense reimbursements?',
+                faq4_a: 'Employees submit leave or reimbursement requests directly in the system; managers get notified and approve or reject with a single tap — every approval is logged, so paper forms and forgotten Zalo messages asking for time off are a thing of the past.',
+                faq5_q: 'Can leadership see the office\'s cash flow and expense reports?',
+                faq5_a: 'Yes. The Cash Flow Management screen consolidates all office income/expenses by day, week, and month — leadership sees real-time cash flow reports on their phone without waiting for accounting to compile everything manually at month-end.',
+                faq6_q: 'We currently track attendance in an old Excel file — will switching to BitPaw lose our data?',
+                faq6_a: 'No data is lost. The BitPaw onboarding team helps you import employee records and base salaries from your old Excel file during your first setup session — your company simply starts fresh attendance tracking in the system from go-live day, no need to redo everything from scratch.',
                 cta_title: 'Start Your Digital Office Transformation Today!',
                 cta_desc: 'Sign up for a free 14-day trial with full access to Wifi attendance, 1-Click payroll closing, and automatic net financial reporting.',
                 cta_btn1: 'Start 14-Day Free Trial',
@@ -1792,7 +1853,7 @@
                 faq_title: 'Questions & Answers <span class="text-gradient-indigo drop-shadow-[0_2px_10px_rgba(79,70,229,0.3)]">About BitPaw Office Software</span>',
                 bill_note_desc: 'Instead of accountants spending an exhausting 16 hours at month-end calculating by hand, BitPaw OS finishes closing and sending this secure payslip in <span class="text-indigo-300 font-bold">just 1 click</span>.',
                 chat3: "This month's KPI hit 98% (Very good). Risk of quitting due to lost motivation: 78%. The manager should have a direct conversation to understand this employee.",
-                feat1_desc: "Accepts attendance check-ins based on office location or a matching Wifi MAC address, providing airtight security against fake check-ins, in <a href=\"{{ url_for('chamcong_fnb') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">chamcong_vanphong.html</a>.",
+                feat1_desc: "Accepts attendance check-ins based on office location or a matching Wifi MAC address, providing airtight security against fake check-ins, in <a href=\"{{ url_for('chamcong_vanphong') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">chamcong_vanphong.html</a>.",
                 feat2_desc: "Close base salary, add KPI bonuses, deduct late penalties and insurance in the blink of an eye instead of spending 3 days on manual Excel work, in <a href=\"{{ url_for('bangluong') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">bangluong.html</a>.",
                 feat4_desc: "Digitize insurance records, contact details, and labor contract history, all stored centrally in <a href=\"{{ url_for('nhanvien') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">nhanvien.html</a>.",
                 feat5_desc: "Record miscellaneous receipts and expenses, petty cash safe funds, and reconcile bank account balances in real time in <a href=\"{{ url_for('quanly_thuchi') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">quanly_thuchi.html</a>.",

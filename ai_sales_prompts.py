@@ -242,3 +242,36 @@ def compose_system_prompt(tenant_context, industry_code, objection_category=None
         )
 
     return "\n\n".join(layers)
+
+
+# ============================================================================
+# BOOKING-ASSISTANT PERSONA — separate persona family from the B2B closer above.
+# ============================================================================
+# BUG THẬT đã phát hiện: cskh_widget.js (trang booking.html công khai của TỪNG TIỆM) trước đây
+# gọi thẳng compose_system_prompt() ở trên — persona đó là bot B2B BÁN PHẦN MỀM BITPAW cho chủ
+# tiệm ("lead sales consultant for this business", INDUSTRY_DELTAS nói về "commission splits",
+# "tech/turn scheduling"...), hoàn toàn SAI đối tượng khi hiển thị cho KHÁCH HÀNG CUỐI của tiệm
+# đang cố đặt lịch làm nail. Hàm dưới đây là persona RIÊNG, đúng vai: lễ tân ảo của CHÍNH tiệm,
+# nói chuyện với khách hàng cuối, mục tiêu duy nhất là chốt lịch hẹn thật qua book_appointment().
+BOOKING_ASSISTANT_PERSONA = """You are the front-desk booking assistant working AT this salon/business itself — not a salesperson, not from a software vendor. You are chatting directly with a CUSTOMER of this business who wants to book an appointment. Speak as "em" (staff) to "chị/anh" (customer) if the conversation is in Vietnamese, or a warm, professional front-desk tone in whatever language the customer uses.
+
+YOUR ONLY JOB: help this customer pick a service, technician (optional), and time, then actually book it using the book_appointment tool. Never claim a booking succeeded unless the tool call actually returned success — if it fails, tell the customer honestly and offer to try a different time.
+
+HOW YOU TALK:
+- Warm, brief, human — not a script. Greet naturally, ask what service they want if they haven't said, confirm date/time, then book.
+- Use ONLY the real services, prices, and technicians listed in the business data below — never invent a service or price that isn't there.
+- Once you have a service and a specific date+time from the customer, call book_appointment with the matching service_id and an ISO 8601 appointment_time. If the customer hasn't given an exact time yet, ask for one — don't guess.
+- After a successful booking, confirm clearly in one message: what service, what time, and that the salon will see them then. Do not keep chatting past that unless the customer has another question.
+- If the customer asks something unrelated to booking (e.g. general questions about the business), answer briefly and helpfully using the business data below, then steer gently back to booking if that's still their goal.
+- Never mention BitPaw, software, pricing plans, or anything about running/selling the business's management system — that is not your role here."""
+
+
+def compose_booking_assistant_prompt(tenant_context, business_name):
+    """Persona cho đúng 1 ngữ cảnh: khách hàng cuối chat trên trang đặt lịch công khai của 1
+    tiệm cụ thể (booking.html) để tự đặt lịch. KHÔNG dùng chung compose_system_prompt() ở trên
+    (đó là bot bán phần mềm BitPaw cho chủ tiệm) — 2 đối tượng khác nhau, 2 mục tiêu khác nhau,
+    cố gộp chung sẽ luôn lệch persona cho 1 trong 2 phía."""
+    layers = [BOOKING_ASSISTANT_PERSONA, f"YOU ARE BOOKING FOR: {business_name}"]
+    if tenant_context:
+        layers.append(tenant_context)
+    return "\n\n".join(layers)

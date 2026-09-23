@@ -271,6 +271,55 @@
                             <i class="fas fa-check-double"></i> <span data-i18n="cnl_submit_btn">LƯU PHIẾU TÍNH TUA</span>
                         </button>
                     </div>
+
+                    <!-- ================= DOANH THU THEO NGÀY — Calendar Grid + Phiếu Lương =================
+                         Bấm 1 ngày trên lưới -> chỉ xem ĐÚNG doanh thu/tip/số lượt của ngày đó (không cộng
+                         dồn lẫn ngày khác), cộng 1 phiếu lương ước tính 3 dòng Cash Payout / Check-Direct
+                         Deposit / Tax Withheld dựng từ chính dữ liệu tien_tua/tien_tips_cash/tien_tips_card
+                         thật trong db.chamcong — KHÔNG phải engine thuế/payroll thật, chỉ là ước tính minh
+                         hoạ rõ ràng cho chủ & thợ, có ghi chú tỉ lệ thuế giả định ngay trên UI. -->
+                    <div class="mt-8 pt-6 border-t border-dashed border-white/10 relative z-10">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-emerald-400 text-sm font-black uppercase tracking-widest flex items-center gap-2"><i class="fas fa-calendar-days"></i> <span data-i18n="cnl_daily_grid_title">Doanh Thu Theo Ngày</span></h3>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="payrollGridShiftMonth(-1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center"><i class="fas fa-chevron-left text-xs"></i></button>
+                                <span id="payrollGridMonthLabel" class="text-xs font-bold text-gray-300 w-20 text-center font-mono">--/----</span>
+                                <button type="button" onclick="payrollGridShiftMonth(1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
+                            </div>
+                        </div>
+                        <div id="payrollCalendarGrid" class="grid grid-cols-7 gap-1.5 mb-5 text-center"></div>
+
+                        <div id="paystubPanel" class="bg-black/40 border border-white/10 rounded-2xl p-5 hidden">
+                            <div class="flex items-center justify-between mb-4">
+                                <p class="text-xs font-black text-gray-400 uppercase tracking-widest"><span data-i18n="cnl_paystub_title">Phiếu Lương Ngày</span> <span id="paystubDateLabel" class="text-emerald-400">--</span></p>
+                                <span id="paystubTicketCount" class="text-[10px] bg-white/5 px-2.5 py-1 rounded-full text-gray-400 font-bold">0 <span data-i18n="cnl_paystub_tickets">lượt</span></span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3 text-center mb-4">
+                                <div><p class="text-[9px] text-gray-500 uppercase font-bold mb-1" data-i18n="cnl_paystub_commission">Hoa hồng</p><p id="paystubCommission" class="text-lg font-black text-cyan-300">$0.00</p></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase font-bold mb-1" data-i18n="cnl_paystub_tip_cash">Tip Mặt</p><p id="paystubTipCash" class="text-lg font-black text-emerald-300">$0.00</p></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase font-bold mb-1" data-i18n="cnl_paystub_tip_card">Tip Thẻ</p><p id="paystubTipCard" class="text-lg font-black text-purple-300">$0.00</p></div>
+                            </div>
+                            <div class="border-t border-dashed border-gray-700 pt-4 space-y-2.5">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-400"><i class="fas fa-money-bill-wave text-emerald-400 mr-1.5"></i><span data-i18n="cnl_paystub_cash_payout">Cash Payout (Tip mặt)</span></span>
+                                    <span id="paystubCashPayout" class="font-mono font-bold text-emerald-300">$0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-400"><i class="fas fa-money-check-dollar text-cyan-400 mr-1.5"></i><span data-i18n="cnl_paystub_check_deposit">Check / Direct Deposit</span></span>
+                                    <span id="paystubCheckDeposit" class="font-mono font-bold text-cyan-300">$0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-500"><i class="fas fa-landmark text-rose-400 mr-1.5"></i><span data-i18n="cnl_paystub_tax_withheld">Tax Withheld</span> (<span data-i18n="cnl_paystub_tax_est">ước tính</span> <span id="paystubTaxRate">15</span>%)</span>
+                                    <span id="paystubTaxWithheld" class="font-mono font-bold text-rose-400">-$0.00</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
+                                <span class="text-xs font-black text-gray-300 uppercase" data-i18n="cnl_paystub_net_total">Tổng Thực Nhận</span>
+                                <span id="paystubNetTotal" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">$0.00</span>
+                            </div>
+                            <p class="text-[10px] text-gray-600 mt-3 leading-relaxed" data-i18n="cnl_paystub_disclaimer">* Ước tính minh hoạ dựa trên dữ liệu POS thật trong ngày — không thay thế tính toán thuế/payroll chính thức.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="lg:col-span-4 flex flex-col gap-6 min-h-0">
@@ -585,6 +634,98 @@
             document.getElementById('shift_gio_den').value = "";
             document.getElementById('shift_gio_ve').value = "";
             document.getElementById('shift_so_gio').value = "";
+
+            const now = new Date();
+            payrollGridYear = now.getFullYear();
+            payrollGridMonth = now.getMonth() + 1;
+            document.getElementById('paystubPanel').classList.add('hidden');
+            loadPayrollMonthSummary();
+        }
+
+        // ===== Calendar Grid + Phiếu Lương theo ngày =====
+        let payrollGridYear, payrollGridMonth; // month: 1-12
+        let payrollGridDaysData = {};
+
+        function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+        function payrollGridShiftMonth(delta) {
+            payrollGridMonth += delta;
+            if (payrollGridMonth > 12) { payrollGridMonth = 1; payrollGridYear++; }
+            if (payrollGridMonth < 1) { payrollGridMonth = 12; payrollGridYear--; }
+            document.getElementById('paystubPanel').classList.add('hidden');
+            loadPayrollMonthSummary();
+        }
+
+        async function loadPayrollMonthSummary() {
+            document.getElementById('payrollGridMonthLabel').innerText = `${String(payrollGridMonth).padStart(2, '0')}/${payrollGridYear}`;
+            try {
+                const body = await hrApi(`/api/hr/chamcong/month_summary?ma_nv=${encodeURIComponent(currentWorkerId)}&nganh_nghe=${encodeURIComponent('Nails')}&month=${payrollGridMonth}&year=${payrollGridYear}`);
+                payrollGridDaysData = body.days || {};
+            } catch (e) {
+                payrollGridDaysData = {};
+            }
+            renderPayrollCalendarGrid();
+        }
+
+        function renderPayrollCalendarGrid() {
+            const grid = document.getElementById('payrollCalendarGrid');
+            const firstOfMonth = new Date(payrollGridYear, payrollGridMonth - 1, 1);
+            const daysInMonth = new Date(payrollGridYear, payrollGridMonth, 0).getDate();
+            const startWeekday = firstOfMonth.getDay(); // 0 = Chủ Nhật
+            const now = new Date();
+            const todayKey = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+            let html = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+                .map(d => `<div class="text-[9px] text-gray-600 font-bold uppercase py-1">${d}</div>`).join('');
+            for (let i = 0; i < startWeekday; i++) html += `<div></div>`;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const key = `${String(day).padStart(2, '0')}/${String(payrollGridMonth).padStart(2, '0')}/${payrollGridYear}`;
+                const data = payrollGridDaysData[key];
+                const hasData = !!data;
+                const isToday = key === todayKey;
+                html += `
+                    <button type="button" ${hasData ? `onclick="selectPayrollDay('${key}')"` : 'disabled'}
+                        class="aspect-square rounded-lg text-xs font-bold flex flex-col items-center justify-center gap-0.5 transition-all ${
+                            hasData
+                                ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 cursor-pointer active:scale-90'
+                                : 'bg-white/[0.02] border border-white/5 text-gray-600 cursor-default'
+                        } ${isToday ? 'ring-1 ring-cyan-400' : ''}">
+                        <span>${day}</span>
+                        ${hasData ? `<span class="w-1 h-1 rounded-full bg-emerald-400"></span>` : ''}
+                    </button>`;
+            }
+            grid.innerHTML = html;
+        }
+
+        function selectPayrollDay(dayKey) {
+            const data = payrollGridDaysData[dayKey];
+            if (!data) return;
+
+            document.getElementById('paystubPanel').classList.remove('hidden');
+            document.getElementById('paystubDateLabel').innerText = dayKey;
+            document.getElementById('paystubTicketCount').innerHTML = `${data.count} ${t('cnl_paystub_tickets')}`;
+            document.getElementById('paystubCommission').innerText = `$${data.commission.toFixed(2)}`;
+            document.getElementById('paystubTipCash').innerText = `$${data.tip_cash.toFixed(2)}`;
+            document.getElementById('paystubTipCard').innerText = `$${data.tip_card.toFixed(2)}`;
+
+            // Tax Withheld: ƯỚC TÍNH minh hoạ (tỉ lệ giả định cố định), KHÔNG phải engine thuế
+            // thật — app này không có hồ sơ thuế/payroll chính thức nào. Chỉ áp thuế lên phần
+            // Check/Direct Deposit (hoa hồng + tip thẻ, có dấu vết qua hệ thống) — Tip Mặt trả
+            // thẳng tay ngay tại quầy, không qua bảng lương nên không khấu trừ ở đây.
+            const TAX_RATE_PERCENT = 15;
+            const cashPayout = round2(data.tip_cash);
+            const checkDepositGross = round2(data.commission + data.tip_card);
+            const taxWithheld = round2(checkDepositGross * TAX_RATE_PERCENT / 100);
+            const checkDepositNet = round2(checkDepositGross - taxWithheld);
+            const netTotal = round2(cashPayout + checkDepositNet);
+
+            document.getElementById('paystubTaxRate').innerText = TAX_RATE_PERCENT;
+            document.getElementById('paystubCashPayout').innerText = `$${cashPayout.toFixed(2)}`;
+            document.getElementById('paystubCheckDeposit').innerText = `$${checkDepositNet.toFixed(2)}`;
+            document.getElementById('paystubTaxWithheld').innerText = `-$${taxWithheld.toFixed(2)}`;
+            document.getElementById('paystubNetTotal').innerText = `$${netTotal.toFixed(2)}`;
+
+            loadHistory(currentWorkerId, dayKey);
         }
 
         function backToList() {
@@ -592,12 +733,18 @@
             setTimeout(() => { document.getElementById('screen_list').classList.add('active'); }, 50);
         }
 
-        // Tải lịch sử gần đây
-        async function loadHistory(ma_nv) {
+        // Tải lịch sử gần đây — dayFilter (DD/MM/YYYY) tuỳ chọn: khi bấm 1 ngày trên Calendar
+        // Grid, danh sách này chuyển từ "10 bản ghi gần nhất" (bất kỳ ngày nào) sang ĐÚNG các
+        // bill của riêng ngày đó, không giới hạn số lượng — khớp với phiếu lương đang hiển thị,
+        // tránh gây hiểu lầm "sao lịch sử bên phải không khớp số trên phiếu lương".
+        async function loadHistory(ma_nv, dayFilter) {
             const box = document.getElementById('historyBox');
             box.innerHTML = `<div class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin"></i> ${t('cnl_loading')}</div>`;
             try {
-                const recordsBody = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&nganh_nghe=${encodeURIComponent('Nails')}&limit=10`);
+                const qs = dayFilter
+                    ? `ma_nv=${encodeURIComponent(ma_nv)}&nganh_nghe=${encodeURIComponent('Nails')}&ngay_cham=${encodeURIComponent(dayFilter)}`
+                    : `ma_nv=${encodeURIComponent(ma_nv)}&nganh_nghe=${encodeURIComponent('Nails')}&limit=10`;
+                const recordsBody = await hrApi(`/api/hr/chamcong?${qs}`);
                 const records = (recordsBody.data || []).slice().sort((a, b) => (b.ngay_cham || '').localeCompare(a.ngay_cham || ''));
                 if(!records || records.length === 0) {
                     box.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">${t('cnl_no_transactions')}</div>`;
@@ -814,6 +961,18 @@
                 cnl_final_worker_label: 'Thợ Cầm Về',
                 cnl_final_salon_label: 'Tiệm Giữ Lại',
                 cnl_recent_history_title: 'Lịch sử vừa nhập',
+                cnl_daily_grid_title: 'Doanh Thu Theo Ngày',
+                cnl_paystub_title: 'Phiếu Lương Ngày',
+                cnl_paystub_tickets: 'lượt',
+                cnl_paystub_commission: 'Hoa hồng',
+                cnl_paystub_tip_cash: 'Tip Mặt',
+                cnl_paystub_tip_card: 'Tip Thẻ',
+                cnl_paystub_cash_payout: 'Cash Payout (Tip mặt)',
+                cnl_paystub_check_deposit: 'Check / Direct Deposit',
+                cnl_paystub_tax_withheld: 'Tax Withheld',
+                cnl_paystub_tax_est: 'ước tính',
+                cnl_paystub_net_total: 'Tổng Thực Nhận',
+                cnl_paystub_disclaimer: '* Ước tính minh hoạ dựa trên dữ liệu POS thật trong ngày — không thay thế tính toán thuế/payroll chính thức.',
                 cnl_no_staff: 'Chưa có nhân sự nào trong hệ thống.',
                 cnl_calc_pay_btn: 'Tính Tua',
                 cnl_toast_load_error: 'Lỗi tải danh sách thợ!',
@@ -892,6 +1051,18 @@
                 cnl_final_worker_label: 'Staff Take-Home',
                 cnl_final_salon_label: 'Salon Keeps',
                 cnl_recent_history_title: 'Recent History',
+                cnl_daily_grid_title: 'Revenue By Day',
+                cnl_paystub_title: 'Daily Paystub',
+                cnl_paystub_tickets: 'tickets',
+                cnl_paystub_commission: 'Commission',
+                cnl_paystub_tip_cash: 'Cash Tip',
+                cnl_paystub_tip_card: 'Card Tip',
+                cnl_paystub_cash_payout: 'Cash Payout (Cash Tip)',
+                cnl_paystub_check_deposit: 'Check / Direct Deposit',
+                cnl_paystub_tax_withheld: 'Tax Withheld',
+                cnl_paystub_tax_est: 'est.',
+                cnl_paystub_net_total: 'Total Take-Home',
+                cnl_paystub_disclaimer: '* Illustrative estimate based on real POS data for the day — not a substitute for official tax/payroll calculation.',
                 cnl_no_staff: 'No staff in the system yet.',
                 cnl_calc_pay_btn: 'Calculate Pay',
                 cnl_toast_load_error: 'Error loading staff list!',

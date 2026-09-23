@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Book a Service | BitPaw Services</title>
+    <title>Book a Service | {{ business_name or 'BitPaw Services' }}</title>
 
-    <!-- Open Graph: preview khi link nay duoc share qua Zalo/iMessage. Dung branding chung
-    BitPaw (giong landing.html) vi route /booking hien khong truyen ten/logo rieng cua tung
-    tiem -- muon hien dung ten/logo tiem thi can sua route truyen them bien do (viec khac). -->
+    <!-- Open Graph: preview khi link nay duoc share qua Zalo/iMessage. Ten tiem lay tu
+    db.businesses qua business_name (route truyen vao) -- fallback "BitPaw Services" khi
+    khong co business_id (link demo tren landing khong gan tiem cu the nao). -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Book a Service | BitPaw Services">
+    <meta property="og:title" content="Book a Service | {{ business_name or 'BitPaw Services' }}">
     <meta property="og:description" content="Đặt lịch hẹn dịch vụ trực tuyến nhanh chóng, tiện lợi.">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
@@ -21,12 +21,26 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        body { 
-            font-family: 'Inter', system-ui, sans-serif; 
-            background-color: #0f172a; /* Nền xanh đậm sang trọng */
-            color: #f8fafc; 
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #0a0e1f;
+            background-image:
+                radial-gradient(circle at 14% 10%, rgba(6, 182, 212, 0.13), transparent 42%),
+                radial-gradient(circle at 86% 88%, rgba(59, 130, 246, 0.11), transparent 42%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.04), transparent 65%);
+            background-attachment: fixed;
+            color: #f8fafc;
             min-height: 100vh;
             overflow-x: hidden;
+        }
+
+        /* Badge chip nhỏ (logo hologram) — trước đây dùng class .glass-panel nhưng KHÔNG định
+           nghĩa ở đâu trong trang này (chỉ tồn tại cục bộ ở các trang khác như calendar.html),
+           nên là no-op im lặng, mất hẳn hiệu ứng kính mờ dự định. */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
 
         /* Pure Glassmorphism for Form */
@@ -90,9 +104,25 @@
             letter-spacing: 0.05em;
         }
         
-        /* Cố định icon bên trái */
-        .input-icon { position: absolute; left: 1.1rem; top: 1.1rem; color: #06b6d4; opacity: 0.7; z-index: 5; pointer-events: none; font-size: 1.1rem; transition: all 0.3s; }
-        .floating-input input:focus ~ .input-icon, .floating-input textarea:focus ~ .input-icon { opacity: 1; transform: scale(1.1); color: #3b82f6; }
+        /* Icon bên trái — trước đây chỉ là glyph trần trụi thả nổi trong field, không có khung/
+           độ sâu, cùng 1 kiểu phẳng lì cho mọi icon. Bọc chip vuông bo góc giống hệt pattern đã
+           dùng cho icon sidebar (app_sidebar.html: .nav-icon-chip) để đồng bộ 1 ngôn ngữ thiết kế
+           xuyên suốt toàn bộ màn hình Nails — không phải 2 kiểu icon khác nhau giữa sidebar và
+           form đặt lịch. */
+        .input-icon {
+            position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%);
+            width: 30px; height: 30px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.28);
+            color: #22d3ee; opacity: 0.85; z-index: 5; pointer-events: none; font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        .floating-input textarea ~ .input-icon { top: 1.55rem; transform: none; }
+        .floating-input input:focus ~ .input-icon, .floating-input textarea:focus ~ .input-icon {
+            opacity: 1; transform: scale(1.08) translateY(-50%); color: #67e8f9;
+            background: rgba(6, 182, 212, 0.22); border-color: rgba(6, 182, 212, 0.45);
+        }
+        .floating-input textarea:focus ~ .input-icon { transform: scale(1.08); }
 
         /* Select field custom */
         .select-field {
@@ -140,7 +170,7 @@
         <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-600/20 rounded-full blur-[60px] pointer-events-none -z-10"></div>
 
         <div class="text-center mb-8">
-            <div class="relative flex justify-center items-center h-28 hologram-container mb-2"
+            <div class="relative flex justify-center items-center h-28 hologram-container mb-2">
                 <div class="relative w-20 h-20 rounded-2xl border border-cyan-500/30 flex items-center justify-center glass-panel shadow-[0_10px_20px_rgba(6,182,212,0.2)] bg-gradient-to-br from-cyan-900/40 to-blue-900/20">
                     <div class="absolute w-[110%] h-[110%] border-t-2 border-r-2 border-cyan-400/50 rounded-2xl animate-spin" style="animation-duration: 6s;"></div>
                     <div class="absolute w-[120%] h-[120%] border-b-2 border-l-2 border-blue-500/50 rounded-2xl animate-spin" style="animation-duration: 8s; animation-direction: reverse;"></div>
@@ -152,6 +182,9 @@
                 </div>
             </div>
             
+            {% if business_name %}
+            <p class="text-[11px] font-bold text-cyan-400 uppercase tracking-[0.2em] mb-1">{{ business_name }}</p>
+            {% endif %}
             <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-2 drop-shadow-md">Book a Service</h1>
             <p class="text-xs text-gray-400 font-medium">Welcome! Please fill in the information below.</p>
         </div>
@@ -281,6 +314,10 @@
         // báo trong 1 thẻ <script> không chắc lúc nào cũng thấy được từ thẻ <script> khác;
         // gán vào window.* thì luôn là global thật.
         window.BITPAW_BUSINESS_ID = bookingBusinessId || null;
+        // Báo cho cskh_widget.js biết đây là khách hàng CUỐI của tiệm đang tự đặt lịch — KHÔNG
+        // phải chủ tiệm tiềm năng đang được BitPaw chào bán phần mềm (persona/prompt mặc định
+        // của widget). Xem app.py::secure_ai_generate() + ai_sales_prompts.compose_booking_assistant_prompt().
+        window.BITPAW_CHAT_CONTEXT = 'customer_booking';
 
         window.onload = () => {
             // Set minimum datetime for input (Chống khách đặt lùi thời gian)

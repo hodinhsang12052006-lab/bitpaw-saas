@@ -239,9 +239,9 @@
     <!-- Header Navigation -->
     <header class="fixed w-full top-0 z-50 bg-[#08061a]/85 backdrop-blur-md border-b border-white/10 py-4">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-10 h-10 bg-sky-500/20 rounded-xl flex items-center justify-center border border-sky-500/50 overflow-hidden shadow-[0_0_12px_#0ea5e9]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" loading="lazy" class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
+                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo" loading="lazy" class="h-full w-full rounded-full object-cover shadow-lg">
                 </div>
                 <div class="flex flex-col leading-tight">
                     <h2 class="text-2xl font-black tracking-widest text-white whitespace-nowrap">Bit<span class="text-sky-400">Paw</span></h2>
@@ -1003,13 +1003,19 @@
                     <div class="glass p-6 rounded-2xl border border-white/10">
                         <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-user-shield text-sky-400"></i> <span data-i18n="trust_feat2_title">Cảnh báo biến động nhân lực</span></h4>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
-                            <span data-i18n="trust_feat2_desc">AI tự bóc tách hành vi lịch sử chấm công (đi trễ tăng vọt, xin nghỉ phép nhiều ca gãy liên tục) để cảnh báo sớm thợ/kỹ thuật viên nòng cốt có nguy cơ nhảy việc.</span>
+                            <span data-i18n="trust_feat2_desc">AI tự bóc tách hành vi lịch sử chấm công (đi trễ tăng vọt, xin nghỉ phép liên tục) để cảnh báo sớm nhân sự chủ chốt có nguy cơ nghỉ việc.</span>
                         </p>
                     </div>
                     <div class="glass p-6 rounded-2xl border border-white/10">
                         <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-calendar-check text-emerald-400"></i> <span data-i18n="trust_feat3_title">Dự báo công suất lao động</span></h4>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
-                            <span data-i18n="trust_feat3_desc">AI phân tích mối liên hệ giữa thời gian ca trực và doanh thu thực phẩm/dịch vụ thu về để đề xuất lịch trình xoay ca gãy tối ưu hóa năng suất.</span>
+                            <span data-i18n="trust_feat3_desc">AI phân tích mối liên hệ giữa lịch làm việc và tỉ lệ hoàn thành KPI/deadline để đề xuất phân ca tối ưu năng suất từng phòng ban.</span>
+                        </p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-white/10">
+                        <h4 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2"><i class="fas fa-coins text-amber-400"></i> <span data-i18n="trust_feat4_title">Cảnh báo ngân sách tăng ca</span></h4>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="trust_feat4_desc">AI đối chiếu dữ liệu giờ tăng ca thực tế trên hệ thống chấm công với quỹ lương từng phòng ban, cảnh báo sớm cho sếp nếu chi phí OT có nguy cơ vượt trần trước khi kỳ lương chốt sổ.</span>
                         </p>
                     </div>
                 </div>
@@ -1032,12 +1038,12 @@
                         <div class="flex gap-2">
                             <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-sky-400"></i></div>
                             <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
-                                <span data-i18n="ai_alert_msg">Phát hiện 1 nhân viên đi trễ liên tiếp 5 ca gãy trong 2 tuần qua, đồng thời đã xin phép nghỉ 2 ca gác.</span>
+                                <span data-i18n="ai_alert_msg">Phát hiện 1 nhân viên đi trễ liên tiếp 5 ngày trong 2 tuần qua, đồng thời đã xin nghỉ phép 2 lần.</span>
                             </div>
                         </div>
                         <div class="flex gap-2 justify-end">
                             <div class="bg-sky-500/20 border border-sky-500/30 p-3 rounded-2xl max-w-[80%] text-white text-right font-bold">
-                                <span data-i18n="ai_alert_question">Xuất biểu đồ lịch sử chấm công FaceID sinh trắc học của KTV này?</span>
+                                <span data-i18n="ai_alert_question">Xuất biểu đồ lịch sử chấm công FaceID sinh trắc học của nhân viên này?</span>
                             </div>
                             <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0"><i class="fas fa-user-tie text-indigo-400"></i></div>
                         </div>
@@ -1045,7 +1051,7 @@
                             <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-sky-400"></i></div>
                             <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300">
                                 <p class="font-black text-white mb-1.5"><i class="fas fa-exclamation-triangle text-rose-400"></i> <span data-i18n="ai_alert_label">Cảnh báo sớm:</span></p>
-                                <span data-i18n="ai_alert_kpi">KPI hiệu suất bảo trì: 96% (Xuất sắc). Điểm chuyên cần sụt giảm mạnh. Nguy cơ biến động nhảy việc: 82%. Khuyến nghị sếp đối thoại giữ chân thợ.</span>
+                                <span data-i18n="ai_alert_kpi">KPI hoàn thành công việc: 96% (Xuất sắc). Điểm chuyên cần sụt giảm mạnh. Nguy cơ nghỉ việc: 82%. Khuyến nghị quản lý đối thoại giữ chân nhân viên.</span>
                             </div>
                         </div>
                     </div>
@@ -1103,6 +1109,45 @@
                     <div class="faq-content">
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
                             <span data-i18n="faq3_a">Có. Khi nhân viên cũ quay lại làm việc, quản lý chỉ cần chuyển trạng thái hồ sơ từ "Đã nghỉ việc" sang "Đang làm việc" trên hệ thống, toàn bộ dải lịch sử phép năm cũ và FaceID đăng ký ban đầu sẽ tự động khôi phục giúp giảm thiểu thời gian setup.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq4_q">Doanh nghiệp có nhiều chi nhánh/văn phòng thì quản lý chung được không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq4_a">Được. Mỗi chi nhánh có thể cấu hình bán kính GPS/Wifi riêng cho đúng địa chỉ văn phòng, trong khi chủ doanh nghiệp vẫn xem được báo cáo chấm công, phép năm và bảng lương gộp toàn hệ thống trên cùng một tài khoản quản trị.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq5_q">Duyệt đơn nghỉ phép có tự động cập nhật vào bảng lương cuối tháng không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq5_a">Có. Ngay khi quản lý duyệt đơn nghỉ phép hoặc đơn hoàn ứng chi phí trên hệ thống, dữ liệu được ghi nhận thẳng vào bảng công của nhân viên đó — không cần nhập tay lại lần hai vào file lương cuối tháng.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
+                    <div class="faq-header">
+                        <h4 class="text-white font-extrabold text-[22px] tracking-tight" data-i18n="faq6_q">Nếu ngừng sử dụng BitPaw, dữ liệu nhân sự có xuất ra được không?</h4>
+                        <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="faq-content">
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed font-medium break-words">
+                            <span data-i18n="faq6_a">Có. Toàn bộ hồ sơ nhân viên, lịch sử chấm công và bảng lương thuộc quyền sở hữu của doanh nghiệp bạn, luôn xuất được ra file bất cứ lúc nào — không bị khóa dữ liệu khi ngừng gói dịch vụ.</span>
                         </p>
                     </div>
                 </div>
@@ -1615,13 +1660,15 @@
                 trust_feat1_desc: 'Loại bỏ hoàn toàn cơ hội chấm công khống từ xa. Dữ liệu công chốt thực tế khớp tọa độ định vị vệ tinh GPS hiện trường chuẩn xác 100%.',
                 trust_ai_desc: 'Hệ thống tích hợp trí tuệ nhân tạo dự đoán xu hướng đi trễ, phân tích mức độ động lực cống hiến và dự báo nguy cơ biến động nhân sự nòng cốt.',
                 trust_feat2_title: 'Cảnh báo biến động nhân lực',
-                trust_feat2_desc: 'AI tự bóc tách hành vi lịch sử chấm công (đi trễ tăng vọt, xin nghỉ phép nhiều ca gãy liên tục) để cảnh báo sớm thợ/kỹ thuật viên nòng cốt có nguy cơ nhảy việc.',
+                trust_feat2_desc: 'AI tự bóc tách hành vi lịch sử chấm công (đi trễ tăng vọt, xin nghỉ phép liên tục) để cảnh báo sớm nhân sự chủ chốt có nguy cơ nghỉ việc.',
                 trust_feat3_title: 'Dự báo công suất lao động',
-                trust_feat3_desc: 'AI phân tích mối liên hệ giữa thời gian ca trực và doanh thu thực phẩm/dịch vụ thu về để đề xuất lịch trình xoay ca gãy tối ưu hóa năng suất.',
-                ai_alert_msg: 'Phát hiện 1 nhân viên đi trễ liên tiếp 5 ca gãy trong 2 tuần qua, đồng thời đã xin phép nghỉ 2 ca gác.',
-                ai_alert_question: 'Xuất biểu đồ lịch sử chấm công FaceID sinh trắc học của KTV này?',
+                trust_feat3_desc: 'AI phân tích mối liên hệ giữa lịch làm việc và tỉ lệ hoàn thành KPI/deadline để đề xuất phân ca tối ưu năng suất từng phòng ban.',
+                trust_feat4_title: 'Cảnh báo ngân sách tăng ca',
+                trust_feat4_desc: 'AI đối chiếu dữ liệu giờ tăng ca thực tế trên hệ thống chấm công với quỹ lương từng phòng ban, cảnh báo sớm cho sếp nếu chi phí OT có nguy cơ vượt trần trước khi kỳ lương chốt sổ.',
+                ai_alert_msg: 'Phát hiện 1 nhân viên đi trễ liên tiếp 5 ngày trong 2 tuần qua, đồng thời đã xin nghỉ phép 2 lần.',
+                ai_alert_question: 'Xuất biểu đồ lịch sử chấm công FaceID sinh trắc học của nhân viên này?',
                 ai_alert_label: 'Cảnh báo sớm:',
-                ai_alert_kpi: 'KPI hiệu suất bảo trì: 96% (Xuất sắc). Điểm chuyên cần sụt giảm mạnh. Nguy cơ biến động nhảy việc: 82%. Khuyến nghị sếp đối thoại giữ chân thợ.',
+                ai_alert_kpi: 'KPI hoàn thành công việc: 96% (Xuất sắc). Điểm chuyên cần sụt giảm mạnh. Nguy cơ nghỉ việc: 82%. Khuyến nghị quản lý đối thoại giữ chân nhân viên.',
                 faq_label: 'GIẢI ĐÁP THẮC MẮC',
                 faq_title: 'Hỏi Đáp',
                 faq_title2: 'Về Phần Mềm BitPaw HRM',
@@ -1632,6 +1679,12 @@
                 faq2_a: 'Tuyệt đối không. Công nghệ quét sinh trắc FaceID của BitPaw OS tích hợp tính năng Liveness Detection (nhận diện thực thể sống). Nhân sự phải nháy mắt, cử động nhẹ cơ mặt khi camera quét, triệt tiêu hoàn toàn khả năng lách luật bằng hình ảnh in sẵn hay video.',
                 faq3_q: 'Hồ sơ nhân viên cũ có thể khôi phục lại khi họ quay lại làm việc không?',
                 faq3_a: 'Có. Khi nhân viên cũ quay lại làm việc, quản lý chỉ cần chuyển trạng thái hồ sơ từ "Đã nghỉ việc" sang "Đang làm việc" trên hệ thống, toàn bộ dải lịch sử phép năm cũ và FaceID đăng ký ban đầu sẽ tự động khôi phục giúp giảm thiểu thời gian setup.',
+                faq4_q: 'Doanh nghiệp có nhiều chi nhánh/văn phòng thì quản lý chung được không?',
+                faq4_a: 'Được. Mỗi chi nhánh có thể cấu hình bán kính GPS/Wifi riêng cho đúng địa chỉ văn phòng, trong khi chủ doanh nghiệp vẫn xem được báo cáo chấm công, phép năm và bảng lương gộp toàn hệ thống trên cùng một tài khoản quản trị.',
+                faq5_q: 'Duyệt đơn nghỉ phép có tự động cập nhật vào bảng lương cuối tháng không?',
+                faq5_a: 'Có. Ngay khi quản lý duyệt đơn nghỉ phép hoặc đơn hoàn ứng chi phí trên hệ thống, dữ liệu được ghi nhận thẳng vào bảng công của nhân viên đó — không cần nhập tay lại lần hai vào file lương cuối tháng.',
+                faq6_q: 'Nếu ngừng sử dụng BitPaw, dữ liệu nhân sự có xuất ra được không?',
+                faq6_a: 'Có. Toàn bộ hồ sơ nhân viên, lịch sử chấm công và bảng lương thuộc quyền sở hữu của doanh nghiệp bạn, luôn xuất được ra file bất cứ lúc nào — không bị khóa dữ liệu khi ngừng gói dịch vụ.',
                 cta_title: 'Bắt Đầu Số Hóa Chấm Công GPS FaceID Ngay Hôm Nay!',
                 cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công chống Fake GPS, FaceID nhận dạng và tự động xoay ca trực kíp đám mây.',
                 cta_btn1: 'Trải nghiệm dùng thử miễn phí',
@@ -1803,11 +1856,13 @@
                 trust_feat2_title: 'Workforce Turnover Alerts',
                 trust_feat2_desc: 'AI analyzes attendance history (spikes in lateness, frequent consecutive leave requests) to give early warning of key staff at risk of quitting.',
                 trust_feat3_title: 'Workforce Capacity Forecasting',
-                trust_feat3_desc: 'AI analyzes the relationship between shift timing and revenue to suggest optimal shift schedules for maximum productivity.',
+                trust_feat3_desc: 'AI analyzes the relationship between work schedules and KPI/deadline completion rates to suggest optimal shift assignments per department.',
+                trust_feat4_title: 'Overtime Budget Alerts',
+                trust_feat4_desc: 'AI cross-checks actual overtime hours from the timekeeping system against each department\'s payroll budget, warning managers early if OT cost is on track to exceed the cap before payroll closes.',
                 ai_alert_msg: 'Detected 1 employee with 5 consecutive late shifts over the past 2 weeks, and 2 requested leave shifts.',
-                ai_alert_question: 'Export this technician\'s FaceID biometric attendance history chart?',
+                ai_alert_question: 'Export this employee\'s FaceID biometric attendance history chart?',
                 ai_alert_label: 'Early warning:',
-                ai_alert_kpi: 'Maintenance performance KPI: 96% (Excellent). Attendance score dropping sharply. Turnover risk: 82%. Recommend a retention conversation.',
+                ai_alert_kpi: 'Task completion KPI: 96% (Excellent). Attendance score dropping sharply. Turnover risk: 82%. Recommend a retention conversation with this employee.',
                 faq_label: 'FREQUENTLY ASKED QUESTIONS',
                 faq_title: 'Questions',
                 faq_title2: 'About BitPaw HRM Software',
@@ -1818,6 +1873,12 @@
                 faq2_a: 'Absolutely not. BitPaw OS\'s FaceID scanning technology includes Liveness Detection. Employees must blink and move their facial muscles slightly during the scan, completely eliminating the possibility of using a printed photo or video.',
                 faq3_q: 'Can a former employee\'s profile be restored if they return to work?',
                 faq3_a: 'Yes. When a former employee returns, managers simply switch their profile status from "Terminated" to "Active" in the system. Their entire leave history and originally registered FaceID are automatically restored, minimizing setup time.',
+                faq4_q: 'We have multiple branches/offices — can they be managed together?',
+                faq4_a: 'Yes. Each branch can have its own GPS/Wifi radius matched to its physical address, while the business owner still sees consolidated attendance, leave, and payroll reports across the whole company from a single admin account.',
+                faq5_q: 'Does approving a leave request automatically update end-of-month payroll?',
+                faq5_a: 'Yes. The moment a manager approves a leave or expense-reimbursement request, it\'s recorded directly into that employee\'s timesheet — no need to re-enter it by hand into the payroll file later.',
+                faq6_q: 'If we stop using BitPaw, can we export our HR data?',
+                faq6_a: 'Yes. All employee profiles, attendance history, and payroll records belong to your business and can be exported to a file at any time — your data is never locked in when you cancel your plan.',
                 cta_title: 'Start Digitizing GPS FaceID Attendance Today!',
                 cta_desc: 'Sign up for a full 14-day free trial of anti-spoofing GPS attendance, FaceID recognition, and automatic cloud shift scheduling.',
                 cta_btn1: 'Try It Free',

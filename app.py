@@ -74,7 +74,7 @@ from gridfs.errors import NoFile
 from bson import ObjectId
 from bson.errors import InvalidId
 from ai_context_engine import AIContextEngine
-from ai_sales_prompts import compose_system_prompt, classify_objection
+from ai_sales_prompts import compose_system_prompt, classify_objection, compose_booking_assistant_prompt
 from ai_memory_engine import get_conversation_memory, maybe_distill_memory_async
 from ai_nurturing_engine import AINurturingEngine, recompute_customer_segments
 from email_service import EmailService
@@ -138,6 +138,22 @@ except Exception as _import_err:
     payment_us_engine = _PaymentUsEngineFallback()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# BUG THẬT NGHIÊM TRỌNG đã vá (phát hiện khi live-test QR booking Nails): chạy `python app.py`
+# khiến Python nạp file này dưới tên module '__main__', KHÔNG PHẢI 'app'. Các file
+# blueprints/*_bp.py (spa_bp.py, nail_bp.py...) tự viết `from app import app` để lấy lại đúng
+# instance Flask — nhưng vì sys.modules không có key 'app' (chỉ có '__main__'), Python NẠP LẠI
+# TOÀN BỘ app.py THÊM 1 LẦN NỮA như 1 module 'app' hoàn toàn mới, tạo ra 1 Flask app THỨ HAI,
+# ĐỘC LẬP — và mọi route trong blueprints/*_bp.py (@app.route(...)) bị đăng ký nhầm vào app THỨ
+# HAI (bị vứt bỏ ngay sau đó) thay vì app THẬT đang chạy app.run(). Hậu quả: TOÀN BỘ route công
+# khai /booking, /booking/nail, /booking/qr/<id>... luôn trả 404 khi chạy `python app.py` trực
+# tiếp, dù code hoàn toàn đúng và app.url_map "có vẻ" đầy đủ khi import module theo cách khác
+# (vd `python -c "from app import app"`, hoặc test_client() trong process riêng — cả 2 cách đó
+# không đi qua '__main__' nên không kích hoạt bug). Alias sys.modules['app'] trỏ thẳng về chính
+# module đang chạy (dù đang là '__main__' hay 'app') NGAY TỪ ĐÂY — trước khi bất kỳ blueprint nào
+# kịp `from app import app` — để mọi import sau này luôn lấy đúng 1 instance app duy nhất.
+sys.modules.setdefault('app', sys.modules[__name__])
+
 _flask_secret_key = os.environ.get('FLASK_SECRET_KEY')
 if not _flask_secret_key:
     raise RuntimeError(
@@ -2021,6 +2037,16 @@ def stream_payroll():
 def stream_job_market():
     """Thay kênh Supabase Realtime `public:tasks_app` (app_nhanvien.html) — bảng tasks."""
     return _sse_change_signal(db.tasks, _sse_tenant_match())
+
+
+@app.route('/api/stream/appointments')
+@login_required
+def stream_appointments():
+    """Tín hiệu real-time cho db.appointments — trước đây /calendar và badge "Đã Check-in" trên
+    pos_nail.html chỉ đọc 1 lần lúc tải trang/mở modal, nên khách đặt lịch qua QR hoặc nhân viên
+    bấm Check-in ở tab khác sẽ không hiện ra cho tới khi F5 tay. Dùng lại đúng
+    _sse_change_signal/_sse_tenant_match đang chạy thật cho hr_employees/payroll/job_market."""
+    return _sse_change_signal(db.appointments, _sse_tenant_match())
 
 
 @app.route('/landingpage')
@@ -8126,8 +8152,8 @@ def _compute_nail_pos_order(business_id, data):
     supply_amount = round(subtotal * (supply_percent / 100), 2)
     net_revenue = max(0.0, subtotal - supply_amount)
 
-    cash_tip = round(float(data.get('cash_tip') or 0), 2)
-    card_tip = round(float(data.get('card_tip') or 0), 2)
+    cash_tip = round(max(0.0, float(data.get('cash_tip') or 0)), 2)
+    card_tip = round(max(0.0, float(data.get('card_tip') or 0)), 2)
     cc_fee_percent = float(data.get('cc_fee_percent') or 0)
     card_tip_fee = round(card_tip * (cc_fee_percent / 100), 2)
     net_card_tip = round(card_tip - card_tip_fee, 2)
@@ -8158,8 +8184,11 @@ def _compute_nail_pos_order(business_id, data):
     elif payment_method == 'cash':
         payment_bucket = 'cash'
     else:
-        payment_bucket = 'card'
-    total_amount = round(subtotal - discount_amount + tax_amount + total_tip, 2)
+        payment_bucket = 'card'  # gồm cả 'card' và 'square_terminal' — cả 2 đều là cà thẻ thật
+    # Giá Cash luôn = giá gốc (không phụ phí) — total_amount_pre_surcharge chính là số khách trả
+    # nếu chọn tiền mặt, KHÔNG đổi so với hành vi cũ (giữ nguyên mọi test/luồng đang phụ thuộc
+    # total_amount của thanh toán Cash).
+    total_amount_pre_surcharge = round(subtotal - discount_amount + tax_amount + total_tip, 2)
 
     # Split payment: capture the exact cash/card breakdown the cashier entered so end-of-day
     # cash-drawer reconciliation can credit each portion correctly — previously only
@@ -8176,9 +8205,25 @@ def _compute_nail_pos_order(business_id, data):
             split_card_amount = round(max(0.0, float(data.get('card_amount') or 0)), 2)
         except (TypeError, ValueError):
             split_card_amount = 0.0
-        if abs((split_cash_amount + split_card_amount) - total_amount) > 0.02:
-            split_cash_amount = total_amount
+        if abs((split_cash_amount + split_card_amount) - total_amount_pre_surcharge) > 0.02:
+            split_cash_amount = total_amount_pre_surcharge
             split_card_amount = 0.0
+
+    # Dual Pricing — phụ phí cà thẻ (Cash Price / Card Price): khách trả tiền mặt trả ĐÚNG giá
+    # gốc, khách cà thẻ trả thêm % phí xử lý thẻ (salon chuyển phí cho khách thay vì tự gánh) —
+    # dùng LẠI đúng cc_fee_percent client đã gửi (cùng 1 khái niệm "phí thẻ" với card_tip_fee ở
+    # trên, không bịa thêm 1 hằng số phí thứ 2 dễ lệch nhau). CHỈ áp trên phần bill THẬT (subtotal
+    # - discount + tax), KHÔNG áp trên tip (tip thẻ đã tự trừ phí riêng qua net_card_tip) và
+    # KHÔNG bao giờ ảnh hưởng net_revenue/hoa hồng thợ (đã tính xong ở trên, độc lập hoàn toàn).
+    card_surcharge_amount = 0.0
+    surcharge_base = max(0.0, subtotal - discount_amount + tax_amount)
+    if payment_bucket == 'card':
+        card_surcharge_amount = round(surcharge_base * (cc_fee_percent / 100), 2)
+    elif payment_bucket == 'split' and split_card_amount > 0:
+        # Phụ phí chỉ tính trên đúng phần khách trả bằng thẻ trong vé split, không phải toàn bộ
+        # bill — tỉ lệ theo đúng số tiền thẻ cashier đã nhập (đã validate ở trên).
+        card_surcharge_amount = round(split_card_amount * (cc_fee_percent / 100), 2)
+    total_amount = round(total_amount_pre_surcharge + card_surcharge_amount, 2)
 
     commission_rate = data.get('commission_rate')
     try:
@@ -8190,7 +8235,10 @@ def _compute_nail_pos_order(business_id, data):
     return {
         'order_items_docs': order_items_docs, 'subtotal': subtotal, 'supply_amount': supply_amount,
         'net_revenue': net_revenue, 'discount_amount': discount_amount, 'tax_amount': tax_amount,
-        'total_tip': total_tip, 'worker_total_tip': worker_total_tip, 'total_amount': total_amount,
+        'total_tip': total_tip, 'worker_total_tip': worker_total_tip, 'cash_tip': cash_tip,
+        'net_card_tip': net_card_tip, 'total_amount': total_amount,
+        'total_amount_pre_surcharge': total_amount_pre_surcharge, 'card_surcharge_amount': card_surcharge_amount,
+        'cc_fee_percent': cc_fee_percent,
         'payment_method': payment_method, 'payment_bucket': payment_bucket,
         'split_cash_amount': split_cash_amount, 'split_card_amount': split_card_amount,
         'commission_rate': commission_rate, 'per_tech_revenue': per_tech_revenue,
@@ -8210,7 +8258,21 @@ def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAI
         subtotal = computed['subtotal']
         net_revenue = computed['net_revenue']
         commission_rate = computed['commission_rate']
-        tip_share = round(computed['worker_total_tip'] / len(per_tech_revenue), 2)
+        n_techs = len(per_tech_revenue)
+        tip_share = round(computed['worker_total_tip'] / n_techs, 2)
+        # Tách riêng Tip mặt / Tip thẻ theo từng thợ — TRƯỚC ĐÂY chamcong chỉ lưu 1 field
+        # tien_tips gộp chung, làm mất hoàn toàn thông tin mặt/thẻ ngay sau khi ghi DB, nên
+        # phiếu lương (Cash Payout vs Check/Direct Deposit) và mọi báo cáo cần tách 2 khoản
+        # này đều KHÔNG THỂ tính lại được nữa. Square Terminal (thanh toán qua máy cà thẻ vật
+        # lý) không có field cash_tip/net_card_tip riêng (mọi tip qua kênh đó chắc chắn là tip
+        # thẻ) — fallback coi 100% là tip thẻ cho đúng bản chất kênh thanh toán, không đoán
+        # 50/50.
+        if 'cash_tip' in computed:
+            cash_tip_share = round(computed['cash_tip'] / n_techs, 2)
+            card_tip_share = round(computed['net_card_tip'] / n_techs, 2)
+        else:
+            cash_tip_share = 0.0
+            card_tip_share = tip_share
         for ma_nv, tech_revenue_share in per_tech_revenue.items():
             tech_net_share = round(tech_revenue_share * (net_revenue / subtotal), 2) if subtotal else 0
             worker_tua = round(tech_net_share * (commission_rate / 100), 2)
@@ -8222,10 +8284,14 @@ def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAI
                 # dạng khiến mọi bill Nails POS bị lọc mất khỏi báo cáo lương tháng đó.
                 'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
                 'ghi_chu': f"{note_prefix} Order #{order_id} — {commission_rate}% hoa hồng",
-                'tien_tua': worker_tua, 'tien_tips': tip_share, 'phu_cap': 0, 'so_gio': 0,
-                'tang_ca': 0,
+                'tien_tua': worker_tua, 'tien_tips': tip_share,
+                'tien_tips_cash': cash_tip_share, 'tien_tips_card': card_tip_share,
+                'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0,
             })
-            techs_paid.append({'ma_nv': ma_nv, 'commission': worker_tua, 'tip': tip_share})
+            techs_paid.append({
+                'ma_nv': ma_nv, 'commission': worker_tua, 'tip': tip_share,
+                'tip_cash': cash_tip_share, 'tip_card': card_tip_share,
+            })
     return chamcong_docs, techs_paid
 
 
@@ -8266,6 +8332,7 @@ def api_nail_pos_checkout():
             'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
             'tip_amount': computed['total_tip'], 'payment_bucket': computed['payment_bucket'],
             'currency': computed['currency'], 'commission_rate': computed['commission_rate'],
+            'card_surcharge_amount': computed['card_surcharge_amount'],
         }
         if computed['payment_bucket'] == 'split':
             metadata['split_cash_amount'] = computed['split_cash_amount']
@@ -8324,6 +8391,8 @@ def api_nail_pos_checkout():
             "supply_amount": computed['supply_amount'], "discount_amount": computed['discount_amount'],
             "tax_amount": computed['tax_amount'], "tip_amount": computed['total_tip'],
             "total_amount": computed['total_amount'], "techs_paid": techs_paid,
+            "card_surcharge_amount": computed['card_surcharge_amount'],
+            "payment_bucket": computed['payment_bucket'],
         })
     except InsufficientStockError as e:
         return jsonify({"success": False, "message": str(e)}), 400
@@ -9271,7 +9340,9 @@ def api_appointment_update_status(appointment_id):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     status = data.get('status')
-    if status not in ('confirmed', 'cancelled', 'completed', 'pending'):
+    # 'checked_in' — khách đã tới tiệm (bấm nút "Check-in" trên /calendar), CHỜ thu ngân bấm
+    # "Vào vé" bên POS để đẩy dịch vụ + thợ vào giỏ (xem GET/POST /api/nail_pos/checked_in...).
+    if status not in ('confirmed', 'cancelled', 'completed', 'pending', 'checked_in'):
         return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
     try:
         result = db.appointments.update_one(
@@ -9299,6 +9370,64 @@ def api_appointment_mark_reminded(appointment_id):
         if result.matched_count == 0:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch hẹn.'}), 404
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/nail_pos/checked_in', methods=['GET'])
+@login_required
+def api_nail_pos_checked_in_list():
+    """Danh sách khách đã bấm 'Check-in' trên /calendar nhưng THU NGÂN CHƯA đưa vào vé POS —
+    nguồn dữ liệu cho panel 'Khách Đã Check-in' bên pos_nail.html, để cashier bấm 1 nút là có
+    đúng dịch vụ + đúng thợ khách đã đặt vào giỏ, không phải gõ lại tay từ đầu (điểm nối
+    booking -> POS trước đây hoàn toàn không tồn tại — mỗi module chạy độc lập)."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rows = list(db.appointments.find(
+            {'business_id': business_id, 'status': 'checked_in', 'pos_loaded': {'$ne': True}},
+            {'_id': 0},
+        ).sort('book_time', 1))
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    service_ids = list({r['service_id'] for r in rows if r.get('service_id')})
+    service_names = {}
+    if service_ids:
+        for svc in db.products.find({'id': {'$in': service_ids}, 'business_id': business_id}, {'id': 1, 'name': 1, '_id': 0}):
+            service_names[svc['id']] = svc.get('name')
+
+    staff_ids = list({r['staff_id'] for r in rows if r.get('staff_id')})
+    staff_names = {}
+    if staff_ids:
+        for e_doc in db.employees.find({'ma_nv': {'$in': staff_ids}, 'business_id': business_id}, {'ma_nv': 1, 'ho_ten': 1, '_id': 0}):
+            staff_names[e_doc['ma_nv']] = e_doc.get('ho_ten')
+
+    for r in rows:
+        r['service_name'] = service_names.get(r.get('service_id')) or 'Dịch vụ đã bị xoá'
+        r['staff_name'] = staff_names.get(r.get('staff_id')) if r.get('staff_id') else None
+
+    return jsonify({'success': True, 'items': rows})
+
+
+@app.route('/api/nail_pos/checked_in/<int:appointment_id>/load', methods=['POST'])
+@login_required
+def api_nail_pos_checked_in_load(appointment_id):
+    """Cashier bấm 'Vào vé' trên panel Check-in — đánh dấu appointment đã được đưa vào POS
+    (pos_loaded=True) để không hiện lại/không bị đưa vào vé 2 lần, KHÔNG xoá bản ghi (vẫn giữ
+    trên /calendar để chủ tiệm đối soát lịch sử). Trả lại đủ service_id/staff_id/thông tin
+    khách để JS phía POS tự addToCart() + assignTech() — route này KHÔNG tự sửa giỏ hàng vì
+    giỏ hàng là state phía client (mảng `cart` trong pos_nail.html), server không có quyền
+    truy cập trực tiếp."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        appt = db.appointments.find_one_and_update(
+            {'id': appointment_id, 'business_id': business_id, 'status': 'checked_in', 'pos_loaded': {'$ne': True}},
+            {'$set': {'pos_loaded': True, 'pos_loaded_at': datetime.now().isoformat()}},
+            projection={'_id': 0},
+        )
+        if not appt:
+            return jsonify({'success': False, 'message': 'Lịch hẹn không tồn tại hoặc đã được đưa vào vé trước đó.'}), 404
+        return jsonify({'success': True, 'appointment': appt})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -9556,6 +9685,10 @@ def secure_ai_generate():
     else:
         business_id = data.get('business_id')
     industry = data.get('industry') or session.get('business_mode', 'general')
+    # 'customer_booking' — khách hàng CUỐI của tiệm đang chat trên chính trang đặt lịch công
+    # khai (booking.html) để tự đặt lịch, KHÁC HẲN đối tượng mặc định của endpoint này (chủ
+    # tiệm tiềm năng đang được tư vấn mua phần mềm BitPaw). Xem compose_booking_assistant_prompt().
+    chat_context = data.get('context')
     # LƯU Ý: KHÔNG còn đọc client's "systemPrompt" để dựng prompt nữa (loophole cũ: browser
     # có thể tự gửi bất kỳ prompt text nào lên, tự ý đổi hành vi/persona của bot). Persona giờ
     # được lắp ráp HOÀN TOÀN server-side qua ai_sales_prompts.compose_system_prompt() — client
@@ -9591,7 +9724,10 @@ def secure_ai_generate():
     # GIỜ được phép làm chậm/gãy luồng trả lời chính. classify_objection() tự bỏ qua bằng
     # regex trước khi gọi LLM cho các tin nhắn rõ ràng không phải phản đối (Phase 2 optimization).
     latest_customer_message = user_prompt or (history[-1]['content'] if history else '')
-    objection_category = classify_objection(latest_customer_message, history)
+    # Objection playbook (giá/tin tưởng/đối thủ...) chỉ có ý nghĩa cho bot BÁN PHẦN MỀM — khách
+    # hàng cuối đang đặt lịch làm nail không "phản đối giá BitPaw", gọi classify_objection() ở
+    # đây vừa vô nghĩa vừa tốn 1 lệnh gọi DeepSeek phụ mỗi lượt chat.
+    objection_category = classify_objection(latest_customer_message, history) if chat_context != 'customer_booking' else None
 
     # === Phase 2: distilled memory (tự no-op an toàn nếu chưa có dữ liệu — xem docstring
     # ai_memory_engine.py). Vector RAG (ai_vector_rag.py) đã bị GỠ BỎ (Mã "Hợp nhất AI bằng
@@ -9602,7 +9738,10 @@ def secure_ai_generate():
     conversation_memory = get_conversation_memory(customer_id) if customer_id else ""
     extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
-    system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
+    if chat_context == 'customer_booking':
+        system_prompt = compose_booking_assistant_prompt(tenant_context, business_name)
+    else:
+        system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
 
     messages = [{"role": "system", "content": system_prompt}]
     for turn in history[-12:]:
@@ -9618,12 +9757,18 @@ def secure_ai_generate():
     # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
     _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer')
 
-    # Câu chốt sale dự phòng thông minh — thay cho câu báo lỗi cứng cũ, luôn gắn đúng tên
-    # cửa hàng của tenant (hoặc "BitPaw" nếu là bot marketing chung không gắn tenant nào).
-    fallback_reply = (
-        f"Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em "
-        f"gọi lại tư vấn gói tối ưu nhất cho {business_name} luôn nhé!"
-    )
+    # Câu dự phòng khi AI lỗi/timeout — 2 bản khác nhau theo đúng đối tượng đang chat (khách
+    # hàng cuối đặt lịch KHÔNG được nhận câu "tư vấn gói phần mềm" của bot bán BitPaw).
+    if chat_context == 'customer_booking':
+        fallback_reply = (
+            f"Dạ {business_name} đang xử lý hơi chậm một chút, chị/anh thông cảm giúp em. "
+            f"Chị/anh có thể gọi trực tiếp cho tiệm hoặc thử nhắn lại sau ít phút để đặt lịch giúp em nhé!"
+        )
+    else:
+        fallback_reply = (
+            f"Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em "
+            f"gọi lại tư vấn gói tối ưu nhất cho {business_name} luôn nhé!"
+        )
 
     # Ở Desktop mode, không cần DEEPSEEK_API_KEY thật ở đây — ai_deepseek_client.py sẽ gọi
     # qua AI Proxy bằng BITPAW_AI_PROXY_KEY thay thế (xem _call_deepseek_with_tools()).
@@ -11718,6 +11863,64 @@ def _clamp_chamcong_money_fields(fields):
             except (TypeError, ValueError):
                 fields[field] = 0.0
     return fields
+
+
+@app.route('/api/hr/chamcong/month_summary', methods=['GET'])
+@login_required
+def api_hr_chamcong_month_summary():
+    """Gộp doanh thu/tip theo TỪNG NGÀY riêng biệt cho 1 thợ trong 1 tháng — nguồn dữ liệu cho
+    Lưới Lịch (Calendar Grid) + Phiếu Lương ở chamcong_nail.html. ngay_cham lưu dạng chuỗi
+    DD/MM/YYYY (không phải kiểu Date thật, xem giải thích ở _build_nail_chamcong_docs), nên lọc
+    theo tháng bằng hậu tố chuỗi "/MM/YYYY" thay vì range query — quy mô 1 tiệm/1 thợ/1 tháng
+    đủ nhỏ để lọc trong Python, không cần pipeline $group phức tạp."""
+    business_id = session.get('business_id') or session['user_id']
+    ma_nv = request.args.get('ma_nv')
+    if not ma_nv:
+        return jsonify({'success': False, 'error': 'Thiếu ma_nv.'}), 400
+    try:
+        month = int(request.args.get('month'))
+        year = int(request.args.get('year'))
+        if not (1 <= month <= 12):
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Thiếu hoặc sai month/year.'}), 400
+
+    query = {'business_id': business_id, 'ma_nv': ma_nv}
+    nganh_nghe = request.args.get('nganh_nghe')
+    if nganh_nghe:
+        query['nganh_nghe'] = nganh_nghe
+
+    try:
+        records = list(db.chamcong.find(query, {'_id': 0}))
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    month_suffix = f"/{month:02d}/{year:04d}"
+    days = {}
+    for r in records:
+        ngay = r.get('ngay_cham') or ''
+        if not ngay.endswith(month_suffix):
+            continue
+        d = days.setdefault(ngay, {'commission': 0.0, 'tip_cash': 0.0, 'tip_card': 0.0, 'tip_total': 0.0, 'count': 0})
+        d['commission'] += float(r.get('tien_tua') or 0)
+        tip_total = float(r.get('tien_tips') or 0)
+        tip_cash = r.get('tien_tips_cash')
+        tip_card = r.get('tien_tips_card')
+        if tip_cash is None and tip_card is None:
+            # Bản ghi cũ ghi TRƯỚC khi tách Tip Mặt/Tip Thẻ (xem _build_nail_chamcong_docs) —
+            # không còn biết tỉ lệ thật, gộp hết vào "mặt" để KHÔNG làm mất tiền khỏi tổng
+            # ngày (an toàn hơn im lặng bỏ sót một khoản tip có thật khỏi báo cáo).
+            tip_cash = tip_total
+            tip_card = 0.0
+        d['tip_cash'] += float(tip_cash or 0)
+        d['tip_card'] += float(tip_card or 0)
+        d['tip_total'] += tip_total
+        d['count'] += 1
+    for d in days.values():
+        for k in ('commission', 'tip_cash', 'tip_card', 'tip_total'):
+            d[k] = round(d[k], 2)
+
+    return jsonify({'success': True, 'days': days})
 
 
 @app.route('/api/hr/chamcong', methods=['POST'])
