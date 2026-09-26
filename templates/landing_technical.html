@@ -153,18 +153,12 @@
         .faq-item.active .faq-content { max-height: 250px; opacity: 1; margin-top: 12px; }
         .faq-item.active .faq-icon { transform: rotate(180deg); color: #ef4444; }
 
-        /* Floating Widget & Back to Top Transition */
-        #backToTop {
-            transition: all 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(20px);
-        }
-        #backToTop.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0);
-        }
+        /* Back to Top: KHÔNG tự làm ở đây — nút #backToTop thật (kèm CSS/JS) do
+           static/js/cskh_widget.js (shared, load trên mọi trang landing) tự tạo động lúc
+           DOMContentLoaded. Bản CSS+JS riêng của trang này trước đây trùng lặp, và vì script
+           của TRANG chạy đồng bộ SỚM HƠN DOMContentLoaded của widget nên luôn query ra null —
+           gây crash "Cannot read properties of null (reading 'addEventListener')" (test
+           Playwright thật phát hiện). Xoá hẳn phần trùng lặp, dùng nguyên bản của widget. */
         #cskh-static-block {
             display: none !important;
         }
@@ -251,7 +245,6 @@
     </style>
 </head>
 <body class="antialiased selection:bg-red-500 selection:text-black relative">
-
     <div class="scan-line"></div>
     <canvas id="bg-canvas"></canvas>
 
@@ -1383,19 +1376,6 @@
             });
         });
 
-        // Back to Top button logic
-        const backToTopBtn = document.getElementById('backToTop');
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 400) {
-                backToTopBtn.classList.add('show');
-            } else {
-                backToTopBtn.classList.remove('show');
-            }
-        });
-        backToTopBtn.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-
         // Calculator Interactive Business Logic
         const laborSlider = document.getElementById('labor-hours');
         const wageSlider = document.getElementById('hourly-wage');
@@ -1930,6 +1910,5 @@
                 console.log(`[BitPaw i18n] Phát hiện khách Việt Nam (navigator.language = "${browserLang}") — giữ nguyên Tiếng Việt.`);
             }
         })();
-    </script>
-</body>
+    </script></body>
 </html>

@@ -303,6 +303,23 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     document.body.appendChild(contactWidget);
 
+    // BUG THẬT đã phát hiện (Playwright elementFromPoint tại đúng góc nút bấm ra ảnh mascot, không
+    // phải nút): widget position:fixed bottom-phải luôn đứng CỐ ĐỊNH theo viewport bất kể trang
+    // cuộn tới đâu — trên booking.html, nút "CONFIRM BOOKING" nằm cuối 1 form dài, khách cuộn tới
+    // đâu để thấy nút là nút xuất hiện ở ĐÚNG vùng đó của màn hình, luôn trùng vùng widget đang
+    // đứng. Thêm margin dưới form không giải quyết được (scrollIntoView/hành vi cuộn thật của
+    // khách vẫn có thể dừng đúng lúc nút chạm đáy màn hình). Cách chắc chắn duy nhất: dịch hẳn vị
+    // trí CỐ ĐỊNH của widget lên cao hơn hẳn vùng nút bấm cuối form, chỉ áp dụng ở ngữ cảnh đặt
+    // lịch (không đụng vị trí widget ở mọi trang marketing khác).
+    if (isBookingContext) {
+        // setProperty(..., 'important') bắt buộc — CSS injected ở trên có
+        // "@media (max-width: 768px) { #bitpawCskhFloating { bottom: 18px !important; } }"
+        // (khách quét QR trên ĐIỆN THOẠI luôn rơi vào đúng media query mobile này), 1 style.bottom
+        // gán thường KHÔNG thắng nổi !important của rule trong <style>, verify bằng
+        // getComputedStyle() vẫn ra 18px dù style="bottom:104px" đã có mặt thật trên element.
+        contactWidget.style.setProperty('bottom', '104px', 'important');
+    }
+
     const chatWidget = document.createElement("div");
     chatWidget.id = "chatWidget";
     chatWidget.className = "hidden-chat fixed glass-chat rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] z-[10000] flex flex-col overflow-hidden text-white";
@@ -969,15 +986,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeChatBtn = document.getElementById("close-chat-btn");
     const backToTopBtn = document.getElementById("backToTop");
 
+    // BUG THẬT đã phát hiện (test Playwright thật, đóng vai khách quét QR trên màn hình điện
+    // thoại): nút mascot nổi (#bitpawCskhFloating) vẫn đứng NGUYÊN vị trí fixed bottom-right
+    // ngay cả sau khi bảng chat đã mở — trên màn hình hẹp, nút đó đè thẳng lên nút "Gửi" của
+    // khung chat, khách thật không cách nào bấm gửi tin nhắn được (chạm vào là bấm trúng nút
+    // mascot, không phải nút gửi). Ẩn hẳn cụm nút nổi trong lúc bảng chat đang mở, hiện lại khi
+    // đóng — không đổi vị trí/kích thước gì khác của bảng chat.
     if (mascotToggle) {
         mascotToggle.addEventListener("click", () => {
             if (chatBox) chatBox.classList.toggle("hidden-chat");
+            if (contactWidget) contactWidget.style.display = chatBox && !chatBox.classList.contains("hidden-chat") ? "none" : "";
         });
     }
 
     if (closeChatBtn) {
         closeChatBtn.addEventListener("click", () => {
             if (chatBox) chatBox.classList.add("hidden-chat");
+            if (contactWidget) contactWidget.style.display = "";
         });
     }
 
@@ -986,6 +1011,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const box = document.getElementById("chatWidget");
         if (box) {
             box.classList.toggle("hidden-chat");
+            const floating = document.getElementById("bitpawCskhFloating");
+            if (floating) floating.style.display = !box.classList.contains("hidden-chat") ? "none" : "";
         }
     };
 

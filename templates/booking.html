@@ -164,7 +164,14 @@
 
     <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
-    <div id="bookingFormContainer" class="w-full max-w-md glass-card rounded-[2rem] p-6 sm:p-8 relative z-10 transition-all duration-500 overflow-visible">
+    <!-- mb-28: chừa khoảng trống dưới form — widget chat nổi (cskh_widget.js) luôn đứng CỐ ĐỊNH
+         (position: fixed) ở góc phải-dưới màn hình, đè lên đúng góc nút "CONFIRM BOOKING" khi
+         form dài và khách cuộn xuống hết. BUG THẬT đã phát hiện: click vào nút vẫn có lúc "trúng"
+         nhưng có lúc rơi trúng avatar mascot phía trên nó (đã verify bằng elementFromPoint tại
+         góc nút — ra đúng ảnh mascot, không phải nút) khiến submit không bắn request, không báo
+         lỗi gì — khách tưởng đã đặt lịch nhưng thực ra chưa. Thêm khoảng đệm dưới để khi cuộn hết
+         trang, nút luôn dừng lại CAO HƠN vùng widget nổi, không còn đè lên nhau nữa. -->
+    <div id="bookingFormContainer" class="w-full max-w-md glass-card rounded-[2rem] p-6 sm:p-8 relative z-10 transition-all duration-500 overflow-visible mb-28">
         
         <div class="absolute -top-12 -right-12 w-40 h-40 bg-cyan-500/20 rounded-full blur-[60px] pointer-events-none -z-10"></div>
         <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-600/20 rounded-full blur-[60px] pointer-events-none -z-10"></div>

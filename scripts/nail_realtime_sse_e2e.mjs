@@ -31,8 +31,7 @@ function record(name, status, note = '') {
   console.log(`${icon} [${status}] ${name}${note ? ' — ' + note : ''}`);
 }
 
-function todayISO() {
-  const d = new Date();
+function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -86,11 +85,24 @@ async function main() {
     await guestPage.selectOption('#cus_service', { index: 1 });
     const staffOptionsCount = await guestPage.locator('#cus_staff option').count().catch(() => 0);
     if (staffOptionsCount > 1) await guestPage.selectOption('#cus_staff', { index: 1 });
-    // Giờ đặt lịch NGẪU NHIÊN mỗi lần chạy — cố định "15:30" khiến lần chạy lại (cùng thợ, cùng
-    // giờ) bị chính booking_engine.py::book_appointment() chặn hợp lệ vì trùng lịch thợ
-    // (SlotAlreadyBookedError), không liên quan gì tới SSE cả nhưng làm script FAIL oan.
-    const randomHour = String(10 + Math.floor(Math.random() * 8)).padStart(2, '0');
-    const randomMinute = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+    // Giờ đặt lịch NGẪU NHIÊN mỗi lần chạy (né trùng lịch thợ -> SlotAlreadyBookedError oan) NHƯNG
+    // PHẢI luôn nằm SAU thời điểm hiện tại thật (real wall-clock), vì booking.html tự set
+    // input[type=datetime-local]#cus_datetime.min = "now" lúc load trang (chặn khách đặt giờ đã
+    // qua). Trước đây random cố định trong khung 10:00-17:59 của "hôm nay" -> nếu chạy script sau
+    // khung giờ đó (vd 16h+) thì phần lớn lần random ra giờ đã ở QUÁ KHỨ so với min -> trình duyệt
+    // tự chặn "submit" bằng validation HTML5 gốc (click nút vẫn nổ nhưng event submit không bao
+    // giờ chạy, không log lỗi console nào cả) -> làm cả bài test SSE FAIL oan, không liên quan gì
+    // tới tính năng SSE.
+    // Kẹp offset để KHÔNG bao giờ tràn qua nửa đêm (sang ngày mai) — ownerPage đã mở sẵn
+    // /calendar?date=hôm-nay ở trên rồi, nếu giờ đặt lịch lỡ rơi qua ngày mai thì bước A2 sẽ tìm
+    // dòng mới ở nhầm ngày và FAIL oan, không liên quan gì tới SSE.
+    const midnight = new Date();
+    midnight.setHours(23, 55, 0, 0);
+    const maxOffsetMin = Math.max(35, Math.min(330, Math.floor((midnight - Date.now()) / 60000)));
+    const bookingDt = new Date(Date.now() + (30 + Math.floor(Math.random() * (maxOffsetMin - 30))) * 60000);
+    bookingDateStr = todayISO(bookingDt);
+    const randomHour = String(bookingDt.getHours()).padStart(2, '0');
+    const randomMinute = String(bookingDt.getMinutes()).padStart(2, '0');
     await guestPage.fill('#cus_datetime', `${bookingDateStr}T${randomHour}:${randomMinute}`);
 
     const [bookingResp] = await Promise.all([

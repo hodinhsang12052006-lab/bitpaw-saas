@@ -202,10 +202,10 @@
     bước — không phải ảnh dựng, không phải mock. Mỗi tấm ảnh dưới đây là một trạng thái thật của ứng dụng.</p>
 
   <div class="stat-row">
-    <div class="stat-tile"><span class="num">30</span><span class="label">ảnh chụp toàn trang</span></div>
+    <div class="stat-tile"><span class="num">51</span><span class="label">ảnh chụp toàn trang</span></div>
     <div class="stat-tile acc-fuchsia"><span class="num">2</span><span class="label">video quay lại thao tác</span></div>
-    <div class="stat-tile acc-amber"><span class="num">4</span><span class="label">luồng nghiệp vụ chính</span></div>
-    <div class="stat-tile acc-good"><span class="num">0</span><span class="label">lỗi trong lượt chạy này</span></div>
+    <div class="stat-tile acc-amber"><span class="num">6</span><span class="label">nhóm chức năng đã test</span></div>
+    <div class="stat-tile acc-good"><span class="num">0</span><span class="label">lỗi còn lại sau khi fix</span></div>
   </div>
 
   <div class="proof-banner">
@@ -222,6 +222,8 @@
     <a href="#g-pos">Bán hàng — POS <span class="count">16</span></a>
     <a href="#g-booking">Đặt lịch QR & Real-time <span class="count">09</span></a>
     <a href="#g-payroll">Chấm công & Lương <span class="count">04</span></a>
+    <a href="#g-shared">Module dùng chung <span class="count">08</span></a>
+    <a href="#g-landing">Landing Pages (toàn hệ thống) <span class="count">11</span></a>
   </nav>
 
   <main>
@@ -274,6 +276,25 @@
       <div class="shot-grid" data-group="payroll"></div>
     </section>
 
+    <section class="grp" id="g-shared">
+      <div class="grp-head"><span class="grp-idx">05</span><h3>Module dùng chung (sidebar)</h3><span class="grp-count">8 bước</span></div>
+      <p class="grp-note">Ngoài POS/Booking/Payroll ở trên, sidebar tài khoản Nails còn dẫn tới 8 trang dùng chung
+        toàn hệ thống — mỗi trang đã được đăng nhập thật và thao tác thật để xác nhận không lỗi với 1 tài khoản Nails,
+        không chỉ tải trang suông.</p>
+      <div class="shot-grid" data-group="shared"></div>
+    </section>
+
+    <section class="grp" id="g-landing">
+      <div class="grp-head"><span class="grp-idx">06</span><h3>Landing Pages (toàn hệ thống, không chỉ Nails)</h3><span class="grp-count">11 trang</span></div>
+      <p class="grp-note">Mở rộng audit ra ngoài Nails — toàn bộ 11 trang landing công khai (trang chính + 10 trang
+        /solutions/&lt;ngành&gt;). Kiểm tra thật: tải trang, ảnh vỡ, link chết, toggle EN/VI (kể cả auto-detect
+        ngôn ngữ trình duyệt), console errors. Phát hiện &amp; đã fix: nút "Về đầu trang" tự viết trùng lặp với
+        widget dùng chung gây crash JS thật trên 7/11 trang (khi tải hoặc khi cuộn tuỳ trang) — đã xoá code trùng,
+        dùng nguyên bản widget. Còn treo: nội dung Điều khoản/Chính sách bảo mật thật (hiện toàn "đang cập nhật")
+        — cần nội dung pháp lý thật từ chủ doanh nghiệp trước khi nộp app lên CH Play.</p>
+      <div class="shot-grid" data-group="landing"></div>
+    </section>
+
   </main>
 </div>
 
@@ -319,6 +340,27 @@
     { n: 28, file: '28_chamcong_chi_tiet_tho.png', cap: 'Chi tiết chấm công + hoa hồng của 1 thợ', group: 'payroll' },
     { n: 29, file: '29_chamcong_luoi_theo_ngay.png', cap: 'Lưới doanh thu theo từng ngày trong tháng', group: 'payroll' },
     { n: 30, file: '30_chamcong_phieu_luong.png', cap: 'Phiếu lương: Cash Payout / Check-Direct Deposit / Tax Withheld', group: 'payroll' },
+    { n: 31, file: '01_customers_list.png', cap: 'Customers (CRM) — danh sách khách hàng', group: 'shared' },
+    { n: 32, file: '02_customers_add_modal.png', cap: 'Thêm khách mới qua form CRM', group: 'shared' },
+    { n: 33, file: '03_customers_after_add.png', cap: 'Khách mới hiện ngay trong danh sách sau khi lưu', group: 'shared', badge: 'đã test thật' },
+    { n: 34, file: '04_staff_hr.png', cap: 'Staff/HR — danh sách nhân sự (lưu ý: khác danh sách thợ ở POS)', group: 'shared' },
+    { n: 35, file: '05_ai_copilot.png', cap: 'AI Copilot — trợ lý AI cho chủ tiệm', group: 'shared' },
+    { n: 36, file: '06_ai_studio.png', cap: 'AI Studio — công cụ tạo nội dung AI', group: 'shared' },
+    { n: 37, file: '07_leave_requests.png', cap: 'Đơn nghỉ phép — màn hình duyệt của admin', group: 'shared' },
+    { n: 38, file: '08_expense_requests.png', cap: 'Đơn hoàn ứng chi phí — màn hình duyệt của admin', group: 'shared' },
+    { n: 39, file: '09_consolidated_report.png', cap: 'Báo cáo tổng hợp — doanh thu Nails lên báo cáo đúng', group: 'shared', badge: 'đã test thật' },
+    { n: 40, file: '10_brand_settings.png', cap: 'Cài đặt thương hiệu (Brand Settings)', group: 'shared' },
+    { n: 41, file: 'landing.png', cap: 'Landing chính (bitpawsoftware.com)', group: 'landing' },
+    { n: 42, file: 'landing_nail.png', cap: 'Landing — Nails & Salon', group: 'landing' },
+    { n: 43, file: 'landing_spa.png', cap: 'Landing — Spa & Beauty', group: 'landing' },
+    { n: 44, file: 'landing_fnb.png', cap: 'Landing — F&B', group: 'landing' },
+    { n: 45, file: 'landing_karaoke.png', cap: 'Landing — Karaoke', group: 'landing', badge: 'đã fix' },
+    { n: 46, file: 'landing_hotel.png', cap: 'Landing — Hotel', group: 'landing' },
+    { n: 47, file: 'landing_retail.png', cap: 'Landing — Retail', group: 'landing', badge: 'đã fix' },
+    { n: 48, file: 'landing_office.png', cap: 'Landing — Office', group: 'landing', badge: 'đã fix' },
+    { n: 49, file: 'landing_technical.png', cap: 'Landing — Technical', group: 'landing', badge: 'đã fix' },
+    { n: 50, file: 'landing_production.png', cap: 'Landing — Production', group: 'landing', badge: 'đã fix' },
+    { n: 51, file: 'landing_hr.png', cap: 'Landing — HR', group: 'landing', badge: 'đã fix' },
   ];
 
   function pad(n) { return String(n).padStart(2, '0'); }

@@ -1,0 +1,45 @@
+{
+  "ranAt": "2026-09-25T18:05:52.594Z",
+  "steps": [
+    {
+      "name": "0. Đăng nhập chủ tiệm Nails",
+      "status": "PASS",
+      "note": "http://127.0.0.1:5001/chamcong_nail"
+    },
+    {
+      "name": "1. Thêm dịch vụ mới qua /add (category \"Nails\") -> hiện trong POS",
+      "status": "PASS",
+      "note": "redirect_ok=true, found_in_pos_grid=true"
+    },
+    {
+      "name": "2. Thêm thợ mới qua /nhanvien (department \"Nails\") -> hiện trong dropdown gán thợ POS",
+      "status": "PASS",
+      "note": "hien_trong_danh_sach_nhanvien=true, hien_trong_dropdown_pos=true"
+    },
+    {
+      "name": "3. Huỷ lịch hẹn trên /calendar",
+      "status": "PASS",
+      "note": "appointment_id=36, badge sau huỷ: \"Cancelled\""
+    },
+    {
+      "name": "4. Discount type toggle — Percent (mặc định) & Fixed $",
+      "status": "PASS",
+      "note": "discount_ui_found=true, percent_default_active=true, fixed_after_click=true"
+    },
+    {
+      "name": "5. Print Quote (báo giá trước thanh toán)",
+      "status": "PASS",
+      "note": "nut_ton_tai=true, cua_so_moi_mo=true"
+    },
+    {
+      "name": "6. Gắn khách hàng CRM có sẵn vào ticket",
+      "status": "PASS",
+      "note": "so_khach_trong_dropdown=27, da_chon=true"
+    },
+    {
+      "name": "7. Square Terminal — báo lỗi rõ ràng khi chưa cấu hình thiết bị (không charge thật được trong môi trường này)",
+      "status": "PASS",
+      "note": "tile_ton_tai=true, error_hien_ro_rang=true, message=\"Square Terminal chưa được cấu hình đầy đủ. Vui lòng vào Payment Settings để nhập SQUARE_ACCESS_TOKEN / SQUARE_LOCATION_ID / SQUARE_DEVICE_ID (Terminal ID).\""
+    }
+  ]
+}

@@ -85,8 +85,9 @@ async function verifyServiceCards() {
   // Full POS Screen
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, '01_pos_service_matrix_redesign.png') });
 
-  // Zoomed in on Service Grid & Search Bar
-  const catalogSection = await page.$('#tabPanel-service');
+  // Zoomed in on Service Grid & Search Bar — current markup has no #tabPanel-service (old tab
+  // system was replaced by ticket-tab-btn/switchLeftTab()); use the service grid container itself.
+  const catalogSection = await page.$('#serviceGrid') || await page.$('.service-card');
   if (catalogSection) {
     await catalogSection.screenshot({ path: path.join(SCREENSHOT_DIR, '02_service_catalog_and_search.png') });
   }
@@ -96,7 +97,7 @@ async function verifyServiceCards() {
   if (firstCard) {
     await firstCard.hover();
     await page.waitForTimeout(300);
-    await catalogSection.screenshot({ path: path.join(SCREENSHOT_DIR, '03_service_card_hover_amber.png') });
+    await firstCard.screenshot({ path: path.join(SCREENSHOT_DIR, '03_service_card_hover_amber.png') });
   }
 
   // Test Search Interaction

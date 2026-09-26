@@ -54,19 +54,6 @@
            (đã bao gồm .contact-widget/.contact-btn/.btn-*), không định nghĩa tĩnh ở đây
            nữa để tránh 3 bản định nghĩa xung đột nhau gây đè/lệch giao diện. */
 
-        /* Floating Widget & Back to Top Transition */
-        #backToTop {
-            transition: all 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(20px);
-        }
-
-        #backToTop.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0);
-        }
 
         body {
             margin: 0;
@@ -271,18 +258,6 @@
             padding-bottom: 0.5rem;
         }
 
-        #backToTop {
-            transition: 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(20px);
-        }
-
-        #backToTop.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0);
-        }
 
         #mobile-menu {
             transition: transform 0.3s ease-in-out;
@@ -499,7 +474,6 @@
 </head>
 
 <body class="antialiased selection:bg-cyan-500 selection:text-black relative i18n-boot overflow-x-hidden">
-
     <div id="progressBar"></div>
 
     <canvas id="bg-canvas"></canvas>
@@ -3263,10 +3237,11 @@
         }
 
         window.addEventListener('scroll', () => {
+            // #backToTop KHÔNG xử lý ở đây — nút thật (kèm CSS/JS riêng) do
+            // static/js/cskh_widget.js tự tạo động, xử lý show/hide/click độc lập.
             const header = document.getElementById('main-header');
-            const backToTopBtn = document.getElementById('backToTop');
-            if (window.scrollY > 50) { header.classList.add('header-scrolled'); backToTopBtn.classList.add('show'); }
-            else { header.classList.remove('header-scrolled'); backToTopBtn.classList.remove('show'); }
+            if (window.scrollY > 50) { header.classList.add('header-scrolled'); }
+            else { header.classList.remove('header-scrolled'); }
         });
 
         window.addEventListener('scroll', () => {
@@ -3387,7 +3362,6 @@
                 console.log(`[BitPaw i18n] Phát hiện khách Việt Nam (navigator.language = "${browserLang}") — giữ nguyên Tiếng Việt.`);
             }
         })();
-    </script>
-</body>
+    </script></body>
 
 </html>

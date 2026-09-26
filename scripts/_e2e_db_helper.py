@@ -33,12 +33,29 @@ def get_order(order_id, business_id):
     return doc
 
 
+def check_bot_messages(business_id, phone):
+    """Dùng bởi nail_ai_bot_customer_care_e2e.mjs — xác nhận hội thoại widget AI thật sự được
+    _persist_chat_turn() ghi vào db.bot_messages (customer_id = "business_id:phone"), không chỉ
+    hiện trên UI rồi mất. Trả về cả 2 chiều (customer + assistant) để thấy AI có thật sự trả
+    lời được lưu lại hay không, không chỉ tin nhắn khách gửi lên."""
+    customer_id = f"{business_id}:{phone}"
+    docs = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
+    return {
+        'found': len(docs) > 0,
+        'count': len(docs),
+        'senderTypes': [d.get('sender_type') for d in docs],
+        'messages': [{'sender_type': d.get('sender_type'), 'content': (d.get('content') or '')[:120]} for d in docs],
+    }
+
+
 if __name__ == '__main__':
     mode = sys.argv[1]
     if mode == 'sum_chamcong':
         result = sum_chamcong(sys.argv[2], sys.argv[3], sys.argv[4])
     elif mode == 'get_order':
         result = get_order(sys.argv[2], sys.argv[3])
+    elif mode == 'check_bot_messages':
+        result = check_bot_messages(sys.argv[2], sys.argv[3])
     else:
         raise SystemExit(f'Unknown mode: {mode}')
     print(json.dumps(result))

@@ -167,7 +167,7 @@ async function main() {
     const badgeText = await row.locator('[data-status-cell]').innerText();
     await shot(page, '03_calendar_checked_in.png');
 
-    const pass = /Check-in/i.test(badgeText);
+    const pass = /check(ed)?-in/i.test(badgeText);
     record('2a. Check-in lịch hẹn trên /calendar', pass ? 'PASS' : 'FAIL', `status badge: "${badgeText.trim()}"`);
   } catch (e) {
     record('2a. Check-in lịch hẹn trên /calendar', 'FAIL', e.message);
@@ -183,7 +183,9 @@ async function main() {
     await page.waitForSelector('#checkedInModal.active', { timeout: 5000 });
     await page.waitForTimeout(400);
 
-    const loadBtn = page.locator('#checkedInList button', { hasText: /Load Ticket|Vào Vé/i }).first();
+    // Panel Checked-In có thể chứa nhiều khách tồn đọng từ các lần chạy trước — PHẢI target
+    // đúng nút của appointmentId vừa tạo, không được .first() (sẽ ăn nhầm vé cũ/vé khác thợ).
+    const loadBtn = page.locator(`#checkedInList button[onclick="loadCheckedInGuest(${appointmentId}, this)"]`);
     await loadBtn.waitFor({ timeout: 5000 });
     await loadBtn.click();
     await page.waitForTimeout(400);

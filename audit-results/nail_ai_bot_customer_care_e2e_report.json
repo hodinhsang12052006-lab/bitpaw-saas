@@ -1,0 +1,42 @@
+{
+  "ranAt": "2026-09-25T21:24:33.480Z",
+  "testPhone": "0931463743",
+  "testQuestion": "Acrylic Full Set giá bao nhiêu vậy shop, và bao lâu thì xong?",
+  "steps": [
+    {
+      "name": "1. Vào trang đặt lịch công khai (QR)",
+      "status": "PASS",
+      "note": "BITPAW_BUSINESS_ID=000b2c16-ab4e-42bd-944a-29c925cad09b, BITPAW_CHAT_CONTEXT=customer_booking"
+    },
+    {
+      "name": "2. Widget mở đúng persona \"Trợ Lý Đặt Lịch\" (không phải bot sales BitPaw)",
+      "status": "PASS",
+      "note": "header=\"Trợ Lý Đặt Lịch\", tab_human_agent_hien=false, quick_replies_sales_hien=false"
+    },
+    {
+      "name": "3. Gửi câu hỏi thật (SĐT + nội dung) — hiện trong khung chat",
+      "status": "PASS",
+      "note": "phone=0931463743"
+    },
+    {
+      "name": "4. AI trả lời thật (gọi DeepSeek thật, có nội dung, không lỗi)",
+      "status": "PASS",
+      "note": "reply=\"Dạ em chào chị/anh ạ! Bên em có **Acrylic Full Set (Ombre/Design)** giá **$95** và **Fullset Acrylic + Gel Color** giá **$75** ạ. Thời gian làm khoảng 1.5–2 tiếng. Chị/anh muốn đặt món nào và hẹn lúc \""
+    },
+    {
+      "name": "5. AI trả lời có gắn đúng dữ liệu thật của tiệm (giá/tên dịch vụ)",
+      "status": "PASS",
+      "note": "Câu trả lời có nhắc \"95\" hoặc \"Acrylic/Full Set\" — đúng dữ liệu seed thật"
+    },
+    {
+      "name": "6. Hội thoại lưu thật vào db.bot_messages (CRM)",
+      "status": "PASS",
+      "note": "count=2, senderTypes=[customer,ai], messages=[{\"sender_type\":\"customer\",\"content\":\"Khách hàng (SĐT 0931463743) vừa nhắn: \\\"Acrylic Full Set giá bao nhiêu vậy shop, và bao lâu thì xong?\\\". Giúp khách chọn d\"},{\"sender_type\":\"ai\",\"content\":\"Dạ em chào chị/anh ạ! Bên em có **Acrylic Full Set (Ombre/Design)** giá **$95** và **Fullset Acrylic + Gel Color** giá *\"}]"
+    },
+    {
+      "name": "Console errors trong toàn bộ luồng",
+      "status": "WARN",
+      "note": "1 lỗi: Failed to load resource: the server responded with a status of 404 (NOT FOUND)"
+    }
+  ]
+}

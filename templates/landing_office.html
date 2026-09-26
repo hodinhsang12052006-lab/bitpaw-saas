@@ -137,17 +137,6 @@
         .faq-item.active .faq-icon { transform: rotate(180deg); color: #4f46e5; }
 
         /* Floating Widget & Back to Top Transition */
-        #backToTop {
-            transition: all 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(20px);
-        }
-        #backToTop.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0);
-        }
 
         #cskh-static-block {
             display: none !important;
@@ -234,7 +223,6 @@
     </style>
 </head>
 <body class="antialiased selection:bg-indigo-500 selection:text-black relative">
-
     <div class="scan-line"></div>
     <canvas id="bg-canvas"></canvas>
 
@@ -1482,21 +1470,9 @@
                 if (e.target === this) closeModal(); 
             });
         }
-
-        // Back to top behavior
-        const backToTopBtn = document.getElementById('backToTop');
-        if (backToTopBtn) {
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 300) {
-                    backToTopBtn.classList.add('show');
-                } else {
-                    backToTopBtn.classList.remove('show');
-                }
-            });
-            backToTopBtn.addEventListener('click', () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-        }
+        // #backToTop: nút thật do static/js/cskh_widget.js tự tạo động (DOMContentLoaded),
+        // KHÔNG tự làm trùng ở đây nữa (đã gây crash null.addEventListener trên trang không
+        // guard tương tự — xem landing_technical.html để biết chi tiết).
     </script>
 
     <script>
@@ -1903,6 +1879,5 @@
                 console.log(`[BitPaw i18n] Phát hiện khách Việt Nam (navigator.language = "${browserLang}") — giữ nguyên Tiếng Việt.`);
             }
         })();
-    </script>
-</body>
+    </script></body>
 </html>

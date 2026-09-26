@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from mongo_client import db, MONGO_STATUS
+from currency_utils import format_money
 
 # Chỉ tính doanh thu 30 ngày gần nhất cho context AI (chatbot cần trả lời NHANH, không phải báo
 # cáo kế toán chính xác all-time) — giới hạn cả về THỜI GIAN (30 ngày) LẪN để MongoDB tự cộng
@@ -97,14 +98,22 @@ class AIContextEngine:
             "office": "Bạn là thư ký hành chính tối ưu hóa bảng chấm công và tính toán bảng lương."
         }
 
-        # Tra tên cửa hàng thật + industry_code chính thức của tenant (nếu có business_id thật)
+        # Tra tên cửa hàng thật + industry_code + currency chính thức của tenant (nếu có
+        # business_id thật) — BUG THẬT đã vá: trước đây bảng giá/doanh thu/tổng chi tiêu khách
+        # nhúng vào prompt AI đều hardcode đơn vị "đ" (VNĐ), khiến tenant nước ngoài (vd tiệm
+        # Nails này dùng AUD) bị AI báo giá SAI đơn vị tiền tệ thật cho khách hàng (test Playwright
+        # thật phát hiện: AI trả lời "95đ" thay vì "$95 AUD" cho câu hỏi giá dịch vụ) — dùng
+        # đúng currency_utils.format_money() đã có sẵn (đã hỗ trợ VND/USD/AUD) thay vì tự ghép
+        # chuỗi "đ" thủ công ở 3 chỗ trong hàm này.
         business_name = None
+        tenant_currency = 'VND'
         if MONGO_STATUS == "CONNECTED" and business_id:
             try:
-                biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'industry_code': 1, '_id': 0})
+                biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'industry_code': 1, 'currency': 1, '_id': 0})
                 if biz:
                     business_name = biz.get('name') or None
                     industry_code = industry_code or biz.get('industry_code')
+                    tenant_currency = biz.get('currency') or 'VND'
             except:
                 pass
 
@@ -120,7 +129,7 @@ class AIContextEngine:
 
         details = f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise"
         if include_private_data:
-            details += f"\n- Báo cáo doanh thu {AI_CONTEXT_REVENUE_WINDOW_DAYS} ngày gần nhất: {revenue_sum} VNĐ."
+            details += f"\n- Báo cáo doanh thu {AI_CONTEXT_REVENUE_WINDOW_DAYS} ngày gần nhất: {format_money(revenue_sum, tenant_currency)}."
 
         # Nhúng menu/sản phẩm thật của tenant để AI gợi ý upsell/cross-sell đúng mặt hàng đang bán,
         # không bịa ra sản phẩm không tồn tại.
@@ -134,7 +143,7 @@ class AIContextEngine:
                 if prods:
                     has_catalog = True
                     lines = [
-                        f"- {p.get('name')} ({p.get('category') or 'khác'}): {int(p.get('price') or 0):,}đ".replace(',', '.')
+                        f"- {p.get('name')} ({p.get('category') or 'khác'}): {format_money(p.get('price'), tenant_currency)}"
                         for p in prods
                     ]
                     menu_snippet = (
@@ -157,12 +166,11 @@ class AIContextEngine:
                     {'name': 1, 'tier': 1, 'loyalty_points': 1, 'total_spent': 1, '_id': 0}
                 )
                 if c:
-                    spent = int(c.get('total_spent') or 0)
+                    spent = c.get('total_spent') or 0
                     customer_snippet = (
                         f"\n\nTHÔNG TIN KHÁCH ĐANG CHAT: Tên {c.get('name') or 'chưa rõ'}, "
                         f"Hạng thành viên: {c.get('tier') or 'Normal'}, Điểm tích luỹ: {c.get('loyalty_points') or 0}, "
-                        f"Tổng chi tiêu từ trước tới nay: {spent:,}đ (dùng số này như lịch sử mua hàng để đánh giá gu/khả năng chi trả)."
-                        .replace(',', '.')
+                        f"Tổng chi tiêu từ trước tới nay: {format_money(spent, tenant_currency)} (dùng số này như lịch sử mua hàng để đánh giá gu/khả năng chi trả)."
                     )
             except:
                 pass

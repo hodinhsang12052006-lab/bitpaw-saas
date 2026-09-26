@@ -570,6 +570,8 @@
             display: flex; align-items: center; justify-content: center;
             width: 34px; height: 34px; border-radius: 10px;
             background: rgba(255, 255, 255, 0.04);
+            stroke-width: 2.25;
+            transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
         }
         .action-btn:hover {
             border-color: rgba(255, 255, 255, 0.14);
@@ -578,18 +580,29 @@
             transform: translateY(-2px) scale(1.02);
             box-shadow: 0 8px 18px rgba(0,0,0,0.35);
         }
+        .action-btn:hover i, .action-btn:hover svg { transform: scale(1.08); }
         .action-btn:active { transform: translateY(0) scale(0.97); }
 
-        .action-btn.info i, .action-btn.info svg { color: #06b6d4; background: rgba(6, 182, 212, 0.12); }
+        /* Mỗi hành động 1 màu accent RIÊNG, không trùng nhau — trước đây Add Item/Refund/Print
+           Quote cùng chia sẻ 1 màu cyan, làm mất phân cấp thị giác giữa 5 nút (khó phân biệt
+           nhanh bằng mắt, nhìn "phẳng"/không chăm chút). Thêm viền ring cùng tông quanh icon chip
+           để mỗi ô có độ sâu/trọng lượng riêng thay vì chỉ 1 khối màu phẳng. */
+        .action-btn.info i, .action-btn.info svg { color: #06b6d4; background: rgba(6, 182, 212, 0.12); box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.22); }
         .action-btn.info:hover { border-color: rgba(6, 182, 212, 0.55); box-shadow: 0 8px 20px rgba(6,182,212,0.22); }
 
-        .action-btn.warn i, .action-btn.warn svg { color: #f59e0b; background: rgba(245, 158, 11, 0.12); }
+        .action-btn.warn i, .action-btn.warn svg { color: #f59e0b; background: rgba(245, 158, 11, 0.12); box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.22); }
         .action-btn.warn:hover { border-color: rgba(245, 158, 11, 0.55); box-shadow: 0 8px 20px rgba(245,158,11,0.22); }
 
-        .action-btn.danger i, .action-btn.danger svg { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+        .action-btn.danger i, .action-btn.danger svg { color: #ef4444; background: rgba(239, 68, 68, 0.12); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.22); }
         .action-btn.danger:hover { border-color: rgba(239, 68, 68, 0.55); box-shadow: 0 8px 20px rgba(239,68,68,0.22); }
 
-        .action-btn.default i, .action-btn.default svg { color: #06B6D4; background: rgba(6, 182, 212, 0.12); }
+        .action-btn.refund i, .action-btn.refund svg { color: #a78bfa; background: rgba(167, 139, 250, 0.12); box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.22); }
+        .action-btn.refund:hover { border-color: rgba(167, 139, 250, 0.55); box-shadow: 0 8px 20px rgba(167,139,250,0.22); }
+
+        .action-btn.neutral i, .action-btn.neutral svg { color: #2dd4bf; background: rgba(45, 212, 191, 0.12); box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.22); }
+        .action-btn.neutral:hover { border-color: rgba(45, 212, 191, 0.55); box-shadow: 0 8px 20px rgba(45,212,191,0.22); }
+
+        .action-btn.default i, .action-btn.default svg { color: #06B6D4; background: rgba(6, 182, 212, 0.12); box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.22); }
         .action-btn.default:hover { border-color: rgba(6, 182, 212, 0.55); box-shadow: 0 8px 20px rgba(6,182,212,0.22); }
 
         @keyframes payNowPulse {
@@ -790,11 +803,11 @@
                             rotate-left/print/trash-can) từng render vỡ thành ký tự rác kiểu "( + ("
                             khi font CDN tải chậm/lỗi mạng — thay bằng SVG tự vẽ để không còn phụ
                             thuộc font ngoài cho cả thanh công cụ quan trọng này. -->
-                            <div class="action-btn info" onclick="openCustomItemModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg><span class="leading-tight text-center" data-i18n="npos_custom_item_btn">Add Item</span></div>
-                            <div class="action-btn warn" onclick="openDiscountModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg><span class="leading-tight text-center" data-i18n="npos_discount_btn">Discount</span></div>
-                            <button type="button" onclick="openRefundModal()" class="action-btn default"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg><span class="leading-tight text-center" data-i18n="npos_refund_btn">Refund</span></button>
-                            <button type="button" onclick="printQuote()" class="action-btn default"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg><span class="leading-tight text-center" data-i18n="npos_print_quote_btn">Print Quote</span></button>
-                            <div class="action-btn danger" onclick="clearTicket()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span class="leading-tight text-center" data-i18n="npos_clear_btn">Clear</span></div>
+                            <div class="action-btn info" onclick="openCustomItemModal()"><i class="fas fa-circle-plus"></i><span class="leading-tight text-center" data-i18n="npos_custom_item_btn">Add Item</span></div>
+                            <div class="action-btn warn" onclick="openDiscountModal()"><i class="fas fa-tag"></i><span class="leading-tight text-center" data-i18n="npos_discount_btn">Discount</span></div>
+                            <button type="button" onclick="openRefundModal()" class="action-btn refund"><i class="fas fa-rotate-left"></i><span class="leading-tight text-center" data-i18n="npos_refund_btn">Refund</span></button>
+                            <button type="button" onclick="printQuote()" class="action-btn neutral"><i class="fas fa-print"></i><span class="leading-tight text-center" data-i18n="npos_print_quote_btn">Quote</span></button>
+                            <div class="action-btn danger" onclick="clearTicket()"><i class="fas fa-trash-can"></i><span class="leading-tight text-center" data-i18n="npos_clear_btn">Clear</span></div>
                         </div>
                     </div>
 
@@ -928,7 +941,11 @@
                     <div id="serviceGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
                     <div id="noServicesMsg" class="hidden text-center text-gray-500 py-24">
                         <i class="fas fa-box-open text-4xl mb-4 block text-gray-600"></i>
-                        <span class="text-base font-semibold" data-i18n="npos_no_services">No services yet. Add products under Nails category first.</span>
+                        <span class="text-base font-semibold block mb-4" data-i18n="npos_no_services">No services yet. Add products under Nails category first.</span>
+                        <a href="{{ url_for('add_product') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-sm transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span data-i18n="npos_add_service_btn">Add a service</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1077,7 +1094,7 @@
             <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-qrcode text-amber-400"></i> <span data-i18n="npos_booking_qr_title">Online Booking QR</span></h3>
             <p class="text-xs text-gray-400 mb-4 leading-relaxed" data-i18n="npos_booking_qr_desc">Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.</p>
             <div class="bg-white p-4 rounded-2xl inline-block mb-4 shadow-md mx-auto block w-fit">
-                <img id="bookingQrImg" src="" alt="Booking QR" class="w-48 h-48">
+                <img id="bookingQrImg" alt="Booking QR" class="w-48 h-48">
             </div>
             <p id="bookingQrUrl" class="text-xs text-gray-400 mb-4 break-all px-3 py-2.5 rounded-xl border border-white/5 bg-black/40 font-mono select-all"></p>
             <div class="flex gap-3">
@@ -1352,6 +1369,7 @@
                 npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
                 npos_header_title: 'Nail Salon POS', npos_header_subtitle: 'Tap a service to add it to the ticket',
                 npos_no_services: 'No services yet. Add products under Nails category first.',
+                npos_add_service_btn: 'Add a service',
                 npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)',
                 npos_empty_cart: 'No services added yet', npos_supply_label: 'Supply %', npos_tax_pct_label: 'Tax %', npos_cashtip_label: 'Cash Tip',
                 npos_cardtip_label: 'Card Tip', npos_subtotal_label: 'Subtotal', npos_discount_row_label: 'Discount', npos_tax_label: 'Tax', npos_tip_label: 'Tips', npos_total_label: 'Final Total',
@@ -1369,7 +1387,7 @@
                 npos_toast_checkout_ok: 'Payment recorded successfully!', npos_toast_checkout_fail: 'Checkout failed: ',
                 npos_commission_word: 'commission', npos_tip_word: 'tip',
                 npos_custom_item_btn: 'Add Item', npos_discount_btn: 'Discount', npos_clear_btn: 'Clear', npos_refund_btn: 'Refund',
-                npos_hold_btn: 'Hold Ticket', npos_print_quote_btn: 'Print Quote',
+                npos_hold_btn: 'Hold Ticket', npos_print_quote_btn: 'Quote',
                 npos_toast_hold_empty: 'Add a service before holding the ticket.', npos_toast_held: 'Ticket held. Start a new one or resume it anytime.',
                 npos_toast_resumed: 'Held ticket resumed.', npos_confirm_resume_overwrite: 'This will replace the current ticket. Continue?',
                 npos_toast_print_empty: 'Add a service before printing a quote.', npos_toast_print_blocked: 'Pop-up blocked — allow pop-ups to print a quote.',
@@ -1417,6 +1435,7 @@
                 npos_title: 'POS Tiệm Nail | BitPaw OS', npos_exit_btn: 'Thoát POS',
                 npos_header_title: 'POS Tiệm Nail', npos_header_subtitle: 'Chạm vào dịch vụ để thêm vào hoá đơn',
                 npos_no_services: 'Chưa có dịch vụ nào. Vui lòng thêm sản phẩm trong danh mục Nails trước.',
+                npos_add_service_btn: 'Thêm dịch vụ',
                 npos_ticket_title: 'Hoá Đơn Hiện Tại', npos_customer_label: 'Khách hàng', npos_walkin_option: 'Khách vãng lai (không chọn khách)',
                 npos_empty_cart: 'Chưa có dịch vụ nào được thêm', npos_supply_label: 'Phí vật tư %', npos_tax_pct_label: 'Thuế %', npos_cashtip_label: 'Tip tiền mặt',
                 npos_cardtip_label: 'Tip thẻ', npos_subtotal_label: 'Tạm tính', npos_discount_row_label: 'Giảm giá', npos_tax_label: 'Thuế', npos_tip_label: 'Tiền tip', npos_total_label: 'Tổng cộng',
@@ -1434,7 +1453,7 @@
                 npos_toast_checkout_ok: 'Đã ghi nhận thanh toán thành công!', npos_toast_checkout_fail: 'Thanh toán thất bại: ',
                 npos_commission_word: 'hoa hồng', npos_tip_word: 'tiền tip',
                 npos_custom_item_btn: 'Thêm mục', npos_discount_btn: 'Giảm giá', npos_clear_btn: 'Xoá hết', npos_refund_btn: 'Hoàn tiền',
-                npos_hold_btn: 'Giữ hoá đơn', npos_print_quote_btn: 'In báo giá',
+                npos_hold_btn: 'Giữ hoá đơn', npos_print_quote_btn: 'Báo giá',
                 npos_toast_hold_empty: 'Vui lòng thêm dịch vụ trước khi giữ hoá đơn.', npos_toast_held: 'Đã giữ hoá đơn. Bạn có thể tạo hoá đơn mới hoặc tiếp tục bất cứ lúc nào.',
                 npos_toast_resumed: 'Đã tiếp tục hoá đơn đang giữ.', npos_confirm_resume_overwrite: 'Thao tác này sẽ thay thế hoá đơn hiện tại. Tiếp tục?',
                 npos_toast_print_empty: 'Vui lòng thêm dịch vụ trước khi in báo giá.', npos_toast_print_blocked: 'Cửa sổ pop-up bị chặn — vui lòng cho phép pop-up để in báo giá.',

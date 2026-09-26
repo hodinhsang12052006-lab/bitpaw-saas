@@ -17,6 +17,14 @@ if hasattr(sys.stdout, 'reconfigure'):
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://9a8333b2be35f280854c93bfa3ac6421@o4512136448376832.ingest.us.sentry.io/4512136506048512",
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+)
+
 import sqlite3
 
 # ========== MONKEY-PATCH SQLITE3 FOR PRODUCTION STABILITY & CONCURRENCY ==========
@@ -1975,7 +1983,14 @@ def stream_dashboard_tasks():
 def _sse_change_signal(watchable, match_stage):
     def event_stream():
         try:
-            yield 'data: {"changed": true}\n\n'
+            # Event có TÊN RIÊNG ("connected"), KHÔNG dùng "data:" trần (event "message" mặc
+            # định) — nếu dùng event mặc định, MỌI client đang gắn `.onmessage` (tất cả các trang
+            # dùng SSE trong app này) sẽ coi ngay tín hiệu "vừa kết nối xong" này là "có thay đổi
+            # thật", gây phản ứng giả (VD: /calendar tự location.reload() dù chẳng có gì mới, rồi
+            # sau reload lại kết nối lại -> lại nhận signal này -> lặp vô hạn mỗi ~2s, đã bắt được
+            # qua log server thật). `.onmessage` chỉ nhận event mặc định nên sẽ tự động bỏ qua
+            # event có tên khác như thế này — không cần sửa gì ở phía client.
+            yield 'event: connected\ndata: {}\n\n'
         except Exception:
             pass
         start_time = time.time()
@@ -2063,6 +2078,12 @@ def landingpage():
         current_lang=lang,
         i18n=landing_translations[lang],
     )
+
+
+@app.route('/debug-sentry')
+def trigger_error():
+    division_by_zero = 1 / 0
+    return division_by_zero
 
 
 @app.route('/sitemap.xml')
@@ -4353,6 +4374,7 @@ def add_customer():
             'tier': data.get('tier', 'Normal'),
             'loyalty_points': data.get('loyalty_points', 0),
             'total_spent': data.get('total_spent', 0),
+            'notes': (data.get('notes') or '').strip() or None,
             'join_date': datetime.now().strftime('%Y-%m-%d'),
             'business_id': business_id
         })
@@ -12755,4 +12777,10 @@ for _endpoint_name in _CSRF_EXEMPT_ENDPOINTS:
 if __name__ == '__main__':
     # GridFS không cần tạo bucket trước — collection 'backups.files'/'backups.chunks' tự được
     # MongoDB tạo lười (lazy) ngay lần fs.put() đầu tiên, không cần bước khởi tạo nào ở đây.
-    app.run(port=5001, debug=os.environ.get('FLASK_DEBUG', '').lower() == 'true')
+    #
+    # threaded=True BẮT BUỘC phải có: các route SSE (/api/stream/appointments, /api/stream/hr_*,
+    # ...) giữ connection mở tới 25s (xem SSE_MAX_SECONDS). Werkzeug dev server mặc định
+    # single-threaded — chỉ cần 1 tab đang mở /calendar hoặc /sell (tự mở EventSource) là chiếm
+    # trọn worker duy nhất, khiến MỌI request khác (kể cả khách đặt lịch qua QR ở tab/máy khác)
+    # bị treo/timeout cho tới khi connection SSE đó đóng lại.
+    app.run(port=5001, debug=os.environ.get('FLASK_DEBUG', '').lower() == 'true', threaded=True)

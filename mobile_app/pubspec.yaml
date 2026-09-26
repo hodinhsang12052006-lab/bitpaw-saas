@@ -11,17 +11,17 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
 
-  # --- Network: Dio + Interceptor tự đính kèm Bearer token vào mọi request ---
-  dio: ^5.4.3+1
-
-  # --- Quản lý State: Provider (đơn giản, ít khái niệm hơn Riverpod, đủ dùng cho luồng auth) ---
-  provider: ^6.1.2
-
-  # --- Lưu token an toàn: Keychain (iOS) / EncryptedSharedPreferences (Android)
-  # TUYỆT ĐỐI không dùng shared_preferences cho JWT — SharedPreferences lưu plaintext,
-  # đọc được dễ dàng trên máy đã root/jailbreak. flutter_secure_storage mã hoá tại chỗ,
-  # dùng đúng keystore/keychain gốc của hệ điều hành. ---
-  flutter_secure_storage: ^9.2.2
+  # --- WebView: bọc thẳng web app (đã kiểm thử kỹ, đầy đủ chức năng POS/Payroll/Booking)
+  # vào khung app native để lên CH Play NHANH nhất, thay vì viết lại toàn bộ UI bằng Flutter
+  # (sẽ mất nhiều tuần). Native login/JWT ở trên tạm không dùng tới cho bản này — xem
+  # main.dart.
+  # Dùng thẳng package Android-only (thay vì umbrella webview_flutter) vì umbrella package
+  # kéo theo webview_flutter_wkwebview (iOS) -> package objective_c -> cần Dart native assets
+  # hooks, mà hooks_runner trên Windows có bug đã biết (dart-lang/native#2993) khi đường dẫn
+  # user/project chứa dấu cách — máy này là "Acer Nitro" nên luôn dính. App chỉ nhắm Android
+  # (CH Play) nên không cần umbrella package. ---
+  webview_flutter_android: ^4.3.4
+  webview_flutter_platform_interface: ^2.10.0
 
 dev_dependencies:
   flutter_test:

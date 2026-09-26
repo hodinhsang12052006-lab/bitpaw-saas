@@ -150,7 +150,7 @@
 
     <!-- Add/edit customer modal -->
     <div id="customerModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" id="modalTitle"><i class="fas fa-user-plus mr-2"></i> <span data-i18n="crm_modal_add_title">Add Customer</span></h3><button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div>
-    <form id="customerForm"><input type="hidden" id="customerId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_fullname">Full Name</label><input type="text" id="fullName" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_phone">Phone Number</label><input type="tel" id="phone" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_email">Email</label><input type="email" id="email" class="glass-input w-full"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_social">Facebook / Booking Platform (Zalo, Instagram...)</label><input type="text" id="socialContact" class="glass-input w-full" data-i18n-placeholder="crm_form_social_ph" placeholder="fb.com/..., Zalo: 09xx..."></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_tier">Tier</label><select id="tier" class="glass-input w-full"><option value="Normal">Normal</option><option value="Silver">Silver</option><option value="Gold">Gold</option><option value="Platinum">Platinum</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_points">Loyalty Points</label><input type="number" id="points" class="glass-input w-full" value="0"></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="crm_save_btn">Save</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="crm_cancel_btn">Cancel</button></div></form></div></div>
+    <form id="customerForm"><input type="hidden" id="customerId"><div class="space-y-3"><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_fullname">Full Name</label><input type="text" id="fullName" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_phone">Phone Number</label><input type="tel" id="phone" class="glass-input w-full" required></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_email">Email</label><input type="email" id="email" class="glass-input w-full"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_social">Facebook / Booking Platform (Zalo, Instagram...)</label><input type="text" id="socialContact" class="glass-input w-full" data-i18n-placeholder="crm_form_social_ph" placeholder="fb.com/..., Zalo: 09xx..."></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_tier">Tier</label><select id="tier" class="glass-input w-full"><option value="Normal">Normal</option><option value="Silver">Silver</option><option value="Gold">Gold</option><option value="Platinum">Platinum</option></select></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_points">Loyalty Points</label><input type="number" id="points" class="glass-input w-full" value="0"></div><div><label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="crm_form_notes">Notes (allergies, style preferences...)</label><textarea id="customerNotes" rows="2" class="glass-input w-full" data-i18n-placeholder="crm_form_notes_ph" placeholder="e.g. Allergic to acrylic dust, prefers almond shape..."></textarea></div></div><div class="flex gap-3 mt-4"><button type="submit" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 py-2 rounded-xl font-bold" data-i18n="crm_save_btn">Save</button><button type="button" id="cancelModalBtn" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold" data-i18n="crm_cancel_btn">Cancel</button></div></form></div></div>
 
     <!-- Detail & personal message modal -->
     <div id="detailModal" class="modal-overlay"><div class="modal-container"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-cyan-400" data-i18n="crm_detail_title">Customer Details</h3><button id="closeDetailModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button></div><div id="detailContent" class="space-y-2 text-sm mb-4"></div><textarea id="personalMsg" rows="2" class="glass-textarea w-full mb-2" placeholder="Enter a personal message..." data-i18n-placeholder="crm_personal_msg_ph"></textarea><button id="sendPersonalMsgBtn" class="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 py-2 rounded-xl font-bold"><i class="fas fa-sms"></i> <span data-i18n="crm_send_personal_btn">Send Personal Message</span></button></div></div>
@@ -248,6 +248,9 @@
                 crm_form_social_ph: 'fb.com/..., Zalo: 09xx...',
                 crm_form_tier: 'Hạng',
                 crm_form_points: 'Điểm tích lũy',
+                crm_form_notes: 'Ghi chú (dị ứng, kiểu móng ưa thích...)',
+                crm_form_notes_ph: 'VD: Dị ứng bụi acrylic, thích dáng móng almond...',
+                crm_detail_notes: 'Ghi chú:',
                 crm_save_btn: 'Lưu',
                 crm_cancel_btn: 'Hủy',
                 crm_detail_title: 'Chi tiết khách hàng',
@@ -334,6 +337,9 @@
                 crm_form_social_ph: 'fb.com/..., Zalo: 09xx...',
                 crm_form_tier: 'Tier',
                 crm_form_points: 'Loyalty Points',
+                crm_form_notes: 'Notes (allergies, style preferences...)',
+                crm_form_notes_ph: 'e.g. Allergic to acrylic dust, prefers almond shape...',
+                crm_detail_notes: 'Notes:',
                 crm_save_btn: 'Save',
                 crm_cancel_btn: 'Cancel',
                 crm_detail_title: 'Customer Details',
@@ -551,6 +557,7 @@ function updateStatsAndChart() {
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_spend')}</span><span class="text-emerald-400">${formatCurrency(c.total_spent || 0)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_points')}</span><span class="text-purple-400">${c.loyalty_points || 0}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_joindate')}</span><span>${c.join_date || new Date().toISOString().slice(0,10)}</span></div>
+                ${c.notes ? `<div class="pt-2 mt-1 border-t border-white/10"><span class="text-gray-400 text-xs uppercase font-bold tracking-wider">${t('crm_detail_notes')}</span><p class="text-amber-300 mt-1 whitespace-pre-wrap">${escapeHtml(c.notes)}</p></div>` : ''}
                 <div class="pt-3 mt-2 border-t border-white/10">
                     <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">${t('crm_detail_order_history')}</div>
                     <div id="customerOrderHistory" class="space-y-1.5 max-h-48 overflow-y-auto"><span class="text-gray-500 text-xs">${t('crm_loading')}</span></div>
@@ -589,6 +596,7 @@ function updateStatsAndChart() {
                 socialContactInput.value = c.social_contact || '';
                 tierSelect.value = c.tier;
                 pointsInput.value = c.loyalty_points || 0;
+                document.getElementById('customerNotes').value = c.notes || '';
                 modalTitle.innerHTML = `<i class="fas fa-user-edit mr-2"></i> ${t('crm_modal_edit_title')}`;
                 customerModal.classList.add('active');
             }
@@ -601,6 +609,7 @@ function updateStatsAndChart() {
             socialContactInput.value = '';
             tierSelect.value = 'Normal';
             pointsInput.value = '0';
+            document.getElementById('customerNotes').value = '';
             modalTitle.innerHTML = `<i class="fas fa-user-plus mr-2"></i> ${t('crm_modal_add_title')}`;
             customerModal.classList.add('active');
         }
@@ -615,19 +624,20 @@ function updateStatsAndChart() {
             const social_contact = socialContactInput.value.trim();
             const tier = tierSelect.value;
             const points = parseInt(pointsInput.value) || 0;
+            const notes = document.getElementById('customerNotes').value.trim();
             if (!name || !phone) { showToast(t('crm_toast_fill_info'), true); return; }
             loadingOverlay.classList.add('active');
             try {
                 if (id) {
                     await hrApi('/update_customer/' + id, {
                         method: 'PUT',
-                        body: JSON.stringify({ name, phone, email, social_contact, tier, loyalty_points: points }),
+                        body: JSON.stringify({ name, phone, email, social_contact, tier, loyalty_points: points, notes }),
                     });
                     showToast(t('crm_toast_updated'));
                 } else {
                     await hrApi('/add_customer', {
                         method: 'POST',
-                        body: JSON.stringify({ name, phone, email, social_contact, tier, loyalty_points: points }),
+                        body: JSON.stringify({ name, phone, email, social_contact, tier, loyalty_points: points, notes }),
                     });
                     showToast(t('crm_toast_added'));
                 }

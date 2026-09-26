@@ -38,16 +38,44 @@ let stepIdx = 0;
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
+function writeFileWithRetry(filePath, content) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      fs.writeFileSync(filePath, content);
+      return;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 async function shot(page, caption) {
   stepIdx += 1;
   const fname = `${pad(stepIdx)}_${caption.slug}.png`;
-  await page.screenshot({ path: path.join(SCREEN_DIR, fname), fullPage: true });
+  const filePath = path.join(SCREEN_DIR, fname);
+  // OneDrive/Windows Defender thỉnh thoảng khoá file trong lúc đang quét/đồng bộ ngay sau khi
+  // Playwright tạo — gặp lỗi "UNKNOWN: unknown error, open ..." không đều tại nhiều bước khác
+  // nhau, không liên quan gì tới app hay bước nào cụ thể. Retry ngắn (3 lần, cách 500ms) đủ để
+  // vượt qua lock tạm thời này thay vì crash cả bài chạy.
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await page.screenshot({ path: filePath, fullPage: true });
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+  if (lastErr) throw lastErr;
   manifest.push({ file: fname, caption: caption.vi, group: caption.group });
   console.log(`📸 [${pad(stepIdx)}] ${caption.vi}`);
 }
 
-function todayISO() {
-  const d = new Date();
+function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -267,15 +295,34 @@ async function main() {
     await guestPage.fill('#cus_phone', guestPhone);
     await guestPage.fill('#cus_address', '123 Demo St');
     await guestPage.selectOption('#cus_service', { index: 1 });
-    const randomHour = String(10 + Math.floor(Math.random() * 8)).padStart(2, '0');
-    const randomMinute = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+    // Giờ đặt lịch PHẢI nằm SAU thời điểm hiện tại thật — booking.html tự set
+    // input[type=datetime-local]#cus_datetime.min = "now" lúc load trang. Trước đây random cố
+    // định trong khung 10:00-17:59 của "hôm nay" bất kể mấy giờ đang chạy script thật -> nếu chạy
+    // sau khung đó (VD 16h+), random dễ ra giờ đã QUÁ KHỨ -> trình duyệt tự chặn submit bằng
+    // validation HTML5 gốc (không có lỗi console, ticket "thành công" build từ instructions cũ,
+    // che mất việc submit thật ra đã bị chặn — đã bắt được qua ảnh chụp thật, tooltip cảnh báo
+    // "Value must be ... or later" đè lên nút Confirm Booking).
+    const midnight = new Date();
+    midnight.setHours(23, 55, 0, 0);
+    const maxOffsetMin = Math.max(35, Math.min(330, Math.floor((midnight - Date.now()) / 60000)));
+    const bookingDt = new Date(Date.now() + (30 + Math.floor(Math.random() * (maxOffsetMin - 30))) * 60000);
+    bookingDateStr = todayISO(bookingDt);
+    const randomHour = String(bookingDt.getHours()).padStart(2, '0');
+    const randomMinute = String(bookingDt.getMinutes()).padStart(2, '0');
     await guestPage.fill('#cus_datetime', `${bookingDateStr}T${randomHour}:${randomMinute}`);
     await shot(guestPage, { slug: 'khach_dien_form', vi: 'Khách điền thông tin và chọn dịch vụ', group: 'Đặt lịch QR' });
 
-    await Promise.all([
+    const [bookingResp] = await Promise.all([
       guestPage.waitForResponse((r) => r.url().includes('/create_appointment') && r.request().method() === 'POST', { timeout: 15000 }).catch(() => null),
       guestPage.click('#btnSubmit'),
     ]);
+    // Xác nhận THẬT có request POST /create_appointment và HTTP OK — trước đây chỉ chờ rồi chụp
+    // ảnh vô điều kiện, nên khi trình duyệt tự chặn submit bằng validation HTML5 gốc (VD: giờ đặt
+    // lịch rơi vào quá khứ), ảnh vẫn được đặt tên "thành công" dù request chưa từng được gửi,
+    // che mất bug thật (đã bắt được qua ảnh chụp thật cho thấy tooltip cảnh báo của trình duyệt).
+    if (!bookingResp || !bookingResp.ok()) {
+      throw new Error('Khách đặt lịch KHÔNG thành công — không bắt được response POST /create_appointment OK. Có thể form bị chặn bởi validation HTML5 gốc (VD: giờ đặt lịch rơi vào quá khứ) hoặc lỗi server.');
+    }
     await guestPage.waitForTimeout(500);
     await shot(guestPage, { slug: 'khach_dat_lich_thanh_cong', vi: 'Đặt lịch thành công — vé điện tử của khách', group: 'Đặt lịch QR' });
     await guestContext.close();
@@ -301,6 +348,12 @@ async function main() {
       await page.locator(`tr[data-appt-id="${newRowId}"] button:has-text("Check-in")`).first().click();
       await page.waitForTimeout(500);
       await shot(page, { slug: 'lich_hen_checkin', vi: 'Nhân viên bấm Check-in khi khách tới tiệm', group: 'Đặt lịch QR' });
+      // Trang /calendar còn 1 reloadTimer debounce 1600ms từ chính SSE event đặt lịch lúc nãy —
+      // nếu điều hướng đi NGAY (goto bên dưới) trong lúc timer đó vẫn còn treo, location.reload()
+      // của nó có thể nổ giữa lúc trang đang chuyển hướng, đụng độ với chính goto() này và
+      // Playwright báo net::ERR_ABORTED (không phải lỗi thật của app — người dùng thật bấm 2 thao
+      // tác cách nhau vài giây, không đủ nhanh để dính race này). Đợi qua mốc 1600ms cho chắc.
+      await page.waitForTimeout(1800);
     }
 
     // ============ 19. POS — BADGE CHECKED-IN TỰ CẬP NHẬT (REAL-TIME) ============
@@ -358,11 +411,11 @@ async function main() {
       }
     }
 
-    fs.writeFileSync(MANIFEST_FILE, JSON.stringify({ steps: manifest, businessId, checkoutOrderId, generatedAt: new Date().toISOString() }, null, 2));
+    writeFileWithRetry(MANIFEST_FILE, JSON.stringify({ steps: manifest, businessId, checkoutOrderId, generatedAt: new Date().toISOString() }, null, 2));
     console.log(`\n✅ Hoàn tất: ${manifest.length} ảnh chụp. Manifest: ${MANIFEST_FILE}`);
   } catch (e) {
     console.error('❌ LỖI:', e.message);
-    fs.writeFileSync(MANIFEST_FILE, JSON.stringify({ steps: manifest, error: e.message, generatedAt: new Date().toISOString() }, null, 2));
+    writeFileWithRetry(MANIFEST_FILE, JSON.stringify({ steps: manifest, error: e.message, generatedAt: new Date().toISOString() }, null, 2));
   } finally {
     await ownerContext.close(); // flush video ra đĩa
     await browser.close();
