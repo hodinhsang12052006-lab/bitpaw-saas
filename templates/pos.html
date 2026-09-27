@@ -581,6 +581,12 @@
         // JSON /api/pos/... của Flask (xem app.py), server tự xác định business_id từ session,
         // không còn tin business_id do trình duyệt tự khai như khi gọi thẳng Supabase trước đây.
 
+        // BUG THẬT đã vá (audit F&B): dùng CHUNG 1 hàm bỏ dấu tiếng Việt cho cả renderTables()
+        // (lọc hiển thị) và addTable() (tự thêm tiền tố ngành nếu tên chưa có từ khoá) — trước
+        // đây mỗi nơi tự liệt kê tay từng biến thể có/không dấu, dễ sót (đã xảy ra thật ở nhánh
+        // F&B: "Bàn" không khớp "ba"/"ban" vì dấu huyền là ký tự Unicode khác hẳn).
+        function stripDiacritics(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase(); }
+
         // State
         let selectedTableId = null;
         let selectedTableName = null;
@@ -1034,15 +1040,22 @@
             let localDrafts = JSON.parse(localStorage.getItem('pos_local_tables') || '[]');
             let combined = [...dbTables, ...localDrafts];
 
-            // Filter tables based on industry prefix
+            // BUG THẬT đã vá (audit F&B): lọc theo từng biến thể có/không dấu liệt kê thủ công
+            // (vd 'ghê'/'ghe', 'giươ'/'giuong', 'phòn'/'phong') bị THIẾU biến thể cho nhánh F&B
+            // ('bàn' không khớp 'ba' hay 'ban' vì dấu huyền là 1 ký tự Unicode khác hẳn) — chủ
+            // quán tự đặt tên bàn có dấu qua "Thêm Bàn" (/add_table, KHÔNG có validation tên
+            // nào cả) sẽ lưu thành công nhưng bàn biến mất khỏi lưới ngay lần tải lại kế tiếp,
+            // rất khó hiểu với người dùng không rành kỹ thuật. Sửa tận gốc bằng cách bỏ dấu
+            // TRƯỚC khi so khớp, thay vì liệt kê tay từng biến thể (dễ sót như đã thấy) — dùng
+            // hàm stripDiacritics() dùng chung (khai báo đầu file) thay vì tự định nghĩa lại.
             if (ind === 'nail') {
-                combined = combined.filter(t => t.name.toLowerCase().includes('ghê') || t.name.toLowerCase().includes('ghe') || t.name.toLowerCase().includes('nail') || t.name.toLowerCase().includes('chair'));
+                combined = combined.filter(t => { const n = stripDiacritics(t.name); return n.includes('ghe') || n.includes('nail') || n.includes('chair'); });
             } else if (ind === 'spa') {
-                combined = combined.filter(t => t.name.toLowerCase().includes('giươ') || t.name.toLowerCase().includes('giuong') || t.name.toLowerCase().includes('spa') || t.name.toLowerCase().includes('bed'));
+                combined = combined.filter(t => { const n = stripDiacritics(t.name); return n.includes('giuong') || n.includes('spa') || n.includes('bed'); });
             } else if (ind === 'karaoke' || ind === 'hotel') {
-                combined = combined.filter(t => t.name.toLowerCase().includes('phòn') || t.name.toLowerCase().includes('phong') || t.name.toLowerCase().includes('room') || t.name.toLowerCase().includes('karaoke') || t.name.toLowerCase().includes('hotel'));
+                combined = combined.filter(t => { const n = stripDiacritics(t.name); return n.includes('phong') || n.includes('room') || n.includes('karaoke') || n.includes('hotel'); });
             } else {
-                combined = combined.filter(t => t.name.toLowerCase().includes('ba') || t.name.toLowerCase().includes('ban') || t.name.toLowerCase().includes('f&b') || t.name.toLowerCase().includes('table'));
+                combined = combined.filter(t => { const n = stripDiacritics(t.name); return n.includes('ban') || n.includes('f&b') || n.includes('table'); });
             }
 
             // Seed default items if empty. F&B luôn cố định 200 bàn (đặt tên "Table N" bằng
@@ -1119,7 +1132,7 @@
                         showToast(t('pos_select_table_first'), true);
                         return;
                     }
-                    currentProductId = el.getAttribute('data-product-id');
+                    currentProductId = parseInt(el.getAttribute('data-product-id')) || null;
                     currentProductName = el.getAttribute('data-product-name');
                     currentProductPrice = parseInt(el.getAttribute('data-product-price')) || 0;
                     currentQty = 1;
@@ -1473,7 +1486,13 @@
         orderDiscount.addEventListener('input', calculateTotals);
 
         async function selectTable(tableId, tableName) {
-            selectedTableId = tableId;
+            // Bàn thật lấy từ DB có id dạng số nguyên (xem next_mongo_id() trong mongo_client.py),
+            // nhưng data-table-id trên DOM luôn là chuỗi — nếu giữ nguyên chuỗi, mọi request kèm
+            // table_id trong JSON body (vd /api/payment/start) sẽ so sánh "6519" (str) với 6519
+            // (int) trong Mongo và luôn ra "Table not found.". Bàn nháp client-only (tiền tố
+            // "seeded-"/"local-") KHÔNG có bản ghi DB thật nên phải giữ nguyên dạng chuỗi.
+            const isLocalId = typeof tableId === 'string' && (tableId.startsWith('seeded-') || tableId.startsWith('local-'));
+            selectedTableId = isLocalId ? tableId : (parseInt(tableId, 10) || tableId);
             selectedTableName = tableName;
             selectedTableNameSpan.innerText = tableName;
             selectedTableBadge.classList.remove('hidden');
@@ -1501,13 +1520,14 @@
             const label = noun.charAt(0).toUpperCase() + noun.slice(1);
 
             let formattedName = tableName;
-            if (ind === 'nail' && !tableName.toLowerCase().includes('ghê') && !tableName.toLowerCase().includes('ghe') && !tableName.toLowerCase().includes('chair')) {
+            const nameNoAccent = stripDiacritics(tableName);
+            if (ind === 'nail' && !nameNoAccent.includes('ghe') && !nameNoAccent.includes('chair')) {
                 formattedName = `${label} Nails ` + tableName;
-            } else if (ind === 'spa' && !tableName.toLowerCase().includes('giươ') && !tableName.toLowerCase().includes('giuong') && !tableName.toLowerCase().includes('bed')) {
+            } else if (ind === 'spa' && !nameNoAccent.includes('giuong') && !nameNoAccent.includes('bed')) {
                 formattedName = `${label} Spa ` + tableName;
-            } else if (ind === 'fnb' && !tableName.toLowerCase().includes('ba') && !tableName.toLowerCase().includes('ban') && !tableName.toLowerCase().includes('table')) {
+            } else if (ind === 'fnb' && !nameNoAccent.includes('ban') && !nameNoAccent.includes('table')) {
                 formattedName = `${label} F&B ` + tableName;
-            } else if ((ind === 'karaoke' || ind === 'hotel') && !tableName.toLowerCase().includes('phòn') && !tableName.toLowerCase().includes('phong') && !tableName.toLowerCase().includes('room')) {
+            } else if ((ind === 'karaoke' || ind === 'hotel') && !nameNoAccent.includes('phong') && !nameNoAccent.includes('room')) {
                 formattedName = `${label} ` + tableName;
             }
 

@@ -3193,8 +3193,15 @@
             const modalInner = modal.querySelector('div');
             const lang = (document.getElementById('current-lang-text') && document.getElementById('current-lang-text').innerText === 'EN') ? 'en' : 'vi';
             let pTitle = translations[lang][type === 'terms' ? 'term_of_use' : type === 'privacy' ? 'privacy_policy' : 'payment_policy'] || 'Chính sách';
+            // BUG THẬT đã vá (audit): dòng nội dung cũ luôn dùng CHUNG đúng 1 key
+            // 'modal_content_placeholder' cho CẢ 3 loại policy — bấm Điều khoản/Bảo mật/Thanh
+            // toán đều hiện y hệt "Chính sách đang được cập nhật..." dù `type` đã được truyền
+            // đúng (chỉ dòng tiêu đề ở trên có rẽ nhánh theo `type`, dòng nội dung thì không).
+            // Rẽ nhánh đúng theo `type` sang 3 key nội dung thật tương ứng.
+            const contentKey = type === 'terms' ? 'terms_content' : type === 'privacy' ? 'privacy_content' : 'payment_content';
+            const pContent = translations[lang][contentKey] || translations[lang]['modal_content_placeholder'] || 'Chính sách đang được cập nhật...';
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shield-alt mr-2"></i> ' + pTitle;
-            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300"><p>' + (translations[lang]['modal_content_placeholder'] || 'Chính sách đang được cập nhật...') + '</p></div>';
+            document.getElementById('modalContent').innerHTML = '<div class="space-y-4 text-gray-300">' + pContent + '</div>';
             modal.classList.remove('hidden');
             setTimeout(() => { modal.classList.remove('opacity-0'); modalInner.classList.remove('scale-95'); }, 10);
             document.body.style.overflow = 'hidden';

@@ -54,6 +54,7 @@ import json
 import random
 import re
 import base64
+import hmac
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -591,6 +592,16 @@ def _disable_html_caching(response):
     return response
 
 
+@app.after_request
+def _security_headers(response):
+    """Phòng thủ theo chiều sâu (audit bảo mật) — chặn trình duyệt tự "đoán" content-type
+    khác với Content-Type server đã khai báo (content-sniffing), giảm rủi ro dù allowlist
+    upload file đã chặt (xem allowed_file()/_allowed_media_file()) và Content-Type serve-back
+    đã ép theo đuôi file đã validate, không theo client khai."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 # Upload ảnh
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -1031,6 +1042,11 @@ def register():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        # BUG THẬT đã vá (audit bảo mật): trước đây không kiểm tra độ dài mật khẩu — kể cả
+        # mật khẩu rỗng cũng được generate_password_hash() chấp nhận và tạo tài khoản thật.
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'danger')
+            return render_template('index.html', active_tab='register')
         # Chuẩn hoá lowercase NGAY tại điểm nhận vào — INDUSTRY_CONFIG chỉ có key lowercase
         # ('nail', 'fnb'...); dropdown UI hiện tại luôn gửi đúng key, nhưng chuẩn hoá ở đây
         # để KHÔNG phụ thuộc vào việc UI luôn "cư xử đúng" (vd: gọi thẳng API, hoặc dữ liệu
@@ -3544,13 +3560,30 @@ def view_table(table_id):
 
 
 def _assert_owns_table(table_id, business_id):
-    """Trả về (True, None) nếu bàn thuộc đúng business_id, ngược lại (False, thông báo lỗi)."""
+    """Trả về (True, None) nếu bàn thuộc đúng business_id, ngược lại (False, thông báo lỗi).
+    dining_tables.id luôn là int (xem next_mongo_id() trong mongo_client.py), nhưng table_id
+    gửi lên qua JSON body (khác với URL path dùng <int:table_id> converter tự ép kiểu) có thể
+    tới dưới dạng chuỗi (vd đọc từ URLSearchParams ở payment_pending.html) — ép kiểu tại đây,
+    điểm dùng chung của MỌI route gọi hàm này, để tránh so sánh "6518" (str) với 6518 (int)
+    trong Mongo luôn thất bại dù bàn hoàn toàn hợp lệ."""
+    if isinstance(table_id, str) and table_id.isdigit():
+        table_id = int(table_id)
     doc = db.dining_tables.find_one({'id': table_id}, {'business_id': 1, '_id': 0})
     if not doc:
         return False, "Table not found."
     if doc.get('business_id') != business_id:
         return False, "This table does not belong to your account."
     return True, None
+
+
+def _coerce_table_id(table_id):
+    """Ép table_id sang int nếu là chuỗi số thuần (JSON body không tự ép kiểu như URL path
+    <int:table_id> converter) — dùng cho các route tự query thêm dining_tables/table_orders
+    bằng table_id SAU KHI đã qua _assert_owns_table(), để tránh lệch kiểu str/int ở những
+    câu query đó."""
+    if isinstance(table_id, str) and table_id.isdigit():
+        return int(table_id)
+    return table_id
 
 
 # ========== LOYALTY TỰ ĐỘNG (tích điểm / lên hạng / thông báo) ==========
@@ -6564,7 +6597,7 @@ def api_table_notify():
     """Route PUBLIC (khách quét QR tại bàn, không có session) — resolve business_id qua
     table_id/qr_token giống hệt submit_qr_order() ở trên, không tin business_id client gửi."""
     data = request.json or {}
-    table_id = data.get('table_id')
+    table_id = _coerce_table_id(data.get('table_id'))
     notify_type = data.get('type')
     table_name = data.get('table_name', f'Table {table_id}')
     if notify_type not in ('staff', 'bill'):
@@ -6830,7 +6863,11 @@ def brand_settings():
             _brand_setting_set(business_id, 'brand_color', request.form['brand_color'])
         except Exception as e:
             print("Error updating brand_color settings:", e)
-        return redirect(url_for('spa'))
+        # BUG THẬT đã vá (audit Pha 6): trước đây luôn redirect('spa') bất kể ngành thật của
+        # tenant — mọi tenant KHÔNG phải Spa lưu xong bị đẩy nhầm sang trang POS Spa (dữ liệu
+        # sai ngành). Quay lại đúng trang cài đặt (GET re-render hiện giá trị vừa lưu) là đích
+        # đến ĐÚNG cho MỌI ngành, không cần tra cứu lại dashboard riêng từng ngành.
+        return redirect(url_for('brand_settings'))
     try:
         brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
         brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
@@ -7415,6 +7452,7 @@ def api_payment_confirm():
         owns, err = _assert_owns_table(table_id, business_id)
         if not owns:
             return jsonify({'success': False, 'message': err}), 403
+        table_id = _coerce_table_id(table_id)
 
         # 1. Đọc table_orders theo table_id (đã xác nhận bàn thuộc đúng tenant ở trên)
         orders_data = list(db.table_orders.find({'table_id': table_id, 'business_id': business_id}, {'_id': 0}))
@@ -7978,7 +8016,10 @@ def _refresh_stale_demo_attendance(business_id, now):
 def cron_daily_tasks():
     cron_secret = os.environ.get('CRON_SECRET')
     auth_header = request.headers.get('Authorization', '')
-    if not cron_secret or auth_header != f'Bearer {cron_secret}':
+    # BUG THẬT đã vá (audit bảo mật): so sánh "!=" thường rò rỉ thời gian xử lý theo từng byte
+    # khớp/không khớp (timing attack) — cùng file này chỗ khác (payment_us_engine.py, webhook
+    # Square) đã làm ĐÚNG bằng hmac.compare_digest(), chỗ này bị bỏ sót.
+    if not cron_secret or not hmac.compare_digest(auth_header, f'Bearer {cron_secret}'):
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     lookback_days = 14
@@ -9055,8 +9096,15 @@ def portal():
 def _resolve_portal_customer(customer_id):
     """Tra cứu bot_customers theo id do CHÍNH customer_id xác định business_id — không có
     session nên KHÔNG ĐƯỢC tin business_id từ client dưới bất kỳ hình thức nào; mọi route
-    /api/portal/* đều phải đi qua hàm này trước khi đọc/ghi bot_messages."""
-    if not customer_id:
+    /api/portal/* đều phải đi qua hàm này trước khi đọc/ghi bot_messages.
+
+    BUG THẬT NGHIÊM TRỌNG đã vá (audit bảo mật — NoSQL injection, PoC thật xác nhận khai
+    thác được): trước đây không kiểm tra kiểu dữ liệu của customer_id trước khi đưa thẳng vào
+    find_one() — client gửi customer_id dạng object thay vì chuỗi (vd {"$ne": null}) sẽ được
+    MongoDB hiểu là toán tử truy vấn, khớp BẤT KỲ document nào thay vì đúng 1 khách hàng thật,
+    cho phép kẻ tấn công ẩn danh đọc/ghi vào hội thoại của BẤT KỲ tenant nào mà không cần biết
+    customer_id/SĐT thật của họ. Bắt buộc customer_id phải là chuỗi (str) mới cho query."""
+    if not customer_id or not isinstance(customer_id, str):
         return None
     return db.bot_customers.find_one({'id': customer_id}, {'_id': 0})
 

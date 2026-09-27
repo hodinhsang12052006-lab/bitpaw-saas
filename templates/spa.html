@@ -708,7 +708,7 @@
                 <a href="{{ url_for('delete_spa', id=s.id) }}" class="absolute top-2 right-2 bg-red-500/80 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-500 z-10" title="Xóa dịch vụ" onclick="return confirm('Xóa {{ s.name }}?');">✕</a>
                 <div class="img-container">
                     {% if s.image %}
-                        <img class="product-img" src="{{ url_for('static', filename='uploads/' + s.image) }}" alt="{{ s.name }}">
+                        <img class="product-img" src="{{ s.image if s.image.startswith('http') else url_for('static', filename='uploads/' + s.image) }}" alt="{{ s.name }}">
                     {% else %}
                         <div class="w-full h-full bg-black/50 flex items-center justify-center text-5xl">🌸</div>
                     {% endif %}
@@ -905,6 +905,11 @@
                                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=BitPayCheckout" class="w-36 h-36 mx-auto">
                                 </div>
                                 <p class="text-xs text-gray-400" id="qrInstruction" data-i18n="spa_qr_instruction">Mở ứng dụng để quét mã thanh toán.</p>
+                            </div>
+
+                            <div id="cryptoAddressBox" class="bg-black/30 p-4 rounded-xl border border-orange-500/20 mt-4 hidden text-center">
+                                <p class="text-xs text-gray-400 mb-1" data-i18n="spa_crypto_address_label">Địa chỉ ví USDT (TRC20)</p>
+                                <p class="text-xs font-mono text-orange-400 break-all">TXn9y9Q1qQqfM1qQz7fJvZC5m6bK5m6bK5m6bK</p>
                             </div>
 
                             <div id="redirectBlock" class="bg-blue-900/20 p-4 rounded-xl border border-blue-500/20 mt-4 hidden text-center">
@@ -1439,6 +1444,7 @@
                 spa_btn_confirm_booking: 'Xác nhận đặt hẹn ({amount})',
                 spa_btn_continue: 'Tiếp tục ({amount})',
                 spa_qr_title_crypto: 'Gửi Crypto (USDT)',
+                spa_crypto_address_label: 'Địa chỉ ví USDT (TRC20)',
                 spa_qr_title_scan: 'Quét mã {method}',
                 spa_redirect_cash_text: 'Thanh toán trực tiếp tại quầy khi đến sử dụng dịch vụ.',
                 spa_redirect_online_text: 'Chuyển hướng an toàn để hoàn tất thanh toán.',
@@ -1509,6 +1515,7 @@
                 spa_btn_confirm_booking: 'Confirm Booking ({amount})',
                 spa_btn_continue: 'Continue ({amount})',
                 spa_qr_title_crypto: 'Send Crypto (USDT)',
+                spa_crypto_address_label: 'USDT Wallet Address (TRC20)',
                 spa_qr_title_scan: 'Scan {method} Code',
                 spa_redirect_cash_text: 'Pay directly at the counter when you arrive for your service.',
                 spa_redirect_online_text: 'Securely redirecting to complete payment.',

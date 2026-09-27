@@ -108,9 +108,9 @@
                     <p class="text-gray-400 mt-2 text-sm font-medium" data-i18n="chamcongkythuat_subtitle">Phân công công việc, chấm công và xuất vật tư từ kho.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                    <a href="quanly_dichvu.html" class="glass-panel hover:bg-cyan-500/10 border-cyan-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-satellite-dish"></i> <span data-i18n="chamcongkythuat_btn_radar">Radar Kanban</span></a>
-                    <a href="quanly_kho.html" class="glass-panel hover:bg-emerald-500/10 border-emerald-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-boxes"></i> <span data-i18n="chamcongkythuat_btn_inventory">Quản lý Kho</span></a>
-                    <a href="chamcong.html" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-arrow-left"></i> <span data-i18n="chamcongkythuat_btn_back">Quay lại</span></a>
+                    <a href="{{ url_for('quanly_dichvu') }}" class="glass-panel hover:bg-cyan-500/10 border-cyan-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-satellite-dish"></i> <span data-i18n="chamcongkythuat_btn_radar">Radar Kanban</span></a>
+                    <a href="{{ url_for('quanly_kho') }}" class="glass-panel hover:bg-emerald-500/10 border-emerald-500/30 px-5 py-2.5 rounded-xl transition-all font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-boxes"></i> <span data-i18n="chamcongkythuat_btn_inventory">Quản lý Kho</span></a>
+                    <a href="{{ url_for('chamcong') }}" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 shadow-lg active:scale-95"><i class="fas fa-arrow-left"></i> <span data-i18n="chamcongkythuat_btn_back">Quay lại</span></a>
                 </div>
             </div>
 
@@ -896,7 +896,7 @@
                 }
                 data.forEach((r, index) => {
                     let photoBtn = r.anh_checkin ? `<button onclick="viewPhoto('${r.anh_checkin}', '${r.ngay_cham} ${r.gio_den||''}')" class="bg-cyan-500/20 text-cyan-400 p-1.5 rounded-lg hover:bg-cyan-500 hover:text-black transition ml-2" title="${t('chamcongkythuat_view_photo_title')}"><i class="fas fa-image"></i> ${t('chamcongkythuat_proof_label')}</button>` : '';
-                    let mapBtn = r.toa_do ? `<button onclick="window.open('http://googleusercontent.com/maps.google.com/?q=${r.toa_do}')" class="bg-emerald-500/20 text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-500 hover:text-black transition ml-2" title="${t('chamcongkythuat_open_map_title')}"><i class="fas fa-map-marker-alt"></i> ${t('chamcongkythuat_gps_label')}</button>` : '';
+                    let mapBtn = (r.latitude != null && r.longitude != null) ? `<button onclick="window.open('https://www.google.com/maps?q=${r.latitude},${r.longitude}')" class="bg-emerald-500/20 text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-500 hover:text-black transition ml-2" title="${t('chamcongkythuat_open_map_title')}"><i class="fas fa-map-marker-alt"></i> ${t('chamcongkythuat_gps_label')}</button>` : '';
                     let noteHTML = r.ghi_chu ? `<p class="text-[11px] text-gray-400 mt-2.5 bg-black/60 p-2.5 rounded-lg border border-white/5 shadow-inner"><i class="fas fa-clipboard-list text-yellow-500/70 mr-1.5"></i> ${r.ghi_chu.replace(/\n/g, '<br>')}</p>` : '';
                     let otHTML = r.tang_ca > 0 ? `<span class="text-rose-400 text-[10px] font-black tracking-widest ml-2 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30">+${r.tang_ca}h OT</span>` : '';
                     const delay = index * 50;

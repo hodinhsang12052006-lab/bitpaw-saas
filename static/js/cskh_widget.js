@@ -727,15 +727,31 @@ document.addEventListener("DOMContentLoaded", () => {
         return reply;
     }
 
+    // BUG THẬT NGHIÊM TRỌNG đã vá (audit bảo mật — Stored XSS, PoC thật xác nhận thực thi
+    // được qua chuỗi tấn công /api/portal/messages -> appendMessage): text hiển thị (tin
+    // khách tự gõ VÀ tin trả lời của staff/AI đọc lại từ server) trước đây chèn thẳng vào
+    // innerHTML không escape. Mặc định escape MỌI text; chỉ 1 chỗ gọi cần giữ HTML thật
+    // (dòng "SĐT Zalo: <strong>...</strong>") truyền isHtml=true SAU KHI đã tự escape riêng
+    // từng phần dữ liệu động — xem lời gọi appendMessage("user", ..., true) bên dưới.
+    function escapeHtml(str) {
+        return String(str ?? "").replace(/[&<>]/g, function (m) {
+            if (m === "&") return "&amp;";
+            if (m === "<") return "&lt;";
+            if (m === ">") return "&gt;";
+            return m;
+        });
+    }
+
     // 8. Append Message Markup & Auto Scroll
-    function appendMessage(sender, text) {
+    function appendMessage(sender, text, isHtml = false) {
         if (!msgContainer) return;
+        const safeText = isHtml ? text : escapeHtml(text);
         const msgDiv = document.createElement("div");
         if (sender === "user") {
             msgDiv.className = "flex gap-2.5 items-start justify-end mt-2";
             msgDiv.innerHTML = `
         <div class="chat-user text-white p-3 rounded-2xl rounded-tr-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm">
-            ${text}
+            ${safeText}
         </div>
         <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 text-[10px] font-bold border border-cyan-500/30">👤</div>
     `;
@@ -746,7 +762,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <img src="/static/cho1.jpg" class="w-full h-full object-cover">
                 </div>
                 <div class="chat-ai text-cyan-200 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm">
-                    ${text}
+                    ${safeText}
                 </div>
     `;
         }
@@ -810,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (hasValidPhone && !isLeadSubmitted) {
-                appendMessage("user", `SĐT Zalo: <strong>${phoneVal}</strong><br>Yêu cầu: ${msgVal}`);
+                appendMessage("user", `SĐT Zalo: <strong>${escapeHtml(phoneVal)}</strong><br>Yêu cầu: ${escapeHtml(msgVal)}`, true);
             } else {
                 appendMessage("user", msgVal);
             }

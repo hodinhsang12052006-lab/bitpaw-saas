@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-09-27T07:22:07.975Z",
+  "summary": {
+    "total": 3,
+    "pass": 2,
+    "warn": 1,
+    "fail": 0
+  },
+  "results": [
+    {
+      "name": "1. Đăng Nhập & Danh Sách Kỹ Thuật Viên",
+      "status": "WARN",
+      "ms": 4463,
+      "note": "URL sau đăng nhập: http://127.0.0.1:5001/chamcong_kythuat. Số kỹ thuật viên (lọc linh_vuc=\"Kỹ thuật\"): 5. console_errors=1"
+    },
+    {
+      "name": "2. Ghi Nhận Chấm Công Kỹ Thuật Viên",
+      "status": "PASS",
+      "ms": 1415,
+      "note": "Kỹ thuật viên \"QUAN HO\". HTTP 200. Lịch sử hiển thị: true."
+    },
+    {
+      "name": "3. Module Dùng Chung Cho Technical",
+      "status": "PASS",
+      "ms": 5985,
+      "note": "/customers=200, /ai_bot=200, /nhanvien=200, /report=200"
+    }
+  ],
+  "findings": [
+    "Module \"dispatch_gps\" khai báo trong INDUSTRY_CONFIG['technical'] chưa có UI capture GPS thật (submitTech() không gọi navigator.geolocation, payload check-in không có toạ độ) — đã fix xong lỗi field-name/URL sai của nút \"Xem trên bản đồo\" (luôn ẩn + URL hỏng), nhưng việc thật sự CAPTURE toạ độ khi check-in vẫn là spec-vs-implementation gap, không phải bug 1 dòng để tự ý build thêm."
+  ],
+  "consoleErrorsSample": [
+    "Failed to load resource: the server responded with a status of 404 (NOT FOUND)"
+  ],
+  "networkErrorsSample": []
+}

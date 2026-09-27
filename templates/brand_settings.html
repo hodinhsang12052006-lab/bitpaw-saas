@@ -492,7 +492,10 @@
                     document.getElementById('logoPreview').src = updated.logo_url;
                 }
                 showToast(t('brand_settings_toast_saved'));
-                setTimeout(() => { window.location.href = "{{ url_for('spa') }}"; }, 1500);
+                // BUG THẬT đã vá (audit Pha 6): trước đây luôn điều hướng sang "{{ url_for('spa') }}"
+                // sau khi lưu, bất kể ngành thật của tenant — mọi tenant KHÔNG phải Spa bị đẩy nhầm
+                // sang trang POS Spa. Trang đã tự cập nhật preview/logo tại chỗ ngay phía trên, nên
+                // không cần điều hướng đi đâu cả — ở lại đúng trang cài đặt là đúng cho MỌI ngành.
             } catch (err) {
                 console.error(err);
                 showToast(t('brand_settings_toast_error_prefix') + err.message, true);

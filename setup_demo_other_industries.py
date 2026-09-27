@@ -241,6 +241,64 @@ RESULTS = []
 
 
 # ============================================================================
+# 0. F&B (Nhà hàng & Cafe) — ngành DUY NHẤT trong 8 ngách còn lại (ngoài Nails) chưa từng có
+# tài khoản demo cố định (audit toàn hệ thống phát hiện — Retail/Spa/Karaoke/Hotel/Production/
+# Technical/Office đều đã có sẵn, chỉ F&B bị bỏ sót). channel_type='fnb' khớp đúng biến
+# channelType mặc định trong templates/pos.html (dòng ~996), KHÔNG phải 'retail'.
+# ============================================================================
+def setup_fnb():
+    now = datetime.now()
+    key = f"FNBDEMO-{_run_suffix}"
+    email = f"demo.fnb.{_run_suffix}@bitpawdemo.com"
+    mint_license_code('fnb', key)
+    business_id = register_tenant(email, 'fnb', "Golden Wok Restaurant & Bar", "Minh Tran", key,
+                                   country='VN', currency='VND')
+
+    products = inject_products(business_id, [
+        ("Phở Bò Tái", "Đồ Ăn", 65000, "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&q=80"),
+        ("Cơm Tấm Sườn Bì Chả", "Đồ Ăn", 55000, "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&q=80"),
+        ("Gỏi Cuốn Tôm Thịt (4 cuốn)", "Đồ Ăn", 45000, "https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=500&q=80"),
+        ("Lẩu Thái Hải Sản (Nồi lớn)", "Đồ Ăn", 350000, "https://images.unsplash.com/photo-1569058242567-93de6f36f8e6?w=500&q=80"),
+        ("Bia Sài Gòn (lon)", "Bia & Rượu", 20000, "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=500&q=80"),
+        ("Rượu Vang Đỏ Đà Lạt (chai)", "Bia & Rượu", 180000, "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=500&q=80"),
+        ("Trà Đá / Trà Đường", "Nước Uống", 5000, "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&q=80"),
+        ("Nước Ép Cam Tươi", "Nước Uống", 35000, "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=500&q=80"),
+        ("Cà Phê Sữa Đá", "Nước Uống", 25000, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&q=80"),
+    ], channel_type='fnb')
+
+    customers = inject_customers(business_id, [
+        "Trịnh Công Danh", "Lý Thu Hằng", "Phan Anh Dũng", "Võ Thị Ngọc", "Đinh Văn Sơn",
+        "Huỳnh Thị Kim Anh", "Cao Minh Tuấn", "Tô Thị Bảo Trân",
+    ], now)
+    inject_orders(business_id, customers, products, now, channel_type='fnb')
+
+    inject_employees_and_attendance(business_id, [
+        ("Minh Tran", "Chủ quán", 0),
+        ("Nguyễn Thị Thảo", "Quản lý", 35000),
+        ("Trần Văn Bình", "Đầu bếp chính", 40000),
+        ("Lê Thị Hồng", "Phục vụ", 22000),
+        ("Phạm Văn Đức", "Phục vụ", 22000),
+        ("Ngô Thị Yến", "Thu ngân", 25000),
+    ], "F&B", now)
+
+    # Bàn ăn thật (dining_tables) — KHÔNG dựa vào auto-seed 200 bàn mặc định lúc GET /pos đầu
+    # tiên (app.py:2326-2340, chỉ chạy khi collection rỗng CHO ĐÚNG business_id này và cần 1
+    # request HTTP thật tới server đang chạy — script này chạy in-process, không có server) —
+    # tự seed thẳng 1 số bàn thật qua pymongo để có dữ liệu ngay khi vào /pos lần đầu.
+    table_count = 0
+    for i in range(1, 13):
+        db.dining_tables.insert_one({
+            'id': next_mongo_id('dining_tables'), 'business_id': business_id,
+            'name': f"Bàn {i}", 'status': 'Còn trống',
+            'qr_token': uuid.uuid4().hex[:12],
+        })
+        table_count += 1
+    log_ok(f"Injected {table_count} dining tables.")
+
+    RESULTS.append(("F&B", "Golden Wok Restaurant & Bar", email, DEMO_PASSWORD, business_id))
+
+
+# ============================================================================
 # 1. RETAIL
 # ============================================================================
 def setup_retail():
@@ -501,6 +559,7 @@ def setup_office():
 if __name__ == "__main__":
     print(f"\n{BOLD}{YELLOW}=== Provisioning demo tenants for all remaining industries ==={RESET}\n")
     all_steps = {
+        'fnb': ("F&B", setup_fnb),
         'retail': ("Retail", setup_retail), 'spa': ("Spa", setup_spa),
         'karaoke': ("Karaoke", setup_karaoke), 'hotel': ("Hotel", setup_hotel),
         'production': ("Production", setup_production),

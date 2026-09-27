@@ -1,4 +1,4 @@
-<title>BitPaw Nails — Báo Cáo Kiểm Thử Tự Động</title>
+<title>BitPaw — Báo Cáo Kiểm Thử Tự Động (Toàn Hệ Thống)</title>
 <style>
   @font-face {
     font-family: 'ReportMono';
@@ -190,7 +190,7 @@
 <div class="topbar">
   <div class="brand">
     <span class="mark">QA·AUTO</span>
-    <h1>BitPaw Nails <span>— Báo cáo kiểm thử tự động</span></h1>
+    <h1>BitPaw <span>— Báo cáo kiểm thử tự động, toàn hệ thống</span></h1>
   </div>
   <div class="topbar-meta" id="genTime">Đang tải…</div>
 </div>
@@ -202,9 +202,9 @@
     bước — không phải ảnh dựng, không phải mock. Mỗi tấm ảnh dưới đây là một trạng thái thật của ứng dụng.</p>
 
   <div class="stat-row">
-    <div class="stat-tile"><span class="num">51</span><span class="label">ảnh chụp toàn trang</span></div>
+    <div class="stat-tile"><span class="num">121</span><span class="label">ảnh chụp toàn trang</span></div>
     <div class="stat-tile acc-fuchsia"><span class="num">2</span><span class="label">video quay lại thao tác</span></div>
-    <div class="stat-tile acc-amber"><span class="num">6</span><span class="label">nhóm chức năng đã test</span></div>
+    <div class="stat-tile acc-amber"><span class="num">11</span><span class="label">nhóm chức năng đã test</span></div>
     <div class="stat-tile acc-good"><span class="num">0</span><span class="label">lỗi còn lại sau khi fix</span></div>
   </div>
 
@@ -224,6 +224,11 @@
     <a href="#g-payroll">Chấm công & Lương <span class="count">04</span></a>
     <a href="#g-shared">Module dùng chung <span class="count">08</span></a>
     <a href="#g-landing">Landing Pages (toàn hệ thống) <span class="count">11</span></a>
+    <a href="#g-fnb">F&amp;B — Ngách thứ 2 <span class="count">11</span></a>
+    <a href="#g-spa">Spa — Ngách thứ 3 <span class="count">9</span></a>
+    <a href="#g-retail">Retail — Ngách thứ 4 <span class="count">9</span></a>
+    <a href="#g-pha5">Karaoke/Hotel/Sản xuất/Kỹ thuật/Văn phòng <span class="count">32</span></a>
+    <a href="#g-pha6">Module dùng chung <span class="count">6</span></a>
   </nav>
 
   <main>
@@ -295,6 +300,70 @@
       <div class="shot-grid" data-group="landing"></div>
     </section>
 
+    <section class="grp" id="g-fnb">
+      <div class="grp-head"><span class="grp-idx">07</span><h3>F&amp;B — Ngách thứ 2 (sau Nails)</h3><span class="grp-count">11 bước</span></div>
+      <p class="grp-note">Đào sâu ngành F&amp;B (POS bàn ăn dùng chung cho F&amp;B/Retail/Spa/Karaoke/Hotel) theo đúng
+        độ sâu đã làm với Nails. Phát hiện &amp; đã fix <b>2 lỗi thật nghiêm trọng</b>: (1) thêm món vào bàn luôn bị
+        server từ chối ngầm (403 "Product not found") vì <code>product_id</code> gửi lên dạng chuỗi trong khi DB lưu
+        số nguyên — giỏ hàng âm thầm rơi về lưu tạm trên trình duyệt, không ghi nhận vào đơn hàng thật; (2) nút
+        "Thanh toán"/"Chia đôi" <b>không bao giờ hoạt động được cho bất kỳ bàn thật nào</b> vì cùng lỗi lệch kiểu dữ
+        liệu xảy ra với <code>table_id</code> ở cả 2 tầng client lẫn server. Sau khi fix: toàn bộ luồng bàn → gọi món
+        → thanh toán tiền mặt/chia đôi → bếp nhận real-time qua SSE → đặt bàn công khai đều chạy đúng, xác nhận bằng
+        script <code>fnb_industry_master_audit.mjs</code> (7 PASS · 1 WARN cosmetic · 0 FAIL). Chi tiết đầy đủ trong
+        <code>audit-results/FINDINGS_LOG.md</code>.</p>
+      <div class="shot-grid" data-group="fnb"></div>
+    </section>
+
+    <section class="grp" id="g-spa">
+      <div class="grp-head"><span class="grp-idx">08</span><h3>Spa — Ngách thứ 3 (sau Nails, F&amp;B)</h3><span class="grp-count">9 bước</span></div>
+      <p class="grp-note">Spa dùng kiến trúc riêng (<code>spa_bp.py</code> + <code>spa.html</code>), không dùng chung POS với F&amp;B. Phát
+        hiện &amp; đã fix <b>1 lỗi thật NGHIÊM TRỌNG</b>: nút "Checkout Now" ném <code>TypeError</code> ngay lập tức vì
+        JS tham chiếu tới phần tử <code>#cryptoAddressBox</code> không tồn tại trong HTML — <b>modal thanh toán không
+        bao giờ hiện ra, với bất kỳ phương thức thanh toán nào</b>, không một thông báo lỗi nào cho người dùng. Thêm 1
+        lỗi ảnh vỡ 100% (16 lỗi 404/lần tải) do template bọc nhầm URL ảnh ngoài vào đường dẫn upload cục bộ. Sau khi
+        fix: đăng nhập → thêm dịch vụ vào giỏ → thanh toán tiền mặt → đặt lịch công khai qua QR (kèm regression-test
+        đúng lỗ hổng cách ly đa tiệm đã vá trước đây) → lịch hẹn hiện đúng trên calendar chủ tiệm, xác nhận bằng
+        <code>spa_industry_master_audit.mjs</code> (5 PASS · 1 WARN cosmetic · 0 FAIL).</p>
+      <div class="shot-grid" data-group="spa"></div>
+    </section>
+
+    <section class="grp" id="g-retail">
+      <div class="grp-head"><span class="grp-idx">09</span><h3>Retail — Ngách thứ 4 (sau Nails, F&amp;B, Spa)</h3><span class="grp-count">9 bước</span></div>
+      <p class="grp-note">Retail dùng kiến trúc riêng (<code>retail_bp.py</code> + <code>retail_pos.html</code>) — lưới sản phẩm, quét mã
+        vạch USB, thanh toán qua <code>/api/sales/checkout</code> dùng chung. Đây là mẫu POS <b>sạch nhất</b> trong 4 ngách đã
+        audit sâu — không phát hiện lỗi code nào (product id đã ép kiểu số nguyên đúng ngay từ đầu, không phần tử DOM
+        nào bị thiếu). Chỉ phát hiện 2 vấn đề DỮ LIỆU: 4 bản ghi sản phẩm rác "Audit Test Product" tồn đọng từ một lượt
+        test trước đây (đã xoá), và dữ liệu demo thiếu barcode khiến không test được nhánh quét mã thành công (đã bổ
+        sung 2 barcode thật). Đã kiểm đầy đủ: tìm kiếm, giỏ hàng, quét mã vạch (cả 2 nhánh), thanh toán tiền mặt, hoàn
+        tiền một phần, module dùng chung — <code>retail_industry_master_audit.mjs</code> cho kết quả 5 PASS · 1 WARN
+        cosmetic · 0 FAIL.</p>
+      <div class="shot-grid" data-group="retail"></div>
+    </section>
+
+    <section class="grp" id="g-pha5">
+      <div class="grp-head"><span class="grp-idx">10</span><h3>Karaoke, Hotel, Sản Xuất, Kỹ Thuật, Văn Phòng</h3><span class="grp-count">32 bước</span></div>
+      <p class="grp-note">5 ngách còn lại, mỗi ngách 1 script Playwright riêng. <b>Karaoke</b>: tính giờ phòng tự động + đặt phòng QR (3 PASS · 0 FAIL). <b>Hotel</b>: nhận/trả phòng + phụ thu dịch vụ, verify số liệu chính xác 650.000đ + 150.000đ = 800.000đ (4 PASS · 0 FAIL). <b>Sản Xuất</b>: tính năng phức tạp nhất — công thức tiêu hao nguyên vật liệu tự động trừ kho ĐÚNG 100% khi ghi sản lượng (2 PASS · 0 FAIL). <b>Kỹ Thuật</b>: phát hiện &amp; fix nút "Xem trên bản đồ GPS" kiểm tra sai tên field + URL Google Maps hỏng hoàn toàn — nút này trước đây KHÔNG BAO GIỜ hiện ra (2 PASS · 0 FAIL). <b>Văn Phòng</b>: bảng chấm công Excel-style + duyệt nghỉ phép (3 PASS · 0 FAIL). Tổng: <b>14 PASS · 5 WARN cosmetic (favicon) · 0 FAIL</b> trên cả 5 ngách — không tìm thấy lỗi checkout/thanh toán nào (khác hẳn F&amp;B/Spa ở các pha trước), cho thấy code các ngách "thế hệ sau" được viết cẩn thận hơn về kiểu dữ liệu.</p>
+      <div class="shot-grid" data-group="pha5"></div>
+    </section>
+
+    <section class="grp" id="g-pha6">
+      <div class="grp-head"><span class="grp-idx">11</span><h3>Module Dùng Chung (Pha 6)</h3><span class="grp-count">6 bước</span></div>
+      <p class="grp-note">Dùng 1 agent nghiên cứu lập bản đồ ~40 template dùng chung còn lại (CRM mở rộng, Tài chính, Thanh
+        toán, Admin, trang gốc), sau đó tự tay verify + fix những phát hiện có khả năng là bug thật. Tìm và fix
+        <b>2 lỗi thật</b>: (1) Brand Settings — CẢ route server LẪN JS phía client đều hardcode điều hướng về
+        <code>/spa</code> sau khi lưu, bất kể ngành thật của tenant — mọi tenant KHÔNG phải Spa (F&amp;B, Retail,
+        Karaoke...) lưu xong bị đẩy nhầm sang trang POS Spa; (2) 3 link điều hướng trong trang Kỹ Thuật dùng href
+        tương đối trần (<code>quanly_kho.html</code>) thay vì route Flask thật — bấm vào sẽ 404, đây là đường dẫn
+        DUY NHẤT tới 2 trang quản lý kho/dịch vụ từ ngách Kỹ Thuật. Cũng phát hiện dữ liệu cấu hình thanh toán công
+        khai (<code>payment_methods</code>) trống hoàn toàn, khiến trang <code>/checkout</code> bán gói SaaS
+        <b>không nhận đăng ký được cho bất kỳ gói nào</b> — đã bổ sung 1 cấu hình demo. Phát hiện lớn nhất: ~700
+        dòng UI "launcher grid" trong <code>index.html</code> (chứa đường dẫn duy nhất tới CRM Automation/Campaign
+        Builder) là <b>code hoàn toàn không thể chạm tới</b> trong luồng điều hướng hiện tại — ghi Deferred, không
+        tự ý viết lại điều hướng. Kết quả test sâu 3 luồng giá trị cao nhất: <b>3 PASS · 0 FAIL</b>. Regression Nails
+        sau khi sửa `app.py` dùng chung: 9 PASS · 1 WARN · 0 FAIL.</p>
+      <div class="shot-grid" data-group="pha6"></div>
+    </section>
+
   </main>
 </div>
 
@@ -361,6 +430,76 @@
     { n: 49, file: 'landing_technical.png', cap: 'Landing — Technical', group: 'landing', badge: 'đã fix' },
     { n: 50, file: 'landing_production.png', cap: 'Landing — Production', group: 'landing', badge: 'đã fix' },
     { n: 51, file: 'landing_hr.png', cap: 'Landing — HR', group: 'landing', badge: 'đã fix' },
+    { n: 52, file: '01_pos_fnb_launch.png', cap: 'POS F&B — 12 bàn (kể cả tên tiếng Việt có dấu, đã fix lỗi hiển thị)', group: 'fnb' },
+    { n: 53, file: '02_fnb_table_selected_items_added.png', cap: 'Chọn bàn, thêm món — đã fix lỗi 403 âm thầm rơi về localStorage', group: 'fnb', badge: 'đã fix' },
+    { n: 54, file: '03a_fnb_payment_pending_page.png', cap: 'Màn hình chờ xác nhận thanh toán (/payment_pending)', group: 'fnb' },
+    { n: 55, file: '03b_fnb_payment_success.png', cap: 'Thanh toán tiền mặt thành công — trước đây luôn báo "Table not found"', group: 'fnb', badge: 'đã fix' },
+    { n: 56, file: '04_fnb_split_payment_selected.png', cap: 'Chọn phương thức Chia đôi (Split) — cùng lỗi table_id đã fix', group: 'fnb', badge: 'đã fix' },
+    { n: 57, file: '05a_fnb_qr_customer_order_submitted.png', cap: 'Khách quét QR tự gọi món (trình duyệt ẩn danh, không đăng nhập)', group: 'fnb' },
+    { n: 58, file: '05b_fnb_kitchen_display_realtime.png', cap: 'Kitchen Display nhận đơn mới TỰ ĐỘNG qua SSE — không F5', group: 'fnb', badge: 'real-time' },
+    { n: 59, file: '06a_fnb_reservation_form_filled.png', cap: 'Đặt bàn công khai — form khách vãng lai điền trực tiếp', group: 'fnb', portrait: true },
+    { n: 60, file: '06b_fnb_reservation_success.png', cap: 'Đặt bàn thành công, không cần tài khoản', group: 'fnb', portrait: true },
+    { n: 61, file: '07_fnb_chamcong.png', cap: 'Chấm công F&B — chia Tip Pool theo ca', group: 'fnb' },
+    { n: 62, file: '08_fnb_shared_modules.png', cap: 'Module dùng chung cho tài khoản F&B (Customers/AI Bot/Nhân viên/Báo cáo)', group: 'fnb' },
+    { n: 63, file: '01_spa_launch.png', cap: 'POS Spa — lưới 8 dịch vụ (đã fix ảnh vỡ)', group: 'spa', badge: 'đã fix' },
+    { n: 64, file: '02_spa_cart_added.png', cap: 'Thêm dịch vụ vào giỏ hàng', group: 'spa' },
+    { n: 65, file: '02b_spa_checkout_modal.png', cap: 'Modal Checkout hiện ra — trước đây bấm nút không có gì xảy ra', group: 'spa', badge: 'đã fix' },
+    { n: 66, file: '03_spa_checkout_success.png', cap: 'Thanh toán tiền mặt thành công qua /api/sales/checkout', group: 'spa', badge: 'đã fix' },
+    { n: 67, file: '04a_spa_public_booking_page.png', cap: 'Trang đặt lịch công khai qua QR — góc nhìn khách hàng', group: 'spa', portrait: true },
+    { n: 68, file: '04b_spa_booking_success_ticket.png', cap: 'Đặt lịch thành công — vé điện tử của khách', group: 'spa', portrait: true },
+    { n: 69, file: '04c_spa_calendar_owner_side.png', cap: 'Lịch hẹn khách vừa đặt hiện đúng trên Calendar chủ tiệm', group: 'spa' },
+    { n: 70, file: '05_spa_chamcong.png', cap: 'Chấm công Spa — bảng nhân viên/therapist', group: 'spa' },
+    { n: 71, file: '06_spa_shared_modules.png', cap: 'Module dùng chung cho tài khoản Spa (Customers/AI Bot/Nhân viên/Báo cáo)', group: 'spa' },
+    { n: 72, file: '01_retail_launch.png', cap: 'POS Retail — lưới sản phẩm, quét mã vạch', group: 'retail' },
+    { n: 73, file: '02_retail_cart_added.png', cap: 'Tìm kiếm + thêm sản phẩm vào giỏ hàng', group: 'retail' },
+    { n: 74, file: '03a_retail_barcode_scan_success.png', cap: 'Quét mã vạch thành công — tự thêm vào giỏ', group: 'retail', badge: 'đã bổ sung dữ liệu' },
+    { n: 75, file: '03b_retail_barcode_not_found_toast.png', cap: 'Quét mã vạch không tồn tại — báo lỗi đúng cách', group: 'retail' },
+    { n: 76, file: '04a_retail_checkout_modal.png', cap: 'Modal thanh toán — chọn phương thức', group: 'retail' },
+    { n: 77, file: '04b_retail_checkout_success.png', cap: 'Thanh toán thành công qua /api/sales/checkout', group: 'retail' },
+    { n: 78, file: '05a_retail_refund_modal.png', cap: 'Modal hoàn tiền một phần', group: 'retail' },
+    { n: 79, file: '05b_retail_refund_result.png', cap: 'Kết quả hoàn tiền — trạng thái đơn cập nhật đúng', group: 'retail' },
+    { n: 80, file: '06_retail_shared_modules.png', cap: 'Module dùng chung cho tài khoản Retail (Customers/AI Bot/Nhân viên/Báo cáo)', group: 'retail' },
+    { n: 81, file: '01_karaoke_launch.png', cap: 'Karaoke — sơ đồ 7 phòng', group: 'pha5' },
+    { n: 82, file: '02a_karaoke_room_started.png', cap: 'Mở phòng (Start) — bắt đầu tính giờ', group: 'pha5' },
+    { n: 83, file: '02b_karaoke_checkout_modal.png', cap: 'Modal chốt phòng — tự tính tiền theo thời gian thực tế', group: 'pha5' },
+    { n: 84, file: '02c_karaoke_checkout_success.png', cap: 'Chốt phòng thành công — order + sổ cái ghi nhận', group: 'pha5' },
+    { n: 85, file: '03a_karaoke_reservation_form_filled.png', cap: 'Đặt phòng Karaoke công khai qua QR', group: 'pha5', portrait: true },
+    { n: 86, file: '03b_karaoke_reservation_success.png', cap: 'Đặt phòng thành công', group: 'pha5', portrait: true },
+    { n: 87, file: '03c_karaoke_reservations_admin_side.png', cap: 'Lịch đặt phòng hiện đúng trên trang quản trị', group: 'pha5' },
+    { n: 88, file: '04_karaoke_chamcong.png', cap: 'Chấm công Karaoke', group: 'pha5' },
+    { n: 89, file: '01_hotel_launch.png', cap: 'Hotel — sơ đồ 7 phòng', group: 'pha5' },
+    { n: 90, file: '02a_hotel_checkin_success.png', cap: 'Nhận phòng (Check-in) thành công', group: 'pha5' },
+    { n: 91, file: '02b_hotel_charge_added.png', cap: 'Thêm phụ thu dịch vụ đi kèm (minibar)', group: 'pha5' },
+    { n: 92, file: '02c_hotel_checkout_modal.png', cap: 'Modal trả phòng — tổng hợp tiền phòng + phụ thu', group: 'pha5' },
+    { n: 93, file: '02d_hotel_checkout_success.png', cap: 'Trả phòng thành công — 650.000đ + 150.000đ = 800.000đ khớp chính xác', group: 'pha5', badge: 'verify số liệu' },
+    { n: 94, file: '03_hotel_room_cleaned.png', cap: 'Dọn phòng (Housekeeping) — trả về trạng thái Trống', group: 'pha5' },
+    { n: 95, file: '04a_hotel_reservation_form_filled.png', cap: 'Đặt phòng Hotel công khai qua QR', group: 'pha5', portrait: true },
+    { n: 96, file: '04b_hotel_reservation_success.png', cap: 'Đặt phòng thành công', group: 'pha5', portrait: true },
+    { n: 97, file: '04c_hotel_reservations_admin_side.png', cap: 'Lịch đặt phòng hiện đúng trên trang quản trị', group: 'pha5' },
+    { n: 98, file: '05_hotel_chamcong.png', cap: 'Chấm công Hotel', group: 'pha5' },
+    { n: 99, file: '01_production_launch.png', cap: 'Sản Xuất — ghi nhận sản lượng công nhân', group: 'pha5' },
+    { n: 100, file: '01b_production_output_logged.png', cap: 'Ghi nhận sản lượng thành công', group: 'pha5' },
+    { n: 101, file: '02a_production_material_created.png', cap: 'Tạo nguyên vật liệu mới (tồn kho 100m)', group: 'pha5' },
+    { n: 102, file: '02b_production_recipe_saved.png', cap: 'Tạo công thức tiêu hao NVL theo công đoạn', group: 'pha5' },
+    { n: 103, file: '02c_production_output_with_recipe.png', cap: 'Ghi thêm sản lượng cho công đoạn có công thức', group: 'pha5' },
+    { n: 104, file: '02d_production_material_stock_after.png', cap: 'Tồn kho tự động trừ CHÍNH XÁC 80m (100 - 10×2)', group: 'pha5', badge: 'verify số liệu' },
+    { n: 105, file: '03_production_chamcong.png', cap: 'Chấm công công nhân', group: 'pha5' },
+    { n: 106, file: '01_technical_launch.png', cap: 'Kỹ Thuật — danh sách kỹ thuật viên', group: 'pha5' },
+    { n: 107, file: '02a_technical_checkin_submitted.png', cap: 'Ghi nhận chấm công + công việc hoàn thành', group: 'pha5' },
+    { n: 108, file: '02b_technical_history.png', cap: 'Lịch sử chấm công — nút "Xem bản đồ GPS" đã fix', group: 'pha5', badge: 'đã fix' },
+    { n: 109, file: '03_technical_shared_modules.png', cap: 'Module dùng chung cho Kỹ Thuật', group: 'pha5' },
+    { n: 110, file: '01_office_launch.png', cap: 'Văn Phòng — bảng chấm công kiểu Excel', group: 'pha5' },
+    { n: 111, file: '02_office_attendance_saved.png', cap: 'Ghi nhận giờ vào/ra/OT — dòng tự khoá sau khi lưu', group: 'pha5' },
+    { n: 112, file: '03a_office_leave_form_filled.png', cap: 'Xin nghỉ phép siêu tốc', group: 'pha5' },
+    { n: 113, file: '03b_office_leave_approved.png', cap: 'Duyệt nghỉ phép thành công', group: 'pha5' },
+    { n: 114, file: '04a_office_kudos.png', cap: 'Bảng vinh danh Kudos', group: 'pha5' },
+    { n: 115, file: '04b_office_shared_modules.png', cap: 'Module dùng chung cho Văn Phòng', group: 'pha5' },
+    { n: 116, file: '01_brand_settings_after_save.png', cap: 'Brand Settings — tenant F&B lưu xong ở lại đúng trang', group: 'pha6', badge: 'đã fix' },
+    { n: 117, file: '02a_checkout_page_loaded.png', cap: 'Trang Checkout công khai bán gói SaaS', group: 'pha6' },
+    { n: 118, file: '02b_checkout_form_filled.png', cap: 'Điền form đăng ký — QR ngân hàng đã hiện (đã fix data)', group: 'pha6', badge: 'đã fix' },
+    { n: 119, file: '02c_checkout_success_screen.png', cap: 'Đăng ký thành công', group: 'pha6' },
+    { n: 120, file: '03a_promotion_form_filled.png', cap: 'Tạo mã khuyến mãi mới', group: 'pha6' },
+    { n: 121, file: '03b_promotion_created_in_list.png', cap: 'Mã khuyến mãi hiện đúng trong danh sách', group: 'pha6' },
   ];
 
   function pad(n) { return String(n).padStart(2, '0'); }

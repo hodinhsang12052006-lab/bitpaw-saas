@@ -602,6 +602,21 @@
         }
 
 
+        // BUG THẬT NGHIÊM TRỌNG đã vá (audit bảo mật — Stored XSS, PoC thật xác nhận thực thi
+        // được): appendUserMessageStatic()/appendAIMessageStatic() trước đây chèn thẳng
+        // msg.content (nội dung tin nhắn khách ẩn danh tự gõ, hoàn toàn không kiểm soát được)
+        // vào innerHTML/template literal KHÔNG escape — khác với portal.html/super_admin.html/
+        // crm.html trong CÙNG hệ thống đã escape đúng cách. Copy nguyên hàm escapeHtml() đã
+        // dùng đúng ở portal.html để nhất quán.
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>]/g, function (m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
         // DOM Elements
         const customerListDiv = document.getElementById('customerList');
         const chatBox = document.getElementById('chatBox');
@@ -855,9 +870,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
-                            <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${cus.full_name || 'Customer'}</p>
+                            <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${escapeHtml(cus.full_name || 'Customer')}</p>
                         </div>
-                        <p class="text-[11px] text-gray-500 truncate font-medium">${cus.last_message || 'No messages yet'}</p>
+                        <p class="text-[11px] text-gray-500 truncate font-medium">${escapeHtml(cus.last_message || 'No messages yet')}</p>
                     </div>
                 `;
                 item.addEventListener('click', () => onSelectCustomer(cus));
@@ -942,7 +957,7 @@
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-end">
-                        <div class="chat-user text-white font-medium">${text}</div>
+                        <div class="chat-user text-white font-medium">${escapeHtml(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 mr-2 font-bold"><i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
                     </div>
                 </div>`;
@@ -956,7 +971,7 @@
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
                         <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
-                        <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${text}</div>
+                        <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${escapeHtml(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;
@@ -970,7 +985,7 @@
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
                         <p class="text-[11px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
-                        <div class="chat-ai text-gray-200 font-medium">${text}</div>
+                        <div class="chat-ai text-gray-200 font-medium">${escapeHtml(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;
