@@ -60,6 +60,15 @@
             from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Bảng lương 12 cột trước đây bị ép vào 390px trên điện thoại: tiêu đề cột chồng lên nhau,
+           "$1,335.70" đè "$86.04", cột Thực lãnh bị cắt còn "$1,4". Bọc tiêu đề + danh sách trong 1
+           vùng cuộn ngang với bề rộng tối thiểu để các cột luôn thẳng hàng và đọc được. */
+        .payroll-scroll { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-x: auto; }
+        @media (max-width: 899px) { .payroll-scroll > * { min-width: 760px; } }
+        /* Điện thoại thấp (vd 360x640): tiêu đề + bộ lọc chiếm gần hết màn hình, khung bảng lương
+           (flex-1, min-h-0) bị ép còn ~0px — danh sách nhân viên biến mất sau khối tổng quỹ lương.
+           Giữ khung bảng tối thiểu 70vh, phần còn lại cuộn theo trang. */
+        @media (max-width: 767px) { #payrollPanel { flex: none; min-height: 70vh; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative">
@@ -120,8 +129,9 @@
             </div>
         </div>
 
-        <div class="glass-panel rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col min-h-0 flex-1 relative border border-cyan-500/20">
+        <div id="payrollPanel" class="glass-panel rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col min-h-0 flex-1 relative border border-cyan-500/20">
             
+            <div class="payroll-scroll">
             <div class="bg-black/60 backdrop-blur-md border-b border-cyan-500/30 p-5 shrink-0 grid grid-cols-12 gap-4 text-xs font-black text-cyan-400 uppercase tracking-widest text-center items-center">
                 <div class="col-span-3 text-left pl-2"><i class="fas fa-users mr-1"></i> <span data-i18n="bl_col_staff">Nhân Sự</span></div>
                 <div class="col-span-3" id="header_col1">Lương Cơ Bản</div>
@@ -132,6 +142,7 @@
 
             <div id="payrollBox" class="flex-1 overflow-y-auto p-3 space-y-2 bg-black/20">
                 </div>
+            </div>
 
             <div class="bg-gradient-to-r from-black/80 to-cyan-900/40 border-t border-cyan-500/30 p-6 shrink-0 flex justify-between items-center flex-wrap gap-4 relative overflow-hidden">
                 <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>

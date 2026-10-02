@@ -1032,7 +1032,9 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
 
 # ========== ROUTE XÁC THỰC ==========
 @app.route('/register', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+# Chỉ đếm lượt GỬI form (POST): trước đây GET cũng bị tính nên chỉ cần mở/tải lại trang 5 lần
+# (vd quay lại sau khi gõ sai) là bị 429 ngay cả khi chưa thử đăng nhập lần nào.
+@limiter.limit("5 per 15 minutes", methods=['POST'])
 def register():
     # csrf.protect() PHẢI gọi bên trong thân hàm (không phải @csrf.protect làm decorator —
     # protect() là 1 method thường, không nhận view function làm tham số, dùng như decorator
@@ -1204,7 +1206,9 @@ def _superadmin_emergency_login(email):
 
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+# Chỉ đếm lượt GỬI form (POST): trước đây GET cũng bị tính nên chỉ cần mở/tải lại trang 5 lần
+# (vd quay lại sau khi gõ sai) là bị 429 ngay cả khi chưa thử đăng nhập lần nào.
+@limiter.limit("5 per 15 minutes", methods=['POST'])
 def login():
     # Xem giải thích ở register() ngay phía trên — csrf.protect() gọi trong thân hàm, không
     # phải decorator.
@@ -2105,6 +2109,92 @@ def trigger_error():
 @app.route('/sitemap.xml')
 def sitemap():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'sitemap.xml', mimetype='application/xml')
+
+
+# 78/94 template không khai báo <link rel="icon"> nên trình duyệt tự gọi /favicon.ico ở mọi
+# trang -> 404 + lỗi console trên toàn hệ thống. Trả về đúng logo đang dùng làm icon ở các
+# trang landing (static/logo_b.jpg) thay vì phải sửa từng template.
+@app.route('/favicon.ico')
+def favicon():
+    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'logo_b.jpg', mimetype='image/jpeg')
+    resp.headers['Cache-Control'] = 'public, max-age=604800'
+    return resp
+
+
+# ========== APP MOBILE (CH Play / App Store) ==========
+# App mobile (mobile_app/, Flutter WebView) gửi User-Agent "BitPawMobileApp/<ver> (iOS|Android; ...)".
+# Chính sách 2 store áp riêng cho bản app (bản web giữ nguyên):
+#  - App Store 3.1.1 / Google Play Payments: KHÔNG được bán gói phần mềm (digital subscription)
+#    trong app ngoài In-App Purchase -> trong app chặn /checkout + /api/checkout/*, và KHÔNG chỉ
+#    đường ra kênh thanh toán bên ngoài (anti-steering) — chỉ báo "không khả dụng trong ứng dụng".
+#  - Trang marketing/bảng giá (landing, /solutions/*) chứa nút mua gói -> trong app đưa về đăng nhập.
+_MOBILE_APP_UA_RE = re.compile(r'BitPawMobileApp/[\d.]+ \((iOS|Android)', re.IGNORECASE)
+_MOBILE_APP_MARKETING_PATHS = {'/', '/index', '/index.html', '/landing', '/landing_nail'}
+
+
+def _mobile_app_platform():
+    m = _MOBILE_APP_UA_RE.search(request.headers.get('User-Agent', ''))
+    return m.group(1).lower() if m else None
+
+
+@app.before_request
+def _mobile_app_store_policy():
+    if not _mobile_app_platform():
+        return None
+    path = request.path
+    if path == '/checkout' or path.startswith('/api/checkout/'):
+        if path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Not available in the mobile app.'}), 403
+        return render_template('app_feature_unavailable.html'), 200
+    if path in _MOBILE_APP_MARKETING_PATHS or path.startswith('/solutions/'):
+        if 'user_id' in session:
+            # root()/home() tự điều hướng user đã đăng nhập về đúng trang làm việc của họ
+            return None if path in ('/', '/index', '/index.html') else redirect(url_for('root'))
+        return redirect(url_for('login'))
+    return None
+
+
+# Trang chính sách công khai, có URL riêng — 2 store bắt buộc khai báo URL Privacy Policy (và
+# Google Play bắt buộc thêm 1 link web để yêu cầu xoá tài khoản, xem /account/delete). Nội dung
+# dùng CHUNG nguồn với modal chính sách trên landing (translations/*.json, namespace "landing").
+_LEGAL_PAGES = {
+    'privacy': ('privacy_policy', 'privacy_content'),
+    'terms': ('term_of_use', 'terms_content'),
+    'payment': ('payment_policy', 'payment_content'),
+}
+
+
+def _render_legal_page(kind):
+    lang = request.args.get('lang') if request.args.get('lang') in ('vi', 'en') else resolve_lang(request)
+    t = get_translations(lang).get('landing', {})
+    title_key, content_key = _LEGAL_PAGES[kind]
+    return render_template('legal_page.html', page_lang=lang, kind=kind,
+                           title=t.get(title_key) or kind.title(), content=t.get(content_key, ''))
+
+
+@app.route('/privacy-policy')
+@app.route('/privacy')
+def privacy_policy_page():
+    return _render_legal_page('privacy')
+
+
+@app.route('/terms')
+def terms_page():
+    return _render_legal_page('terms')
+
+
+@app.route('/payment-policy')
+def payment_policy_page():
+    return _render_legal_page('payment')
+
+
+@app.route('/account/delete')
+def account_delete_page():
+    """Xoá tài khoản ngay trong app (App Store 5.1.1(v)) + link web yêu cầu xoá tài khoản (Google
+    Play). API /api/users/delete-account đã có sẵn nhưng trước đây KHÔNG có màn hình nào gọi tới."""
+    lang = request.args.get('lang') if request.args.get('lang') in ('vi', 'en') else resolve_lang(request)
+    return render_template('account_delete.html', page_lang=lang,
+                           logged_in='user_id' in session, user_email=session.get('user_email', ''))
 
 
 @app.route('/checkout')
@@ -3775,11 +3865,26 @@ def _ensure_primary_membership(owner_user_id, business_id):
             db.business_memberships.insert_one({
                 'owner_user_id': owner_user_id,
                 'business_id': business_id,
-                'branch_name': 'Chi nhánh chính',
+                'branch_name': _PRIMARY_BRANCH_DEFAULT_NAME,
                 'is_primary': True,
             })
     except Exception as e:
         print(f"Loi ensure primary membership: {e}")
+
+
+_PRIMARY_BRANCH_DEFAULT_NAME = 'Chi nhánh chính'  # giá trị hệ thống tự ghi cho chi nhánh gốc
+
+
+def _localized_branch_name(branch, lang):
+    """Tên chi nhánh để HIỂN THỊ: tên mặc định hệ thống tự ghi ('Chi nhánh chính') hoặc tên rỗng
+    được dịch theo ngôn ngữ người xem — trước đây tenant tiếng Anh (vd Nails AU) thấy nguyên chữ
+    tiếng Việt ở /report_consolidated và ô chọn chi nhánh trên dashboard. Tên chủ tiệm tự đặt
+    giữ nguyên."""
+    name = (branch.get('branch_name') or '').strip()
+    is_vi = lang == 'vi'
+    if branch.get('is_primary') and (not name or name == _PRIMARY_BRANCH_DEFAULT_NAME):
+        return 'Chi nhánh chính' if is_vi else 'Main branch'
+    return name or ('Chi nhánh' if is_vi else 'Branch')
 
 
 def _get_owned_business_ids(owner_user_id):
@@ -3801,7 +3906,8 @@ def _get_owned_business_ids(owner_user_id):
 @login_required
 def api_my_branches():
     user_id = session['user_id']
-    branches = _get_owned_business_ids(user_id)
+    lang = resolve_lang(request)
+    branches = [dict(b, branch_name=_localized_branch_name(b, lang)) for b in _get_owned_business_ids(user_id)]
     active_business_id = session.get('business_id') or user_id
     return jsonify({
         'success': True,
@@ -3859,7 +3965,8 @@ def report_consolidated():
     user_id = session['user_id']
     branches = _get_owned_business_ids(user_id)
     if not branches:
-        branches = [{'business_id': user_id, 'branch_name': 'Chi nhánh chính', 'is_primary': True}]
+        branches = [{'business_id': user_id, 'branch_name': _PRIMARY_BRANCH_DEFAULT_NAME, 'is_primary': True}]
+    lang = resolve_lang(request)
 
     branch_reports = []
     total_revenue_all = 0
@@ -3883,7 +3990,7 @@ def report_consolidated():
         total_expense_all += expense
         branch_reports.append({
             'business_id': bid,
-            'branch_name': b.get('branch_name') or 'Chi nhánh',
+            'branch_name': _localized_branch_name(b, lang),
             'revenue': revenue,
             'expense': expense,
             'profit': revenue - expense,

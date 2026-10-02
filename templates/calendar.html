@@ -22,7 +22,7 @@
         ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
         .glass-panel { background: rgba(10, 15, 37, 0.45); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
         .toast {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%);
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px));
             background: rgba(0,0,0,0.9); border: 1px solid rgba(6,182,212,0.5); color: white;
             padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10000;
             transition: transform 0.3s ease; white-space: nowrap;
@@ -39,6 +39,9 @@
            không nowrap, bị vỡ chữ xuống 2-3 dòng khi cột co hẹp lại — bảng đã có overflow-x-auto
            trên container nên nowrap ở đây chỉ đẩy bảng cuộn ngang, không tràn layout. */
         .status-pill, .status-text { white-space: nowrap; }
+        /* Riêng dòng chữ hướng dẫn ở cột Thao tác ("Chờ thu ngân vào vé trên POS") dài gấp đôi badge:
+           nowrap khiến bảng rộng hơn khung ở 1440px và chữ bị cắt ở mép phải. Cho xuống tối đa 2 dòng. */
+        .status-text.act-hint { white-space: normal; display: inline-block; max-width: 180px; line-height: 1.35; }
     </style>
 </head>
 <body class="min-h-screen flex text-white font-sans relative">
@@ -138,7 +141,7 @@
                                     <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus({{ a.id }}, 'completed', this)"><i class="fas fa-flag-checkered"></i> <span data-i18n="act_complete">Hoàn tất</span></button>
                                     <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ a.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> <span data-i18n="act_cancel">Huỷ</span></button>
                                     {% elif a.status == 'checked_in' %}
-                                    <span class="status-text text-fuchsia-400 text-xs"><i class="fas fa-cash-register"></i> <span data-i18n="act_wait_pos">Chờ thu ngân vào vé trên POS</span></span>
+                                    <span class="status-text act-hint text-fuchsia-400 text-xs"><i class="fas fa-cash-register"></i> <span data-i18n="act_wait_pos">Chờ thu ngân vào vé trên POS</span></span>
                                     {% else %}
                                     <span class="text-gray-600 text-xs">—</span>
                                     {% endif %}
@@ -234,7 +237,7 @@
                 <button class="action-btn bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border-fuchsia-500/40 text-fuchsia-300" onclick="updateStatus(${id}, 'checked_in', this)"><i class="fas fa-door-open"></i> ${t('act_checkin')}</button>
                 <button class="action-btn bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/40 text-cyan-300" onclick="updateStatus(${id}, 'completed', this)"><i class="fas fa-flag-checkered"></i> ${t('act_complete')}</button>
                 <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> ${t('act_cancel')}</button>`,
-            checked_in: () => `<span class="status-text text-fuchsia-400 text-xs"><i class="fas fa-cash-register"></i> ${t('act_wait_pos')}</span>`,
+            checked_in: () => `<span class="status-text act-hint text-fuchsia-400 text-xs"><i class="fas fa-cash-register"></i> ${t('act_wait_pos')}</span>`,
             cancelled: () => '<span class="text-gray-600 text-xs">—</span>',
             completed: () => '<span class="text-gray-600 text-xs">—</span>',
         };

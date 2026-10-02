@@ -48,6 +48,19 @@ import app as app_module
 from mongo_client import db, next_mongo_id
 from ai_nurturing_engine import AINurturingEngine
 
+
+def _demo_tier(total_spent, thresholds):
+    """Hạng khách theo ĐÚNG ngưỡng của app (LOYALTY_TIER_THRESHOLDS[_USD] trong app.py) — trước đây
+    seed ghi 'VIP' vốn không thuộc bộ hạng Normal/Silver/Gold/Platinum mà CRM hiểu, nên badge mất
+    style, thẻ "VIP (Gold/Platinum)" luôn đếm 0 và bộ lọc hạng không tìm thấy các khách này."""
+    tier = 'Normal'
+    for threshold, name in thresholds:
+        if total_spent >= threshold:
+            tier = name
+    return tier
+
+_TIERS_USD = [(0, 'Normal'), (80, 'Silver'), (400, 'Gold'), (1200, 'Platinum')]  # = LOYALTY_TIER_THRESHOLDS_USD (app.py)
+
 GREEN, RED, CYAN, YELLOW, RESET, BOLD = "\033[92m", "\033[91m", "\033[96m", "\033[93m", "\033[0m", "\033[1m"
 
 
@@ -247,7 +260,7 @@ def inject_demo_data(business_id):
         db.customers.insert_one({
             'id': cust_id, 'business_id': business_id, 'name': name, 'phone': phone,
             'email': f"{name.lower().replace(' ', '.')}@example.com.au",
-            'tier': 'VIP' if total_spent > 1000 else 'Normal', 'loyalty_points': int(total_spent),
+            'tier': _demo_tier(total_spent, _TIERS_USD), 'loyalty_points': int(total_spent),
             'total_spent': total_spent, 'join_date': _random_recent_iso(60, 400, now),
         })
         customer_ids.append((cust_id, name, phone, total_spent))

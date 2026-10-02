@@ -23,6 +23,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const BIZ_ID = '000b2c16-ab4e-42bd-944a-29c925cad09b';
@@ -37,7 +38,7 @@ function record(name, status, note = '') {
   console.log(`${icon} [${status}] ${name}${note ? ' — ' + note : ''}`);
 }
 async function shot(page, file) {
-  await page.screenshot({ path: path.join(SCREEN_DIR, file), fullPage: true });
+  await safeScreenshot(page, { path: path.join(SCREEN_DIR, file), fullPage: true });
 }
 
 async function main() {

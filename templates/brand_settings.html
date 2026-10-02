@@ -109,7 +109,7 @@
             position: fixed;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(100%);
+            transform: translateX(-50%) translateY(calc(100% + 40px));
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(12px);
             border: 1px solid var(--theme-color, #06b6d4);
@@ -205,7 +205,7 @@
 
                     <form id="brandSettingsForm" enctype="multipart/form-data" class="space-y-5">
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_label_store_name">Store / Spa Name</label>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_label_store_name">Business Name</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-store text-gray-500 text-sm"></i></div>
                                 <input type="text" name="brand_name" id="brandNameInput" required class="glass-input icon-input-pl pl-11" placeholder="Enter brand name..." data-i18n-placeholder="brand_settings_placeholder_name">
@@ -237,7 +237,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_label_cover">Cover Image (For Spa page)</label>
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_label_cover">Cover Image (Public pages)</label>
                             <div class="glass-input p-2 flex items-center justify-between gap-3 border-dashed border-2 hover:border-cyan-400 transition">
                                 <div class="flex items-center gap-2">
                                     <i class="fas fa-image text-gray-400"></i>
@@ -266,7 +266,8 @@
                             <button type="submit" id="saveBtn" class="w-full text-[#08061a] font-black py-3.5 rounded-xl transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-base uppercase tracking-wider" style="background-color: var(--theme-color); box-shadow: 0 5px 15px var(--theme-shadow-focus);">
                                 <i class="fas fa-save"></i> <span data-i18n="brand_settings_save_btn">Save Settings</span>
                             </button>
-                            <a href="{{ url_for('spa') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                            {# Hủy: trước đây luôn về /spa bất kể ngành (cùng lớp lỗi với redirect sau khi lưu đã vá ở Pha 6). #}
+                            <a href="{{ url_for('index') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
                                 <i class="fas fa-times"></i> <span data-i18n="brand_settings_cancel_btn">Cancel</span>
                             </a>
                         </div>
@@ -288,7 +289,7 @@
                             </div>
                         </div>
                         <div class="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 h-20 rounded-xl flex items-center justify-center text-xs text-gray-400">
-                            <i class="fas fa-spa mr-1"></i> <span data-i18n="brand_settings_preview_interface">Spa / Landing Page Interface</span>
+                            <i class="fas fa-store mr-1"></i> <span data-i18n="brand_settings_preview_interface">Booking / Landing Page Interface</span>
                         </div>
                     </div>
                 </div>
@@ -331,14 +332,14 @@
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
             vi: {
-                brand_settings_label_store_name: 'Tên Cửa hàng / Spa',
+                brand_settings_label_store_name: 'Tên doanh nghiệp',
                 brand_settings_placeholder_name: 'Nhập tên thương hiệu...',
                 brand_settings_label_color: 'Màu chủ đạo',
                 brand_settings_color_code_label: 'Mã màu:',
                 brand_settings_label_logo: 'Logo Thương hiệu (Tùy chọn)',
                 brand_settings_choose_image: 'Chọn ảnh',
                 brand_settings_no_image_selected: 'Chưa chọn ảnh',
-                brand_settings_label_cover: 'Ảnh bìa (Cho trang Spa)',
+                brand_settings_label_cover: 'Ảnh bìa (Trang công khai)',
                 brand_settings_label_font: 'Phông chữ',
                 brand_settings_font_inter: 'Inter (Hiện đại)',
                 brand_settings_font_montserrat: 'Montserrat (Thanh lịch)',
@@ -350,7 +351,7 @@
                 brand_settings_preview_text: 'Đã khởi tạo dịch vụ - Chạm để thanh toán',
                 brand_settings_preview_demo_btn: 'Nút Demo',
                 brand_settings_preview_label: 'Xem trước',
-                brand_settings_preview_interface: 'Giao diện Spa / Trang đích',
+                brand_settings_preview_interface: 'Giao diện trang đặt lịch / Trang đích',
                 brand_settings_processing: 'Đang xử lý...',
                 brand_settings_toast_saved: '✅ Đã lưu cài đặt thành công!',
                 brand_settings_toast_error_prefix: '❌ Lỗi: ',
@@ -358,14 +359,14 @@
                 brand_settings_support_sent: '✅ Yêu cầu đã được gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.'
             },
             en: {
-                brand_settings_label_store_name: 'Store / Spa Name',
+                brand_settings_label_store_name: 'Business Name',
                 brand_settings_placeholder_name: 'Enter brand name...',
                 brand_settings_label_color: 'Primary Color',
                 brand_settings_color_code_label: 'Color code:',
                 brand_settings_label_logo: 'Brand Logo (Optional)',
                 brand_settings_choose_image: 'Choose Image',
                 brand_settings_no_image_selected: 'No image selected',
-                brand_settings_label_cover: 'Cover Image (For Spa page)',
+                brand_settings_label_cover: 'Cover Image (Public pages)',
                 brand_settings_label_font: 'Font',
                 brand_settings_font_inter: 'Inter (Modern)',
                 brand_settings_font_montserrat: 'Montserrat (Elegant)',
@@ -377,7 +378,7 @@
                 brand_settings_preview_text: 'Service initiated - Tap to pay',
                 brand_settings_preview_demo_btn: 'Demo button',
                 brand_settings_preview_label: 'Preview',
-                brand_settings_preview_interface: 'Spa / Landing Page Interface',
+                brand_settings_preview_interface: 'Booking / Landing Page Interface',
                 brand_settings_processing: 'Processing...',
                 brand_settings_toast_saved: '✅ Settings saved successfully!',
                 brand_settings_toast_error_prefix: '❌ Error: ',

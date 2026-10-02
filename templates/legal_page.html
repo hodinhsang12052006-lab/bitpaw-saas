@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="{{ page_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | BitPaw OS</title>
+    <meta name="robots" content="index, follow">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    {# Trang chính sách độc lập (URL riêng để khai báo trên Google Play Console / App Store Connect).
+       CSS viết thẳng ở đây, không phụ thuộc tailwind.output.css build sẵn. Nội dung lấy từ
+       translations/*.json (namespace "landing") — cùng nguồn với modal chính sách trên landing. #}
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #08061a; color: #d1d5db; font: 15px/1.7 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .wrap { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
+        header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+        .brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 900; font-size: 20px; text-decoration: none; letter-spacing: .5px; }
+        .brand img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(6,182,212,.4); }
+        .brand span { color: #22d3ee; }
+        .langs a { color: #9ca3af; text-decoration: none; font-weight: 700; font-size: 13px; padding: 4px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; margin-left: 6px; }
+        .langs a.active { color: #22d3ee; border-color: rgba(34,211,238,.5); }
+        h1 { color: #fff; font-size: 28px; line-height: 1.25; margin: 0 0 20px; }
+        .card { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 24px 22px; }
+        .card h3, .card h4 { color: #fff; margin: 22px 0 6px; font-size: 17px; }
+        .card p, .card li { margin: 6px 0; }
+        .card a { color: #22d3ee; }
+        nav.legal { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+        nav.legal a { color: #9ca3af; }
+        nav.legal a.current { color: #22d3ee; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <a class="brand" href="/"><img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw">Bit<span>Paw</span></a>
+            <div class="langs">
+                <a href="?lang=en" class="{{ 'active' if page_lang == 'en' else '' }}">EN</a>
+                <a href="?lang=vi" class="{{ 'active' if page_lang == 'vi' else '' }}">VI</a>
+            </div>
+        </header>
+        <h1>{{ title }}</h1>
+        <div class="card">{{ content | safe }}</div>
+        <nav class="legal">
+            <a href="{{ url_for('privacy_policy_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'privacy' else '' }}">{{ 'Chính sách bảo mật' if page_lang == 'vi' else 'Privacy Policy' }}</a>
+            <a href="{{ url_for('terms_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'terms' else '' }}">{{ 'Điều khoản sử dụng' if page_lang == 'vi' else 'Terms of Use' }}</a>
+            <a href="{{ url_for('payment_policy_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'payment' else '' }}">{{ 'Chính sách thanh toán' if page_lang == 'vi' else 'Payment Policy' }}</a>
+            <a href="{{ url_for('account_delete_page') }}?lang={{ page_lang }}">{{ 'Xoá tài khoản' if page_lang == 'vi' else 'Delete Account' }}</a>
+        </nav>
+    </div>
+</body>
+</html>

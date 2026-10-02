@@ -21,6 +21,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -48,7 +49,7 @@ function finding(text) {
 }
 
 async function shot(page, name) {
-  await page.screenshot({ path: path.join(SCREEN_DIR, name), fullPage: true });
+  await safeScreenshot(page, { path: path.join(SCREEN_DIR, name), fullPage: true });
 }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
@@ -100,7 +101,7 @@ async function main() {
       throw new Error(`Đăng nhập thất bại — vẫn ở lại /login. URL: ${afterLoginUrl}`);
     }
 
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
 
     const searchPlaceholder = await page.locator('#serviceSearchInput').getAttribute('placeholder');
@@ -478,7 +479,7 @@ async function main() {
   let bookingContext = null;
   try {
     // 8a. Phía chủ tiệm (đã đăng nhập): mở modal QR trong POS, đọc đúng link/QR sẽ in ra.
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     // BUG THẬT đã vá (phát hiện lúc retest sau UI polish): mọi test khác sau khi goto('/sell')
     // đều chờ '#serviceGrid .service-card' xuất hiện trước khi evaluate() bất kỳ hàm nào — đây
     // là cách duy nhất chắc chắn toàn bộ <script> inline (2500+ dòng) của trang đã chạy xong
@@ -601,7 +602,7 @@ async function main() {
   // ============================================================
   t0 = Date.now();
   try {
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
     await page.locator('#serviceGrid .service-card').first().click();
     await page.waitForTimeout(200);
@@ -697,8 +698,7 @@ async function main() {
     // sống sót qua điều hướng trang nhưng để chắc chắn không lệch DOM sau nhiều lần reload/goto
     // ở các test trước, chọn lại + đọc ngược giá trị thật đã chọn, giống cách Test 3 làm).
     async function runSingleItemCheckout(payMethod) {
-      await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
-      await page.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
+      await gotoSell(page, BASE); // tự tải lại + ném lỗi kèm chẩn đoán nếu lưới không render
       await page.locator('#serviceGrid .service-card').first().click();
       await page.waitForTimeout(200);
       // Select gán thợ CÓ trong DOM ngay từ tab "service" nhưng chỉ HIỆN (visible) ở tab "Turn

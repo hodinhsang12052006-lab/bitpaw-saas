@@ -229,6 +229,7 @@
     <a href="#g-retail">Retail — Ngách thứ 4 <span class="count">9</span></a>
     <a href="#g-pha5">Karaoke/Hotel/Sản xuất/Kỹ thuật/Văn phòng <span class="count">32</span></a>
     <a href="#g-pha6">Module dùng chung <span class="count">6</span></a>
+    <a href="#g-pha8">Nails — Playwright + soát giao diện <span class="count">12</span></a>
   </nav>
 
   <main>
@@ -362,6 +363,12 @@
         tự ý viết lại điều hướng. Kết quả test sâu 3 luồng giá trị cao nhất: <b>3 PASS · 0 FAIL</b>. Regression Nails
         sau khi sửa `app.py` dùng chung: 9 PASS · 1 WARN · 0 FAIL.</p>
       <div class="shot-grid" data-group="pha6"></div>
+    </section>
+
+    <section class="grp" id="g-pha8">
+      <div class="grp-head"><span class="grp-idx">12</span><h3>Nails — Playwright toàn bộ + soát giao diện từng màn hình (Pha 8)</h3><span class="grp-count">12 bước</span></div>
+      <p class="grp-note">Chạy lại toàn bộ 9 script Nails + script mới <code>nail_visual_audit.mjs</code> (42 màn hình desktop 1440×900 &amp; mobile 390×844) + kiểm tra POS ở 9 kích thước (390→1920px), nhìn từng ảnh để sửa chỗ bể. Fix <b>7 lỗi chức năng/dữ liệu</b> — nổi bật: <b>app nhân viên trắng trơn</b> (thiếu 1 dấu <code>&gt;</code> từ commit dọn hiệu ứng 3D → form chấm công không hiện), <b>mở trang đăng nhập 5 lần là bị khoá 429</b>, hạng khách "VIP" sai bộ hạng, trang Nghỉ phép/Hoàn ứng viết cứng tiếng Việt + tiền ₫, nút Huỷ Brand Settings đẩy sang Spa, favicon 404 trên mọi trang — và <b>13 lỗi giao diện</b>: POS ở 1440px bị khuất 2 nút tác vụ + <b>nút Pay Now nằm khuất trong vùng cuộn</b>, viên toast rỗng nằm đáy màn hình ở 40 trang, sidebar tràn, nút ☰ đè tiêu đề trên mobile, bảng lương/AI Copilot vỡ trên điện thoại. Kết quả cuối: <b>Master 10/10 · Shared 9/9 · Business cycle 9/9 · Realtime 6/6 · Gap 8/8 · AI bot 7/7 · Acceptance 0 lỗi · Walkthrough 30 ảnh · Visual 42/42 màn hình sạch · 0 WARN · 0 FAIL</b>; log server 0 traceback. Đã dọn 62 lịch hẹn + 2 dịch vụ + 2 thợ + 2 khách test.</p>
+      <div class="shot-grid" data-group="pha8"></div>
     </section>
 
   </main>
@@ -500,6 +507,18 @@
     { n: 119, file: '02c_checkout_success_screen.png', cap: 'Đăng ký thành công', group: 'pha6' },
     { n: 120, file: '03a_promotion_form_filled.png', cap: 'Tạo mã khuyến mãi mới', group: 'pha6' },
     { n: 121, file: '03b_promotion_created_in_list.png', cap: 'Mã khuyến mãi hiện đúng trong danh sách', group: 'pha6' },
+    { n: 122, file: 'p8_pos_1440.png', cap: 'POS 1440×900 — đủ 6 nút tác vụ, Pay Now ghim đáy cột vé', group: 'pha8', badge: 'đã fix' },
+    { n: 123, file: 'p8_pos_768.png', cap: 'POS iPad dọc 768px — nút công cụ không còn dính chữ', group: 'pha8', badge: 'đã fix' },
+    { n: 124, file: 'p8_pos_390.png', cap: 'POS điện thoại — tác vụ lưới 3×2, Pay Now vẫn thấy', group: 'pha8', badge: 'đã fix' },
+    { n: 125, file: 'p8_desktop_sell_modal_booking_qr.png', cap: 'Modal QR đặt lịch — mã QR đã căn giữa', group: 'pha8', badge: 'đã fix' },
+    { n: 126, file: 'p8_desktop_app_nhanvien.png', cap: 'App nhân viên — form đăng nhập/chấm công đã hiện lại', group: 'pha8', badge: 'đã fix' },
+    { n: 127, file: 'p8_desktop_calendar.png', cap: 'Lịch hẹn — cột Thao tác không còn bị cắt, hết viên toast rỗng', group: 'pha8', badge: 'đã fix' },
+    { n: 128, file: 'p8_desktop_leave_requests.png', cap: 'Nghỉ phép — tiếng Anh cho tenant AU', group: 'pha8', badge: 'đã fix' },
+    { n: 129, file: 'p8_desktop_ai_bot.png', cap: 'AI Copilot — sidebar cuộn gọn trong màn hình, hết cuộn ngang', group: 'pha8', badge: 'đã fix' },
+    { n: 130, file: 'p8_mobile_ai_bot.png', cap: 'AI Copilot mobile — xếp chồng danh sách + khung chat', group: 'pha8', badge: 'đã fix' },
+    { n: 131, file: 'p8_mobile_bangluong.png', cap: 'Bảng lương mobile — cột thẳng hàng, cuộn ngang', group: 'pha8', badge: 'đã fix' },
+    { n: 132, file: 'p8_mobile_calendar.png', cap: 'Mobile — nút ☰ không còn đè tiêu đề', group: 'pha8', badge: 'đã fix' },
+    { n: 133, file: 'p8_mobile_customers.png', cap: 'CRM mobile — header xuống dòng, hạng khách đúng bộ hạng', group: 'pha8', badge: 'đã fix' },
   ];
 
   function pad(n) { return String(n).padStart(2, '0'); }

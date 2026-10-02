@@ -15,6 +15,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -31,7 +32,7 @@ function record(name, status, note = '') {
 }
 
 async function shot(page, file) {
-  await page.screenshot({ path: path.join(SCREEN_DIR, file), fullPage: true });
+  await safeScreenshot(page, { path: path.join(SCREEN_DIR, file), fullPage: true });
 }
 
 async function main() {

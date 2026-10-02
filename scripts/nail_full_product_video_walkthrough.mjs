@@ -20,6 +20,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { gotoSell } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -105,7 +106,7 @@ async function main() {
     if (page.url().includes('/login')) throw new Error('Đăng nhập thất bại.');
 
     // ============ 2. POS — KHỞI TẠO ============
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 20000 });
     businessId = await page.evaluate(() => (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null));
     await shot(page, { slug: 'pos_khoi_dong', vi: 'Màn hình bán hàng POS — lưới dịch vụ', group: 'Bán hàng (POS)' });
@@ -205,7 +206,7 @@ async function main() {
     }
 
     // ============ 12. SPLIT PAYMENT ============
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 20000 });
     await page.locator('#serviceGrid .service-card').first().click();
     await page.waitForTimeout(200);
@@ -254,7 +255,7 @@ async function main() {
     }
 
     // ============ 14. DUAL PRICING ============
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 20000 });
     await page.locator('#serviceGrid .service-card').first().click();
     await page.waitForTimeout(200);
@@ -267,7 +268,7 @@ async function main() {
     await page.keyboard.press('Escape').catch(() => {});
 
     // ============ 15. BOOKING QR — CHỦ TIỆM LẤY MÃ ============
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 20000 });
     await page.evaluate(() => openBookingQrModal());
     await page.waitForSelector('#bookingQrModal.active', { timeout: 5000 });
@@ -357,7 +358,7 @@ async function main() {
     }
 
     // ============ 19. POS — BADGE CHECKED-IN TỰ CẬP NHẬT (REAL-TIME) ============
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 20000 });
     await page.waitForTimeout(1500); // đợi SSE đẩy tín hiệu đầu tiên
     await page.evaluate(() => openCheckedInModal());

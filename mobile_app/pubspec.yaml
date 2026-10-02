@@ -12,17 +12,18 @@ dependencies:
   cupertino_icons: ^1.0.6
 
   # --- WebView: bọc thẳng web app (đã kiểm thử kỹ, đầy đủ chức năng POS/Payroll/Booking)
-  # vào khung app native để lên CH Play NHANH nhất, thay vì viết lại toàn bộ UI bằng Flutter
-  # (sẽ mất nhiều tuần). Native login/JWT ở trên tạm không dùng tới cho bản này — xem
-  # main.dart.
-  # Dùng thẳng package Android-only (thay vì umbrella webview_flutter) vì umbrella package
-  # kéo theo webview_flutter_wkwebview (iOS) -> package objective_c -> cần Dart native assets
-  # hooks, mà hooks_runner trên Windows có bug đã biết (dart-lang/native#2993) khi đường dẫn
-  # user/project chứa dấu cách — máy này là "Acer Nitro" nên luôn dính. App chỉ nhắm Android
-  # (CH Play) nên không cần umbrella package. ---
-  webview_flutter_android: ^4.3.4
-  webview_flutter_platform_interface: ^2.10.0
-
+  # vào khung app native cho CẢ CH Play (Android WebView) lẫn App Store (WKWebView).
+  # Trước đây chỉ dùng package Android-only vì webview_flutter_wkwebview đời cũ kéo theo
+  # package objective_c (Dart native assets hooks lỗi trên Windows khi đường dẫn có dấu cách,
+  # dart-lang/native#2993) -> bản iOS hoàn toàn không có WebView. Từ wkwebview 3.27 không còn
+  # phụ thuộc objective_c nên dùng lại umbrella webview_flutter + 2 implementation riêng (để
+  # gọi API riêng từng nền tảng: chọn file, quyền camera/GPS, cử chỉ vuốt lùi iOS). ---
+  webview_flutter_android: ^4.14.1
+  webview_flutter: ^4.14.1
+  webview_flutter_wkwebview: ^3.27.0
+  url_launcher: ^6.3.2
+  permission_handler: ^13.0.2
+  file_picker: ^13.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

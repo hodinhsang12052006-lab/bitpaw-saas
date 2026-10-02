@@ -16,6 +16,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const SCREEN_DIR = path.resolve('audit-results/screenshots/landing_pages_audit');
@@ -110,7 +111,7 @@ async function main() {
       // components/mobile_bottom_nav.html là menu chuyển-ngành dùng chung hợp lệ, tự nhiên
       // chứa tên MỌI ngách trên MỌI trang landing. Xác nhận qua grep trực tiếp, không phải bug.)
 
-      await page.screenshot({ path: path.join(SCREEN_DIR, `${p.file.replace('.html', '')}.png`), fullPage: true });
+      await safeScreenshot(page, { path: path.join(SCREEN_DIR, `${p.file.replace('.html', '')}.png`), fullPage: true });
       record(p.label, '6. Console errors', consoleErrors.length === 0 ? 'PASS' : 'WARN', consoleErrors.length ? `${consoleErrors.length} lỗi: ${consoleErrors.slice(0, 2).join(' | ')}` : 'sạch');
 
     } catch (e) {

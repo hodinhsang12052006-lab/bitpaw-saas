@@ -24,6 +24,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -39,7 +40,7 @@ function record(name, status, note = '') {
   console.log(`${icon} [${status}] ${name}${note ? ' — ' + note : ''}`);
 }
 async function shot(page, file) {
-  await page.screenshot({ path: path.join(SCREEN_DIR, file), fullPage: true });
+  await safeScreenshot(page, { path: path.join(SCREEN_DIR, file), fullPage: true });
 }
 
 async function main() {
@@ -80,7 +81,7 @@ async function main() {
       page.click('#submitBtn'),
     ]);
     const addedOk = !page.url().includes('/add');
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid', { timeout: 10000 });
     await page.fill('#serviceSearchInput', newServiceName);
     await page.waitForTimeout(400);
@@ -107,7 +108,7 @@ async function main() {
     const techInList = await page.locator(`text=${newTechName}`).count();
     await shot(page, '04_technician_added_list.png');
 
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('.service-card', { timeout: 10000 });
     await page.locator('.service-card').first().click();
     await page.waitForTimeout(300);
@@ -122,18 +123,36 @@ async function main() {
     // ============================================================
     // 3. Huỷ 1 lịch hẹn trên /calendar (chưa test trước đây)
     // ============================================================
-    await page.goto(`${BASE}/calendar`, { waitUntil: 'networkidle' });
-    // QUAN TRỌNG: lấy đúng data-appt-id của dòng có nút Huỷ TRƯỚC khi bấm, rồi luôn truy vấn lại
-    // theo đúng id đó — không dùng lại locator .first()/ancestor sau khi bấm, vì updateStatus()
-    // ở calendar.html thay ĐÚNG innerHTML của dòng đó (đổi luôn bộ nút hành động), khiến
-    // ".first()" của "button:has-text('Huỷ')" đánh giá lại sẽ trôi sang dòng PENDING kế tiếp
+    // Trước đây test chỉ tìm lịch hẹn có sẵn trong NGÀY HÔM NAY — hôm nào không có lịch là WARN,
+    // không ổn định. Giờ tự tạo 1 lịch hẹn ngày mai qua đúng route đặt lịch thật
+    // (/create_appointment, gọi trong trang để kèm CSRF token như form thật), rồi huỷ CHÍNH nó.
+    await gotoSell(page, BASE, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.service-card', { timeout: 15000 });
+    const apptDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const created = await page.evaluate(async (dateStr) => {
+      const hh = String(9 + (Date.now() % 8)).padStart(2, '0');
+      const mm = String(Date.now() % 60).padStart(2, '0');
+      const res = await fetch('/create_appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'QA Gap Cancel Test', phone: '0400' + String(Date.now()).slice(-6),
+          service_id: SERVICES[0].id, book_time: `${dateStr}T${hh}:${mm}`, note: 'QA audit — cancel test',
+        }),
+      });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    }, apptDate);
+    const createdApptId = created.body && created.body.id;
+
+    await page.goto(`${BASE}/calendar?date=${apptDate}`, { waitUntil: 'networkidle' });
+    // QUAN TRỌNG: luôn truy vấn lại theo đúng data-appt-id — không dùng lại locator
+    // .first()/ancestor sau khi bấm, vì updateStatus() ở calendar.html thay ĐÚNG innerHTML của
+    // dòng đó (đổi luôn bộ nút hành động), khiến ".first()" trôi sang dòng kế tiếp
     // (đúng lớp lỗi .first()-locator-cũ đã gặp và sửa ở nail_business_cycle_e2e.mjs).
-    const targetApptId = await page.locator('tr[data-appt-id]').evaluateAll((rows) => {
-      const row = rows.find((r) => Array.from(r.querySelectorAll('button')).some((b) => /huỷ|cancel/i.test(b.textContent)));
-      return row ? row.getAttribute('data-appt-id') : null;
-    });
+    const targetApptId = createdApptId && (await page.locator(`tr[data-appt-id="${createdApptId}"]`).count())
+      ? String(createdApptId) : null;
     let cancelPass = false;
-    let cancelNote = 'Không có lịch hẹn nào ở trạng thái có thể huỷ trong ngày đang xem.';
+    let cancelNote = `Tạo lịch hẹn test: HTTP ${created.status}, id=${createdApptId} — không thấy dòng tương ứng trên /calendar?date=${apptDate}.`;
     if (targetApptId) {
       const cancelBtn = page.locator(`tr[data-appt-id="${targetApptId}"] button:has-text("Huỷ"), tr[data-appt-id="${targetApptId}"] button:has-text("Cancel")`).first();
       await Promise.all([
@@ -146,12 +165,12 @@ async function main() {
       cancelNote = `appointment_id=${targetApptId}, badge sau huỷ: "${badgeText.trim()}"`;
     }
     await shot(page, '06_calendar_cancel.png');
-    record('3. Huỷ lịch hẹn trên /calendar', !targetApptId ? 'WARN' : (cancelPass ? 'PASS' : 'FAIL'), cancelNote);
+    record('3. Huỷ lịch hẹn trên /calendar', cancelPass ? 'PASS' : 'FAIL', cancelNote);
 
     // ============================================================
     // 4. Discount type toggle — cả Percent và Fixed $
     // ============================================================
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('.service-card', { timeout: 10000 });
     await page.locator('.service-card').first().click();
     await page.waitForTimeout(300);
@@ -181,9 +200,12 @@ async function main() {
       quoteWindowOpened = true;
       await popup.waitForLoadState('domcontentloaded').catch(() => {});
     });
-    const printQuoteBtnCount = await page.locator('button:has-text("Print Quote"), button:has-text("In Báo Giá")').count();
+    // Chọn theo onclick (ổn định) thay vì chữ hiển thị — nhãn nút đã đổi từ "Print Quote"/"In
+    // Báo Giá" thành "Quote"/"Báo giá", khiến selector cũ theo text báo nhầm "nút không tồn tại".
+    const quoteBtn = page.locator('button[onclick="printQuote()"]');
+    const printQuoteBtnCount = await quoteBtn.count();
     if (printQuoteBtnCount > 0) {
-      await page.locator('button:has-text("Print Quote"), button:has-text("In Báo Giá")').first().click();
+      await quoteBtn.first().click();
       await page.waitForTimeout(800);
     }
     record('5. Print Quote (báo giá trước thanh toán)', printQuoteBtnCount > 0 ? (quoteWindowOpened ? 'PASS' : 'WARN') : 'WARN',

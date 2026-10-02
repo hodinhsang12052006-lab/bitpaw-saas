@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -42,7 +43,7 @@ function record(name, status, note = '') {
   console.log(`${icon} [${status}] ${name}${note ? ' — ' + note : ''}`);
 }
 async function shot(page, name) {
-  await page.screenshot({ path: path.join(SCREEN_DIR, name), fullPage: true });
+  await safeScreenshot(page, { path: path.join(SCREEN_DIR, name), fullPage: true });
 }
 // BUG THẬT đã vá (phát hiện khi retest sau UI polish): toISOString() luôn trả về ngày theo UTC,
 // trong khi giờ/phút của lịch hẹn (Bước 1) lại lấy từ getHours()/getMinutes() theo GIỜ ĐỊA
@@ -84,7 +85,7 @@ async function main() {
     await Promise.all([page.waitForLoadState('networkidle'), page.click('#btnLogin')]);
     if (page.url().includes('/login')) throw new Error('Đăng nhập thất bại.');
 
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
     await shot(page, '01_service_grid_professional.png');
     businessId = await page.evaluate(() => (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null));
@@ -177,7 +178,7 @@ async function main() {
   // BƯỚC 2b — POS: "Vào vé" từ panel Checked-In (không gõ tay)
   // ============================================================
   try {
-    await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(page, BASE);
     await page.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
     await page.evaluate(() => openCheckedInModal());
     await page.waitForSelector('#checkedInModal.active', { timeout: 5000 });

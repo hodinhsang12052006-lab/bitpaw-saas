@@ -242,7 +242,64 @@
            mất khỏi màn hình dù có món thật bên trong. Viết thẳng CSS thường ở đây (không qua
            Tailwind) để chắc chắn có hiệu lực bất kể trạng thái build. */
         #cartItems { min-height: 120px; }
-        .ticket-summary-panel { max-height: 46vh; }
+        /* 1 thẻ dịch vụ trong giỏ (ảnh + tên + SL + chọn thợ) cao ~180px: màn đủ cao thì giữ trọn ít nhất 1 thẻ. */
+        @media (min-height: 850px) { #cartItems { min-height: 190px; } }
+        /* Khung tóm tắt được CO lại (flex-shrink) khi cột trái thấp (laptop 900px, iPad 768px) thay
+           vì shrink-0 cố định; nút Pay Now tách ra footer riêng (.ticket-pay-footer) luôn ghim đáy —
+           trước đây nút nằm cuối vùng cuộn 46vh nên ở 1440x900 thu ngân KHÔNG thấy nút thanh toán
+           nếu không cuộn bên trong khung nhỏ. */
+        .ticket-summary-panel { max-height: 36vh; flex: 0 1 auto; min-height: 96px; }
+        .ticket-pay-footer { flex-shrink: 0; padding: 10px 16px 14px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+        @media (max-height: 950px), (max-width: 767px) {
+            #emptyCartMsg { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+            .ticket-pay-footer .pay-now-btn { padding-top: 0.9rem; padding-bottom: 0.9rem; }
+        }
+
+        /* Thanh tác vụ nhanh (6 nút) cần ~760px; khi cả topbar 1 hàng không đủ chỗ (<1900px), trước
+           đây 2 nút cuối (Custom Item / Payment History) bị đẩy khuất, "Checked-In" bị cắt chữ mà
+           không có thanh cuộn nào. Cho topbar xuống dòng: thanh tác vụ chiếm trọn hàng 2, các nút
+           giãn đều. Mobile: ẩn pill đồng hồ trang trí để hàng 1 (menu/logo/tìm/home/ngôn ngữ) vừa
+           390px; tablet: chỉ ẩn huy hiệu FUNCTIONS. */
+        @media (max-width: 1899px) {
+            #pos-topbar { flex-wrap: wrap; row-gap: 8px; }
+            #pos-topbar .quick-actions-bar { order: 10; flex: 1 1 100%; }
+            #pos-topbar .quick-tab-btn { flex: 1 0 auto; justify-content: center; }
+            #pos-topbar .quick-actions-icons { margin-left: auto; }
+        }
+        @media (max-width: 1099px) {
+            #pos-topbar .functions-pill .fn-badge { display: none; }
+            #pos-topbar .quick-tab-btn { padding: 9px 10px; font-size: 0.64rem; letter-spacing: 0.2px; gap: 5px; }
+            #pos-topbar .quick-tab-btn:first-child { padding-left: 12px; }
+        }
+        /* Nút Confirm Payment chiếm 2/3 modal: trên điện thoại chữ 1.2rem xuống 2 dòng, icon ✓ bị bỏ
+           lơ lửng mép trái. Thu nhỏ chữ + giữ trên 1 dòng. */
+        @media (max-width: 480px) {
+            #confirmPaymentBtn { font-size: 0.9rem; letter-spacing: 0.02em; }
+            #confirmPaymentBtn span { white-space: nowrap; }
+        }
+        @media (min-width: 768px) and (max-width: 899px) {
+            #pos-topbar .quick-tab-btn { flex: 1 1 0; min-width: 0; white-space: normal; text-align: center; line-height: 1.15; }
+        }
+        /* Điện thoại thấp (<=760px, vd 360x640/360x720): khung vé 52vh không đủ chứa tab + công cụ +
+           giỏ + nút Pay Now -> nút thanh toán bị đẩy ra ngoài khung. Nới khung vé lên 64vh. */
+        @media (max-width: 767px) and (max-height: 760px) {
+            #ticketPanel { max-height: 64vh; }
+        }
+        /* Điện thoại: 6 nút thành lưới 3x2 (không nút nào bị khuất), giảm chiều cao tối thiểu của
+           giỏ/khung tóm tắt để nút Pay Now vẫn nằm trong khung vé 52vh. */
+        @media (max-width: 767px) {
+            #pos-topbar .functions-pill { display: none; }
+            #pos-topbar .quick-actions-bar { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 14px; overflow: hidden; }
+            #pos-topbar .quick-tab-btn { padding: 8px 4px; font-size: 0.6rem; white-space: normal; text-align: center; line-height: 1.15; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+            #pos-topbar .quick-tab-btn:first-child { border-radius: 0; padding-left: 4px; }
+            #pos-topbar .quick-tab-btn:nth-child(3n) { border-right: none; }
+            #pos-topbar .quick-tab-btn:nth-child(n+4) { border-bottom: none; }
+            /* Thanh công cụ vé gọn lại trên điện thoại để giỏ hàng hiện trọn ít nhất 1 dịch vụ. */
+            #ticketPanel .action-btn { min-height: 52px; padding: 6px 2px; gap: 3px; font-size: 0.58rem; letter-spacing: 0; }
+            #ticketPanel .action-btn i, #ticketPanel .action-btn svg { width: 28px; height: 28px; font-size: 0.95rem; }
+            #cartItems { min-height: clamp(90px, 15vh, 150px); padding: 12px; }
+            .ticket-summary-panel { min-height: 48px; }
+        }
 
         .queue-entry {
             background: rgba(255, 255, 255, 0.02);
@@ -582,6 +639,14 @@
         }
         .action-btn:hover i, .action-btn:hover svg { transform: scale(1.08); }
         .action-btn:active { transform: translateY(0) scale(0.97); }
+        /* iPad dọc (768–1023px): cột vé 34% chỉ còn ~250px -> 5 nút công cụ dính chữ vào nhau
+           ("DISCOUNTREFUNDQUOTE"), tên dịch vụ trong giỏ bị cắt còn "A...". Nới cột vé lên 44% và
+           thu nhỏ nhãn nút. */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .pos-grid { grid-template-columns: 44% 1fr; }
+            .action-btn { font-size: 0.56rem; letter-spacing: 0; padding: 10px 2px 8px; min-width: 0; }
+            .action-btn i, .action-btn svg { width: 30px; height: 30px; }
+        }
 
         /* Mỗi hành động 1 màu accent RIÊNG, không trùng nhau — trước đây Add Item/Refund/Print
            Quote cùng chia sẻ 1 màu cyan, làm mất phân cấp thị giác giữa 5 nút (khó phân biệt
@@ -672,7 +737,7 @@
             position: fixed;
             bottom: 30px; 
             left: 50%; 
-            transform: translateX(-50%) translateY(100%); 
+            transform: translateX(-50%) translateY(calc(100% + 40px)); 
             background: rgba(10, 12, 22, 0.95); 
             border: 1px solid rgba(245, 158, 11, 0.4); 
             box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 15px rgba(245, 158, 11, 0.15);
@@ -820,7 +885,7 @@
 
                     <!-- Khung tóm tắt hoá đơn ở đáy cột trái — customer/supply/tax/tip/totals/
                          dual-pricing/nút thanh toán, tất cả gọn trong 1 cột, không cần đổi tab. -->
-                    <div class="ticket-summary-panel p-4 border-t border-white/5 shrink-0 space-y-3 overflow-y-auto custom-scrollbar">
+                    <div class="ticket-summary-panel p-4 border-t border-white/5 space-y-3 overflow-y-auto custom-scrollbar">
                         <div>
                             <label class="block text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 font-title" data-i18n="npos_customer_label">Customer</label>
                             <div class="relative">
@@ -902,7 +967,8 @@
                                 <p id="sumCardPrice" class="text-cyan-300 font-mono font-black text-lg">$0.00</p>
                             </div>
                         </div>
-
+                    </div>
+                    <div class="ticket-pay-footer">
                         <button id="checkoutBtn" onclick="openPaymentModal()" class="pay-now-btn w-full text-white font-black py-5 rounded-2xl text-xl uppercase tracking-widest flex items-center justify-center gap-3" disabled>
                             <i class="fas fa-cash-register text-2xl"></i> <span data-i18n="npos_checkout_btn">Pay Now</span>
                         </button>
@@ -1093,7 +1159,7 @@
         <div class="modal-container">
             <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-qrcode text-amber-400"></i> <span data-i18n="npos_booking_qr_title">Online Booking QR</span></h3>
             <p class="text-xs text-gray-400 mb-4 leading-relaxed" data-i18n="npos_booking_qr_desc">Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.</p>
-            <div class="bg-white p-4 rounded-2xl inline-block mb-4 shadow-md mx-auto block w-fit">
+            <div class="bg-white p-4 rounded-2xl mb-4 shadow-md mx-auto block w-fit">
                 <img id="bookingQrImg" alt="Booking QR" class="w-48 h-48">
             </div>
             <p id="bookingQrUrl" class="text-xs text-gray-400 mb-4 break-all px-3 py-2.5 rounded-xl border border-white/5 bg-black/40 font-mono select-all"></p>
@@ -1363,7 +1429,11 @@
         // khiến các nhãn viết tắt (Balance/Wait/Appt Book...) khó hiểu ngay từ lần mở đầu tiên,
         // đặc biệt trên trình duyệt ẩn danh/máy mới (localStorage trống). Mặc định Việt, vẫn giữ
         // nút chuyển English cho nhân viên không đọc được tiếng Việt.
-        let currentLang = localStorage.getItem('bitpaw_lang') || 'vi';
+        // Ưu tiên lựa chọn ngôn ngữ người dùng đã chọn ở nơi khác (cookie bitpaw_lang do trang đăng
+        // nhập/sidebar ghi) trước khi rơi về mặc định Việt — trước đây chỉ đọc localStorage nên máy
+        // mới (vd iPad của tiệm AU đã chọn English ở trang đăng nhập) vẫn mở POS bằng tiếng Việt.
+        let currentLang = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })()
+            || (document.cookie.match(/(?:^|;\s*)bitpaw_lang=(vi|en)/) || [])[1] || 'vi';
         const translations = {
             en: {
                 npos_title: 'Nail Salon POS | BitPaw OS', npos_exit_btn: 'Exit POS',
@@ -1510,7 +1580,8 @@
         }
         function toggleLang() {
             currentLang = currentLang === 'vi' ? 'en' : 'vi';
-            localStorage.setItem('bitpaw_lang', currentLang);
+            try { localStorage.setItem('bitpaw_lang', currentLang); } catch (e) { /* localStorage bị chặn */ }
+            document.cookie = 'bitpaw_lang=' + currentLang + ';path=/;max-age=31536000;SameSite=Lax';
             applyStaticTranslations();
             renderCategoryTabs();
             renderServiceGrid();

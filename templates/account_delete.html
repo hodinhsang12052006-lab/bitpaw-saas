@@ -1,0 +1,122 @@
+{% set T = {
+  'vi': {'title': 'Xoá tài khoản', 'lead': 'Xoá tài khoản chủ doanh nghiệp BitPaw OS của bạn.',
+         'what': 'Khi xoá: bạn bị đăng xuất và tài khoản bị khoá đăng nhập ngay lập tức (cả web lẫn ứng dụng); email được giải phóng để có thể đăng ký lại sau này. Dữ liệu kinh doanh (đơn hàng, khách hàng, nhân viên, bảng lương) được đánh dấu đã xoá và không còn truy cập được qua tài khoản này.',
+         'warn': 'Thao tác này không thể tự hoàn tác.',
+         'pw': 'Nhập mật khẩu để xác nhận', 'confirm': 'Tôi hiểu tài khoản sẽ bị xoá vĩnh viễn',
+         'btn': 'Xoá tài khoản của tôi', 'busy': 'Đang xoá...', 'done': 'Tài khoản đã được xoá. Đang chuyển về trang đăng nhập...',
+         'wrong_pw': 'Mật khẩu xác nhận không đúng.', 'need_pw': 'Vui lòng nhập mật khẩu.', 'need_confirm': 'Vui lòng tick xác nhận.',
+         'error': 'Không xoá được tài khoản: ', 'logged_out_1': 'Để xoá tài khoản, hãy đăng nhập rồi quay lại trang này (trong ứng dụng: mở menu ☰ → "Xoá tài khoản").',
+         'login_btn': 'Đăng nhập', 'logged_out_2': 'Không đăng nhập được? Gửi yêu cầu xoá tài khoản và dữ liệu tới', 'logged_out_3': 'từ chính email đăng ký tài khoản — chúng tôi xử lý trong vòng 30 ngày.',
+         'staff_note': 'Tài khoản nhân viên do chủ tiệm cấp và quản lý — vui lòng liên hệ chủ tiệm để xoá.',
+         'back': 'Quay lại', 'privacy': 'Chính sách bảo mật'},
+  'en': {'title': 'Delete Account', 'lead': 'Delete your BitPaw OS business owner account.',
+         'what': 'When you delete: you are signed out and the account is locked immediately (web and app); your email is released so it can be registered again later. Your business data (orders, customers, staff, payroll) is marked as deleted and can no longer be accessed through this account.',
+         'warn': 'This action cannot be undone by yourself.',
+         'pw': 'Enter your password to confirm', 'confirm': 'I understand my account will be permanently deleted',
+         'btn': 'Delete my account', 'busy': 'Deleting...', 'done': 'Your account has been deleted. Redirecting to sign in...',
+         'wrong_pw': 'The password is incorrect.', 'need_pw': 'Please enter your password.', 'need_confirm': 'Please tick the confirmation box.',
+         'error': 'Could not delete the account: ', 'logged_out_1': 'To delete your account, sign in and come back to this page (in the app: open the ☰ menu → "Delete account").',
+         'login_btn': 'Sign in', 'logged_out_2': 'Can\'t sign in? Send an account & data deletion request to', 'logged_out_3': 'from the email address registered on the account — we process requests within 30 days.',
+         'staff_note': 'Staff accounts are created and managed by the salon owner — please ask the owner to remove yours.',
+         'back': 'Back', 'privacy': 'Privacy Policy'}
+}[page_lang] %}
+<!DOCTYPE html>
+<html lang="{{ page_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ T.title }} | BitPaw OS</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    {# Màn hình xoá tài khoản — bắt buộc cho App Store (5.1.1(v): xoá được ngay trong app) và Google
+       Play (link web yêu cầu xoá tài khoản, dùng được cả khi chưa đăng nhập). Gọi API sẵn có
+       /api/users/delete-account (soft delete + khoá đăng nhập ngay, bắt nhập lại mật khẩu). #}
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #08061a; color: #d1d5db; font: 15px/1.65 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .wrap { max-width: 560px; margin: 0 auto; padding: 32px 16px 64px; }
+        .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; }
+        .top a { color: #9ca3af; text-decoration: none; font-size: 14px; font-weight: 600; }
+        .langs a { padding: 3px 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; margin-left: 6px; font-size: 12px; }
+        .langs a.active { color: #22d3ee; border-color: rgba(34,211,238,.5); }
+        h1 { color: #fff; font-size: 26px; margin: 0 0 6px; }
+        .lead { color: #9ca3af; margin: 0 0 20px; }
+        .card { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 22px 20px; }
+        .warn { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.3); color: #fda4af; font-weight: 600; font-size: 14px; }
+        label { display: block; font-size: 13px; font-weight: 700; color: #9ca3af; margin: 18px 0 6px; }
+        input[type=password] { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.4); color: #fff; font-size: 16px; }
+        .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 14px; color: #d1d5db; font-weight: 500; }
+        .check input { margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0; }
+        button, .btn { display: block; width: 100%; margin-top: 18px; padding: 14px; border: 0; border-radius: 14px; font-size: 15px; font-weight: 800; cursor: pointer; text-align: center; text-decoration: none; }
+        button.danger { background: #e11d48; color: #fff; }
+        button:disabled { opacity: .5; cursor: not-allowed; }
+        .btn { background: linear-gradient(90deg, #06b6d4, #3b82f6); color: #fff; }
+        .msg { margin-top: 14px; font-size: 14px; font-weight: 600; min-height: 1.2em; }
+        .msg.err { color: #fb7185; } .msg.ok { color: #34d399; }
+        .muted { color: #9ca3af; font-size: 14px; }
+        .muted a, .foot a { color: #22d3ee; }
+        .foot { margin-top: 20px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <a href="{{ url_for('root') if logged_in else url_for('login') }}">← {{ T.back }}</a>
+            <span class="langs top"><a href="?lang=en" class="{{ 'active' if page_lang == 'en' else '' }}">EN</a><a href="?lang=vi" class="{{ 'active' if page_lang == 'vi' else '' }}">VI</a></span>
+        </div>
+        <h1>{{ T.title }}</h1>
+        <p class="lead">{{ T.lead }}</p>
+
+        <div class="card">
+            {% if logged_in and session.get('role') == 'staff' %}
+            <p>{{ T.staff_note }}</p>
+            {% elif logged_in %}
+            <p>{{ T.what }}</p>
+            <p class="warn">{{ T.warn }}</p>
+            {% if user_email %}<p class="muted" style="margin-top:14px">{{ user_email }}</p>{% endif %}
+            <label for="delPassword">{{ T.pw }}</label>
+            <input type="password" id="delPassword" autocomplete="current-password">
+            <label class="check"><input type="checkbox" id="delConfirm"> <span>{{ T.confirm }}</span></label>
+            <button type="button" class="danger" id="delBtn" onclick="deleteAccount()">{{ T.btn }}</button>
+            <div class="msg" id="delMsg" role="status"></div>
+            {% else %}
+            <p>{{ T.logged_out_1 }}</p>
+            <a class="btn" href="{{ url_for('login') }}">{{ T.login_btn }}</a>
+            <p class="muted" style="margin-top:18px">{{ T.logged_out_2 }} <a href="mailto:bitpawsoftware@gmail.com?subject=Account%20deletion%20request">bitpawsoftware@gmail.com</a> {{ T.logged_out_3 }}</p>
+            {% endif %}
+        </div>
+        <p class="foot"><a href="{{ url_for('privacy_policy_page') }}?lang={{ page_lang }}">{{ T.privacy }}</a></p>
+    </div>
+
+    {% if logged_in and session.get('role') != 'staff' %}
+    <script>
+        const T = {{ T | tojson }};
+        async function deleteAccount() {
+            const pw = document.getElementById('delPassword').value;
+            const msg = document.getElementById('delMsg');
+            const btn = document.getElementById('delBtn');
+            msg.className = 'msg err';
+            if (!pw) { msg.textContent = T.need_pw; return; }
+            if (!document.getElementById('delConfirm').checked) { msg.textContent = T.need_confirm; return; }
+            btn.disabled = true; btn.textContent = T.busy; msg.textContent = '';
+            try {
+                const res = await fetch('/api/users/delete-account', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pw }),
+                });
+                const body = await res.json().catch(() => ({}));
+                if (res.ok && body.success) {
+                    msg.className = 'msg ok'; msg.textContent = T.done;
+                    setTimeout(() => { window.location.href = '/login'; }, 2000);
+                    return;
+                }
+                msg.textContent = res.status === 401 ? T.wrong_pw : (T.error + (body.message || res.status));
+            } catch (e) {
+                msg.textContent = T.error + e.message;
+            }
+            btn.disabled = false; btn.textContent = T.btn;
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

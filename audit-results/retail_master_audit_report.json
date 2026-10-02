@@ -1,52 +1,51 @@
 {
-  "generatedAt": "2026-09-27T02:24:20.921Z",
+  "generatedAt": "2026-10-02T15:29:26.748Z",
   "summary": {
     "total": 6,
-    "pass": 5,
-    "warn": 1,
+    "pass": 6,
+    "warn": 0,
     "fail": 0
   },
   "results": [
     {
       "name": "1. Đăng nhập & Khởi tạo POS Retail",
-      "status": "WARN",
-      "ms": 4030,
-      "note": "console_errors=1, network_5xx=0, products=8"
+      "status": "PASS",
+      "ms": 5397,
+      "note": "console_errors=0, network_5xx=0, products=8"
     },
     {
       "name": "2. Tìm Kiếm & Thêm Sản Phẩm Vào Giỏ",
       "status": "PASS",
-      "ms": 1348,
+      "ms": 1418,
       "note": "Đã thêm 3 sản phẩm, giỏ hiển thị 3 dòng. Tìm \"Bánh\" -> 1 kết quả hiện."
     },
     {
       "name": "3. Quét Mã Vạch (thành công + không tìm thấy)",
       "status": "PASS",
-      "ms": 1093,
+      "ms": 1076,
       "note": "Quét \"8934588123451\": HTTP 200, \"Coca-Cola 330ml (lốc 6)\" thêm vào giỏ (badge 3 -> 4). Quét mã giả: HTTP 404, message=\"Không tìm thấy sản phẩm với mã vạch '0000000000000'.\"."
     },
     {
       "name": "4. Thanh Toán Tiền Mặt (/api/sales/checkout)",
       "status": "PASS",
-      "ms": 2165,
-      "note": "HTTP 200, order_id=945, total_amount=183000, modal đã đóng: true"
+      "ms": 1855,
+      "note": "HTTP 200, order_id=1023, total_amount=183000, modal đã đóng: true"
     },
     {
       "name": "5. Hoàn Tiền Một Phần",
       "status": "PASS",
-      "ms": 2609,
-      "note": "Order #945: HTTP 200, body={\"order_status\":\"partially_refunded\",\"refund_id\":946,\"success\":true}"
+      "ms": 2430,
+      "note": "Order #1023: HTTP 200, body={\"order_status\":\"partially_refunded\",\"refund_id\":1024,\"success\":true}"
     },
     {
       "name": "6. Module Dùng Chung Cho Retail (Customers/AI Bot/Nhân Viên/Báo Cáo)",
       "status": "PASS",
-      "ms": 5715,
+      "ms": 7074,
       "note": "/customers=200, /ai_bot=200, /nhanvien=200, /report=200"
     }
   ],
   "findings": [],
   "consoleErrorsSample": [
-    "Failed to load resource: the server responded with a status of 404 (NOT FOUND)",
     "Failed to load resource: the server responded with a status of 404 (NOT FOUND)"
   ],
   "networkErrorsSample": []

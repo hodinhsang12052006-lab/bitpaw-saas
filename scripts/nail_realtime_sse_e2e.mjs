@@ -16,6 +16,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { gotoSell } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
@@ -62,7 +63,7 @@ async function main() {
     await Promise.all([ownerPage.waitForLoadState('networkidle'), ownerPage.click('#btnLogin')]);
     if (ownerPage.url().includes('/login')) throw new Error('Đăng nhập thất bại.');
 
-    await ownerPage.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(ownerPage, BASE);
     await ownerPage.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
     businessId = await ownerPage.evaluate(() => (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null));
     record('0. Đăng nhập chủ tiệm', businessId ? 'PASS' : 'FAIL', `business_id=${businessId}`);
@@ -148,7 +149,7 @@ async function main() {
     // /calendar) -> badge "Đã Check-in" bên tab POS phải tự tăng số, không có lần reload nào.
     // ============================================================
     const posPage = await ownerContext.newPage();
-    await posPage.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+    await gotoSell(posPage, BASE);
     await posPage.waitForSelector('#serviceGrid .service-card', { timeout: 10000 });
     let posNavigations = 0;
     posPage.on('framenavigated', (frame) => {

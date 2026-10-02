@@ -226,3 +226,66 @@ Script: `scripts/shared_modules_pha6_audit.mjs`. Kết quả: **3 PASS · 0 WARN
 | 7 | `templates/omnichannel_connect.html` (dòng ~1118) | `triggerImport()` gọi `document.getElementById("btn-import")` không có null-check, nhưng KHÔNG có phần tử `id="btn-import"` nào trong file và không nút nào gọi `triggerImport()` — code chết, vô hại hiện tại nhưng sẽ ném `TypeError` nếu sau này có ai nối nút vào hàm này mà không kiểm tra lại. | **Deferred** — dọn dẹp code thừa, không ảnh hưởng chức năng hiện tại. |
 | — | Toàn bộ luồng đã test sâu: Brand Settings (F&B lưu xong ở đúng trang), Checkout công khai (điền form → nhận QR ngân hàng → gửi đăng ký → màn hình thành công), Quản lý Khuyến mãi (tạo mã giảm giá → hiện đúng trong danh sách ngay). **3/3 cụm test PASS, 0 FAIL** sau khi fix. Đã dọn sạch toàn bộ dữ liệu test (2 mã khuyến mãi, 1 lead đăng ký, khôi phục lại brand_name gốc của tenant F&B) khỏi DB ngay sau khi verify. | Đã xác minh bằng chạy thật, không chỉ đọc code. |
 | — | Còn lại ~30 template (CRM automation, ecommerce_sync, chat/app_chat, report_consolidated, quanly_congno/thuchi, payment_gateway/history/success, backup_restore, map_dashboard, calendar, staff_management, leave_requests...) | Đã xác nhận qua agent nghiên cứu: route thật tồn tại, gọi đúng API thật (không phải mock/placeholder giả), field name JS↔server khớp nhau. Không phát hiện bug rõ ràng khi đọc code, nhưng CHƯA chạy Playwright thật cho từng trang (khác với các mục 1-7 ở trên đã verify bằng PoC). | **WIP-confirmed / chưa test sâu** — ghi nhận để phiên audit sau có thể tiếp tục nếu cần, không tự nhận là "đã test" khi chỉ mới đọc code. |
+
+## Pha 8 — Nails: chạy Playwright toàn bộ chức năng + soát giao diện từng màn hình
+
+Yêu cầu: chạy lại toàn bộ chức năng ngành Nails bằng Playwright, fix sạch lỗi còn lại, và **nhìn từng màn hình** (desktop 1440×900 + mobile 390×844) để sửa mọi chỗ giao diện bể. Script mới `scripts/nail_visual_audit.mjs` (13 trang chủ tiệm + 5 modal POS + 3 trang công khai × 2 kích thước = 42 màn hình: đo tràn ngang thật, ảnh vỡ, lỗi JS, request lỗi, chụp ảnh để soát bằng mắt) + kiểm tra POS ở 9 kích thước từ 390px tới 1920px. Kết quả cuối visual audit: **42/42 màn hình sạch**.
+
+### Lỗi chức năng / dữ liệu thật
+
+| # | File | Mô tả | Trạng thái |
+|---|---|---|---|
+| 1 | `templates/app_nhanvien.html:81` | **App nhân viên trắng trơn**: commit `e63333f` ("strip heavy 3D effects") xoá thuộc tính `data-tilt…` nhưng xoá luôn dấu `>` đóng thẻ → trình duyệt nuốt thẻ kế tiếp làm thuộc tính rác, **form đăng nhập (mã NV, nút START SHIFT, tab Sign In/New Account) không hiện ra** — nhân viên không thể chấm công. Đã quét lại toàn bộ template bằng HTML parser: đây là chỗ duy nhất. | **Fixed** |
+| 2 | `app.py` `/login`, `/register` | Rate-limit `5 per 15 minutes` áp cho cả GET → chỉ cần **mở/tải lại trang đăng nhập 5 lần** (vd quay lại sau khi gõ sai) là bị 429, chưa kịp thử mật khẩu lần nào. Đổi thành chỉ đếm POST. Verify: 8 lần GET đều 200; POST sai mật khẩu vẫn bị chặn từ lần thứ 6 (429); trang vẫn mở được trong lúc bị khoá. | **Fixed** |
+| 3 | `setup_demo_nails.py`, `setup_demo_other_industries.py` + DB | Seed ghi hạng khách `'VIP'` — không thuộc bộ hạng Normal/Silver/Gold/Platinum mà app (`_tier_for_spend`) và CRM dùng → badge mất style, thẻ "VIP (Gold/Platinum)" luôn = 0, bộ lọc hạng không tìm thấy, biểu đồ hạng thiếu. Sửa seed tính hạng theo đúng ngưỡng của app; chuyển đổi 34 bản ghi demo `VIP` → Platinum 25 / Silver 9 (theo đúng ngưỡng USD/VND). | **Fixed** |
+| 4 | `templates/leave_requests.html`, `templates/expense_requests.html` | Viết cứng 100% tiếng Việt (+ tiền `₫` cứng ở đơn hoàn ứng) → tenant tiếng Anh/AUD thấy giao diện lẫn 2 thứ tiếng, số tiền sai đơn vị. Thêm i18n vi/en theo `default_lang`, tiền theo `tenant_currency`. | **Fixed** |
+| 5 | `app.py` `/report_consolidated`, `/api/my_branches` | Tên chi nhánh gốc mặc định ghi cứng "Chi nhánh chính" hiện nguyên chữ Việt cho tenant tiếng Anh (báo cáo chuỗi + ô chọn chi nhánh dashboard). Thêm `_localized_branch_name()` (tên chủ tiệm tự đặt giữ nguyên). | **Fixed** |
+| 6 | `templates/brand_settings.html` | Nút **Huỷ** vẫn trỏ cứng `url_for('spa')` (cùng lớp lỗi với redirect sau khi lưu đã vá ở Pha 6) → tenant Nails/F&B/Retail bấm Huỷ bị đẩy sang POS Spa. Đổi về Dashboard. Nhãn "Store / Spa Name", "Cover Image (For Spa page)" → trung tính theo ngành. | **Fixed** |
+| 7 | `app.py` (route mới `/favicon.ico`) | 78/94 template không khai báo `<link rel="icon">` → **mọi trang** sinh lỗi console 404 `/favicon.ico` (mục WARN "cosmetic" kéo dài từ Pha 2 tới Pha 7 ở cả 9 ngành). Trả về logo `static/logo_b.jpg` (cache 7 ngày). | **Fixed** |
+
+### Lỗi giao diện (soát bằng mắt từng ảnh chụp)
+
+| # | Màn hình | Mô tả | Trạng thái |
+|---|---|---|---|
+| 8 | POS `/sell` — thanh tác vụ nhanh | 6 nút cần ~760px nhưng ở 1440px chỉ còn ~530px: "Checked-In" bị cắt chữ, **Custom Item + Payment History bị đẩy khuất hoàn toàn** (không thanh cuộn). Topbar tự xuống dòng khi <1900px (thanh tác vụ chiếm trọn hàng 2), tablet thu gọn nút, điện thoại thành lưới 3×2. | **Fixed** — verify 9 kích thước 390→1920px: 0 nút bị khuất |
+| 9 | POS `/sell` — nút **Pay Now** | Nút nằm cuối vùng cuộn 46vh của khung tóm tắt → ở 1440×900 (và iPad 1024×768) **thu ngân không thấy nút thanh toán** nếu không cuộn trong khung nhỏ. Tách nút ra footer ghim đáy cột vé; khung tóm tắt được co lại; giỏ hàng luôn giữ trọn ≥1 dịch vụ trên màn đủ cao. | **Fixed** — Pay Now hiển thị ở cả 9 kích thước |
+| 10 | POS `/sell` — iPad dọc 768px | Cột vé 34% chỉ ~250px: 5 nút công cụ dính chữ ("DISCOUNTREFUNDQUOTE"), tên dịch vụ cắt còn "A…". Nới cột vé 44% + thu nhãn nút ở 768–1023px. | **Fixed** |
+| 11 | POS — modal Online Booking QR | Mã QR lệch trái (class `inline-block` + `block` xung đột, `mx-auto` vô hiệu). | **Fixed** |
+| 12 | POS — modal Payment (mobile) | Nút Confirm Payment chữ xuống 2 dòng, icon ✓ lơ lửng mép trái. | **Fixed** |
+| 13 | **40 template** (calendar, crm, staff, leave, expense, brand_settings, pos_nail, payment_*...) | Toast "đã ẩn" chỉ dịch xuống bằng đúng chiều cao của nó (`translateY(100%)`) trong khi đang cách đáy 30px → **1 viên thuốc rỗng màu đen luôn nằm giữa đáy màn hình** (ở trang Khách hàng còn đè lên phân trang "Page 1 / 5"). Đổi thành `translateY(calc(100% + 40px))`. | **Fixed** |
+| 14 | `components/app_sidebar.html` (dùng chung 33 trang) | (a) `/ai_bot` có thẻ hồ sơ doanh nghiệp làm sidebar cao ~1220px > màn hình 900px: nửa dưới menu + Đăng xuất tràn ra ngoài nền sidebar. Gộp logo/hồ sơ/menu vào 1 vùng cuộn, Đăng xuất ghim đáy, sticky ở desktop. (b) Mobile: nút ☰ (fixed) **đè lên tiêu đề trang ở mọi trang** (vd "Payroll" chỉ còn "ayroll") — chừa 72px phía trên `<main>` trên mobile. | **Fixed** |
+| 15 | `/ai_bot` | Desktop: trang rộng 1584px > 1440px (đốm trang trí `absolute` tràn mép) → cuộn ngang + 180px khoảng trống phía dưới. Mobile: 2 cột cố định w-1/4 + w-3/4 ép vào 390px — danh sách khách ~60px, bong bóng chat mỗi dòng 1 chữ, nút Manual/AI bị đẩy ra ngoài màn hình. Xếp chồng 2 cột trên mobile. | **Fixed** |
+| 16 | `/bangluong` (mobile) | Bảng lương 12 cột ép vào 390px: tiêu đề cột chồng nhau, "$1,335.70" đè "$86.04", Thực lãnh cắt còn "$1,4". Bọc trong vùng cuộn ngang min-width 760px. | **Fixed** |
+| 17 | `/calendar` | Chữ "Waiting for cashier to load on POS" (nowrap) làm bảng rộng hơn khung, bị cắt ở mép phải. Cho xuống tối đa 2 dòng (sửa cả bản render server lẫn bản render JS). | **Fixed** |
+| 18 | `/ai_studio` | Badge "STEP 3" vỡ 2 dòng; ô kết quả kịch bản AI chỉ còn ~1 dòng chữ (thẻ cao cố định 250px). Mobile: nhãn "Load Algorithm:" đẩy khuất tab FB Reels/YT Shorts. | **Fixed** |
+| 19 | `/customers` (mobile) | Header chật, nút "Add Customer" tràn ra ngoài mép thẻ. Cho header xuống dòng. | **Fixed** |
+| 20 | `/booking/nail/qr/<id>` (mobile) | Ô chọn thợ: chữ "No preference (salon will assign)" chạy đè dưới mũi tên dropdown. | **Fixed** |
+
+### Môi trường / độ ổn định test (không phải lỗi app)
+
+| # | Mô tả | Xử lý |
+|---|---|---|
+| 21 | Thỉnh thoảng 1 response HTML lớn bị treo ~20s rồi `ERR_CONNECTION_RESET` trên dev server Werkzeug máy Windows này. Đã khoanh vùng: Flask test client in-process 0/80 lần chậm (view logic sạch); qua socket thật xảy ra cả ở `/landing` (trang tĩnh, không DB) chứ không riêng `/sell` → lỗi tầng mạng loopback của máy (Werkzeug dev server + Avast quét HTTP), không ảnh hưởng production Vercel. | Thêm `scripts/lib/nail_nav.mjs` → `gotoSell()` tự tải lại khi lưới dịch vụ không render (6 script, 18 chỗ) + retry điều hướng trong visual audit. Không đổi cấu hình bảo mật hệ thống. |
+| 22 | `page.screenshot` thỉnh thoảng ném `UNKNOWN: unknown error, open …png` (file bị khoá khi Avast quét) → làm FAIL cả bước nghiệp vụ (vd Test 7 Payroll) dù logic đúng. | `safeScreenshot()` thử lại 3 lần rồi chỉ cảnh báo, không làm FAIL test. |
+| 23 | Script test cũ không còn khớp UI: `verify_us_nail_pos.mjs` (UI `.svc-card`/`#modifierModal` đã bỏ — đã xoá, trùng chức năng với master audit), `verify_nail_pos_acceptance.mjs` (`switchTab` cũ), `nail_gap_completeness_audit.mjs` (selector In báo giá, Test huỷ lịch dựa vào dữ liệu có sẵn). | Đã cập nhật / xoá. |
+
+### Vẫn còn treo (cần quyết định sản phẩm)
+
+- **Cấp tài khoản đăng nhập cho thợ Nails**: app nhân viên đăng nhập bằng mã NV, nhưng luồng "New Account" yêu cầu "Company Code" và danh sách ngành chỉ có "Spa & Nails" — chưa có quy trình rõ ràng để chủ tiệm cấp quyền đăng nhập cho thợ. Cần chốt luồng nghiệp vụ trước khi xây.
+
+## Pha 9 — Test lại toàn bộ + chuẩn bị CH Play & App Store
+
+Chạy lại 20 script Playwright (9 ngành + Nails sâu + dùng chung + landing + bảo mật): **0 FAIL, 0 traceback**; WARN favicon cũ ở cả 9 ngành đã hết (vd F&B 8 PASS · 0 WARN, Landing 66/66). Visual audit Nails 42/42 sạch, POS 12/12 kích thước. Chi tiết kế hoạch nộp store, việc chủ dự án cần làm và nội dung điền form: **[STORE_SUBMISSION_PLAN.md](STORE_SUBMISSION_PLAN.md)**.
+
+| # | Lỗi | Trạng thái |
+|---|---|---|
+| 1 | App mobile chỉ có WebView Android → bản iOS crash khi mở; `ios/` không có project Xcode | **Fixed**: `webview_flutter` đa nền tảng + tạo project iOS (bundle `com.bitpawsoftware.bitpawMobile`, icon thật, mô tả quyền) |
+| 2 | Xoá tài khoản có API nhưng không màn hình nào gọi (Apple 5.1.1(v), Google Play) | **Fixed**: `/account/delete` + link sidebar; verify end-to-end (sai mật khẩu bị chặn, đúng mật khẩu → khoá đăng nhập ngay) |
+| 3 | Thiếu URL chính sách bảo mật; văn bản pháp lý còn placeholder | **Fixed**: `/privacy-policy`, `/terms`, `/payment-policy`; điền email/ngày/pháp nhân. Mã số thuế/địa chỉ trên footer nghi là dữ liệu mẫu → không đưa vào văn bản, cần chủ dự án xác nhận |
+| 4 | Trong app vẫn mua được gói phần mềm ngoài IAP (Apple 3.1.1) | **Fixed**: UA `BitPawMobileApp` → chặn `/checkout`, `/api/checkout/*`, landing/bảng giá; web thường không đổi |
+| 5 | Camera/GPS chấm công, chọn file, link tel:/mailto:/WhatsApp không chạy trong app | **Fixed** (quyền Android + Info.plist iOS, `file_picker`, `url_launcher`) |
+| 6 | POS bỏ qua ngôn ngữ người dùng đã chọn (cookie) → iPad AU mở tiếng Việt | **Fixed** |
+| 7 | Bảng lương trên điện thoại thấp bị ép còn 0px; POS điện thoại 360×640 đẩy mất nút Pay Now khi giỏ cao | **Fixed** |
+| 8 | Màn khởi động trắng loé; file build máy local bị commit vào git | **Fixed** |
+| 9 | Script test FAIL ngẫu nhiên do file ảnh bị khoá (Avast) ở 9 script ngành | **Fixed**: dùng chung `safeScreenshot()` |
+| 10 | Máy dev không build được .aab/.ipa (Gradle loopback, iOS cần macOS) | **Xử lý**: GitHub Actions `.github/workflows/mobile-build.yml`. Ký release cần chủ dự án thêm 4 secret keystore (không tự tải khoá bí mật lên GitHub) |

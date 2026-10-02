@@ -51,6 +51,19 @@ _run_suffix = ''.join(random.choices(string.digits, k=6))
 import re as _re
 
 
+def _demo_tier(total_spent, thresholds):
+    """Hạng khách theo ĐÚNG ngưỡng của app (LOYALTY_TIER_THRESHOLDS[_USD] trong app.py) — trước đây
+    seed ghi 'VIP' vốn không thuộc bộ hạng Normal/Silver/Gold/Platinum mà CRM hiểu, nên badge mất
+    style, thẻ "VIP (Gold/Platinum)" luôn đếm 0 và bộ lọc hạng không tìm thấy các khách này."""
+    tier = 'Normal'
+    for threshold, name in thresholds:
+        if total_spent >= threshold:
+            tier = name
+    return tier
+
+_TIERS_VND = [(0, 'Normal'), (2_000_000, 'Silver'), (10_000_000, 'Gold'), (30_000_000, 'Platinum')]  # = LOYALTY_TIER_THRESHOLDS (app.py)
+
+
 def _get_csrf_token(client, page='/login'):
     """CSRFProtect (via the _hybrid_auth_and_csrf before_request hook) rejects any
     unsafe-method request with no token — a plain test_client POST has none, unlike a real
@@ -194,7 +207,7 @@ def inject_customers(business_id, names, now, currency_symbol_note=""):
         db.customers.insert_one({
             'id': cust_id, 'business_id': business_id, 'name': name, 'phone': phone,
             'email': f"{name.lower().replace(' ', '.')}@example.com",
-            'tier': 'VIP' if total_spent > 1500000 else 'Normal', 'loyalty_points': int(total_spent // 1000),
+            'tier': _demo_tier(total_spent, _TIERS_VND), 'loyalty_points': int(total_spent // 1000),
             'total_spent': total_spent, 'join_date': _iso_days_ago(random.randint(30, 300), now),
         })
         customer_ids.append((cust_id, name, phone, total_spent))

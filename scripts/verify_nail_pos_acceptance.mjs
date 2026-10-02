@@ -3,6 +3,7 @@
 // verify DB persistence -> Payment History drawer -> reprint. Per user's explicit request.
 import { chromium } from 'playwright';
 import fs from 'fs';
+import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = 'http://127.0.0.1:5001';
 const SHOT_DIR = 'audit-results/screenshots/nail_pos_final';
@@ -19,7 +20,7 @@ async function shot(label) {
   stt += 1;
   const fname = `${String(stt).padStart(2, '0')}_${label}.png`;
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${SHOT_DIR}/${fname}` });
+  await safeScreenshot(page, { path: `${SHOT_DIR}/${fname}` });
   console.log(`  [shot] ${fname}`);
 }
 
@@ -34,7 +35,7 @@ await Promise.all([
 await page.waitForTimeout(1000);
 
 console.log('=== 1) POS overview (new Dark Slate theme) ===');
-await page.goto(`${BASE}/sell`, { waitUntil: 'networkidle' });
+await gotoSell(page, BASE);
 await page.waitForSelector('.service-card', { timeout: 15000 });
 await page.waitForTimeout(600);
 await shot('pos_overview_dark_slate');
@@ -42,10 +43,9 @@ await shot('pos_overview_dark_slate');
 console.log('=== 2) Add item -> assign tech ===');
 await page.locator('.service-card').first().click({ force: true });
 await page.waitForTimeout(500);
-await page.locator('.workspace-tab-btn[data-tab="ticketItems"], .workspace-tab-btn[data-tab="turnDetails"]').first().click({ force: true }).catch(async () => {
-  // fallback: find whichever tab shows the cart
-  await page.evaluate(() => switchTab('turnDetails'));
-});
+// Bố cục hiện tại: giỏ hàng + gán thợ nằm ở tab trái "Current Ticket" (switchLeftTab('ticket')).
+// Các tab underline cũ (.workspace-tab-btn / switchTab / closeTicket) đã bỏ từ đợt thiết kế lại.
+await page.evaluate(() => switchLeftTab('ticket'));
 await page.waitForTimeout(500);
 await shot('item_added_ticket_items_tab');
 
@@ -60,9 +60,7 @@ if (techCount > 1) {
 await page.waitForTimeout(400);
 await shot('tech_assigned');
 
-console.log('=== 3) Close Ticket -> select tip -> Pay ===');
-await page.locator('.workspace-tab-btn[data-tab="closeTicket"]').click({ force: true });
-await page.waitForTimeout(400);
+console.log('=== 3) Tip -> Pay ===');
 await page.fill('#cashTip', '8');
 await page.fill('#cardTip', '4');
 await page.waitForTimeout(300);

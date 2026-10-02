@@ -62,7 +62,7 @@
         .modal-overlay.active .modal-container { transform: scale(1); }
         .glass-textarea { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.6rem 1rem; width: 100%; color: white; outline: none; resize: vertical; }
         
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100%); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px)); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
         .loading-overlay.active { visibility: visible; opacity: 1; }
@@ -87,7 +87,7 @@
 
     <div class="relative z-10 max-w-7xl mx-auto">
         <!-- Header -->
-        <div class="flex justify-between items-center mb-6 glass-panel px-6 py-3 rounded-2xl">
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-6 glass-panel px-6 py-3 rounded-2xl">
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10 logo-float">
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
@@ -100,10 +100,10 @@
                     <p class="text-gray-400 text-[10px] uppercase tracking-wider" data-i18n="crm_subtitle">Smart customer management & care</p>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex flex-wrap items-center gap-3">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-home"></i> <span data-i18n="crm_home_btn">Home</span></a>
-                <button id="addCustomerBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-user-plus"></i> <span data-i18n="crm_add_customer_btn">Add Customer</span></button>
+                <a href="{{ url_for('index') }}" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition whitespace-nowrap"><i class="fas fa-home"></i> <span data-i18n="crm_home_btn">Home</span></a>
+                <button id="addCustomerBtn" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full text-sm transition whitespace-nowrap"><i class="fas fa-user-plus"></i> <span data-i18n="crm_add_customer_btn">Add Customer</span></button>
             </div>
         </div>
 

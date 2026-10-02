@@ -300,10 +300,20 @@
             background: rgba(6, 182, 212, 0.2);
             border-left: 3px solid #06b6d4;
         }
+        /* Điện thoại: 2 cột cố định w-1/4 + w-3/4 trước đây bị ép vào 390px — danh sách khách còn
+           ~60px, bong bóng chat mỗi dòng 1 chữ, nút Manual/AI + gợi ý bị đẩy ra ngoài mép màn hình.
+           Xếp chồng: danh sách khách ở trên (giới hạn chiều cao), khung chat full-width bên dưới. */
+        @media (max-width: 767px) {
+            #copilotLayout { flex-direction: column; overflow-y: auto; gap: 12px; }
+            #copilotListCol, #copilotChatCol { width: 100%; flex-shrink: 0; }
+            #copilotListCol { max-height: 42vh; }
+            #copilotChatCol { min-height: 72vh; }
+            #copilotChatHeader { flex-wrap: wrap; gap: 10px; }
+        }
     </style>
 </head>
 
-<body class="flex min-h-screen relative antialiased">
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
 
     <div class="scan-line"></div>
     <div class="laser-vertical"></div>
@@ -311,7 +321,7 @@
     <div class="light-ray top-[60%] -left-[50%] opacity-40 z-0"></div>
     <div class="absolute-blur"></div>
     <div
-        class="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0">
+        class="fixed bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none z-0">
     </div>
 
     {% include 'components/app_sidebar.html' %}
@@ -344,9 +354,9 @@
             </div>
         </div>
 
-        <div class="flex gap-5 flex-1 min-h-0 relative z-10">
+        <div id="copilotLayout" class="flex gap-5 flex-1 min-h-0 relative z-10">
 
-            <div
+            <div id="copilotListCol"
                 class="w-1/4 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
                 <div class="p-4 border-b border-white/10 bg-black/40 space-y-3 shrink-0">
                     <div class="relative">
@@ -396,10 +406,10 @@
             </div>
 
 
-            <div
+            <div id="copilotChatCol"
                 class="w-3/4 glass-panel rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border border-white/10">
 
-                <div class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
+                <div id="copilotChatHeader" class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">

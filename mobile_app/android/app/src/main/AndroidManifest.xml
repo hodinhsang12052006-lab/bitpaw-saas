@@ -2,6 +2,13 @@
     <!-- Bắt buộc để WebView/mọi request mạng chạy được — thiếu dòng này mọi request sẽ lỗi
          âm thầm (permission denied), WebView chỉ hiện trắng/lỗi kết nối dù mạng vẫn tốt. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Chấm công nhân viên trên /app_nhanvien: chụp ảnh xác thực (camera) + toạ độ GPS. Thiếu 2
+         quyền này WebView không thể mở camera/GPS -> chấm công trong app luôn thất bại. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Camera không bắt buộc: máy không có camera vẫn cài được app (chủ tiệm dùng POS/báo cáo). -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="BitPaw OS"
         android:name="${applicationName}"
@@ -44,6 +51,24 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher (Android 11+ package visibility): mở link ngoài web app bằng ứng dụng
+             tương ứng — trình duyệt, gọi điện, email, SMS. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="sms"/>
         </intent>
     </queries>
 </manifest>
