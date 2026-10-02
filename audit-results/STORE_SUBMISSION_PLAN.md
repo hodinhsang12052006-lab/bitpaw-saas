@@ -36,6 +36,8 @@ Máy dev Windows này không build được (Gradle bị chặn kết nối loop
 - **Android**: `flutter analyze` + `flutter test` + `flutter build appbundle` → tải file `.aab` ở tab Actions → Artifacts.
 - **iOS**: `flutter build ios --release --no-codesign` để chắc chắn code iOS biên dịch được.
 
+Lần chạy ngày 02/10/2026 (commit `480fb7e`): **cả 2 job xanh**, file Android `.aab` 44.7 MB + iOS `Runner.app` 9.1 MB tải được ở tab Actions → run "Mobile build" → Artifacts. Lần chạy đầu tiên (commit `33a5aaf`) lỗi Android vì `permission_handler_android` 14.x đòi compileSdk 37 trong khi Flutter 3.47 dùng 36 → đã ghim `permission_handler: ^12.0.1`. **Đừng nâng `permission_handler` lên 13.x** khi chưa nâng compileSdk app lên 37.
+
 ## 4. Việc CHỈ chủ dự án làm được (cần tài khoản/khoá bí mật của anh)
 
 ### CH Play
@@ -80,5 +82,4 @@ Máy dev Windows này không build được (Gradle bị chặn kết nối loop
 | Apple 4.2 "Minimum functionality": app bọc web có thể bị từ chối nếu reviewer cho là "chỉ là website" | Trung bình | Đã có tính năng native thật: camera/GPS chấm công, chọn file, mở app gọi/email, màn hình mất mạng + thử lại, vuốt lùi. Nếu bị từ chối: thêm thông báo đẩy (push) cho lịch hẹn mới và nhấn mạnh điều này trong ghi chú review |
 | Mã số đăng ký kinh doanh "888999777" + địa chỉ San Francisco trên footer website trông như dữ liệu mẫu | Cần xác nhận | Đã **không** đưa vào văn bản pháp lý. Anh kiểm tra lại footer + thông tin pháp nhân thật trước khi nộp (Apple đối chiếu tên nhà phát triển) |
 | In hoá đơn (`window.print()`) và xuất Excel (tải file) không hoạt động bên trong WebView | Thấp | Tính năng phụ, vẫn dùng được trên web. Làm sau: cầu nối JS → chia sẻ/in native |
-| Lần chạy GitHub Actions đầu tiên | Thấp | Xem tab Actions sau khi push. Lỗi gì thì sửa theo log |
 | Tài khoản nhân viên đăng nhập app (mã NV) chưa có luồng cấp quyền rõ ràng | Cần quyết định sản phẩm | Giữ nguyên như ghi nhận ở Pha 8 |
