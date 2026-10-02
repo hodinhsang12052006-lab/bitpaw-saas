@@ -2,6 +2,12 @@
 <html lang="{{ default_lang }}">
 
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -943,7 +949,7 @@
                     `;
                 }
             } catch (error) {
-                grid.innerHTML = `<div class="col-span-full p-4 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-semibold">${t('super_admin_err_load_data_prefix')}${error.message}</div>`;
+                grid.innerHTML = `<div class="col-span-full p-4 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-semibold">${t('super_admin_err_load_data_prefix')}${__escHtml(error.message)}</div>`;
             }
         }
 

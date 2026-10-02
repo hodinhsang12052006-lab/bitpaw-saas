@@ -378,10 +378,10 @@ def setup_spa():
         ("Swedish Full Body Massage (60min)", "Massage", 89.0, "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=500&q=80"),
         ("Deep Tissue Massage (90min)", "Massage", 129.0, "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=500&q=80"),
         ("Hot Stone Therapy", "Massage", 110.0, "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=500&q=80"),
-        ("Signature Facial Treatment", "Facial", 95.0, "https://images.unsplash.com/photo-1616394158624-9b3ea9376f4e?w=500&q=80"),
+        ("Signature Facial Treatment", "Facial", 95.0, "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=500&q=80"),
         ("Anti-Aging Facial", "Facial", 135.0, "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=500&q=80"),
         ("Aromatherapy Body Wrap", "Body Treatment", 105.0, "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=500&q=80"),
-        ("Couples Spa Package (90min)", "Packages", 220.0, "https://images.unsplash.com/photo-1596178060810-72660ee8e3c2?w=500&q=80"),
+        ("Couples Spa Package (90min)", "Packages", 220.0, "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=500&q=80"),
         ("Express Relaxation (30min)", "Massage", 55.0, "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=500&q=80"),
     ], channel_type='spa')
     # BUG THẬT đã vá (audit QA cuối trước khi lên production): trước đây để mặc định
@@ -458,7 +458,7 @@ def setup_karaoke():
         ("Nước ngọt Pepsi", "Đồ uống", 15000, "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&q=80"),
         ("Trái cây thập cẩm", "Đồ ăn nhẹ", 120000, "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=500&q=80"),
         ("Snack khô mực", "Đồ ăn nhẹ", 80000, "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=500&q=80"),
-        ("Combo bia 1 thùng", "Đồ uống", 380000, "https://images.unsplash.com/photo-1613919316861-9e0d0e5b3b9c?w=500&q=80"),
+        ("Combo bia 1 thùng", "Đồ uống", 380000, "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=500&q=80"),
     ], channel_type='retail')
 
     customers = inject_customers(business_id, ["Nhóm anh Tuấn", "Nhóm chị Linh", "Công ty ABC (team building)"], now)

@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chấm Công Spa - BitPaw OS</title>
@@ -192,7 +198,7 @@
                         <div class="relative">
                             <input type="file" id="photoBefore" accept="image/*" class="hidden" onchange="previewImage(this, 'previewBefore')">
                             <div onclick="document.getElementById('photoBefore').click()" class="border-2 border-dashed border-white/20 h-32 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-pink-400 hover:bg-pink-500/10 transition-colors group relative overflow-hidden bg-black/30">
-                                <img id="previewBefore" src="" class="absolute inset-0 w-full h-full object-cover hidden opacity-80 group-hover:opacity-40 transition-opacity">
+                                <img id="previewBefore" class="absolute inset-0 w-full h-full object-cover hidden opacity-80 group-hover:opacity-40 transition-opacity">
                                 <i class="fas fa-camera text-3xl text-gray-500 group-hover:text-pink-400 mb-2 transition-colors relative z-10"></i>
                                 <p class="text-xs text-gray-400 font-bold uppercase relative z-10" data-i18n="chamcong_spa_photo_before">Ảnh Trước</p>
                             </div>
@@ -201,7 +207,7 @@
                         <div class="relative">
                             <input type="file" id="photoAfter" accept="image/*" class="hidden" onchange="previewImage(this, 'previewAfter')">
                             <div onclick="document.getElementById('photoAfter').click()" class="border-2 border-dashed border-white/20 h-32 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-pink-400 hover:bg-pink-500/10 transition-colors group relative overflow-hidden bg-black/30">
-                                <img id="previewAfter" src="" class="absolute inset-0 w-full h-full object-cover hidden opacity-80 group-hover:opacity-40 transition-opacity">
+                                <img id="previewAfter" class="absolute inset-0 w-full h-full object-cover hidden opacity-80 group-hover:opacity-40 transition-opacity">
                                 <i class="fas fa-camera text-3xl text-gray-500 group-hover:text-pink-400 mb-2 transition-colors relative z-10"></i>
                                 <p class="text-xs text-gray-400 font-bold uppercase relative z-10" data-i18n="chamcong_spa_photo_after">Ảnh Sau</p>
                             </div>
@@ -306,12 +312,12 @@
                 const ringColor = isFirst ? 'border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.5)]' : 'border-white/10 opacity-60';
 
                 container.innerHTML += `
-                    <div class="tua-card relative flex flex-col items-center shrink-0 w-24 cursor-pointer" onclick="openModal('${emp.ma_nv}', '${emp.ho_ten}')">
+                    <div class="tua-card relative flex flex-col items-center shrink-0 w-24 cursor-pointer" onclick="openModal('${emp.ma_nv}', '${__escJsAttr(emp.ho_ten)}')">
                         ${badge}
                         <div class="w-14 h-14 rounded-full bg-gray-900 border-[3px] ${ringColor} flex items-center justify-center text-xl font-black text-white mb-2 overflow-hidden">
                             ${avatar}
                         </div>
-                        <p class="text-[11px] font-bold text-white text-center truncate w-full px-1 ${isFirst ? 'text-pink-400' : ''}">${emp.ho_ten}</p>
+                        <p class="text-[11px] font-bold text-white text-center truncate w-full px-1 ${isFirst ? 'text-pink-400' : ''}">${__escHtml(emp.ho_ten)}</p>
                     </div>
                 `;
             });
@@ -337,7 +343,7 @@
                 html += `
                 <tr class="hover:bg-white/[0.05] transition-colors group border-b border-white/5 last:border-0">
                     <td class="px-6 py-4 border-r border-white/5">
-                        <div class="font-bold text-white text-base">${emp.ho_ten}</div>
+                        <div class="font-bold text-white text-base">${__escHtml(emp.ho_ten)}</div>
                         <div class="text-[10px] text-pink-400 font-mono mt-1 bg-pink-500/10 px-2 py-0.5 rounded inline-block border border-pink-500/20">${emp.ma_nv}</div>
                     </td>
                     <td class="px-2 py-4 border-r border-white/5 text-center">
@@ -353,7 +359,7 @@
                         <input type="number" id="tips_${emp.ma_nv}" value="${tienTips ? tienTips : ''}" placeholder="0" class="excel-input text-yellow-400 font-bold">
                     </td>
                     <td class="px-4 py-4 text-center flex gap-2 justify-center">
-                        <button onclick="openModal('${emp.ma_nv}', '${emp.ho_ten}')" class="bg-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2 shadow-lg text-xs uppercase tracking-wider border border-pink-500/30">
+                        <button onclick="openModal('${emp.ma_nv}', '${__escJsAttr(emp.ho_ten)}')" class="bg-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2 shadow-lg text-xs uppercase tracking-wider border border-pink-500/30">
                             <i class="fas fa-hand-holding-heart"></i> ${t('chamcong_spa_btn_receive_turn')}
                         </button>
                         <button onclick="saveKhac('${emp.ma_nv}')" title="${t('chamcong_spa_title_save_commission')}" class="bg-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white font-bold px-4 py-2 rounded-xl transition-all shadow-lg border border-purple-500/30">
@@ -427,7 +433,7 @@
                     <div class="flex justify-between items-center py-2.5 px-3 bg-black/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors cursor-default">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-check-circle text-emerald-500 text-xs shadow-[0_0_10px_rgba(16,185,129,0.5)] rounded-full"></i>
-                            <span class="text-xs text-gray-300 font-medium line-clamp-1" title="${item.ghi_chu}">${item.ghi_chu.replace('[Dịch vụ] ', '').replace('[Cập nhật]', '').substring(0, 35)}...</span>
+                            <span class="text-xs text-gray-300 font-medium line-clamp-1" title="${__escHtml(item.ghi_chu)}">${item.ghi_chu.replace('[Dịch vụ] ', '').replace('[Cập nhật]', '').substring(0, 35)}...</span>
                         </div>
                         <span class="text-xs font-black text-pink-400 ml-2">+${Number(item.tien_tua || item.phu_cap || item.tien_tips || 0).toLocaleString()} ₫</span>
                     </div>

@@ -71,6 +71,7 @@ async function main() {
     await page.goto(`${BASE}/brand_settings`, { waitUntil: 'networkidle' });
     await page.waitForSelector('#brandNameInput', { timeout: 8000 });
 
+    const originalName = await page.inputValue('#brandNameInput'); // khôi phục sau khi test (trước đây để lại tên QA trong DB)
     const newName = 'QA Audit F&B Brand ' + Date.now();
     await page.fill('#brandNameInput', newName);
 
@@ -92,6 +93,13 @@ async function main() {
     if (wronglyRedirectedToSpa) {
       finding('REGRESSION: brand_settings vẫn còn đẩy tenant F&B sang /spa sau khi lưu — fix chưa có hiệu lực.');
     }
+    // Khôi phục tên thương hiệu gốc của tenant demo
+    if (!urlAfterSave.includes('brand_settings')) await page.goto(`${BASE}/brand_settings`, { waitUntil: 'networkidle' });
+    await page.fill('#brandNameInput', originalName || 'BitPaw');
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/api/brand_settings') && res.request().method() === 'POST', { timeout: 10000 }),
+      page.click('#saveBtn'),
+    ]).catch(() => {});
   } catch (e) {
     record('1. Brand Settings — Tenant F&B Lưu Xong Không Bị Đẩy Sang /spa', 'FAIL', Date.now() - t0, e.message);
     await shot(page, '01_brand_settings_FAILED.png').catch(() => {});

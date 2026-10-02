@@ -394,6 +394,9 @@
             e.stopPropagation();
             document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
         }
+        // Script này là type="module" (phạm vi riêng) -> phải gắn lên window thì onclick="toggleMgmtMenu(event)"
+        // trong HTML mới gọi được; trước đây nút "Management" bấm không có tác dụng gì.
+        window.toggleMgmtMenu = toggleMgmtMenu;
         document.addEventListener('click', (e) => {
             const wrap = document.getElementById('mgmtMenuWrap');
             const panel = document.getElementById('mgmtMenuPanel');

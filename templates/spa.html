@@ -640,6 +640,11 @@
             .overlay { padding: 20px; }
             .cart-sidebar { width: 100%; }
             .header-left { flex-direction: column; align-items: flex-start; gap: 10px; }
+            /* 4 nút (EN / Thêm dịch vụ / Tùy chỉnh / Quản lý) cố định 1 hàng rộng ~700px -> trang POS Spa
+               cuộn ngang trên điện thoại. Cho xuống dòng, nút gọn hơn. */
+            .header { flex-wrap: wrap; gap: 14px; }
+            .header-actions { flex-wrap: wrap; gap: 8px; }
+            .header-actions .btn-glass { padding: 8px 14px; font-size: 13px; }
             .search-filter-bar { flex-direction: column; align-items: stretch; }
             .search-box { max-width: 100%; }
         }
@@ -1046,6 +1051,9 @@
             e.stopPropagation();
             document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
         }
+        // Script này là type="module" (phạm vi riêng) -> phải gắn lên window thì onclick="toggleMgmtMenu(event)"
+        // trong HTML mới gọi được; trước đây nút "Management" bấm không có tác dụng gì.
+        window.toggleMgmtMenu = toggleMgmtMenu;
         document.addEventListener('click', (e) => {
             const wrap = document.getElementById('mgmtMenuWrap');
             const panel = document.getElementById('mgmtMenuPanel');

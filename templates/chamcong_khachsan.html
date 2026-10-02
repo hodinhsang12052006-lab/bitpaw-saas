@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hotel Attendance - BitPaw OS</title>
@@ -464,7 +470,7 @@
                                         <div class="w-full h-full bg-[#0b0710] rounded-full flex items-center justify-center font-bold text-white overflow-hidden border border-black">${avatarContent}</div>
                                     </div>
                                     <div>
-                                        <div class="font-bold text-white group-hover:text-purple-300 transition-colors">${emp.ho_ten}</div>
+                                        <div class="font-bold text-white group-hover:text-purple-300 transition-colors">${__escHtml(emp.ho_ten)}</div>
                                         <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-widest uppercase"><i class="fas fa-id-badge text-purple-500/50 mr-1"></i>${emp.ma_nv}</div>
                                     </div>
                                 </div>

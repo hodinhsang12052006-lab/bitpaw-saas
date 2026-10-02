@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Data Center | BitPaw AI</title>
@@ -332,10 +338,10 @@
 
                 return `
                     <tr class="customer-row border-b border-white/5" onclick="selectCustomer('${c.id}', this)">
-                        <td class="p-4 font-bold text-white">${c.name}</td>
+                        <td class="p-4 font-bold text-white">${__escHtml(c.name)}</td>
                         <td class="p-4 uppercase text-[10px] font-bold text-cyan-400">${c.source}</td>
                         <td class="p-4 font-black text-gray-200">${formatMoney(c.total_spend)}</td>
-                        <td class="p-4 text-gray-500 font-medium">${c.last_purchase.split(" ")[0]}</td>
+                        <td class="p-4 text-gray-500 font-medium">${(c.last_purchase || "—").split(" ")[0]}</td>
                         <td class="p-4 text-center">
                             <span class="text-[9px] font-black border px-2.5 py-0.5 rounded-full ${badgeColor}">${c.potential_score}%</span>
                         </td>
@@ -361,11 +367,11 @@
             document.getElementById("detailService").innerText = c.service_interest || "---";
             
             // Format dynamic Dates for Timeline
-            const cleanDate = c.last_purchase.split(" ")[0];
-            document.getElementById("detailLastPurchase").innerText = c.last_purchase;
+            const cleanDate = (c.last_purchase || "—").split(" ")[0]; // khách chưa mua lần nào: last_purchase = null
+            document.getElementById("detailLastPurchase").innerText = c.last_purchase || "—";
             document.getElementById("detailTotalSpend").innerText = formatMoney(c.total_spend);
             document.getElementById("detailPotentialScore").innerText = `${c.potential_score}/100`;
-            document.getElementById("detailAINotes").innerText = c.ai_notes;
+            document.getElementById("detailAINotes").innerText = c.ai_notes || "—";
             
             // Dynamic Star rating based on spend
             const starsContainer = document.getElementById("detailStars");
@@ -518,7 +524,7 @@
                 if (index < bootLogs.length) {
                     const log = bootLogs[index];
                     progressBar.style.width = log.pct + "%";
-                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${log.msg}`;
+                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${__escHtml(log.msg)}`;
                     
                     let delay = 250;
                     if (index === bootLogs.length - 1) delay = 400; // longer pause at 100%

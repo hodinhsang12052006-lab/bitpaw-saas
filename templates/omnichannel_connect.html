@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kết Nối Nền Tảng Đa Kênh | BitPaw AI</title>
@@ -1176,7 +1182,7 @@
                 if (index < bootLogs.length) {
                     const log = bootLogs[index];
                     progressBar.style.width = log.pct + "%";
-                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${log.msg}`;
+                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${__escHtml(log.msg)}`;
                     
                     let delay = 250;
                     if (index === bootLogs.length - 1) delay = 400; // longer pause at 100%

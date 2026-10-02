@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BitPaw | Đồng bộ E-commerce | Shopee, TikTok, Lazada</title>
@@ -266,7 +272,7 @@
                     tbody.innerHTML = syncOrders.map(o => `
                         <tr>
                             <td class="font-mono text-xs">${o.id}</td>
-                            <td>${o.customer_name || 'N/A'}</td>
+                            <td>${__escHtml(o.customer_name || 'N/A')}</td>
                             <td><span class="platform-badge ${o.platform.toLowerCase()}">${o.platform}</span></td>
                             <td class="font-mono text-emerald-400">${(o.amount || 0).toLocaleString('vi-VN')}₫</td>
                             <td>${o.status === 'pending' ? `<span class="text-yellow-400">${t('ecommerce_sync_status_pending')}</span>` : `<span class="text-emerald-400">${t('ecommerce_sync_status_completed')}</span>`}</td>

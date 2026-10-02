@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Enter Expense - BitPaw</title>
@@ -568,7 +574,7 @@
                 } else {
                     listDiv.innerHTML = recentList.map(item => `
                         <div class="recent-item">
-                            <div><span class="text-rose-300 font-bold">${item.amount.toLocaleString()}₫</span> - ${item.description} <span class="text-gray-500 text-xs">(${item.expense_date})</span></div>
+                            <div><span class="text-rose-300 font-bold">${item.amount.toLocaleString()}₫</span> - ${__escHtml(item.description)} <span class="text-gray-500 text-xs">(${item.expense_date})</span></div>
                             <button class="delete-expense text-red-400 hover:text-red-200 text-xs" data-id="${item.id}"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     `).join('');

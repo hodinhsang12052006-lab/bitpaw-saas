@@ -289,3 +289,43 @@ Chạy lại 20 script Playwright (9 ngành + Nails sâu + dùng chung + landing
 | 8 | Màn khởi động trắng loé; file build máy local bị commit vào git | **Fixed** |
 | 9 | Script test FAIL ngẫu nhiên do file ảnh bị khoá (Avast) ở 9 script ngành | **Fixed**: dùng chung `safeScreenshot()` |
 | 10 | Máy dev không build được .aab/.ipa (Gradle loopback, iOS cần macOS) | **Xử lý**: GitHub Actions `.github/workflows/mobile-build.yml`. Ký release cần chủ dự án thêm 4 secret keystore (không tự tải khoá bí mật lên GitHub) |
+
+## Pha 10 — Quét toàn bộ 9 ngành + bảo mật + chịu tải (Playwright)
+
+Công cụ mới (giữ trong repo để chạy lại): `scripts/full_site_audit.mjs` (mọi route GET của app.py × 9 tenant demo, desktop + mobile: HTTP, lỗi JS, request lỗi, ảnh vỡ, tràn ngang, **nút gọi hàm không tồn tại**, link nội bộ hỏng), `scripts/security_full_audit.py` (truy cập không đăng nhập 396 route/method, IDOR chéo tenant bằng bản ghi mồi, CSRF, header, open redirect, reflected XSS), `scripts/load_test_local.py` (N người dùng đồng thời, mỗi người 1 IP), `scripts/ensure_indexes.py` (index MongoDB).
+
+### Kết quả cuối (chạy tuần tự, restart server sạch trước mỗi bước, 0 traceback toàn bộ)
+
+| Hạng mục | Kết quả |
+|---|---|
+| Quét 9 ngành (~1.000 lượt trang) | Còn đúng 4 mục/ngành, đều **không phải lỗi**: `/table_order` 400 (cần `table_id` từ QR — đúng thiết kế), `/super_admin` 403 với chủ tiệm thường (đúng phân quyền), `/map_dashboard` ô bản đồ OpenStreetMap bị máy này chặn kết nối (môi trường). 0 link hỏng thật |
+| Bảo mật | Không đăng nhập: 396 phép thử, 1 mục gắn cờ = `/api/checkout/payment_methods` (cố ý công khai: tài khoản nhận tiền hiện trên trang đăng ký gói). **IDOR 0/51, CSRF 0/5, XSS phản xạ 0/9, open redirect: không** |
+| Tải 30 người dùng × 60s | 2.013 request, **0 lỗi server, 0 timeout** |
+| Tải 100 người dùng × 90s | 3.337 request, **0 lỗi 5xx**, 1 lỗi kết nối (reset môi trường). Trần ~36 req/s là giới hạn dev server Werkzeug 1 tiến trình trên Windows + mỗi truy vấn tới Atlas ~49ms từ máy này; production (Vercel) tự nhân bản theo tải |
+| Hồi quy 15 bộ test (9 ngành + Nails + dùng chung + landing + yêu cầu store) | Tất cả PASS (Spa 1 WARN = reset kết nối môi trường) |
+
+### Lỗi thật đã sửa trong pha này
+
+| # | Mức | Lỗi | Sửa |
+|---|---|---|---|
+| 1 | 🔴 Cao | **Stored XSS**: tên khách đặt lịch online (công khai, không cần đăng nhập) chèn thô vào modal "Checked-In" của POS và trang Customer Nurturing -> script chạy trong phiên chủ tiệm. PoC xác nhận trước khi sửa | Escape 81 chỗ ở 32 template (dữ liệu người dùng ghép vào innerHTML; trong `onclick="fn('...')"` dùng escape chuỗi JS + thuộc tính). PoC sau sửa: 7/7 trang chặn |
+| 2 | 🟠 | Stored XSS + lỗi hiển thị bảng Kanban Kỹ thuật (`/quanly_dichvu`): job thiếu `noi_dung` làm DỪNG cả vòng render (bảng trống); mọi trường chèn thô | Escape toàn bộ trường, bỏ chuỗi khỏi onclick |
+| 3 | 🟠 | CSRF bootstrap chèn cuối `<body>` -> mọi POST gọi ngay lúc tải trang thiếu token, bị 400 (vd chat presence) | Chèn ngay sau `<head>` |
+| 4 | 🟠 | Chống dò mật khẩu chỉ đếm trong bộ nhớ từng instance (Vercel nhiều instance) | Đếm lần **đăng nhập sai** trong MongoDB (dùng chung mọi instance, TTL 15 phút): 20 lần/IP, 10 lần/email -> 429. Áp cho `/login` và `/api/auth/token` |
+| 5 | 🟡 | Thiếu header chống clickjacking/Referrer/Permissions | `X-Frame-Options: SAMEORIGIN`, CSP `frame-ancestors 'self'`, `Referrer-Policy`, `Permissions-Policy` |
+| 6 | 🟡 | `/debug-sentry` công khai cố ý ném 500 (spam làm đầy hạn mức Sentry) | Chỉ superadmin |
+| 7 | 🟠 Hiệu năng | Code KHÔNG tạo index nào; nhiều truy vấn nóng quét toàn collection (chamcong 1.226 bản ghi, `dining_tables.qr_token` cho QR công khai, `users.id`, `businesses.id`...) | `scripts/ensure_indexes.py` (idempotent) — đã tạo 30 index trên DB |
+| 8 | 🟠 | `/qr_menu` luôn 404 (redirect tới bàn "demo" đã gỡ) — link QR Menu ở sidebar F&B, landing F&B, AI Studio đều hỏng; thực đơn QR mặc định lọc `retail` nên nhà hàng F&B ra menu trống | Chủ tiệm -> bàn đầu tiên của tiệm; khách vãng lai -> thực đơn mẫu tài khoản demo F&B; channel_type theo sản phẩm thật của tiệm |
+| 9 | 🟠 | `/diemdanh`: ReferenceError (TDZ) làm dừng toàn bộ script (bản dịch, nút đổi ngôn ngữ...) | Gọi đồng hồ sau khi script nạp xong |
+| 10 | 🟠 | Nút "Management" ở POS Spa và Karaoke bấm không có tác dụng (hàm nằm trong `<script type="module">`) | Gắn `window.toggleMgmtMenu` |
+| 11 | 🟡 | `/customer_nurturing` crash khi khách chưa mua lần nào (`last_purchase` null) | Chặn null |
+| 12 | 🟡 | `/sell` của ngành khác Nails gọi `/api/products/null`; link "Sales" ở AI Studio trỏ nhầm `/sell` | Về trang chủ ngay khi thiếu product_id; link đúng `retail_pos` |
+| 13 | 🟡 | 6 ảnh Unsplash đã bị xoá (404) ở POS Nails, AI Studio, 7 sản phẩm demo; 2 GIF Giphy chết trong chat | Thay ảnh cùng chủ đề còn sống (code + DB); bỏ GIF chết |
+| 14 | 🟡 Giao diện mobile | Header POS Spa tràn 701px; nút "+" Hotel Rooms bị cắt; bản đồ Dispatch Radar cao 0px (chú thích đè danh sách), icon tìm kiếm đè chữ; ô xin nghỉ Office tràn; header báo cáo chuỗi tràn | Sửa CSS từng trang |
+| 15 | 🟡 Dữ liệu | Script Pha 6 để lại tên thương hiệu "QA Audit F&B Brand" cho tenant F&B; ~45 bản ghi QA tồn đọng ở 12 collection; 2 phòng khách sạn bị khách test chiếm | Script tự khôi phục tên gốc; dọn sạch DB (kể cả 427 đơn của bài test tải) |
+
+### Việc cần chủ dự án làm (cần tài khoản)
+
+- **Redis cho rate limiter** (Upstash miễn phí đủ dùng): đặt `REDIS_URL` trên project Vercel phục vụ domain (`bitpaw-saas-web`). Hiện limiter chung (1200 req/giờ/IP) vẫn đếm riêng từng instance; riêng chống dò mật khẩu đã dùng MongoDB nên không phụ thuộc việc này.
+- **Khi tăng mạnh số tiệm**: nâng MongoDB Atlas khỏi gói miễn phí (giới hạn ~500 kết nối, mỗi instance Vercel giữ vài kết nối); cân nhắc dịch vụ realtime chuyên dụng thay SSE (mỗi màn POS mở giữ 1 function Vercel tới 25s).
+- Chạy `python scripts/ensure_indexes.py` khi tạo DB mới/khôi phục backup.

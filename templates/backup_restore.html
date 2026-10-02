@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BitPaw | Sao lưu & Phục hồi dữ liệu</title>
@@ -405,12 +411,12 @@
                             <div>
                                 <div class="flex items-center gap-2">
                                     <i class="fas fa-cloud-upload-alt text-emerald-400"></i>
-                                    <span class="font-mono text-sm">${file.name}</span>
+                                    <span class="font-mono text-sm">${__escHtml(file.name)}</span>
                                 </div>
                                 <div class="text-xs text-gray-400">${created} - ${size}</div>
                             </div>
                             <div class="flex gap-2">
-                                <button class="restore-cloud-btn bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1 rounded text-xs" data-filename="${file.name}">${t('backuprestore_restore_action')}</button>
+                                <button class="restore-cloud-btn bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1 rounded text-xs" data-filename="${__escHtml(file.name)}">${t('backuprestore_restore_action')}</button>
                             </div>
                         </div>
                     `;
@@ -460,7 +466,7 @@
                     return;
                 }
                 restoreBtn.disabled = false;
-                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> ${t('backuprestore_restore_btn')} (${selectedFile.name})`;
+                restoreBtn.innerHTML = `<i class="fas fa-sync-alt"></i> ${t('backuprestore_restore_btn')} (${__escHtml(selectedFile.name)})`;
             } else {
                 selectedFile = null;
                 restoreBtn.disabled = true;

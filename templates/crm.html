@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BitPaw CRM | Smart Customer Management</title>
@@ -504,8 +510,8 @@
                 <tr>
                     <td class="text-gray-400">#${c.id}</td>
                     <td class="font-medium"><input type="checkbox" class="customer-checkbox mr-2" value="${c.id}"> ${escapeHtml(c.name)}</td>
-                    <td>${c.phone}</td>
-                    <td>${c.email || ''}</td>
+                    <td>${__escHtml(c.phone)}</td>
+                    <td>${__escHtml(c.email || '')}</td>
                     <td class="text-gray-300">${escapeHtml(c.social_contact || '')}</td>
                     <td>${getTierBadge(c.tier)}</td>
                     <td class="font-mono text-emerald-400">${formatCurrency(c.total_spent || 0)}</td>
@@ -550,8 +556,8 @@ function updateStatsAndChart() {
             if (!c) return;
             detailContent.innerHTML = `
                 <div class="flex justify-between border-b border-white/10 pb-1"><span class="text-gray-400">${t('crm_detail_name')}</span><span class="font-bold">${escapeHtml(c.name)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_phone')}</span><span>${c.phone}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_email')}</span><span>${c.email || ''}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_phone')}</span><span>${__escHtml(c.phone)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_email')}</span><span>${__escHtml(c.email || '')}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_social')}</span><span>${escapeHtml(c.social_contact || '')}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_tier')}</span>${getTierBadge(c.tier)}</div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_spend')}</span><span class="text-emerald-400">${formatCurrency(c.total_spent || 0)}</span></div>
@@ -582,7 +588,7 @@ function updateStatsAndChart() {
                     </div>`).join('');
             } catch (e) {
                 const box = document.getElementById('customerOrderHistory');
-                if (box) box.innerHTML = `<span class="text-rose-400 text-xs">${t('crm_toast_load_error')}${e.message}</span>`;
+                if (box) box.innerHTML = `<span class="text-rose-400 text-xs">${t('crm_toast_load_error')}${__escHtml(e.message)}</span>`;
             }
         }
 

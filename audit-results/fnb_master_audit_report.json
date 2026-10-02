@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T15:58:11.103Z",
+  "generatedAt": "2026-10-02T19:17:34.948Z",
   "summary": {
     "total": 8,
     "pass": 8,
@@ -10,49 +10,49 @@
     {
       "name": "1. Đăng nhập & Khởi tạo POS F&B",
       "status": "PASS",
-      "ms": 4509,
+      "ms": 4472,
       "note": "console_errors=0, network_5xx=0, tables=12, menu_items=9, bàn_tiếng_việt_hiển_thị=12"
     },
     {
       "name": "2. Chọn Bàn & Thêm Món Vào Order",
       "status": "PASS",
-      "ms": 3220,
+      "ms": 3328,
       "note": "Bàn \"Bàn 1\" (id=6518). Đã thêm 2 món (mỗi món x2). Khu vực Checkout hiện: true."
     },
     {
       "name": "3. Thanh Toán Tiền Mặt (payment/start -> pending -> confirm)",
       "status": "PASS",
-      "ms": 5378,
-      "note": "start: HTTP 200 txn_id=FNB-51F44F35. confirm: HTTP 200 success=true. URL cuối: http://127.0.0.1:5001/payment_success?txn_id=FNB-51F44F35&method=cash&amount=121000.0&currency=VND&industry=fnb"
+      "ms": 4745,
+      "note": "start: HTTP 200 txn_id=FNB-882BEE0F. confirm: HTTP 200 success=true. URL cuối: http://127.0.0.1:5001/payment_success?txn_id=FNB-882BEE0F&method=cash&amount=121000.0&currency=VND&industry=fnb"
     },
     {
       "name": "4. Chọn Phương Thức Thanh Toán Chia Đôi (Split)",
       "status": "PASS",
-      "ms": 3747,
-      "note": "Bàn id=6519. Nút Split active: true. /api/payment/start: HTTP 200, body={\"redirect_url\":\"/payment_pending?table_id=6519&txn_id=FNB-DCDC9F62&amount=176000&method=split&industry=fnb\",\"success\":true,\"txn_id\":\"FNB-DCDC9F62\"}"
+      "ms": 3717,
+      "note": "Bàn id=6519. Nút Split active: true. /api/payment/start: HTTP 200, body={\"redirect_url\":\"/payment_pending?table_id=6519&txn_id=FNB-FC449384&amount=198000&method=split&industry=fnb\",\"success\":true,\"txn_id\":\"FNB-FC449384\"}"
     },
     {
       "name": "5. QR Tự Gọi Món (khách) -> Kitchen Display Real-time (SSE)",
       "status": "PASS",
-      "ms": 11178,
-      "note": "submit_qr_order: HTTP 200 success=true. Kitchen orders: 33 -> 34 (không reload, chờ SSE). Console errors trang khách: 0."
+      "ms": 11577,
+      "note": "submit_qr_order: HTTP 200 success=true. Kitchen orders: 37 -> 38 (không reload, chờ SSE). Console errors trang khách: 0."
     },
     {
       "name": "6. Đặt Bàn Công Khai (khách vãng lai, không đăng nhập)",
       "status": "PASS",
-      "ms": 2154,
-      "note": "POST /api/public/reservations/39821fa8-e42a-4052-bc9d-eb061eaaae11: HTTP 200, body={\"id\":17,\"success\":true}. Console errors: 0."
+      "ms": 2076,
+      "note": "POST /api/public/reservations/39821fa8-e42a-4052-bc9d-eb061eaaae11: HTTP 200, body={\"id\":18,\"success\":true}. Console errors: 0."
     },
     {
       "name": "7. Chấm Công F&B (/chamcong_fnb)",
       "status": "PASS",
-      "ms": 3216,
+      "ms": 2336,
       "note": "Trang tải nội dung dài 1022 ký tự, 0 lỗi console mới. Snippet: \"BitPaw VI Dashboard Smart POS Kitchen Display QR Menu Customer Management AI Copilot AI Studio Staff Management Attendance Payroll Leave Requests Expe\""
     },
     {
       "name": "8. Module Dùng Chung Cho F&B (CRM/AI Bot/Nhân Viên/Báo Cáo)",
       "status": "PASS",
-      "ms": 4424,
+      "ms": 5076,
       "note": "/customers=200, /ai_bot=200, /nhanvien=200, /report=200"
     }
   ],

@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trạm Liên Lạc | BitPaw OS</title>
@@ -141,10 +147,8 @@
 
                 <!-- GIF Picker -->
                 <div id="gifPicker" class="pop-menu absolute bottom-full left-16 mb-4 bg-[#0b0f1c] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(217,70,239,0.2)] rounded-2xl p-3 w-72 h-64 overflow-y-auto scale-0 opacity-0 grid grid-cols-2 gap-2 z-50">
-                    <img onclick="sendGif('https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif')" src="https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
                     <img onclick="sendGif('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')" src="https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
                     <img onclick="sendGif('https://media.giphy.com/media/l41lFw057lAJQMwg0/giphy.gif')" src="https://media.giphy.com/media/l41lFw057lAJQMwg0/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
-                    <img onclick="sendGif('https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif')" src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
                     <img onclick="sendGif('https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif')" src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
                     <img onclick="sendGif('https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif')" src="https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif" class="rounded-xl cursor-pointer hover:scale-105 hover:border-fuchsia-400 border-2 border-transparent transition-all h-24 w-full object-cover shadow-md">
                 </div>
@@ -177,7 +181,7 @@
     <!-- Photo Modal -->
     <div id="photoModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] hidden flex-col items-center justify-center p-4 transition-opacity">
         <button onclick="closePhoto()" class="absolute top-6 right-6 text-white/50 hover:text-rose-500 text-4xl transition-colors"><i class="fas fa-times-circle"></i></button>
-        <img id="photoView" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-[0_0_50px_rgba(6,182,212,0.3)] object-contain">
+        <img id="photoView" class="max-w-full max-h-[90vh] rounded-xl shadow-[0_0_50px_rgba(6,182,212,0.3)] object-contain">
     </div>
 
     <!-- Toast container -->
@@ -475,7 +479,7 @@
                         ${initial}
                     </div>
                     <div class="max-w-[85%] md:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[10px] md:text-[11px] text-cyan-400 mb-1 ml-2 font-bold tracking-wide">${data.sender_name || data.sender_id}</p>
+                        <p class="text-[10px] md:text-[11px] text-cyan-400 mb-1 ml-2 font-bold tracking-wide">${__escHtml(data.sender_name || data.sender_id)}</p>
                         <div class="${bubbleClassOther}">${displayContent}</div>
                         <p class="text-[9px] md:text-[10px] text-gray-500 text-left pl-2 mt-1 font-mono">${timeStr}</p>
                     </div>
@@ -668,7 +672,7 @@
                             <div class="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-emerald-400 border-2 border-[#08061a] rounded-full shadow-[0_0_5px_#34d399]"></div>
                         </div>
                         <div class="flex-1 hidden md:block">
-                            <h4 class="font-bold text-gray-300 text-sm group-hover:text-cyan-300 transition-colors truncate w-[130px]">${user.name} <span class="text-[10px] text-gray-500 font-normal">${isMeTag}</span></h4>
+                            <h4 class="font-bold text-gray-300 text-sm group-hover:text-cyan-300 transition-colors truncate w-[130px]">${__escHtml(user.name)} <span class="text-[10px] text-gray-500 font-normal">${isMeTag}</span></h4>
                             <p class="text-[10px] text-emerald-400/80 font-medium">${t('chat_active_now')}</p>
                         </div>
                     </div>

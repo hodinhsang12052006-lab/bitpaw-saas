@@ -474,6 +474,9 @@
 
         // Load sản phẩm từ Flask API nội bộ (thay Supabase)
         async function loadProduct() {
+            // Trang bán 1 sản phẩm cần ?product_id= — mở thẳng /sell (vd link cũ) trước đây gọi
+            // /api/products/null (404) rồi mới báo lỗi; nay về trang chủ ngay, không gọi API.
+            if (!productId) { window.location.replace("{{ url_for('index') }}"); return; }
             showLoading(true);
             try {
                 const body = await hrApi('/api/products/' + productId);

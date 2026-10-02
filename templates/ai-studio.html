@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Content Studio | BitPaw Enterprise V8.1</title>
@@ -66,7 +72,7 @@
             display: flex; flex-direction: column; justify-content: flex-end;
         }
         .phone-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; height: 20px; background-color: #1f2937; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 10; }
-        .phone-bg { position: absolute; inset: 0; background-image: url('https://images.unsplash.com/photo-1616394584738-1d31bf98af2f?w=400&q=80'); background-size: cover; background-position: center; opacity: 0.5; z-index: 0; }
+        .phone-bg { position: absolute; inset: 0; background-image: url('https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&q=80'); background-size: cover; background-position: center; opacity: 0.5; z-index: 0; }
         .phone-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 40%); z-index: 1; }
         .phone-content { position: relative; z-index: 2; padding: 16px; width: 85%; }
         .phone-icons { position: absolute; right: 12px; bottom: 80px; z-index: 2; display: flex; flex-direction: column; gap: 16px; align-items: center; color: white; }
@@ -99,7 +105,7 @@
                         <i class="fas fa-cash-register w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs">Smart POS</span>
                     </a>
-                    <a href="/qr_menu/demo" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <a href="{{ url_for('qr_menu_base') }}" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-qrcode w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs">QR Menu</span>
                     </a>
@@ -122,7 +128,8 @@
 
                 <!-- Retail / Generic sell (Bán hàng) -->
                 {% if 'sales' in active_industry_cfg.modules and 'ordering' not in active_industry_cfg.modules and 'spa_services' not in active_industry_cfg.modules %}
-                    <a href="/sell" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    {# Cùng đích với sidebar chính (retail_pos) — /sell cũ là trang bán 1 sản phẩm, cần ?product_id= #}
+                    <a href="{{ url_for('retail_pos') }}" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-shopping-cart w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_sell">Sales</span>
                     </a>
@@ -260,7 +267,7 @@
                     <div class="bg-black/50 border border-white/5 rounded-xl p-4 flex gap-4 h-[200px]">
                         <!-- Video Player -->
                         <div id="videoEmbedBox" class="w-[100px] sm:w-[120px] bg-black rounded-lg border border-white/10 overflow-hidden relative hidden shrink-0 shadow-[0_0_15px_rgba(0,0,0,0.8)]">
-                            <img src="https://images.unsplash.com/photo-1616394584738-1d31bf98af2f?w=300&q=80" class="w-full h-full object-cover opacity-60">
+                            <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=300&q=80" class="w-full h-full object-cover opacity-60">
                             <div class="absolute inset-0 flex items-center justify-center">
                                 <i class="fas fa-play-circle text-3xl text-white/80 drop-shadow-lg"></i>
                             </div>
@@ -678,7 +685,7 @@
 
             const newItem = {
                 id: Date.now(), title: title || "New Script", content: content, date: new Date().toLocaleDateString(),
-                statusBadge: `<span class="text-[8px] px-1.5 py-0.5 rounded border ${status.bg}">${status.text}</span>`,
+                statusBadge: `<span class="text-[8px] px-1.5 py-0.5 rounded border ${status.bg}">${__escHtml(status.text)}</span>`,
                 revenueHtml: revHtml
             };
             
@@ -719,7 +726,7 @@
                         <div class="flex justify-between items-start w-full gap-2">
                             <div class="flex items-center gap-2 truncate flex-1">
                                 <i class="fas fa-file-alt text-[10px] opacity-50 group-hover:text-cyan-400"></i> 
-                                <span class="truncate text-xs font-semibold">${item.title}</span>
+                                <span class="truncate text-xs font-semibold">${__escHtml(item.title)}</span>
                             </div>
                             ${rHtml}
                         </div>

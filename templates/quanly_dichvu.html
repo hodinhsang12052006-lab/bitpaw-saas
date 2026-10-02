@@ -445,7 +445,14 @@
                     return;
                 }
 
-                tasks.forEach(task => {
+                // Escape MỌI chuỗi do người dùng nhập trước khi ghép vào innerHTML — trước đây chèn thô
+                // (ten_khach còn nằm trong onclick='...'): nhân viên tạo job có tên chứa thẻ HTML/JS là chạy
+                // được script trong phiên của chủ tiệm (stored XSS). noi_dung thiếu (job tạo từ luồng khác)
+                // trước đây làm .replace() ném lỗi, DỪNG cả vòng forEach -> bảng Kanban trống trơn.
+                const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                tasks.forEach(rawTask => {
+                    const task = { ...rawTask, id: Number(rawTask.id) || 0, ten_khach: esc(rawTask.ten_khach), sdt: esc(rawTask.sdt),
+                        dia_chi: esc(rawTask.dia_chi), nguoi_nhan: esc(rawTask.nguoi_nhan), noi_dung: esc(rawTask.noi_dung) };
                     const isPending = task.trang_thai === 'Chờ Nhận';
                     const isDoing = task.trang_thai === 'Đã Nhận';
                     
@@ -458,7 +465,7 @@
                     formattedContent = formattedContent.replace(/\[Hoa Hồng\]:/g, `<br><span class="text-purple-400 font-bold mt-1 inline-block"><i class="fas fa-gift mr-1"></i> ${t('qld_label_commission_short')}:</span>`);
 
                     const card = `
-                    <div draggable="true" ondragstart="drag(event, ${task.id})" ondragend="dragEnd(event)" class="${alertClass} border rounded-2xl p-5 hover:border-white/50 transition-all relative group cursor-grab active:cursor-grabbing backdrop-blur-sm" onclick="viewJobDetail(${task.id}, '${task.ten_khach}', '${task.nguoi_nhan}')">
+                    <div draggable="true" ondragstart="drag(event, ${task.id})" ondragend="dragEnd(event)" class="${alertClass} border rounded-2xl p-5 hover:border-white/50 transition-all relative group cursor-grab active:cursor-grabbing backdrop-blur-sm" onclick="viewJobDetail(${task.id})">
                         <div class="flex justify-between items-start mb-3 border-b border-white/10 pb-3">
                             <h4 class="font-black text-white text-sm truncate pr-2 tracking-wide"><i class="fas fa-user-circle text-gray-500 mr-1.5 text-lg"></i> ${task.ten_khach}</h4>
                             <span class="text-[9px] bg-white/10 px-2 py-0.5 rounded text-gray-400 font-mono font-bold shrink-0 shadow-inner">#${task.id}</span>
@@ -563,7 +570,7 @@
             }
         }
 
-        function viewJobDetail(id, khach, tho) {
+        function viewJobDetail(id) {
             // Placeholder, we removed the alert to keep it clean.
             // Future update: Can open a slide-over panel.
         }

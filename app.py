@@ -43,7 +43,7 @@ def custom_sqlite3_connect(database, *args, **kwargs):
     return _original_sqlite3_connect(database, *args, **kwargs)
 sqlite3.connect = custom_sqlite3_connect
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app, g
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app, g, abort
 from jinja2.exceptions import TemplateNotFound
 from datetime import datetime, timedelta
 import os
@@ -372,8 +372,17 @@ def _inject_csrf_bootstrap(response):
             if '</body>' in html and 'CSRF_TOKEN' not in html:
                 token_json = json.dumps(generate_csrf())
                 snippet = _CSRF_BOOTSTRAP_SCRIPT % token_json
-                head, sep, tail = html.rpartition('</body>')
-                response.set_data(head + snippet + sep + tail)
+                # Chèn NGAY SAU thẻ <head> (chạy trước mọi script của trang). Trước đây chèn trước
+                # </body> cuối cùng -> script của trang chạy TRƯỚC bootstrap, mọi fetch POST gọi ngay
+                # lúc tải trang (vd /api/chat/presence/ping ở chat.html, app_chat.html) thiếu header
+                # X-CSRFToken và bị 400. Thẻ <head> thật luôn đứng trước mọi <script> trong thân trang
+                # nên không dính lỗi "khớp nhầm chuỗi HTML nằm trong template literal JS" ở trên.
+                m = re.search(r'<head\b[^>]*>', html, re.IGNORECASE)
+                if m:
+                    response.set_data(html[:m.end()] + snippet + html[m.end():])
+                else:
+                    head, sep, tail = html.rpartition('</body>')
+                    response.set_data(head + snippet + sep + tail)
     except Exception as e:
         print(f"[CSRF bootstrap] Chèn script thất bại (không ảnh hưởng response gốc): {e}")
     return response
@@ -599,6 +608,14 @@ def _security_headers(response):
     upload file đã chặt (xem allowed_file()/_allowed_media_file()) và Content-Type serve-back
     đã ép theo đuôi file đã validate, không theo client khai."""
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Chống clickjacking: trang khác không được nhúng app (POS, đăng nhập, xoá tài khoản...) vào
+    # iframe ẩn để lừa người dùng bấm. App không tự dùng iframe nào nên SAMEORIGIN không ảnh hưởng.
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Content-Security-Policy', "frame-ancestors 'self'")
+    # Không gửi nguyên URL (kèm query string) sang site ngoài khi người dùng bấm link ra ngoài.
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    # Camera/vị trí chỉ cho chính BitPaw dùng (chấm công); micro không cần.
+    response.headers.setdefault('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=()')
     return response
 
 
@@ -1031,6 +1048,50 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
 
 
 # ========== ROUTE XÁC THỰC ==========
+# ========== CHỐNG DÒ MẬT KHẨU DÙNG CHUNG MỌI INSTANCE (MongoDB) ==========
+# Flask-Limiter đang chạy memory:// khi chưa cấu hình REDIS_URL -> trên Vercel MỖI instance serverless
+# đếm riêng (và reset mỗi cold start), kẻ dò mật khẩu chỉ cần request rơi vào nhiều instance là vượt
+# giới hạn 5/15 phút. Bổ sung 1 lớp đếm LẦN ĐĂNG NHẬP SAI lưu ở MongoDB (dùng chung mọi instance, TTL
+# tự xoá sau 15 phút). Chỉ ghi khi sai mật khẩu nên người dùng bình thường không tốn thêm truy vấn ghi.
+_LOGIN_FAIL_WINDOW_SECONDS = 15 * 60
+_LOGIN_FAIL_MAX_PER_IP = 20
+_LOGIN_FAIL_MAX_PER_EMAIL = 10
+_login_fail_ttl_ready = False
+
+
+def _login_attempts_blocked(email):
+    if db is None:
+        return False
+    try:
+        since = datetime.utcnow() - timedelta(seconds=_LOGIN_FAIL_WINDOW_SECONDS)
+        if db.login_failures.count_documents({'ip': _get_real_client_ip(), 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_IP) >= _LOGIN_FAIL_MAX_PER_IP:
+            return True
+        email = (email or '').strip().lower()
+        if email and db.login_failures.count_documents({'email': email, 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_EMAIL) >= _LOGIN_FAIL_MAX_PER_EMAIL:
+            return True
+    except Exception as e:
+        print(f"[login guard] check failed (bỏ qua, không chặn đăng nhập): {e}")
+    return False
+
+
+def _record_login_failure(email):
+    global _login_fail_ttl_ready
+    if db is None:
+        return
+    try:
+        if not _login_fail_ttl_ready:
+            db.login_failures.create_index('at', expireAfterSeconds=_LOGIN_FAIL_WINDOW_SECONDS)
+            db.login_failures.create_index([('ip', 1), ('at', 1)])
+            db.login_failures.create_index([('email', 1), ('at', 1)])
+            _login_fail_ttl_ready = True
+        db.login_failures.insert_one({'ip': _get_real_client_ip(), 'email': (email or '').strip().lower(), 'at': datetime.utcnow()})
+    except Exception as e:
+        print(f"[login guard] record failed: {e}")
+
+
+_TOO_MANY_LOGIN_MSG = 'Too many failed sign-in attempts. Please wait 15 minutes and try again.'
+
+
 @app.route('/register', methods=['GET', 'POST'])
 # Chỉ đếm lượt GỬI form (POST): trước đây GET cũng bị tính nên chỉ cần mở/tải lại trang 5 lần
 # (vd quay lại sau khi gõ sai) là bị 429 ngay cả khi chưa thử đăng nhập lần nào.
@@ -1216,6 +1277,9 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        if _login_attempts_blocked(email):
+            flash(_TOO_MANY_LOGIN_MSG, 'danger')
+            return render_template('index.html', active_tab='login'), 429
 
         # === BẮT ĐẦU GOD MODE ===================================================
         # SUPERADMIN FALLBACK — CHẶN NGAY TẠI CỬA (BYPASS DATABASE). Dùng
@@ -1271,6 +1335,7 @@ def login():
                 return _superadmin_emergency_login(normalized_email)
             else:
                 current_app.logger.error(f"[GOD MODE] SAI MAT KHAU cho '{normalized_email}'!")
+                _record_login_failure(email)
                 flash('Incorrect email or password', 'danger')
                 return render_template('index.html', active_tab='login')
         # === KẾT THÚC GOD MODE ===================================================
@@ -1362,6 +1427,7 @@ def login():
                         return redirect(target_url)
             return redirect(url_for('setup'))
         except Exception:
+            _record_login_failure(email)
             flash('Incorrect email or password', 'danger')
     return render_template('index.html', active_tab='login')
 
@@ -1380,6 +1446,8 @@ def api_auth_token():
     data = request.json or {}
     email = (data.get('email') or '').strip().lower()
     password = data.get('password') or ''
+    if _login_attempts_blocked(email):
+        return jsonify({"success": False, "message": _TOO_MANY_LOGIN_MSG}), 429
     if not email or not password:
         return jsonify({"success": False, "message": "Thiếu email hoặc password."}), 400
     if db is None:
@@ -1387,6 +1455,7 @@ def api_auth_token():
 
     user = db.users.find_one({'email': email})
     if not user or not check_password_hash(user.get('password_hash', ''), password):
+        _record_login_failure(email)
         return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
 
     user_id = user['id']
@@ -2102,6 +2171,10 @@ def landingpage():
 
 @app.route('/debug-sentry')
 def trigger_error():
+    # Route kiểm tra Sentry cố ý ném lỗi 500 — trước đây CÔNG KHAI: ai cũng spam được để làm đầy
+    # hạn mức Sentry/log lỗi thật. Chỉ superadmin đang đăng nhập mới kích hoạt được.
+    if not _is_superadmin():
+        abort(404)
     division_by_zero = 1 / 0
     return division_by_zero
 
@@ -6534,9 +6607,37 @@ def api_qr_table(table_id):
 
 
 # ========== QR MENU ==========
+# Tài khoản demo F&B dùng làm "thực đơn mẫu" cho khách vãng lai bấm link QR Menu trên landing.
+_DEMO_QR_MENU_OWNER_EMAIL = os.environ.get('DEMO_QR_MENU_OWNER_EMAIL', 'demo.fnb.343602@bitpawdemo.com')
+
+
+def _first_table_token(business_id):
+    if not business_id or db is None:
+        return None
+    t = db.dining_tables.find_one({'business_id': business_id}, {'_id': 0, 'qr_token': 1, 'id': 1}, sort=[('id', 1)])
+    if not t:
+        return None
+    return t.get('qr_token') or str(t.get('id'))
+
+
 @app.route('/qr_menu')
 def qr_menu_base():
-    return redirect(url_for('qr_menu', identifier='demo'))
+    """Trước đây luôn redirect tới /qr_menu/demo — bàn "demo" đã bị gỡ (không còn fallback bàn giả)
+    nên link "QR Menu" trên sidebar F&B, landing F&B và AI Studio LUÔN ra 404. Nay: chủ tiệm đang
+    đăng nhập -> xem trước thực đơn QR của chính bàn đầu tiên của tiệm; khách vãng lai -> thực đơn
+    mẫu của tài khoản demo F&B."""
+    token = None
+    try:
+        token = _first_table_token(session.get('business_id'))
+        if not token:
+            demo = db.users.find_one({'email': _DEMO_QR_MENU_OWNER_EMAIL}, {'_id': 0, 'business_id': 1, 'id': 1})
+            if demo:
+                token = _first_table_token(demo.get('business_id') or demo.get('id'))
+    except Exception as e:
+        print(f"qr_menu_base lookup failed: {e}")
+    if not token:
+        return "Chưa có bàn nào để xem thực đơn QR. Hãy tạo bàn trong màn hình POS trước. / No tables yet — create a table in the POS first.", 404
+    return redirect(url_for('qr_menu', identifier=token))
 
 
 @app.route('/qr_menu/<path:identifier>')
@@ -6560,7 +6661,15 @@ def qr_menu(identifier):
     # ra danh sách khác với menu đã render sẵn. Truyền channel_type xuống template để mọi lần
     # gọi lại đều dùng ĐÚNG 1 giá trị nhất quán với lần render đầu.
     table_business_id = table_data.get('business_id')
-    channel_type = request.args.get('channel_type', 'retail')
+    # Mặc định theo ĐÚNG loại sản phẩm tiệm sở hữu bàn đang bán (F&B lưu channel_type='fnb') —
+    # trước đây mặc định cứng 'retail' nên thực đơn QR của mọi nhà hàng F&B luôn trống trơn.
+    channel_type = request.args.get('channel_type')
+    if not channel_type:
+        try:
+            types = db.products.distinct('channel_type', {'business_id': table_business_id, 'is_active': 1}) if table_business_id else []
+        except Exception:
+            types = []
+        channel_type = next((t for t in ('fnb', 'retail', 'nail', 'spa') if t in types), types[0] if types else 'retail')
     try:
         menu_filter = {'is_active': 1, 'channel_type': channel_type}
         if table_business_id:

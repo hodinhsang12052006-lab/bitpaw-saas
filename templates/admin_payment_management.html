@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BitPay Admin | Quản lý giao dịch thanh toán</title>
@@ -804,7 +810,7 @@
             tbody.innerHTML = transactions.map(tx => `
                 <tr>
                     <td class="font-mono text-xs">${tx.transaction_id || tx.id}</td>
-                    <td>${tx.customer_name || 'N/A'}<br><span class="text-[10px] text-gray-500">${tx.customer_email || ''}</span></td>
+                    <td>${__escHtml(tx.customer_name || 'N/A')}<br><span class="text-[10px] text-gray-500">${tx.customer_email || ''}</span></td>
                     <td>${tx.method || 'Unknown'}</td>
                     <td class="font-mono text-emerald-400">${formatCurrency(tx.amount, tx.currency || 'VND')}</td>
                     <td>${getStatusBadge(tx.status)}</td>
@@ -882,7 +888,7 @@
             currentModalId = tx.id;
             modalDetails.innerHTML = `
                 <div class="grid grid-cols-2 gap-2 border-b border-white/10 pb-2"><span class="text-gray-400">${t('admin_payment_modal_label_id')}</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
-                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_customer')}</span><span>${tx.customer_name || 'N/A'}</span></div>
+                <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_customer')}</span><span>${__escHtml(tx.customer_name || 'N/A')}</span></div>
                 <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_email')}</span><span>${tx.customer_email || 'N/A'}</span></div>
                 <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_method')}</span><span>${tx.method || 'N/A'}</span></div>
                 <div class="grid grid-cols-2 gap-2"><span class="text-gray-400">${t('admin_payment_modal_label_amount')}</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>

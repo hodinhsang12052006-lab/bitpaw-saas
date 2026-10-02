@@ -2,6 +2,12 @@
 <html lang="{{ default_lang }}">
 
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1763,7 +1769,7 @@
                     <div class="fomo-item flex items-start gap-2.5 py-1.5">
                         <div class="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-[10px] font-bold shrink-0 mt-0.5">${item.initial}</div>
                         <div class="min-w-0">
-                            <p class="text-gray-300 leading-snug"><span class="font-bold text-white">${item.name}</span> from a <span class="text-cyan-400">${item.context}</span> ${item.action}</p>
+                            <p class="text-gray-300 leading-snug"><span class="font-bold text-white">${__escHtml(item.name)}</span> from a <span class="text-cyan-400">${item.context}</span> ${item.action}</p>
                             <p class="text-[10px] text-gray-600 mt-0.5">${fomoRelativeTime(item.seconds)}</p>
                         </div>
                     </div>

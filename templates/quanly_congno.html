@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Công Nợ | BitPaw OS</title>
@@ -525,7 +531,7 @@
                         <td class="px-4 py-3 text-right">${row.direction === 'expense' ? formatNumber(row.amount) : '-'}</td>
                         <td class="px-4 py-3 text-right">${row.direction === 'payment' ? formatNumber(row.amount) : '-'}</td>
                         <td class="px-4 py-3 text-right font-bold ${balance > 0 ? 'text-rose-400' : 'text-emerald-400'}">${formatMoney(balance)}</td>
-                        <td class="px-4 py-3 text-gray-400">${row.note || ''}</td>
+                        <td class="px-4 py-3 text-gray-400">${__escHtml(row.note || '')}</td>
                     </tr>
                 `;
             }
@@ -575,7 +581,7 @@
             select.innerHTML = `<option value="">${t('congno_select_placeholder')}</option>`;
             const list = type === 'customer' ? partners.customer : partners.supplier;
             list.forEach(p => {
-                select.innerHTML += `<option value="${p.id}">${p.name} (${p.code || (type==='customer'?t('congno_code_prefix_customer'):t('congno_code_prefix_supplier'))+p.id})</option>`;
+                select.innerHTML += `<option value="${p.id}">${__escHtml(p.name)} (${__escHtml(p.code || (type==='customer'?t('congno_code_prefix_customer'):t('congno_code_prefix_supplier'))+p.id)})</option>`;
             });
         }
 

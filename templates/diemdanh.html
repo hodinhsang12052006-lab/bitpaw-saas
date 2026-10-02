@@ -137,7 +137,10 @@
             document.getElementById('currentDate').innerText = now.toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             document.getElementById('clockText').innerText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
         }
-        setInterval(updateClock, 1000); updateClock();
+        // Gọi lần đầu qua setTimeout(0): updateClock() dùng currentLang (khai báo `let` ở cuối script);
+        // gọi đồng bộ ngay đây ném ReferenceError (TDZ) và làm DỪNG toàn bộ phần script phía sau
+        // (bản dịch, nút đổi ngôn ngữ...).
+        setInterval(updateClock, 1000); setTimeout(updateClock, 0);
 
         // --- BIẾN TOÀN CỤC LƯU TRỮ CAMERA & GPS ---
         let videoStream = null;

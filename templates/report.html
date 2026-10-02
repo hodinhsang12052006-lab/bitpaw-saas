@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BitPaw | Revenue Report & Analytics</title>
@@ -605,7 +611,7 @@
             if (data.topCustomers.length) {
                 topCustomersDiv.innerHTML = data.topCustomers.map(c => `
                     <div class="flex justify-between items-center border-b border-white/5 pb-2">
-                        <div><span class="font-medium text-white">${escapeHtml(c.name)}</span><div class="text-[10px] text-gray-500">${c.phone}</div></div>
+                        <div><span class="font-medium text-white">${escapeHtml(c.name)}</span><div class="text-[10px] text-gray-500">${__escHtml(c.phone)}</div></div>
                         <span class="text-purple-300 font-mono">${formatMoney(c.spent)}</span>
                     </div>
                 `).join('');

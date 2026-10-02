@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tổng quan Dashboard | BitPaw OS</title>
@@ -546,7 +552,7 @@
                                     ${avatar}
                                 </div>
                                 <div>
-                                    <h5 class="text-white text-sm font-black tracking-wide truncate max-w-[120px] group-hover:text-yellow-400 transition-colors">${emp.ho_ten}</h5>
+                                    <h5 class="text-white text-sm font-black tracking-wide truncate max-w-[120px] group-hover:text-yellow-400 transition-colors">${__escHtml(emp.ho_ten)}</h5>
                                     <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mt-0.5">Top ${idx + 1}</p>
                                 </div>
                             </div>
@@ -619,13 +625,13 @@
                                 ${warningDot}
                                 <div class="bg-cyan-500 text-black font-black w-8 h-8 flex items-center justify-center rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.8)]">${i}</div>
                                 <div class="w-1 h-1 bg-white rounded-full absolute bottom-0 left-1/2 transform -translate-x-1/2 shadow-[0_0_5px_#fff]"></div>
-                                ${leaves.length ? `<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-rose-900 border border-rose-500/50 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl">${leaves[0].note}</div>` : ''}
+                                ${leaves.length ? `<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-rose-900 border border-rose-500/50 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl">${__escHtml(leaves[0].note)}</div>` : ''}
                             </div>`;
                 } else {
                     html += `<div class="relative bg-white/[0.02] border border-white/5 hover:bg-white/10 hover:border-cyan-500/30 rounded-lg cursor-pointer transition-all py-1.5 flex justify-center items-center group" ${titleAttr}>
                                 ${warningDot}
                                 <span class="font-bold text-gray-400 group-hover:text-white transition-colors">${i}</span>
-                                ${leaves.length ? `<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-rose-900 border border-rose-500/50 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl">${leaves[0].note}</div>` : ''}
+                                ${leaves.length ? `<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-rose-900 border border-rose-500/50 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl">${__escHtml(leaves[0].note)}</div>` : ''}
                             </div>`;
                 }
             }

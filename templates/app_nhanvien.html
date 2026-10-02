@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     
@@ -522,7 +528,7 @@
         document.getElementById('work_photo')?.addEventListener('change', function(e) {
             const display = document.getElementById('photo_name_display');
             if(this.files && this.files[0]) {
-                display.innerHTML = `<span class="text-cyan-400 font-bold">${this.files[0].name}</span>`;
+                display.innerHTML = `<span class="text-cyan-400 font-bold">${__escHtml(this.files[0].name)}</span>`;
             } else {
                 display.innerHTML = 'Tap to upload photo';
             }
@@ -1100,7 +1106,7 @@
                 const body = await hrApi('/api/hr/employees');
                 const data = (body.data || []).filter(e => e.ma_nv !== currentUser.code);
                 let options = '<option value="">-- Chọn đồng nghiệp --</option>';
-                data.forEach(e => options += `<option value="${e.ma_nv}">${e.ho_ten}</option>`);
+                data.forEach(e => options += `<option value="${e.ma_nv}">${__escHtml(e.ho_ten)}</option>`);
                 document.getElementById('app_kudo_receiver').innerHTML = options; document.getElementById('app_swap_receiver').innerHTML = options;
             } catch(e) {}
         }
@@ -1168,7 +1174,7 @@
                 if (!rows.length) { box.innerHTML = ''; return; }
                 box.innerHTML = rows.map(r => `
                     <div class="bg-black/40 border border-white/5 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-2">
-                        <span class="text-gray-300 truncate">${Number(r.amount).toLocaleString('vi-VN')}₫ · ${r.category || ''}</span>
+                        <span class="text-gray-300 truncate">${Number(r.amount).toLocaleString('vi-VN')}₫ · ${__escHtml(r.category || '')}</span>
                         <span class="font-bold shrink-0">${EXPENSE_STATUS_LABEL[r.status] || r.status}</span>
                     </div>`).join('');
             } catch (e) { /* non-fatal */ }

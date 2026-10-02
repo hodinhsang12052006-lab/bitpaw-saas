@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chấm Công Văn Phòng - BitPaw OS</title>
@@ -111,8 +117,8 @@
                 <h3 class="font-black text-cyan-400 uppercase tracking-widest text-sm flex items-center gap-2 mb-4 group-hover:text-white transition-colors">
                     <i class="fas fa-paper-plane"></i> <span data-i18n="chamcong_vanphong_leave_title">Xin Phép Siêu Tốc</span>
                 </h3>
-                <div class="flex gap-3">
-                    <select id="nv_xin_phep" class="flex-1 bg-black/60 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-cyan-400 transition-colors"></select>
+                <div class="flex flex-wrap gap-3">
+                    <select id="nv_xin_phep" class="flex-1 min-w-0 bg-black/60 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-cyan-400 transition-colors"></select>
                     <select id="loai_nghi" class="w-40 bg-black/60 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-cyan-400 transition-colors">
                         <option value="Nghỉ Phép" data-i18n="chamcong_vanphong_leave_full">Nghỉ Phép</option>
                         <option value="Nửa ngày" data-i18n="chamcong_vanphong_leave_half">Nghỉ Nửa Ngày</option>
@@ -212,7 +218,7 @@
                 const recordsBody = await hrApi(`/api/hr/chamcong?ngay_cham=${encodeURIComponent(formattedDate)}&nganh_nghe=${encodeURIComponent('Văn Phòng')}`);
                 const records = recordsBody.data || [];
 
-                document.getElementById('nv_xin_phep').innerHTML = '<option value="">-- Chọn NV xin phép --</option>' + emps.map(e => `<option value="${e.ma_nv}">${e.ho_ten}</option>`).join('');
+                document.getElementById('nv_xin_phep').innerHTML = '<option value="">-- Chọn NV xin phép --</option>' + emps.map(e => `<option value="${e.ma_nv}">${__escHtml(e.ho_ten)}</option>`).join('');
 
                 renderKudoBoard(emps);
 
@@ -231,7 +237,7 @@
                     const gioIn = isSaved ? todayRecord.gio_den : '';
                     const gioOut = isSaved ? todayRecord.gio_ve : '';
                     const ot = isSaved ? todayRecord.tang_ca : '';
-                    const note = (isSaved && todayRecord.ghi_chu) ? `<p class="text-[10px] text-gray-400 mt-1"><i class="fas fa-info-circle mr-1 text-cyan-500"></i>${todayRecord.ghi_chu}</p>` : '';
+                    const note = (isSaved && todayRecord.ghi_chu) ? `<p class="text-[10px] text-gray-400 mt-1"><i class="fas fa-info-circle mr-1 text-cyan-500"></i>${__escHtml(todayRecord.ghi_chu)}</p>` : '';
 
                     const btnUI = isSaved
                         ? `<button class="bg-emerald-500/20 text-emerald-400 font-bold p-2.5 rounded-xl w-full flex items-center justify-center gap-2 cursor-not-allowed opacity-50"><i class="fas fa-check"></i> ${t('chamcong_vanphong_btn_saved')}</button>`
@@ -241,7 +247,7 @@
                         <tr class="hover:bg-white/[0.05] transition-colors group border-b border-white/5">
                             <td class="px-6 py-4 border-r border-white/5">
                                 <div class="font-bold text-white flex items-center gap-2 text-base">
-                                    ${emp.ho_ten}
+                                    ${__escHtml(emp.ho_ten)}
                                     ${emp.diem_kudo > 0 ? `<span class="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30"><i class="fas fa-star mr-1 text-yellow-400"></i>${emp.diem_kudo}</span>` : ''}
                                 </div>
                                 <div class="text-[10px] text-cyan-400 font-mono mt-1 bg-cyan-500/10 px-2 py-0.5 rounded inline-block border border-cyan-500/20">${emp.ma_nv} | ${emp.chuc_vu || t('chamcong_vanphong_default_role')}</div>
@@ -305,7 +311,7 @@
                             <div class="w-10 h-10 rounded-full bg-gray-800 border-2 ${color} flex items-center justify-center font-bold text-white overflow-hidden shrink-0 relative z-10">${avatar}</div>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="text-xs font-bold ${isTop1 ? 'text-yellow-400' : 'text-white'} truncate">${emp.ho_ten}</p>
+                            <p class="text-xs font-bold ${isTop1 ? 'text-yellow-400' : 'text-white'} truncate">${__escHtml(emp.ho_ten)}</p>
                             <p class="text-[10px] text-gray-400"><i class="fas fa-star text-yellow-400 mr-1"></i>${emp.diem_kudo} BitPaw</p>
                         </div>
                     </div>

@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRM & AI Chatbot Chăm Sóc Khách | BitPaw Enterprise</title>
@@ -599,7 +605,7 @@
                     
                     return `
                         <a href="/omnichannel_connect" class="px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 border backdrop-blur-md hover:scale-105 active:scale-95 transition-all ${badgeClass}">
-                            <i class="${p.icon} text-base"></i> ${p.name}: 
+                            <i class="${p.icon} text-base"></i> ${__escHtml(p.name)}: 
                             <span class="flex items-center gap-1.5 font-black">
                                 <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>
                                 ${statusLabel}
@@ -777,8 +783,8 @@
                         <div class="bg-gradient-to-br from-fuchsia-950/20 to-black border border-fuchsia-500/20 p-5 rounded-2xl shadow-inner group hover:border-fuchsia-500/50 transition-colors">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
-                                    <h4 class="font-black text-white text-sm tracking-wide group-hover:text-fuchsia-300 transition-colors flex items-center gap-1.5">${wf.name}</h4>
-                                    <p class="text-[9px] text-gray-500 font-bold mt-1">${wf.description || t('crm_automation_no_description')}</p>
+                                    <h4 class="font-black text-white text-sm tracking-wide group-hover:text-fuchsia-300 transition-colors flex items-center gap-1.5">${__escHtml(wf.name)}</h4>
+                                    <p class="text-[9px] text-gray-500 font-bold mt-1">${__escHtml(wf.description || t('crm_automation_no_description'))}</p>
                                 </div>
                                 <div onclick="toggleScenarioActiveStatus('${wf.id}')" class="w-8 h-4 ${isActive ? 'bg-emerald-500/30 border-emerald-500/50' : 'bg-gray-500/30 border-gray-500/50'} rounded-full relative border cursor-pointer select-none transition-colors">
                                     <div class="absolute ${isActive ? 'right-0.5 bg-emerald-400' : 'left-0.5 bg-gray-400'} top-0.5 w-2.5 h-2.5 rounded-full transition-all"></div>
@@ -974,7 +980,7 @@
                 const result = await response.json();
                 if (result.success && result.data.length > 0) {
                     select.innerHTML = result.data.map(c => `
-                        <option value="${c.id}">${c.name} (${c.phone || t('crm_automation_no_phone')}) - ${tf('crm_automation_segment_label', {status: c.status})}</option>
+                        <option value="${c.id}">${__escHtml(c.name)} (${__escHtml(c.phone || t('crm_automation_no_phone'))}) - ${tf('crm_automation_segment_label', {status: c.status})}</option>
                     `).join('');
                 } else {
                     select.innerHTML = '<option value="">' + t('crm_automation_no_customers') + '</option>';

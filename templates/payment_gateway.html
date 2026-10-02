@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>/* Escape dữ liệu người dùng trước khi ghép vào innerHTML (chống XSS) — dùng chung cho cả
+   script thường lẫn type="module" nên gắn lên window. __escJsAttr: cho giá trị nằm trong chuỗi JS bên
+   trong thuộc tính onclick="fn('...')" (escape chuỗi JS rồi escape thuộc tính HTML). */
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title data-i18n="payment_gateway_title">BitPay | Cấu hình Cổng thanh toán & Thiết lập nhận tiền</title>
@@ -548,7 +554,7 @@
                     <!-- Khối hiển thị khi là VietQR -->
                     <div id="previewVietQR" class="space-y-4">
                         <div class="bg-white p-3 rounded-2xl inline-block shadow-lg">
-                            <img id="previewQRImage" src="" class="w-48 h-48 mx-auto">
+                            <img id="previewQRImage" class="w-48 h-48 mx-auto">
                             <div id="previewQRWarning" class="hidden text-rose-500 font-bold text-[10px] w-48 py-10">Chưa đủ thông tin tài khoản nhận tiền để tạo QR.</div>
                         </div>
                         <div class="text-xs text-left bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
@@ -758,8 +764,8 @@
                 bankSearchResults.innerHTML = `<div class="bank-search-item text-gray-500">Không tìm thấy ngân hàng tương ứng</div>`;
             } else {
                 bankSearchResults.innerHTML = filtered.map(b => `
-                    <div class="bank-search-item" data-code="${b.code}" data-name="${b.name}">
-                        ${b.name} (${b.code})
+                    <div class="bank-search-item" data-code="${__escHtml(b.code)}" data-name="${__escHtml(b.name)}">
+                        ${__escHtml(b.name)} (${__escHtml(b.code)})
                     </div>
                 `).join('');
             }
