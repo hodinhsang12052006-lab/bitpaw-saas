@@ -9,3 +9,22 @@
 .env.local
 .env.production
 .vercel
+
+# Khong phai code chay web — loai khoi bundle serverless. Vercel @vercel/python dong goi TOAN BO
+# file trong repo vao function (gioi han 225 MB); rieng audit-results/ (anh chup + video kiem
+# thu Playwright) da ~245 MB, lam deploy loi "Total bundle size exceeds the maximum function
+# size". Khong file .py/template nao doc toi cac thu muc duoi day (da grep xac nhan).
+audit-results/
+mobile_app/
+scripts/
+graphify-out/
+graphify_map.json
+node_modules/
+
+# Thu muc build Desktop App (.exe) chi co tren may dev, khong nam trong git — loai ra de lenh
+# `vercel deploy` chay truc tiep tu may local khong upload nham ~800 MB nay.
+build/
+build_env/
+build_output/
+dist/
+tools/
