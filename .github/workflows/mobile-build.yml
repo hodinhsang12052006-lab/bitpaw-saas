@@ -32,8 +32,8 @@ jobs:
       run:
         working-directory: mobile_app
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -65,7 +65,15 @@ jobs:
             echo "::warning::Chua cau hinh secret keystore -> .aab ky bang debug key, KHONG nop len CH Play duoc."
             echo "SIGNED=false" >> "$GITHUB_ENV"
           fi
-      - run: flutter build appbundle --release
+      - name: Build appbundle
+        run: |
+          set -o pipefail
+          # Lỗi Gradle in thành annotation (xem được ở trang tổng quan run, không cần quyền đọc log)
+          flutter build appbundle --release 2>&1 | tee build.log || {
+            grep -E "What went wrong|error:|Error:|^e: |requires|Could not|failed" -A4 build.log | head -40 |
+              while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: bitpaw-os-android-${{ env.SIGNED == 'true' && 'release-signed' || 'debug-signed' }}
@@ -79,14 +87,20 @@ jobs:
       run:
         working-directory: mobile_app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build ios --release --no-codesign
+      - name: Build iOS (no codesign)
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee build.log || {
+            grep -E "error:|Error |failed" -A3 build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
       - name: Package unsigned Runner.app
         run: cd build/ios/iphoneos && zip -qr Runner-unsigned.zip Runner.app
       - uses: actions/upload-artifact@v4
