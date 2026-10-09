@@ -31,9 +31,81 @@ _MONGO_CONNECTION_ERRORS = (ConnectionFailure, ServerSelectionTimeoutError, Netw
 # nào biết "đơn này cần người xem tay" ngoài đọc log console. Giới hạn số lần thử — quá số này,
 # ngưng retry (đỡ log spam) và giữ nguyên bản ghi để cashier/admin tự kiểm tra thủ công.
 MAX_SYNC_ATTEMPTS = 20
+# Sau 1 lần rớt mạng, trong cửa sổ này mọi bill đi thẳng vào bộ nhớ máy (không thử Atlas nữa):
+# mỗi lần thử Atlas khi mất mạng tốn tới serverSelectionTimeoutMS (5s) -> cashier phải chờ ~10s/bill.
+# Thread nền đồng bộ thành công (hoặc 1 request online bình thường) sẽ xoá cờ này sớm hơn.
+OFFLINE_WINDOW_SECONDS = 60
+MONGO_CONNECTION_ERRORS = _MONGO_CONNECTION_ERRORS
+
+_state_lock = threading.Lock()
+_last_offline_at = 0.0
+_last_sync_ok_at = None
 
 
-def queue_offline_order(business_id, computed, customer_phone):
+def mark_offline():
+    global _last_offline_at
+    with _state_lock:
+        _last_offline_at = time.time()
+
+
+def mark_online():
+    global _last_offline_at
+    with _state_lock:
+        _last_offline_at = 0.0
+
+
+def is_offline_recently():
+    with _state_lock:
+        return bool(_last_offline_at) and (time.time() - _last_offline_at) < OFFLINE_WINDOW_SECONDS
+
+
+def cache_catalog(business_id, services=None, technicians=None, products=None, commission_rate=None):
+    """Lưu bảng giá dịch vụ + danh sách thợ + % hoa hồng của tiệm xuống máy (local_db) mỗi lần
+    đọc được từ Atlas — để khi mất mạng vẫn tính tiền và mở lại màn POS được. `products`: dict
+    id -> product doc, gộp thêm vào bản đã lưu (không xoá sản phẩm cũ)."""
+    from local_db import db as local_db_conn
+
+    doc = local_db_conn.catalog_cache.find_one({'business_id': business_id}) or {}
+    update = {'business_id': business_id, 'cached_at': datetime.now().isoformat()}
+    if services is not None:
+        update['services'] = services
+    if technicians is not None:
+        update['technicians'] = technicians
+    if commission_rate is not None:
+        update['commission_rate'] = commission_rate
+    merged = dict(doc.get('products') or {})
+    for svc in services or []:
+        if svc.get('id') is not None:
+            merged[str(svc['id'])] = {**merged.get(str(svc['id']), {}), **svc}
+    for pid, prod in (products or {}).items():
+        merged[str(pid)] = prod
+    if merged:
+        update['products'] = merged
+    local_db_conn.catalog_cache.update_one({'business_id': business_id}, {'$set': update}, upsert=True)
+
+
+def get_cached_catalog(business_id):
+    """Bảng giá đã lưu trên máy, hoặc None nếu máy chưa từng mở POS lúc có mạng. Khoá `products`
+    trả về theo id gốc (int) để khớp product_id trong giỏ hàng."""
+    from local_db import db as local_db_conn
+
+    doc = local_db_conn.catalog_cache.find_one({'business_id': business_id}, {'_id': 0})
+    if not doc:
+        return None
+    doc['products'] = {prod.get('id', key): prod for key, prod in (doc.get('products') or {}).items()}
+    return doc
+
+
+def sync_status(business_id):
+    """Cho màn POS hiện "Offline · N bill chờ đồng bộ" (route /api/desktop/sync_status)."""
+    from local_db import db as local_db_conn
+
+    pending = local_db_conn.pending_sync_orders.count_documents({'business_id': business_id, '_pending_sync': True})
+    failed = local_db_conn.pending_sync_orders.count_documents({'business_id': business_id, 'permanently_failed': True})
+    return {'offline': is_offline_recently(), 'pending': pending, 'failed': failed, 'last_sync_ok_at': _last_sync_ok_at}
+
+
+def queue_offline_order(business_id, computed, customer_phone, customer_name=None, created_by=None):
     """Lưu 1 đơn hàng chưa kịp ghi lên Atlas vào local_db.py. `computed` là dict trả về từ
     _compute_nail_pos_order() trong app.py (đủ dữ liệu để dựng lại order/order_items/chamcong
     y hệt lúc online, KHÔNG cần next_mongo_id() — id thật chỉ cấp lúc đồng bộ thành công).
@@ -50,7 +122,10 @@ def queue_offline_order(business_id, computed, customer_phone):
         '_pending_sync': True,
         'business_id': business_id,
         'customer_phone': customer_phone or None,
-        'computed': computed,
+        'customer_name': customer_name or None,
+        'created_by': created_by,
+        # tuple (product_id, qty, name) -> list: MontyDB/BSON không lưu tuple
+        'computed': {**computed, 'stock_items': [list(x) for x in computed.get('stock_items') or []]},
         'queued_at': datetime.now().isoformat(),
         'sync_attempts': 0,
         'last_error': None,
@@ -65,7 +140,7 @@ def _sync_one_pending(local_db_conn, pending_doc):
     đầu file luôn thì lúc app.py đang load dở sẽ đụng độ). Lúc thread nền này thực sự chạy,
     app.py chắc chắn đã load xong hoàn toàn (launcher.py chỉ start thread SAU khi tạo xong Flask
     app), nên import lazy ở đây an toàn tuyệt đối."""
-    from app import _build_nail_chamcong_docs, _finalize_paid_order
+    from app import _build_nail_chamcong_docs, _finalize_paid_order, _record_pos_transaction
     from mongo_client import db as cloud_db, client as cloud_client, next_mongo_id as cloud_next_id
 
     client_uuid = pending_doc['client_uuid']
@@ -81,6 +156,7 @@ def _sync_one_pending(local_db_conn, pending_doc):
     computed = pending_doc['computed']
     business_id = pending_doc['business_id']
     customer_phone = pending_doc.get('customer_phone')
+    customer_name = pending_doc.get('customer_name')
 
     order_id = cloud_next_id('orders')  # ID THẬT — chỉ cấp lúc chắc chắn đang online
     now_iso = datetime.now().isoformat()
@@ -94,12 +170,16 @@ def _sync_one_pending(local_db_conn, pending_doc):
         'discount_amount': computed['discount_amount'], 'tax_amount': computed['tax_amount'],
         'tip_amount': computed['total_tip'], 'payment_bucket': computed['payment_bucket'],
         'currency': computed['currency'], 'commission_rate': computed.get('commission_rate'),
+        'card_surcharge_amount': computed.get('card_surcharge_amount', 0),
+        'offline_queued_at': pending_doc.get('queued_at'),
     }
     if computed['payment_bucket'] == 'split':
         metadata['split_cash_amount'] = computed['split_cash_amount']
         metadata['split_card_amount'] = computed['split_card_amount']
     if customer_phone:
         metadata['customer_phone'] = customer_phone
+    if customer_name:
+        metadata['customer_name'] = customer_name
     order_doc = {
         'id': order_id,
         'business_id': business_id,
@@ -134,6 +214,20 @@ def _sync_one_pending(local_db_conn, pending_doc):
                 cloud_db.order_items.insert_many(order_items_docs, session=db_session)
             if chamcong_docs:
                 cloud_db.chamcong.insert_many(chamcong_docs, session=db_session)
+            # Sổ cái (Sổ quỹ / Báo cáo lãi lỗ) — trước đây đơn đồng bộ offline không có bản ghi này,
+            # nên doanh thu bán lúc mất mạng không bao giờ hiện trong báo cáo tài chính.
+            _record_pos_transaction(
+                business_id, order_id, computed['total_amount'], computed['payment_method'],
+                created_by=pending_doc.get('created_by') or 'offline-sync', db_session=db_session,
+            )
+            # Trừ kho: hàng đã giao cho khách lúc mất mạng nên KHÔNG chặn khi tồn kho thiếu (khác
+            # bán online) — trừ thẳng để số tồn khớp thực tế, kể cả xuống âm cho chủ tiệm thấy.
+            for product_id, qty, *_rest in computed.get('stock_items') or []:
+                if qty and qty > 0:
+                    cloud_db.products.update_one(
+                        {'id': product_id, 'business_id': business_id, 'stock': {'$exists': True}},
+                        {'$inc': {'stock': -qty}}, session=db_session,
+                    )
 
     if customer_phone:
         try:
@@ -151,6 +245,7 @@ def sync_pending_orders_once():
     đẩy từng đơn lên Atlas. 1 đơn lỗi không được phép chặn các đơn còn lại trong cùng lượt quét."""
     from local_db import db as local_db_conn
 
+    global _last_sync_ok_at
     pending_list = list(local_db_conn.pending_sync_orders.find({'_pending_sync': True}))
     if not pending_list:
         return 0
@@ -161,7 +256,10 @@ def sync_pending_orders_once():
         try:
             if _sync_one_pending(local_db_conn, pending_doc):
                 synced += 1
+                mark_online()
+                _last_sync_ok_at = datetime.now().isoformat()
         except _MONGO_CONNECTION_ERRORS as e:
+            mark_offline()
             # Vẫn chưa có mạng — dừng cả lượt quét này luôn (các đơn còn lại chắc chắn cũng sẽ
             # lỗi y hệt), để lần quét SAU (SYNC_INTERVAL_SECONDS sau) thử lại toàn bộ.
             print(f"[sync_worker] Vẫn chưa có mạng, dừng lượt đồng bộ này: {e}")

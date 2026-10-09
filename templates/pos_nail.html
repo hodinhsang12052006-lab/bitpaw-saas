@@ -785,6 +785,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <div class="fixed -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none z-0"></div>
     <div class="fixed top-1/2 left-1/3 w-[400px] h-[400px] rounded-full bg-cyan-500/3 blur-[100px] pointer-events-none z-0"></div>
 
+    {% if desktop_mode %}
+    {# Bản Desktop: báo mất mạng + số bill đang lưu trên máy chờ đồng bộ (GET /api/desktop/sync_status) #}
+    <div id="offlineSyncBadge" role="status" aria-live="polite"
+         style="position:fixed;left:12px;bottom:12px;z-index:60;display:{{ 'flex' if offline_mode else 'none' }};align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font:600 13px/1.2 system-ui,sans-serif;color:#fff;background:#b45309;box-shadow:0 6px 20px rgba(0,0,0,.35);">
+        <i class="fas fa-wifi"></i><span id="offlineSyncText">Offline</span>
+    </div>
+    {% endif %}
     <!-- ================= STANDALONE FULL-SCREEN POS — NO admin sidebar ================= -->
     <div id="pos-shell" class="relative z-10 flex flex-col overflow-hidden">
         <div id="pos-topbar" class="flex items-center justify-between gap-3 px-4 py-2 shrink-0 bg-slate-950/40 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
@@ -1461,6 +1468,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_receipt_thanks: 'Thank You For Visiting!', npos_receipt_see_again: 'Please come again',
                 npos_cat_all: 'All', npos_remove: 'Remove', npos_assign_tech: 'Assign technician…', npos_toast_added: 'added to ticket',
                 npos_toast_checkout_ok: 'Payment recorded successfully!', npos_toast_checkout_fail: 'Checkout failed: ',
+                npos_toast_checkout_offline: 'Offline: bill saved on this computer, will sync automatically.', npos_offline: 'Offline', npos_pending_sync: '{n} bill(s) waiting to sync', npos_sync_failed: '{n} bill(s) failed to sync — contact support',
                 npos_commission_word: 'commission', npos_tip_word: 'tip',
                 npos_custom_item_btn: 'Add Item', npos_discount_btn: 'Discount', npos_clear_btn: 'Clear', npos_refund_btn: 'Refund',
                 npos_hold_btn: 'Hold Ticket', npos_print_quote_btn: 'Quote',
@@ -1527,6 +1535,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_receipt_thanks: 'Cảm ơn quý khách đã ghé thăm!', npos_receipt_see_again: 'Hẹn gặp lại quý khách',
                 npos_cat_all: 'Tất cả', npos_remove: 'Xoá', npos_assign_tech: 'Chọn thợ…', npos_toast_added: 'đã thêm vào hoá đơn',
                 npos_toast_checkout_ok: 'Đã ghi nhận thanh toán thành công!', npos_toast_checkout_fail: 'Thanh toán thất bại: ',
+                npos_toast_checkout_offline: 'Mất mạng: bill đã lưu trên máy, sẽ tự đồng bộ khi có mạng.', npos_offline: 'Mất mạng', npos_pending_sync: '{n} bill chờ đồng bộ', npos_sync_failed: '{n} bill đồng bộ lỗi — liên hệ hỗ trợ',
                 npos_commission_word: 'hoa hồng', npos_tip_word: 'tiền tip',
                 npos_custom_item_btn: 'Thêm mục', npos_discount_btn: 'Giảm giá', npos_clear_btn: 'Xoá hết', npos_refund_btn: 'Hoàn tiền',
                 npos_hold_btn: 'Giữ hoá đơn', npos_print_quote_btn: 'Báo giá',
@@ -2400,7 +2409,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function populateReceipt(json) {
             const num = (v) => Number(v) || 0;
             try {
-                document.getElementById('receiptOrderId').innerText = `Order #${json.order_id ?? ''}`;
+                document.getElementById('receiptOrderId').innerText = json.pending_sync
+                    ? `Offline #${String(json.client_uuid || '').slice(0, 8).toUpperCase()}`
+                    : `Order #${json.order_id ?? ''}`;
                 document.getElementById('receiptTimestamp').innerText = new Date().toLocaleString('en-US', {
                     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
                 });
@@ -2503,13 +2514,36 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 populateReceipt(json);
                 closePaymentModal();
                 document.getElementById('receiptModal').classList.add('active');
-                showToast(t('npos_toast_checkout_ok'));
+                showToast(json.pending_sync ? t('npos_toast_checkout_offline') : t('npos_toast_checkout_ok'));
+                if (json.pending_sync) refreshOfflineBadge();
             } catch (e) {
                 showToast(t('npos_toast_checkout_fail') + e.message);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
+        }
+
+        // Bản Desktop: badge mất mạng / bill chờ đồng bộ. Bản Web không render badge nên không gọi API.
+        async function refreshOfflineBadge() {
+            const badge = document.getElementById('offlineSyncBadge');
+            if (!badge) return;
+            try {
+                const res = await fetch('/api/desktop/sync_status', { headers: { 'Accept': 'application/json' } });
+                const s = await res.json();
+                if (!s.success) return;
+                const parts = [];
+                if (s.offline) parts.push(t('npos_offline'));
+                if (s.pending > 0) parts.push(t('npos_pending_sync').replace('{n}', s.pending));
+                if (s.failed > 0) parts.push(t('npos_sync_failed').replace('{n}', s.failed));
+                document.getElementById('offlineSyncText').innerText = parts.join(' · ');
+                badge.style.background = s.failed > 0 ? '#b91c1c' : (s.offline ? '#b45309' : '#0e7490');
+                badge.style.display = parts.length ? 'flex' : 'none';
+            } catch (e) { /* server local luôn chạy cùng app — lỗi tạm thời, lượt sau thử lại */ }
+        }
+        if (document.getElementById('offlineSyncBadge')) {
+            refreshOfflineBadge();
+            setInterval(refreshOfflineBadge, 15000);
         }
 
         // ===== Square Terminal (real card-present, async — waits for Square's webhook) =====

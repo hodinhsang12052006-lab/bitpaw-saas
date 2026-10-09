@@ -344,3 +344,19 @@ Google AI Overview mô tả sai: gộp phần mềm quản lý với nền tản
 
 Regression: landing 64 PASS · 2 WARN (ERR_CONNECTION_RESET môi trường local) · 0 FAIL; store compliance 21/21 PASS.
 Việc chủ dự án làm trên bitpawos.com / bitpawnetwork.com + Search Console: `audit-results/SEO_ENTITY_GUIDE.md`.
+
+## Pha 12 — Bản Desktop bán được khi mất mạng (09/10/2026)
+
+Quyết định kiến trúc (chủ dự án chọn): **giữ 1 hệ thống cloud chung** (như KiotViet/Sapo/Square), không tách mỗi tiệm 1 server riêng; bản Desktop (.exe) bán tiếp được khi mất mạng rồi tự đồng bộ.
+
+| # | Lỗi | Đã sửa |
+|---|---|---|
+| 1 | 🔴 `api_nail_pos_checkout` đọc bảng giá từ Atlas TRƯỚC khối bắt lỗi mất mạng -> mất mạng hẳn thì trả 500, nhánh lưu bill offline (`sync_worker`) **không bao giờ chạy** (chỉ chạy khi rớt mạng đúng giữa lúc ghi đơn) | Bảng giá + thợ + % hoa hồng lưu xuống máy mỗi lần mở POS lúc có mạng (`sync_worker.cache_catalog`); mất mạng -> tính tiền bằng bản trên máy |
+| 2 | 🟠 Mỗi bill khi mất mạng chờ ~10s (2 lần timeout Atlas 5s) | Sau lần rớt mạng đầu, 60s tiếp theo bill lưu thẳng xuống máy (0.01s) |
+| 3 | 🟠 Mở lại / tải lại POS khi mất mạng ra lưới dịch vụ trống | `/sell` (Desktop) lấy bảng giá đã lưu khi mất mạng |
+| 4 | 🟠 Đơn đồng bộ offline không có bản ghi sổ cái `transactions` (mất khỏi Sổ quỹ/Báo cáo lãi lỗ), không trừ kho, thiếu tên khách/phụ phí thẻ | Đồng bộ ghi đủ trong cùng transaction; trừ kho không chặn (hàng đã giao) |
+| 5 | 🟡 Cashier không biết đang offline / còn bao nhiêu bill chưa lên hệ thống | Badge "Mất mạng · N bill chờ đồng bộ" (`/api/desktop/sync_status`), hoá đơn ghi "Offline #XXXX" |
+| 6 | 🟡 Launcher crash nếu cổng 5001 bị chiếm; chờ cứng 0.8s; đăng nhập mất mỗi lần tắt app (không mở được POS khi mất mạng lúc mở máy) | Tự lấy cổng trống, chờ server sẵn sàng thật, lưu hồ sơ webview + session Desktop 30 ngày |
+
+Kiểm thử: `scripts/desktop_offline_e2e.py` 15/15 PASS (giả lập mất mạng Atlas, bán 2 bill, mở lại POS, đồng bộ, đối chiếu orders/order_items/chamcong/transactions, dọn sạch). Regression Nails web 10/10 PASS.
+Chưa làm được trên máy này: build `.exe` thật (`auto_build.py`, cần pywebview + PyInstaller) — build và thử rút dây mạng trên máy quầy trước khi giao tiệm.

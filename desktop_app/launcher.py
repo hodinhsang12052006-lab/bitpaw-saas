@@ -4,9 +4,11 @@ chạy Flask bằng werkzeug ở 1 thread nền, rồi mở 1 cửa sổ webview
 Đóng cửa sổ webview -> tắt luôn server Flask nền theo.
 """
 import os
+import socket
 import sys
 import threading
 import time
+import urllib.request
 
 # Ép stdout/stderr UTF-8 NGAY ĐẦU file — đây là entry point THẬT của bản .exe đóng gói
 # (PyInstaller), chạy TRƯỚC cả app.py. Nhiều print() tiếng Việt có dấu (license_manager.py,
@@ -41,13 +43,34 @@ from updater import check_for_update  # noqa: E402
 class ServerThread(threading.Thread):
     def __init__(self, flask_app, port=5001):
         super().__init__(daemon=True)
-        self.srv = make_server('127.0.0.1', port, flask_app, threaded=True)
+        try:
+            self.srv = make_server('127.0.0.1', port, flask_app, threaded=True)
+        except OSError:
+            # Cổng 5001 đang bị chiếm (app khác, hoặc 1 bản BitPaw cũ chưa tắt hẳn) — trước đây
+            # crash ngay khi mở app. Lấy 1 cổng trống bất kỳ do hệ điều hành cấp.
+            self.srv = make_server('127.0.0.1', 0, flask_app, threaded=True)
+        self.port = self.srv.server_port
 
     def run(self):
         self.srv.serve_forever()
 
     def shutdown(self):
         self.srv.shutdown()
+
+
+def wait_until_ready(url, timeout=20.0):
+    """Chờ Flask trả lời thật (thay cho sleep cố định 0.8s — máy quầy chậm/antivirus quét lúc mở
+    app làm cửa sổ hiện trang lỗi "không kết nối được")."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            return True
+        except urllib.error.HTTPError:
+            return True   # 302/401... nghĩa là server đã chạy
+        except (urllib.error.URLError, socket.timeout, ConnectionError):
+            time.sleep(0.2)
+    return False
 
 
 def main():
@@ -72,7 +95,8 @@ def main():
 
     server = ServerThread(app, port=5001)
     server.start()
-    time.sleep(0.8)  # đợi Flask bind port xong trước khi mở cửa sổ webview
+    base_url = f'http://127.0.0.1:{server.port}'
+    wait_until_ready(base_url + '/login')
 
     # Mã 4.1 audit — Offline-Sync: đơn hàng lưu tạm lúc mất mạng (xem sync_worker.queue_offline_order
     # gọi từ app.py) cần 1 thread nền định kỳ thử đẩy lại lên Atlas. Start SAU khi `app` (ở trên)
@@ -83,12 +107,16 @@ def main():
 
     webview.create_window(
         'BitPaw Software',
-        'http://127.0.0.1:5001',
+        base_url,
         width=1440,
         height=900,
         min_size=(1024, 700),
     )
-    webview.start()   # block tới khi người dùng đóng cửa sổ
+    # private_mode=False + storage_path: giữ cookie đăng nhập qua các lần mở app (session Desktop
+    # sống 30 ngày, xem app.py) -> mất mạng lúc mở máy vẫn vào thẳng POS bán bằng bảng giá đã lưu.
+    storage_dir = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'BitPawOS', 'webview')
+    os.makedirs(storage_dir, exist_ok=True)
+    webview.start(private_mode=False, storage_path=storage_dir)   # block tới khi người dùng đóng cửa sổ
     server.shutdown()
 
 

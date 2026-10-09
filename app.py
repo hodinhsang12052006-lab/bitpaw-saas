@@ -203,6 +203,17 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
+# Bản Desktop (.exe, máy quầy riêng của tiệm): giữ đăng nhập qua các lần tắt/mở app (cookie lưu
+# trong hồ sơ webview, xem desktop_app/launcher.py) — để mất mạng lúc mở máy vẫn vào được POS bán
+# bằng bảng giá đã lưu. Bản Web giữ session cookie tắt trình duyệt là hết như cũ.
+if os.environ.get('BITPAW_DESKTOP_MODE') == '1':
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+    @app.before_request
+    def _desktop_persistent_session():
+        if 'user_id' in session and not session.permanent:
+            session.permanent = True
+
 # --- CSRF Protection + Hybrid JWT/Session Auth (Giai đoạn 2 + Giai đoạn 5) ---
 # Giai đoạn 2: bật CSRF cho MỌI request POST/PUT/PATCH/DELETE (trước đó tắt hẳn = lỗ hổng: 1
 # trang độc hại có thể forge request bằng session cookie của nạn nhân, cookie tự động gửi kèm).
@@ -8609,54 +8620,88 @@ def sell():
     business_mode = (session.get('business_mode') or '').strip().lower()
     if business_mode == 'nail':
         business_id = session.get('business_id') or session['user_id']
-        try:
-            services = list(db.products.find(
-                {'business_id': business_id, 'is_active': 1},
-                {'id': 1, 'name': 1, 'category': 1, 'price': 1, 'image': 1, '_id': 0}
-            ).sort('name', 1))
-        except Exception as e:
-            print(f"[sell/nail] Lỗi tải danh mục dịch vụ: {str(e)}")
-            services = []
-        try:
-            # Thợ lấy từ db.employees (linh_vuc='Nails') — ĐÚNG nguồn dữ liệu Salon Staff
-            # Management (chamcong_nail.html) đã và đang dùng, KHÔNG dùng db.staff (hệ thống
-            # commission riêng của sell.html/spa.html cũ) — 2 tenant chưa từng đồng bộ với
-            # nhau, dùng chung nguồn với màn Payroll hiện tại để không cần tạo dữ liệu 2 lần.
-            technicians = list(db.employees.find(
-                {'business_id': business_id, 'linh_vuc': 'Nails'},
-                {'ma_nv': 1, 'ho_ten': 1, '_id': 0}
-            ).sort('ho_ten', 1))
-        except Exception as e:
-            print(f"[sell/nail] Lỗi tải danh sách thợ: {str(e)}")
-            technicians = []
+        is_desktop = _is_desktop_mode()
+        # Bản Desktop mất mạng: mở POS từ bảng giá đã lưu trên máy (sync_worker.cache_catalog)
+        # thay vì chờ Atlas timeout rồi hiện lưới dịch vụ trống.
+        cached = sync_worker.get_cached_catalog(business_id) if is_desktop and sync_worker.is_offline_recently() else None
+        if cached is None:
+            try:
+                services = list(db.products.find(
+                    {'business_id': business_id, 'is_active': 1},
+                    {'id': 1, 'name': 1, 'category': 1, 'price': 1, 'image': 1, 'stock': 1, '_id': 0}
+                ).sort('name', 1))
+                # Thợ lấy từ db.employees (linh_vuc='Nails') — ĐÚNG nguồn dữ liệu Salon Staff
+                # Management (chamcong_nail.html) đã và đang dùng, KHÔNG dùng db.staff (hệ thống
+                # commission riêng của sell.html/spa.html cũ) — 2 tenant chưa từng đồng bộ với
+                # nhau, dùng chung nguồn với màn Payroll hiện tại để không cần tạo dữ liệu 2 lần.
+                technicians = list(db.employees.find(
+                    {'business_id': business_id, 'linh_vuc': 'Nails'},
+                    {'ma_nv': 1, 'ho_ten': 1, '_id': 0}
+                ).sort('ho_ten', 1))
+                commission_rate = _get_business_commission_rate(business_id)
+                if is_desktop:
+                    sync_worker.mark_online()
+                    try:
+                        sync_worker.cache_catalog(business_id, services=services, technicians=technicians,
+                                                  commission_rate=commission_rate)
+                    except Exception as e:
+                        print(f"[sell/nail] Không lưu được bảng giá xuống máy: {e}")
+            except sync_worker.MONGO_CONNECTION_ERRORS as e:
+                print(f"[sell/nail] Mất kết nối Atlas: {e}")
+                if is_desktop:
+                    sync_worker.mark_offline()
+                    cached = sync_worker.get_cached_catalog(business_id)
+                if cached is None:
+                    services, technicians, commission_rate = [], [], DEFAULT_STAFF_COMMISSION_PERCENT
+            except Exception as e:
+                print(f"[sell/nail] Lỗi tải danh mục dịch vụ / thợ: {str(e)}")
+                services, technicians, commission_rate = [], [], DEFAULT_STAFF_COMMISSION_PERCENT
+        if cached is not None:
+            services = cached.get('services') or []
+            technicians = cached.get('technicians') or []
+            commission_rate = cached.get('commission_rate', DEFAULT_STAFF_COMMISSION_PERCENT)
         return render_template(
             'pos_nail.html',
             services=services,
             technicians=technicians,
-            default_commission_rate=_get_business_commission_rate(business_id),
+            default_commission_rate=commission_rate,
             business_id=business_id,
             default_lang=resolve_lang(request),
+            desktop_mode=is_desktop,
+            offline_mode=cached is not None,
         )
     return render_template('sell.html')
 
 
-def _compute_nail_pos_order(business_id, data):
+def _is_desktop_mode():
+    """Đang chạy trong bản Desktop (.exe, desktop_app/launcher.py) — chỉ bản này có ổ cứng cục bộ
+    để bán tiếp khi mất mạng (sync_worker.py)."""
+    return os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+
+
+def _compute_nail_pos_order(business_id, data, offline_catalog=None):
     """Cart -> subtotal/supply/discount/tax/tip/commission computation shared by BOTH the
     synchronous nail_pos checkout AND the async Square Terminal checkout — kept as ONE function
     so the two payment paths can never compute a different commission/tax/discount for the same
     cart (duplicating this formula across routes was flagged as a real drift risk in a prior
     audit). Raises ValueError on bad input (cart empty/invalid) for the caller to turn into a
-    400 response; anything else propagates as-is for a 500."""
+    400 response; anything else propagates as-is for a 500.
+    `offline_catalog` (bản Desktop mất mạng): bảng giá đã lưu trên máy (sync_worker.get_cached_catalog)
+    thay cho việc đọc db.products / % hoa hồng trên Atlas."""
     items = data.get('items') or []
     if not items:
         raise ValueError("Giỏ hàng trống.")
 
     product_ids = [it.get('product_id') for it in items]
-    products_map = {
-        p['id']: p for p in db.products.find(
-            {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
-        )
-    }
+    if offline_catalog is not None:
+        cached_products = offline_catalog.get('products') or {}
+        products_map = {pid: cached_products[pid] for pid in product_ids if pid in cached_products}
+    else:
+        products_map = {
+            p['id']: p for p in db.products.find(
+                {'id': {'$in': product_ids}, 'business_id': business_id}, {'_id': 0}
+            )
+        }
 
     order_items_docs = []
     subtotal = 0.0
@@ -8787,11 +8832,16 @@ def _compute_nail_pos_order(business_id, data):
         card_surcharge_amount = round(split_card_amount * (cc_fee_percent / 100), 2)
     total_amount = round(total_amount_pre_surcharge + card_surcharge_amount, 2)
 
+    def _default_commission():
+        if offline_catalog is not None:
+            return float(offline_catalog.get('commission_rate', DEFAULT_STAFF_COMMISSION_PERCENT))
+        return _get_business_commission_rate(business_id)
+
     commission_rate = data.get('commission_rate')
     try:
-        commission_rate = float(commission_rate) if commission_rate is not None else _get_business_commission_rate(business_id)
+        commission_rate = float(commission_rate) if commission_rate is not None else _default_commission()
     except (TypeError, ValueError):
-        commission_rate = _get_business_commission_rate(business_id)
+        commission_rate = _default_commission()
     commission_rate = max(0.0, min(100.0, commission_rate))
 
     return {
@@ -8876,15 +8926,58 @@ def api_nail_pos_checkout():
     """
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
+    is_desktop = _is_desktop_mode()
+    customer_phone = (data.get('customer_phone') or '').strip()
+    customer_name = (data.get('customer_name') or '').strip()
+
+    def _queue_offline(computed):
+        """Bản Desktop mất mạng: lưu bill xuống máy, thread nền sync_worker tự đẩy lên khi có mạng."""
+        try:
+            client_uuid = sync_worker.queue_offline_order(
+                business_id, computed, customer_phone, customer_name=customer_name,
+                created_by=session.get('user_email') or session.get('user_id'),
+            )
+        except Exception as cache_err:
+            # Cả ghi lên Atlas LẪN lưu tạm cục bộ đều thất bại — đây mới là lỗi thật sự nghiêm
+            # trọng (vd ổ cứng đầy), phải báo lỗi cho cashier biết đơn CHƯA được lưu ở đâu cả.
+            return jsonify({"success": False, "message": f"Mất mạng và lưu tạm cục bộ cũng thất bại: {cache_err}"}), 500
+        return jsonify({
+            "success": True, "order_id": None, "client_uuid": client_uuid, "pending_sync": True,
+            "subtotal": computed['subtotal'], "supply_amount": computed['supply_amount'],
+            "discount_amount": computed['discount_amount'], "tax_amount": computed['tax_amount'],
+            "tip_amount": computed['total_tip'], "total_amount": computed['total_amount'],
+            "card_surcharge_amount": computed['card_surcharge_amount'],
+            "payment_bucket": computed['payment_bucket'],
+            "message": "Mất mạng — đơn đã được lưu tạm trên máy này và sẽ tự đồng bộ lên hệ thống khi có mạng lại.",
+        })
+
+    # Desktop vừa rớt mạng (trong OFFLINE_WINDOW_SECONDS): tính tiền bằng bảng giá trên máy và lưu
+    # bill ngay — không thử Atlas lại cho từng bill (mỗi lần thử mất 5s chờ timeout).
+    offline_catalog = None
+    if is_desktop and sync_worker.is_offline_recently():
+        offline_catalog = sync_worker.get_cached_catalog(business_id)
     try:
-        computed = _compute_nail_pos_order(business_id, data)
+        computed = _compute_nail_pos_order(business_id, data, offline_catalog=offline_catalog)
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 400
+    except sync_worker.MONGO_CONNECTION_ERRORS as e:
+        # Mất mạng ngay ở bước đọc bảng giá — trước đây rơi vào nhánh 500 chung bên dưới, nên bản
+        # Desktop KHÔNG BAO GIỜ bán được khi mất mạng hẳn (chỉ khi rớt đúng giữa lúc ghi đơn).
+        if not is_desktop:
+            return jsonify({"success": False, "message": f"Mất kết nối tới máy chủ, vui lòng thử lại: {str(e)}"}), 503
+        sync_worker.mark_offline()
+        offline_catalog = sync_worker.get_cached_catalog(business_id)
+        if offline_catalog is None:
+            return jsonify({"success": False, "message": "Mất mạng và máy này chưa lưu bảng giá dịch vụ (cần mở POS 1 lần khi có mạng)."}), 503
+        try:
+            computed = _compute_nail_pos_order(business_id, data, offline_catalog=offline_catalog)
+        except ValueError as ve:
+            return jsonify({"success": False, "message": str(ve)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-    customer_phone = (data.get('customer_phone') or '').strip()
-    customer_name = (data.get('customer_name') or '').strip()
+    if offline_catalog is not None:
+        return _queue_offline(computed)
 
     try:
         order_id = next_mongo_id('orders')
@@ -8963,24 +9056,26 @@ def api_nail_pos_checkout():
         # cục bộ để lưu tạm (local_db.py/MontyDB); bản Web/Vercel không có nơi nào để buffer
         # (mỗi lần gọi hàm serverless là 1 instance khác, không có state giữa các lần gọi) nên
         # vẫn phải báo lỗi thẳng như cũ, không đổi hành vi của Web.
-        is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
-        if not is_desktop_mode:
+        if not is_desktop:
             return jsonify({"success": False, "message": f"Mất kết nối tới máy chủ, vui lòng thử lại: {str(e)}"}), 503
-        try:
-            client_uuid = sync_worker.queue_offline_order(business_id, computed, customer_phone)
-        except Exception as cache_err:
-            # Cả ghi lên Atlas LẪN lưu tạm cục bộ đều thất bại — đây mới là lỗi thật sự nghiêm
-            # trọng (vd ổ cứng đầy), phải báo lỗi cho cashier biết đơn CHƯA được lưu ở đâu cả.
-            return jsonify({"success": False, "message": f"Mất mạng và lưu tạm cục bộ cũng thất bại: {cache_err}"}), 500
-        return jsonify({
-            "success": True, "order_id": None, "client_uuid": client_uuid, "pending_sync": True,
-            "subtotal": computed['subtotal'], "supply_amount": computed['supply_amount'],
-            "discount_amount": computed['discount_amount'], "tax_amount": computed['tax_amount'],
-            "tip_amount": computed['total_tip'], "total_amount": computed['total_amount'],
-            "message": "Mất mạng — đơn đã được lưu tạm trên máy này và sẽ tự đồng bộ lên hệ thống khi có mạng lại.",
-        })
+        sync_worker.mark_offline()
+        return _queue_offline(computed)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/desktop/sync_status')
+@login_required
+def api_desktop_sync_status():
+    """Badge "Offline · N bill chờ đồng bộ" trên POS Nails của bản Desktop. Bản Web luôn online."""
+    if not _is_desktop_mode():
+        return jsonify({'success': True, 'desktop': False, 'offline': False, 'pending': 0, 'failed': 0})
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        status = sync_worker.sync_status(business_id)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    return jsonify({'success': True, 'desktop': True, **status})
 
 
 @app.route('/api/nail_pos/square_checkout', methods=['POST'])
