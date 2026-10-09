@@ -432,7 +432,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             return str;
         }
         function applyStaticTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
@@ -480,7 +480,21 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // BẢN ĐỒ & LOGIC CHÍNH
         // ========================================================
         let map = L.map('map', { zoomControl: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        // Ảnh nền: Esri World Dark Gray (hợp giao diện tối, không cần key). tile.openstreetmap.org từ chối kết
+        // nối ở một số mạng (bản đồ trắng) và CARTO giờ trả ảnh "API KEY REQUIRED" khi không có key. Ô nào
+        // của Esri lỗi thì tự đổi sang OSM để bản đồ không bao giờ trắng trơn.
+        const esriTiles = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 16,
+            attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        }).addTo(map);
+        let osmFallbackOn = false;
+        esriTiles.on('tileerror', () => {
+            if (osmFallbackOn) return;
+            osmFallbackOn = true;
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            }).addTo(map).bringToBack();
+        });
 
         const markers = {}; 
         let currentWorkersData = []; 
@@ -570,7 +584,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     map.fitBounds(bounds, { padding: [50, 50] });
                     isMapCentered = true;
                 } else if(!isMapCentered) {
-                    map.setView([14.0583, 108.2772], 6);
+                    // Chưa có thợ nào bật GPS: mở bản đồ ở đúng quốc gia của tiệm (trước luôn mở Việt Nam,
+                    // kể cả tiệm Nails ở Úc/Mỹ).
+                    const COUNTRY_VIEW = { VN: [[14.0583, 108.2772], 6], AU: [[-27.0, 134.0], 4], US: [[39.5, -98.35], 4],
+                        CA: [[56.1, -106.3], 4], GB: [[54.0, -2.0], 5], NZ: [[-41.0, 174.0], 5] };
+                    const [center, zoom] = COUNTRY_VIEW[{{ (tenant_country or 'VN') | tojson }}] || COUNTRY_VIEW.VN;
+                    map.setView(center, zoom);
                     isMapCentered = true;
                 }
 

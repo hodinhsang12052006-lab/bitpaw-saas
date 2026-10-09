@@ -788,6 +788,8 @@ def inject_industry_config():
     # sidebar/navbar — không nạp toàn bộ namespace "landing" (390 khoá) vì chỉ landing.html
     # mới cần tới nó, tự truyền riêng ở route của nó.
     menu_i18n = get_translations(default_lang).get('menu', {})
+    # Cả 2 ngôn ngữ cho nút EN/VI của sidebar đổi tức thì (trang không reload) — xem app_sidebar.html
+    menu_i18n_all = {lang: get_translations(lang).get('menu', {}) for lang in ('vi', 'en')}
 
     return dict(
         industry_config=INDUSTRY_CONFIG,
@@ -797,6 +799,7 @@ def inject_industry_config():
         tenant_currency=tenant_currency,
         default_lang=default_lang,
         menu_i18n=menu_i18n,
+        menu_i18n_all=menu_i18n_all,
         asset_version=_ASSET_VERSION
     )
 
@@ -12516,6 +12519,8 @@ def api_hr_employees_kudo(ma_nv):
         points = int(data.get('points', 1))
     except (TypeError, ValueError):
         points = 1
+    # App chỉ gửi 1 điểm/lần bấm; trước đây nhận mọi số (999999 lên top bảng vinh danh, số âm trừ điểm người khác)
+    points = max(1, min(points, 5))
     try:
         result = db.employees.update_one(
             {'ma_nv': ma_nv, 'business_id': business_id},
@@ -12652,6 +12657,32 @@ def api_hr_chamcong_create():
         return jsonify({"success": False, "error": "Missing employee ID (ma_nv)."}), 400
     try:
         doc = _clamp_chamcong_money_fields(dict(data))
+        # /bangluong tính mỗi bản ghi "Có mặt" KHÔNG có so_gio là 8 giờ công. 2 lỗi cộng dư giờ:
+        #  - Check-in camera/GPS (app_nhanvien.html, diemdanh.html) chỉ chặn trùng bằng localStorage (mất khi
+        #    đăng xuất/đổi máy) -> check-in lần 2 trong ngày = thêm 8h. Giờ: 1 check-in/người/ngày.
+        #  - Chủ tiệm nhập ca có giờ thật (chamcong_nail.html "SHIFT", so_gio > 0) trong ngày thợ đã check-in
+        #    -> 8h mặc định + giờ thật. Giờ: lượt check-in đó chuyển trạng thái 'Check-in' (giữ ảnh/GPS làm
+        #    bằng chứng, không còn tính giờ). Ca gãy (nhiều ca có so_gio) vẫn ghi đủ như cũ.
+        is_attendance = doc.get('trang_thai') in ('Có mặt', 'Trọn Ngày') and doc.get('ngay_cham')
+        try:
+            has_hours = float(doc.get('so_gio') or 0) > 0
+        except (TypeError, ValueError):
+            has_hours = False
+        if is_attendance:
+            same_day_checkins = {
+                'business_id': business_id, 'ma_nv': doc.get('ma_nv'), 'ngay_cham': doc['ngay_cham'],
+                'trang_thai': {'$in': ['Có mặt', 'Trọn Ngày']},
+                '$or': [{'so_gio': {'$exists': False}}, {'so_gio': None}, {'so_gio': 0}, {'so_gio': ''}],
+            }
+            if not has_hours:
+                existing = db.chamcong.find_one({
+                    'business_id': business_id, 'ma_nv': doc.get('ma_nv'), 'ngay_cham': doc['ngay_cham'],
+                    'trang_thai': {'$in': ['Có mặt', 'Trọn Ngày']},
+                }, {'_id': 0})
+                if existing:
+                    return jsonify({"success": True, "data": existing, "duplicate": True})
+            else:
+                db.chamcong.update_many(same_day_checkins, {'$set': {'trang_thai': 'Check-in'}})
         doc['id'] = next_mongo_id('chamcong')
         doc['business_id'] = business_id
         db.chamcong.insert_one(doc)

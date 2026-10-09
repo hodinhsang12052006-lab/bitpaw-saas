@@ -143,11 +143,30 @@
             // changeLanguage() của TRANG (nếu trang đó đã có sẵn cơ chế t()/translations
             // riêng, vd dashboard.html) để đổi tức thì không cần reload; nếu trang chưa có
             // cơ chế đó thì reload để server render lại đúng ngôn ngữ theo cookie mới.
+            window.__BP_MENU_I18N = {{ (menu_i18n_all or {}) | tojson }};
+            // Trang đọc ngôn ngữ từ localStorage, sidebar render theo cookie/server -> lệch nhau thì sidebar
+            // theo đúng ngôn ngữ trang đang hiển thị.
+            document.addEventListener('DOMContentLoaded', function () {
+                var lang = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })();
+                var dict = lang && lang !== "{{ default_lang }}" && (window.__BP_MENU_I18N || {})[lang];
+                if (!dict) return;
+                document.querySelectorAll('#app-sidebar [data-i18n^="menu_"]').forEach(function (el) {
+                    var v = dict[el.getAttribute('data-i18n').slice(5)];
+                    if (v) el.textContent = v;
+                });
+            });
             function __bitpawToggleLang() {
                 var cur = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || "{{ default_lang }}";
                 var next = cur === 'vi' ? 'en' : 'vi';
                 try { localStorage.setItem('bitpaw_lang', next); } catch (e) { /* localStorage bị chặn */ }
                 document.cookie = 'bitpaw_lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
+                // Sidebar tự dịch chính nó: hàm dịch của từng trang bỏ qua #app-sidebar (trước đây trang nào
+                // thiếu khoá menu_* trong từ điển riêng thì sidebar hiện chữ thô "menu_dashboard"...).
+                var menuDict = (window.__BP_MENU_I18N || {})[next] || {};
+                document.querySelectorAll('#app-sidebar [data-i18n^="menu_"]').forEach(function (el) {
+                    var v = menuDict[el.getAttribute('data-i18n').slice(5)];
+                    if (v) el.textContent = v;
+                });
                 if (typeof changeLanguage === 'function') {
                     changeLanguage(next);
                     var btn = document.getElementById('langToggleBtn');

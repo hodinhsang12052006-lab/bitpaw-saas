@@ -360,3 +360,24 @@ Quyết định kiến trúc (chủ dự án chọn): **giữ 1 hệ thống clo
 
 Kiểm thử: `scripts/desktop_offline_e2e.py` 15/15 PASS (giả lập mất mạng Atlas, bán 2 bill, mở lại POS, đồng bộ, đối chiếu orders/order_items/chamcong/transactions, dọn sạch). Regression Nails web 10/10 PASS.
 Chưa làm được trên máy này: build `.exe` thật (`auto_build.py`, cần pywebview + PyInstaller) — build và thử rút dây mạng trên máy quầy trước khi giao tiệm.
+
+## Pha 13 — Test lại ngách Nails theo 3 vai: thợ, chủ tiệm, khách (09/10/2026)
+
+Script mới `scripts/nail_persona_e2e.mjs` (36 bước, đối chiếu DB thật, tự tạo + xoá sạch thợ test) và `scripts/i18n_raw_key_audit.mjs` (tìm khoá dịch thô hiện trên màn hình, 28 trang × 2 ngôn ngữ, kể cả sau khi bấm EN/VI).
+
+| # | Mức | Vai | Lỗi | Đã sửa |
+|---|---|---|---|---|
+| 1 | 🔴 Lương | Thợ | Báo cáo công việc ở app nhân viên cho thợ tự gõ "Revenue/Tips" -> ghi thẳng `chamcong.tien_tua/tien_tips` -> `/bangluong` cộng vào lương (thợ gõ $500 tips là được trả) | Nails/Spa (ăn hoa hồng theo bill POS): ẩn 2 ô, luôn gửi 0 |
+| 2 | 🔴 Lương | Thợ / Chủ tiệm | Chấm công trùng: đăng xuất/đăng nhập lại chấm "Có mặt" lần 2 -> +1 ngày, +8h; chủ tiệm nhập ca có giờ thật trong ngày thợ đã check-in -> 8h mặc định + giờ thật | Server: 1 check-in/người/ngày; ca có `so_gio` chuyển lượt check-in cùng ngày thành "Check-in" (giữ ảnh/GPS, không tính giờ) |
+| 3 | 🟠 Bảo mật | Thợ | Tự đăng ký nhân viên bằng mã công ty `BITPAW2026` ghi cứng (hiện ngay trong placeholder, giống mọi tiệm); mã NV random 4 số có thể trùng (báo nhầm "lỗi kết nối"); không có lựa chọn Nails (thợ tự đăng ký không hiện trong POS) | Bỏ tự đăng ký; hướng dẫn nhờ chủ tiệm thêm ở Quản lý nhân viên |
+| 4 | 🟠 | Thợ | Đơn xin nghỉ / hoàn ứng lưu nháp lúc mất mạng bị đồng bộ nhầm vào `/api/hr/chamcong` -> đơn không bao giờ tới chủ tiệm | Đồng bộ đúng API theo loại đơn |
+| 5 | 🟡 | Thợ | Điểm khen nhận số bất kỳ (999999, số âm) | Giới hạn 1–5/lần |
+| 6 | 🟡 | Thợ | Đơn hoàn ứng hiện "25₫" ở tiệm Úc/Mỹ; nội dung đơn chưa escape | Tiền theo `tenant_currency`; escape |
+| 7 | 🟡 | Thợ | `/diemdanh` ghi cứng ngành "Kỹ Thuật" -> check-in của thợ Nails không hiện ở màn chấm công Nails | Ghi đúng ngành của nhân viên |
+| 8 | 🟠 Giao diện | Chủ tiệm | Sidebar hiện chữ thô `menu_dashboard`, `menu_pos_service`... trên `/map_dashboard` (hàm dịch của trang ghi đè sidebar bằng tên khoá khi thiếu bản dịch); 57 trang dùng chung kiểu code này | Hàm dịch các trang bỏ qua sidebar + giữ chữ gốc khi thiếu khoá; sidebar tự dịch khi bấm EN/VI và theo ngôn ngữ trang |
+| 9 | 🟠 Giao diện | Chủ tiệm | Bản đồ `/map_dashboard` trắng (tile.openstreetmap.org từ chối kết nối, CARTO trả ảnh "API KEY REQUIRED"); luôn mở ở Việt Nam kể cả tiệm Úc/Mỹ | Ảnh nền Esri (tự đổi sang OSM nếu lỗi); mở theo quốc gia của tiệm |
+
+Đã kiểm tra, KHÔNG lỗi: trang đặt lịch của khách tính giờ tối thiểu đúng múi giờ địa phương; khách chưa đăng nhập bị chặn ở 8 trang + 6 API nội bộ; portal chat không bị dò `customer_id`; đặt trùng thợ trùng giờ bị chặn 409; dữ liệu đặt lịch dị dạng trả 400.
+
+Kết quả: persona 36/36 PASS · khoá dịch thô 0/56 lượt · quét toàn trang 117/120 sạch (3 còn lại là đúng thiết kế: `/table_order` thiếu mã bàn 400, `/super-admin` 403) · hồi quy 8 script Nails cũ đều PASS (master 10/10, chu trình kinh doanh 9/9, module dùng chung 9/9, gap 8/8, AI CSKH 7/7, realtime 6/6, POS acceptance, giao diện 42/42 màn hình).
+Còn để ý: đặt lịch công khai không chặn giờ đã qua ở server (UI đã chặn); app nhân viên chạy dưới phiên đăng nhập của chủ tiệm (máy tiệm) — tài khoản đăng nhập riêng cho thợ vẫn là quyết định sản phẩm (Pha 8).

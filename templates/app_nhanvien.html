@@ -116,24 +116,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <div id="formRegister" class="space-y-4 hidden">
-                <input type="text" id="reg_name" placeholder="Employee full name" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-cyan-500 shadow-inner transition-colors">
-                <div class="relative">
-                    <select id="reg_linhvuc" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-cyan-500 appearance-none shadow-inner transition-colors">
-                        <option value="Kỹ Thuật">🔧 Technical</option>
-                        <option value="F&B">🍔 F&B / Restaurant</option>
-                        <option value="Spa">💅 Spa & Nails</option>
-                        <option value="Sản xuất">🏭 Manufacturing</option>
-                        <option value="Khách sạn">🏨 Hotel</option>
-                        <option value="Văn Phòng">💻 Office</option>
-                    </select>
-                    <i class="fas fa-chevron-down absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+                {# Trước đây nhân viên tự tạo hồ sơ bằng "mã công ty" BITPAW2026 ghi cứng trong code (lộ ngay ở
+                   placeholder, giống nhau cho mọi tiệm), mã NV random 4 số có thể trùng thợ khác, và không có
+                   lựa chọn "Nails" (thợ tự đăng ký không hiện trong POS). Giờ chỉ chủ tiệm tạo nhân viên. #}
+                <div class="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-sm text-gray-300 leading-relaxed">
+                    <p class="font-bold text-white mb-2"><i class="fas fa-user-plus mr-1 text-cyan-400"></i> New employee?</p>
+                    <p>Ask the shop owner to add you in <b>Staff Management</b>. You will receive an employee code (e.g. NV0012) to sign in here.</p>
+                    <p class="mt-2 text-gray-400">Nhân viên mới: nhờ chủ tiệm thêm bạn ở mục <b>Quản lý nhân viên</b> để nhận mã nhân viên, rồi đăng nhập bằng mã đó.</p>
                 </div>
-                <div class="relative mt-2 p-4 rounded-xl border border-rose-500/30 bg-rose-500/5">
-                    <label class="block text-rose-400 text-xs font-bold mb-2 uppercase"><i class="fas fa-key mr-1"></i> Company Code</label>
-                    <input type="text" id="reg_admin_code" placeholder="e.g. BITPAW2026" class="w-full bg-black/60 border border-rose-500/50 p-3 rounded-lg text-white outline-none focus:border-rose-400 font-mono uppercase tracking-widest text-center shadow-inner">
-                </div>
-                <button onclick="xuLyDangKy()" id="btn_reg_submit" class="w-full bg-gradient-to-r from-rose-500 to-orange-500 font-black tracking-widest p-4 rounded-xl text-white shadow-[0_10px_20px_rgba(244,63,94,0.3)] mt-4 active:scale-95 transition-transform">
-                    JOIN <i class="fas fa-rocket ml-2"></i>
+                <button type="button" onclick="switchAuthTab('login')" class="w-full bg-white/5 border border-white/10 font-bold tracking-widest p-4 rounded-xl text-white active:scale-95 transition-transform">
+                    <i class="fas fa-arrow-left mr-2"></i> SIGN IN
                 </button>
             </div>
         </div>
@@ -628,40 +620,6 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }
         }
 
-        async function xuLyDangKy() {
-            const name = document.getElementById('reg_name').value.trim();
-            const linhVuc = document.getElementById('reg_linhvuc').value;
-            const adminCode = document.getElementById('reg_admin_code').value.trim();
-
-            if(!name || !adminCode) return showToast("Please fill in all the info!", 'error');
-
-            const btn = document.getElementById('btn_reg_submit');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CREATING...'; btn.disabled = true;
-
-            try {
-                if(adminCode !== "BITPAW2026") {
-                    showToast("Invalid or expired company code!", 'error');
-                    btn.innerHTML = 'JOIN <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false; return;
-                }
-
-                const ma_nv_moi = "NV" + Math.floor(1000 + Math.random() * 9000);
-                await hrApi('/api/hr/employees', {
-                    method: 'POST',
-                    body: JSON.stringify({ ma_nv: ma_nv_moi, ho_ten: name, linh_vuc: linhVuc, chuc_vu: 'Nhân viên mới' }),
-                });
-
-                localStorage.setItem('bp_emp_name', name); localStorage.setItem('bp_emp_code', ma_nv_moi);
-                localStorage.setItem('bp_emp_linhvuc', linhVuc); localStorage.setItem('bp_emp_avatar', '');
-
-                currentUser = { name, code: ma_nv_moi, linhVuc, avatar: '' };
-                showToast(`Registration successful! Your code is: ${ma_nv_moi}`, 'success');
-                setTimeout(vaoAppNgay, 1500);
-            } catch(e) {
-                showToast("Cloud server connection error!", 'error');
-                btn.innerHTML = 'JOIN <i class="fas fa-rocket ml-2"></i>'; btn.disabled = false;
-            }
-        }
-
         async function xuLyDangNhap() {
             const ma_nv = document.getElementById('login_manv').value.trim().toUpperCase();
             if(!ma_nv) return showToast("Please enter your employee code!", 'error');
@@ -728,6 +686,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // ========================================================
         let sigCanvas, sigCtx, isDrawing = false;
 
+        // Thợ Nails/Spa được trả hoa hồng + tips từ bill POS (chamcong ghi tự động khi thanh toán) —
+        // báo cáo công việc của họ không được mang số tiền tự khai vào bảng lương.
+        function isPosPaidIndustry() {
+            const lv = currentUser.linhVuc || '';
+            return lv.includes('Nails') || lv.includes('Spa');
+        }
+
         function setupEvidenceUI() {
             const evZone = document.getElementById('evidence_zone');
             const photoBox = document.getElementById('photo_evidence_box');
@@ -735,6 +700,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             
             if(!currentUser.linhVuc) return;
             evZone.classList.remove('hidden');
+            const moneyRow = document.getElementById('work_money').closest('.grid');
+            if (moneyRow) moneyRow.style.display = isPosPaidIndustry() ? 'none' : '';
 
             if (currentUser.linhVuc.includes('Spa') || currentUser.linhVuc.includes('Nails') || currentUser.linhVuc.includes('F&B')) {
                 photoBox.classList.remove('hidden');
@@ -905,8 +872,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         async function submitWorkReport() {
             const address = document.getElementById('work_address').value;
             const content = document.getElementById('work_content').value;
-            const money = document.getElementById('work_money').value || 0;
-            const tip = document.getElementById('work_tip').value || 0;
+            const money = isPosPaidIndustry() ? 0 : (document.getElementById('work_money').value || 0);
+            const tip = isPosPaidIndustry() ? 0 : (document.getElementById('work_tip').value || 0);
 
             if(!content) return showToast("Vui lòng ghi chú nội dung báo cáo!", 'error');
 
@@ -1139,8 +1106,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if (!rows.length) { box.innerHTML = ''; return; }
                 box.innerHTML = rows.map(r => `
                     <div class="bg-black/40 border border-white/5 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-2">
-                        <span class="text-gray-300 truncate">${r.from_date}${r.to_date && r.to_date !== r.from_date ? ' → ' + r.to_date : ''} · ${r.leave_type || ''}</span>
-                        <span class="font-bold shrink-0">${LEAVE_STATUS_LABEL[r.status] || r.status}</span>
+                        <span class="text-gray-300 truncate">${__escHtml(r.from_date)}${r.to_date && r.to_date !== r.from_date ? ' → ' + __escHtml(r.to_date) : ''} · ${__escHtml(r.leave_type || '')}</span>
+                        <span class="font-bold shrink-0">${LEAVE_STATUS_LABEL[r.status] || __escHtml(r.status)}</span>
                     </div>`).join('');
             } catch (e) { /* non-fatal */ }
         }
@@ -1164,6 +1131,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } catch (e) { showToast("Lỗi gửi đơn: " + e.message, 'error'); }
         }
 
+        const SHOP_CURRENCY = {{ (tenant_currency or 'VND') | tojson }};
+        function formatShopMoney(v) {
+            try { return Number(v).toLocaleString(SHOP_CURRENCY === 'VND' ? 'vi-VN' : 'en-US', { style: 'currency', currency: SHOP_CURRENCY, maximumFractionDigits: SHOP_CURRENCY === 'VND' ? 0 : 2 }); }
+            catch (e) { return String(v); }
+        }
         const EXPENSE_STATUS_LABEL = { pending: '⏳ Chờ duyệt', approved: '✅ Đã duyệt', rejected: '❌ Từ chối' };
         async function loadMyExpenseRequests() {
             const box = document.getElementById('myExpenseRequestsBox');
@@ -1174,8 +1146,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if (!rows.length) { box.innerHTML = ''; return; }
                 box.innerHTML = rows.map(r => `
                     <div class="bg-black/40 border border-white/5 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-2">
-                        <span class="text-gray-300 truncate">${Number(r.amount).toLocaleString('vi-VN')}₫ · ${__escHtml(r.category || '')}</span>
-                        <span class="font-bold shrink-0">${EXPENSE_STATUS_LABEL[r.status] || r.status}</span>
+                        <span class="text-gray-300 truncate">${formatShopMoney(r.amount)} · ${__escHtml(r.category || '')}</span>
+                        <span class="font-bold shrink-0">${EXPENSE_STATUS_LABEL[r.status] || __escHtml(r.status)}</span>
                     </div>`).join('');
             } catch (e) { /* non-fatal */ }
         }
@@ -1242,9 +1214,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const reports = await getAllFromIndexedDB('reports');
             if (reports.length > 0) {
                 for (let i=0; i<reports.length; i++) {
-                    try { let payload = reports[i]; delete payload.id; await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) }); await deleteFromIndexedDB('reports', reports[i].id); } catch(e) {}
+                    try {
+                        const localId = reports[i].id; const payload = { ...reports[i] }; delete payload.id;
+                        const kind = payload._kind; delete payload._kind;
+                        const url = kind === 'leave_request' ? '/api/leave_requests'
+                            : kind === 'expense_request' ? '/api/expense_requests' : '/api/hr/chamcong';
+                        await hrApi(url, { method: 'POST', body: JSON.stringify(payload) });
+                        await deleteFromIndexedDB('reports', localId);
+                    } catch(e) {}
                 }
                 showToast("Đã đồng bộ Nháp Text lên Đám mây.", 'success');
+                loadMyLeaveRequests(); loadMyExpenseRequests();
             }
             const images = await getAllFromIndexedDB('images');
             if (images.length > 0) {
