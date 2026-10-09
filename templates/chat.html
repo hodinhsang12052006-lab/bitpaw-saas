@@ -9,7 +9,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trạm Liên Lạc | BitPaw OS</title>
+    <title>Trạm Liên Lạc | BitPaw Software</title>
     
     <!-- Libraries -->
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -331,7 +331,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -343,7 +343,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi upload (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi upload (${res.status})`);
             }
             return body.url;
         }
@@ -445,16 +445,20 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 timeStr = d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
             } catch(e) { timeStr = t('chat_just_now'); }
 
-            let displayContent = data.content;
+            // Nội dung tin nhắn luôn escape (trước đây chèn thô -> 1 thành viên gửi <img onerror> là chạy
+            // script trong phiên của mọi người mở /chat). URL ảnh chỉ nhận http(s) hoặc đường dẫn nội bộ.
+            const rawContent = String(data.content == null ? '' : data.content);
+            const safeUrl = (u) => /^(https?:\/\/|\/)/i.test(u) ? u : '';
+            let displayContent = __escHtml(rawContent);
             let isMedia = false;
 
-            if (displayContent.startsWith('[IMG]')) {
-                let url = displayContent.replace('[IMG]', '');
-                displayContent = `<img src="${url}" class="chat-image" onclick="viewPhoto('${url}')" alt="${t('chat_alt_image')}" loading="lazy">`;
+            if (rawContent.startsWith('[IMG]')) {
+                let url = safeUrl(rawContent.replace('[IMG]', ''));
+                displayContent = `<img src="${__escHtml(url)}" class="chat-image" onclick="viewPhoto('${__escJsAttr(url)}')" alt="${t('chat_alt_image')}" loading="lazy">`;
                 isMedia = true;
-            } else if (displayContent.startsWith('[GIF]')) {
-                let url = displayContent.replace('[GIF]', '');
-                displayContent = `<img src="${url}" class="rounded-xl border-2 border-fuchsia-500/30 max-w-[200px] shadow-[0_0_15px_rgba(217,70,239,0.2)]" alt="${t('chat_alt_meme')}" loading="lazy">`;
+            } else if (rawContent.startsWith('[GIF]')) {
+                let url = safeUrl(rawContent.replace('[GIF]', ''));
+                displayContent = `<img src="${__escHtml(url)}" class="rounded-xl border-2 border-fuchsia-500/30 max-w-[200px] shadow-[0_0_15px_rgba(217,70,239,0.2)]" alt="${t('chat_alt_meme')}" loading="lazy">`;
                 isMedia = true;
             }
 

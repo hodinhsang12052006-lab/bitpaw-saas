@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo cáo lợi nhuận | BitPaw OS</title>
+    <title>Báo cáo lợi nhuận | BitPaw Software</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -355,15 +355,26 @@
             // Nhóm theo kỳ (tháng/quý/năm)
             const reportMap = new Map();
             for (const t of data) {
-                const date = new Date(t.transaction_date);
+                // Lấy năm/tháng trực tiếp từ chuỗi 'YYYY-MM-DD' — new Date('YYYY-MM-DD') parse theo UTC
+                // nên ở múi giờ âm ngày 01 bị lùi sang tháng trước.
+                const ds = String(t.transaction_date || '');
+                let yr, mo;
+                if (/^\d{4}-\d{2}/.test(ds)) {
+                    yr = parseInt(ds.slice(0, 4), 10);
+                    mo = parseInt(ds.slice(5, 7), 10);
+                } else {
+                    const date = new Date(t.transaction_date);
+                    yr = date.getFullYear();
+                    mo = date.getMonth() + 1;
+                }
                 let periodKey = '';
                 if (period === 'month') {
-                    periodKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+                    periodKey = `${yr}-${String(mo).padStart(2,'0')}`;
                 } else if (period === 'quarter') {
-                    const quarter = Math.floor(date.getMonth() / 3) + 1;
-                    periodKey = `${date.getFullYear()}-Q${quarter}`;
+                    const quarter = Math.floor((mo - 1) / 3) + 1;
+                    periodKey = `${yr}-Q${quarter}`;
                 } else {
-                    periodKey = `${date.getFullYear()}`;
+                    periodKey = `${yr}`;
                 }
 
                 if (!reportMap.has(periodKey)) {
@@ -480,7 +491,7 @@
             element.innerHTML = `
                 <div style="padding:20px; font-family: 'Inter'; background:#fff; color:#000;">
                     <h1 style="text-align:center;">${t('baocaoloinhuan_pdf_title')}</h1>
-                    <p style="text-align:center;">BitPaw OS</p>
+                    <p style="text-align:center;">BitPaw Software</p>
                     <hr/>
                     <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; margin-top:20px;">
                         <thead>

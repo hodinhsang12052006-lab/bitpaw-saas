@@ -118,12 +118,12 @@ document.addEventListener("DOMContentLoaded", function() {
         // Differences
         "sự khác biệt": { en: "The Key Differences", zh: "核心差异对比" },
         "vượt trội": { en: "Outstanding Advantages", zh: "显著竞争优势" },
-        "tại sao các thương hiệu spa & beauty lớn chọn bitpaw os thay vì cách quản lý cũ?": {
-            en: "Why top Spa & Beauty brands choose BitPaw OS over outdated manual methods?",
-            zh: "为什么知名美容会所品牌选择 BitPaw OS 而不是传统的管理模式？"
+        "tại sao các thương hiệu spa & beauty lớn chọn bitpaw software thay vì cách quản lý cũ?": {
+            en: "Why top Spa & Beauty brands choose BitPaw Software over outdated manual methods?",
+            zh: "为什么知名美容会所品牌选择 BitPaw Software 而不是传统的管理模式？"
         },
         "cách quản lý thủ công / phần mềm cũ": { en: "Manual Methods / Legacy Software", zh: "传统手工管理 / 老旧软件" },
-        "bitpaw os spa & beauty": { en: "BitPaw OS Spa & Beauty", zh: "BitPaw 智能美容美体系统" },
+        "bitpaw software spa & beauty": { en: "BitPaw Software Spa & Beauty", zh: "BitPaw 智能美容美体系统" },
         "thẻ liệu trình giấy rách/mất, nhân viên tự ghi khống buổi làm.": {
             en: "Paper cards easily torn/lost, staff cheat on sessions.",
             zh: "纸质疗程卡易破损丢失，员工私自虚报服务次数。"

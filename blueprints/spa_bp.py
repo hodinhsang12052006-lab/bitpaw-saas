@@ -210,10 +210,18 @@ def create_appointment():
         # trước khi query (fallback về giá trị gốc nếu không phải số, phòng khi có id dạng chuỗi
         # ở nơi khác) để khớp đúng kiểu đang lưu thật trong DB.
         raw_service_id = data.get('service_id')
+        # Route công khai: chỉ nhận số nguyên — trước đây giá trị không ép được kiểu (vd dict
+        # {"$gt": 0}) đi thẳng vào query, khớp bừa dịch vụ của tiệm khác.
         try:
             service_id = int(raw_service_id)
         except (TypeError, ValueError):
-            service_id = raw_service_id
+            return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
+        staff_raw = data.get('staff_id')
+        if staff_raw not in (None, '') and not isinstance(staff_raw, (str, int)):
+            return jsonify({'success': False, 'message': 'Nhân viên không hợp lệ.'}), 400
+        for _f in ('name', 'phone', 'book_time'):
+            if not isinstance(data.get(_f), str) or not data.get(_f).strip():
+                return jsonify({'success': False, 'message': 'Thiếu thông tin đặt lịch.'}), 400
         svc = db.products.find_one({'id': service_id}, {'business_id': 1, 'name': 1, '_id': 0})
         if not svc:
             return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400

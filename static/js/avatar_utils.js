@@ -8,11 +8,27 @@ function bpAvatarUrl(name) {
         '&background=0D8ABC&color=fff&bold=true';
 }
 
+function bpEscAttr(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+// Chi chap nhan URL http(s), duong dan tuong doi, hoac data:image/* — chan javascript:, data:text/html...
+function bpSafeImgSrc(url) {
+    var u = (url == null ? '' : String(url)).trim();
+    if (!u) return '';
+    if (/^https?:\/\//i.test(u) || /^data:image\//i.test(u)) return u;
+    if (/^\/\//.test(u)) return u; // protocol-relative
+    if (/^[a-z][a-z0-9+.\-]*:/i.test(u)) return ''; // scheme khac (javascript:, data:text...) -> bo
+    return u; // duong dan tuong doi
+}
+
 function bpAvatarImg(name, avatarUrl, extraClass) {
     var safeName = (name || '?').toString().trim() || '?';
-    var src = avatarUrl || bpAvatarUrl(safeName);
+    var src = bpSafeImgSrc(avatarUrl) || bpAvatarUrl(safeName);
     var cls = 'w-full h-full object-cover' + (extraClass ? (' ' + extraClass) : '');
-    var altText = safeName.replace(/"/g, '');
-    return '<img src="' + src + '" class="' + cls + '" alt="' + altText + '" ' +
-        'onerror="this.onerror=null;this.src=bpAvatarUrl(\'' + altText.replace(/'/g, "\\'") + '\');">';
+    var jsName = safeName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+    return '<img src="' + bpEscAttr(src) + '" class="' + bpEscAttr(cls) + '" alt="' + bpEscAttr(safeName) + '" ' +
+        'onerror="this.onerror=null;this.src=bpAvatarUrl(\'' + bpEscAttr(jsName) + '\');">';
 }

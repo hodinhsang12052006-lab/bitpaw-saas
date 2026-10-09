@@ -215,7 +215,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
             const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.white38),
             const SizedBox(height: 16),
             const Text(
-              'Cannot reach BitPaw OS',
+              'Cannot reach BitPaw Software',
               style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),

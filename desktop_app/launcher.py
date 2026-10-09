@@ -82,7 +82,7 @@ def main():
     sync_worker.start_background_sync()
 
     webview.create_window(
-        'BitPaw OS',
+        'BitPaw Software',
         'http://127.0.0.1:5001',
         width=1440,
         height=900,

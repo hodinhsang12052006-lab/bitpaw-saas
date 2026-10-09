@@ -538,7 +538,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     const visitDate = c.last_visit || c.join_date;
                     const dateStr = visitDate ? new Date(visitDate).toLocaleDateString('vi-VN') : '---';
                     const name = c.full_name || c.name || '';
-                    const source = c.source || '—';
+                    const source = c.source_platform || c.source || '—';
                     return `
                         <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors bg-black/20 group">
                             <td class="py-4 px-4 border-r border-white/5">
@@ -797,7 +797,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                 <span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded border border-yellow-500/30 flex items-center gap-1"><i class="far fa-clock text-[7px]"></i> ${wf.delay_minutes} ${t('crm_automation_unit_minutes')}</span>
                             </div>
 
-                            <p class="text-[11px] text-gray-400 font-medium leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5 line-clamp-2">"${wf.message_template}"</p>
+                            <p class="text-[11px] text-gray-400 font-medium leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5 line-clamp-2">"${__escHtml(wf.message_template)}"</p>
 
                             <!-- Action Controls inside list item -->
                             <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between gap-2">
@@ -920,7 +920,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 document.getElementById('wfDelayUnit').value = unit;
                 
                 // Update editor header status
-                document.getElementById('editorTitle').innerHTML = `<i class="fas fa-edit"></i> ${tf('crm_automation_editor_title_edit', {name: wf.name})}`;
+                document.getElementById('editorTitle').innerHTML = `<i class="fas fa-edit"></i> ${tf('crm_automation_editor_title_edit', {name: __escHtml(wf.name)})}`;
                 document.getElementById('editorStatusBadge').innerText = t('crm_automation_status_editing');
                 document.getElementById('editorStatusBadge').className = 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded text-[8px] font-black uppercase';
 
@@ -1073,10 +1073,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     return `
                         <tr class="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
                             <td class="py-3 px-3 font-mono text-[10px] text-gray-400">${dateStr}</td>
-                            <td class="py-3 px-3 font-bold text-white">${log.scenario_name}</td>
-                            <td class="py-3 px-3 font-mono font-bold">${log.customer_id}</td>
+                            <td class="py-3 px-3 font-bold text-white">${__escHtml(log.scenario_name)}</td>
+                            <td class="py-3 px-3 font-mono font-bold">${__escHtml(log.customer_id)}</td>
                             <td class="py-3 px-3 uppercase text-[9px] font-black text-fuchsia-400">${log.channel.replace(/_/g, ' ')}</td>
-                            <td class="py-3 px-3 max-w-xs truncate text-[11px] italic" title="${log.message_content}">"${log.message_content}"</td>
+                            <td class="py-3 px-3 max-w-xs truncate text-[11px] italic" title="${__escHtml(log.message_content)}">"${__escHtml(log.message_content)}"</td>
                             <td class="py-3 px-3 text-center">
                                 <span class="px-2 py-0.5 rounded text-[8px] font-black tracking-wider ${statusClass}">${statusLabel}</span>
                             </td>

@@ -205,7 +205,7 @@
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -296,8 +296,8 @@
             try {
                 const body = await hrApi('/api/inventory/products');
                 products = body.data || [];
-                applyFilters();
                 await loadThresholds();
+                applyFilters();
             } catch (err) { showToast(t('inventory_alert_toast_load_error_prefix') + err.message, true); }
             finally { showLoading(false); }
         }
@@ -517,7 +517,7 @@
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
-        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+        function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m])); }
 
         // Đề xuất nhập hàng do AI tạo tự động mỗi ngày (xem app.py: /api/cron/daily_tasks)
         async function loadRestockProposals() {

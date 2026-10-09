@@ -350,7 +350,7 @@
     <div id="invoiceTemplate" style="display: none;">
         <div class="invoice-wrapper">
             <div class="invoice-header">
-                <div class="invoice-title">BITPAW OS</div>
+                <div class="invoice-title">BITPAW SOFTWARE</div>
                 <div class="invoice-subtitle">Electronic Invoice / Hóa đơn điện tử</div>
             </div>
             <div class="invoice-row">
@@ -629,7 +629,7 @@
             if (invoiceContainer && itemsList.length > 0) {
                 let itemsHtml = itemsList.map(i => `
                     <div class="flex justify-between text-xs text-gray-300 mt-2">
-                        <span>${escapeHtml(i.name)} (x${i.quantity})</span>
+                        <span>${escapeHtml(i.name)} (x${escapeHtml(i.quantity)})</span>
                         <span class="font-mono">${formatAmt(i.total)}</span>
                     </div>
                 `).join('');
@@ -640,8 +640,8 @@
                     </h3>
                     <div class="space-y-2 text-xs text-gray-300">
                         <div class="flex justify-between"><span>Cửa hàng / Store:</span><span class="font-bold text-cyan-300">${storeName}</span></div>
-                        <div class="flex justify-between"><span>${locationLabel}:</span><span class="font-bold text-white">${storedAddress}</span></div>
-                        <div class="flex justify-between"><span>Khách hàng / Client:</span><span>${storedCustomer}</span></div>
+                        <div class="flex justify-between"><span>${locationLabel}:</span><span class="font-bold text-white">${escapeHtml(storedAddress)}</span></div>
+                        <div class="flex justify-between"><span>Khách hàng / Client:</span><span>${escapeHtml(storedCustomer)}</span></div>
                         <div class="flex justify-between border-t border-white/5 pt-2 mt-2"><span>${t('pay_success_products_services')}</span></div>
                         <div class="max-h-36 overflow-y-auto pr-1 border-b border-white/5 pb-2">
                             ${itemsHtml}
@@ -650,7 +650,7 @@
                         <div class="flex justify-between text-[11px]"><span>${t('pay_success_vat_tax')}</span><span class="font-mono">+${formatAmt(vatVal)}</span></div>
                         <div class="flex justify-between font-bold text-base text-cyan-400 border-t border-cyan-500/20 pt-2 mt-2">
                             <span>${t('pay_success_total_payment')}</span>
-                            <span class="font-mono text-emerald-400 text-lg">${amountDisplay}</span>
+                            <span class="font-mono text-emerald-400 text-lg">${escapeHtml(amountDisplay)}</span>
                         </div>
                     </div>
                 `;
@@ -685,9 +685,9 @@
                                 return `
                                     <tr>
                                         <td style="padding: 4px 0;">${escapeHtml(i.name)}</td>
-                                        <td style="text-align: center; padding: 4px 0;">${i.quantity}</td>
-                                        <td style="text-align: right; padding: 4px 0;">${i.price.toLocaleString('vi-VN')}</td>
-                                        <td style="text-align: right; padding: 4px 0;">${i.total.toLocaleString('vi-VN')}</td>
+                                        <td style="text-align: center; padding: 4px 0;">${escapeHtml(i.quantity)}</td>
+                                        <td style="text-align: right; padding: 4px 0;">${escapeHtml(i.price.toLocaleString('vi-VN'))}</td>
+                                        <td style="text-align: right; padding: 4px 0;">${escapeHtml(i.total.toLocaleString('vi-VN'))}</td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -700,7 +700,7 @@
                 printItemsHtml = `
                     <div class="invoice-row" style="margin: 10px 0;">
                         <span>Dịch vụ Premium SaaS BitPaw</span>
-                        <span>${amountDisplay}</span>
+                        <span>${escapeHtml(amountDisplay)}</span>
                     </div>
                 `;
             }
@@ -714,7 +714,7 @@
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Mã đơn / Order ID:</span>
-                        <span style="font-weight: bold;">#${txnId}</span>
+                        <span style="font-weight: bold;">#${escapeHtml(txnId)}</span>
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Thời gian / Time:</span>
@@ -722,7 +722,7 @@
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Thanh toán / Method:</span>
-                        <span>${method}</span>
+                        <span>${escapeHtml(method)}</span>
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Trạng thái / Status:</span>
@@ -730,11 +730,11 @@
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Vị trí / Position:</span>
-                        <span style="font-weight: bold;">${storedAddress}</span>
+                        <span style="font-weight: bold;">${escapeHtml(storedAddress)}</span>
                     </div>
                     <div class="invoice-row" style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
                         <span>Khách hàng / Client:</span>
-                        <span>${storedCustomer}</span>
+                        <span>${escapeHtml(storedCustomer)}</span>
                     </div>
                     <hr style="border-top: 1px dashed #000; margin: 10px 0;">
                     
@@ -757,13 +757,13 @@
                     </div>
                     <div class="invoice-row invoice-total" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 8px; margin-top: 8px;">
                         <span>${t('pay_success_print_grand_total')}</span>
-                        <span>${amountDisplay}</span>
+                        <span>${escapeHtml(amountDisplay)}</span>
                     </div>
 
                     <hr style="border-top: 2px solid #000; margin: 15px 0 10px 0;">
                     <div class="invoice-footer" style="text-align: center; font-size: 10px; line-height: 1.4;">
                         <p style="font-weight: bold; margin: 2px 0;">${t('pay_success_print_thanks')}</p>
-                        <p style="font-size: 8px; color: #888; margin-top: 5px;">Powered by BitPaw OS platform</p>
+                        <p style="font-size: 8px; color: #888; margin-top: 5px;">Powered by BitPaw Software platform</p>
                     </div>
                 </div>
             `;
@@ -772,7 +772,7 @@
             printWindow.document.write(`
                 <html>
                 <head>
-                    <title>Print Invoice #${txnId}</title>
+                    <title>Print Invoice #${escapeHtml(txnId)}</title>
                     <style>
                         body { background: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; }
                         @media print { body { margin: 0; padding: 0; } }

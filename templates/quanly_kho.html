@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Kho Vật Tư | BitPaw Enterprise</title>
@@ -222,12 +226,12 @@
                 
                 tbody.innerHTML += `
                     <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors group bg-black/20 backdrop-blur-sm">
-                        <td class="py-4 px-4 font-black text-white tracking-wide border-r border-white/5">${item.ten_vat_tu}</td>
+                        <td class="py-4 px-4 font-black text-white tracking-wide border-r border-white/5">${__escHtml(item.ten_vat_tu)}</td>
                         <td class="py-4 px-4 text-center text-xl font-mono ${stockClass} border-r border-white/5 shadow-inner">
                             ${item.ton_kho}
                             ${isCritical ? `<i class="fas fa-exclamation-triangle text-sm text-rose-500 ml-1 drop-shadow-md animate-pulse" title="${t('qk_title_low_stock')}"></i>` : ''}
                         </td>
-                        <td class="py-4 px-4 text-center text-cyan-400 text-xs font-black uppercase tracking-widest border-r border-white/5">${item.don_vi}</td>
+                        <td class="py-4 px-4 text-center text-cyan-400 text-xs font-black uppercase tracking-widest border-r border-white/5">${__escHtml(item.don_vi)}</td>
                         <td class="py-4 px-4 text-center">
                             <button onclick="editItem(${item.id})" class="text-blue-400 hover:text-white w-10 h-10 rounded-xl bg-blue-500/10 hover:bg-blue-500 transition-colors shadow-sm border border-blue-500/30" title="${t('qk_title_edit')}"><i class="fas fa-edit"></i></button>
                             <button onclick="deleteItem(${item.id})" class="text-rose-400 hover:text-white w-10 h-10 rounded-xl bg-rose-500/10 hover:bg-rose-500 transition-colors ml-2 shadow-sm border border-rose-500/30" title="${t('qk_title_delete')}"><i class="fas fa-trash-alt"></i></button>

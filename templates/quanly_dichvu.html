@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
 <head>
+<script>
+window.__escHtml = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')); };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý Menu & Chợ Dịch Vụ | BitPaw Enterprise</title>
@@ -310,7 +314,7 @@
                     return `
                     <tr class="hover:bg-white/[0.05] border-b border-white/5 transition-colors group bg-black/20 backdrop-blur-sm">
                         <td class="p-5 font-mono text-gray-500 text-xs font-black text-center border-r border-white/5">#${dv.id}</td>
-                        <td class="p-5 font-black text-white group-hover:text-pink-300 transition-colors tracking-wide border-r border-white/5">${dv.ten_dich_vu}</td>
+                        <td class="p-5 font-black text-white group-hover:text-pink-300 transition-colors tracking-wide border-r border-white/5">${__escHtml(dv.ten_dich_vu)}</td>
                         <td class="p-5 text-emerald-400 font-mono font-black text-base text-center bg-emerald-900/10 border-r border-white/5 shadow-inner">${giaThu} ₫</td>
                         <td class="p-5 text-purple-400 font-mono font-black text-base text-center bg-purple-900/10 border-r border-white/5 shadow-inner">${hoaHong} ₫</td>
                         <td class="p-5 text-center">
@@ -370,7 +374,7 @@
             let options = `<option value="" class="bg-gray-900 text-gray-500">${t('qld_option_manual_note')}</option>`;
             globalMenuData.forEach(dv => {
                 const giaThu = dv.gia_dich_vu ? Number(dv.gia_dich_vu).toLocaleString('vi-VN') : '0';
-                options += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - ${t('qld_label_collect')}: ${giaThu}đ</option>`;
+                options += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${__escHtml(dv.ten_dich_vu)} -${t('qld_label_collect')}: ${giaThu}đ</option>`;
             });
             selectBox.innerHTML = options;
         }

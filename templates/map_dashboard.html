@@ -9,7 +9,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dispatch Radar | BitPaw OS</title>
+    <title>Dispatch Radar | BitPaw Software</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -447,7 +447,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 let opt = `<option value="" class="bg-gray-900">${t('map_dashboard_opt_manual_note')}</option>`;
                 globalMenuData.forEach(dv => {
                     const giaThu = dv.gia_dich_vu ? Number(dv.gia_dich_vu).toLocaleString('vi-VN') : '0';
-                    opt += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - ${t('map_dashboard_svc_charge_label')}: ${giaThu}đ</option>`;
+                    opt += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${__escHtml(dv.ten_dich_vu)} - ${t('map_dashboard_svc_charge_label')}: ${giaThu}đ</option>`;
                 });
                 document.getElementById('manual_service_select').innerHTML = opt;
             }
@@ -499,7 +499,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     let opt = `<option value="" class="bg-gray-900">${t('map_dashboard_opt_manual_note')}</option>`;
                     data.forEach(dv => {
                         const giaThu = dv.gia_dich_vu ? Number(dv.gia_dich_vu).toLocaleString('vi-VN') : '0';
-                        opt += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${dv.ten_dich_vu} - ${t('map_dashboard_svc_charge_label')}: ${giaThu}đ</option>`;
+                        opt += `<option value="${dv.id}" class="bg-gray-900 text-pink-300">${__escHtml(dv.ten_dich_vu)} - ${t('map_dashboard_svc_charge_label')}: ${giaThu}đ</option>`;
                     });
                     document.getElementById('manual_service_select').innerHTML = opt;
                 }
@@ -543,7 +543,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                 
                                 <div class="mt-2 bg-black/60 px-2.5 py-1 rounded border border-white/5 text-[9px] font-mono flex items-center gap-2 w-fit uppercase font-bold tracking-widest shadow-inner">
                                     <i class="fas fa-user-tag ${profColor}"></i>
-                                    <span class="${profColor}">${profession}</span>
+                                    <span class="${profColor}">${__escHtml(profession)}</span>
                                 </div>
 
                                 <div class="flex gap-2 mt-4">
@@ -612,7 +612,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             </div>
                         </div>
                         <div class="mt-1.5 px-3 py-1 bg-[#08061a]/95 border border-white/20 rounded-lg text-[9px] font-black tracking-widest uppercase text-white whitespace-nowrap shadow-lg">
-                            ${ho_ten}
+                            ${__escHtml(ho_ten)}
                         </div>
                     </div>`
             });
@@ -638,7 +638,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     card.classList.add('border-emerald-500/50'); card.classList.remove('border-rose-500/50');
                     btn.classList.remove('hidden'); btn.classList.add('flex');
                 } else if(trang_thai_gps === 'Bận') {
-                    statusText.innerHTML = `<span class="text-rose-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full mr-1 animate-pulse"></div> ${t('map_dashboard_status_busy_short')}</span><br><span class="text-[10px] font-bold truncate block w-full text-white mt-1" title="${nhiem_vu_hien_tai || ''}">📍 ${nhiem_vu_hien_tai || t('map_dashboard_working_default')}</span>`;
+                    statusText.innerHTML = `<span class="text-rose-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full mr-1 animate-pulse"></div> ${t('map_dashboard_status_busy_short')}</span><br><span class="text-[10px] font-bold truncate block w-full text-white mt-1" title="${__escHtml(nhiem_vu_hien_tai || '')}">📍 ${__escHtml(nhiem_vu_hien_tai || t('map_dashboard_working_default'))}</span>`;
                     dot.className = "absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-[#08061a] rounded-full z-10 shadow-[0_0_10px_#f43f5e]";
                     card.classList.add('border-rose-500/50'); card.classList.remove('border-emerald-500/50');
                     btn.classList.add('hidden'); btn.classList.remove('flex');

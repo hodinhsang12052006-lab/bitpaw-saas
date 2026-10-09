@@ -373,7 +373,7 @@
                 const matchUser = user === '' || (l.user_email || '').toLowerCase().includes(user);
                 let matchDate = true;
                 if (start && l.created_at && l.created_at < start) matchDate = false;
-                if (end && matchDate && l.created_at && l.created_at > end + ' 23:59:59') matchDate = false;
+                if (end && matchDate && l.created_at && String(l.created_at).slice(0, 10) > end) matchDate = false;
                 return matchSearch && matchAction && matchUser && matchDate;
             });
             currentPage = 1;

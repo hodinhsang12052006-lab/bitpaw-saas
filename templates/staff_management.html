@@ -478,7 +478,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -660,7 +660,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+            return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
         }
 
         function getRoleBadge(role) {

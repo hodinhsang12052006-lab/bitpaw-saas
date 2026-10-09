@@ -18,7 +18,7 @@
        - og_locale              mặc định 'en_US' (site cam kết tiếng Anh là ngôn ngữ gốc)
        - image_filename         ảnh OG/Twitter, mặc định 'cho1.jpg' (1024x559)
        - logo_filename          ảnh favicon + logo schema Organization, mặc định 'icon.jpg' (1024x1024, vuông)
-       - schema_name            tên phần mềm cho SoftwareApplication, mặc định 'BitPaw OS'
+       - schema_name            tên phần mềm cho SoftwareApplication, mặc định 'BitPaw Software'
        - schema_subcategory     mặc định 'Point of Sale System, Human Resources Management System'
        - offer_low / offer_high giá USD thấp nhất/cao nhất hiển thị ở trang, mặc định 49.99/79.99
        - faq_items              list các {q, a} — bỏ trống thì KHÔNG render schema FAQPage
@@ -28,14 +28,14 @@
      templates/landing_nail.html — copy nguyên khối đó cho trang ngách khác.
      ============================================================================= -->
 
-{% set _title = title | default('BitPaw OS | Automated SaaS Infrastructure & AI OS for F&B and Nail Salons') %}
-{% set _description = description | default('BitPaw OS is the automated SaaS infrastructure and AI operating system built for F&B restaurants and nail salons — unifying smart POS, payroll, CRM, and AI customer engagement in one platform.') %}
+{% set _title = title | default('BitPaw Software | POS, Payroll & CRM Software for Nail Salons, Spas and Restaurants') %}
+{% set _description = description | default('BitPaw Software is business management software for nail salons, spas, restaurants and retail — smart POS, staff payroll and commission, CRM and AI customer care in one app.') %}
 {% set _canonical_url = request.url_root ~ (canonical_path | default('landing')) %}
 {% set _og_locale = og_locale | default('en_US') %}
 {% set _logo_filename = logo_filename | default('logo_b.jpg') %}
 {% set _image_url = url_for('static', filename=(image_filename | default('cho1.jpg')), _external=True) %}
 {% set _logo_url = url_for('static', filename=_logo_filename, _external=True) %}
-{% set _schema_name = schema_name | default('BitPaw OS') %}
+{% set _schema_name = schema_name | default('BitPaw Software') %}
 {% set _schema_subcategory = schema_subcategory | default('Point of Sale System, Human Resources Management System') %}
 {% set _offer_low = offer_low | default(49.99) %}
 {% set _offer_high = offer_high | default(79.99) %}
@@ -72,7 +72,7 @@
 <!-- Invisible Entity Attribution for Google Knowledge Graph & AI Overview -->
 <meta name="author" content="Hồ Đình Sang (Cún)">
 <meta name="creator" content="Hồ Đình Sang">
-<meta name="publisher" content="BitPaw Ecosystem">
+<meta name="publisher" content="BitPaw Software">
 
 <!-- ================= TECHNICAL SEO: CANONICAL + HREFLANG =================
      _canonical_url build từ request.url_root (domain gốc, luôn có dấu "/" cuối)
@@ -88,12 +88,12 @@
 
 <!-- ================= OPEN GRAPH (Facebook / iMessage / WhatsApp / LinkedIn / Zalo) ================= -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="BitPaw OS">
+<meta property="og:site_name" content="BitPaw Software">
 <meta property="og:title" content="{{ _title }}">
 <meta property="og:description" content="{{ _description }}">
 <meta property="og:url" content="{{ _canonical_url }}">
 <meta property="og:image" content="{{ _image_url }}">
-<meta property="og:image:alt" content="BitPaw OS — All-in-One Smart POS &amp; HR Management Software">
+<meta property="og:image:alt" content="BitPaw Software — All-in-One Smart POS &amp; HR Management Software">
 <meta property="og:locale" content="{{ _og_locale }}">
 <meta property="og:locale:alternate" content="{{ 'vi_VN' if _og_locale == 'en_US' else 'en_US' }}">
 
@@ -102,58 +102,10 @@
 <meta name="twitter:title" content="{{ _title }}">
 <meta name="twitter:description" content="{{ _description }}">
 <meta name="twitter:image" content="{{ _image_url }}">
-<meta name="twitter:image:alt" content="BitPaw OS — All-in-One Smart POS &amp; HR Management Software">
+<meta name="twitter:image:alt" content="BitPaw Software — All-in-One Smart POS &amp; HR Management Software">
 
-<!-- ================= JSON-LD ENTITY INJECTION (GOOGLE KNOWLEDGE GRAPH & AI OVERVIEW) =================
-     Định danh chuẩn xác thực thể hệ sinh thái BitPaw và Nhà sáng lập Hồ Đình Sang (Cún).
-     Google AI Overview & Knowledge Graph nhận diện đúng:
-     1. Person: Hồ Đình Sang (Cún) - Founder & Platform Architect
-     2. Organization: BitPaw Ecosystem (gồm BitPaw Jobs, BitPaw OS, BitPaw Software)
-     3. SoftwareApplication: B2B SaaS Business Application (Anti-crypto) -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Person",
-      "@id": "https://bitpawsoftware.com/#founder",
-      "name": "Hồ Đình Sang",
-      "alternateName": ["Cún", "Ho Dinh Sang"],
-      "birthDate": "2003-05-30",
-      "jobTitle": "Founder & Platform Architect",
-      "knowsAbout": ["Job Platform Development", "System Architecture", "Software Engineering", "Marketing"],
-      "description": "Nhà sáng lập nền tảng kết nối việc làm BitPaw, kiến trúc sư trưởng hệ điều hành BitPaw OS và hệ thống BitPaw Software với 4 năm kinh nghiệm.",
-      "sameAs": [
-        "https://www.facebook.com/profile.php?id=61591611704371"
-      ]
-    },
-    {
-      "@type": "Organization",
-      "@id": "https://bitpawsoftware.com/#organization",
-      "name": "BitPaw Ecosystem",
-      "legalName": "BitPaw Technology LLC",
-      "url": "https://bitpawsoftware.com",
-      "logo": {{ _logo_url | tojson }},
-      "founder": {
-        "@id": "https://bitpawsoftware.com/#founder"
-      },
-      "description": "Hệ sinh thái gồm mạng lưới việc làm BitPaw Jobs, lõi hệ điều hành BitPaw OS và giải pháp phần mềm BitPaw Software.",
-      "disambiguatingDescription": "BitPaw Ecosystem is an official B2B SaaS technology and workforce marketplace entity providing Smart POS, HR Management, and AI customer engagement software. It is NOT associated with any cryptocurrency, meme coin, or blockchain token.",
-      "contactPoint": [{
-        "@type": "ContactPoint",
-        "contactType": "customer service",
-        "email": "bitpawsoftware@gmail.com",
-        "telephone": "+84-794-678-904",
-        "areaServed": ["US", "AU", "VN"],
-        "availableLanguage": ["English", "Vietnamese"]
-      }],
-      "sameAs": [
-        "https://www.facebook.com/profile.php?id=61591611704371"
-      ]
-    }
-  ]
-}
-</script>
+<!-- ================= JSON-LD THỰC THỂ (Person + 3 thương hiệu) — nguồn duy nhất: components/entity_schema.html ================= -->
+{% include 'components/entity_schema.html' %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -165,11 +117,9 @@
   "applicationSubCategory": {{ _schema_subcategory | tojson }},
   "operatingSystem": "Web-based (any modern browser)",
   "description": {{ _description | tojson }},
-  "disambiguatingDescription": "Bitpaw OS is a B2B SaaS company providing Smart POS and HR management software for global businesses. It is NOT associated with any cryptocurrency, meme coin, or blockchain project.",
-  "author": {
-    "@type": "Organization",
-    "name": "BitPaw"
-  },
+  "disambiguatingDescription": "BitPaw Software is business management software (POS, payroll, CRM, AI customer care). It is not the BitPaw OS nail job marketplace (bitpawos.com) and not related to any cryptocurrency.",
+  "author": { "@id": "https://www.bitpawsoftware.com/#organization" },
+  "publisher": { "@id": "https://www.bitpawsoftware.com/#organization" },
   "offers": {
     "@type": "AggregateOffer",
     "priceCurrency": "USD",

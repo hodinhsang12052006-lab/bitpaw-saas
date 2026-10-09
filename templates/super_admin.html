@@ -11,7 +11,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPaw OS | Command Center</title>
+    <title>BitPaw Software | Command Center</title>
 
     <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
@@ -185,7 +185,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-widest text-white flex items-center gap-2">
-                        BITPAW OS <span
+                        BITPAW SOFTWARE <span
                             class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">COMMAND
                             CENTER</span>
                         <span
@@ -1079,7 +1079,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             : (conv.businesses && conv.businesses.name) ? conv.businesses.name : t('super_admin_chat_unknown_business');
                         const active = conv.id === currentChatCustomerId ? 'border-cyan-400/50 bg-cyan-500/5' : 'border-white/5';
                         return `
-                            <div onclick="openChatConversation('${encodeURIComponent(conv.id)}')" class="p-3 rounded-xl border ${active} bg-black/30 hover:border-cyan-400/40 cursor-pointer transition">
+                            <div data-conv="${encodeURIComponent(conv.id)}" onclick="openChatConversation(this.dataset.conv)" class="p-3 rounded-xl border ${active} bg-black/30 hover:border-cyan-400/40 cursor-pointer transition">
                                 <div class="flex justify-between items-start gap-2">
                                     <span class="text-xs font-bold text-white truncate">${escapeHtml(conv.full_name || conv.id)}</span>
                                     ${unread > 0 ? `<span class="bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center shrink-0">${unread}</span>` : ''}

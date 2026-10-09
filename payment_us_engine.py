@@ -22,6 +22,10 @@ SQUARE_ENV = os.environ.get('SQUARE_ENV', 'sandbox')
 SQUARE_ACCESS_TOKEN = os.environ.get('SQUARE_ACCESS_TOKEN')
 SQUARE_LOCATION_ID = os.environ.get('SQUARE_LOCATION_ID')
 SQUARE_DEVICE_ID = os.environ.get('SQUARE_DEVICE_ID')  # optional: physical Square Terminal device
+# Tiền tệ của location Square đang cấu hình (USD cho Square US, AUD cho Square AU...). Mọi lệnh
+# charge đều dùng đúng tiền tệ này; app.py từ chối tenant có tiền tệ khác thay vì charge nhầm
+# (vd 350.000đ bị gửi thành $350,000.00).
+SQUARE_CURRENCY = (os.environ.get('SQUARE_CURRENCY') or 'USD').strip().upper()
 # Signature key riêng của 1 Webhook Subscription cụ thể trong Square Developer Dashboard
 # (Webhooks -> chọn subscription -> Signature Key) — KHÁC với SQUARE_ACCESS_TOKEN, không
 # được lẫn lộn 2 giá trị này.
@@ -73,7 +77,7 @@ def create_payment_link(amount_usd, txn_id, description='BitPaw POS Order'):
             'idempotency_key': uuid.uuid4().hex,
             'quick_pay': {
                 'name': description,
-                'price_money': {'amount': _to_cents(amount_usd), 'currency': 'USD'},
+                'price_money': {'amount': _to_cents(amount_usd), 'currency': SQUARE_CURRENCY},
                 'location_id': SQUARE_LOCATION_ID
             },
             'checkout_options': {
@@ -111,7 +115,7 @@ def create_terminal_checkout(amount_usd, txn_id, note='BitPaw POS Order'):
         payload = {
             'idempotency_key': uuid.uuid4().hex,
             'checkout': {
-                'amount_money': {'amount': _to_cents(amount_usd), 'currency': 'USD'},
+                'amount_money': {'amount': _to_cents(amount_usd), 'currency': SQUARE_CURRENCY},
                 'device_options': {'device_id': SQUARE_DEVICE_ID},
                 'reference_id': txn_id,
                 'note': note
@@ -202,4 +206,8 @@ def verify_webhook_signature(request_url, request_body_bytes, signature_header):
         return False
     # So sánh an toàn thời gian không đổi (chống timing attack dò từng byte chữ ký) — KHÔNG
     # bao giờ dùng "==" thường để so 2 chuỗi bí mật/chữ ký.
-    return hmac.compare_digest(expected_signature, signature_header)
+    try:
+        return hmac.compare_digest(expected_signature.encode('utf-8'), (signature_header or '').encode('utf-8'))
+    except Exception:
+        # Header chữ ký có ký tự lạ từng làm compare_digest ném TypeError -> 500 thay vì 401.
+        return False

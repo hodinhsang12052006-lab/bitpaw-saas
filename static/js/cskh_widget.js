@@ -411,7 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const industryData = {
         nail: {
             title: "Nails & Salon",
-            greeting: "Hi anh/chị! Em là trợ lý BitPaw OS. The system helps Nail salons auto-schedule technician turns, split commissions clearly, and close out bills in seconds. Tiệm mình hiện có bao nhiêu thợ, và đang tính hoa hồng theo % hay lương cứng ạ?",
+            greeting: "Hi anh/chị! Em là trợ lý BitPaw Software. The system helps Nail salons auto-schedule technician turns, split commissions clearly, and close out bills in seconds. Tiệm mình hiện có bao nhiêu thợ, và đang tính hoa hồng theo % hay lương cứng ạ?",
             prompt: "Bạn là BitPaw AI Tư Vấn, một nhân viên tư vấn phần mềm thật, không phải chatbot văn mẫu. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ” ở mọi câu. Không tự hứa đã gửi link/bảng giá nếu hệ thống chưa thực hiện hành động đó. Không tự báo giá cụ thể nếu chưa có bảng giá chính thức trong dữ liệu. Nếu khách hỏi giá, hãy nói: “Cost sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Luôn nhớ ngữ cảnh trong cuộc trò chuyện hiện tại. Khi khách đã cung cấp ngành/quy mô, hãy tóm tắt lại bằng 1 câu rồi đề xuất bước tiếp theo. Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
         },
         spa: {
@@ -457,12 +457,12 @@ document.addEventListener("DOMContentLoaded", () => {
         hr: {
             title: "Quản Trị Nhân Sự",
             greeting: "Chào anh/chị! Trục HRM BitPaw giúp sếp quản lý ca kíp phức tạp, chấm công FaceID và tính lương đa biến số 1-click. Doanh nghiệp mình đang gặp vướng mắc nhất ở khâu chấm công hay tính lương ạ?",
-            prompt: "Bạn là chuyên viên tư vấn HRM của BitPaw OS. Trò chuyện tự nhiên, ngắn (2-5 câu, dưới 450 ký tự). Tư vấn: FaceID chấm công, OT phép online, ma trận tính lương đa biến số 1-click. Kết thúc bằng 1 câu hỏi ngắn tự nhiên về chấm công/lương. Tuyệt đối không tự lặp hotline."
+            prompt: "Bạn là chuyên viên tư vấn HRM của BitPaw Software. Trò chuyện tự nhiên, ngắn (2-5 câu, dưới 450 ký tự). Tư vấn: FaceID chấm công, OT phép online, ma trận tính lương đa biến số 1-click. Kết thúc bằng 1 câu hỏi ngắn tự nhiên về chấm công/lương. Tuyệt đối không tự lặp hotline."
         },
         general: {
-            title: "BitPaw OS",
-            greeting: "Hi there! Welcome to BitPaw OS. The system fully supports both Nails and Restaurant modules — from POS, HRM, payroll, to AI customer care. How can we assist you today?",
-            prompt: "Bạn là trợ lý tư vấn thân thiện, thông minh của BitPaw OS. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Trò chuyện tự nhiên như người thật, ngắn gọn (2-5 câu, dưới 450 ký tự). Giới thiệu hệ sinh thái B2B SaaS BitPaw (POS đa ngành, Order QR, HRM chấm công, lương, CRM, CSKH), tập trung vào 2 module chủ lực Nails và Restaurant. Luôn hỏi lại một câu ngắn tự nhiên để hiểu ngành/quy mô của khách. Tuyệt đối không nhồi nhét hotline ở mọi câu trả lời."
+            title: "BitPaw Software",
+            greeting: "Hi there! Welcome to BitPaw Software. The system fully supports both Nails and Restaurant modules — from POS, HRM, payroll, to AI customer care. How can we assist you today?",
+            prompt: "Bạn là trợ lý tư vấn thân thiện, thông minh của BitPaw Software. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Trò chuyện tự nhiên như người thật, ngắn gọn (2-5 câu, dưới 450 ký tự). Giới thiệu hệ sinh thái B2B SaaS BitPaw (POS đa ngành, Order QR, HRM chấm công, lương, CRM, CSKH), tập trung vào 2 module chủ lực Nails và Restaurant. Luôn hỏi lại một câu ngắn tự nhiên để hiểu ngành/quy mô của khách. Tuyệt đối không nhồi nhét hotline ở mọi câu trả lời."
         }
     };
 
@@ -687,7 +687,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let reply = "";
 
         if (asksPrice) {
-            reply = 'Dạ anh / chị ơi, phần mềm BitPaw OS có nhiều gói linh hoạt tùy ngành nghề và quy mô của mình.' + phoneLine + ' Anh / chị chia sẻ thêm quy mô hiện tại (khoảng bao nhiêu nhân sự / bàn / thợ) để em tư vấn gói phù hợp nhé ạ!';
+            reply = 'Dạ anh / chị ơi, phần mềm BitPaw Software có nhiều gói linh hoạt tùy ngành nghề và quy mô của mình.' + phoneLine + ' Anh / chị chia sẻ thêm quy mô hiện tại (khoảng bao nhiêu nhân sự / bàn / thợ) để em tư vấn gói phù hợp nhé ạ!';
         } else if (asksDemo) {
             reply = `Dạ được sếp ơi! Em gửi sếp link demo thực tế ngay hoặc xếp lịch chuyên viên hướng dẫn sếp dùng thử 1 - 1 trên điện thoại / iPad.${phoneLine} Mình đang dùng thiết bị gì và muốn xem luồng quản lý POS hay chấm công nhân sự trước ạ ? `;
         } else if (asksQR) {
@@ -700,7 +700,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (industry === 'fnb') {
                 reply = `Dạ quán ăn / cafe sẽ dùng POS order, menu quét mã QR tại bàn gọi món, bếp KDS nhận món realtime và quản lý kho định lượng tránh hao hụt.${phoneLine} Quán mình đang có bao nhiêu bàn ăn ạ ? `;
             } else {
-                reply = `Dạ BitPaw OS giúp sếp gom mọi hoạt động từ bán hàng POS, chấm công FaceID nhân sự, quản lý kho bãi cho đến CRM chăm sóc khách tự động về 1 lõi duy nhất.${phoneLine} Sếp đang quan tâm sâu nhất đến khâu nào ạ ? `;
+                reply = `Dạ BitPaw Software giúp sếp gom mọi hoạt động từ bán hàng POS, chấm công FaceID nhân sự, quản lý kho bãi cho đến CRM chăm sóc khách tự động về 1 lõi duy nhất.${phoneLine} Sếp đang quan tâm sâu nhất đến khâu nào ạ ? `;
             }
         } else if (asksSetup) {
             reply = `Dạ BitPaw hỗ trợ sếp setup trọn gói từ A - Z cực nhanh trong 1 - 3 ngày, có hướng dẫn thợ / nhân viên dùng di động cực kỳ trực quan.${phoneLine} Anh / chị để lại Zalo, bên em sẽ gửi kịch bản triển khai mẫu cho ngành của mình nhé!`;
@@ -714,7 +714,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (industry === 'fnb') {
                 reply = `Dạ với F & B, quán dùng menu QR gọi món tại bàn, màn hình bếp KDS tránh sót đơn và POS thanh toán VietQR động.${phoneLine} Quán mình đang có bao nhiêu bàn ăn ạ ? `;
             } else {
-                reply = `Dạ BitPaw OS giúp sếp số hóa POS bán hàng, chấm công FaceID / GPS, tính lương tự động và CRM gửi tin nhắn Zalo chăm sóc khách.${phoneLine} Anh / chị cho em biết mình đang kinh doanh ngành nào để em tư vấn sâu hơn nhé!`;
+                reply = `Dạ BitPaw Software giúp sếp số hóa POS bán hàng, chấm công FaceID / GPS, tính lương tự động và CRM gửi tin nhắn Zalo chăm sóc khách.${phoneLine} Anh / chị cho em biết mình đang kinh doanh ngành nào để em tư vấn sâu hơn nhé!`;
             }
         }
 

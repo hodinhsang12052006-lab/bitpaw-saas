@@ -329,3 +329,18 @@ Công cụ mới (giữ trong repo để chạy lại): `scripts/full_site_audit
 - **Redis cho rate limiter** (Upstash miễn phí đủ dùng): đặt `REDIS_URL` trên project Vercel phục vụ domain (`bitpaw-saas-web`). Hiện limiter chung (1200 req/giờ/IP) vẫn đếm riêng từng instance; riêng chống dò mật khẩu đã dùng MongoDB nên không phụ thuộc việc này.
 - **Khi tăng mạnh số tiệm**: nâng MongoDB Atlas khỏi gói miễn phí (giới hạn ~500 kết nối, mỗi instance Vercel giữ vài kết nối); cân nhắc dịch vụ realtime chuyên dụng thay SSE (mỗi màn POS mở giữ 1 function Vercel tới 25s).
 - Chạy `python scripts/ensure_indexes.py` khi tạo DB mới/khôi phục backup.
+
+## Pha 11 — Nhận diện thương hiệu trên Google (09/10/2026)
+
+Google AI Overview mô tả sai: gộp phần mềm quản lý với nền tảng việc làm bitpawos.com vì site này tự gọi mình là "BitPaw OS"; tìm "Hồ Đình Sang" không ra gì.
+
+| # | Vấn đề | Đã sửa |
+|---|---|---|
+| 1 | Phần mềm quản lý mang tên "BitPaw OS" (trùng bitpawos.com) trên web, app mobile, ảnh store | Đổi thành **BitPaw Software** (292 chỗ; dưới icon app: "BitPaw POS"); tạo lại ảnh store |
+| 2 | 3 bản JSON-LD chép tay ở `seo_meta.html`/`base.html`/`index.html`, mô tả "hệ sinh thái" mơ hồ | 1 nguồn `components/entity_schema.html`: Person + 3 Organization tách bạch, `disambiguatingDescription`, `@id` trên đúng domain từng thương hiệu |
+| 3 | Không có trang công khai nào về người sáng lập | `/ho-dinh-sang` (VI+EN, ProfilePage); `/founder`, `/about` → 301 |
+| 4 | Không có `robots.txt`; sitemap cũ | `/robots.txt` (chặn trang nội bộ), sitemap 15 URL www |
+| 5 | Landing không liên kết sang 2 thương hiệu anh em | Dải footer `components/brand_family.html` trên 11 landing |
+
+Regression: landing 64 PASS · 2 WARN (ERR_CONNECTION_RESET môi trường local) · 0 FAIL; store compliance 21/21 PASS.
+Việc chủ dự án làm trên bitpawos.com / bitpawnetwork.com + Search Console: `audit-results/SEO_ENTITY_GUIDE.md`.

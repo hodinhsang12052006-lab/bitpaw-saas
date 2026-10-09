@@ -1011,7 +1011,7 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
     html = f"""
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; background:#0b0f19; color:#f1f5f9; border-radius:16px; overflow:hidden; border:1px solid rgba(148,163,184,0.15);">
         <div style="background: linear-gradient(135deg, #0891b2, #4f46e5); padding: 28px 32px;">
-            <h1 style="margin:0; font-size:22px; color:#ffffff;">Welcome to BitPaw OS!</h1>
+            <h1 style="margin:0; font-size:22px; color:#ffffff;">Welcome to BitPaw Software!</h1>
         </div>
         <div style="padding: 28px 32px;">
             <p style="font-size:15px; line-height:1.6;">Hi {greeting_name},</p>
@@ -1031,14 +1031,14 @@ def _send_welcome_email(email, business_name, owner_name, business_type):
             </p>
         </div>
         <div style="background:#080a12; padding:16px 32px; font-size:11px; color:#475569; text-align:center;">
-            &copy; BitPaw OS. All rights reserved.
+            &copy; BitPaw Software. All rights reserved.
         </div>
     </div>
     """
     try:
         success, message = EmailService.send_email(
             email,
-            f"Welcome to BitPaw OS — Your {info['name']} Workspace is Ready!",
+            f"Welcome to BitPaw Software — Your {info['name']} Workspace is Ready!",
             html
         )
         if not success:
@@ -1103,7 +1103,9 @@ def register():
     # nằm trong WTF_CSRF_METHODS mặc định = POST/PUT/PATCH/DELETE), chỉ thực sự chặn ở POST.
     csrf.protect()
     if request.method == 'POST':
-        email = request.form['email']
+        # Lưu email chữ thường: /api/auth/token (mobile) luôn lowercase trước khi tra cứu, nên tài
+        # khoản đăng ký "John@Gmail.com" từng không đăng nhập được app mobile.
+        email = (request.form['email'] or '').strip().lower()
         password = request.form['password']
         # BUG THẬT đã vá (audit bảo mật): trước đây không kiểm tra độ dài mật khẩu — kể cả
         # mật khẩu rỗng cũng được generate_password_hash() chấp nhận và tạo tài khoản thật.
@@ -1144,19 +1146,25 @@ def register():
                 business_type = license_nganh.lower()
 
             # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth)
-            if db.users.find_one({'email': email}):
+            if db.users.find_one(_email_query(email)):
                 flash('This email is already registered — please log in instead.', 'danger')
                 return render_template('index.html', active_tab='register')
 
-            # Cập nhật trạng thái key
-            db.license_codes.update_one({'license_key': license_key}, {'$set': {'trang_thai': 'Đã kích hoạt'}})
+            # Giữ mã kích hoạt NGUYÊN TỬ (điều kiện trang_thai='Sẵn sàng'): 2 lượt đăng ký cùng lúc
+            # với cùng 1 mã từng đều thành công.
+            claimed_key = db.license_codes.update_one(
+                {'license_key': license_key, 'trang_thai': 'Sẵn sàng'}, {'$set': {'trang_thai': 'Đã kích hoạt'}}
+            )
+            if claimed_key.modified_count != 1:
+                flash('Invalid activation code, or it has already been used.', 'danger')
+                return render_template('index.html', active_tab='register')
         except Exception as db_err:
             print(f"[register] Lỗi kiểm tra license_codes trên MongoDB: {str(db_err)}")
             flash(f'Error verifying activation code: {str(db_err)}', 'danger')
             return render_template('index.html', active_tab='register')
 
+        user_id = str(uuid.uuid4())
         try:
-            user_id = str(uuid.uuid4())
             db.users.insert_one({
                 'id': user_id,
                 'email': email,
@@ -1194,8 +1202,22 @@ def register():
             flash('Account registered successfully! Please log in.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
+            # Tạo tài khoản thất bại sau khi đã giữ mã -> trả mã lại, nếu không mã bị đốt mà không có tài khoản.
+            try:
+                if not db.users.find_one({'id': user_id}, {'_id': 1}):
+                    db.license_codes.update_one({'license_key': license_key, 'trang_thai': 'Đã kích hoạt'},
+                                                {'$set': {'trang_thai': 'Sẵn sàng'}})
+            except Exception:
+                pass
             flash(f'Registration error: {str(e)}', 'danger')
     return render_template('index.html', active_tab='register')
+
+
+def _email_query(email):
+    """Tra cứu email KHÔNG phân biệt hoa/thường (khớp nguyên chuỗi). Tài khoản cũ lưu email đúng như
+    người dùng gõ ("John@Gmail.com") nên không thể chỉ lowercase rồi so khớp tuyệt đối."""
+    email = (email or '').strip()
+    return {'email': {'$regex': '^' + re.escape(email) + '$', '$options': 'i'}}
 
 
 def get_user_data_by_email(email):
@@ -1346,7 +1368,7 @@ def login():
             if db is None:
                 raise Exception("MongoDB chưa kết nối.")
 
-            user = db.users.find_one({'email': email})
+            user = db.users.find_one(_email_query(email))
             if not user:
                 raise Exception("Sai email hoặc mật khẩu")
             if not check_password_hash(user['password_hash'], password):
@@ -1453,7 +1475,7 @@ def api_auth_token():
     if db is None:
         return jsonify({"success": False, "message": "Server chưa kết nối Database."}), 503
 
-    user = db.users.find_one({'email': email})
+    user = db.users.find_one(_email_query(email))
     if not user or not check_password_hash(user.get('password_hash', ''), password):
         _record_login_failure(email)
         return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
@@ -1668,7 +1690,7 @@ def create_cskh_request():
 
 @app.route('/api/cskh/click', methods=['POST'])
 def track_cskh_click():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     channel = data.get('channel')
     user_id = data.get('user_id')
     try:
@@ -1693,6 +1715,11 @@ def submit_feedback():
         return jsonify({'error': 'Thiếu thông tin đánh giá (rating)'}), 400
 
     if order_id:
+        # Route công khai: order_id dạng {"$gt": 0} từng khớp đơn bất kỳ của tiệm khác.
+        try:
+            order_id = int(order_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'order_id không hợp lệ.'}), 400
         try:
             order_check = db.orders.find_one({'id': order_id}, {'business_id': 1, '_id': 0})
             if not order_check:
@@ -1790,7 +1817,7 @@ def index():
                 products_data = list(db.products.find(
                     {'is_active': 1, 'channel_type': 'retail', 'business_id': business_id}, {'_id': 0}
                 ))
-                total_revenue = list(db.orders.find({'business_id': business_id}, {'total_amount': 1, '_id': 0}))
+                total_revenue = list(db.orders.find({'business_id': business_id, **_REVENUE_ORDER_FILTER}, {'total_amount': 1, '_id': 0}))
                 revenue = sum(o.get('total_amount') or 0 for o in total_revenue)
                 total_expense = list(db.expenses.find({'business_id': business_id}, {'amount': 1, '_id': 0}))
                 expense = sum(e.get('amount') or 0 for e in total_expense)
@@ -1831,7 +1858,7 @@ def index():
                 start_date = last_7_days[0].isoformat()
 
                 week_orders = list(db.orders.find(
-                    {'business_id': business_id, 'created_at': {'$gte': start_date}},
+                    {'business_id': business_id, 'created_at': {'$gte': start_date}, **_REVENUE_ORDER_FILTER},
                     {'total_amount': 1, 'created_at': 1, '_id': 0}
                 ))
                 revenue_map = {d: 0 for d in last_7_days_str}
@@ -2261,6 +2288,40 @@ def payment_policy_page():
     return _render_legal_page('payment')
 
 
+@app.route('/robots.txt')
+def robots_txt():
+    # Trước đây không có robots.txt -> Google không tự tìm ra sitemap. Chặn bot vào API và các màn
+    # hình quản lý cần đăng nhập (không có nội dung công khai, chỉ tốn ngân sách crawl).
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        # Trang đặt lịch/đặt bàn công khai tự fetch /api/public/* — chặn thì Google render trang rỗng.
+        "Allow: /api/public/",
+        "Disallow: /api/",
+        "Disallow: /sell", "Disallow: /pos", "Disallow: /calendar", "Disallow: /customers",
+        "Disallow: /staff", "Disallow: /bangluong", "Disallow: /chamcong", "Disallow: /super_admin",
+        "Disallow: /account/delete",
+        "",
+        # Cố định domain chính: các host *.vercel.app khác từng quảng bá sitemap trên domain của chúng.
+        "Sitemap: https://www.bitpawsoftware.com/sitemap.xml",
+        "",
+    ])
+    return Response(body, mimetype='text/plain')
+
+
+@app.route('/ho-dinh-sang')
+def founder_page():
+    """Trang hồ sơ người sáng lập (nội dung hiển thị + schema ProfilePage) — để Google nhận diện Hồ Đình
+    Sang là người sáng lập BitPaw Software, BitPaw OS và Bitpawnetwork (3 thương hiệu khác nhau)."""
+    return render_template('founder.html')
+
+
+@app.route('/founder')
+@app.route('/about')
+def founder_page_alias():
+    return redirect(url_for('founder_page'), code=301)
+
+
 @app.route('/account/delete')
 def account_delete_page():
     """Xoá tài khoản ngay trong app (App Store 5.1.1(v)) + link web yêu cầu xoá tài khoản (Google
@@ -2453,7 +2514,8 @@ def update_product(id):
         return jsonify({'success': False, 'message': f'Lỗi cập nhật sản phẩm: {str(e)}'}), 500
 
 
-@app.route('/delete_product/<int:id>')
+# Chỉ POST: bản GET cũ không được CSRF bảo vệ -> 1 link từ trang khác xoá được sản phẩm (không UI nào gọi route này).
+@app.route('/delete_product/<int:id>', methods=['POST'])
 @login_required
 def delete_product(id):
     """Giai đoạn 5 audit: route kiểu cũ (redirect) vẫn giữ NGUYÊN cho Web — chỉ trả JSON
@@ -2741,6 +2803,12 @@ class InsufficientStockError(Exception):
         super().__init__(f"Sản phẩm '{label}' không đủ tồn kho để bán.")
 
 
+# Điều kiện "đơn được tính doanh thu" dùng chung cho mọi báo cáo: loại đơn thất bại (quẹt thẻ bị từ
+# chối/huỷ) và đơn Square còn chờ quẹt thẻ. Đơn 'pending' tiền mặt của Spa (trả tại quầy) vẫn tính
+# như trước. Trước đây báo cáo cộng cả đơn Square bị từ chối vào doanh thu.
+_REVENUE_ORDER_FILTER = {'$nor': [{'status': 'failed'}, {'status': 'pending', 'payment_method': 'square'}]}
+
+
 def _decrement_stock_atomic(business_id, stock_items, db_session=None):
     """Trừ tồn kho NGUYÊN TỬ từng sản phẩm bằng find_one_and_update($inc âm) kèm điều kiện lọc
     `stock >= qty` ngay trong query — thay cho kiểu cũ 'đọc số lượng bằng Python rồi $set đè lại'
@@ -2786,6 +2854,7 @@ def _record_pos_transaction(business_id, order_id, amount, payment_method, creat
     (F&B/Retail/Nail/Karaoke) — trước đây các luồng checkout chỉ ghi db.orders, khiến báo cáo
     Tài chính không có sổ cái đáng tin cậy để đối soát. `created_by` mặc định lấy từ session
     Flask hiện tại (thu ngân đang đăng nhập); truyền tay khi gọi từ webhook (không có session)."""
+    now = datetime.now()
     db.transactions.insert_one({
         'id': next_mongo_id('transactions'),
         'business_id': business_id,
@@ -2794,7 +2863,10 @@ def _record_pos_transaction(business_id, order_id, amount, payment_method, creat
         'type': transaction_type,
         'category': category,
         'payment_method': payment_method,
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': now.isoformat(),
+        # Sổ quỹ/Báo cáo lãi lỗ lọc + sắp xếp theo transaction_date — thiếu field này thì mọi
+        # doanh thu POS biến mất khỏi 2 màn hình đó.
+        'transaction_date': now.strftime('%Y-%m-%d'),
         'created_by': created_by if created_by is not None else (session.get('user_email') or session.get('user_id')),
     }, session=db_session)
 
@@ -2816,6 +2888,8 @@ def _compute_cart_order(business_id, data):
     items = data.get('items') or []
     if not items:
         raise ValueError("Giỏ hàng trống.")
+    if not isinstance(items, list) or not all(isinstance(it, dict) and 'product_id' in it for it in items):
+        raise ValueError("Giỏ hàng không hợp lệ.")
     product_ids = [it['product_id'] for it in items]
     products_map = {
         p['id']: p for p in db.products.find(
@@ -2829,7 +2903,13 @@ def _compute_cart_order(business_id, data):
         prod = products_map.get(it['product_id'])
         if not prod:
             continue  # chặn bán sản phẩm không thuộc tenant này hoặc không tồn tại
-        qty = int(it.get('quantity', 1))
+        try:
+            qty = int(it.get('quantity', 1))
+        except (TypeError, ValueError):
+            raise ValueError("Số lượng không hợp lệ.")
+        if qty < 1:
+            # qty âm từng làm tổng đơn = 0 (A x1 + B x-1) trong khi kho của A vẫn bị trừ.
+            raise ValueError("Số lượng phải lớn hơn 0.")
         price = prod.get('price', 0)
         line_total = qty * price
         subtotal += line_total
@@ -2847,7 +2927,12 @@ def _compute_cart_order(business_id, data):
     tip_amount = data.get('tip_amount')
     if tip_amount is None and data.get('tip_percent') is not None:
         tip_amount = subtotal * (float(data['tip_percent']) / 100)
-    tip_amount = round(float(tip_amount or 0), 2)
+    try:
+        tip_amount = round(float(tip_amount or 0), 2)
+    except (TypeError, ValueError):
+        raise ValueError("Tiền tip không hợp lệ.")
+    if tip_amount < 0:
+        raise ValueError("Tiền tip không được âm.")
     total_amount = round(subtotal + tip_amount, 2)
 
     # Phân loại thanh toán cho báo cáo Cash/Card: payment_method giữ nguyên chuỗi gốc
@@ -2963,7 +3048,9 @@ def api_sales_checkout():
         return jsonify({"success": False, "message": msg}), status_code
 
     order_id = next_mongo_id('orders')
-    status = data.get('status', 'completed')
+    # Chỉ nhận 2 trạng thái: 'completed' (đã thu) hoặc 'pending' (spa.html: khách trả tiền mặt tại
+    # quầy sau). Trước đây nhận chuỗi bất kỳ -> bỏ qua sổ cái nhưng vẫn cộng điểm loyalty.
+    status = 'pending' if data.get('status') == 'pending' else 'completed'
     # Schema chuẩn hoá: CHỈ 6 trường lõi ở top-level (id, business_id, created_at, total_amount,
     # status, payment_method) — dùng CHUNG cho mọi ngành/pipeline checkout. Mọi trường đặc thù
     # (subtotal, tip, hoa hồng, customer_phone...) gộp vào 'metadata' — xem _compute_cart_order.
@@ -3014,7 +3101,8 @@ def api_sales_checkout():
         # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
         # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
         # trực tiếp (route này) không bao giờ được ghi nhận vào CRM/loyalty dù có nhập SĐT.
-        _finalize_paid_order(order_doc)
+        if status == 'completed':
+            _finalize_paid_order(order_doc)
 
         # Response giữ NGUYÊN hình dạng cũ cho frontend (hoá đơn hiển thị subtotal/tip/...) —
         # chỉ tài liệu LƯU TRONG DB đổi shape, hợp đồng API không đổi.
@@ -3027,6 +3115,7 @@ def api_sales_checkout():
 
 @app.route('/api/orders/<int:order_id>/refund', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_order_refund(order_id):
     """Hoàn tiền/huỷ 1 đơn đã thanh toán — bản DÙNG CHUNG cho mọi ngành đọc/ghi qua db.orders
     (Retail/F&B/Spa/Karaoke/Hotel), khác api_nail_pos_refund() ở chỗ KHÔNG có bước clawback hoa
@@ -3054,9 +3143,15 @@ def api_order_refund(order_id):
     if (original_order.get('metadata') or {}).get('original_order_id'):
         return jsonify({"success": False, "message": "Không thể hoàn tiền cho chính 1 bản ghi hoàn tiền."}), 400
 
+    # Chỉ hoàn đơn ĐÃ THU TIỀN: đơn Square 'failed'/'pending' từng hoàn được -> tạo dòng doanh thu âm
+    # và hoàn kho cho hàng chưa bán.
+    if original_order.get('status') not in ('completed', 'PAID', 'partially_refunded'):
+        return jsonify({"success": False, "message": "Chỉ hoàn tiền được cho hoá đơn đã thanh toán."}), 400
+
     original_metadata = original_order.get('metadata') or {}
     order_total = round(float(original_order.get('total_amount') or 0), 2)
-    already_refunded = round(float(original_metadata.get('refunded_amount') or 0), 2)
+    raw_refunded = original_metadata.get('refunded_amount')
+    already_refunded = round(float(raw_refunded or 0), 2)
     remaining = round(order_total - already_refunded, 2)
     if amount > remaining + 0.01:
         return jsonify({
@@ -3065,15 +3160,22 @@ def api_order_refund(order_id):
         }), 400
 
     try:
-        refund_id = next_mongo_id('orders')
         now_iso = datetime.now().isoformat()
 
         new_refunded_amount = round(already_refunded + amount, 2)
         new_status = 'refunded' if new_refunded_amount >= order_total - 0.01 else 'partially_refunded'
-        db.orders.update_one(
-            {'id': order_id, 'business_id': business_id},
+        # Cập nhật CÓ ĐIỀU KIỆN theo đúng refunded_amount vừa đọc: 2 request hoàn tiền gửi cùng lúc
+        # từng cùng qua bước kiểm tra số dư -> hoàn 2 lần + hoàn kho 2 lần. Request thua sẽ không
+        # khớp document nào và bị từ chối.
+        claim_filter = {'id': order_id, 'business_id': business_id, 'status': original_order.get('status')}
+        claim_filter['metadata.refunded_amount'] = raw_refunded if raw_refunded is not None else {'$exists': False}
+        claimed = db.orders.update_one(
+            claim_filter,
             {'$set': {'status': new_status, 'metadata.refunded_amount': new_refunded_amount}}
         )
+        if claimed.modified_count != 1:
+            return jsonify({"success": False, "message": "Hoá đơn vừa được cập nhật bởi thao tác khác, vui lòng tải lại và thử lại."}), 409
+        refund_id = next_mongo_id('orders')
 
         if new_status == 'refunded':
             try:
@@ -3144,6 +3246,11 @@ def api_square_checkout():
             }
         }), 503
 
+    currency_err = _square_currency_error(TenantEngine.get_region_config(business_id).get('currency'))
+    if currency_err:
+        return currency_err
+    metadata_fields['currency'] = getattr(payment_us_engine, 'SQUARE_CURRENCY', 'USD')
+
     try:
         order_id = next_mongo_id('orders')
         # Luồng Square Terminal luôn là quẹt thẻ thật — ép cứng payment_method/payment_bucket
@@ -3158,6 +3265,8 @@ def api_square_checkout():
             'payment_method': 'square',
             'metadata': metadata_fields,
         }
+        # Lưu lại hàng đã giữ chỗ để webhook CANCELED/FAILED hoặc nút Huỷ trả lại kho.
+        metadata_fields['_reserved_stock'] = [list(si) for si in stock_items]
         customer_phone = metadata_fields.get('customer_phone')
         for oi in order_items_docs:
             oi['id'] = next_mongo_id('order_items')
@@ -3292,16 +3401,7 @@ def api_square_payment_cancel():
         return jsonify({"success": False, "message": result.get('message')}), 502
 
     try:
-        db.orders.update_one(
-            {'id': order_id, 'business_id': business_id},
-            {
-                '$set': {'status': 'failed', 'metadata.square_canceled_at': datetime.now().isoformat()},
-                '$unset': {
-                    'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
-                    'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
-                },
-            }
-        )
+        _mark_square_order_failed(order_doc, {'metadata.square_canceled_at': datetime.now().isoformat()})
     except Exception as e:
         # Square ĐÃ hủy checkout thành công ở bước trên rồi (result['success'] True) — chỉ riêng
         # việc ghi lại trạng thái 'failed' vào Mongo bị lỗi. Phải báo rõ cho thu ngân biết order
@@ -3312,6 +3412,44 @@ def api_square_payment_cancel():
                        "Kiểm tra lại đơn hàng thủ công.",
         }), 500
     return jsonify({"success": True, "status": "failed"})
+
+
+def _square_currency_error(tenant_currency):
+    """Square chỉ charge được đúng tiền tệ của location đang cấu hình (SQUARE_CURRENCY). Trước đây
+    engine luôn gửi 'USD' -> tenant VND quẹt 350.000đ bị charge $350,000.00, tenant AUD bị charge
+    số AUD dưới dạng USD. Trả về response lỗi nếu lệch tiền tệ, None nếu hợp lệ."""
+    square_currency = getattr(payment_us_engine, 'SQUARE_CURRENCY', 'USD')
+    if (tenant_currency or '').strip().upper() != square_currency:
+        return jsonify({
+            "success": False,
+            "message": f"Square Terminal is configured for {square_currency}; this store uses "
+                       f"{tenant_currency or 'another currency'}. Please use Cash/Card instead.",
+        }), 400
+    return None
+
+
+def _mark_square_order_failed(order_doc, extra_set=None):
+    """Chuyển đơn Square 'pending' -> 'failed' và trả lại hàng đã giữ chỗ lúc tạo checkout.
+    Cập nhật có điều kiện status='pending' nên webhook trùng/nút Huỷ + webhook cùng lúc chỉ hoàn kho
+    đúng 1 lần. Trước đây mỗi lần huỷ quẹt thẻ làm tồn kho giảm vĩnh viễn."""
+    update = {
+        '$set': dict({'status': 'failed'}, **(extra_set or {})),
+        '$unset': {
+            'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
+            'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
+            'metadata._reserved_stock': '',
+        },
+    }
+    res = db.orders.update_one({'id': order_doc['id'], 'business_id': order_doc['business_id'], 'status': 'pending'}, update)
+    if res.modified_count != 1:
+        return False
+    reserved = (order_doc.get('metadata') or {}).get('_reserved_stock') or []
+    if reserved:
+        try:
+            _restock_atomic(order_doc['business_id'], [tuple(si) for si in reserved])
+        except Exception as e:
+            print(f"[_mark_square_order_failed] LOI HOAN KHO order_id={order_doc['id']} - CAN KIEM TRA TAY: {e}")
+    return True
 
 
 @app.route('/api/webhooks/square', methods=['POST'])
@@ -3367,10 +3505,15 @@ def api_webhook_square():
                     # api_nail_pos_checkout, đảm bảo trả tiền thợ giống hệt luồng Cash/Card/Split.
                     _finalize_nail_square_order(order_doc)
                 else:
-                    db.orders.update_one(
-                        {'id': order_doc['id']},
-                        {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()}}
+                    # Cập nhật có điều kiện: 2 webhook trùng tới cùng lúc từng cùng qua already_done
+                    # -> ghi sổ cái 2 lần + cộng điểm loyalty 2 lần. Chỉ request thắng mới đi tiếp.
+                    claimed = db.orders.update_one(
+                        {'id': order_doc['id'], 'status': 'pending'},
+                        {'$set': {'status': 'PAID', 'square_paid_at': datetime.now().isoformat()},
+                         '$unset': {'metadata._reserved_stock': ''}}
                     )
+                    if claimed.modified_count != 1:
+                        return jsonify({"success": True, "message": "Already processed."}), 200
                     order_doc['status'] = 'PAID'
                     # Đây là lúc DUY NHẤT biết chắc thẻ đã quẹt thành công -> ghi sổ cái ở đây,
                     # không ghi lúc tạo checkout (khi đó còn 'pending', có thể bị hủy/thất bại).
@@ -3380,16 +3523,7 @@ def api_webhook_square():
                     )
                     _finalize_paid_order(order_doc)
         elif checkout_status in ('CANCELED', 'FAILED'):
-            db.orders.update_one(
-                {'id': order_doc['id']},
-                {
-                    '$set': {'status': 'failed'},
-                    '$unset': {
-                        'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
-                        'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
-                    },
-                }
-            )
+            _mark_square_order_failed(order_doc)
     except Exception as e:
         current_app.logger.error(f"[SQUARE WEBHOOK] Lỗi xử lý webhook: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -3419,7 +3553,7 @@ def api_dashboard_sales_summary():
         today_str = now.strftime('%Y-%m-%d')
         tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
         orders_today = list(db.orders.find(
-            {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}},
+            {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}, **_REVENUE_ORDER_FILTER},
             {'total_amount': 1, 'metadata': 1, '_id': 0}
         ))
         stats['total_orders_today'] = len(orders_today)
@@ -3469,8 +3603,8 @@ def api_staff_income_today(staff_id):
     tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
     orders_today = list(db.orders.find({
         'business_id': business_id, 'metadata.staff_id': staff_id,
-        'created_at': {'$gte': today_str, '$lt': tomorrow_str}
-    }, {'metadata.staff_commission': 1, 'metadata.staff_tip_earning': 1, '_id': 0}))
+        'created_at': {'$gte': today_str, '$lt': tomorrow_str}, **_REVENUE_ORDER_FILTER
+    },{'metadata.staff_commission': 1, 'metadata.staff_tip_earning': 1, '_id': 0}))
 
     commission_earned = round(sum((o.get('metadata') or {}).get('staff_commission') or 0 for o in orders_today), 2)
     tips_earned = round(sum((o.get('metadata') or {}).get('staff_tip_earning') or 0 for o in orders_today), 2)
@@ -3577,11 +3711,19 @@ def api_pos_add_order_item(table_id):
     owns, err = _assert_owns_table(table_id, business_id)
     if not owns:
         return jsonify({'success': False, 'message': err}), 403
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     product_id = data.get('product_id')
-    quantity = data.get('quantity', 1)
-    if not product_id:
+    if isinstance(product_id, str) and product_id.strip().isdigit():
+        product_id = int(product_id.strip())
+    if not product_id or not isinstance(product_id, int) or isinstance(product_id, bool):
         return jsonify({'success': False, 'message': 'Missing product_id.'}), 400
+    # Số lượng âm từng làm giảm hoá đơn bàn; chuỗi "2" làm bàn không thanh toán được (TypeError).
+    try:
+        quantity = int(data.get('quantity', 1))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid quantity.'}), 400
+    if quantity < 1 or quantity > 999:
+        return jsonify({'success': False, 'message': 'Invalid quantity.'}), 400
     product = db.products.find_one({'id': product_id, 'business_id': business_id}, {'name': 1, '_id': 0})
     if not product:
         return jsonify({'success': False, 'message': 'Product not found or does not belong to your account.'}), 403
@@ -3590,7 +3732,10 @@ def api_pos_add_order_item(table_id):
             {'table_id': table_id, 'product_id': product_id, 'business_id': business_id}, {'id': 1, 'quantity': 1, '_id': 0}
         )
         if existing:
-            new_qty = existing['quantity'] + quantity
+            try:
+                new_qty = int(existing.get('quantity') or 0) + quantity
+            except (TypeError, ValueError):
+                new_qty = quantity
             db.table_orders.update_one({'id': existing['id'], 'business_id': business_id}, {'$set': {'quantity': new_qty}})
         else:
             db.table_orders.insert_one({
@@ -3806,15 +3951,19 @@ def _get_business_commission_rate(business_id):
 
 
 def _resolve_staff_commission_rate(business_id, staff_doc, override_rate=None):
-    """Xác định % hoa hồng thợ thực sự áp dụng cho 1 đơn, theo đúng thứ tự ưu tiên ở trên."""
+    """Xác định % hoa hồng thợ thực sự áp dụng cho 1 đơn, theo đúng thứ tự ưu tiên ở trên.
+    Luôn kẹp trong 0..100: client gửi commission_rate=500 từng làm hoa hồng thợ gấp 5 lần doanh thu
+    (phần của chủ âm)."""
+    def _clamp(v):
+        return max(0.0, min(100.0, float(v)))
     if override_rate is not None:
         try:
-            return float(override_rate)
+            return _clamp(override_rate)
         except (TypeError, ValueError):
             pass
     if staff_doc and staff_doc.get('commission_rate') is not None:
         try:
-            return float(staff_doc['commission_rate'])
+            return _clamp(staff_doc['commission_rate'])
         except (TypeError, ValueError):
             pass
     return _get_business_commission_rate(business_id)
@@ -4049,7 +4198,7 @@ def report_consolidated():
         revenue = 0
         expense = 0
         try:
-            orders_docs = db.orders.find({'business_id': bid}, {'total_amount': 1, '_id': 0})
+            orders_docs = db.orders.find({'business_id': bid, **_REVENUE_ORDER_FILTER}, {'total_amount': 1, '_id': 0})
             revenue = sum(o.get('total_amount') or 0 for o in orders_docs)
         except Exception as e:
             print(f"Loi lay doanh thu chi nhanh {bid}: {e}")
@@ -4113,16 +4262,24 @@ def order_item(table_id):
 
     try:
         product_id = request.form.get('product_id') if not request.is_json else (request.json or {}).get('product_id')
-        if not _assert_owns_product(product_id, business_id):
+        # Form gửi chuỗi, products.id là số nguyên -> ép kiểu trước khi so khớp.
+        try:
+            product_id = int(product_id)
+        except (TypeError, ValueError):
+            product_id = None
+        if not product_id or not _assert_owns_product(product_id, business_id):
             msg = "Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn."
             return (jsonify({"success": False, "message": msg}), 403) if _wants_json() else (msg, 403)
 
         qty = int((request.form.get('quantity') if not request.is_json else (request.json or {}).get('quantity')) or 1)
+        if qty < 1 or qty > 999:
+            msg = "Số lượng không hợp lệ."
+            return (jsonify({"success": False, "message": msg}), 400) if _wants_json() else (msg, 400)
         existing = db.table_orders.find_one(
             {'table_id': table_id, 'product_id': product_id, 'business_id': business_id}, {'id': 1, 'quantity': 1, '_id': 0}
         )
         if existing:
-            new_qty = existing['quantity'] + qty
+            new_qty = int(existing.get('quantity') or 0) + qty
             db.table_orders.update_one({'id': existing['id'], 'business_id': business_id}, {'$set': {'quantity': new_qty}})
         else:
             db.table_orders.insert_one({
@@ -4138,7 +4295,8 @@ def order_item(table_id):
         return (jsonify({"success": False, "message": msg}), 500) if _wants_json() else (msg, 500)
 
 
-@app.route('/checkout/<int:table_id>')
+# Chỉ POST (cùng lý do CSRF với /delete_product); luồng thanh toán thật là /api/payment/confirm.
+@app.route('/checkout/<int:table_id>', methods=['POST'])
 @login_required
 def checkout_table(table_id):
     """Giai đoạn 5 audit: trả JSON {success, message, order_id} khi _wants_json() (Mobile/API),
@@ -4447,6 +4605,7 @@ def api_staff_list():
 
 @app.route('/add_staff', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def add_staff():
     business_id = session.get('business_id') or session['user_id']
     data = request.json
@@ -4484,6 +4643,7 @@ def _assert_owns_row_mongo(collection_name, row_id, business_id):
 
 @app.route('/update_staff/<int:id>', methods=['PUT'])
 @login_required
+@role_required('admin', 'super_admin')
 def update_staff(id):
     business_id = session.get('business_id') or session['user_id']
     try:
@@ -4501,6 +4661,7 @@ def update_staff(id):
 
 @app.route('/delete_staff/<int:id>', methods=['DELETE'])
 @login_required
+@role_required('admin', 'super_admin')
 def delete_staff(id):
     business_id = session.get('business_id') or session['user_id']
     try:
@@ -4708,6 +4869,7 @@ def _assert_owns_partner(partner_type, partner_id, business_id):
 
 @app.route('/api/debt_transactions', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_debt_transactions_list():
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
@@ -4735,6 +4897,7 @@ def api_debt_transactions_list():
 
 @app.route('/api/debt_transactions', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_debt_transactions_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -4793,9 +4956,12 @@ def payment_transactions():
 
 @app.route('/update_payment_status/<int:id>', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def update_payment_status(id):
     business_id = session.get('business_id') or session['user_id']
-    new_status = request.json.get('status')
+    new_status = (request.get_json(silent=True) or {}).get('status')
+    if not isinstance(new_status, str) or not new_status.strip():
+        return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
     try:
         owns, err = _assert_owns_row_mongo('payment_transactions', id, business_id)
         if not owns:
@@ -4831,7 +4997,8 @@ def api_payment_transactions_list():
         if start:
             date_filter['$gte'] = start
         if end:
-            date_filter['$lte'] = end + ' 23:59:59'
+            # created_at là isoformat ('2026-10-06T14:00'); 'T' > ' ' nên mốc cũ ' 23:59:59' loại cả ngày cuối.
+            date_filter['$lte'] = end + 'T23:59:59.999999'
         query['created_at'] = date_filter
 
     page = request.args.get('page', 1, type=int)
@@ -4865,6 +5032,7 @@ def api_payment_transactions_get(id):
 # baocao_loinhuan.html — db.transactions, collection mới) ==========
 @app.route('/api/transactions', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_transactions_list():
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
@@ -4872,16 +5040,27 @@ def api_transactions_list():
     end = request.args.get('end')
     if start or end:
         date_filter = {}
+        ts_filter = {}
         if start:
             date_filter['$gte'] = start
+            ts_filter['$gte'] = start
         if end:
             date_filter['$lte'] = end
-        query['transaction_date'] = date_filter
+            ts_filter['$lte'] = end + 'T23:59:59.999999'
+        # Bản ghi POS cũ chỉ có 'timestamp' (isoformat), chưa có transaction_date -> lọc theo cả 2.
+        query['$or'] = [
+            {'transaction_date': date_filter},
+            {'transaction_date': {'$in': [None, '']}, 'timestamp': ts_filter},
+        ]
     tx_type = request.args.get('type')
     if tx_type and tx_type != 'all':
         query['type'] = tx_type
     try:
-        rows = list(db.transactions.find(query, {'_id': 0}).sort('transaction_date', -1))
+        rows = list(db.transactions.find(query, {'_id': 0}))
+        for r in rows:
+            if not r.get('transaction_date') and r.get('timestamp'):
+                r['transaction_date'] = str(r['timestamp'])[:10]
+        rows.sort(key=lambda r: r.get('transaction_date') or '', reverse=True)
         return jsonify({"success": True, "data": rows})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -4889,6 +5068,7 @@ def api_transactions_list():
 
 @app.route('/api/transactions/<int:id>', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_transactions_get(id):
     business_id = session.get('business_id') or session['user_id']
     try:
@@ -4902,6 +5082,7 @@ def api_transactions_get(id):
 
 @app.route('/api/transactions', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_transactions_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -4924,6 +5105,7 @@ def api_transactions_create():
 
 @app.route('/api/transactions/<int:id>', methods=['PATCH'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_transactions_update(id):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -4941,6 +5123,7 @@ def api_transactions_update(id):
 
 @app.route('/api/transactions/<int:id>', methods=['DELETE'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_transactions_delete(id):
     business_id = session.get('business_id') or session['user_id']
     try:
@@ -4970,7 +5153,8 @@ def karaoke():
     return render_template('karaoke.html', rooms=rooms_data)
 
 
-@app.route('/toggle_room/<int:room_id>')
+# Chỉ POST (cùng lý do CSRF với /delete_product); UI dùng API karaoke mới.
+@app.route('/toggle_room/<int:room_id>', methods=['POST'])
 @login_required
 def toggle_room(room_id):
     """Giai đoạn 5 audit: (1) trả JSON khi _wants_json() (Mobile/API), giữ NGUYÊN redirect cho
@@ -5112,9 +5296,17 @@ def api_karaoke_room_checkout(room_id):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     customer_phone = (data.get('customer_phone') or '').strip() or None
+    room = None
+    order_id = None
     try:
-        room = db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
-        if not room or room.get('status') != 'Đang chơi':
+        # Chốt phòng NGUYÊN TỬ (Đang chơi -> Trống) trước khi tính tiền: bấm đúp/2 máy cùng chốt
+        # từng ghi 2 đơn + 2 bút toán doanh thu cho cùng 1 lượt hát.
+        room = db.karaoke_rooms.find_one_and_update(
+            {'id': room_id, 'business_id': business_id, 'status': 'Đang chơi'},
+            {'$set': {'status': 'Trống', 'start_time': None}},
+            projection={'_id': 0}, return_document=ReturnDocument.BEFORE,
+        )
+        if not room:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc chưa mở."}), 409
         start_time = parse_datetime(room['start_time'])
         now = datetime.now()
@@ -5168,11 +5360,17 @@ def api_karaoke_room_checkout(room_id):
                 'business_id': business_id,
             })
             _record_pos_transaction(business_id, order_id, total_price, 'cash')
-        db.karaoke_rooms.update_one(
-            {'id': room_id, 'business_id': business_id}, {'$set': {'status': 'Trống', 'start_time': None}}
-        )
         return jsonify({"success": True, "total_amount": total_price, "order_id": order_id})
     except Exception as e:
+        # Lỗi khi ghi doanh thu -> mở lại phòng để thu ngân chốt lại, không mất lượt hát.
+        if room and order_id is None:
+            try:
+                db.karaoke_rooms.update_one(
+                    {'id': room_id, 'business_id': business_id, 'status': 'Trống'},
+                    {'$set': {'status': 'Đang chơi', 'start_time': room.get('start_time')}}
+                )
+            except Exception:
+                pass
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -5397,6 +5595,18 @@ def api_hotel_rooms_update(room_id):
     updates = {k: v for k, v in data.items() if k in ('room_type', 'price_per_night', 'floor', 'capacity')}
     if not updates:
         return jsonify({"success": False, "message": "Không có trường hợp lệ để cập nhật."}), 400
+    # Ép kiểu số: giá dạng chuỗi ("abc") từng khiến phòng đó không bao giờ trả phòng được (TypeError).
+    try:
+        if 'price_per_night' in updates:
+            updates['price_per_night'] = float(updates['price_per_night'])
+            if updates['price_per_night'] < 0 or not math.isfinite(updates['price_per_night']):
+                raise ValueError
+        if 'capacity' in updates:
+            updates['capacity'] = int(updates['capacity'])
+            if updates['capacity'] < 1:
+                raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Giá phòng/sức chứa không hợp lệ."}), 400
     try:
         result = db.hotel_rooms.update_one({'id': room_id, 'business_id': business_id}, {'$set': updates})
         if result.matched_count == 0:
@@ -5528,14 +5738,22 @@ def api_hotel_room_charges_delete(charge_id):
 @login_required
 def api_hotel_room_checkout(room_id):
     business_id = session.get('business_id') or session['user_id']
+    room = None
+    order_id = None
     try:
-        room = db.hotel_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
-        if not room or room.get('status') != 'Đang ở':
+        # Trả phòng NGUYÊN TỬ (Đang ở -> Đang dọn) trước khi tính tiền: bấm đúp/2 máy cùng trả
+        # phòng từng ghi 2 hoá đơn + 2 bút toán doanh thu.
+        room = db.hotel_rooms.find_one_and_update(
+            {'id': room_id, 'business_id': business_id, 'status': 'Đang ở'},
+            {'$set': {'status': 'Đang dọn', 'guest_name': None, 'guest_phone': None, 'checkin_date': None}},
+            projection={'_id': 0}, return_document=ReturnDocument.BEFORE,
+        )
+        if not room:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc chưa có khách."}), 409
         checkin_date = parse_datetime(room['checkin_date'])
         now = datetime.now()
         nights = max(1, (now.date() - checkin_date.date()).days)
-        room_total = nights * room['price_per_night']
+        room_total = nights * float(room.get('price_per_night') or 0)
 
         pending_charges = list(db.hotel_room_charges.find(
             {'business_id': business_id, 'room_id': room_id, 'consumed': False}, {'_id': 0}
@@ -5564,17 +5782,22 @@ def api_hotel_room_checkout(room_id):
                 {'$set': {'consumed': True}}
             )
 
-        # Về 'Đang dọn' (chờ dọn phòng), KHÔNG về thẳng 'Trống' — buồng phòng cần dọn trước khi
-        # nhận khách mới, đúng quy trình khách sạn thật (mark_clean bên dưới mới chuyển tiếp).
-        db.hotel_rooms.update_one(
-            {'id': room_id, 'business_id': business_id},
-            {'$set': {'status': 'Đang dọn', 'guest_name': None, 'guest_phone': None, 'checkin_date': None}}
-        )
+        # Phòng đã về 'Đang dọn' ngay ở bước chốt nguyên tử phía trên (chờ dọn rồi mới 'Trống').
         return jsonify({
             "success": True, "total_amount": total_price, "nights": nights, "order_id": order_id,
             "room_total": room_total, "extra_charges_total": charges_total,
         })
     except Exception as e:
+        # Chưa ghi được hoá đơn -> trả lại trạng thái phòng để thu ngân trả phòng lại.
+        if room and order_id is None:
+            try:
+                db.hotel_rooms.update_one(
+                    {'id': room_id, 'business_id': business_id, 'status': 'Đang dọn'},
+                    {'$set': {'status': 'Đang ở', 'guest_name': room.get('guest_name'),
+                              'guest_phone': room.get('guest_phone'), 'checkin_date': room.get('checkin_date')}}
+                )
+            except Exception:
+                pass
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -6070,8 +6293,8 @@ def api_report_summary():
 
     try:
         orders = list(db.orders.find(
-            {'business_id': business_id, 'created_at': {'$gte': start_iso, '$lte': end_iso}},
-            {'id': 1, 'total_amount': 1, 'created_at': 1, 'customer_id': 1, '_id': 0}
+            {'business_id': business_id, 'created_at': {'$gte': start_iso, '$lte': end_iso}, **_REVENUE_ORDER_FILTER},
+            {'id': 1, 'total_amount': 1, 'created_at': 1, 'customer_id': 1, 'metadata.customer_phone': 1, '_id': 0}
         ))
         revenue = sum(o.get('total_amount') or 0 for o in orders)
 
@@ -6118,16 +6341,18 @@ def api_report_summary():
                 category_revenue[cat] = category_revenue.get(cat, 0) + (prod.get('price') or 0) * (oi.get('quantity') or 0)
         category_data = [{'name': cat, 'total': total} for cat, total in category_revenue.items()]
 
+        # Đơn hàng chỉ lưu SĐT khách (metadata.customer_phone), không có customer_id -> trước đây
+        # nhóm theo customer_id nên "Top khách hàng" luôn trống.
         customer_spent = {}
         for o in orders:
-            cid = o.get('customer_id')
-            if cid:
-                customer_spent[cid] = customer_spent.get(cid, 0) + (o.get('total_amount') or 0)
-        customers = list(db.customers.find({'id': {'$in': list(customer_spent.keys())}, 'business_id': business_id}, {'id': 1, 'name': 1, 'phone': 1, '_id': 0})) if customer_spent else []
-        customer_map = {c['id']: c for c in customers}
+            phone = (o.get('metadata') or {}).get('customer_phone')
+            if phone:
+                customer_spent[phone] = customer_spent.get(phone, 0) + (o.get('total_amount') or 0)
+        customers = list(db.customers.find({'phone': {'$in': list(customer_spent.keys())}, 'business_id': business_id}, {'id': 1, 'name': 1, 'phone': 1, '_id': 0})) if customer_spent else []
+        customer_map = {c['phone']: c for c in customers if c.get('phone')}
         top_customers = sorted(
-            [{'id': cid, 'name': customer_map.get(cid, {}).get('name', f'KH{cid}'), 'phone': customer_map.get(cid, {}).get('phone', ''), 'spent': spent}
-             for cid, spent in customer_spent.items()],
+            [{'id': customer_map.get(phone, {}).get('id'), 'name': customer_map.get(phone, {}).get('name') or phone, 'phone': phone, 'spent': spent}
+             for phone, spent in customer_spent.items()],
             key=lambda x: x['spent'], reverse=True
         )[:5]
 
@@ -6152,7 +6377,7 @@ def api_report_summary():
 def report():
     business_id = session.get('business_id') or session['user_id']
     try:
-        orders_data = list(db.orders.find({'business_id': business_id}, {'id': 1, 'total_amount': 1, '_id': 0}))
+        orders_data = list(db.orders.find({'business_id': business_id, **_REVENUE_ORDER_FILTER}, {'id': 1, 'total_amount': 1, '_id': 0}))
         revenue = sum(o.get('total_amount') or 0 for o in orders_data)
         expenses_data = list(db.expenses.find({'business_id': business_id}, {'amount': 1, '_id': 0}))
         expense = sum(e.get('amount') or 0 for e in expenses_data)
@@ -6235,6 +6460,7 @@ def api_report_profit():
 
 @app.route('/api/products/<int:id>/cost', methods=['PATCH'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_product_update_cost(id):
     """Cập nhật riêng giá vốn (cost_price) — /update_product/<id> hiện chỉ nhận full-form
     update (name/category/price/stock), không có cost_price, nên tách route riêng thay vì
@@ -6290,6 +6516,7 @@ def user_logs():
 BACKUP_BUCKET = 'backups'
 @app.route('/backup_restore')
 @login_required
+@role_required('admin', 'super_admin')
 def backup_restore():
     return render_template('backup_restore.html')
 
@@ -6300,6 +6527,7 @@ BACKUP_TABLES = ['products', 'orders', 'order_items', 'customers', 'staff', 'app
 
 @app.route('/api/backup/create', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def create_backup():
     if fs is None:
         return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
@@ -6345,6 +6573,7 @@ def create_backup():
 
 @app.route('/api/backup/restore', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def restore_backup():
     if fs is None:
         return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
@@ -6697,6 +6926,9 @@ def submit_qr_order():
 
         if not table_id:
             return jsonify({"success": False, "message": "Missing table_id"}), 400
+        # Route công khai: table_id dạng dict ({"$ne": null}) từng khớp bừa bàn của tiệm khác.
+        if not isinstance(table_id, (str, int)) or isinstance(table_id, bool):
+            return jsonify({"success": False, "message": "Invalid table_id"}), 400
 
         # Xác thực bàn tồn tại thật trong DB trước khi ghi nhận đơn — không còn fallback bàn demo giả
         try:
@@ -6717,17 +6949,37 @@ def submit_qr_order():
         # rồi batch-fetch TẤT CẢ sản phẩm liên quan trong 1 query duy nhất ($in) — thay vì
         # trước đây cứ mỗi món lại query products 2 lần (check business_id + lấy tên) + query
         # table_orders 1 lần để biết insert hay update (tổng 3N query).
+        # Số lượng phải là số nguyên 1..99: khách từng gửi quantity=-5 để trừ bớt hoá đơn của bàn,
+        # hoặc "2" (chuỗi) làm bàn đó không thanh toán được nữa (TypeError khi cộng tiền).
+        def _qr_qty(v):
+            try:
+                q = int(v)
+            except (TypeError, ValueError):
+                return None
+            return q if 1 <= q <= 99 else None
+
+        def _qr_pid(v):
+            if isinstance(v, bool):
+                return None
+            if isinstance(v, int):
+                return v
+            if isinstance(v, str) and v.strip().isdigit():
+                return int(v.strip())
+            return None
+
         requested_items = []
         if isinstance(items, list) and len(items) > 0:
             for item in items:
-                pid = item.get('id')
-                qty = item.get('quantity', 1)
-                if pid:
+                if not isinstance(item, dict):
+                    continue
+                pid = _qr_pid(item.get('id'))
+                qty = _qr_qty(item.get('quantity', 1))
+                if pid and qty:
                     requested_items.append((pid, qty))
         else:
-            product_id = data.get('product_id')
-            qty = int(data.get('quantity', 1))
-            if product_id:
+            product_id = _qr_pid(data.get('product_id'))
+            qty = _qr_qty(data.get('quantity', 1))
+            if product_id and qty:
                 requested_items.append((product_id, qty))
 
         kitchen_items = []
@@ -6751,7 +7003,10 @@ def submit_qr_order():
                     continue
                 existing = existing_map.get(pid)
                 if existing:
-                    new_qty = existing['quantity'] + quantity
+                    try:
+                        new_qty = int(existing.get('quantity') or 0) + quantity
+                    except (TypeError, ValueError):
+                        new_qty = quantity
                     update_ops.append(UpdateOne(
                         {'id': existing['id'], 'table_id': resolved_table_id}, {'$set': {'quantity': new_qty}}
                     ))
@@ -7334,6 +7589,7 @@ def api_ecommerce_connections_list():
 
 @app.route('/api/ecommerce/connections', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_ecommerce_connections_save():
     business_id = session.get('business_id') or session['user_id']
     if _ecommerce_fernet is None:
@@ -7436,6 +7692,7 @@ def payment_gateway():
 
 @app.route('/api/payment/save_config', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_save_payment_config():
     try:
         business_id, _biz_err = _get_tenant_business_id_or_401()
@@ -7663,6 +7920,8 @@ def api_payment_confirm():
 
         if not table_id or not txn_id:
             return jsonify({'success': False, 'message': 'Missing table_id or txn_id'}), 400
+        if not isinstance(txn_id, str) or not isinstance(method, str) or len(method) > 32:
+            return jsonify({'success': False, 'message': 'Invalid txn_id or method'}), 400
 
         business_id = session.get('business_id') or session['user_id']
         owns, err = _assert_owns_table(table_id, business_id)
@@ -7703,6 +7962,17 @@ def api_payment_confirm():
         # server-verified subtotal — NOT the raw amount the client sent — so the final revenue
         # figure can't be tampered with client-side while still matching what the customer saw.
         pending_txn = db.payment_transactions.find_one({'transaction_id': txn_id, 'business_id': business_id}, {'_id': 0})
+        # Giữ giao dịch NGUYÊN TỬ (pending -> processing): bấm "Xác nhận" 2 lần/2 máy cùng lúc từng
+        # tạo 2 đơn + 2 bút toán doanh thu cho cùng 1 bàn.
+        claimed_txn = False
+        if pending_txn:
+            claim = db.payment_transactions.update_one(
+                {'transaction_id': txn_id, 'business_id': business_id, 'status': 'pending'},
+                {'$set': {'status': 'processing'}}
+            )
+            if claim.modified_count != 1:
+                return jsonify({'success': False, 'message': 'Giao dịch này đã được xử lý.'}), 409
+            claimed_txn = True
         discount_percent = max(0.0, min(100.0, float((pending_txn or {}).get('discount_percent') or 0)))
         tax_percent = max(0.0, float((pending_txn or {}).get('tax_percent') or 0))
         tip_amount = max(0.0, float((pending_txn or {}).get('tip_amount') or 0))
@@ -7762,13 +8032,18 @@ def api_payment_confirm():
         for item in orders_data:
             prod = products_map.get(item['product_id'])
             if prod:
+                # Cùng giá dòng đã dùng để tính tổng (có override_price) — trước đây order_items lưu
+                # giá gốc nên tổng các dòng lệch tổng hoá đơn.
+                line_price = item.get('override_price')
+                if line_price is None:
+                    line_price = prod['price']
                 order_items_docs.append({
                     'id': next_mongo_id('order_items'),
                     'order_id': order_id,
                     'product_id': item['product_id'],
                     'quantity': item['quantity'],
-                    'price': prod['price'],
-                    'total_price': item['quantity'] * prod['price'],
+                    'price': line_price,
+                    'total_price': item['quantity'] * line_price,
                     'business_id': business_id,
                     'customer_phone': customer_phone
                 })
@@ -7787,8 +8062,16 @@ def api_payment_confirm():
                         business_id, order_id, total_bill, method, db_session=s,
                     )
                 db_session.with_transaction(_do_qr_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
-        except InsufficientStockError as e:
-            return jsonify({'success': False, 'message': str(e)}), 409
+        except Exception as e:
+            # Không ghi được đơn -> nhả giao dịch về 'pending' để thu ngân xác nhận lại.
+            if claimed_txn:
+                db.payment_transactions.update_one(
+                    {'transaction_id': txn_id, 'business_id': business_id, 'status': 'processing'},
+                    {'$set': {'status': 'pending'}}
+                )
+            if isinstance(e, InsufficientStockError):
+                return jsonify({'success': False, 'message': str(e)}), 409
+            raise
 
         # 5. Update payment_transactions status = completed
         db.payment_transactions.update_one(
@@ -8732,6 +9015,10 @@ def api_nail_pos_square_checkout():
             }
         }), 503
 
+    currency_err = _square_currency_error(computed.get('currency'))
+    if currency_err:
+        return currency_err
+
     try:
         order_id = next_mongo_id('orders')
         now_iso = datetime.now().isoformat()
@@ -8747,6 +9034,7 @@ def api_nail_pos_square_checkout():
             '_pending_per_tech_revenue': computed['per_tech_revenue'],
             '_pending_net_revenue': computed['net_revenue'],
             '_pending_worker_total_tip': computed['worker_total_tip'],
+            '_reserved_stock': [list(si) for si in computed['stock_items']],
         }
         customer_phone = (data.get('customer_phone') or '').strip()
         if customer_phone:
@@ -8834,19 +9122,27 @@ def _finalize_nail_square_order(order_doc):
 
     chamcong_docs, _techs_paid = _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAILS POS SQUARE]')
 
+    claimed = {'ok': False}
     with mongo_client_instance.start_session() as db_session:
         def _do_square_webhook_txn(s):
-            db.orders.update_one(
-                {'id': order_id, 'business_id': business_id},
+            claimed['ok'] = False
+            # Lọc status='pending': webhook COMPLETED trùng từng ghi order_items/hoa hồng/sổ cái 2
+            # lần, và webhook trễ từng biến đơn đã failed/refunded thành completed.
+            res = db.orders.update_one(
+                {'id': order_id, 'business_id': business_id, 'status': 'pending'},
                 {
                     '$set': {'status': 'completed', 'metadata.square_paid_at': datetime.now().isoformat()},
                     '$unset': {
                         'metadata._pending_order_items': '', 'metadata._pending_per_tech_revenue': '',
                         'metadata._pending_net_revenue': '', 'metadata._pending_worker_total_tip': '',
+                        'metadata._reserved_stock': '',
                     },
                 },
                 session=s
             )
+            if res.matched_count != 1:
+                return
+            claimed['ok'] = True
             if order_items_docs:
                 db.order_items.insert_many(order_items_docs, session=s)
             if chamcong_docs:
@@ -8857,12 +9153,13 @@ def _finalize_nail_square_order(order_doc):
             )
         db_session.with_transaction(_do_square_webhook_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
 
-    if customer_phone:
+    if claimed['ok'] and customer_phone:
         _finalize_paid_order(order_doc)
 
 
 @app.route('/api/nail_pos/refund', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_nail_pos_refund():
     """Return/Refund cho Nail POS — ghi 1 order âm liên kết tới order gốc để trừ vào doanh
     thu/báo cáo (report_consolidated đọc db.orders nên chỉ cần ghi record là đủ khớp sổ), VÀ
@@ -8891,10 +9188,16 @@ def api_nail_pos_refund():
         return jsonify({"success": False, "message": str(e)}), 500
     if not original_order:
         return jsonify({"success": False, "message": f"Không tìm thấy hoá đơn #{original_order_id}."}), 404
+    # Chỉ hoàn đơn đã thu tiền (đơn Square failed/pending từng hoàn được -> tiền ra giả + hoàn kho 2 lần).
+    if original_order.get('status') not in ('completed', 'PAID', 'partially_refunded'):
+        return jsonify({"success": False, "message": "Only paid orders can be refunded."}), 400
 
     original_metadata = original_order.get('metadata') or {}
+    if original_metadata.get('original_order_id'):
+        return jsonify({"success": False, "message": "Cannot refund a refund record."}), 400
     order_total = round(float(original_order.get('total_amount') or 0), 2)
-    already_refunded = round(float(original_metadata.get('refunded_amount') or 0), 2)
+    raw_refunded = original_metadata.get('refunded_amount')
+    already_refunded = round(float(raw_refunded or 0), 2)
     remaining = round(order_total - already_refunded, 2)
     if amount > remaining + 0.01:
         return jsonify({
@@ -8903,9 +9206,21 @@ def api_nail_pos_refund():
         }), 400
 
     try:
-        refund_id = next_mongo_id('orders')
         now_dt = datetime.now()
         now_iso = now_dt.isoformat()
+
+        # Giữ chỗ số tiền hoàn bằng cập nhật CÓ ĐIỀU KIỆN trước khi ghi clawback: 2 request hoàn
+        # cùng lúc từng cùng qua kiểm tra số dư -> hoàn gấp đôi + trừ hoa hồng thợ 2 lần.
+        new_refunded_amount = round(already_refunded + amount, 2)
+        new_status = 'refunded' if new_refunded_amount >= order_total - 0.01 else 'partially_refunded'
+        claim_filter = {'id': original_order_id, 'business_id': business_id, 'status': original_order.get('status')}
+        claim_filter['metadata.refunded_amount'] = raw_refunded if raw_refunded is not None else {'$exists': False}
+        claimed = db.orders.update_one(
+            claim_filter, {'$set': {'status': new_status, 'metadata.refunded_amount': new_refunded_amount}}
+        )
+        if claimed.modified_count != 1:
+            return jsonify({"success": False, "message": "This bill was just updated by another action. Please reload and try again."}), 409
+        refund_id = next_mongo_id('orders')
 
         # Clawback: chỉ khớp đúng các bản ghi chamcong mà CHÍNH order này đã tạo lúc checkout
         # (note bắt đầu bằng "[NAILS POS]" — không khớp nhầm vào các bản ghi [REFUND] clawback
@@ -8913,7 +9228,9 @@ def api_nail_pos_refund():
         # thứ 2 trở đi). Dùng lookahead (?!\d) để "Order #1" không khớp nhầm "Order #12"/"#100".
         refund_ratio = (amount / order_total) if order_total > 0 else 0.0
         refund_ratio = max(0.0, min(1.0, refund_ratio))
-        note_pattern = r'^\[NAILS POS\] Order #' + str(original_order_id) + r'(?!\d)'
+        # Khớp cả bill trả qua Square Terminal (note "[NAILS POS SQUARE] Order #N") — trước đây
+        # hoàn bill Square thì thợ vẫn giữ 100% hoa hồng/tip.
+        note_pattern = r'^\[NAILS POS(?: SQUARE)?\] Order #' + str(original_order_id) + r'(?!\d)'
         original_chamcong_records = list(db.chamcong.find(
             {'business_id': business_id, 'ghi_chu': {'$regex': note_pattern}}, {'_id': 0}
         ))
@@ -8932,13 +9249,6 @@ def api_nail_pos_refund():
                 'tang_ca': 0,
             })
             techs_clawed_back.append({'ma_nv': rec.get('ma_nv'), 'commission_deducted': clawback_tua, 'tip_deducted': clawback_tip})
-
-        new_refunded_amount = round(already_refunded + amount, 2)
-        new_status = 'refunded' if new_refunded_amount >= order_total - 0.01 else 'partially_refunded'
-        db.orders.update_one(
-            {'id': original_order_id, 'business_id': business_id},
-            {'$set': {'status': new_status, 'metadata.refunded_amount': new_refunded_amount}}
-        )
 
         # Hoàn tồn kho (Giai đoạn 5 audit) — CHỈ khi hoàn ĐỦ 100% hoá đơn (new_status=='refunded').
         # Hoàn 1 PHẦN theo SỐ TIỀN (route này không nhận input theo từng dòng dịch vụ cụ thể)
@@ -9198,6 +9508,7 @@ def baocao_loinhuan():
 
 @app.route('/cauhinh_luong')
 @login_required
+@role_required('admin', 'super_admin')
 def cauhinh_luong():
     business_id = session.get('business_id') or session['user_id']
     staff_id = request.args.get('staff_id')
@@ -9236,6 +9547,7 @@ def cauhinh_luong():
 
 @app.route('/api/cauhinh_luong/<staff_id>', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_cauhinh_luong(staff_id):
     """Lưu cấu hình lương chi tiết (lương cứng/giờ/hoa hồng/phụ cấp/tăng ca) cho 1 nhân
     viên trong bảng staff — trước đây route này không tồn tại nên nút Lưu luôn 404."""
@@ -9970,6 +10282,8 @@ def secure_ai_generate():
         business_id = session.get('business_id') or session['user_id']
     else:
         business_id = data.get('business_id')
+        if business_id is not None and not isinstance(business_id, str):
+            return jsonify({"error": "Invalid business_id."}), 400
     industry = data.get('industry') or session.get('business_mode', 'general')
     # 'customer_booking' — khách hàng CUỐI của tiệm đang chat trên chính trang đặt lịch công
     # khai (booking.html) để tự đặt lịch, KHÁC HẲN đối tượng mặc định của endpoint này (chủ
@@ -9982,10 +10296,24 @@ def secure_ai_generate():
     # prompt thô. Xem ai_sales_prompts.py để hiểu kiến trúc 4 lớp (Master Persona/Industry
     # Delta/Tenant Data/Objection Guidance).
     user_prompt = data.get('userPrompt', '')
-    temperature = data.get('temperature', 0.7)
-    max_tokens = data.get('max_tokens', 1500)
+    if not isinstance(user_prompt, str):
+        user_prompt = ''
+    # Kẹp tham số model: endpoint công khai, client từng tự đặt max_tokens tuỳ ý (đốt chi phí AI).
+    try:
+        temperature = max(0.0, min(1.5, float(data.get('temperature', 0.7))))
+    except (TypeError, ValueError):
+        temperature = 0.7
+    try:
+        max_tokens = max(1, min(2000, int(data.get('max_tokens', 1500))))
+    except (TypeError, ValueError):
+        max_tokens = 1500
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
+    if customer_phone is not None and not isinstance(customer_phone, str):
+        customer_phone = None
     client_history = data.get('history') or []
+    if not isinstance(client_history, list):
+        client_history = []
+    client_history = [t for t in client_history if isinstance(t, dict)]
 
     ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone,
                                                 include_private_data=is_authenticated)
@@ -10000,7 +10328,12 @@ def secure_ai_generate():
     # === Nối chuỗi hội thoại thật (không để AI mất ngữ cảnh khi khách trả lời cụt lủn) ===
     # Ưu tiên lịch sử client đang giữ trong phiên chat hiện tại; nếu client không gửi gì (vd:
     # vừa refresh trang) thì khôi phục lại từ DB theo đúng business_id + SĐT khách.
-    history = client_history if client_history else _load_recent_chat_history(business_id, customer_phone)
+    # Khôi phục từ DB CHỈ khi đã đăng nhập: khách ẩn danh chỉ cần biết business_id + SĐT của người
+    # khác là từng đọc được toàn bộ lịch sử chat của họ (bảo AI "nhắc lại cuộc trò chuyện trước").
+    if client_history or not is_authenticated:
+        history = client_history
+    else:
+        history = _load_recent_chat_history(business_id, customer_phone)
 
     # === Lightweight objection router (Phase 1) ===
     # Phân loại tin nhắn MỚI NHẤT của khách vào 1 trong các nhóm phản đối đã định nghĩa ở
@@ -10009,7 +10342,7 @@ def secure_ai_generate():
     # bất kỳ lỗi/timeout nào cũng chỉ trả về None (không chèn objection guidance), KHÔNG BAO
     # GIỜ được phép làm chậm/gãy luồng trả lời chính. classify_objection() tự bỏ qua bằng
     # regex trước khi gọi LLM cho các tin nhắn rõ ràng không phải phản đối (Phase 2 optimization).
-    latest_customer_message = user_prompt or (history[-1]['content'] if history else '')
+    latest_customer_message = user_prompt or (str(history[-1].get('content') or '') if history else '')
     # Objection playbook (giá/tin tưởng/đối thủ...) chỉ có ý nghĩa cho bot BÁN PHẦN MỀM — khách
     # hàng cuối đang đặt lịch làm nail không "phản đối giá BitPaw", gọi classify_objection() ở
     # đây vừa vô nghĩa vừa tốn 1 lệnh gọi DeepSeek phụ mỗi lượt chat.
@@ -10021,7 +10354,8 @@ def secure_ai_generate():
     # bằng semantic search, đúng loại phụ thuộc OpenAI cần loại bỏ. ai_context_engine.py đã tự
     # nhúng thẳng toàn bộ bảng giá/danh mục (tối đa 40 dòng) vào system prompt mỗi lượt chat —
     # đơn giản hơn, không cần embeddings, không cần Atlas Vector Search index nào cả.
-    conversation_memory = get_conversation_memory(customer_id) if customer_id else ""
+    # Trí nhớ AI về khách cũng là dữ liệu riêng -> chỉ nạp khi đã đăng nhập (cùng lý do ở trên).
+    conversation_memory = get_conversation_memory(customer_id) if (customer_id and is_authenticated) else ""
     extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
     if chat_context == 'customer_booking':
@@ -10297,7 +10631,7 @@ def api_superadmin_stats():
 
     try:
         result = list(db.orders.aggregate([
-            {'$match': {'created_at': {'$gte': today_str, '$lt': tomorrow_str}}},
+            {'$match': {'created_at': {'$gte': today_str, '$lt': tomorrow_str}, **_REVENUE_ORDER_FILTER}},
             {'$group': {'_id': None, 'total': {'$sum': '$total_amount'}}},
         ]))
         stats['revenue_today'] = result[0]['total'] if result else 0
@@ -11825,6 +12159,7 @@ def api_attendance_status():
 
 @app.route('/api/payroll/calculate', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_calculate_payroll():
     """Tính lương thật từ dữ liệu chấm công (bảng `chamcong`) + hồ sơ nhân viên (bảng `employees`),
     theo đúng công thức đang dùng ở templates/bangluong.html (đồng bộ, không phải hàm giả)."""
@@ -12027,6 +12362,7 @@ def api_public_employee_lookup():
 
 @app.route('/api/hr/employees', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_hr_employees_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -12058,6 +12394,7 @@ def api_hr_employees_create():
 
 @app.route('/api/hr/employees/<ma_nv>', methods=['PATCH'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_hr_employees_update(ma_nv):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -12098,6 +12435,7 @@ def api_hr_employees_kudo(ma_nv):
 
 @app.route('/api/hr/employees/<ma_nv>', methods=['DELETE'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_hr_employees_delete(ma_nv):
     business_id = session.get('business_id') or session['user_id']
     try:
@@ -12211,6 +12549,7 @@ def api_hr_chamcong_month_summary():
 
 @app.route('/api/hr/chamcong', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_hr_chamcong_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -12229,6 +12568,7 @@ def api_hr_chamcong_create():
 
 @app.route('/api/hr/chamcong/<int:record_id>', methods=['PATCH'])
 @login_required
+@role_required('admin', 'super_admin')
 def api_hr_chamcong_update(record_id):
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}

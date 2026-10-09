@@ -63,7 +63,7 @@ await fg.setContent(`<html><body style="margin:0;width:1024px;height:500px;displ
   background:radial-gradient(circle at 15% 20%,rgba(245,158,11,.25),transparent 45%),radial-gradient(circle at 85% 80%,rgba(6,182,212,.3),transparent 45%),linear-gradient(160deg,#0B132B,#1C2541 55%,#0a2324);
   font-family:'Segoe UI',system-ui,sans-serif;color:#fff">
   <img src="data:image/jpeg;base64,${logo}" style="width:220px;height:220px;border-radius:48px;box-shadow:0 0 60px rgba(6,182,212,.45)">
-  <div><div style="font-size:72px;font-weight:900;letter-spacing:2px">Bit<span style="color:#22d3ee">Paw</span> OS</div>
+  <div><div style="font-size:58px;font-weight:900;letter-spacing:1px">Bit<span style="color:#22d3ee">Paw</span> Software</div>
   <div style="font-size:30px;font-weight:700;margin-top:12px;color:#e2e8f0">Salon POS · Booking · Payroll</div>
   <div style="font-size:22px;margin-top:14px;color:#94a3b8">Run your nail salon from one app</div></div></body></html>`);
 await fg.screenshot({ path: path.join(OUT, 'google_play_feature_graphic_1024x500.png') });

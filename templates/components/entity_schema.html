@@ -1,0 +1,89 @@
+{# =============================================================================
+   NGUỒN DUY NHẤT mô tả thực thể cho Google Knowledge Graph / AI Overview — dùng chung bởi
+   seo_meta.html (mọi landing), base.html và index.html. Trước đây 3 file tự chép 3 bản giống nhau và
+   gọi phần mềm quản lý là "BitPaw OS" — trùng tên với nền tảng việc làm ngành nail ở bitpawos.com,
+   khiến Google gộp nhầm 2 sản phẩm.
+
+   3 thương hiệu, cùng 1 người sáng lập (Hồ Đình Sang):
+     - BitPaw Software  (www.bitpawsoftware.com) — phần mềm quản lý doanh nghiệp: POS, nhân sự/lương, CRM, AI CSKH
+     - BitPaw OS        (www.bitpawos.com)       — nền tảng việc làm & cộng đồng ngành nail (PawNail Jobs):
+                                                   chủ tiệm tìm thợ, thợ tìm việc, hồ sơ & sản phẩm của thợ
+     - Bitpawnetwork    (www.bitpawnetwork.com)  — marketing tự động cho tiệm nail: SEO Google Maps, AI đặt lịch
+
+   @id của BitPaw OS / Bitpawnetwork là URL trên CHÍNH domain của chúng: dán cùng khối JSON-LD
+   (audit-results/SEO_ENTITY_GUIDE.md) lên 2 site đó thì Google hợp nhất thành 1 thực thể.
+   ============================================================================= #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://www.bitpawsoftware.com/#founder",
+      "name": "Hồ Đình Sang",
+      "alternateName": ["Ho Dinh Sang", "Sang Ho", "Cún"],
+      "birthDate": "2003-05-30",
+      "nationality": "Vietnamese",
+      "jobTitle": "Founder",
+      "url": "https://www.bitpawsoftware.com/ho-dinh-sang",
+      "description": "Hồ Đình Sang là người sáng lập BitPaw Software (phần mềm quản lý doanh nghiệp), BitPaw OS (nền tảng việc làm ngành nail) và Bitpawnetwork (marketing tự động cho tiệm nail). Ho Dinh Sang is the founder of BitPaw Software, BitPaw OS and Bitpawnetwork.",
+      "worksFor": [
+        { "@id": "https://www.bitpawsoftware.com/#organization" },
+        { "@id": "https://www.bitpawos.com/#organization" },
+        { "@id": "https://www.bitpawnetwork.com/#organization" }
+      ],
+      "knowsAbout": ["Point of Sale software", "Nail salon industry", "Job marketplace", "Local SEO marketing", "Software architecture"]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.bitpawsoftware.com/#organization",
+      "name": "BitPaw Software",
+      "alternateName": "BitPaw Software Solutions",
+      "legalName": "BitPaw Technology LLC",
+      "url": "https://www.bitpawsoftware.com",
+      "logo": {{ url_for('static', filename='logo_b.jpg', _external=True) | tojson }},
+      "description": "BitPaw Software cung cấp phần mềm quản lý doanh nghiệp: bán hàng (POS), chấm công, tính lương & hoa hồng, quản lý khách hàng (CRM) và trợ lý AI chăm sóc khách hàng cho tiệm nail, spa, nhà hàng, bán lẻ, karaoke, khách sạn, xưởng sản xuất và văn phòng. BitPaw Software provides business management software (POS, payroll, CRM and AI customer care).",
+      "disambiguatingDescription": "BitPaw Software is the business management (POS/HR/CRM) software company. It is a different product from BitPaw OS (a nail-industry job marketplace at bitpawos.com) and Bitpawnetwork (a marketing service at bitpawnetwork.com), all founded by Hồ Đình Sang. Not related to any cryptocurrency or token.",
+      "founder": { "@id": "https://www.bitpawsoftware.com/#founder" },
+      "knowsAbout": ["Point of Sale (POS)", "Payroll and commission", "Customer relationship management", "AI customer care"],
+      "contactPoint": [{
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "email": "bitpawsoftware@gmail.com",
+        "telephone": "+84-794-678-904",
+        "areaServed": ["US", "AU", "VN"],
+        "availableLanguage": ["English", "Vietnamese"]
+      }],
+      "sameAs": ["https://www.facebook.com/profile.php?id=61591611704371"]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.bitpawos.com/#organization",
+      "name": "BitPaw OS",
+      "alternateName": ["PawNail Jobs", "PawNail"],
+      "url": "https://www.bitpawos.com",
+      "description": "BitPaw OS (PawNail Jobs) là nền tảng việc làm và cộng đồng ngành nail: chủ tiệm đăng tin tìm thợ, thợ nail tìm việc, hồ sơ tay nghề, nhắn tin và gọi trực tiếp, và nơi thợ nail giới thiệu, bán sản phẩm của mình. BitPaw OS is a job marketplace and community for the nail industry.",
+      "disambiguatingDescription": "BitPaw OS is a job marketplace for nail salon owners and nail technicians (bitpawos.com). It is NOT the BitPaw Software point-of-sale/management software and NOT the Bitpawnetwork marketing service.",
+      "founder": { "@id": "https://www.bitpawsoftware.com/#founder" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.bitpawnetwork.com/#organization",
+      "name": "Bitpawnetwork",
+      "alternateName": "BitPaw Network",
+      "url": "https://www.bitpawnetwork.com",
+      "description": "Bitpawnetwork là dịch vụ marketing tự động cho tiệm nail tại Mỹ: SEO Google Maps, bot AI đặt lịch 24/7, quảng cáo mạng xã hội và xác minh tích xanh. Bitpawnetwork is an automated marketing and local SEO service for nail salons.",
+      "disambiguatingDescription": "Bitpawnetwork is a marketing / local SEO service for nail salons (bitpawnetwork.com). It is NOT the BitPaw Software management software and NOT the BitPaw OS job marketplace.",
+      "founder": { "@id": "https://www.bitpawsoftware.com/#founder" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.bitpawsoftware.com/#website",
+      "name": "BitPaw Software",
+      "url": "https://www.bitpawsoftware.com",
+      "inLanguage": ["en", "vi"],
+      "publisher": { "@id": "https://www.bitpawsoftware.com/#organization" }
+    }
+  ]
+}
+</script>

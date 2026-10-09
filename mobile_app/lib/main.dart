@@ -12,7 +12,7 @@ class BitPawApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BitPaw OS',
+      title: 'BitPaw Software',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,

@@ -312,7 +312,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_history_filter_status">Trạng thái</label>
                     <select id="statusFilter" class="filter-input">
                         <option value="all" data-i18n="payment_history_status_all">Tất cả</option>
-                        <option value="success" data-i18n="payment_history_status_success">Thành công</option>
+                        <option value="completed" data-i18n="payment_history_status_success">Thành công</option>
                         <option value="pending" data-i18n="payment_history_status_pending">Chờ xử lý</option>
                         <option value="failed" data-i18n="payment_history_status_failed">Thất bại</option>
                         <option value="refunded" data-i18n="payment_history_status_refunded">Hoàn tiền</option>
@@ -588,6 +588,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 failed: `<span class="status-badge status-failed"><i class="fas fa-exclamation-triangle mr-1"></i> ${t('payment_history_status_failed')}</span>`,
                 refunded: `<span class="status-badge status-refunded"><i class="fas fa-undo-alt mr-1"></i> ${t('payment_history_status_refunded')}</span>`
             };
+            map.completed = map.success; // server lưu 'completed' cho giao dịch thành công
             return map[status] || map.failed;
         }
 
@@ -627,8 +628,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }
             tbody.innerHTML = filteredTransactions.map(tx => `
                 <tr>
-                    <td class="font-mono text-xs">${tx.transaction_id || tx.id}</td>
-                    <td>${tx.method || t('payment_history_unknown')}</td>
+                    <td class="font-mono text-xs">${__escHtml(tx.transaction_id || tx.id)}</td>
+                    <td>${__escHtml(tx.method || t('payment_history_unknown'))}</td>
                     <td class="font-mono text-emerald-400">${formatCurrency(tx.amount, tx.currency || 'VND')}</td>
                     <td>${getStatusBadge(tx.status)}</td>
                     <td class="text-xs text-gray-400">${new Date(tx.created_at).toLocaleString('vi-VN')}</td>
@@ -652,13 +653,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         function showDetailModal(tx) {
             modalContent.innerHTML = `
-                <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-400">${t('payment_history_detail_transid')}</span><span class="font-mono">${tx.transaction_id || tx.id}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_method')}</span><span>${tx.method}</span></div>
+                <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-400">${t('payment_history_detail_transid')}</span><span class="font-mono">${__escHtml(tx.transaction_id || tx.id)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_method')}</span><span>${__escHtml(tx.method)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_amount')}</span><span class="text-emerald-400 font-bold">${formatCurrency(tx.amount, tx.currency)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_status')}</span>${getStatusBadge(tx.status)}</div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_time')}</span><span>${new Date(tx.created_at).toLocaleString('vi-VN')}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('payment_history_detail_customer')}</span><span>${__escHtml(tx.customer_name || 'N/A')}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Email:</span><span>${tx.customer_email || 'N/A'}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Email:</span><span>${__escHtml(tx.customer_email || 'N/A')}</span></div>
             `;
             modal.classList.remove('hidden');
             modal.classList.add('flex');

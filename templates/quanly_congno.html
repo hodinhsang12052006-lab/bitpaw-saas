@@ -9,7 +9,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Công Nợ | BitPaw OS</title>
+    <title>Quản Lý Công Nợ | BitPaw Software</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -257,7 +257,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -492,12 +492,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const balanceClass = balance > 0 ? 'text-rose-400' : 'text-emerald-400';
                 html += `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                        <td class="px-6 py-4 font-mono">${code}</td>
-                        <td class="px-6 py-4 font-bold">${name}</td>
+                        <td class="px-6 py-4 font-mono">${__escHtml(code)}</td>
+                        <td class="px-6 py-4 font-bold">${__escHtml(name)}</td>
                         <td class="px-6 py-4">${data.partner_type === 'customer' ? t('congno_partner_customer') : t('congno_partner_supplier')}</td>
                         <td class="px-6 py-4 text-right font-black ${balanceClass}">${formatMoney(balance)}</td>
                         <td class="px-6 py-4 text-center">
-                            <button onclick="viewDetail('${data.partner_type}', ${data.partner_id}, '${name}')" class="text-cyan-400 hover:text-cyan-300 transition-colors mr-3" title="${t('congno_view_history_title')}"><i class="fas fa-history"></i></button>
+                            <button onclick="viewDetail('${data.partner_type}', ${data.partner_id}, '${__escJsAttr(name)}')" class="text-cyan-400 hover:text-cyan-300 transition-colors mr-3" title="${t('congno_view_history_title')}"><i class="fas fa-history"></i></button>
                             <button onclick="openTransactionModalWithPartner('${data.partner_type}', ${data.partner_id})" class="text-emerald-400 hover:text-emerald-300 transition-colors" title="${t('congno_record_trans_title')}"><i class="fas fa-plus-circle"></i></button>
                         </td>
                     </tr>

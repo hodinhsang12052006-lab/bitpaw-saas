@@ -14,7 +14,7 @@
  */
 function printReceipt(options) {
     const {
-        businessName = 'BitPaw OS',
+        businessName = 'BitPaw Software',
         subtitle = '',
         items = [],
         subtotal = 0,

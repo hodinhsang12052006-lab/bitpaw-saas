@@ -1,4 +1,4 @@
-# Kế hoạch đưa BitPaw OS lên CH Play + App Store
+# Kế hoạch đưa BitPaw Software lên CH Play + App Store
 
 Cập nhật: 02/10/2026. App: `mobile_app/` (Flutter, bọc web app `https://bitpawsoftware.com` trong WebView).
 
@@ -17,7 +17,7 @@ Cập nhật: 02/10/2026. App: `mobile_app/` (Flutter, bọc web app `https://bi
 | # | Lỗi | Ảnh hưởng | Đã sửa |
 |---|---|---|---|
 | 1 | App chỉ có WebView Android (`webview_flutter_android` + `AndroidWebViewControllerCreationParams`) | **Bản iOS crash ngay khi mở** | Dùng `webview_flutter` đa nền tảng (bản wkwebview 3.27 không còn kéo `objective_c` gây lỗi build Windows) |
-| 2 | Thư mục `ios/` không có project Xcode (thiếu `Runner.xcodeproj`, `Info.plist`, icon) | Không build được bản iOS | Tạo project iOS: bundle ID `com.bitpawsoftware.bitpawMobile`, tên "BitPaw OS", iPhone + iPad, iOS ≥ 15, icon từ logo thật (1024 không alpha) |
+| 2 | Thư mục `ios/` không có project Xcode (thiếu `Runner.xcodeproj`, `Info.plist`, icon) | Không build được bản iOS | Tạo project iOS: bundle ID `com.bitpawsoftware.bitpawMobile`, tên "BitPaw Software" (dưới icon: "BitPaw POS"), iPhone + iPad, iOS ≥ 15, icon từ logo thật (1024 không alpha) |
 | 3 | Xoá tài khoản: có API nhưng **không màn hình nào gọi tới** | Apple 5.1.1(v) + Google Play từ chối | Trang `/account/delete` (xác nhận mật khẩu, khoá đăng nhập ngay) + link "Delete account" trong sidebar mọi trang. Khi chưa đăng nhập, trang hướng dẫn gửi yêu cầu xoá qua email (đúng yêu cầu "link web xoá tài khoản" của Google) |
 | 4 | Không có URL chính sách bảo mật riêng; văn bản còn `[Email liên hệ]`, `[Ngày cập nhật]`, `[Tax ID]`... | 2 store bắt buộc URL Privacy Policy | `/privacy-policy`, `/terms`, `/payment-policy` (EN/VI), điền email `bitpawsoftware@gmail.com`, ngày 02/10/2026, pháp nhân "BitPaw Technology LLC"; thêm đoạn mở đầu nêu rõ áp dụng cho app Android/iOS + quyền camera/vị trí |
 | 5 | Trong app vẫn vào được trang bán gói phần mềm (`/checkout`, bảng giá landing) | Apple 3.1.1 / Google Play Payments: bán gói số ngoài In-App Purchase bị từ chối | App gửi UA `BitPawMobileApp/1.0.0 (iOS\|Android; WebView)`; trong app `/checkout` hiện "không khả dụng trong ứng dụng" (không link mua ngoài), `/api/checkout/*` trả 403, landing/bảng giá chuyển về đăng nhập. Web thường không đổi |
@@ -45,7 +45,7 @@ Lần chạy ngày 02/10/2026 (commit `480fb7e`): **cả 2 job xanh**, file Andr
    - `ANDROID_KEYSTORE_BASE64`: chạy `base64 -w0 mobile_app/android/app/bitpaw-release.jks` rồi dán kết quả
    - `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`: lấy trong `mobile_app/android/key.properties`
    - **Sao lưu `bitpaw-release.jks` + `key.properties` ra nơi an toàn**: mất file này thì không cập nhật app trên CH Play được nữa.
-2. Tạo tài khoản Google Play Console (25 USD, 1 lần) → Create app "BitPaw OS".
+2. Tạo tài khoản Google Play Console (25 USD, 1 lần) → Create app "BitPaw Software".
 3. Bật Play App Signing, tải `.aab` (bản `release-signed`) lên track **Internal testing** trước, cài thử trên điện thoại thật.
 4. Điền Store listing + các form theo mục 5.
 
@@ -59,7 +59,7 @@ Lần chạy ngày 02/10/2026 (commit `480fb7e`): **cả 2 job xanh**, file Andr
 
 | Trường | Giá trị |
 |---|---|
-| Tên app | BitPaw OS |
+| Tên app | Tên trên store: **BitPaw Software** · tên dưới icon: **BitPaw POS** (không dùng "BitPaw OS" — đó là tên nền tảng việc làm bitpawos.com, trùng tên làm Google/người dùng nhầm 2 sản phẩm) |
 | Mô tả ngắn (Play, ≤80 ký tự) | Salon POS, online booking, staff attendance & payroll in one app. |
 | Danh mục | Business |
 | Email hỗ trợ | bitpawsoftware@gmail.com |

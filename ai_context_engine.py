@@ -84,7 +84,7 @@ class AIContextEngine:
 
         Returns: {"prompt": str, "business_name": str|None}
         """
-        base_prompt = "Bạn là trợ lý AI CSKH của BitPaw OS."
+        base_prompt = "Bạn là trợ lý AI CSKH của BitPaw Software."
 
         industry_prompts = {
             "retail": "Bạn là chuyên gia tư vấn bán lẻ tối ưu hóa dòng sản phẩm, chiến dịch quảng cáo và thanh lý hàng tồn kho.",

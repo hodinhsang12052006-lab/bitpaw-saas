@@ -14,7 +14,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#08061a">
     
-    <title>Chat Nội Bộ | BitPaw OS</title>
+    <title>Chat Nội Bộ | BitPaw Software</title>
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -352,7 +352,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     const globalBody = await hrApi(`/api/chat/messages?room=${encodeURIComponent('KenhChung')}&limit=1`);
                     const globalMsg = (globalBody.data || [])[0];
                     if (globalMsg) {
-                        let preview = globalMsg.content.startsWith('[IMG]') || globalMsg.content.startsWith('[GIF]') ? t('appchat_sent_image_short') : globalMsg.content;
+                        let preview = globalMsg.content.startsWith('[IMG]') || globalMsg.content.startsWith('[GIF]') ? t('appchat_sent_image_short') : __escHtml(globalMsg.content);
                         document.getElementById('last_msg_KenhChung').innerHTML = `<span class="text-white">${__escHtml(globalMsg.sender_name)}:</span> ${preview}`;
                     }
                 } catch (e) { /* im lặng — không chặn tải danh bạ nếu Kênh Chung chưa có tin */ }
@@ -373,7 +373,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         const msgBody = await hrApi(`/api/chat/messages?room=${encodeURIComponent(roomId)}&limit=1`);
                         const lastMsg = (msgBody.data || [])[0];
                         if (lastMsg) {
-                            previewText = lastMsg.content.startsWith('[IMG]') || lastMsg.content.startsWith('[GIF]') ? t('appchat_sent_image') : lastMsg.content;
+                            previewText = lastMsg.content.startsWith('[IMG]') || lastMsg.content.startsWith('[GIF]') ? t('appchat_sent_image') : __escHtml(lastMsg.content);
                             // "unread" tính THẬT server-side (so sánh last_read_at của mình với
                             // timestamp tin mới nhất) - KHÔNG còn đoán qua "tin cuối có phải
                             // mình gửi không", vốn hiện sai chấm đỏ ngay cả khi đã đọc rồi.
@@ -565,10 +565,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const content = data.content || "";
 
             if (content.startsWith('[IMG]') || content.startsWith('[GIF]')) {
-                const url = content.replace('[IMG]', '').replace('[GIF]', '');
+                // Chỉ nhận URL http(s)/nội bộ và escape — trước đây nội dung chat chèn thô (stored XSS).
+                const rawUrl = content.replace('[IMG]', '').replace('[GIF]', '');
+                const url = /^(https?:\/\/|\/)/i.test(rawUrl) ? __escHtml(rawUrl) : '';
                 contentHTML = `<img src="${url}" onload="forceScrollToBottom()" class="max-w-[240px] w-full rounded-2xl border border-white/10 shadow-lg mt-1 cursor-pointer hover:opacity-80 transition object-cover bg-black/50" onclick="openLightbox(this.src)">`;
             } else {
-                contentHTML = `<div class="${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-gray-200'} px-4 py-3 text-sm shadow-md mb-0.5 break-words inline-block leading-relaxed">${content}</div>`;
+                contentHTML = `<div class="${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-gray-200'} px-4 py-3 text-sm shadow-md mb-0.5 break-words inline-block leading-relaxed">${__escHtml(content)}</div>`;
             }
 
             const timeStr = formatTime(data.timestamp);
