@@ -1169,16 +1169,40 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
     <!-- ================= BOOKING QR MODAL — cổng đặt lịch online công khai của tiệm ================= -->
     <div id="bookingQrModal" class="modal-overlay">
-        <div class="modal-container">
-            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-qrcode text-amber-400"></i> <span data-i18n="npos_booking_qr_title">Online Booking QR</span></h3>
-            <p class="text-xs text-gray-400 mb-4 leading-relaxed" data-i18n="npos_booking_qr_desc">Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.</p>
-            <div class="bg-white p-4 rounded-2xl mb-4 shadow-md mx-auto block w-fit">
-                <img id="bookingQrImg" alt="Booking QR" class="w-48 h-48">
+        <div class="modal-container" style="max-width:440px">
+            <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-2 flex items-center gap-2"><i class="fas fa-qrcode" style="color:#f472b6"></i> <span data-i18n="npos_booking_qr_title">Online Booking QR</span></h3>
+            <p class="text-xs text-gray-400 mb-5 leading-relaxed" data-i18n="npos_booking_qr_desc">Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.</p>
+            {# Thẻ QR: viền gradient hồng–vàng theo theme Nails + 3 bước. CSS riêng (.bqr-*) vì
+               tailwind.output.css là bản build sẵn, không có các class tuỳ biến. #}
+            <style>
+                .bqr-frame { position: relative; margin: 0 auto 26px; width: fit-content; padding: 3px; border-radius: 28px;
+                             background: linear-gradient(135deg, #ec4899, #fb7185 45%, #f59e0b); box-shadow: 0 18px 50px rgba(236,72,153,.35); }
+                .bqr-inner { position: relative; background: #fff; border-radius: 25px; padding: 22px 22px 30px; }
+                .bqr-inner img { display: block; width: 208px; height: 208px; }
+                .bqr-chip { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); white-space: nowrap; background: #0f172a;
+                            color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; padding: 7px 16px; border-radius: 999px; }
+                .bqr-chip i { color: #f9a8d4; margin-right: 4px; }
+                .bqr-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; text-align: center; }
+                .bqr-step { border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); padding: 10px 4px; }
+                .bqr-step i { color: #f9a8d4; font-size: 14px; }
+                .bqr-step div { font-size: 10.5px; color: #d1d5db; font-weight: 600; margin-top: 4px; line-height: 1.25; }
+                .bqr-print { flex: 1.4; background: linear-gradient(90deg, #ec4899, #f59e0b); box-shadow: 0 10px 24px rgba(236,72,153,.35); }
+            </style>
+            <div class="bqr-frame">
+                <div class="bqr-inner">
+                    <img id="bookingQrImg" alt="Booking QR">
+                    <span class="bqr-chip"><i class="fas fa-camera"></i><span data-i18n="npos_booking_qr_scan">Scan to book</span></span>
+                </div>
             </div>
-            <p id="bookingQrUrl" class="text-xs text-gray-400 mb-4 break-all px-3 py-2.5 rounded-xl border border-white/5 bg-black/40 font-mono select-all"></p>
+            <div class="bqr-steps">
+                <div class="bqr-step"><i class="fas fa-mobile-screen"></i><div data-i18n="npos_booking_qr_step1">Scan with camera</div></div>
+                <div class="bqr-step"><i class="fas fa-hand-sparkles"></i><div data-i18n="npos_booking_qr_step2">Pick service &amp; tech</div></div>
+                <div class="bqr-step"><i class="fas fa-calendar-check"></i><div data-i18n="npos_booking_qr_step3">Booked instantly</div></div>
+            </div>
+            <p id="bookingQrUrl" class="text-xs text-gray-400 mb-4 break-all px-3 py-2 rounded-xl border border-white/5 bg-black/40 font-mono select-all"></p>
             <div class="flex gap-3">
                 <button onclick="copyBookingQrLink()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3.5 rounded-xl transition text-sm uppercase tracking-wider"><i class="fas fa-copy mr-1"></i> <span data-i18n="npos_booking_qr_copy">Copy Link</span></button>
-                <button onclick="printBookingQr()" class="flex-1 bg-gradient-to-r from-amber-500 to-cyan-600 text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest hover:scale-[1.02] transition-transform"><i class="fas fa-print mr-1"></i> <span data-i18n="npos_booking_qr_print">Print</span></button>
+                <button onclick="printBookingQr()" class="bqr-print text-white font-black py-3.5 rounded-xl text-sm uppercase tracking-widest transition-transform"><i class="fas fa-print mr-1"></i> <span data-i18n="npos_booking_qr_print">Print poster</span></button>
             </div>
             <button onclick="closeBookingQrModal()" class="w-full mt-3 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-wider py-2" data-i18n="npos_modal_cancel">Cancel</button>
         </div>
@@ -1498,7 +1522,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_square_cancel_failed: 'Failed to cancel: ',
                 npos_booking_qr_btn: 'Booking QR', npos_booking_qr_title: 'Online Booking QR',
                 npos_booking_qr_desc: 'Print this QR code or share the link below — customers scan it to book an appointment online themselves, 24/7, without calling the salon.',
-                npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print', npos_booking_qr_copied: 'Booking link copied!',
+                npos_booking_qr_copy: 'Copy Link', npos_booking_qr_print: 'Print poster', npos_booking_qr_copied: 'Booking link copied!',
+                npos_booking_qr_scan: 'Scan to book', npos_booking_qr_step1: 'Scan with camera', npos_booking_qr_step2: 'Pick service & tech', npos_booking_qr_step3: 'Booked instantly',
                 npos_dualprice_cash_label: 'Cash Price', npos_dualprice_card_label: 'Card Price',
                 npos_modal_surcharge: 'Card Surcharge', npos_receipt_surcharge: 'Card Surcharge',
                 npos_split_card_surcharge_hint: 'Card machine charges',
@@ -1565,7 +1590,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_square_cancel_failed: 'Huỷ thất bại: ',
                 npos_booking_qr_btn: 'QR Đặt lịch', npos_booking_qr_title: 'Mã QR đặt lịch online',
                 npos_booking_qr_desc: 'In mã QR này hoặc chia sẻ link bên dưới — khách quét mã để tự đặt lịch online, 24/7, không cần gọi điện.',
-                npos_booking_qr_copy: 'Sao chép link', npos_booking_qr_print: 'In', npos_booking_qr_copied: 'Đã sao chép link đặt lịch!',
+                npos_booking_qr_copy: 'Sao chép link', npos_booking_qr_print: 'In poster', npos_booking_qr_copied: 'Đã sao chép link đặt lịch!',
+                npos_booking_qr_scan: 'Quét để đặt lịch', npos_booking_qr_step1: 'Quét bằng camera', npos_booking_qr_step2: 'Chọn dịch vụ & thợ', npos_booking_qr_step3: 'Đặt xong tức thì',
                 npos_dualprice_cash_label: 'Giá Tiền Mặt', npos_dualprice_card_label: 'Giá Thẻ',
                 npos_modal_surcharge: 'Phụ Phí Thẻ', npos_receipt_surcharge: 'Phụ Phí Thẻ',
                 npos_split_card_surcharge_hint: 'Máy cà thẻ thu',
@@ -1960,32 +1986,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             navigator.clipboard.writeText(BOOKING_QR_URL);
             showToast(t('npos_booking_qr_copied'));
         }
-        async function printBookingQr() {
-            // Nạp SVG qua fetch() (kèm cookie session) rồi nhúng thẳng inline vào cửa sổ in —
-            // window.open() mới KHÔNG có cookie của tab gốc, <img src="/api/qr/..."> trực tiếp
-            // trong đó sẽ bị 401 vì thiếu session.
-            let svgMarkup = '';
-            try {
-                const res = await fetch('/api/qr/nail_booking');
-                svgMarkup = await res.text();
-            } catch (e) {
-                showToast(t('npos_booking_qr_print_error') || ('Lỗi: ' + e.message));
-                return;
-            }
-            const win = window.open('', '_blank');
-            win.document.write(`
-                <html><head><title>Booking QR</title><style>
-                    body { font-family: sans-serif; text-align: center; padding: 40px; }
-                    svg { width: 320px; height: 320px; }
-                    p { font-size: 12px; color: #555; word-break: break-all; margin-top: 16px; }
-                </style></head><body>
-                    <h2>${t('npos_booking_qr_title')}</h2>
-                    ${svgMarkup}
-                    <p>${BOOKING_QR_URL}</p>
-                    <script>window.onload = () => window.print();<\/script>
-                </body></html>
-            `);
-            win.document.close();
+        function printBookingQr() {
+            // Poster A4 theo theme Nails (tên tiệm, logo, 3 bước, khung QR) — /qr/poster/booking. Tờ in cũ nhúng
+            // SVG "svg:rect" nên in ra TRẮNG TRƠN.
+            window.open('/qr/poster/booking?print=1', '_blank');
         }
         function addCustomItem() {
             const name = document.getElementById('customItemName').value.trim();

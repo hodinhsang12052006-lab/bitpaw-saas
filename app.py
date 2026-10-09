@@ -44,6 +44,7 @@ def custom_sqlite3_connect(database, *args, **kwargs):
 sqlite3.connect = custom_sqlite3_connect
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app, g, abort
+from markupsafe import Markup
 from jinja2.exceptions import TemplateNotFound
 from datetime import datetime, timedelta
 import os
@@ -74,6 +75,7 @@ from pymongo import UpdateOne, ReturnDocument
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect
 import redis_queue
 import sync_worker
+import industry_access
 import nurture_channel_tokens
 from cryptography.fernet import Fernet
 from gridfs import GridFS
@@ -800,6 +802,10 @@ def inject_industry_config():
         default_lang=default_lang,
         menu_i18n=menu_i18n,
         menu_i18n_all=menu_i18n_all,
+        # Link "POS" / "Chấm công" đúng ngành (sidebar, AI Studio, trang thanh toán xong)
+        industry_pos_url=industry_access.pos_for(business_mode),
+        industry_home_url=industry_access.home_for(business_mode),
+        industry_chamcong_url=industry_access.chamcong_url(business_mode),
         asset_version=_ASSET_VERSION
     )
 
@@ -946,6 +952,65 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+def _shop_display_name(business_id):
+    """Tên tiệm hiển thị cho KHÁCH (menu QR, gọi món tại bàn) — trước đây đầu trang luôn ghi "BitPaw Menu"."""
+    if not business_id or db is None:
+        return None
+    try:
+        return (db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0}) or {}).get('name')
+    except Exception:
+        return None
+
+
+# ========== TÁCH NGÀNH NGHỀ (xem industry_access.py) ==========
+def _business_industry(business_id):
+    """Ngành của 1 tiệm (system_settings 'business_mode_<id chủ tiệm>' — business_id = id chủ tiệm)."""
+    if not business_id or db is None or not isinstance(business_id, str):
+        return None
+    try:
+        doc = db.system_settings.find_one({'key': f'business_mode_{business_id}'}, {'value': 1, '_id': 0})
+    except Exception:
+        return None
+    return ((doc or {}).get('value') or '').strip().lower() or None
+
+
+@app.before_request
+def _industry_isolation_guard():
+    """Chạy SAU _hybrid_auth_and_csrf (đăng ký trước, chạy trước) nên session JWT của Mobile đã có
+    business_mode. Tiệm ngành A gọi trang/API riêng của ngành B -> trang: về trang chủ ngành A; API: 403."""
+    endpoint = request.endpoint
+    if not endpoint or endpoint == 'static':
+        return None
+    view_args = request.view_args or {}
+
+    # Trang/API công khai cho khách: kiểm tra theo ngành CỦA TIỆM trong đường dẫn, không theo session
+    public_allowed = industry_access.PUBLIC_ENDPOINT_INDUSTRIES.get(endpoint)
+    if public_allowed is not None:
+        target_bid = view_args.get('business_id') or view_args.get('spa_id')
+        target_industry = _business_industry(target_bid) if target_bid else None
+        if target_industry and target_industry in industry_access.INDUSTRIES and target_industry not in public_allowed:
+            # QR đặt lịch in nhầm loại (Spa <-> Nails): đưa khách sang đúng trang đặt lịch của tiệm
+            if endpoint in ('public_booking', 'public_booking_nail') and target_industry == 'nail':
+                return redirect(url_for('public_booking_nail', business_id=target_bid))
+            if endpoint in ('public_booking', 'public_booking_nail') and target_industry == 'spa':
+                return redirect(url_for('public_booking', spa_id=target_bid))
+            if _wants_json():
+                return jsonify({'success': False, 'message': 'Tiệm này không dùng tính năng này.'}), 404
+            return "Tiệm này không dùng tính năng này.", 404
+        return None
+
+    if 'user_id' not in session or _is_superadmin():
+        return None
+    industry = (session.get('business_mode') or '').strip().lower()
+    if industry not in industry_access.INDUSTRIES:
+        return None        # chưa chọn ngành (đang /setup) — để luồng setup tự xử lý
+    if industry_access.is_allowed(industry, endpoint, view_args):
+        return None
+    if _wants_json():
+        return jsonify({'success': False, 'message': 'Tính năng này không thuộc ngành của tiệm bạn.'}), 403
+    return redirect(industry_access.home_for(industry))
 
 
 # ========== DECORATOR PHÂN QUYỀN (RBAC) ==========
@@ -2368,7 +2433,10 @@ def api_checkout_payment_methods():
     /api/superadmin/payment_methods (superadmin quản lý), nhưng route này không yêu cầu đăng
     nhập và luôn lọc is_active=True."""
     try:
-        methods = list(db.payment_methods.find({'is_active': True}, {'_id': 0}).sort('id', 1))
+        # Chỉ trả đúng thông tin chuyển khoản công khai — collection có thêm trường mới sau này cũng không bị lộ
+        methods = list(db.payment_methods.find({'is_active': True}, {
+            '_id': 0, 'id': 1, 'bin_code': 1, 'provider_name': 1, 'account_number': 1, 'account_name': 1, 'logo_url': 1,
+        }).sort('id', 1))
         return jsonify({"success": True, "data": methods})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -2562,7 +2630,9 @@ def pos():
     business_id = session.get('business_id') or session['user_id']
     try:
         tables_data = list(db.dining_tables.find({'business_id': business_id}, {'_id': 0}))
-        if len(tables_data) == 0:
+        # Chỉ tiệm F&B mới được tự tạo sẵn 200 bàn. Trước đây BẤT KỲ tiệm nào mở /pos (Nails, Spa qua nút
+        # POS ở sidebar, Khách sạn...) đều bị ghi 200 bàn ăn rác vào dữ liệu của tiệm.
+        if len(tables_data) == 0 and (session.get('business_mode') or '').strip().lower() == 'fnb':
             # Cố định mặc định 200 bàn (đặt tên tiếng Anh "Table N") thay vì phụ thuộc vào
             # tính năng "Thêm Bàn" động — mỗi tenant F&B mới sẽ luôn có sẵn 200 bàn thật
             # (có id Mongo thật, dùng được ngay cho gọi món/thanh toán) ngay từ lần đầu vào POS.
@@ -6815,11 +6885,100 @@ def api_public_storage_file(file_id):
 # giữa lúc cần nhất. _generate_qr_svg() sinh QR THUẦN PYTHON (thư viện qrcode, image_factory=
 # SvgImage — không cần Pillow, không phụ thuộc mạng ngoài, luôn sẵn sàng bất kể Internet của máy
 # chủ hay của bên thứ 3 thế nào).
-def _generate_qr_svg(data):
-    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgImage, box_size=10, border=2)
+def _generate_qr_svg(data, color='#111827'):
+    # SvgPathImage (1 <path>, có viewBox) thay cho SvgImage: SvgImage xuất các thẻ có tiền tố "svg:rect" —
+    # <img src> vẫn hiển thị được nhưng NHÚNG thẳng vào trang in (printBookingQr/printQR) thì trình duyệt
+    # không hiểu -> tờ in QR TRẮNG TRƠN. viewBox để co giãn theo CSS. Mức sửa lỗi Q (~25%) cho QR in giấy
+    # dán quầy/bàn vẫn quét được khi bị xước, bẩn.
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=10, border=2,
+                       image_factory=qrcode.image.svg.SvgPathImage)
+    qr.add_data(data)
+    qr.make(fit=True)
     buf = io.BytesIO()
-    img.save(buf)
-    return buf.getvalue()
+    qr.make_image().save(buf)
+    svg = buf.getvalue().decode('utf-8')
+    if color:
+        # Thay fill="#000000" có sẵn trên <path> — THÊM 1 thuộc tính fill thứ 2 làm SVG sai chuẩn XML (trùng thuộc
+        # tính): nhúng inline thì trình duyệt bỏ qua, nhưng <img src="/api/qr/..."> báo ảnh vỡ.
+        svg = re.sub(r'(<path\b[^>]*?)\sfill="[^"]*"', lambda m: f'{m.group(1)} fill="{color}"', svg, count=1)
+    return svg.encode('utf-8')
+
+
+def _qr_svg_inline(data, color='#111827'):
+    """SVG để nhúng thẳng vào HTML (bỏ khai báo <?xml ...?>, bỏ width/height cố định theo mm)."""
+    svg = _generate_qr_svg(data, color).decode('utf-8')
+    svg = re.sub(r'^<\?xml[^>]*>\s*', '', svg)
+    return re.sub(r'\swidth="[^"]*"\s+height="[^"]*"', '', svg, count=1)
+
+
+# Theme poster QR theo ngành — màu + câu chữ hợp với khách của từng ngành
+_QR_POSTER_THEME = {
+    'nail': {'accent': '#db2777', 'accent2': '#f59e0b', 'bg1': '#fff1f7', 'bg2': '#fde7f3', 'icon': 'fa-hand-sparkles',
+             'vi': {'eyebrow': 'Đặt lịch online 24/7', 'headline': 'Quét mã để đặt lịch làm nail',
+                    'steps': ['Mở camera, quét mã QR', 'Chọn dịch vụ, thợ và giờ', 'Xác nhận — tiệm giữ chỗ cho bạn'],
+                    'cta': 'Không cần gọi điện · Không cần tải app'},
+             'en': {'eyebrow': 'Online booking 24/7', 'headline': 'Scan to book your nail appointment',
+                    'steps': ['Open your camera and scan', 'Pick a service, technician & time', 'Confirm — we hold your spot'],
+                    'cta': 'No phone call · No app needed'}},
+    'spa': {'accent': '#0d9488', 'accent2': '#a855f7', 'bg1': '#effcf9', 'bg2': '#e6f6f4', 'icon': 'fa-spa',
+            'vi': {'eyebrow': 'Đặt lịch online 24/7', 'headline': 'Quét mã để đặt lịch spa',
+                   'steps': ['Mở camera, quét mã QR', 'Chọn liệu trình, kỹ thuật viên và giờ', 'Xác nhận — spa giữ chỗ cho bạn'],
+                   'cta': 'Không cần gọi điện · Không cần tải app'},
+            'en': {'eyebrow': 'Online booking 24/7', 'headline': 'Scan to book your spa treatment',
+                   'steps': ['Open your camera and scan', 'Pick a treatment, therapist & time', 'Confirm — we hold your spot'],
+                   'cta': 'No phone call · No app needed'}},
+    'fnb': {'accent': '#ea580c', 'accent2': '#eab308', 'bg1': '#fff7ed', 'bg2': '#ffedd5', 'icon': 'fa-utensils',
+            'vi': {'eyebrow': 'Gọi món tại bàn', 'headline': 'Quét mã để xem menu & gọi món',
+                   'steps': ['Mở camera, quét mã QR', 'Chọn món, thêm ghi chú', 'Gửi order — bếp làm ngay'],
+                   'cta': 'Không cần chờ nhân viên · Không cần tải app'},
+            'en': {'eyebrow': 'Order at your table', 'headline': 'Scan to see the menu & order',
+                   'steps': ['Open your camera and scan', 'Pick dishes, add notes', 'Send the order — kitchen starts right away'],
+                   'cta': 'No waiting for staff · No app needed'}},
+}
+
+
+def _render_qr_poster(industry, target_url, table_name=None):
+    business_id = session.get('business_id') or session['user_id']
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'phone': 1, 'address': 1}) or {}
+    brand_name = _brand_setting_get(business_id, 'brand_name', '')
+    shop_name = biz.get('name') or (brand_name if brand_name and brand_name != 'BitPaw' else '') or 'Our Shop'
+    lang = request.args.get('lang') or resolve_lang(request)
+    lang = lang if lang in ('vi', 'en') else 'en'
+    theme = _QR_POSTER_THEME[industry]
+    return render_template(
+        'qr_poster.html', theme=theme, copy=theme[lang], lang=lang, industry=industry,
+        shop_name=shop_name, shop_phone=biz.get('phone') or '', shop_address=biz.get('address') or '',
+        logo_url=_brand_setting_get(business_id, 'brand_logo_url', ''), table_name=table_name,
+        qr_svg=Markup(_qr_svg_inline(target_url, '#111827')), target_url=target_url,
+        auto_print=request.args.get('print') == '1',
+    )
+
+
+@app.route('/qr/poster/booking')
+@login_required
+def qr_poster_booking():
+    """Poster QR đặt lịch (Nails/Spa) — in A4 dán quầy/cửa kính. Trước đây chỉ có tờ in trắng trơn (và còn
+    in ra trắng vì lỗi SVG ở trên); Spa thì không có chỗ nào lấy QR đặt lịch."""
+    business_id = session.get('business_id') or session['user_id']
+    industry = (session.get('business_mode') or '').strip().lower()
+    if industry == 'spa':
+        url = url_for('public_booking', spa_id=business_id, _external=True)
+    else:
+        industry = 'nail'
+        url = url_for('public_booking_nail', business_id=business_id, _external=True)
+    return _render_qr_poster(industry, url)
+
+
+@app.route('/qr/poster/table/<int:table_id>')
+@login_required
+def qr_poster_table(table_id):
+    """Poster QR gọi món cho 1 bàn F&B (dạng thẻ dựng trên bàn)."""
+    business_id = session.get('business_id') or session['user_id']
+    table = db.dining_tables.find_one({'id': table_id, 'business_id': business_id}, {'qr_token': 1, 'name': 1, '_id': 0})
+    if not table:
+        return "Không tìm thấy bàn.", 404
+    url = url_for('table_order', table_id=table['qr_token'], _external=True)
+    return _render_qr_poster('fnb', url, table_name=table.get('name'))
 
 
 @app.route('/api/qr/nail_booking', methods=['GET'])
@@ -6896,6 +7055,10 @@ def qr_menu(identifier):
 
     if not table_data:
         return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+    # Bàn ăn chỉ có nghĩa với tiệm F&B — bàn rác của tiệm ngành khác (do /pos từng tự tạo 200 bàn cho
+    # mọi tiệm) không được mở thành thực đơn gọi món.
+    if _business_industry(table_data.get('business_id')) not in (None, 'fnb'):
+        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
 
     # Chỉ load đúng thực đơn của tenant sở hữu bàn này — cấm lộ sản phẩm của tiệm khác.
     # channel_type đọc từ query string (mặc định 'retail' giữ đúng hành vi cũ) — trước đây bản
@@ -6921,7 +7084,8 @@ def qr_menu(identifier):
     except Exception as e:
         print(f"MongoDB qr_menu products select failed: {str(e)}")
         menu_data = []
-    return render_template('qr_menu.html', table=table_data, menu=menu_data, channel_type=channel_type)
+    return render_template('qr_menu.html', table=table_data, menu=menu_data, channel_type=channel_type,
+                           shop_name=_shop_display_name(table_business_id))
 
 
 @app.route('/api/submit_qr_order', methods=['POST'])
@@ -9582,6 +9746,10 @@ def table_order():
 
     if not table_data:
         return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+    # Bàn ăn chỉ có nghĩa với tiệm F&B — bàn rác của tiệm ngành khác (do /pos từng tự tạo 200 bàn cho
+    # mọi tiệm) không được mở thành thực đơn gọi món.
+    if _business_industry(table_data.get('business_id')) not in (None, 'fnb'):
+        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
 
     # Khách quét QR KHÔNG có session — inject_industry_config() (context_processor toàn cục)
     # sẽ resolve tenant_country/tenant_currency theo session.get('business_id') là None, tức
@@ -9594,7 +9762,7 @@ def table_order():
         region = {"country": "VN", "currency": "VND"}
 
     return render_template(
-        'table_order.html', table=table_data,
+        'table_order.html', table=table_data, shop_name=_shop_display_name(table_data.get('business_id')),
         tenant_country=region['country'], tenant_currency=region['currency']
     )
 

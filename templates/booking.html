@@ -179,6 +179,30 @@
         <div class="absolute -top-12 -right-12 w-40 h-40 bg-cyan-500/20 rounded-full blur-[60px] pointer-events-none -z-10"></div>
         <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-600/20 rounded-full blur-[60px] pointer-events-none -z-10"></div>
 
+        {% if business_name %}
+        {# Trang khách mở sau khi quét QR: thương hiệu TIỆM là nhân vật chính (logo/monogram + tên tiệm làm tiêu đề),
+           thay cho logo BitPaw + dòng tên tiệm nhỏ trước đây. CSS riêng (.shop-*) vì tailwind.output.css build sẵn. #}
+        <style>
+            .shop-hero { text-align: center; margin-bottom: 28px; }
+            .shop-logo { width: 84px; height: 84px; margin: 4px auto 14px; border-radius: 50%; padding: 3px;
+                         background: linear-gradient(135deg, #22d3ee, #6366f1 55%, #ec4899); box-shadow: 0 12px 34px rgba(34,211,238,.28); }
+            .shop-logo > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #0f172a; display: grid; place-items: center; }
+            .shop-logo img { width: 100%; height: 100%; object-fit: cover; }
+            .shop-logo span { font-size: 34px; font-weight: 900; background: linear-gradient(135deg, #67e8f9, #f0abfc);
+                              -webkit-background-clip: text; background-clip: text; color: transparent; }
+            .shop-name { font-size: 26px; line-height: 1.15; font-weight: 900; color: #fff; letter-spacing: -.01em; margin: 0 0 6px; }
+            .shop-sub { font-size: 13px; color: #9ca3af; margin: 0 0 12px; }
+            .shop-chips { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+            .shop-chips span { font-size: 11px; font-weight: 700; color: #a5f3fc; background: rgba(34,211,238,.08);
+                               border: 1px solid rgba(34,211,238,.22); padding: 5px 10px; border-radius: 999px; }
+        </style>
+        <div class="shop-hero">
+            <div class="shop-logo"><div>{% if shop_logo_url %}<img src="{{ shop_logo_url }}" alt="{{ business_name }}">{% else %}<span>{{ business_name[:1] | upper }}</span>{% endif %}</div></div>
+            <h1 class="shop-name">{{ business_name }}</h1>
+            <p class="shop-sub">Book your appointment online — it only takes a minute.</p>
+            <div class="shop-chips"><span><i class="fas fa-clock"></i> Open 24/7</span><span><i class="fas fa-bolt"></i> Instant confirmation</span></div>
+        </div>
+        {% else %}
         <div class="text-center mb-8">
             <div class="relative flex justify-center items-center h-28 hologram-container mb-2">
                 <div class="relative w-20 h-20 rounded-2xl border border-cyan-500/30 flex items-center justify-center glass-panel shadow-[0_10px_20px_rgba(6,182,212,0.2)] bg-gradient-to-br from-cyan-900/40 to-blue-900/20">
@@ -199,6 +223,8 @@
             <p class="text-xs text-gray-400 font-medium">Welcome! Please fill in the information below.</p>
         </div>
 
+        {% endif %}
+
         <form id="bookingForm" class="space-y-5">
             <div class="floating-input">
                 <input type="text" id="cus_name" placeholder=" " required autocomplete="name">
@@ -213,9 +239,11 @@
             </div>
 
             <div class="floating-input">
-                <input type="text" id="cus_address" placeholder=" " required autocomplete="street-address">
+                {# Không bắt buộc: khách tới tiệm làm dịch vụ (Nails/Spa) thì không cần địa chỉ — trước đây ô này
+                   bắt buộc nên khách phải gõ bừa mới đặt được lịch. #}
+                <input type="text" id="cus_address" placeholder=" " autocomplete="street-address">
                 <i class="fas fa-map-marker-alt input-icon"></i>
-                <label>Address (House number, Street, Ward...)</label>
+                <label>Address (optional)</label>
             </div>
 
             <div class="relative">
@@ -422,7 +450,7 @@
                 // Gộp địa chỉ + ghi chú khách vào 1 trường "note" duy nhất vì
                 // /create_appointment (Mongo) chỉ có field note, không có field địa chỉ riêng.
                 const selectedSvc = globalMenuData.find(dv => dv.id == serviceId);
-                let noteParts = [`Địa chỉ: ${address}`];
+                let noteParts = address ? [`Địa chỉ: ${address}`] : [];
                 if (selectedSvc) noteParts.push(`Dịch vụ: ${selectedSvc.name}`);
                 if (note) noteParts.push(`Ghi chú khách: ${note}`);
                 const finalNote = noteParts.join(' | ');

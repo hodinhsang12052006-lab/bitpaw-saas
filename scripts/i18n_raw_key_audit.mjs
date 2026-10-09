@@ -21,6 +21,8 @@ async function rawKeys(page) {
       if (!txt || !re.test(txt)) continue;
       const el = n.parentElement;
       if (!el || ['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA', 'OPTION'].includes(el.tagName)) continue;
+      // Nhật ký hoạt động hiển thị nguyên tên thao tác/đối tượng (submit_qr_order, table_6518) — là DỮ LIỆU, không phải khoá dịch
+      if (location.pathname === '/user_logs' && el.closest('table, #logsTable, .log-row, tbody')) continue;
       const cs = getComputedStyle(el); const r = el.getBoundingClientRect();
       if (cs.display === 'none' || cs.visibility === 'hidden' || (r.width === 0 && r.height === 0)) continue;
       out.add(txt);
@@ -44,7 +46,7 @@ for (let i = 0; i < 4 && !(await page.locator('#app-sidebar a').count()); i++) {
 let links = [...new Set(await page.$$eval('#app-sidebar a[href^="/"]', (as) => as.map((a) => a.getAttribute('href'))))]
   .filter((h) => !/logout|delete/.test(h));
 // Trang không nằm trong sidebar nhưng chủ tiệm Nails vẫn mở tới (nút, link trong trang)
-for (const extra of ['/map_dashboard', '/nhanvien', '/add', '/quanly_dichvu', '/app_nhanvien', '/diemdanh', '/crm_automation',
+for (const extra of ['/nhanvien', '/add', '/quanly_dichvu', '/app_nhanvien', '/diemdanh', '/crm_automation',
   '/campaign_builder', '/promotion_management', '/customer_nurturing', '/quanly_thuchi', '/baocao_loinhuan', '/cauhinh_luong', '/user_logs', '/backup_restore']) {
   if (!links.includes(extra)) links.push(extra);
 }

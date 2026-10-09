@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ shop_name }} — QR</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    {# Poster QR in A4 dán quầy / cửa kính / bàn (xem app.py _render_qr_poster). Màu + câu chữ theo ngành
+       (_QR_POSTER_THEME). CSS viết thẳng ở đây, không phụ thuộc tailwind.output.css; in đúng màu nền nhờ
+       print-color-adjust. Mã QR là SVG sinh tại server (không gửi link tiệm ra dịch vụ bên ngoài). #}
+    <style>
+        :root {
+            --accent: {{ theme.accent }}; --accent2: {{ theme.accent2 }};
+            --bg1: {{ theme.bg1 }}; --bg2: {{ theme.bg2 }};
+            --ink: #111827; --muted: #4b5563;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; }
+        body { background: #1f2937; font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--ink);
+               -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .toolbar { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+                   padding: 12px 16px; background: rgba(17, 24, 39, .92); backdrop-filter: blur(8px); }
+        .toolbar button, .toolbar a { font: 700 13px/1 inherit; font-family: inherit; color: #fff; text-decoration: none; cursor: pointer;
+                   border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); padding: 10px 16px; border-radius: 999px; }
+        .toolbar .primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); border-color: transparent; }
+        .sheet-wrap { padding: 24px 16px 48px; display: flex; justify-content: center; }
+        .sheet { width: 210mm; min-height: 297mm; position: relative; overflow: hidden; border-radius: 6px;
+                 background: radial-gradient(120% 70% at 100% 0%, var(--bg2) 0%, transparent 60%), radial-gradient(90% 60% at 0% 100%, var(--bg2) 0%, transparent 60%), var(--bg1);
+                 box-shadow: 0 30px 80px rgba(0,0,0,.45); display: flex; flex-direction: column; align-items: center; padding: 18mm 16mm 12mm; }
+        .sheet::before, .sheet::after { content: ''; position: absolute; border-radius: 50%; filter: blur(2px); opacity: .18; }
+        .sheet::before { width: 120mm; height: 120mm; top: -50mm; left: -40mm; background: var(--accent); }
+        .sheet::after { width: 90mm; height: 90mm; bottom: -35mm; right: -30mm; background: var(--accent2); }
+        .brand { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4mm; text-align: center; }
+        .logo { width: 26mm; height: 26mm; border-radius: 50%; background: #fff; display: grid; place-items: center; overflow: hidden;
+                box-shadow: 0 6px 18px rgba(0,0,0,.12), 0 0 0 2.2mm rgba(255,255,255,.75); }
+        .logo img { width: 100%; height: 100%; object-fit: cover; }
+        .logo span { font-size: 12mm; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--accent2));
+                     -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .shop { font-size: 9.5mm; font-weight: 900; letter-spacing: -.2mm; line-height: 1.1; max-width: 170mm; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 2.5mm; margin-top: 8mm; padding: 2.4mm 5mm; border-radius: 999px;
+                   font-size: 4mm; font-weight: 800; letter-spacing: .5mm; text-transform: uppercase; color: #fff;
+                   background: linear-gradient(90deg, var(--accent), var(--accent2)); position: relative; }
+        h1 { position: relative; margin: 5mm 0 0; font-size: 13mm; line-height: 1.08; font-weight: 900; letter-spacing: -.4mm; text-align: center; max-width: 175mm; }
+        h1 em { font-style: normal; color: var(--accent); }
+        .table-tag { position: relative; margin-top: 4mm; font-size: 7mm; font-weight: 800; color: var(--accent); }
+        .qr-card { position: relative; margin-top: 9mm; padding: 7mm; background: #fff; border-radius: 9mm;
+                   box-shadow: 0 18px 40px rgba(17,24,39,.14); }
+        .qr-card svg { display: block; width: 92mm; height: 92mm; }
+        .corner { position: absolute; width: 14mm; height: 14mm; border: 2mm solid var(--accent); }
+        .c1 { top: -2.5mm; left: -2.5mm; border-right: 0; border-bottom: 0; border-top-left-radius: 8mm; }
+        .c2 { top: -2.5mm; right: -2.5mm; border-left: 0; border-bottom: 0; border-top-right-radius: 8mm; }
+        .c3 { bottom: -2.5mm; left: -2.5mm; border-right: 0; border-top: 0; border-bottom-left-radius: 8mm; border-color: var(--accent2); }
+        .c4 { bottom: -2.5mm; right: -2.5mm; border-left: 0; border-top: 0; border-bottom-right-radius: 8mm; border-color: var(--accent2); }
+        .scan-chip { position: absolute; left: 50%; bottom: -5.5mm; transform: translateX(-50%); white-space: nowrap; background: var(--ink); color: #fff;
+                     font-size: 3.6mm; font-weight: 800; letter-spacing: .4mm; padding: 2mm 5mm; border-radius: 999px; text-transform: uppercase; }
+        .steps { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; width: 100%; max-width: 178mm; margin-top: 14mm; }
+        .step { background: rgba(255,255,255,.78); border: .3mm solid rgba(17,24,39,.06); border-radius: 5mm; padding: 4.5mm 4mm; text-align: center; }
+        .num { width: 9mm; height: 9mm; margin: 0 auto 2.5mm; border-radius: 50%; display: grid; place-items: center; color: #fff;
+               font-weight: 900; font-size: 4.5mm; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+        .step p { margin: 0; font-size: 4mm; font-weight: 700; line-height: 1.35; color: var(--ink); }
+        .cta { position: relative; margin-top: 7mm; font-size: 4.2mm; font-weight: 700; color: var(--muted); }
+        .contact { position: relative; margin-top: 3mm; font-size: 3.8mm; color: var(--muted); text-align: center; }
+        .contact i { color: var(--accent); margin-right: 1.5mm; }
+        .footer { position: relative; margin-top: auto; padding-top: 8mm; width: 100%; display: flex; justify-content: space-between; align-items: center;
+                  font-size: 3.1mm; color: #6b7280; }
+        .footer .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; max-width: 125mm; }
+        .footer b { color: var(--ink); }
+        @media (max-width: 860px) {
+            .sheet-wrap { padding: 12px 0 32px; }
+            .sheet { transform-origin: top center; zoom: .45; }
+        }
+        @page { size: A4; margin: 0; }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet-wrap { padding: 0; }
+            .sheet { box-shadow: none; border-radius: 0; width: 210mm; height: 297mm; zoom: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button class="primary" type="button" onclick="window.print()"><i class="fas fa-print"></i> {{ 'In poster' if lang == 'vi' else 'Print poster' }}</button>
+        <a href="?lang={{ 'en' if lang == 'vi' else 'vi' }}">{{ 'English' if lang == 'vi' else 'Tiếng Việt' }}</a>
+        <button type="button" id="copyBtn"><i class="fas fa-link"></i> {{ 'Sao chép link' if lang == 'vi' else 'Copy link' }}</button>
+    </div>
+    <div class="sheet-wrap">
+        <main class="sheet">
+            <div class="brand">
+                <div class="logo">
+                    {% if logo_url %}<img src="{{ logo_url }}" alt="{{ shop_name }}">{% else %}<span>{{ (shop_name or '?')[:1] | upper }}</span>{% endif %}
+                </div>
+                <div class="shop">{{ shop_name }}</div>
+            </div>
+            <div class="eyebrow"><i class="fas {{ theme.icon }}"></i> {{ copy.eyebrow }}</div>
+            <h1>{{ copy.headline }}</h1>
+            {% if table_name %}<div class="table-tag"><i class="fas fa-chair"></i> {{ table_name }}</div>{% endif %}
+            <div class="qr-card">
+                <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+                {{ qr_svg }}
+                <span class="scan-chip"><i class="fas fa-camera"></i> {{ 'Quét tại đây' if lang == 'vi' else 'Scan me' }}</span>
+            </div>
+            <div class="steps">
+                {% for s in copy.steps %}
+                <div class="step"><div class="num">{{ loop.index }}</div><p>{{ s }}</p></div>
+                {% endfor %}
+            </div>
+            <div class="cta">{{ copy.cta }}</div>
+            {% if shop_phone or shop_address %}
+            <div class="contact">
+                {% if shop_phone %}<span><i class="fas fa-phone"></i>{{ shop_phone }}</span>{% endif %}
+                {% if shop_phone and shop_address %} &nbsp;·&nbsp; {% endif %}
+                {% if shop_address %}<span><i class="fas fa-location-dot"></i>{{ shop_address }}</span>{% endif %}
+            </div>
+            {% endif %}
+            <div class="footer">
+                <span class="url">{{ target_url }}</span>
+                <span>Powered by <b>BitPaw Software</b></span>
+            </div>
+        </main>
+    </div>
+    <script>
+        document.getElementById('copyBtn').addEventListener('click', async function () {
+            try { await navigator.clipboard.writeText({{ target_url | tojson }}); this.innerHTML = '<i class="fas fa-check"></i> OK'; } catch (e) { /* clipboard bị chặn */ }
+        });
+        {% if auto_print %}window.addEventListener('load', () => setTimeout(() => window.print(), 400));{% endif %}
+    </script>
+</body>
+</html>

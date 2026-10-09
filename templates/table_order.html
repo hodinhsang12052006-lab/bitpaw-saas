@@ -209,7 +209,7 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400/70 object-cover shadow-md">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>
+                    {% if shop_name %}<h1 class="text-xl font-black tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>{% endif %}
                     <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="locationLabel">Vị trí</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
                 </div>
             </div>

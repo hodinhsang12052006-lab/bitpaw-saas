@@ -69,7 +69,8 @@ async function main() {
   const page = await context.newPage();
 
   page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text());
+    // ERR_CONNECTION_RESET = máy dev Windows (Werkzeug + Avast) reset kết nối, gotoSell() đã tự tải lại — không phải lỗi app
+    if (msg.type() === 'error' && !/ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED/.test(msg.text())) consoleErrors.push(msg.text());
   });
   page.on('pageerror', (err) => consoleErrors.push(String(err)));
   page.on('response', (res) => {

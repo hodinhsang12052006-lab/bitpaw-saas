@@ -381,3 +381,30 @@ Script mới `scripts/nail_persona_e2e.mjs` (36 bước, đối chiếu DB thậ
 
 Kết quả: persona 36/36 PASS · khoá dịch thô 0/56 lượt · quét toàn trang 117/120 sạch (3 còn lại là đúng thiết kế: `/table_order` thiếu mã bàn 400, `/super-admin` 403) · hồi quy 8 script Nails cũ đều PASS (master 10/10, chu trình kinh doanh 9/9, module dùng chung 9/9, gap 8/8, AI CSKH 7/7, realtime 6/6, POS acceptance, giao diện 42/42 màn hình).
 Còn để ý: đặt lịch công khai không chặn giờ đã qua ở server (UI đã chặn); app nhân viên chạy dưới phiên đăng nhập của chủ tiệm (máy tiệm) — tài khoản đăng nhập riêng cho thợ vẫn là quyết định sản phẩm (Pha 8).
+
+## Pha 14 — Tách ngành nghề + làm lại QR + chạy lại toàn bộ (09/10/2026)
+
+### Tách ngành nghề (`industry_access.py` — 1 bảng quy định duy nhất trang/API nào thuộc ngành nào)
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | Tiệm ngành nào cũng mở được trang/API riêng của 8 ngành kia (Nails mở /pos sơ đồ bàn, /karaoke, /hotel_rooms, /kitchen_display, chấm công ngành khác...) | `_industry_isolation_guard`: trang -> về trang chủ ngành mình, API -> 403 |
+| 2 | 🔴 Dữ liệu | Mở `/pos` là tự tạo 200 bàn ăn cho BẤT KỲ tiệm nào -> 8 tiệm không phải F&B + 4 tài khoản đã xoá có 2.600 bàn rác | Chỉ F&B được tạo bàn; `scripts/cleanup_cross_industry_tables.py` đã sao lưu (`~/bitpaw_backups/`) rồi xoá 2.600 bàn (không bàn nào có đơn/đặt chỗ) |
+| 3 | 🟠 | Spa bấm "POS" ở sidebar vào nhầm POS nhà hàng | Link POS theo ngành (`industry_pos_url`) |
+| 4 | 🟠 | Nút "Chấm công" của Khách sạn / Kỹ thuật / Sản xuất / Văn phòng mở trang chấm công CHUNG thay vì trang riêng của ngành | `industry_chamcong_url` (khachsan / kythuat / congnhan / vanphong) |
+| 5 | 🟠 | Trang công khai không kiểm tra ngành của tiệm: QR đặt lịch kiểu Spa của tiệm Nails, đặt bàn/đặt phòng/menu QR của tiệm khác ngành | QR đặt lịch tự chuyển đúng trang Nails/Spa; đặt bàn/phòng/menu sai ngành -> 404 |
+| 6 | 🟡 | Trang thanh toán xong quay về /pos cho mọi ngành; /fnb_dashboard có thẻ dẫn sang Spa/Karaoke/Khách sạn; trang Kho có nút "Điều phối kỹ thuật" cho mọi ngành | Theo đúng ngành |
+
+### QR + giao diện khách thấy
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 7 | 🔴 | Nút In QR (đặt lịch Nails, QR bàn F&B) in ra tờ TRẮNG: SVG có thẻ `svg:rect` nhúng vào trang in không hiển thị | SVG dạng path + viewBox, mức sửa lỗi Q |
+| 8 | 🟠 | Tờ in QR đơn sơ (nền trắng, chữ "BITPAW SOFTWARE", không tên tiệm); Spa không có chỗ nào lấy QR đặt lịch | Poster A4 theo ngành `/qr/poster/booking`, `/qr/poster/table/<id>` (tên tiệm, logo/monogram, 3 bước, khung QR, VI/EN); mục "QR đặt lịch" trong sidebar Nails/Spa; modal QR POS làm lại |
+| 9 | 🟡 | Trang đặt lịch: ô địa chỉ bắt buộc dù khách tới tiệm; tên tiệm chỉ là dòng chữ nhỏ dưới logo BitPaw | Địa chỉ không bắt buộc; logo/tên tiệm làm tiêu đề |
+| 10 | 🟡 | Menu QR: mọi món ghi "+ Đã thêm vào giỏ" khi chưa thêm; đầu trang "BitPaw Menu" thay vì tên quán | "+ Thêm vào giỏ"; tên quán |
+| 11 | 🟡 Bảo mật | `/api/checkout/payment_methods` (công khai có chủ đích) trả mọi trường của collection | Chỉ trả trường chuyển khoản công khai |
+
+### Chạy lại toàn bộ (`scripts/run_full_regression.sh`, tổng hợp: `audit-results/full_regression_2026-10-09.tsv`)
+Tách ngành 9 ngành 58/58 · 9 ngành master đều PASS (Nails 10/10) · bộ Nails 8 script + đóng vai 36/36 · module dùng chung 3/3 · landing 66/66 · store 21/21 · Desktop offline 15/15 · bảo mật (403 route không đăng nhập, IDOR 52, CSRF 5, XSS 9) 0 cờ · chịu lỗi: server sống · chịu tải 100 người dùng/60s: 1.897 request, 0 lỗi · chữ dịch thô 9 ngành: 0 · quét toàn trang 9 ngành: chỉ còn 3 trang đúng thiết kế/ngành (`/table_order` thiếu mã bàn 400, `/super-admin` 403).
+Các FAIL lần chạy đầu đều do script test (bỏ qua lỗi reset kết nối môi trường local, `/qr_menu` chuyển sang bàn đầu tiên, nhật ký hoạt động hiện tên thao tác) — đã sửa script và chạy lại xanh.

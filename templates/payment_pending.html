@@ -129,7 +129,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-full text-xs font-bold transition">EN</button>
-                <a href="/pos" id="headerBackToPosLink" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_header_back_to_pos">Trở về POS</span></a>
+                <a href="{{ industry_pos_url or '/' }}" id="headerBackToPosLink" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm transition"><i class="fas fa-cash-register"></i> <span data-i18n="payment_pending_header_back_to_pos">Trở về POS</span></a>
             </div>
         </div>
 
@@ -305,9 +305,11 @@
         const ind = urlParams.get('industry') || 'fnb';
         // /pos là Floor Plan bàn ăn F&B — Nails dùng /sell (POS/hoa hồng thật). Tính 1 lần,
         // dùng lại cho cả link header lẫn 2 chỗ redirect JS bên dưới thay vì hardcode "/pos".
-        const posBasePath = (ind === 'nail') ? '/sell' : '/pos';
+        // POS đúng ngành của tiệm đang đăng nhập (server quyết định, xem industry_access.py) — trước đây
+        // mọi ngành trừ Nails đều bị đưa về /pos (POS nhà hàng).
+        const posBasePath = {{ (industry_pos_url or '/') | tojson }};
         const backToPosLink = document.getElementById('headerBackToPosLink');
-        if (backToPosLink) backToPosLink.href = `${posBasePath}?industry=${ind}`;
+        if (backToPosLink) backToPosLink.href = posBasePath;
 
         // ========== MULTI-REGION i18n (declared early so it's available to every helper below) ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";

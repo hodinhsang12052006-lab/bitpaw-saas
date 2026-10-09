@@ -115,7 +115,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                      riêng thay vì include components/app_sidebar.html, nên bug /pos-cho-Nails
                      phải fix lặp lại ở đây (cùng gốc, đã fix ở app_sidebar.html/index.html). -->
                 {% if 'spa_services' in active_industry_cfg.modules or 'nail_services' in active_industry_cfg.modules %}
-                    {% set pos_service_url = url_for('sell') if active_industry_code == 'nail' else url_for('pos') %}
+                    {% set pos_service_url = industry_pos_url %}{# POS đúng ngành (Spa -> /spa, trước đây Spa vào nhầm POS nhà hàng /pos) #}
                     <a href="{{ pos_service_url }}" class="flex items-center space-x-4 {% if request.path == pos_service_url %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-3 py-2 rounded-xl transition-all group">
                         <i class="fas fa-spa w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_pos_service">Service POS</span>
@@ -151,7 +151,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <i class="fas fa-users w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_hr">HR Management</span>
                     </a>
-                    <a href="{{ url_for('chamcong_industry', industry_code=active_industry_code) }}" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <a href="{{ industry_chamcong_url }}" class="flex items-center space-x-4 hover:bg-white/5 px-3 py-2 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                         <i class="fas fa-calendar-check w-4 text-sm group-hover:text-cyan-400 transition-colors"></i>
                         <span class="hidden lg:inline text-xs" data-i18n="ai_studio_nav_attendance">Attendance</span>
                     </a>

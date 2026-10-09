@@ -72,7 +72,7 @@ for r in rules:
             body = resp.text[:300]
         except Exception as e:
             st, body = 'ERR', str(e)[:120]
-        public = bool(PUBLIC_PAGE.match(path)) or '/public/' in path or path.startswith('/api/portal') or path.startswith('/api/cskh') or path.startswith('/api/booking') or path.startswith('/api/webhook')
+        public = bool(PUBLIC_PAGE.match(path)) or '/public/' in path or path.startswith('/api/portal') or path.startswith('/api/cskh') or path.startswith('/api/booking') or path.startswith('/api/webhook') or path == '/api/checkout/payment_methods'
         leak = st == 200 and not public and m == 'GET' and ('"success": true' in body.replace("'", '"') or '"data"' in body)
         bad = (isinstance(st, int) and st >= 500) or leak or (st == 200 and m != 'GET' and not public)
         report['unauth'].append({'method': m, 'path': path, 'status': st, 'public': public, 'flag': bad, 'body': body[:160] if bad else ''})

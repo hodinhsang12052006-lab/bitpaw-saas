@@ -242,7 +242,7 @@
                     <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>
+                    {% if shop_name %}<h1 class="text-xl font-black tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>{% endif %}
                     <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="tableLabelPrefix">Bàn</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
                 </div>
             </div>
@@ -347,6 +347,7 @@
                 total: "Tổng cộng:",
                 send_order: "Gửi đơn hàng",
                 added_to_cart: "Đã thêm vào giỏ",
+                add_to_cart: "Thêm vào giỏ",
                 order_sent: "Đơn hàng đã gửi!",
                 order_failed: "Gửi đơn thất bại, thử lại",
                 staff_called: "Đã gọi nhân viên",
@@ -372,6 +373,7 @@
                 total: "Total:",
                 send_order: "Place order",
                 added_to_cart: "Added to cart",
+                add_to_cart: "Add to cart",
                 order_sent: "Order sent!",
                 order_failed: "Order failed, please retry",
                 staff_called: "Staff called",
@@ -397,6 +399,7 @@
                 total: "총계:",
                 send_order: "주문하기",
                 added_to_cart: "장바구니에 추가됨",
+                add_to_cart: "장바구니에 담기",
                 order_sent: "주문이 접수되었습니다!",
                 order_failed: "주문 실패, 다시 시도하세요",
                 staff_called: "직원 호출됨",
@@ -422,6 +425,7 @@
                 total: "总计:",
                 send_order: "下订单",
                 added_to_cart: "已添加到购物车",
+                add_to_cart: "加入购物车",
                 order_sent: "订单已发送！",
                 order_failed: "订单失败，请重试",
                 staff_called: "已呼叫服务员",
@@ -549,7 +553,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="add-to-cart-btn mt-2 w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 rounded-xl text-sm transition">+ ${t('added_to_cart')}</button>
+                    <button class="add-to-cart-btn mt-2 w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 rounded-xl text-sm transition">+ ${t('add_to_cart')}</button>
                 </div>
             `).join('');
             attachProductEvents();

@@ -750,7 +750,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_enter_new_name: 'Vui lòng nhập tên {noun} mới!',
                 pos_qr_view: 'Xem mã QR',
                 pos_qr_copy: 'Sao chép Link',
-                pos_qr_print: 'In mã QR',
+                pos_qr_print: 'In poster QR', pos_qr_scan_order: 'Quét để gọi món',
                 pos_qr_view_menu: 'Xem Thực đơn Khách',
                 pos_modal_product_name_placeholder: 'Tên món',
                 pos_toast_default: 'Thông báo',
@@ -781,7 +781,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_product_not_found: 'Sản phẩm không tìm thấy',
                 pos_walkin_customer: 'Khách vãng lai',
                 pos_copy_link_success: 'Đã sao chép đường dẫn thực đơn thành công!',
-                pos_qr_label: 'Mã QR:',
+                pos_qr_label: 'Mã QR gọi món',
                 pos_qr_print_instruction: 'Quét mã để đặt món & thanh toán tự động',
                 pos_toast_redirecting_square: '✅ Đang chuyển đến trang thanh toán Square...',
                 pos_toast_square_terminal_sent: 'Đã gửi lệnh tới máy Square Terminal (trạng thái: {status})',
@@ -848,7 +848,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_enter_new_name: 'Please enter a new {noun} name!',
                 pos_qr_view: 'View QR Code',
                 pos_qr_copy: 'Copy Link',
-                pos_qr_print: 'Print QR',
+                pos_qr_print: 'Print QR poster', pos_qr_scan_order: 'Scan to order',
                 pos_qr_view_menu: 'View Customer Menu',
                 pos_modal_product_name_placeholder: 'Item name',
                 pos_toast_default: 'Notification',
@@ -879,7 +879,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_product_not_found: 'Product not found',
                 pos_walkin_customer: 'Walk-in Customer',
                 pos_copy_link_success: 'Menu link copied successfully!',
-                pos_qr_label: 'QR Code:',
+                pos_qr_label: 'Order QR',
                 pos_qr_print_instruction: 'Scan to order & pay automatically',
                 pos_toast_redirecting_square: '✅ Redirecting to Square checkout...',
                 pos_toast_square_terminal_sent: 'Square Terminal checkout sent (status: {status})',
@@ -1945,16 +1945,31 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 document.body.appendChild(modal);
             }
             modal.innerHTML = `
-                <div class="modal-container relative">
+                <style>
+                    #qrViewModal .tqr-frame { position: relative; margin: 6px auto 26px; width: fit-content; padding: 3px; border-radius: 26px;
+                        background: linear-gradient(135deg, #f97316, #f59e0b 50%, #eab308); box-shadow: 0 18px 50px rgba(249,115,22,.32); }
+                    #qrViewModal .tqr-inner { position: relative; background: #fff; border-radius: 23px; padding: 20px 20px 28px; }
+                    #qrViewModal .tqr-inner img { display: block; width: 200px; height: 200px; }
+                    #qrViewModal .tqr-chip { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); white-space: nowrap;
+                        background: #0f172a; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 7px 16px; border-radius: 999px; }
+                    #qrViewModal .tqr-table { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 4px 12px; border-radius: 999px;
+                        background: rgba(249,115,22,.14); border: 1px solid rgba(249,115,22,.35); color: #fdba74; font-weight: 800; font-size: 12px; }
+                    #qrViewModal .tqr-print { background: linear-gradient(90deg, #f97316, #eab308); color: #111827; }
+                </style>
+                <div class="modal-container relative" style="max-width:420px;text-align:center">
                     <button onclick="document.getElementById('qrViewModal').classList.remove('active')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg"><i class="fas fa-times"></i></button>
-                    <h3 class="text-lg font-bold text-cyan-400 mb-3"><i class="fas fa-qrcode mr-2"></i>${t('pos_qr_label')} ${escapeHtml(tableName)}</h3>
-                    <div class="bg-white p-4 rounded-2xl inline-block mb-3 shadow-md">
-                        <img src="${qrImgUrl}" class="w-48 h-48">
+                    <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-2"><i class="fas fa-qrcode mr-2" style="color:#fb923c"></i>${t('pos_qr_label')}</h3>
+                    <div class="tqr-table"><i class="fas fa-chair"></i> ${escapeHtml(tableName)}</div>
+                    <div class="tqr-frame">
+                        <div class="tqr-inner">
+                            <img src="${qrImgUrl}" alt="QR">
+                            <span class="tqr-chip"><i class="fas fa-utensils" style="color:#fdba74;margin-right:4px"></i>${t('pos_qr_scan_order')}</span>
+                        </div>
                     </div>
                     <p class="text-xs text-gray-400 mb-4 break-all px-4 font-mono select-all bg-black/40 py-2 rounded-xl border border-white/5">${escapeHtml(qrUrl)}</p>
                     <div class="flex gap-3">
-                        <button onclick="window.copyLink('${qrUrl}')" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black py-2 rounded-full font-bold text-xs"><i class="fas fa-copy mr-1"></i>${t('pos_qr_copy')}</button>
-                        <button onclick="window.printQR(${tableId}, '${escapeHtml(tableName)}', '${qrUrl}')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold text-xs"><i class="fas fa-print mr-1"></i>${t('pos_qr_print')}</button>
+                        <button onclick="window.copyLink('${qrUrl}')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider"><i class="fas fa-copy mr-1"></i>${t('pos_qr_copy')}</button>
+                        <button onclick="window.printQR(${tableId})" class="tqr-print flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider"><i class="fas fa-print mr-1"></i>${t('pos_qr_print')}</button>
                     </div>
                 </div>
             `;
@@ -1975,43 +1990,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
         };
 
-        window.printQR = async function(tableId, tableName, qrUrl) {
-            // Nạp SVG qua fetch() (kèm cookie session) rồi nhúng thẳng inline — an toàn hơn
-            // <img src="/api/qr/..."> viết trực tiếp vào cửa sổ in mới (base URI của
-            // window.open('', '_blank') không phải lúc nào cũng resolve URL tương đối đúng).
-            let svgMarkup = '';
-            try {
-                const res = await fetch(`/api/qr/table/${tableId}`);
-                svgMarkup = await res.text();
-            } catch (e) {
-                showToast(t('pos_qr_print_error') || ('Error: ' + e.message));
-                return;
-            }
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>${t('pos_qr_print')} - ${tableName}</title>
-                    <style>
-                        body { font-family: 'Inter', sans-serif; text-align: center; padding: 40px; color: #333; }
-                        .qr-box { border: 2px solid #000; padding: 20px; display: inline-block; border-radius: 15px; margin-top: 50px; }
-                        h1 { font-size: 24px; margin-bottom: 5px; }
-                        h2 { font-size: 16px; color: #666; margin-top: 0; }
-                        p { font-size: 12px; color: #999; margin-top: 15px; }
-                        svg { width: 200px; height: 200px; }
-                    </style>
-                </head>
-                <body onload="window.print(); window.close();">
-                    <div class="qr-box">
-                        <h1>BITPAW SOFTWARE</h1>
-                        <h2>${tableName}</h2>
-                        ${svgMarkup}
-                        <p>${t('pos_qr_print_instruction')}</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+        window.printQR = function(tableId) {
+            // Poster thẻ bàn A4 theo theme F&B (tên quán, số bàn, 3 bước) — /qr/poster/table/<id>. Tờ in cũ nhúng
+            // SVG "svg:rect" nên in ra TRẮNG TRƠN.
+            window.open(`/qr/poster/table/${tableId}?print=1`, '_blank');
         };
 
         // Khởi tạo
