@@ -1,0 +1,664 @@
+<title>BitPaw Software 9 Ngành</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: bộ slide 16:9 xếp dọc như bàn điều khiển của phần mềm — nền mực, mỗi ngành mang màu
+   nhận diện riêng (--c), ảnh chụp thật đặt trong khung trình duyệt / khung điện thoại.
+   Một giao diện tối duy nhất (đúng giao diện app BitPaw), có chủ đích. */
+:root {
+  color-scheme: dark;
+  --ink: #060914;
+  --slide: #0b1022;
+  --slide-2: #10172e;
+  --line: rgba(148, 163, 214, 0.16);
+  --text: #edf1fb;
+  --muted: #98a2c3;
+  --cyan: #22d3ee;
+  --nail: #ff5fa8;
+  --fnb: #ff8a3d;
+  --spa: #2dd4bf;
+  --retail: #a3e635;
+  --karaoke: #b77bff;
+  --hotel: #60a5fa;
+  --production: #fbbf24;
+  --technical: #facc15;
+  --office: #818cf8;
+  --f-display: "Bricolage Grotesque", "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--ink); }
+body { margin: 0; color: var(--text); font-family: var(--f-body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; display: block; }
+a { color: var(--cyan); }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+
+.deck { display: grid; gap: 28px; padding-block: 28px 96px; padding-inline: 16px; max-width: 1320px; margin: 0 auto; }
+
+/* ---------- slide ---------- */
+.slide {
+  --c: var(--cyan);
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 20px;
+  background:
+    radial-gradient(70% 90% at 100% 0%, color-mix(in srgb, var(--c) 13%, transparent), transparent 60%),
+    radial-gradient(60% 70% at 0% 100%, color-mix(in srgb, var(--c) 8%, transparent), transparent 60%),
+    var(--slide);
+  border: 1px solid var(--line);
+  container-type: inline-size;
+  scroll-margin-top: 16px;
+}
+.in { position: absolute; inset: 0; padding: 4.2cqi 4.6cqi; display: grid; gap: 2.4cqi; }
+.split { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr); align-items: center; }
+.split.wide-copy { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr); }
+.copy { min-width: 0; display: grid; gap: 1.3cqi; align-content: center; }
+
+.tag { display: inline-flex; align-items: center; gap: .8cqi; font: 700 1.05cqi/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--c); }
+.tag::before { content: ""; width: 1.1cqi; height: 1.1cqi; border-radius: 50%; background: var(--c); box-shadow: 0 0 1.4cqi var(--c); }
+h1, h2 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+h1 { font-size: 5.6cqi; line-height: 1; font-weight: 800; }
+h2 { font-size: 3.3cqi; line-height: 1.06; font-weight: 800; }
+h1 b, h2 b { color: var(--c); font-weight: 800; }
+.lede { margin: 0; font-size: 1.5cqi; line-height: 1.55; color: var(--muted); max-width: 62ch; }
+ul.pts { list-style: none; margin: 0; padding: 0; display: grid; gap: .9cqi; }
+ul.pts li { display: grid; grid-template-columns: 1.6cqi minmax(0, 1fr); gap: .6cqi; font-size: 1.34cqi; line-height: 1.45; }
+ul.pts li::before { content: ""; width: .75cqi; height: .75cqi; margin-top: .55cqi; border-radius: 3px; background: var(--c); transform: rotate(45deg); }
+ul.pts b { color: var(--text); }
+ul.pts span { color: var(--muted); }
+.route { font: 500 1.05cqi var(--f-mono); color: var(--muted); }
+.route code { color: var(--c); }
+
+/* ---------- khung ảnh ---------- */
+.shots { position: relative; min-width: 0; height: 100%; display: grid; align-content: center; }
+.browser { border-radius: 1.1cqi; overflow: hidden; background: #0a0e1d; border: 1px solid var(--line); box-shadow: 0 2.4cqi 4.8cqi -2.4cqi rgba(0,0,0,.9); }
+.browser .bar { display: flex; align-items: center; gap: .5cqi; padding: .55cqi .9cqi; border-bottom: 1px solid var(--line); font: 500 .85cqi var(--f-mono); color: var(--muted); }
+.browser .bar i { width: .65cqi; height: .65cqi; border-radius: 50%; background: #39405c; }
+.browser .bar span { margin-left: .6cqi; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.browser img { width: 100%; aspect-ratio: 1440 / 900; object-fit: cover; object-position: top left; }
+.phone { border-radius: 2.6cqi; padding: .5cqi; background: linear-gradient(160deg, #2c3250, #090b15); box-shadow: 0 2.4cqi 4cqi -2cqi rgba(0,0,0,.9), inset 0 0 0 1px rgba(255,255,255,.06); }
+.phone img { border-radius: 2.1cqi; width: 100%; aspect-ratio: 430 / 932; object-fit: cover; object-position: top; background: #0b0d18; }
+.poster { border-radius: .9cqi; overflow: hidden; box-shadow: 0 2.4cqi 4.8cqi -2.4cqi rgba(0,0,0,.9); }
+.poster img { width: 100%; aspect-ratio: 900 / 1270; object-fit: cover; object-position: top; }
+.cap { margin-top: .7cqi; font-size: .95cqi; color: var(--muted); text-align: center; }
+
+/* bố cục ảnh */
+.stack2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6cqi; align-items: start; }
+.stack2 .browser:nth-child(2) { margin-top: 5cqi; }
+.with-phone { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .3fr); gap: 1.8cqi; align-items: end; }
+.with-poster { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .42fr); gap: 1.8cqi; align-items: center; }
+.phones { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.6cqi; align-items: end; }
+.phones .phone:nth-child(odd) { transform: translateY(2cqi); }
+.trio { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, .32fr) minmax(0, .5fr); gap: 1.6cqi; align-items: center; }
+
+/* ---------- bìa ---------- */
+.cover .in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+.cover h1 b { background: linear-gradient(90deg, var(--cyan), var(--nail)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 1.4cqi; background: var(--line); border: 1px solid var(--line); border-radius: 1.2cqi; overflow: hidden; }
+.kpi { background: var(--slide-2); padding: 1.2cqi 1.3cqi; min-width: 0; }
+.kpi b { display: block; font: 700 2.6cqi/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 1cqi; color: var(--muted); line-height: 1.3; display: block; margin-top: .3cqi; }
+.mosaic { position: relative; height: 100%; }
+.mosaic .browser { position: absolute; width: 74%; }
+.mosaic .m1 { top: 6%; right: 0; transform: rotate(2deg); }
+.mosaic .m2 { top: 34%; left: 0; transform: rotate(-3deg); }
+.mosaic .phone { position: absolute; width: 22%; right: 4%; bottom: 2%; transform: rotate(5deg); }
+
+/* ---------- 9 ngành ---------- */
+.inds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2cqi; }
+.ind { --c: var(--cyan); display: grid; gap: .4cqi; padding: 1.3cqi 1.4cqi; border-radius: 1.2cqi; text-decoration: none; color: var(--text);
+  background: color-mix(in srgb, var(--c) 7%, var(--slide-2)); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.ind:hover { border-color: var(--c); }
+.ind b { font: 800 1.7cqi var(--f-display); color: var(--c); }
+.ind span { font-size: 1.05cqi; color: var(--muted); line-height: 1.4; }
+.ind code { font: 500 .9cqi var(--f-mono); color: var(--text); opacity: .7; }
+
+/* ---------- luồng Nails ---------- */
+.flow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1cqi; counter-reset: s; }
+.flow li { list-style: none; counter-increment: s; position: relative; padding: 1.4cqi 1.1cqi 1.2cqi; border-radius: 1.2cqi; background: var(--slide-2); border: 1px solid var(--line); min-width: 0; }
+.flow li::before { content: counter(s); display: grid; place-items: center; width: 2.4cqi; height: 2.4cqi; border-radius: 50%; margin-bottom: .9cqi;
+  font: 700 1.1cqi var(--f-mono); color: var(--ink); background: var(--nail); }
+.flow li:not(:last-child)::after { content: ""; position: absolute; top: 2.6cqi; right: -1cqi; width: 1cqi; height: 2px; background: var(--nail); opacity: .6; }
+.flow b { display: block; font-size: 1.3cqi; margin-bottom: .4cqi; }
+.flow span { font-size: 1.02cqi; color: var(--muted); line-height: 1.4; display: block; }
+.flow ol, ol.flow { margin: 0; padding: 0; }
+
+/* ---------- chất lượng ---------- */
+.qgrid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 2cqi; align-items: start; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 1.12cqi; }
+.tbl th, .tbl td { text-align: left; padding: .62cqi .5cqi; border-bottom: 1px solid var(--line); }
+.tbl th { font: 700 .85cqi var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tbl td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: #6ee7b7; font-weight: 700; text-align: right; }
+.fix { display: grid; gap: .9cqi; }
+.fix div { padding: 1cqi 1.2cqi; border-radius: 1cqi; background: var(--slide-2); border: 1px solid var(--line); font-size: 1.1cqi; line-height: 1.45; }
+.fix b { color: var(--cyan); }
+
+/* ---------- điều hướng ---------- */
+.nav { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; gap: 6px;
+  padding: 6px; border-radius: 999px; background: rgba(11, 16, 34, .9); border: 1px solid var(--line); backdrop-filter: blur(8px); }
+.nav button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--slide-2); color: var(--text); font: 700 16px var(--f-body); cursor: pointer; }
+.nav button:hover { border-color: var(--cyan); }
+.nav output { font: 700 13px var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); padding-inline: 6px; min-width: 64px; text-align: center; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 0; }
+.toc a { --c: var(--cyan); font: 600 13px var(--f-body); text-decoration: none; color: var(--text); padding: 7px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); }
+.toc a:hover { border-color: var(--c); }
+
+/* ---------- điện thoại / màn hẹp: slide thành thẻ cao tự do ---------- */
+@media (max-width: 820px) {
+  .slide { aspect-ratio: auto; }
+  .in { position: static; padding: 22px 18px; gap: 18px; }
+  .split, .split.wide-copy, .cover .in, .qgrid { grid-template-columns: 1fr; }
+  .tag { font-size: 11px; gap: 8px; } .tag::before { width: 8px; height: 8px; }
+  h1 { font-size: 34px; } h2 { font-size: 25px; }
+  .lede { font-size: 15px; } ul.pts li { font-size: 14.5px; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; } ul.pts li::before { width: 7px; height: 7px; margin-top: 7px; }
+  .route { font-size: 12px; } .cap { font-size: 12px; margin-top: 6px; }
+  .copy { gap: 12px; }
+  .kpi b { font-size: 24px; } .kpi span { font-size: 11.5px; } .kpi { padding: 12px; } .kpis { border-radius: 12px; margin-top: 8px; }
+  .mosaic { height: auto; display: grid; gap: 12px; } .mosaic .browser, .mosaic .phone { position: static; width: 100%; transform: none; } .mosaic .phone { display: none; }
+  .inds { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .ind { padding: 12px; border-radius: 12px; gap: 4px; } .ind b { font-size: 17px; } .ind span { font-size: 12.5px; } .ind code { font-size: 11px; }
+  .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .flow li { padding: 12px; border-radius: 12px; } .flow li::before { width: 24px; height: 24px; font-size: 12px; margin-bottom: 8px; }
+  .flow li::after { display: none; } .flow b { font-size: 14px; } .flow span { font-size: 12.5px; }
+  .stack2, .with-phone, .with-poster, .trio { grid-template-columns: 1fr; gap: 14px; } .stack2 .browser:nth-child(2) { margin-top: 0; }
+  .with-phone .phone, .trio .phone { max-width: 220px; justify-self: center; } .with-poster .poster, .trio .poster { max-width: 300px; justify-self: center; }
+  .phones { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .phones .phone:nth-child(odd) { transform: none; }
+  .phone { border-radius: 24px; padding: 4px; } .phone img { border-radius: 20px; }
+  .browser { border-radius: 10px; } .browser .bar { font-size: 10.5px; padding: 6px 10px; gap: 5px; } .browser .bar i { width: 7px; height: 7px; }
+  .tbl { font-size: 13px; } .tbl th { font-size: 10.5px; } .tbl th, .tbl td { padding: 7px 5px; }
+  .fix div { font-size: 13.5px; padding: 10px 12px; border-radius: 10px; }
+  .nav button { width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cover .mosaic > * { animation: rise .9s cubic-bezier(.2,.8,.2,1) both; }
+  .cover .mosaic .m2 { animation-delay: .1s; } .cover .mosaic .phone { animation-delay: .2s; }
+  @keyframes rise { from { opacity: .35; translate: 0 2cqi; } to { opacity: 1; translate: 0 0; } }
+}
+</style>
+
+<nav class="toc" aria-label="Mục lục">
+  <a href="#cover">Tổng quan</a>
+  <a href="#nails" style="--c: var(--nail)">Nails</a>
+  <a href="#fnb" style="--c: var(--fnb)">Nhà hàng F&amp;B</a>
+  <a href="#spa" style="--c: var(--spa)">Spa</a>
+  <a href="#retail" style="--c: var(--retail)">Bán lẻ</a>
+  <a href="#karaoke" style="--c: var(--karaoke)">Karaoke</a>
+  <a href="#hotel" style="--c: var(--hotel)">Khách sạn</a>
+  <a href="#production" style="--c: var(--production)">Sản xuất</a>
+  <a href="#technical" style="--c: var(--technical)">Kỹ thuật</a>
+  <a href="#office" style="--c: var(--office)">Văn phòng</a>
+  <a href="#quality">Kiểm thử</a>
+</nav>
+
+<main class="deck" id="deck">
+
+<!-- 1 · BÌA -->
+<section class="slide cover" id="cover" aria-label="Bìa">
+  <div class="in">
+    <div class="copy">
+      <span class="tag">bitpawsoftware.com · tháng 10/2026</span>
+      <h1>Một phần mềm, <b>9 ngành</b>, mỗi tiệm đúng ngành của mình</h1>
+      <p class="lede">BitPaw Software lo bán hàng, đặt lịch, chấm công, tính lương – hoa hồng, khách hàng và AI chăm sóc khách. Mỗi tiệm chỉ thấy đúng phần mềm của ngành mình. Ảnh trong bộ slide chụp thật từ hệ thống, tài khoản demo từng ngành.</p>
+      <div class="kpis">
+        <div class="kpi"><b>9</b><span>ngành, tách riêng trang và API</span></div>
+        <div class="kpi"><b>35</b><span>màn hình chụp thật trong bộ slide</span></div>
+        <div class="kpi"><b>45</b><span>bộ kiểm thử tự động mỗi lượt, đều đạt</span></div>
+      </div>
+    </div>
+    <div class="mosaic">
+      <div class="browser m1"><div class="bar"><i></i><i></i><i></i><span>bitpawsoftware.com/sell</span></div><img src="img/nail_03_ticket_techs.jpg" alt="POS Nails với vé đang gán thợ"></div>
+      <div class="browser m2"><div class="bar"><i></i><i></i><i></i><span>bitpawsoftware.com/pos</span></div><img src="img/fnb_01_floor_plan.jpg" alt="POS nhà hàng với sơ đồ bàn"></div>
+      <div class="phone"><img src="img/nail_m6_customer_booking.jpg" alt="Trang đặt lịch của khách trên điện thoại"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · 9 NGÀNH -->
+<section class="slide" aria-label="9 ngành">
+  <div class="in" style="align-content: center;">
+    <div class="copy">
+      <span class="tag">Tách ngành nghề</span>
+      <h2>Đăng nhập là vào thẳng phần mềm của <b>ngành mình</b></h2>
+      <p class="lede">Trang và API riêng của từng ngành được khoá theo ngành của tiệm. Tiệm Nails không mở được sơ đồ bàn nhà hàng, tiệm Spa không lạc sang POS bán lẻ. Phần dùng chung (khách hàng, AI, nhân sự, lương, báo cáo) có ở mọi ngành.</p>
+    </div>
+    <div class="inds">
+      <a class="ind" href="#nails" style="--c: var(--nail)"><b>Nails</b><span>POS gán thợ, hoa hồng, tip, đặt lịch QR, xoay tua</span><code>/sell · /chamcong/nail</code></a>
+      <a class="ind" href="#fnb" style="--c: var(--fnb)"><b>Nhà hàng F&amp;B</b><span>Sơ đồ bàn, gọi món QR, màn hình bếp, đặt bàn</span><code>/pos · /kitchen_display</code></a>
+      <a class="ind" href="#spa" style="--c: var(--spa)"><b>Spa</b><span>Liệu trình, kỹ thuật viên xoay tua, đặt lịch online</span><code>/spa · /add_spa</code></a>
+      <a class="ind" href="#retail" style="--c: var(--retail)"><b>Bán lẻ</b><span>Quét mã vạch, tồn kho, cảnh báo nhập hàng</span><code>/retail_pos</code></a>
+      <a class="ind" href="#karaoke" style="--c: var(--karaoke)"><b>Karaoke &amp; Bida</b><span>Tính giờ phòng, đặt phòng trước, chia tip</span><code>/karaoke</code></a>
+      <a class="ind" href="#hotel" style="--c: var(--hotel)"><b>Khách sạn</b><span>Sơ đồ phòng, check-in/out, dọn phòng, phụ thu</span><code>/hotel_rooms</code></a>
+      <a class="ind" href="#production" style="--c: var(--production)"><b>Sản xuất</b><span>Sản lượng theo công nhân, định mức nguyên liệu</span><code>/production_output</code></a>
+      <a class="ind" href="#technical" style="--c: var(--technical)"><b>Kỹ thuật</b><span>Điều phối thợ, bản đồ GPS, kho phụ tùng</span><code>/chamcong/kythuat</code></a>
+      <a class="ind" href="#office" style="--c: var(--office)"><b>Văn phòng</b><span>Chấm công ngày, nghỉ phép, khen thưởng, lương</span><code>/chamcong/vanphong</code></a>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · NAILS: LUỒNG -->
+<section class="slide" id="nails" style="--c: var(--nail)" aria-label="Nails — một ngày ở tiệm">
+  <div class="in" style="align-content: center;">
+    <div class="copy">
+      <span class="tag">Nails · ngành trọng tâm</span>
+      <h2>Một ngày ở tiệm nail chạy trọn trên <b>BitPaw</b></h2>
+      <p class="lede">Từ lúc khách quét QR đặt lịch tới lúc thợ nhận lương, dữ liệu đi một mạch. Không ghi sổ, không tính hoa hồng bằng tay.</p>
+    </div>
+    <ol class="flow">
+      <li><b>Khách đặt lịch</b><span>Quét QR ở quầy hoặc mở link, chọn dịch vụ, thợ, giờ</span></li>
+      <li><b>Check-in</b><span>Lịch hẹn báo realtime, bấm "Vào vé" là lên POS</span></li>
+      <li><b>Bán hàng</b><span>Gán thợ cho từng dịch vụ, nhiều thợ một bill</span></li>
+      <li><b>Thanh toán</b><span>Tiền mặt, thẻ, chia đôi, tip mặt/thẻ, giá tiền mặt – giá thẻ</span></li>
+      <li><b>Hoa hồng</b><span>Tự tính theo % từng thợ, phí vật tư trừ trước</span></li>
+      <li><b>Lương</b><span>Lương giờ + hoa hồng + tip, khớp từng cent với bill</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 4 · NAILS: POS -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — POS">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · POS dịch vụ</span>
+      <h2>Lưới dịch vụ có ảnh, <b>gán thợ</b> ngay trên vé</h2>
+      <ul class="pts">
+        <li><div><b>Danh mục theo nhóm</b> <span>Acrylic, Pedicure, Packages, Design, Add-on, Waxing; tìm theo tên, thợ, mã.</span></div></li>
+        <li><div><b>Mỗi dòng một thợ</b> <span>Một bill nhiều thợ, đổi số lượng, thêm dịch vụ tuỳ chỉnh có giá riêng.</span></div></li>
+        <li><div><b>Giữ vé, hàng chờ</b> <span>Giữ vé khách đang làm, mở lại từ hàng chờ, in báo giá trước khi tính tiền.</span></div></li>
+        <li><div><b>Tip nhanh</b> <span>15% / 18% / 20%, tip mặt và tip thẻ tách riêng cho lương.</span></div></li>
+      </ul>
+      <p class="route">Màn hình: <code>/sell</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/sell · lưới dịch vụ</span></div><img src="img/nail_02_pos_grid.jpg" alt="Lưới dịch vụ POS Nails" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/sell · vé đã gán thợ + tip</span></div><img src="img/nail_03_ticket_techs.jpg" alt="Vé với dịch vụ đã gán thợ và tip" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · NAILS: THANH TOÁN -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — thanh toán">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · thanh toán</span>
+      <h2>Tiền mặt, thẻ, <b>chia đôi</b>, máy Square</h2>
+      <ul class="pts">
+        <li><div><b>Chia đôi bill</b> <span>Nhập phần tiền mặt và phần thẻ, khớp đúng tổng mới cho xác nhận.</span></div></li>
+        <li><div><b>Giá tiền mặt – giá thẻ</b> <span>Phụ phí thẻ cộng vào bill nhưng không lọt vào hoa hồng của thợ.</span></div></li>
+        <li><div><b>Square Terminal</b> <span>Đẩy bill xuống máy quẹt thẻ, chờ xác nhận mới ghi đơn và hoa hồng.</span></div></li>
+        <li><div><b>Hoàn tiền</b> <span>Hoàn một phần hoặc toàn bộ, tự trừ lại hoa hồng thợ.</span></div></li>
+        <li><div><b>Bán tiếp khi mất mạng</b> <span>Bản cài Windows lưu bill trên máy, có mạng lại tự đồng bộ.</span></div></li>
+      </ul>
+    </div>
+    <div class="shots"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>/sell · Take payment</span></div><img src="img/nail_04_payment_split.jpg" alt="Modal thanh toán chia đôi" loading="lazy"></div></div>
+  </div>
+</section>
+
+<!-- 6 · NAILS: XOAY TUA -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — xoay tua và chấm công">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · xoay tua thợ</span>
+      <h2>Bảng tua công bằng, <b>tính lương</b> một chạm</h2>
+      <ul class="pts">
+        <li><div><b>Bảng tua</b> <span>Thấy thợ nào rảnh, thợ nào đang làm để chia khách đều.</span></div></li>
+        <li><div><b>Calculate Pay</b> <span>Bill, hoa hồng, tip từng thợ theo ngày; nhập ca có giờ vào/ra cho thợ ăn lương giờ.</span></div></li>
+        <li><div><b>Không cộng trùng</b> <span>Mỗi thợ chấm công một lần/ngày; ca có giờ thật thay cho 8 giờ mặc định.</span></div></li>
+      </ul>
+      <p class="route">Màn hình: <code>/chamcong/nail</code></p>
+    </div>
+    <div class="shots"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/nail · Salon Staff Management</span></div><img src="img/nail_01_rotation_board.jpg" alt="Bảng tua thợ Nails" loading="lazy"></div></div>
+  </div>
+</section>
+
+<!-- 7 · NAILS: ĐẶT LỊCH QR -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — đặt lịch QR">
+  <div class="in split wide-copy">
+    <div class="copy">
+      <span class="tag">Nails · đặt lịch online</span>
+      <h2>In poster QR, khách <b>tự đặt lịch</b> 24/7</h2>
+      <ul class="pts">
+        <li><div><b>Poster A4 đúng thương hiệu tiệm</b> <span>Tên tiệm, logo, 3 bước, song ngữ Việt / Anh; dán quầy, cửa kính.</span></div></li>
+        <li><div><b>Trang đặt lịch của tiệm</b> <span>Chọn dịch vụ, thợ, giờ; chặn trùng giờ trùng thợ; báo email cho chủ tiệm.</span></div></li>
+        <li><div><b>AI trả lời khách</b> <span>Khách hỏi giá, giờ mở cửa trên trang đặt lịch, AI đọc đúng bảng giá của tiệm.</span></div></li>
+      </ul>
+      <p class="route">Poster: <code>/qr/poster/booking</code> · khách: <code>/booking/nail/qr/&lt;tiệm&gt;</code></p>
+    </div>
+    <div class="shots trio">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/sell · Booking QR</span></div><img src="img/nail_05_booking_qr_modal.jpg" alt="Modal QR đặt lịch trong POS" loading="lazy"></div>
+      <div class="phone"><img src="img/nail_m6_customer_booking.jpg" alt="Trang khách đặt lịch trên điện thoại" loading="lazy"></div>
+      <div class="poster"><img src="img/nail_06_qr_poster.jpg" alt="Poster QR đặt lịch khổ A4" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · NAILS: LỊCH HẸN + CRM -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — lịch hẹn và khách hàng">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · lịch hẹn &amp; khách hàng</span>
+      <h2>Lịch hẹn cập nhật tức thì, <b>CRM</b> tự đầy</h2>
+      <ul class="pts">
+        <li><div><b>Lịch hẹn theo ngày</b> <span>Khách đặt qua QR hay AI đều hiện ngay, không cần tải lại; huỷ, check-in, nhắc lịch.</span></div></li>
+        <li><div><b>Vào vé</b> <span>Khách đã check-in nạp thẳng dịch vụ và thợ vào POS.</span></div></li>
+        <li><div><b>Khách hàng</b> <span>Tự tạo từ bill có số điện thoại; hạng thành viên, điểm, tổng chi, ghi chú.</span></div></li>
+      </ul>
+      <p class="route"><code>/calendar</code> · <code>/customers</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/calendar · Appointments</span></div><img src="img/nail_07_calendar.jpg" alt="Lịch hẹn theo ngày" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/customers · CRM</span></div><img src="img/nail_08_crm.jpg" alt="Danh sách khách hàng" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · NAILS: LƯƠNG -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — bảng lương">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · lương &amp; hoa hồng</span>
+      <h2>Bảng lương khớp <b>từng cent</b> với bill</h2>
+      <ul class="pts">
+        <li><div><b>Ba cột rõ ràng</b> <span>Lương booth / lương giờ, hoa hồng dịch vụ, tip + phụ cấp.</span></div></li>
+        <li><div><b>Đổi tiền tệ</b> <span>AUD, USD, VND theo thị trường của tiệm.</span></div></li>
+        <li><div><b>Không có tiền tự khai</b> <span>Hoa hồng và tip chỉ đến từ bill POS, thợ không tự nhập số tiền vào lương.</span></div></li>
+      </ul>
+      <p class="route"><code>/bangluong</code></p>
+    </div>
+    <div class="shots"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>/bangluong · Payroll Summary</span></div><img src="img/nail_09_payroll.jpg" alt="Bảng lương tổng hợp" loading="lazy"></div></div>
+  </div>
+</section>
+
+<!-- 10 · NAILS: APP NHÂN VIÊN -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — app nhân viên">
+  <div class="in split wide-copy">
+    <div class="copy">
+      <span class="tag">Nails · app nhân viên</span>
+      <h2>Thợ <b>chấm công bằng camera + GPS</b> trên máy tiệm</h2>
+      <ul class="pts">
+        <li><div><b>Đăng nhập bằng mã NV</b> <span>Chủ tiệm tạo thợ và cấp mã; không còn mã công ty dùng chung.</span></div></li>
+        <li><div><b>Chấm công</b> <span>Chụp ảnh + toạ độ làm bằng chứng; mất mạng thì lưu nháp, có mạng tự gửi.</span></div></li>
+        <li><div><b>Đơn từ</b> <span>Xin nghỉ, hoàn ứng chi phí; chủ tiệm duyệt, khoản hoàn ứng tự lên sổ chi.</span></div></li>
+        <li><div><b>Khen đồng nghiệp</b> <span>Điểm kudo lên bảng vinh danh.</span></div></li>
+      </ul>
+      <p class="route"><code>/app_nhanvien</code></p>
+    </div>
+    <div class="shots phones">
+      <div class="phone"><img src="img/nail_m2_staff_login.jpg" alt="Đăng nhập mã nhân viên" loading="lazy"></div>
+      <div class="phone"><img src="img/nail_m5_staff_checkin.jpg" alt="Màn chấm công" loading="lazy"></div>
+      <div class="phone"><img src="img/nail_m3_staff_home.jpg" alt="Màn chính của thợ" loading="lazy"></div>
+      <div class="phone"><img src="img/nail_m4_staff_requests.jpg" alt="Gửi đơn xin nghỉ và hoàn ứng" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · NAILS: AI + QUẢN LÝ -->
+<section class="slide" style="--c: var(--nail)" aria-label="Nails — AI và quản lý">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nails · AI &amp; quản lý</span>
+      <h2>AI chăm khách, chủ tiệm <b>nắm số</b> mọi lúc</h2>
+      <ul class="pts">
+        <li><div><b>AI Copilot</b> <span>Hộp thư khách từ trang đặt lịch, Facebook, Zalo; AI trả lời theo dữ liệu thật của tiệm, nhân viên tiếp quản khi cần.</span></div></li>
+        <li><div><b>Nhân sự</b> <span>Danh sách thợ, % hoa hồng riêng, lương; duyệt đơn nghỉ, hoàn ứng.</span></div></li>
+        <li><div><b>Báo cáo</b> <span>Doanh thu, chi phí, lợi nhuận theo chi nhánh.</span></div></li>
+        <li><div><b>App điện thoại</b> <span>Android + iOS, POS dùng được trên điện thoại.</span></div></li>
+      </ul>
+      <p class="route"><code>/ai_bot</code> · <code>/staff</code> · <code>/report_consolidated</code></p>
+    </div>
+    <div class="shots with-phone">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/ai_bot · AI Copilot</span></div><img src="img/nail_10_ai_copilot.jpg" alt="AI Copilot hộp thư khách" loading="lazy"></div>
+      <div class="phone"><img src="img/nail_m1_pos_phone.jpg" alt="POS Nails trên điện thoại" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · F&B -->
+<section class="slide" id="fnb" style="--c: var(--fnb)" aria-label="Nhà hàng F&B">
+  <div class="in split wide-copy">
+    <div class="copy">
+      <span class="tag">Nhà hàng · F&amp;B</span>
+      <h2>Sơ đồ bàn, <b>gọi món QR</b>, màn hình bếp</h2>
+      <ul class="pts">
+        <li><div><b>Sơ đồ bàn</b> <span>Trạng thái từng bàn, gọi món, sửa giá, chia bill, thanh toán.</span></div></li>
+        <li><div><b>QR tại bàn</b> <span>Khách tự xem menu và gọi món; poster thẻ bàn in sẵn số bàn.</span></div></li>
+        <li><div><b>Màn hình bếp</b> <span>Đơn mới hiện realtime, bấm "Start Cooking" / xong món.</span></div></li>
+        <li><div><b>Đặt bàn trước</b> <span>Link đặt bàn công khai, duyệt hoặc huỷ theo ngày.</span></div></li>
+      </ul>
+    </div>
+    <div class="shots trio">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/pos · Floor Plan</span></div><img src="img/fnb_01_floor_plan.jpg" alt="Sơ đồ bàn nhà hàng" loading="lazy"></div>
+      <div class="phone"><img src="img/fnb_m1_qr_menu.jpg" alt="Menu QR trên điện thoại" loading="lazy"></div>
+      <div class="poster"><img src="img/fnb_05_table_poster.jpg" alt="Poster QR gọi món tại bàn" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 · F&B bếp -->
+<section class="slide" style="--c: var(--fnb)" aria-label="Nhà hàng F&B — bếp và nhân sự">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Nhà hàng · bếp &amp; ca làm</span>
+      <h2>Bếp thấy đơn ngay, <b>chia tip</b> theo giờ làm</h2>
+      <ul class="pts">
+        <li><div><b>Kitchen Display</b> <span>Đơn chờ, đang nấu, xong; theo từng bàn.</span></div></li>
+        <li><div><b>Tip Pool</b> <span>Nhập tổng tip, chia đều theo giờ làm thực tế.</span></div></li>
+        <li><div><b>Đổi ca</b> <span>Nhân viên xin đổi ca, quản lý chốt.</span></div></li>
+      </ul>
+      <p class="route"><code>/kitchen_display</code> · <code>/chamcong/fnb</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/kitchen_display</span></div><img src="img/fnb_02_kitchen_display.jpg" alt="Màn hình bếp" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/fnb · F&amp;B Management Station</span></div><img src="img/fnb_04_attendance.jpg" alt="Chấm công và chia tip F&B" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 · SPA -->
+<section class="slide" id="spa" style="--c: var(--spa)" aria-label="Spa">
+  <div class="in split wide-copy">
+    <div class="copy">
+      <span class="tag">Spa &amp; làm đẹp</span>
+      <h2>Liệu trình có ảnh, <b>kỹ thuật viên</b> xoay tua</h2>
+      <ul class="pts">
+        <li><div><b>POS liệu trình</b> <span>Chạm để thêm, gói combo, thanh toán nhiều phương thức.</span></div></li>
+        <li><div><b>Tạo liệu trình</b> <span>Ảnh, nhóm, giá; hiện ngay trên trang đặt lịch.</span></div></li>
+        <li><div><b>Xoay tua KTV</b> <span>Tua, hoa hồng %, tip theo từng kỹ thuật viên.</span></div></li>
+        <li><div><b>Poster QR đặt lịch</b> <span>Theme xanh ngọc riêng cho spa.</span></div></li>
+      </ul>
+      <p class="route"><code>/spa</code> · <code>/add_spa</code> · <code>/chamcong/spa</code></p>
+    </div>
+    <div class="shots with-poster">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/spa · POS</span></div><img src="img/spa_01_pos.jpg" alt="POS Spa" loading="lazy"></div>
+      <div class="poster"><img src="img/spa_05_qr_poster.jpg" alt="Poster QR đặt lịch spa" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 15 · BÁN LẺ -->
+<section class="slide" id="retail" style="--c: var(--retail)" aria-label="Bán lẻ">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Bán lẻ · cửa hàng</span>
+      <h2>Quét mã vạch, <b>tồn kho</b> tự trừ</h2>
+      <ul class="pts">
+        <li><div><b>POS bán lẻ</b> <span>Quét mã vạch hoặc chạm sản phẩm, giỏ hàng, thanh toán.</span></div></li>
+        <li><div><b>Cảnh báo nhập hàng</b> <span>Ngưỡng tồn kho từng sản phẩm, đề xuất nhập hàng.</span></div></li>
+        <li><div><b>Báo cáo</b> <span>Doanh thu theo ngày, sản phẩm bán chạy, theo nhóm hàng.</span></div></li>
+      </ul>
+      <p class="route"><code>/retail_pos</code> · <code>/inventory_alert</code> · <code>/report</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/retail_pos</span></div><img src="img/retail_01_pos.jpg" alt="POS bán lẻ" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/report · Financial Report</span></div><img src="img/retail_04_reports.jpg" alt="Báo cáo doanh thu" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 16 · KARAOKE -->
+<section class="slide" id="karaoke" style="--c: var(--karaoke)" aria-label="Karaoke và Bida">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Karaoke &amp; Bida</span>
+      <h2>Bấm <b>Start</b>, phòng tự tính giờ</h2>
+      <ul class="pts">
+        <li><div><b>Phòng &amp; bàn bida</b> <span>Giá theo giờ từng phòng, bắt đầu – kết thúc – tính tiền.</span></div></li>
+        <li><div><b>Đặt phòng trước</b> <span>Link đặt phòng công khai, duyệt theo ngày.</span></div></li>
+        <li><div><b>Chia tip</b> <span>Tip pool theo giờ làm, đổi ca.</span></div></li>
+      </ul>
+      <p class="route"><code>/karaoke</code> · <code>/karaoke/reservations</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/karaoke · Karaoke &amp; Billiards</span></div><img src="img/karaoke_01_rooms.jpg" alt="Danh sách phòng karaoke" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/karaoke</span></div><img src="img/karaoke_03_attendance.jpg" alt="Chấm công karaoke" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 · KHÁCH SẠN -->
+<section class="slide" id="hotel" style="--c: var(--hotel)" aria-label="Khách sạn">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Khách sạn · homestay</span>
+      <h2>Sơ đồ phòng theo <b>trạng thái</b></h2>
+      <ul class="pts">
+        <li><div><b>Phòng</b> <span>Trống, có khách, cần dọn; check-in, check-out, phụ thu dịch vụ.</span></div></li>
+        <li><div><b>Giá theo loại phòng</b> <span>Đổi giá hàng loạt theo loại phòng.</span></div></li>
+        <li><div><b>Đặt phòng</b> <span>Link đặt phòng công khai, duyệt hoặc huỷ.</span></div></li>
+        <li><div><b>Ma trận ca</b> <span>Bảo vệ, lễ tân, buồng phòng theo bộ phận.</span></div></li>
+      </ul>
+      <p class="route"><code>/hotel_rooms</code> · <code>/hotel/reservations</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/hotel_rooms · Room Management</span></div><img src="img/hotel_01_rooms.jpg" alt="Sơ đồ phòng khách sạn" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/khachsan · Hotel Attendance</span></div><img src="img/hotel_03_attendance.jpg" alt="Chấm công khách sạn" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 · SẢN XUẤT -->
+<section class="slide" id="production" style="--c: var(--production)" aria-label="Sản xuất">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Xưởng sản xuất</span>
+      <h2>Sản lượng theo công nhân, <b>nguyên liệu</b> tự trừ</h2>
+      <ul class="pts">
+        <li><div><b>Ghi sản lượng</b> <span>Theo công nhân, công đoạn, ca; bảng xếp hạng năng suất trong ngày.</span></div></li>
+        <li><div><b>Định mức</b> <span>Công thức nguyên liệu cho từng công đoạn, kho tự trừ khi ghi sản lượng.</span></div></li>
+        <li><div><b>Chấm công công nhân</b> <span>Check-in theo xưởng.</span></div></li>
+      </ul>
+      <p class="route"><code>/production_output</code> · <code>/production/materials</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/production_output</span></div><img src="img/production_01_output.jpg" alt="Theo dõi sản lượng" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/production/materials</span></div><img src="img/production_02_materials.jpg" alt="Nguyên vật liệu và định mức" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 19 · KỸ THUẬT -->
+<section class="slide" id="technical" style="--c: var(--technical)" aria-label="Kỹ thuật">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Dịch vụ kỹ thuật</span>
+      <h2>Điều phối thợ trên <b>bản đồ GPS</b></h2>
+      <ul class="pts">
+        <li><div><b>Giao việc</b> <span>Danh sách thợ, giao job, thợ nhận và báo cáo có ảnh, chữ ký khách.</span></div></li>
+        <li><div><b>Dispatch Radar</b> <span>Vị trí thợ trên bản đồ, rảnh / bận, tự điều phối.</span></div></li>
+        <li><div><b>Kho phụ tùng</b> <span>Tự trừ khi thợ dùng phụ tùng lúc hoàn thành job.</span></div></li>
+      </ul>
+      <p class="route"><code>/chamcong/kythuat</code> · <code>/map_dashboard</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/kythuat · Technical Dispatch</span></div><img src="img/technical_01_dispatch.jpg" alt="Danh sách thợ kỹ thuật" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/map_dashboard · Dispatch Radar</span></div><img src="img/technical_02_map.jpg" alt="Bản đồ điều phối GPS" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 20 · VĂN PHÒNG -->
+<section class="slide" id="office" style="--c: var(--office)" aria-label="Văn phòng">
+  <div class="in split">
+    <div class="copy">
+      <span class="tag">Văn phòng · nhân sự</span>
+      <h2>Chấm công ngày, nghỉ phép, <b>lương tháng</b></h2>
+      <ul class="pts">
+        <li><div><b>Chấm công</b> <span>Giờ vào, giờ ra, tăng ca; đánh dấu có mặt cả phòng.</span></div></li>
+        <li><div><b>Nghỉ phép</b> <span>Duyệt đơn, tự trừ ngày công.</span></div></li>
+        <li><div><b>Bảng vinh danh</b> <span>Điểm kudo của đồng nghiệp.</span></div></li>
+        <li><div><b>Lương tháng</b> <span>Lương cơ bản theo ngày công, phụ cấp, tăng ca.</span></div></li>
+      </ul>
+      <p class="route"><code>/chamcong/vanphong</code> · <code>/bangluong</code></p>
+    </div>
+    <div class="shots stack2">
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/chamcong/vanphong · Attendance Office</span></div><img src="img/office_01_attendance.jpg" alt="Chấm công văn phòng" loading="lazy"></div>
+      <div class="browser"><div class="bar"><i></i><i></i><i></i><span>/bangluong · Payroll</span></div><img src="img/office_02_payroll.jpg" alt="Bảng lương văn phòng" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 21 · KIỂM THỬ -->
+<section class="slide" id="quality" aria-label="Kiểm thử">
+  <div class="in" style="align-content: center;">
+    <div class="copy">
+      <span class="tag">Kiểm thử tự động · 09/10/2026</span>
+      <h2>Mỗi lượt chạy lại <b>toàn bộ</b> trước khi lên bản thật</h2>
+    </div>
+    <div class="qgrid">
+      <div style="overflow-x: auto;">
+        <table class="tbl">
+          <thead><tr><th>Bộ kiểm thử</th><th style="text-align:right">Kết quả</th></tr></thead>
+          <tbody id="qrows">
+            <tr><td>Tách ngành: 9 ngành × trang + API của 8 ngành kia</td><td class="n">86/86</td></tr>
+            <tr><td>Kịch bản chính 9 ngành</td><td class="n">9/9 bộ</td></tr>
+            <tr><td>Nails: 8 bộ + đóng vai thợ / chủ tiệm / khách</td><td class="n">36/36</td></tr>
+            <tr><td>Landing · yêu cầu CH Play – App Store</td><td class="n">66/66 · 21/21</td></tr>
+            <tr><td>Bán khi mất mạng (bản Windows)</td><td class="n">15/15</td></tr>
+            <tr><td>Bảo mật: 403 route, dữ liệu chéo tiệm 52, CSRF, XSS</td><td class="n">0 lỗ hổng</td></tr>
+            <tr><td>Chịu tải: 100 người dùng đồng thời, 1.884 request</td><td class="n">0 lỗi server</td></tr>
+            <tr><td>Chữ chưa dịch · quét toàn trang, 9 ngành (1.026 lượt trang)</td><td class="n">sạch</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="fix">
+        <div><b>Tách ngành.</b> Mỗi tiệm chỉ mở được trang và API của ngành mình; đã dọn 2.600 bàn ăn rác của tiệm không phải nhà hàng.</div>
+        <div><b>Lương.</b> Không cộng trùng ngày công, không có tiền tự khai; hoa hồng và tip chỉ đến từ bill.</div>
+        <div><b>QR.</b> Sửa lỗi in QR ra tờ trắng; poster A4 theo ngành cho Nails, Spa, nhà hàng.</div>
+        <div><b>Tiệm demo sạch.</b> Mỗi lượt kiểm thử tự dọn dữ liệu test khỏi tiệm demo; lượt này dọn 46 bản ghi.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="nav" role="group" aria-label="Chuyển slide">
+  <button type="button" id="prev" aria-label="Slide trước">‹</button>
+  <output id="pos" aria-live="polite">1 / 21</output>
+  <button type="button" id="next" aria-label="Slide sau">›</button>
+</div>
+
+<script>
+(() => {
+  const slides = [...document.querySelectorAll('.slide')];
+  const pos = document.getElementById('pos');
+  let cur = 0;
+  const show = (i) => { pos.textContent = `${i + 1} / ${slides.length}`; };
+  const go = (i) => {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides[cur].scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    show(cur);
+  };
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting && e.intersectionRatio > 0.5) { cur = slides.indexOf(e.target); show(cur); } });
+  }, { threshold: [0.5] });
+  slides.forEach((s) => io.observe(s));
+  document.getElementById('prev').addEventListener('click', () => go(cur - 1));
+  document.getElementById('next').addEventListener('click', () => go(cur + 1));
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, textarea, select')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    if (e.key === 'Home') { e.preventDefault(); go(0); }
+    if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+  show(0);
+})();
+</script>

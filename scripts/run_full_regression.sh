@@ -76,5 +76,8 @@ for t in "${TENANTS[@]}"; do
   run "i18n_$1" env TENANT_EMAIL="$2" TENANT_PASSWORD="$3" node scripts/i18n_raw_key_audit.mjs
   run "site_$1" env TENANT="$1" ROUTES="$OUT/routes.json" OUT="$OUT/site_audit" node scripts/full_site_audit.mjs
 done
+# Dọn dữ liệu test còn sót trong các tiệm demo (khách tiềm năng nhìn thấy) — sao lưu trước khi xoá
+python scripts/cleanup_demo_test_leftovers.py --apply "$OUT/demo_leftovers_backup.json" > "$OUT/demo_cleanup.log" 2>&1
+tail -2 "$OUT/demo_cleanup.log"
 git checkout -- database.db 2>/dev/null
 echo "XONG — tổng hợp: $SUMMARY"

@@ -408,3 +408,9 @@ Còn để ý: đặt lịch công khai không chặn giờ đã qua ở server 
 ### Chạy lại toàn bộ (`scripts/run_full_regression.sh`, tổng hợp: `audit-results/full_regression_2026-10-09.tsv`)
 Tách ngành 9 ngành 58/58 · 9 ngành master đều PASS (Nails 10/10) · bộ Nails 8 script + đóng vai 36/36 · module dùng chung 3/3 · landing 66/66 · store 21/21 · Desktop offline 15/15 · bảo mật (403 route không đăng nhập, IDOR 52, CSRF 5, XSS 9) 0 cờ · chịu lỗi: server sống · chịu tải 100 người dùng/60s: 1.897 request, 0 lỗi · chữ dịch thô 9 ngành: 0 · quét toàn trang 9 ngành: chỉ còn 3 trang đúng thiết kế/ngành (`/table_order` thiếu mã bàn 400, `/super-admin` 403).
 Các FAIL lần chạy đầu đều do script test (bỏ qua lỗi reset kết nối môi trường local, `/qr_menu` chuyển sang bàn đầu tiên, nhật ký hoạt động hiện tên thao tác) — đã sửa script và chạy lại xanh.
+
+## Pha 15 — Kiểm tra lại toàn bộ + bộ slide 9 ngành (09/10/2026)
+
+- Chạy lại `scripts/run_full_regression.sh`: 45/45 bộ đạt (F&B có 1 lần lệch thời điểm chuyển trang của script, chạy lại 8/8). Tách ngành 86/86, bảo mật 0 lỗ hổng, chịu tải 100 người dùng 1.884 request 0 lỗi server, quét toàn trang 1.026 lượt trang 9 ngành.
+- 🟡 Dữ liệu: tiệm demo (khách tiềm năng nhìn thấy) lẫn 46 bản ghi do script kiểm thử để lại ("QA Test Tech", "QA IDOR bait", "E2E Business Cycle Khách", "QA Audit Stage"...). Đã sao lưu (`~/bitpaw_backups/demo_test_leftovers_2026-10-09.json`) rồi xoá; `scripts/cleanup_demo_test_leftovers.py` chạy tự động cuối mỗi lượt kiểm thử tổng.
+- Bộ slide chức năng 9 ngành (Nails chi tiết nhất): `audit-results/showcase/` — ảnh chụp bằng `scripts/showcase_screenshots.mjs` (chỉ xem, không ghi dữ liệu).
