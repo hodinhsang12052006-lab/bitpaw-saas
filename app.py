@@ -603,6 +603,21 @@ except Exception as _e:
 _ASSET_VERSION = str(int(time.time()))
 
 
+def _scan_nail_3d_icons():
+    """Icon 3D của ngành Nails: static/icons/3d/<tên icon>.webp (tạo bằng scripts/prepare_3d_icons.py từ ảnh PNG).
+    Có file -> components/nail_icons.html dùng ảnh 3D; chưa có -> dùng icon SVG "ô sơn gel" như cũ.
+    Trả về {tên: mtime} để làm tham số cache-bust. Quét 1 lần lúc khởi động (thêm ảnh mới -> khởi động lại / deploy)."""
+    folder = os.path.join(app.static_folder, 'icons', '3d')
+    try:
+        return {os.path.splitext(f)[0]: int(os.path.getmtime(os.path.join(folder, f)))
+                for f in os.listdir(folder) if f.endswith('.webp')}
+    except OSError:
+        return {}
+
+
+app.jinja_env.globals['NAIL_3D_ICONS'] = _scan_nail_3d_icons()
+
+
 @app.after_request
 def _disable_html_caching(response):
     """Chặn cache trình duyệt/CDN cho các trang HTML/JSON render động (Jinja), tránh người

@@ -63,8 +63,13 @@
 } %}
 
 {% macro nicon(name, size='md') -%}
+{%- if NAIL_3D_ICONS is defined and name in NAIL_3D_ICONS -%}
+{#- Có ảnh 3D (static/icons/3d/<name>.webp) -> dùng ảnh; chưa có -> icon SVG ô sơn gel -#}
+<span class="nicon nicon-3d nicon-{{ size }}" aria-hidden="true"><img src="/static/icons/3d/{{ name }}.webp?v={{ NAIL_3D_ICONS[name] }}" alt="" loading="lazy" decoding="async"></span>
+{%- else -%}
 {%- set tone = NAIL_ICON_TONES.get(name, NAIL_ICON_TONES['spark']) -%}
 <span class="nicon nicon-{{ size }}" style="--n1: {{ tone[0] }}; --n2: {{ tone[1] }}" aria-hidden="true"><svg viewBox="0 0 24 24">{{ NAIL_ICON_PATHS.get(name, NAIL_ICON_PATHS['spark']) | safe }}</svg></span>
+{%- endif -%}
 {%- endmacro %}
 
 {% macro nail_icon_assets() %}
@@ -83,6 +88,11 @@
     .nicon-sm svg { stroke-width: 2.2; width: 64%; height: 64%; }
     .nicon-xs { width: 18px; height: 18px; border-radius: 6px; } .nicon-xs svg { stroke-width: 2.3; width: 66%; height: 66%; }
     .nicon-lg { width: 46px; height: 46px; border-radius: 14px; }
+    /* Icon 3D (ảnh): ảnh tự có khối + bóng đổ, bỏ nền ô sơn gel; to hơn ô SVG một chút cho rõ chi tiết */
+    .nicon-3d { background: none; box-shadow: none; overflow: visible; }
+    .nicon-3d::before { display: none; }
+    .nicon-3d img { width: 125%; height: 125%; max-width: none; object-fit: contain; pointer-events: none;
+                    filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
     @media (prefers-reduced-motion: no-preference) {
         :is(button, a, [onclick]):hover > .nicon { transform: translateY(-1px) rotate(-4deg) scale(1.06); }
         .nicon { transition: transform .22s cubic-bezier(.34, 1.56, .64, 1); }
@@ -91,7 +101,11 @@
 <script>
     window.NAIL_ICONS = {{ NAIL_ICON_PATHS | tojson }};
     window.NAIL_ICON_TONES = {{ NAIL_ICON_TONES | tojson }};
+    window.NAIL_3D_ICONS = {{ (NAIL_3D_ICONS if NAIL_3D_ICONS is defined else {}) | tojson }};
     window.nailIcon = function (name, size) {
+        if (window.NAIL_3D_ICONS[name]) {
+            return `<span class="nicon nicon-3d nicon-${size || 'md'}" aria-hidden="true"><img src="/static/icons/3d/${name}.webp?v=${window.NAIL_3D_ICONS[name]}" alt="" loading="lazy" decoding="async"></span>`;
+        }
         const p = window.NAIL_ICONS[name] || window.NAIL_ICONS.spark;
         const t = window.NAIL_ICON_TONES[name] || window.NAIL_ICON_TONES.spark;
         return `<span class="nicon nicon-${size || 'md'}" style="--n1:${t[0]};--n2:${t[1]}" aria-hidden="true"><svg viewBox="0 0 24 24">${p}</svg></span>`;
