@@ -117,6 +117,7 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.4); border-radius: 10px; }
     </style>
+    {% from 'components/nail_icons.html' import nicon %}
 </head>
 <body class="flex h-screen overflow-hidden relative">
 
@@ -139,13 +140,13 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 shrink-0 gap-4">
                 <div>
                     <h2 class="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-md flex items-center gap-3">
-                        <i class="fas fa-users-cog text-rose-500 drop-shadow-[0_0_8px_currentColor]"></i> <span data-i18n="cnl_page_title">Quản Lý Thợ Salon</span>
+                        {{ nicon('staff', 'lg') }} <span data-i18n="cnl_page_title">Quản Lý Thợ Salon</span>
                     </h2>
                     <p class="text-gray-400 mt-2 text-sm font-medium" data-i18n="cnl_page_subtitle">Bảng tính Tua, chia Supply và Tips tự động.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ url_for('nhanvien') }}" class="glass-panel hover:bg-rose-500/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-rose-400 flex items-center gap-2 shadow-lg active:scale-95">
-                        <i class="fas fa-user-plus"></i> <span data-i18n="cnl_manage_technicians">Thêm / Sửa Thợ</span>
+                        {{ nicon('staff', 'xs') }} <span data-i18n="cnl_manage_technicians">Thêm / Sửa Thợ</span>
                     </a>
                     <a href="{{ url_for('chamcong') }}" class="glass-panel hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-rose-400 flex items-center gap-2 shadow-lg active:scale-95">
                         <i class="fas fa-arrow-left"></i> <span data-i18n="cnl_back_to_menu">Trở về Menu</span>
@@ -154,7 +155,7 @@
             </div>
 
             <div class="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
-                <i class="fas fa-spa text-gray-400"></i>
+                {{ nicon('polish', 'xs') }}
                 <h3 class="font-bold text-gray-300 uppercase tracking-widest text-xs" data-i18n="cnl_employee_list_title">Danh Sách Thợ Nails / KTV</h3>
             </div>
 
@@ -191,7 +192,7 @@
                  1 bản ghi/ca làm để tính LƯƠNG GIỜ (base pay), còn Tua là hoa hồng theo TỪNG
                  khách (có thể nhiều lần/ngày) — không được gộp chung 1 form kẻo tính khống giờ. -->
             <div class="glass-panel rounded-3xl p-5 lg:p-6 mb-6 shrink-0 border border-cyan-500/20 shadow-xl">
-                <h3 class="text-cyan-400 text-xs font-black mb-4 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-business-time"></i> <span data-i18n="cnl_shift_title">Giờ Làm Ca (Lương Giờ)</span></h3>
+                <h3 class="text-cyan-400 text-xs font-black mb-4 uppercase tracking-widest flex items-center gap-2">{{ nicon('hold', 'xs') }} <span data-i18n="cnl_shift_title">Giờ Làm Ca (Lương Giờ)</span></h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <label class="block text-gray-400 text-[10px] font-black mb-2 uppercase tracking-widest" data-i18n="cnl_shift_time_in">Giờ Vào</label>
@@ -219,7 +220,7 @@
                     <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-bl-full pointer-events-none blur-md"></div>
                     
                     <div class="mb-6 border-b border-white/10 pb-6 relative z-10">
-                        <label class="block text-rose-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><i class="fas fa-paint-brush mr-2 text-lg"></i> <span data-i18n="cnl_label_service">Tên Dịch Vụ</span></label>
+                        <label class="block text-rose-400 text-sm font-black mb-3 uppercase tracking-widest flex items-center"><span class="mr-2">{{ nicon('design', 'sm') }}</span> <span data-i18n="cnl_label_service">Tên Dịch Vụ</span></label>
                         <input type="text" id="ten_dv" placeholder="VD: Fullset Acrylic + Design..." data-i18n-placeholder="cnl_placeholder_service" class="pos-input text-white focus:border-rose-400 text-lg" value="Làm Nail">
                     </div>
 
@@ -285,7 +286,7 @@
                          hoạ rõ ràng cho chủ & thợ, có ghi chú tỉ lệ thuế giả định ngay trên UI. -->
                     <div class="mt-8 pt-6 border-t border-dashed border-white/10 relative z-10">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-emerald-400 text-sm font-black uppercase tracking-widest flex items-center gap-2"><i class="fas fa-calendar-days"></i> <span data-i18n="cnl_daily_grid_title">Doanh Thu Theo Ngày</span></h3>
+                            <h3 class="text-emerald-400 text-sm font-black uppercase tracking-widest flex items-center gap-2">{{ nicon('booking', 'xs') }} <span data-i18n="cnl_daily_grid_title">Doanh Thu Theo Ngày</span></h3>
                             <div class="flex items-center gap-2">
                                 <button type="button" onclick="payrollGridShiftMonth(-1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center"><i class="fas fa-chevron-left text-xs"></i></button>
                                 <span id="payrollGridMonthLabel" class="text-xs font-bold text-gray-300 w-20 text-center font-mono">--/----</span>
@@ -306,11 +307,11 @@
                             </div>
                             <div class="border-t border-dashed border-gray-700 pt-4 space-y-2.5">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-xs text-gray-400"><i class="fas fa-money-bill-wave text-emerald-400 mr-1.5"></i><span data-i18n="cnl_paystub_cash_payout">Cash Payout (Tip mặt)</span></span>
+                                    <span class="text-xs text-gray-400"><span class="mr-1.5 align-middle">{{ nicon('cash', 'xs') }}</span><span data-i18n="cnl_paystub_cash_payout">Cash Payout (Tip mặt)</span></span>
                                     <span id="paystubCashPayout" class="font-mono font-bold text-emerald-300">$0.00</span>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-xs text-gray-400"><i class="fas fa-money-check-dollar text-cyan-400 mr-1.5"></i><span data-i18n="cnl_paystub_check_deposit">Check / Direct Deposit</span></span>
+                                    <span class="text-xs text-gray-400"><span class="mr-1.5 align-middle">{{ nicon('card', 'xs') }}</span><span data-i18n="cnl_paystub_check_deposit">Check / Direct Deposit</span></span>
                                     <span id="paystubCheckDeposit" class="font-mono font-bold text-cyan-300">$0.00</span>
                                 </div>
                                 <div class="flex justify-between items-center">
@@ -332,7 +333,7 @@
                         <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-cyan-500"></div>
                         <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] opacity-[0.03] pointer-events-none"></div>
                         
-                        <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-700 pb-4 flex justify-center items-center gap-2"><i class="fas fa-receipt"></i> <span data-i18n="cnl_receipt_estimate_title">Tạm Tính Biên Lai</span></h3>
+                        <h3 class="text-center font-black text-gray-400 tracking-widest mb-5 uppercase border-b border-dashed border-gray-700 pb-4 flex justify-center items-center gap-2">{{ nicon('ticket', 'xs') }} <span data-i18n="cnl_receipt_estimate_title">Tạm Tính Biên Lai</span></h3>
 
                         <div class="space-y-1.5 mb-5 text-gray-400 font-mono text-sm border-b border-dashed border-gray-700 pb-5">
                             <div class="receipt-line"><span data-i18n="cnl_line_total">Tổng thu:</span> <span class="text-white font-bold" id="r_total">$100.00</span></div>
@@ -359,7 +360,7 @@
                     </div>
 
                     <div class="glass-panel rounded-[2rem] p-5 flex-1 flex flex-col min-h-0 border border-white/5">
-                        <h3 class="font-black text-gray-300 mb-4 text-xs uppercase tracking-widest flex items-center border-b border-white/10 pb-3"><i class="fas fa-history text-cyan-400 mr-2 text-lg"></i><span data-i18n="cnl_recent_history_title">Lịch sử vừa nhập</span></h3>
+                        <h3 class="font-black text-gray-300 mb-4 text-xs uppercase tracking-widest flex items-center border-b border-white/10 pb-3"><span class="mr-2">{{ nicon('history', 'sm') }}</span><span data-i18n="cnl_recent_history_title">Lịch sử vừa nhập</span></h3>
                         <div id="historyBox" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar"></div>
                     </div>
                 </div>
@@ -517,8 +518,8 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 z-10">
-                                <button class="flex-1 md:flex-none bg-gradient-to-r from-rose-500 to-pink-600 text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center gap-2 whitespace-nowrap" data-action="open"><i class="fas fa-calculator text-lg"></i> ${t('cnl_calc_pay_btn')}</button>
-                                <button id="btn-export-${escapeHtml(emp.ma_nv)}" data-action="export" class="bg-black/50 border border-white/10 hover:border-emerald-400 hover:text-emerald-400 text-gray-400 px-4 py-3 rounded-xl transition-all shadow-inner"><i class="fas fa-file-invoice-dollar"></i></button>
+                                <button class="flex-1 md:flex-none bg-gradient-to-r from-rose-500 to-pink-600 text-white px-5 py-3 rounded-xl font-black tracking-widest text-xs transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center gap-2 whitespace-nowrap" data-action="open">${window.nailIcon ? nailIcon('payroll', 'sm') : ''} ${t('cnl_calc_pay_btn')}</button>
+                                <button id="btn-export-${escapeHtml(emp.ma_nv)}" data-action="export" class="bg-black/50 border border-white/10 hover:border-emerald-400 hover:text-emerald-400 text-gray-400 px-3 py-2.5 rounded-xl transition-all shadow-inner">${window.nailIcon ? nailIcon('history', 'sm') : '<i class="fas fa-file-invoice-dollar"></i>'}</button>
                             </div>
                         </div>
                     `;

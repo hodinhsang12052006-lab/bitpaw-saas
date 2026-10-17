@@ -1,0 +1,115 @@
+{#
+  BỘ ICON NAILS — vẽ tay bằng SVG theo đồ nghề tiệm nail (lọ sơn, móng almond, bàn chân, cọ vẽ, giọt sáp...),
+  thay cho glyph Font Awesome đơn sắc (nhỏ, giống mọi app khác, và vỡ thành ký tự rác khi CDN font chậm).
+  Mỗi chức năng đặt trên một "ô sơn gel": nền gradient bóng theo màu riêng của chức năng.
+
+  Dùng trong template:
+    {% from 'components/nail_icons.html' import nicon, nail_icon_assets %}
+    {{ nail_icon_assets() }}                      -- 1 lần mỗi trang: CSS + window.NAIL_ICONS cho JS
+    {{ nicon('checkout') }}  {{ nicon('pedicure', 'sm') }}
+  Trong JS: nailIcon('pedicure', 'sm') trả về chuỗi HTML; nailCategoryIcon('Acrylic') chọn icon theo tên danh mục.
+#}
+{% set NAIL_ICON_PATHS = {
+  'checkout': '<rect x="3" y="11" width="18" height="9.5" rx="2.4"/><path d="M7 11V6.2a1.2 1.2 0 0 1 1.2-1.2h7.6A1.2 1.2 0 0 1 17 6.2V11"/><path d="M10 2.8h4"/><path d="M7 15.2h2.2M11 15.2h2.2M15 15.2h2"/><path d="M9.5 8h5" class="d"/>',
+  'hold': '<path d="M7 3h10M7 21h10"/><path d="M8 3c0 4.8 8 4.6 8 9s-8 4.2-8 9"/><path d="M16 3c0 4.8-8 4.6-8 9s8 4.2 8 9"/><path d="M10 18.5h4" class="d"/>',
+  'booking': '<rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M8 2.8v3.4M16 2.8v3.4M3 9.6h18"/><path d="m8.8 15.2 2.2 2.2 4.4-4.6" class="d"/>',
+  'checkedin': '<circle cx="9" cy="7.8" r="3.4"/><path d="M2.8 20.5c0-3.4 2.8-6.2 6.2-6.2s6.2 2.8 6.2 6.2"/><path d="m15.6 11.2 2.1 2.1 3.7-4" class="d"/>',
+  'polish': '<rect x="9.7" y="2" width="4.6" height="5.4" rx="1"/><path d="M7.6 10.2A2.6 2.6 0 0 1 10.2 7.6h3.6a2.6 2.6 0 0 1 2.6 2.6v8.6a3.2 3.2 0 0 1-3.2 3.2h-2.4a3.2 3.2 0 0 1-3.2-3.2z"/><path d="M12 12.4v5.4M9.3 15.1h5.4" class="d"/>',
+  'history': '<path d="M5.5 2.5h13v19l-2.6-1.7-2.6 1.7-2.6-1.7-2.6 1.7-2.6-1.7z"/><path d="M9 7.5h6M9 11h6"/><path d="M9 14.6h3.6" class="d"/>',
+  'discount': '<path d="M3 11.6V4.2A1.2 1.2 0 0 1 4.2 3h7.4l9.4 9.4-8.6 8.6z"/><circle cx="7.6" cy="7.6" r="1.4"/><path d="m11 16.4 4.8-4.8" class="d"/><circle cx="11.4" cy="12" r=".6" class="d"/><circle cx="15.4" cy="16" r=".6" class="d"/>',
+  'refund': '<path d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3"/><path d="M3.2 3.6v4.6h4.6"/><path d="M14.6 9.6H11a1.6 1.6 0 0 0 0 3.2h2a1.6 1.6 0 0 1 0 3.2H9.4M12 8v1.6M12 16v1.6" class="d"/>',
+  'quote': '<path d="M14 2.8H7.2A2.2 2.2 0 0 0 5 5v14a2.2 2.2 0 0 0 2.2 2.2h9.6A2.2 2.2 0 0 0 19 19V7.8z"/><path d="M14 2.8v5h5"/><path d="M8.8 13h6.4M8.8 16.8h4" class="d"/>',
+  'clear': '<path d="M4 6.8h16"/><path d="M9.6 3h4.8"/><path d="M6 6.8l1 13a2.1 2.1 0 0 0 2.1 1.9h5.8a2.1 2.1 0 0 0 2.1-1.9l1-13"/><path d="M10.2 11v6.2M13.8 11v6.2" class="d"/>',
+  'ticket': '<path d="M5.5 2.5h13v19l-2.6-1.7-2.6 1.7-2.6-1.7-2.6 1.7-2.6-1.7z"/><path d="M9 8h6M9 12h6M9 16h3.4"/>',
+  'queue': '<circle cx="8.6" cy="8" r="3.2"/><path d="M2.8 20.2c0-3.2 2.6-5.8 5.8-5.8s5.8 2.6 5.8 5.8"/><path d="M15.4 4.9a3.2 3.2 0 0 1 0 6.2M17.2 14.6c2.3.8 4 3 4 5.6" class="d"/>',
+  'all': '<rect x="3.2" y="3.2" width="7.6" height="7.6" rx="2"/><rect x="13.2" y="3.2" width="7.6" height="7.6" rx="2" class="d"/><rect x="3.2" y="13.2" width="7.6" height="7.6" rx="2" class="d"/><rect x="13.2" y="13.2" width="7.6" height="7.6" rx="2"/>',
+  'acrylic': '<path d="M12 2.2c3.2 2.1 4.4 6.3 4.4 9.2a4.4 4.4 0 0 1-8.8 0c0-2.9 1.2-7.1 4.4-9.2z"/><path d="M7.6 13.6v8.2M16.4 13.6v8.2"/><path d="M10.4 6.6c-.6 1.4-.9 3-.9 4.4" class="d"/>',
+  'pedicure': '<path d="M9.4 21.4c-2.6 0-4-2-4-4.4 0-3.4 2.2-4.6 2.2-7.6 0-2.4 1.2-4.6 3.2-4.6s3 2 3 4.2c0 2.2-1.2 3.2-1.2 5.2 0 1.6 2.6 2.4 2.6 4.6 0 1.6-1.6 2.6-5.8 2.6z"/><circle cx="15.8" cy="4.4" r="1.4" class="d"/><circle cx="18.4" cy="7.2" r="1.1" class="d"/><circle cx="19.4" cy="10.4" r=".95" class="d"/>',
+  'package': '<rect x="3" y="8" width="18" height="5" rx="1.2"/><path d="M4.8 13v6.8A1.2 1.2 0 0 0 6 21h12a1.2 1.2 0 0 0 1.2-1.2V13"/><path d="M12 8v13"/><path d="M12 8C10.4 4.4 6.4 4 6.4 6.4S9.6 8 12 8zM12 8c1.6-3.6 5.6-4 5.6-1.6S14.4 8 12 8z" class="d"/>',
+  'design': '<path d="M14.8 3.6 20.4 9.2l-8.6 8.6-5.6-5.6z"/><path d="M6.2 12.2c-2.8.4-3.4 3-3.4 4.6 0 1.6-.8 2.6-1.6 3.2 3.4 1.4 7.6.4 8.6-2.4"/><path d="m17.2 2.6.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" class="d"/>',
+  'addon': '<path d="M6.4 3.4h11.2l3.2 5.4L12 20.8 3.2 8.8z"/><path d="M3.2 8.8h17.6"/><path d="m9 3.4 3 5.4 3-5.4M12 8.8v12" class="d"/>',
+  'waxing': '<path d="M12 2.8s6.2 6.6 6.2 11.2a6.2 6.2 0 0 1-12.4 0C5.8 9.4 12 2.8 12 2.8z"/><path d="M9 14.2a3 3 0 0 0 3 3" class="d"/>',
+  'gel': '<path d="M12 2.6c2.6 3 5.4 6.4 5.4 10a5.4 5.4 0 0 1-10.8 0c0-3.6 2.8-7 5.4-10z"/><path d="M14.6 13.6a2.6 2.6 0 0 1-2.6 2.6" class="d"/><path d="m18.4 3 .4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" class="d"/>',
+  'spark': '<path d="M12 2.6 13.9 9l6.5 1.9-6.5 1.9L12 19.4l-1.9-6.6-6.5-1.9L10.1 9z"/><path d="m18.6 15.4.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" class="d"/>',
+  'dashboard': '<path d="M3.5 16.5a8.5 8.5 0 1 1 17 0"/><path d="m12 16.5 4-5" class="d"/><circle cx="12" cy="16.5" r="1.4"/><path d="M3.5 20.2h17"/>',
+  'qr': '<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><path d="M14 14h3v3h-3zM20.5 14v.01M14 20.5h.01M17.5 20.5h3v-3" class="d"/>',
+  'customers': '<path d="M12 20.5s-7.5-4.4-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.7-7.5 10.1-7.5 10.1z"/><path d="M9.4 11.2A2.6 2.6 0 0 1 12 9.2" class="d"/>',
+  'ai': '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h-1A1.5 1.5 0 0 1 3 14.5z"/><path d="m12 6.4.9 2.5 2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9z" class="d"/>',
+  'staff': '<circle cx="8.6" cy="8" r="3.2"/><path d="M2.8 20.2c0-3.2 2.6-5.8 5.8-5.8s5.8 2.6 5.8 5.8"/><path d="M15.4 4.9a3.2 3.2 0 0 1 0 6.2M17.2 14.6c2.3.8 4 3 4 5.6" class="d"/>',
+  'payroll': '<ellipse cx="9" cy="6.4" rx="5.6" ry="2.6"/><path d="M3.4 6.4v4.2c0 1.4 2.5 2.6 5.6 2.6s5.6-1.2 5.6-2.6V6.4"/><path d="M9.6 15.8c.9 1.1 3 1.8 5.4 1.8 3.1 0 5.6-1.2 5.6-2.6v-4.2c0-1.4-2.5-2.6-5.6-2.6M20.6 15v4.2c0 1.4-2.5 2.6-5.6 2.6s-5.6-1.2-5.6-2.6" class="d"/>',
+  'leave': '<path d="M3 11.2a9 9 0 0 1 18 0z"/><path d="M12 11.2v7.6a2.2 2.2 0 0 0 4.4 0"/><path d="M12 2.4v1.2" class="d"/>',
+  'chart': '<path d="M3 20.8h18"/><rect x="5" y="11" width="3.4" height="7" rx="1"/><rect x="10.3" y="7" width="3.4" height="11" rx="1"/><rect x="15.6" y="3.6" width="3.4" height="14.4" rx="1" class="d"/>',
+  'settings': '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1.2-1.7-1.2-2.9 0-1 .8-1.6 1.8-1.6h2.2A4.6 4.6 0 0 0 21 10.3C21 6.2 17 3 12 3z"/><circle cx="7.6" cy="11" r="1.1" class="d"/><circle cx="10.4" cy="7" r="1.1" class="d"/><circle cx="15" cy="7.4" r="1.1" class="d"/>',
+  'exit': '<path d="M14 3h4.5A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5H14"/><path d="M9.8 16.6 5.2 12l4.6-4.6"/><path d="M5.2 12H15" class="d"/>',
+  'cash': '<rect x="2.5" y="6" width="19" height="12" rx="2.6"/><circle cx="12" cy="12" r="2.8" class="d"/><path d="M6 9.5v.01M18 14.5v.01"/>',
+  'card': '<rect x="2.5" y="5" width="19" height="14" rx="2.6"/><path d="M2.5 9.6h19"/><path d="M6.5 15h4" class="d"/>',
+  'split': '<rect x="2.5" y="6" width="8" height="12" rx="2"/><rect x="13.5" y="6" width="8" height="12" rx="2"/><path d="M12 3v18" class="d"/>',
+  'terminal': '<rect x="5" y="2.5" width="14" height="19" rx="3"/><rect x="8" y="5.5" width="8" height="5" rx="1" class="d"/><path d="M9 14h.01M12 14h.01M15 14h.01M9 17.5h.01M12 17.5h.01M15 17.5h.01"/>'
+} %}
+{# màu "ô sơn gel": [sáng, đậm] theo chức năng #}
+{% set NAIL_ICON_TONES = {
+  'checkout': ['#34d399', '#0d9488'], 'hold': ['#fbbf24', '#ea580c'], 'booking': ['#f472b6', '#c026d3'],
+  'checkedin': ['#a78bfa', '#6d28d9'], 'polish': ['#67e8f9', '#0284c7'], 'history': ['#93c5fd', '#4338ca'],
+  'discount': ['#fcd34d', '#d97706'], 'refund': ['#c4b5fd', '#7c3aed'], 'quote': ['#7dd3fc', '#2563eb'],
+  'clear': ['#fda4af', '#e11d48'], 'ticket': ['#5eead4', '#0f766e'], 'queue': ['#f9a8d4', '#be185d'],
+  'all': ['#fde68a', '#f59e0b'], 'acrylic': ['#f9a8d4', '#db2777'], 'pedicure': ['#99f6e4', '#0d9488'],
+  'package': ['#fcd34d', '#c2410c'], 'design': ['#c4b5fd', '#9333ea'], 'addon': ['#a5f3fc', '#0891b2'],
+  'waxing': ['#fdba74', '#ea580c'], 'gel': ['#fbcfe8', '#e11d48'], 'spark': ['#e9d5ff', '#7c3aed'],
+  'dashboard': ['#7dd3fc', '#0369a1'], 'qr': ['#f0abfc', '#a21caf'], 'customers': ['#fda4af', '#be123c'],
+  'ai': ['#a5b4fc', '#4f46e5'], 'staff': ['#fbcfe8', '#db2777'], 'payroll': ['#fde68a', '#ca8a04'],
+  'leave': ['#99f6e4', '#0f766e'], 'chart': ['#86efac', '#15803d'], 'settings': ['#e9d5ff', '#9333ea'],
+  'exit': ['#cbd5e1', '#475569'], 'cash': ['#6ee7b7', '#047857'], 'card': ['#fcd34d', '#b45309'],
+  'split': ['#67e8f9', '#0e7490'], 'terminal': ['#c4b5fd', '#5b21b6']
+} %}
+
+{% macro nicon(name, size='md') -%}
+{%- set tone = NAIL_ICON_TONES.get(name, NAIL_ICON_TONES['spark']) -%}
+<span class="nicon nicon-{{ size }}" style="--n1: {{ tone[0] }}; --n2: {{ tone[1] }}" aria-hidden="true"><svg viewBox="0 0 24 24">{{ NAIL_ICON_PATHS.get(name, NAIL_ICON_PATHS['spark']) | safe }}</svg></span>
+{%- endmacro %}
+
+{% macro nail_icon_assets() %}
+<style>
+    /* Ô sơn gel: gradient 2 tông + vệt bóng phía trên, đổ bóng cùng màu. Glyph trắng nét tròn, nét phụ (.d) mờ hơn. */
+    .nicon { --n1: #e9d5ff; --n2: #7c3aed; position: relative; display: inline-grid; place-items: center; flex-shrink: 0;
+             width: 38px; height: 38px; border-radius: 12px; isolation: isolate;
+             background: linear-gradient(150deg, var(--n1) -20%, var(--n2) 85%);
+             box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 6px rgba(0,0,0,.18), 0 6px 14px -4px color-mix(in srgb, var(--n2) 65%, transparent); }
+    .nicon::before { content: ""; position: absolute; inset: 2px 3px auto; height: 46%; border-radius: 10px 10px 50% 50% / 10px 10px 40% 40%;
+                     background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0)); z-index: -1; }
+    .nicon svg { width: 60%; height: 60%; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+                 filter: drop-shadow(0 1px 1px rgba(0,0,0,.22)); overflow: visible; }
+    .nicon svg .d { stroke: rgba(255,255,255,.78); }
+    .nicon-sm { width: 22px; height: 22px; border-radius: 7px; } .nicon-sm::before { border-radius: 6px 6px 50% 50% / 6px 6px 40% 40%; }
+    .nicon-sm svg { stroke-width: 2.2; width: 64%; height: 64%; }
+    .nicon-xs { width: 18px; height: 18px; border-radius: 6px; } .nicon-xs svg { stroke-width: 2.3; width: 66%; height: 66%; }
+    .nicon-lg { width: 46px; height: 46px; border-radius: 14px; }
+    @media (prefers-reduced-motion: no-preference) {
+        :is(button, a, [onclick]):hover > .nicon { transform: translateY(-1px) rotate(-4deg) scale(1.06); }
+        .nicon { transition: transform .22s cubic-bezier(.34, 1.56, .64, 1); }
+    }
+</style>
+<script>
+    window.NAIL_ICONS = {{ NAIL_ICON_PATHS | tojson }};
+    window.NAIL_ICON_TONES = {{ NAIL_ICON_TONES | tojson }};
+    window.nailIcon = function (name, size) {
+        const p = window.NAIL_ICONS[name] || window.NAIL_ICONS.spark;
+        const t = window.NAIL_ICON_TONES[name] || window.NAIL_ICON_TONES.spark;
+        return `<span class="nicon nicon-${size || 'md'}" style="--n1:${t[0]};--n2:${t[1]}" aria-hidden="true"><svg viewBox="0 0 24 24">${p}</svg></span>`;
+    };
+    // Icon theo TÊN danh mục dịch vụ do chủ tiệm đặt (Acrylic, Pedicure, Gel Extensions, Waxing...)
+    window.nailCategoryIcon = function (cat, size) {
+        const c = String(cat || '').toLowerCase();
+        const pick = c === 'all' ? 'all'
+            : /pedi|foot|chân/.test(c) ? 'pedicure'
+            : /acryl|dip|powder|bột|full set|extension|nối/.test(c) ? 'acrylic'
+            : /gel|shellac|sơn/.test(c) ? 'gel'
+            : /package|combo|gói/.test(c) ? 'package'
+            : /design|art|vẽ|chrome|3d/.test(c) ? 'design'
+            : /add|extra|gem|đá|thêm/.test(c) ? 'addon'
+            : /wax|lash|brow|mi|lông/.test(c) ? 'waxing'
+            : /mani|tay|hand/.test(c) ? 'polish'
+            : 'spark';
+        return window.nailIcon(pick, size);
+    };
+</script>
+{% endmacro %}

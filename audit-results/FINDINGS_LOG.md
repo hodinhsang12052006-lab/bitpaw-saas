@@ -427,3 +427,10 @@ Script mới `scripts/staff_owner_persona_all_industries.mjs`: mỗi ngành, ch�
 | 4 | 🟡 | Mọi ngành | Bảng lương đọc công thức ngành từ bộ nhớ trình duyệt dùng chung (`bp_industry_mode`) trước ngành thật của tiệm -> máy từng mở bảng lương tiệm khác ngành tính sai công thức | Lưu lựa chọn theo từng tiệm, mặc định đúng ngành |
 
 Chạy lại toàn bộ (`audit-results/full_regression_2026-10-17.tsv`, 49 bộ): các FAIL lần đầu đều là quá thời gian chờ / ngắt kết nối của máy dev (Werkzeug + Avast) — chạy lại đạt hết: tách ngành 86/86, đóng vai 9 ngành 126/126, Nails 36/36, bảo mật 0 lỗ hổng, quét toàn trang + chữ dịch thô 9 ngành sạch. Dọn 14 bản ghi test khỏi tiệm demo (sao lưu `~/bitpaw_backups/demo_test_leftovers_2026-10-17.json`).
+
+## Pha 17 — Bộ icon riêng cho ngành Nails (17/10/2026)
+
+Icon chức năng của Nails là glyph Font Awesome đơn sắc, nhỏ, giống mọi app khác (và từng vỡ thành ký tự rác khi CDN font chậm). Thay bằng bộ icon SVG vẽ riêng theo đồ nghề tiệm nail (`templates/components/nail_icons.html`): lọ sơn, móng almond, bàn chân, cọ vẽ, giọt sáp, viên đá, chồng xu lương..., mỗi chức năng một "ô sơn gel" màu riêng có vệt bóng.
+
+Áp dụng: POS Nails (6 tab nhanh, 5 ô thao tác trên vé, tab Vé/Hàng chờ, chip danh mục — icon tự chọn theo tên danh mục chủ tiệm đặt, 4 nút cách thanh toán, ô giỏ trống), sidebar của tiệm Nails (32 mục; ngành khác giữ nguyên), trang Salon Staff Management + Calculate Pay. Chip danh mục chuyển sang `data-cat` + escape tên (tên có dấu nháy từng làm hỏng nút).
+Kiểm thử: Nails master 10/10, chu trình kinh doanh 9/9, module dùng chung 9/9, gap 8/8, đóng vai 36/36 + 14/14, giao diện 42 màn hình sạch, chữ dịch thô 0, tách ngành Nails/F&B/Spa đạt; F&B kiểm tra không bị đổi icon.

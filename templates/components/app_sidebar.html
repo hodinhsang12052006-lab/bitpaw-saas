@@ -14,6 +14,27 @@
    định server-side (default_lang), không có gì bị hỏng cả. #}
 {% set is_staff = session.get('role') == 'staff' %}
 {% set modules = (active_industry_cfg.modules if active_industry_cfg else []) %}
+{# Tiệm Nails: icon sidebar dùng bộ "ô sơn gel" riêng của ngành (components/nail_icons.html); ngành khác giữ icon cũ #}
+{% from 'components/nail_icons.html' import nicon, nail_icon_assets %}
+{% set NAIL_NAV_ICON = {
+  'fa-chart-pie': 'dashboard', 'fa-spa': 'polish', 'fa-cash-register': 'checkout', 'fa-shopping-cart': 'checkout', 'fa-calendar-alt': 'booking',
+  'fa-calendar-days': 'booking', 'fa-qrcode': 'qr', 'fa-address-book': 'customers', 'fa-robot': 'ai', 'fa-magic': 'design',
+  'fa-users': 'staff', 'fa-calendar-check': 'checkedin', 'fa-coins': 'payroll', 'fa-calendar-times': 'leave',
+  'fa-hand-holding-dollar': 'refund', 'fa-hand-holding-usd': 'refund', 'fa-chart-line': 'chart', 'fa-sitemap': 'chart',
+  'fa-cog': 'settings', 'fa-sign-out-alt': 'exit', 'fa-file-invoice-dollar': 'history', 'fa-boxes-stacked': 'package',
+  'fa-warehouse': 'package'
+} %}
+{% macro navico(fa, cls) -%}
+{%- if active_industry_code == 'nail' and fa in NAIL_NAV_ICON -%}{{ nicon(NAIL_NAV_ICON[fa], 'sm') }}{%- else -%}<i class="fas {{ fa }}{{ cls }}"></i>{%- endif -%}
+{%- endmacro %}
+{% if active_industry_code == 'nail' %}{{ nail_icon_assets() }}
+<style>
+    /* chip sidebar của tiệm Nails: ô sơn gel tự có nền + bóng, bỏ khung chip cũ */
+    .nav-icon-chip:has(.nicon) { background: none; border: none; }
+    .nav-icon-chip .nicon-sm { width: 30px; height: 30px; border-radius: 9px; }
+    a.group:hover .nav-icon-chip:has(.nicon) { background: none; }
+</style>
+{% endif %}
 
 {# Off-canvas trên mobile: viết bằng CSS thuần (không phải class Tailwind mới) vì
    tailwind.output.css là file build sẵn — 1 class arbitrary mới tinh sẽ KHÔNG có tác dụng
@@ -180,7 +201,7 @@
         <nav class="flex flex-col py-2 space-y-1.5 px-5">
             {% if not is_staff %}
             <a href="{{ url_for('index') }}" class="flex items-center space-x-4 {% if request.path == url_for('index') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-r-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-chart-pie group-hover:scale-110 transition-transform"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-chart-pie', ' group-hover:scale-110 transition-transform') }}</span>
                 <span data-i18n="menu_dashboard">{{ menu_i18n.dashboard }}</span>
             </a>
             {% endif %}
@@ -188,16 +209,16 @@
             {# F&B: Smart POS + QR Menu + Kitchen Display (KDS) nổi bật, không có Booking #}
             {% if 'ordering' in modules or 'tables' in modules %}
             <a href="{{ url_for('pos') }}" class="flex items-center space-x-4 {% if request.path == url_for('pos') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-cash-register group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-cash-register', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_smart_pos">{{ menu_i18n.smart_pos }}</span>
             </a>
             <a href="{{ url_for('kitchen_display') }}" class="flex items-center space-x-4 {% if request.path == url_for('kitchen_display') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-kitchen-set group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-kitchen-set', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_kitchen_display">{{ menu_i18n.kitchen_display }}</span>
             </a>
             {% if not is_staff %}
             <a href="{{ url_for('qr_menu_base') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                <span class="nav-icon-chip"><i class="fas fa-qrcode group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-qrcode', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_qr_menu">{{ menu_i18n.qr_menu }}</span>
             </a>
             {% endif %}
@@ -209,7 +230,7 @@
             {% if 'spa_services' in modules or 'nail_services' in modules %}
             {% set pos_service_url = industry_pos_url %}{# POS đúng ngành (Spa -> /spa, trước đây Spa vào nhầm POS nhà hàng /pos) #}
             <a href="{{ pos_service_url }}" class="flex items-center space-x-4 {% if request.path == pos_service_url %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-spa group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-spa', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_pos_service">{{ menu_i18n.pos_service }}</span>
             </a>
             {# BUG THẬT đã vá (audit): link này trước đây trỏ cứng "/booking" — route công khai
@@ -221,13 +242,13 @@
                business_id qua session). Muốn xem/in QR đặt lịch công khai: dùng nút "Booking QR"
                ngay trong /sell (Nails) hoặc tự ghép /booking/qr/<business_id> (Spa). #}
             <a href="{{ url_for('calendar_view') }}" class="flex items-center space-x-4 {% if request.path == '/calendar' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-calendar-alt group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-calendar-alt', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_booking">{{ menu_i18n.booking }}</span>
             </a>
             {% if not is_staff %}
             {# Poster QR đặt lịch in dán quầy (Nails + Spa) — trước đây Spa không có chỗ nào lấy QR đặt lịch #}
             <a href="{{ url_for('qr_poster_booking') }}" target="_blank" rel="noopener" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-qrcode group-hover:text-cyan-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-qrcode', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_booking_qr">{{ menu_i18n.booking_qr }}</span>
             </a>
             {% endif %}
@@ -240,28 +261,28 @@
                tự gõ URL. #}
             {% if 'room_management' in modules %}
             <a href="{{ url_for('hotel_rooms_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel_rooms' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-hotel group-hover:text-purple-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-hotel', ' group-hover:text-purple-400 transition-colors') }}</span>
                 <span data-i18n="menu_hotel_rooms">{{ menu_i18n.hotel_rooms or 'Quản Lý Phòng' }}</span>
             </a>
             <a href="{{ url_for('hotel_reservations_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel/reservations' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-calendar-days group-hover:text-purple-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-calendar-days', ' group-hover:text-purple-400 transition-colors') }}</span>
                 <span data-i18n="menu_hotel_reservations">{{ menu_i18n.hotel_reservations or 'Đặt Phòng Trước' }}</span>
             </a>
             {% endif %}
             {% if 'room_timing' in modules or 'pos_ordering' in modules %}
             <a href="{{ url_for('karaoke') }}" class="flex items-center space-x-4 {% if request.path == '/karaoke' %} bg-gradient-to-r from-emerald-500/20 to-transparent border-l-4 border-emerald-400 text-emerald-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-music group-hover:text-emerald-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-music', ' group-hover:text-emerald-400 transition-colors') }}</span>
                 <span data-i18n="menu_karaoke_rooms">{{ menu_i18n.karaoke_rooms or 'Phòng Karaoke' }}</span>
             </a>
             {% endif %}
             {% if 'factory_output' in modules %}
             <a href="{{ url_for('production_output_page') }}" class="flex items-center space-x-4 {% if request.path == '/production_output' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-industry group-hover:text-orange-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-industry', ' group-hover:text-orange-400 transition-colors') }}</span>
                 <span data-i18n="menu_production_output">{{ menu_i18n.production_output or 'Sản Lượng' }}</span>
             </a>
             {% if session.get('role') in ('admin', 'super_admin') %}
             <a href="{{ url_for('production_materials_page') }}" class="flex items-center space-x-4 {% if request.path == '/production/materials' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
-                <span class="nav-icon-chip"><i class="fas fa-boxes-stacked group-hover:text-orange-400 transition-colors"></i></span>
+                <span class="nav-icon-chip">{{ navico('fa-boxes-stacked', ' group-hover:text-orange-400 transition-colors') }}</span>
                 <span data-i18n="menu_production_materials">{{ menu_i18n.production_materials or 'Nguyên Vật Liệu' }}</span>
             </a>
             {% endif %}
@@ -271,7 +292,7 @@
                 {# Retail / bán lẻ đơn giản #}
                 {% if 'sales' in modules and 'ordering' not in modules and 'spa_services' not in modules and 'nail_services' not in modules %}
                 <a href="{{ url_for('retail_pos') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-shopping-cart group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-shopping-cart', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_sales">{{ menu_i18n.sales }}</span>
                 </a>
                 {% endif %}
@@ -285,40 +306,40 @@
                    khách hàng cá nhân để quản lý theo mô hình này. #}
                 {% if 'sales' in modules or 'ordering' in modules or 'tables' in modules or 'spa_services' in modules or 'nail_services' in modules or 'room_timing' in modules or 'pos_ordering' in modules or 'room_management' in modules %}
                 <a href="{{ url_for('customers') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-address-book group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-address-book', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_customers">{{ menu_i18n.customers }}</span>
                 </a>
                 {% endif %}
 
                 <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-robot group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-robot', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>
                 </a>
                 <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-magic group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-magic', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>
                 </a>
 
                 {% if 'attendance' in modules or 'payroll' in modules %}
                 <a href="/staff" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-users group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-users', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_hr">{{ menu_i18n.hr }}</span>
                 </a>
                 <a href="{{ industry_chamcong_url }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-calendar-check group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-calendar-check', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_attendance">{{ menu_i18n.attendance }}</span>
                 </a>
                 <a href="/bangluong" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-file-invoice-dollar group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-file-invoice-dollar', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_payroll">{{ menu_i18n.payroll }}</span>
                 </a>
                 {% if session.get('role') in ('admin', 'super_admin') %}
                 <a href="{{ url_for('leave_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-calendar-times group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-calendar-times', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>
                 </a>
                 <a href="{{ url_for('expense_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-dollar group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-hand-holding-dollar', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_expense_requests">{{ menu_i18n.expense_requests or 'Đơn Hoàn Ứng' }}</span>
                 </a>
                 {% endif %}
@@ -326,53 +347,53 @@
 
                 {% if 'dispatch_gps' in modules %}
                 <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
-                    <span class="nav-icon-chip"><i class="fas fa-map-marked-alt group-hover:scale-110 transition-transform"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-map-marked-alt', ' group-hover:scale-110 transition-transform') }}</span>
                     <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>
                 </a>
                 <a href="{{ url_for('technical_parts_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-toolbox group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-toolbox', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_tech_parts">{{ menu_i18n.tech_parts }}</span>
                 </a>
                 {% endif %}
 
                 {% if 'inventory' in modules %}
                 <a href="/inventory_alert" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-warehouse group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-warehouse', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_inventory_management">{{ menu_i18n.inventory_management }}</span>
                 </a>
                 {% endif %}
 
                 {% if 'expenses' in modules or 'inventory' in modules %}
                 <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-usd group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-hand-holding-usd', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_debt">{{ menu_i18n.debt }}</span>
                 </a>
                 <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-coins group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-coins', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_cashflow">{{ menu_i18n.cashflow }}</span>
                 </a>
                 <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-chart-line group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-chart-line', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_profit_report">{{ menu_i18n.profit_report }}</span>
                 </a>
                 {% endif %}
 
                 <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-sitemap group-hover:text-purple-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-sitemap', ' group-hover:text-purple-400 transition-colors') }}</span>
                     <span data-i18n="menu_consolidated_report">{{ menu_i18n.consolidated_report }}</span>
                 </a>
                 <a href="/brand_settings" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-cog group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-cog', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_settings">{{ menu_i18n.settings }}</span>
                 </a>
             {% else %}
                 {# Vai trò staff: chỉ giữ Chấm công cá nhân + Hoa hồng/Tip (POS/Booking đã hiện ở trên nếu ngành có) #}
                 <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-calendar-check group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-calendar-check', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_my_attendance">{{ menu_i18n.my_attendance }}</span>
                 </a>
                 <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
-                    <span class="nav-icon-chip"><i class="fas fa-hand-holding-dollar group-hover:text-cyan-400 transition-colors"></i></span>
+                    <span class="nav-icon-chip">{{ navico('fa-hand-holding-dollar', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_my_commission">{{ menu_i18n.my_commission }}</span>
                 </a>
             {% endif %}
@@ -380,7 +401,7 @@
     </div>
     <div class="p-6 border-t border-white/10 shrink-0">
         <a href="{{ url_for('logout') }}" class="flex items-center space-x-4 text-gray-400 hover:text-rose-400 px-4 py-3 rounded-xl transition-all font-medium group hover:bg-rose-500/10">
-            <span class="nav-icon-chip"><i class="fas fa-sign-out-alt group-hover:-translate-x-1 transition-transform"></i></span>
+            <span class="nav-icon-chip">{{ navico('fa-sign-out-alt', ' group-hover:-translate-x-1 transition-transform') }}</span>
             <span data-i18n="menu_logout">{{ menu_i18n.logout }}</span>
         </a>
         {# Xoá tài khoản phải tìm thấy được ngay trong app (App Store 5.1.1(v), Google Play) — chỉ

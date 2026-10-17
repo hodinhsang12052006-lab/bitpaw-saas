@@ -778,6 +778,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             #receiptPrintBtn, #receiptModal button { display: none !important; }
         }
     </style>
+    {% from 'components/nail_icons.html' import nicon, nail_icon_assets %}
+    {{ nail_icon_assets() }}
+    <style>
+        /* Ô sơn gel trong các nút: bỏ style cũ dành cho glyph Font Awesome (.action-btn svg {...}) */
+        .action-btn .nicon svg, #ticketPanel .action-btn .nicon svg { width: 60%; height: 60%; background: none; box-shadow: none; border-radius: 0; transform: none; color: inherit; }
+        .action-btn .nicon, #ticketPanel .action-btn .nicon { width: 34px; height: 34px; }
+        .quick-tab-btn { gap: 8px; } .quick-tab-btn .nicon { margin-left: -4px; }
+        .ticket-tab-btn { display: inline-flex; align-items: center; gap: 8px; }
+        .cat-tab { display: inline-flex; align-items: center; gap: 8px; }
+        .cat-tab .nicon { margin-left: -6px; }
+    </style>
 </head>
 <body>
     <!-- Ambient background glows -->
@@ -825,12 +836,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                  seamless strip separated by thin dividers (Rayo POS reference layout), each wired
                  to an existing feature (no new sale logic — just faster entry points into it). -->
             <div class="quick-actions-bar custom-scrollbar">
-                <div class="quick-tab-btn" onclick="switchLeftTab('ticket')"><i class="fas fa-scale-balanced"></i><span data-i18n="npos_qa_balance">Checkout</span></div>
-                <div class="quick-tab-btn" onclick="holdTicket()"><i class="fas fa-pause"></i><span data-i18n="npos_qa_wait">Hold Ticket</span></div>
-                <div class="quick-tab-btn" onclick="openBookingQrModal()"><i class="fas fa-calendar-check"></i><span data-i18n="npos_qa_apptbook">Online Booking</span></div>
-                <div class="quick-tab-btn" onclick="openCheckedInModal()"><i class="fas fa-door-open"></i><span data-i18n="npos_qa_checkedin">Checked-In</span><span id="checkedInBadge" class="hidden ml-1.5 bg-fuchsia-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">0</span></div>
-                <div class="quick-tab-btn" onclick="openCustomItemModal()"><i class="fas fa-bolt"></i><span data-i18n="npos_qa_fastsale">Custom Item</span></div>
-                <div class="quick-tab-btn" onclick="openOrderHistoryModal()"><i class="fas fa-receipt"></i><span data-i18n="npos_qa_history">Payment History</span></div>
+                <div class="quick-tab-btn" onclick="switchLeftTab('ticket')">{{ nicon('checkout', 'sm') }}<span data-i18n="npos_qa_balance">Checkout</span></div>
+                <div class="quick-tab-btn" onclick="holdTicket()">{{ nicon('hold', 'sm') }}<span data-i18n="npos_qa_wait">Hold Ticket</span></div>
+                <div class="quick-tab-btn" onclick="openBookingQrModal()">{{ nicon('booking', 'sm') }}<span data-i18n="npos_qa_apptbook">Online Booking</span></div>
+                <div class="quick-tab-btn" onclick="openCheckedInModal()">{{ nicon('checkedin', 'sm') }}<span data-i18n="npos_qa_checkedin">Checked-In</span><span id="checkedInBadge" class="hidden ml-1.5 bg-fuchsia-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">0</span></div>
+                <div class="quick-tab-btn" onclick="openCustomItemModal()">{{ nicon('polish', 'sm') }}<span data-i18n="npos_qa_fastsale">Custom Item</span></div>
+                <div class="quick-tab-btn" onclick="openOrderHistoryModal()">{{ nicon('history', 'sm') }}<span data-i18n="npos_qa_history">Payment History</span></div>
             </div>
             <div class="quick-actions-icons">
                 <div class="quick-tab-icon-btn" onclick="toggleServiceSearch()" title="Search">
@@ -861,10 +872,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div id="ticketPanel" class="split-card">
                 <div class="ticket-tabbar">
                     <div class="ticket-tab-btn active" data-ticket-tab="ticket" onclick="switchLeftTab('ticket')">
-                        <i class="fas fa-receipt"></i> <span data-i18n="npos_lefttab_ticket">Current Ticket</span>
+                        {{ nicon('ticket', 'xs') }} <span data-i18n="npos_lefttab_ticket">Current Ticket</span>
                     </div>
                     <div class="ticket-tab-btn" data-ticket-tab="queue" onclick="switchLeftTab('queue')">
-                        <i class="fas fa-users"></i> <span data-i18n="npos_lefttab_queue">Queue</span>
+                        {{ nicon('queue', 'xs') }} <span data-i18n="npos_lefttab_queue">Queue</span>
                         <span id="queueCountBadge" class="text-[10px] bg-black/25 font-black px-1.5 py-0.5 rounded-full ml-0.5 min-w-[1.25rem] inline-block text-center">0</span>
                     </div>
                 </div>
@@ -881,17 +892,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             rotate-left/print/trash-can) từng render vỡ thành ký tự rác kiểu "( + ("
                             khi font CDN tải chậm/lỗi mạng — thay bằng SVG tự vẽ để không còn phụ
                             thuộc font ngoài cho cả thanh công cụ quan trọng này. -->
-                            <div class="action-btn info" onclick="openCustomItemModal()"><i class="fas fa-circle-plus"></i><span class="leading-tight text-center" data-i18n="npos_custom_item_btn">Add Item</span></div>
-                            <div class="action-btn warn" onclick="openDiscountModal()"><i class="fas fa-tag"></i><span class="leading-tight text-center" data-i18n="npos_discount_btn">Discount</span></div>
-                            <button type="button" onclick="openRefundModal()" class="action-btn refund"><i class="fas fa-rotate-left"></i><span class="leading-tight text-center" data-i18n="npos_refund_btn">Refund</span></button>
-                            <button type="button" onclick="printQuote()" class="action-btn neutral"><i class="fas fa-print"></i><span class="leading-tight text-center" data-i18n="npos_print_quote_btn">Quote</span></button>
-                            <div class="action-btn danger" onclick="clearTicket()"><i class="fas fa-trash-can"></i><span class="leading-tight text-center" data-i18n="npos_clear_btn">Clear</span></div>
+                            <div class="action-btn info" onclick="openCustomItemModal()">{{ nicon('polish') }}<span class="leading-tight text-center" data-i18n="npos_custom_item_btn">Add Item</span></div>
+                            <div class="action-btn warn" onclick="openDiscountModal()">{{ nicon('discount') }}<span class="leading-tight text-center" data-i18n="npos_discount_btn">Discount</span></div>
+                            <button type="button" onclick="openRefundModal()" class="action-btn refund">{{ nicon('refund') }}<span class="leading-tight text-center" data-i18n="npos_refund_btn">Refund</span></button>
+                            <button type="button" onclick="printQuote()" class="action-btn neutral">{{ nicon('quote') }}<span class="leading-tight text-center" data-i18n="npos_print_quote_btn">Quote</span></button>
+                            <div class="action-btn danger" onclick="clearTicket()">{{ nicon('clear') }}<span class="leading-tight text-center" data-i18n="npos_clear_btn">Clear</span></div>
                         </div>
                     </div>
 
                     <div id="cartItems" class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
                         <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
-                            <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
+                            <span class="block mx-auto mb-3" style="width:fit-content;opacity:.85">{{ nicon('polish', 'lg') }}</span>
                             <span class="font-medium font-title" data-i18n="npos_empty_cart">No services added yet</span>
                         </div>
                     </div>
@@ -1037,10 +1048,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <h3 class="text-base font-extrabold uppercase tracking-widest text-slate-100 mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-credit-card text-amber-400"></i> <span data-i18n="npos_payment_title">Take Payment</span></h3>
 
             <div class="grid grid-cols-2 gap-3 mb-4">
-                <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><i class="fas fa-money-bill-wave block mb-2 text-2xl text-emerald-400"></i> <span data-i18n="npos_pay_cash">Cash</span></div>
-                <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><i class="fas fa-credit-card block mb-2 text-2xl text-amber-400"></i> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
-                <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><i class="fas fa-arrows-split-up-and-left block mb-2 text-2xl text-cyan-400"></i> <span data-i18n="npos_pay_split">Split</span></div>
-                <div class="pay-method-btn" data-method="square_terminal" onclick="selectPayMethod('square_terminal')"><i class="fas fa-satellite-dish block mb-2 text-2xl text-cyan-400"></i> <span data-i18n="npos_pay_square">Square Terminal</span></div>
+                <div class="pay-method-btn active" data-method="cash" onclick="selectPayMethod('cash')"><span class="block mx-auto mb-2" style="width:fit-content">{{ nicon('cash') }}</span> <span data-i18n="npos_pay_cash">Cash</span></div>
+                <div class="pay-method-btn" data-method="card" onclick="selectPayMethod('card')"><span class="block mx-auto mb-2" style="width:fit-content">{{ nicon('card') }}</span> <span data-i18n="npos_pay_card">Card / Terminal</span></div>
+                <div class="pay-method-btn" data-method="split" onclick="selectPayMethod('split')"><span class="block mx-auto mb-2" style="width:fit-content">{{ nicon('split') }}</span> <span data-i18n="npos_pay_split">Split</span></div>
+                <div class="pay-method-btn" data-method="square_terminal" onclick="selectPayMethod('square_terminal')"><span class="block mx-auto mb-2" style="width:fit-content">{{ nicon('terminal') }}</span> <span data-i18n="npos_pay_square">Square Terminal</span></div>
             </div>
 
             <!-- Card / Terminal sync simulation (manual card entry — no live Square hardware call) -->
@@ -1674,12 +1685,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function renderCategoryTabs() {
             const wrap = document.getElementById('categoryTabs');
             wrap.innerHTML = getCategories().map(cat => `
-                <div class="cat-tab ${cat === activeCategory ? 'active' : ''}" onclick="setCategory('${cat.replace(/'/g, "\\'")}')">
-                    ${cat === 'all' ? t('npos_cat_all') : cat}
+                <div class="cat-tab ${cat === activeCategory ? 'active' : ''}" data-cat="${escapeHtml(cat)}">
+                    ${window.nailCategoryIcon ? nailCategoryIcon(cat, 'xs') : ''}${cat === 'all' ? t('npos_cat_all') : escapeHtml(cat)}
                 </div>
             `).join('');
         }
         function setCategory(cat) { activeCategory = cat; renderCategoryTabs(); renderServiceGrid(); }
+        // chọn danh mục qua data-cat (không ghép tên danh mục vào onclick — tên có dấu nháy từng làm hỏng nút)
+        document.addEventListener('click', (e) => { const tab = e.target.closest('#categoryTabs .cat-tab'); if (tab) setCategory(tab.dataset.cat); });
 
         // ===== Service grid =====
         function renderServiceGrid() {
@@ -1776,7 +1789,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             if (!cart.length) {
                 wrap.innerHTML = `
                     <div id="emptyCartMsg" class="text-center text-gray-500 text-base py-16">
-                        <i class="fas fa-shopping-basket text-4xl mb-3 block text-gray-600"></i>
+                        <span class="block mx-auto mb-3" style="width:fit-content;opacity:.85">{{ nicon('polish', 'lg') }}</span>
                         <span class="font-medium">${t('npos_empty_cart')}</span>
                     </div>`;
                 checkoutBtn.disabled = true;
