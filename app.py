@@ -9670,6 +9670,11 @@ def bangluong():
 @login_required
 @role_required('admin', 'super_admin')
 def chamcong():
+    # Trang này là danh sách CHỌN module chấm công của mọi ngành — với tiệm đã có ngành, đưa thẳng vào trang chấm
+    # công của đúng ngành (các module ngành khác đã bị khoá, xem industry_access.py)
+    industry = (session.get('business_mode') or '').strip().lower()
+    if industry in industry_access.INDUSTRIES:
+        return redirect(industry_access.chamcong_url(industry))
     return render_template('chamcong.html')
 
 @app.route('/chamcong/congnhan')

@@ -28,6 +28,8 @@ def state(bid, ma_nv):
                                             'toa_do', 'anh_checkin', 'ghi_chu')} for r in cc],
         'leave': list(db.leave_requests.find({'business_id': bid, 'ma_nv': ma_nv}, {'_id': 0})),
         'expense': list(db.expense_requests.find({'business_id': bid, 'ma_nv': ma_nv}, {'_id': 0})),
+        'swaps': list(db.cho_doi_ca.find({'business_id': bid, '$or': [{'ma_nv_xin': ma_nv}, {'ma_nv_nhan': ma_nv}]}, {'_id': 0})),
+        'tasks': list(db.tasks.find({'business_id': bid, 'ten_khach': {'$regex': f'^QA Persona.*{ma_nv}$'}}, {'_id': 0})),
     }
 
 
@@ -47,7 +49,7 @@ def cleanup(bid, ma_nv, ho_ten):
     out['leave'] = db.leave_requests.delete_many({'business_id': bid, 'ma_nv': ma_nv}).deleted_count
     out['expense_requests'] = db.expense_requests.delete_many({'business_id': bid, 'ma_nv': ma_nv}).deleted_count
     out['expenses'] = db.expenses.delete_many({'business_id': bid, 'description': {'$regex': f'^\\[Hoàn ứng {ho_ten}\\]'}}).deleted_count
-    out['shift_swaps'] = db.shift_swaps.delete_many({'business_id': bid, '$or': [{'ma_nv_xin': ma_nv}, {'ma_nv_nhan': ma_nv}]}).deleted_count
+    out['shift_swaps'] = db.cho_doi_ca.delete_many({'business_id': bid, '$or': [{'ma_nv_xin': ma_nv}, {'ma_nv_nhan': ma_nv}]}).deleted_count
     # Đơn POS gán cho thợ test (bước chủ tiệm bán hàng) — xoá cả order/order_items/transactions
     order_ids = sorted({oi['order_id'] for oi in db.order_items.find({'business_id': bid, 'ma_nv': ma_nv}, {'order_id': 1})})
     out['orders'] = db.orders.delete_many({'business_id': bid, 'id': {'$in': order_ids}}).deleted_count
@@ -55,6 +57,7 @@ def cleanup(bid, ma_nv, ho_ten):
     out['transactions'] = db.transactions.delete_many({'business_id': bid, 'order_id': {'$in': order_ids}}).deleted_count
     out['appointments'] = db.appointments.delete_many({'business_id': bid, 'customer_name': {'$regex': f'^QA Persona Khách.*{ma_nv}$'}}).deleted_count
     out['bot_customers'] = db.bot_customers.delete_many({'business_id': bid, 'name': {'$regex': f'^QA Persona Khách.*{ma_nv}$'}}).deleted_count
+    out['tasks'] = db.tasks.delete_many({'business_id': bid, 'ten_khach': {'$regex': f'^QA Persona.*{ma_nv}$'}}).deleted_count
     out['employee'] = db.employees.delete_many({'business_id': bid, 'ma_nv': ma_nv}).deleted_count
     # Ảnh check-in / báo cáo công việc (GridFS 'media', tên file chứa mã NV)
     files = list(db['media.files'].find({'business_id': bid, 'filename': {'$regex': f'_{ma_nv}_'}}, {'_id': 1}))

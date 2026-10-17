@@ -661,7 +661,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('mainApp').classList.add('flex');
                 }, 500);
 
-                if(currentUser.linhVuc && currentUser.linhVuc.includes("F&B")) document.getElementById('box_swap').style.display = "block";
+                if(canRequestSwap()) document.getElementById('box_swap').style.display = "block";
                 
                 setupEvidenceUI(); 
                 loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); setupJobRealtime();
@@ -688,6 +688,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         // Thợ Nails/Spa được trả hoa hồng + tips từ bill POS (chamcong ghi tự động khi thanh toán) —
         // báo cáo công việc của họ không được mang số tiền tự khai vào bảng lương.
+        // Xin đổi ca: các ngành làm theo ca có màn duyệt đổi ca ở trang chấm công (F&B, Karaoke, Bán lẻ)
+        function canRequestSwap() {
+            const lv = (currentUser.linhVuc || '').toLowerCase();
+            return lv.includes('f&b') || lv.includes('karaoke') || lv.includes('retail');
+        }
+
         function isPosPaidIndustry() {
             const lv = currentUser.linhVuc || '';
             return lv.includes('Nails') || lv.includes('Spa');
@@ -703,9 +709,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const moneyRow = document.getElementById('work_money').closest('.grid');
             if (moneyRow) moneyRow.style.display = isPosPaidIndustry() ? 'none' : '';
 
-            if (currentUser.linhVuc.includes('Spa') || currentUser.linhVuc.includes('Nails') || currentUser.linhVuc.includes('F&B')) {
+            // So khớp không phân biệt hoa/thường: dữ liệu thật ghi "Kỹ thuật", "Sản xuất" (chữ thường) nên trước đây
+            // thợ kỹ thuật / công nhân KHÔNG BAO GIỜ thấy ô ảnh bằng chứng + chữ ký khách khi báo cáo công việc.
+            const lv = currentUser.linhVuc.toLowerCase();
+            if (lv.includes('spa') || lv.includes('nails') || lv.includes('f&b')) {
                 photoBox.classList.remove('hidden');
-            } else if (currentUser.linhVuc.includes('Kỹ Thuật') || currentUser.linhVuc.includes('Sản Xuất')) {
+            } else if (lv.includes('kỹ thuật') || lv.includes('sản xuất')) {
                 photoBox.classList.remove('hidden'); sigBox.classList.remove('hidden');
                 initSignaturePad();
             }
@@ -848,7 +857,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('mainApp').classList.add('flex');
             
             setupEvidenceUI();
-            if(currentUser.linhVuc && currentUser.linhVuc.includes("F&B")) document.getElementById('box_swap').style.display = "block";
+            if(canRequestSwap()) document.getElementById('box_swap').style.display = "block";
             loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); setupJobRealtime();
             
             showToast(msg, type);

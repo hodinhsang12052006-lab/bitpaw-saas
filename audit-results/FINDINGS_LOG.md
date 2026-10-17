@@ -414,3 +414,16 @@ Các FAIL lần chạy đầu đều do script test (bỏ qua lỗi reset kết 
 - Chạy lại `scripts/run_full_regression.sh`: 45/45 bộ đạt (F&B có 1 lần lệch thời điểm chuyển trang của script, chạy lại 8/8). Tách ngành 86/86, bảo mật 0 lỗ hổng, chịu tải 100 người dùng 1.884 request 0 lỗi server, quét toàn trang 1.026 lượt trang 9 ngành.
 - 🟡 Dữ liệu: tiệm demo (khách tiềm năng nhìn thấy) lẫn 46 bản ghi do script kiểm thử để lại ("QA Test Tech", "QA IDOR bait", "E2E Business Cycle Khách", "QA Audit Stage"...). Đã sao lưu (`~/bitpaw_backups/demo_test_leftovers_2026-10-09.json`) rồi xoá; `scripts/cleanup_demo_test_leftovers.py` chạy tự động cuối mỗi lượt kiểm thử tổng.
 - Bộ slide chức năng 9 ngành (Nails chi tiết nhất): `audit-results/showcase/` — ảnh chụp bằng `scripts/showcase_screenshots.mjs` (chỉ xem, không ghi dữ liệu).
+
+## Pha 16 — Đóng vai chủ tiệm + nhân viên cho cả 9 ngành (17/10/2026)
+
+Script mới `scripts/staff_owner_persona_all_industries.mjs`: mỗi ngành, chủ tiệm tạo nhân viên (đúng bộ phận), giao job (Kỹ thuật); nhân viên dùng app nhân viên chấm công camera + GPS, khung bằng chứng, báo cáo, xin nghỉ, hoàn ứng, khen, đổi ca / nhận + hoàn thành job; chủ tiệm duyệt đơn, duyệt đổi ca, xem trang chấm công ngành + bảng lương (8h × đơn giá). Đã đưa vào `run_full_regression.sh`.
+
+| # | Mức | Ngành | Lỗi | Đã sửa |
+|---|---|---|---|---|
+| 1 | 🟠 | Bán lẻ | Không có trang chấm công riêng: nút "Chấm công" mở trang CHỌN module của các ngành khác (bấm vào đâu cũng bị chặn về trang chủ) -> nhân viên bán lẻ không chốt ca / chấm công được | `chamcong_retail.html` (ca, giờ, chia tip, đổi ca); `/chamcong` chung chuyển thẳng về trang chấm công đúng ngành |
+| 2 | 🟠 | Kỹ thuật, Sản xuất | App nhân viên so khớp "Kỹ Thuật"/"Sản Xuất" (hoa) trong khi dữ liệu là "Kỹ thuật"/"Sản xuất" -> thợ không bao giờ thấy ô ảnh bằng chứng + chữ ký khách khi báo cáo | So khớp không phân biệt hoa/thường |
+| 3 | 🟠 | F&B, Karaoke, Bán lẻ | Nhân viên gửi "xin đổi ca" từ app -> lưu `cho_doi_ca` nhưng không trang nào của chủ tiệm hiển thị; Karaoke/Bán lẻ không có mục xin đổi ca | Danh sách "Yêu cầu đổi ca từ nhân viên" (Duyệt / Từ chối, duyệt ghi chấm công "Nghỉ đổi ca") trên trang chấm công F&B/Karaoke/Bán lẻ; app nhân viên mở mục đổi ca cho 3 ngành |
+| 4 | 🟡 | Mọi ngành | Bảng lương đọc công thức ngành từ bộ nhớ trình duyệt dùng chung (`bp_industry_mode`) trước ngành thật của tiệm -> máy từng mở bảng lương tiệm khác ngành tính sai công thức | Lưu lựa chọn theo từng tiệm, mặc định đúng ngành |
+
+Chạy lại toàn bộ (`audit-results/full_regression_2026-10-17.tsv`, 49 bộ): các FAIL lần đầu đều là quá thời gian chờ / ngắt kết nối của máy dev (Werkzeug + Avast) — chạy lại đạt hết: tách ngành 86/86, đóng vai 9 ngành 126/126, Nails 36/36, bảo mật 0 lỗ hổng, quét toàn trang + chữ dịch thô 9 ngành sạch. Dọn 14 bản ghi test khỏi tiệm demo (sao lưu `~/bitpaw_backups/demo_test_leftovers_2026-10-17.json`).

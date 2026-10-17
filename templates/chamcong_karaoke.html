@@ -150,6 +150,12 @@
                     <button onclick="chotDoiCa()" class="w-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500 hover:text-black font-black py-3 rounded-xl transition-all text-xs uppercase tracking-widest active:scale-95 shadow-md flex items-center justify-center gap-2">
                         <i class="fas fa-check-double"></i> <span data-i18n="chamcongkaraoke_confirm_swap_btn">Xác Nhận Đổi Ca</span>
                     </button>
+                    {# Yêu cầu đổi ca nhân viên gửi từ app nhân viên — trước đây lưu vào cho_doi_ca rồi không trang nào hiện ra #}
+                    <div class="mt-5 pt-4 border-t border-white/10">
+                        <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2"><i class="fas fa-inbox text-cyan-400 mr-1"></i><span id="swapReqTitle">Swap requests from staff</span></p>
+                        <div id="swapRequestsBox" class="space-y-2"></div>
+                    </div>
+
                 </div>
             </div>
 
@@ -836,6 +842,53 @@
                 });
             } catch(e) { btn.innerHTML = orig; showToast(t('chamcongkaraoke_toast_error_exporting'), "error"); }
         }
+    
+        // ===== Yêu cầu đổi ca từ app nhân viên (cho_doi_ca, trạng thái "Chờ chốt") =====
+        const SWAP_TXT = {
+            vi: { title: 'Yêu cầu đổi ca từ nhân viên', none: 'Chưa có yêu cầu nào.', asks: 'xin đổi ca', to: 'nhờ', on: 'ngày', ok: 'Duyệt', no: 'Từ chối', done: 'Đã duyệt đổi ca', rejected: 'Đã từ chối' },
+            en: { title: 'Swap requests from staff', none: 'No pending requests.', asks: 'asks to swap', to: 'with', on: 'on', ok: 'Approve', no: 'Reject', done: 'Swap approved', rejected: 'Request rejected' },
+        };
+        const swapT = (k) => (SWAP_TXT[currentLang] || SWAP_TXT.en)[k];
+        let swapNames = {};
+        async function loadSwapRequests() {
+            const box = document.getElementById('swapRequestsBox');
+            if (!box) return;
+            document.getElementById('swapReqTitle').textContent = swapT('title');
+            try {
+                const [swapsBody, empBody] = await Promise.all([hrApi('/api/shift_swaps'), hrApi('/api/hr/employees')]);
+                swapNames = Object.fromEntries((empBody.data || []).map((e) => [e.ma_nv, e.ho_ten]));
+                const pending = (swapsBody.data || []).filter((s) => s.trang_thai === 'Chờ chốt');
+                if (!pending.length) { box.innerHTML = `<p class="text-xs text-gray-500">${swapT('none')}</p>`; return; }
+                box.innerHTML = pending.map((s) => `
+                    <div class="flex flex-wrap items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs" data-swap-id="${Number(s.id)}">
+                        <span class="flex-1 min-w-0 text-gray-300"><b class="text-white">${escapeHtml(swapNames[s.ma_nv_xin] || s.ma_nv_xin)}</b> ${swapT('asks')} ${swapT('to')} <b class="text-white">${escapeHtml(swapNames[s.ma_nv_nhan] || s.ma_nv_nhan)}</b> · ${swapT('on')} ${escapeHtml(s.ngay_ca || '')}</span>
+                        <button type="button" data-swap-act="ok" class="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold">${swapT('ok')}</button>
+                        <button type="button" data-swap-act="no" class="px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-rose-300 font-bold">${swapT('no')}</button>
+                    </div>`).join('');
+                box.__swaps = Object.fromEntries(pending.map((s) => [String(s.id), s]));
+            } catch (e) { box.innerHTML = ''; }
+        }
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-swap-act]');
+            if (!btn) return;
+            const row = btn.closest('[data-swap-id]');
+            const s = (document.getElementById('swapRequestsBox').__swaps || {})[row.dataset.swapId];
+            if (!s) return;
+            btn.disabled = true;
+            try {
+                const approve = btn.dataset.swapAct === 'ok';
+                await hrApi(`/api/shift_swaps/${s.id}`, { method: 'PATCH', body: JSON.stringify({ trang_thai: approve ? 'Đã chốt' : 'Từ chối' }) });
+                if (approve) {
+                    await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify({
+                        ma_nv: s.ma_nv_xin, ngay_cham: s.ngay_ca, trang_thai: 'Nghỉ đổi ca',
+                        ghi_chu: `${t('chamcongkaraoke_note_shift_covered_by')} ${swapNames[s.ma_nv_nhan] || s.ma_nv_nhan}`, nganh_nghe: 'Karaoke',
+                    }) });
+                }
+                showToast(approve ? swapT('done') : swapT('rejected'), 'success');
+            } catch (err) { showToast(err.message, 'error'); btn.disabled = false; }
+            loadSwapRequests();
+        });
+        setTimeout(loadSwapRequests, 0);
     </script>
 </body>
 </html>

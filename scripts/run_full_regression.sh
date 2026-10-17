@@ -50,6 +50,10 @@ for s in nail_business_cycle_e2e nail_shared_modules_audit nail_gap_completeness
          nail_realtime_sse_e2e verify_nail_pos_acceptance nail_visual_audit nail_persona_e2e; do
   run "$s" node "scripts/$s.mjs"
 done
+# Đóng vai chủ tiệm + nhân viên cho cả 9 ngành (chia 3 lượt: giới hạn đăng nhập 5 lần/15 phút)
+run persona_all_1 env ONLY=nail,fnb,spa node scripts/staff_owner_persona_all_industries.mjs
+run persona_all_2 env ONLY=retail,karaoke,hotel node scripts/staff_owner_persona_all_industries.mjs
+run persona_all_3 env ONLY=production,technical,office node scripts/staff_owner_persona_all_industries.mjs
 # 4. Module dùng chung, landing, yêu cầu CH Play/App Store
 run shared_modules_pha6 node scripts/shared_modules_pha6_audit.mjs
 run landing_pages node scripts/landing_pages_audit.mjs

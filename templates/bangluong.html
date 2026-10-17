@@ -263,7 +263,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             'hotel': 'Khách sạn', 'production': 'Sản xuất', 'technical': 'Kỹ Thuật', 'office': 'Văn Phòng',
         };
         const SERVER_DEFAULT_INDUSTRY = SERVER_INDUSTRY_MAP["{{ active_industry_code }}"] || 'Spa';
-        let myIndustry = localStorage.getItem('bp_industry_mode') || SERVER_DEFAULT_INDUSTRY; 
+        // Công thức lương mặc định theo ĐÚNG ngành của tiệm; lựa chọn đổi tay lưu riêng theo từng tiệm. Trước đây khoá
+        // dùng chung 'bp_industry_mode' -> máy từng mở bảng lương tiệm Spa thì tiệm Văn phòng cũng bị tính kiểu Spa.
+        const INDUSTRY_MODE_KEY = 'bp_industry_mode_' + {{ (session.get('business_id') or session.get('user_id') or '') | tojson }};
+        let myIndustry = (function () { try { return localStorage.getItem(INDUSTRY_MODE_KEY); } catch (e) { return null; } })() || SERVER_DEFAULT_INDUSTRY;
         document.getElementById('lblIndustry').value = myIndustry;
 
         const now = new Date();
@@ -384,7 +387,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         function changeIndustryMode() {
             myIndustry = document.getElementById('lblIndustry').value;
-            localStorage.setItem('bp_industry_mode', myIndustry);
+            try { localStorage.setItem(INDUSTRY_MODE_KEY, myIndustry); } catch (e) { /* localStorage bị chặn */ }
             setupDynamicHeaders();
             loadBangLuong();
             showToast(tf('bl_toast_industry_changed', {industry: myIndustry}), 'success');
