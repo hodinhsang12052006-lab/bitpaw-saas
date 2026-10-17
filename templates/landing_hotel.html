@@ -268,8 +268,8 @@
                         <a href="#" onclick="changeLanguage('en'); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-blue-500/20 hover:text-blue-400 transition"><span class="text-lg">🇬🇧</span> English</a>
                     </div>
                 </div>
-                <a href="{{ url_for('login') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap" data-i18n="nav_login">Đăng Nhập</a>
-                <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] whitespace-nowrap">
+                <a href="{{ url_for('login', industry='hotel') }}" class="hidden sm:flex items-center justify-center px-5 py-2 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200 whitespace-nowrap" data-i18n="nav_login">Đăng Nhập</a>
+                <a href="{{ url_for('register', industry='hotel') }}" class="btn-neon-blue bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
                 <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-blue-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
@@ -293,8 +293,8 @@
                 <button onclick="changeLanguage('en'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇬🇧</button>
             </div>
             <div class="border-t border-white/10 pt-5 mt-2 flex flex-col gap-3">
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200" data-i18n="nav_login">Đăng Nhập</a>
-                <a href="{{ url_for('register') }}" class="bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+                <a href="{{ url_for('login', industry='hotel') }}" class="flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 transition border border-white/10 text-gray-200" data-i18n="nav_login">Đăng Nhập</a>
+                <a href="{{ url_for('register', industry='hotel') }}" class="bg-blue-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
             </div>
@@ -328,7 +328,7 @@
                     Một màn hình gom lịch đặt phòng, sơ đồ buồng phòng realtime, check-in di động nhanh gọn, POS chốt bill mini bar/tiền giờ chuẩn xác và AI tự động kéo khách quen.
                 </p>
                 <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{{ url_for('register') }}" class="bp-cta-pulse btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                    <a href="{{ url_for('register', industry='hotel') }}" class="bp-cta-pulse btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_btn1">Dùng thử cho khách sạn</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
@@ -1032,7 +1032,7 @@
                                 </div>
                             </div>
                             
-                            <a href="{{ url_for('register') }}" class="w-full mt-6 bg-gradient-to-r from-blue-500 to-indigo-500 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(59,130,246,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white animate-pulse">
+                            <a href="{{ url_for('register', industry='hotel') }}" class="w-full mt-6 bg-gradient-to-r from-blue-500 to-indigo-500 font-black py-4 rounded-xl text-sm hover:scale-[1.02] transition-transform shadow-[0_6px_20px_rgba(59,130,246,0.3)] tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 text-white animate-pulse">
                                 <i class="fas fa-check-double text-xs"></i> <span data-i18n="calc_cta">Đăng ký dùng ngay Hotel OS</span>
                             </a>
                         </div>
@@ -1304,7 +1304,7 @@
                 <span data-i18n="cta_desc">Hãy để BitPaw Hotel OS quản lý toàn diện: đặt phòng online tự động, sơ đồ phòng buồng realtime, chốt bill tiền giờ lẻ và AI kéo khách mùa du lịch thấp điểm.</span>
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{{ url_for('register') }}" class="btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                <a href="{{ url_for('register', industry='hotel') }}" class="btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
                     <i class="fas fa-rocket"></i> <span data-i18n="cta_btn1">Dùng thử hệ thống Khách Sạn</span>
                 </a>
                 <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10">
@@ -1319,6 +1319,8 @@
     </main>
  
     <!-- Footer -->
+    {% set dl_code = 'hotel' %}{% include 'components/download_section.html' %}
+
     <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-10 md:pt-20 pb-8">
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 border-b border-white/10 pb-12">
             <div class="lg:col-span-2">
@@ -1408,7 +1410,7 @@
                         </div>
                     </li>
                 </ul>
-                <a href="{{ url_for('login') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-blue-900 hover:to-indigo-900 text-white border border-gray-700 hover:border-blue-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> <span data-i18n="footer_admin_login">Đăng Nhập Quản Trị</span></a>
+                <a href="{{ url_for('login', industry='hotel') }}" class="flex items-center justify-center w-full gap-2 mt-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-blue-900 hover:to-indigo-900 text-white border border-gray-700 hover:border-blue-500 px-4 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg text-sm lg:text-base"><i class="fas fa-sign-in-alt"></i> <span data-i18n="footer_admin_login">Đăng Nhập Quản Trị</span></a>
             </div>
         </div>
 

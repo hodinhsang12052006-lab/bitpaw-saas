@@ -507,23 +507,26 @@
             class="bg-[#0a0f25] border border-purple-500/30 rounded-2xl w-full max-w-md shadow-[0_0_40px_rgba(168,85,247,0.2)] transform scale-95 transition-transform duration-300 relative">
             <div
                 class="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-purple-900/40 to-transparent rounded-t-2xl">
-                <h3 class="text-lg font-black text-purple-300 tracking-wider uppercase"><i class="fas fa-download mr-2"></i>Download BitPaw AI Copilot</h3>
+                <h3 class="text-lg font-black text-purple-300 tracking-wider uppercase"><i class="fas fa-download mr-2"></i><span data-i18n="dl_modal_title">Tải BitPaw theo ngành</span></h3>
                 <button onclick="closeDownloadModal()"
                     class="text-gray-400 hover:text-rose-500 text-2xl transition focus:outline-none"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-6 space-y-3">
-                <a href="https://drive.google.com/uc?export=download&id=18gZ6lpr-UX5TOkRkauDLsPAyJKVbt-Gn"
-                    target="_blank" rel="noopener noreferrer"
-                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-black hover:brightness-110 transition">
-                    <i class="fab fa-windows text-xl"></i> Download for Windows (.exe)
-                </a>
-                <a href="https://apps.apple.com/" target="_blank" rel="noopener noreferrer"
-                    class="flex items-center gap-3 w-full px-5 py-3 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors">
-                    <i class="fab fa-apple text-xl"></i> Download on the Mac App Store
-                </a>
-                <p class="text-xs text-gray-400 leading-relaxed pt-2 border-t border-white/10 mt-2">
+            <div class="p-5 space-y-2 max-h-[70vh] overflow-y-auto">
+                {# Chọn NGÀNH trước: mỗi ngành 1 app Windows riêng (BitPaw-<Ngành>.exe, app.py::download_windows) mở
+                   thẳng đúng phần mềm ngành đó. Trước đây chỉ có 1 link Google Drive tới file zip 142 KB hỏng
+                   + link "Mac App Store" trỏ trang chủ apps.apple.com. #}
+                <p class="text-xs text-gray-400 pb-1" data-i18n="dl_pick_industry">Chọn ngành của bạn — app mở thẳng đúng phần mềm ngành đó:</p>
+                {% for code, icon, vi, en in [('nail','💅','Nails & Salon','Nails & Salon'), ('spa','🌸','Spa & Beauty','Spa & Beauty'), ('fnb','🍻','Nhà hàng & Cafe','Restaurant & Cafe'), ('karaoke','🎤','Karaoke & Bida','Karaoke & Billiards'), ('hotel','🏨','Khách sạn & Homestay','Hotel & Homestay'), ('retail','🛍️','Cửa hàng bán lẻ','Retail store'), ('production','🏭','Sản xuất','Production'), ('technical','🛠️','Dịch vụ kỹ thuật','Technical services'), ('office','🏢','Văn phòng & Nhân sự','Office & HR')] %}
+                <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span class="text-xl w-7 text-center">{{ icon }}</span>
+                    <span class="flex-1 min-w-0 text-sm font-bold text-white truncate dl-ind-name" data-vi="{{ vi }}" data-en="{{ en }}">{{ vi }}</span>
+                    <a href="/download/{{ code }}/windows" title="Windows" class="shrink-0 px-3 py-2 rounded-lg text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-black hover:brightness-110"><i class="fab fa-windows mr-1"></i>.exe</a>
+                    <a href="/login?industry={{ code }}&tab=register" title="Web" class="shrink-0 px-3 py-2 rounded-lg text-xs font-bold border border-white/15 text-white hover:bg-white/10"><i class="fas fa-globe mr-1"></i>Web</a>
+                </div>
+                {% endfor %}
+                <p class="text-xs text-gray-400 leading-relaxed pt-2 border-t border-white/10 mt-2" data-i18n="dl_modal_note">
                     <i class="fas fa-circle-info text-purple-400 mr-1"></i>
-                    After installing, please enter your License Key to activate the system.
+                    Đăng nhập bằng tài khoản BitPaw — dữ liệu dùng chung giữa app Windows, trình duyệt và điện thoại. Mac/iPad: dùng bản Web.
                 </p>
             </div>
         </div>
@@ -3085,6 +3088,7 @@
                     el.innerHTML = translations[lang][key];
                 }
             });
+            document.querySelectorAll('.dl-ind-name').forEach(el => { el.textContent = el.dataset[lang] || el.dataset.vi; });
             VanillaTilt.init(document.querySelectorAll("[data-tilt]"), { max: 10, speed: 400, glare: true, "max-glare": 0.3 });
 
             const wrapper = document.querySelector('.lang-wrapper');

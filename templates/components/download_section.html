@@ -1,0 +1,138 @@
+{# Khu "Tải về & dùng ngay" ĐÚNG NGÀNH — chèn trước footer mỗi landing ngành:
+       {% set dl_code = 'nail' %}{% include 'components/download_section.html' %}
+   Windows: /download/<ngành>/windows (app.py::download_windows -> BitPaw-<Ngành>.exe trên GitHub Releases).
+   Web: /login?industry=<ngành>&tab=register (form đăng ký chọn sẵn ngành). Điện thoại: mã QR tới đúng link đó.
+   CSS/JS tự chứa (tiền tố bpdl-), song ngữ tự đọc bitpaw_lang như các landing, không đụng bảng dịch của trang. #}
+{% set _dl = {
+    'nail': ('Nails & Salon', 'Nails & Salon', 'BitPaw-Nails.exe', '#ec4899', '💅'),
+    'spa': ('Spa & Beauty', 'Spa & Beauty', 'BitPaw-Spa.exe', '#f43f5e', '🌸'),
+    'fnb': ('Nhà hàng & Cafe', 'Restaurant & Cafe', 'BitPaw-FnB.exe', '#f97316', '🍻'),
+    'karaoke': ('Karaoke & Bida', 'Karaoke & Billiards', 'BitPaw-Karaoke.exe', '#a855f7', '🎤'),
+    'hotel': ('Khách sạn & Homestay', 'Hotel & Homestay', 'BitPaw-Hotel.exe', '#f59e0b', '🏨'),
+    'retail': ('Cửa hàng bán lẻ', 'Retail store', 'BitPaw-Retail.exe', '#22c55e', '🛍️'),
+    'production': ('Sản xuất', 'Production', 'BitPaw-Production.exe', '#64748b', '🏭'),
+    'technical': ('Dịch vụ kỹ thuật', 'Technical services', 'BitPaw-Technical.exe', '#0ea5e9', '🛠️'),
+    'office': ('Văn phòng & Nhân sự', 'Office & HR', 'BitPaw-Office.exe', '#6366f1', '🏢'),
+} %}
+{% set _d = _dl.get(dl_code, _dl['nail']) %}
+<section id="tai-ve" class="bpdl" style="--bpdl-accent: {{ _d[3] }};" data-industry="{{ dl_code }}">
+    <style>
+        .bpdl { position: relative; z-index: 10; padding: 72px 16px; background: #06051a; border-top: 1px solid rgba(255,255,255,.06); }
+        .bpdl * { box-sizing: border-box; }
+        .bpdl-wrap { max-width: 1120px; margin: 0 auto; }
+        .bpdl-head { text-align: center; margin-bottom: 36px; }
+        .bpdl-chip { display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;
+                     letter-spacing: .08em; text-transform: uppercase; color: var(--bpdl-accent); border: 1px solid var(--bpdl-accent);
+                     background: color-mix(in srgb, var(--bpdl-accent) 12%, transparent); }
+        .bpdl-title { font-size: clamp(26px, 4vw, 40px); font-weight: 900; color: #fff; margin: 14px 0 8px; line-height: 1.15; }
+        .bpdl-sub { color: #9ca3af; font-size: 15px; max-width: 640px; margin: 0 auto; line-height: 1.6; }
+        .bpdl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+        .bpdl-card { position: relative; background: #0d0b24; border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 24px;
+                     display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .bpdl-card.bpdl-rec { border-color: var(--bpdl-accent); box-shadow: 0 0 0 1px var(--bpdl-accent), 0 18px 50px -20px var(--bpdl-accent); }
+        .bpdl-badge { position: absolute; top: -11px; left: 20px; background: var(--bpdl-accent); color: #fff; font-size: 11px; font-weight: 800;
+                      padding: 3px 10px; border-radius: 999px; display: none; }
+        .bpdl-rec .bpdl-badge { display: inline-block; }
+        .bpdl-ico { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px;
+                    color: #fff; background: color-mix(in srgb, var(--bpdl-accent) 22%, #111); }
+        .bpdl-card h3 { margin: 4px 0 0; color: #fff; font-size: 19px; font-weight: 800; }
+        .bpdl-card p { margin: 0; color: #9ca3af; font-size: 13.5px; line-height: 1.55; }
+        .bpdl-meta { font-size: 12px !important; color: #6b7280 !important; }
+        .bpdl-btn { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 16px; border-radius: 13px;
+                    font-weight: 800; font-size: 14.5px; text-decoration: none; transition: filter .15s, transform .15s; text-align: center; }
+        .bpdl-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .bpdl-primary { background: var(--bpdl-accent); color: #fff; }
+        .bpdl-ghost { border: 1px solid rgba(255,255,255,.16); color: #e5e7eb; margin-top: 0; padding: 10px; font-size: 13px; }
+        .bpdl-qr { width: 132px; height: 132px; background: #fff; border-radius: 14px; padding: 8px; margin: 4px 0; }
+        .bpdl-qr svg { width: 100%; height: 100%; display: block; }
+        .bpdl-steps { margin: 0; padding-left: 18px; color: #9ca3af; font-size: 13px; line-height: 1.7; }
+        .bpdl-note { margin-top: 22px; text-align: center; color: #6b7280; font-size: 13px; line-height: 1.6; }
+        .bpdl-note a { color: var(--bpdl-accent); font-weight: 700; text-decoration: none; }
+        .bpdl [data-bpdl-lang="en"] { display: none; }
+        .bpdl.bpdl-en [data-bpdl-lang="en"] { display: revert; }
+        .bpdl.bpdl-en [data-bpdl-lang="vi"] { display: none; }
+        @media (max-width: 900px) { .bpdl-grid { grid-template-columns: 1fr; } .bpdl { padding: 56px 16px; } }
+    </style>
+    <div class="bpdl-wrap">
+        <div class="bpdl-head">
+            <span class="bpdl-chip">{{ _d[4] }} BitPaw {{ _d[1] }}</span>
+            <h2 class="bpdl-title">
+                <span data-bpdl-lang="vi">Tải về &amp; dùng ngay — đúng bản cho {{ _d[0] }}</span>
+                <span data-bpdl-lang="en">Download &amp; start now — built for {{ _d[1] }}</span>
+            </h2>
+            <p class="bpdl-sub">
+                <span data-bpdl-lang="vi">Cùng 1 tài khoản, cùng dữ liệu trên máy tính, trình duyệt và điện thoại. Mở ra là vào thẳng phần mềm {{ _d[0] }}, không lẫn ngành khác.</span>
+                <span data-bpdl-lang="en">One account, the same data on desktop, browser and phone. Opens straight into the {{ _d[1] }} software — never another industry's screens.</span>
+            </p>
+        </div>
+        <div class="bpdl-grid">
+            <div class="bpdl-card" data-bpdl-platform="windows">
+                <span class="bpdl-badge"><span data-bpdl-lang="vi">Phù hợp máy này</span><span data-bpdl-lang="en">For this device</span></span>
+                <div class="bpdl-ico"><i class="fab fa-windows"></i></div>
+                <h3><span data-bpdl-lang="vi">App Windows</span><span data-bpdl-lang="en">Windows app</span></h3>
+                <p>
+                    <span data-bpdl-lang="vi">Cửa sổ riêng cho máy quầy/POS, giữ đăng nhập, mở 1 chạm từ màn hình chính.</span>
+                    <span data-bpdl-lang="en">Its own window for the front-desk / POS computer, stays signed in, one click from the desktop.</span>
+                </p>
+                <p class="bpdl-meta">{{ _d[2] }} · ~18 MB · Windows 10/11</p>
+                <a class="bpdl-btn bpdl-primary" href="/download/{{ dl_code }}/windows" data-bpdl-track="windows">
+                    <i class="fas fa-download"></i>
+                    <span data-bpdl-lang="vi">Tải bản Windows</span><span data-bpdl-lang="en">Download for Windows</span>
+                </a>
+            </div>
+            <div class="bpdl-card" data-bpdl-platform="web">
+                <span class="bpdl-badge"><span data-bpdl-lang="vi">Phù hợp máy này</span><span data-bpdl-lang="en">For this device</span></span>
+                <div class="bpdl-ico"><i class="fas fa-globe"></i></div>
+                <h3><span data-bpdl-lang="vi">Dùng trên trình duyệt</span><span data-bpdl-lang="en">Use in your browser</span></h3>
+                <p>
+                    <span data-bpdl-lang="vi">Không cần cài đặt — Mac, Windows, Chromebook đều chạy. Form đăng ký đã chọn sẵn ngành {{ _d[0] }}.</span>
+                    <span data-bpdl-lang="en">Nothing to install — works on Mac, Windows and Chromebook. Sign-up is pre-set to {{ _d[1] }}.</span>
+                </p>
+                <a class="bpdl-btn bpdl-primary" href="/login?industry={{ dl_code }}&amp;tab=register">
+                    <i class="fas fa-rocket"></i><span data-bpdl-lang="vi">Đăng ký &amp; dùng ngay</span><span data-bpdl-lang="en">Sign up &amp; start</span>
+                </a>
+                <a class="bpdl-btn bpdl-ghost" href="/login?industry={{ dl_code }}">
+                    <span data-bpdl-lang="vi">Đã có tài khoản? Đăng nhập</span><span data-bpdl-lang="en">Have an account? Sign in</span>
+                </a>
+            </div>
+            <div class="bpdl-card" data-bpdl-platform="mobile">
+                <span class="bpdl-badge"><span data-bpdl-lang="vi">Phù hợp máy này</span><span data-bpdl-lang="en">For this device</span></span>
+                <div class="bpdl-ico"><i class="fas fa-mobile-alt"></i></div>
+                <h3><span data-bpdl-lang="vi">Điện thoại &amp; iPad</span><span data-bpdl-lang="en">Phone &amp; iPad</span></h3>
+                <div class="bpdl-qr" aria-label="QR">{{ signup_qr(dl_code) }}</div>
+                <ol class="bpdl-steps">
+                    <li><span data-bpdl-lang="vi">Quét mã bằng camera điện thoại</span><span data-bpdl-lang="en">Scan with your phone camera</span></li>
+                    <li><span data-bpdl-lang="vi">Chia sẻ → "Thêm vào màn hình chính"</span><span data-bpdl-lang="en">Share → "Add to Home Screen"</span></li>
+                </ol>
+                <a class="bpdl-btn bpdl-ghost" href="/login?industry={{ dl_code }}&amp;tab=register" data-bpdl-mobile-only>
+                    <span data-bpdl-lang="vi">Mở trên máy này</span><span data-bpdl-lang="en">Open on this device</span>
+                </a>
+            </div>
+        </div>
+        <p class="bpdl-note">
+            <span data-bpdl-lang="vi">Nhân viên dùng app chấm công trên điện thoại sau khi chủ tiệm thêm tên vào phần Nhân sự. Cần hỗ trợ cài đặt? <a href="#lien-he">Liên hệ BitPaw</a>.</span>
+            <span data-bpdl-lang="en">Staff use the clock-in app on their phone once the owner adds them under Staff. Need help installing? <a href="#lien-he">Contact BitPaw</a>.</span>
+        </p>
+    </div>
+    <script>
+        (function () {
+            var root = document.getElementById('tai-ve');
+            if (!root) return;
+            function lang() {
+                var l = '';
+                try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
+                if (!l) { var m = document.cookie.match(/bitpaw_lang=(vi|en)/); l = m ? m[1] : ''; }
+                return l || (document.documentElement.lang || 'vi').slice(0, 2);
+            }
+            function applyLang() { root.classList.toggle('bpdl-en', lang() === 'en'); }
+            applyLang();
+            document.addEventListener('click', function () { setTimeout(applyLang, 60); }, true);
+            var ua = navigator.userAgent || '';
+            var mobile = /Android|iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+            var platform = mobile ? 'mobile' : (/Windows/i.test(ua) ? 'windows' : 'web');
+            var card = root.querySelector('[data-bpdl-platform="' + platform + '"]');
+            if (card) card.classList.add('bpdl-rec');
+            if (!mobile) root.querySelectorAll('[data-bpdl-mobile-only]').forEach(function (a) { a.style.display = 'none'; });
+        })();
+    </script>
+</section>

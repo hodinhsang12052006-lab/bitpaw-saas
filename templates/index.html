@@ -2009,6 +2009,22 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const initialTab = "{{ active_tab | default('login') }}";
             setActiveTab(initialTab);
 
+            // Vào từ nút "Dùng ngay / Tải về" của landing ngành hoặc app Windows theo ngành
+            // (/login?industry=nail[&tab=register]): chọn sẵn đúng ngành ở form đăng ký + nhớ cho lần sau.
+            (function presetIndustry() {
+                const qs = new URLSearchParams(location.search);
+                const sel = document.getElementById('reg_business_type');
+                let code = (qs.get('industry') || '').toLowerCase();
+                if (code === 'nails') code = 'nail';
+                if (code === 'hr') code = 'office';
+                if (!code) { try { code = localStorage.getItem('bp_signup_industry') || ''; } catch (e) { /* bị chặn */ } }
+                if (sel && code && Array.from(sel.options).some(o => o.value === code)) {
+                    sel.value = code;
+                    try { localStorage.setItem('bp_signup_industry', code); } catch (e) { /* bị chặn */ }
+                }
+                if (qs.get('tab') === 'register' && initialTab === 'login') setActiveTab('register');
+            })();
+
             function toggleLoading(btnId, isLoading, originalText) {
                 const btn = document.getElementById(btnId);
                 if (!btn) return;

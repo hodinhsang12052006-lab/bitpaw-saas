@@ -60,6 +60,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
+from urllib.parse import urlparse
 import jwt as pyjwt  # PyJWT — Giai đoạn 5 audit: JWT auth cho Mobile App (Flutter/React Native)
 import qrcode
 import qrcode.image.svg
@@ -2538,6 +2539,58 @@ def solutions_page(industry_code):
         return render_template(f"landing_{industry_code}.html")
     else:
         return redirect(url_for('landingpage'))
+
+
+# ========== TẢI APP WINDOWS THEO NGÀNH ==========
+# Trước đây landing chỉ có 1 nút "Download for Windows" trỏ tới 1 file zip 142 KB trên Google Drive (bản build
+# hỏng, không có app bên trong) + link "Mac App Store" trỏ trang chủ apps.apple.com. Giờ mỗi ngành 1 file
+# (desktop_app/shell.py tự đọc ngành từ tên file), đặt trên GitHub Releases (Vercel giới hạn 4.5 MB/response).
+DESKTOP_RELEASE_FILES = {
+    'nail': 'BitPaw-Nails.exe', 'spa': 'BitPaw-Spa.exe', 'fnb': 'BitPaw-FnB.exe',
+    'karaoke': 'BitPaw-Karaoke.exe', 'hotel': 'BitPaw-Hotel.exe', 'retail': 'BitPaw-Retail.exe',
+    'production': 'BitPaw-Production.exe', 'technical': 'BitPaw-Technical.exe', 'office': 'BitPaw-Office.exe',
+}
+_DOWNLOAD_ALIASES = {'nails': 'nail', 'hr': 'office', 'restaurant': 'fnb'}
+DESKTOP_RELEASE_BASE = os.environ.get(
+    'DESKTOP_RELEASE_BASE',
+    'https://github.com/hodinhsang12052006-lab/bitpaw-saas/releases/latest/download').rstrip('/')
+_release_check_cache = {}
+
+
+def _desktop_release_available(url):
+    """HEAD tới file trên GitHub (cache 10 phút) — chưa upload bản phát hành thì KHÔNG đẩy khách tới trang 404
+    của GitHub, mà hiện trang báo rõ + mời dùng bản web ngay."""
+    hit = _release_check_cache.get(url)
+    if hit and time.time() - hit[1] < 600:
+        return hit[0]
+    try:
+        ok = requests.head(url, allow_redirects=True, timeout=5).status_code == 200
+    except requests.RequestException:
+        ok = True  # mạng server lỗi thoáng qua -> vẫn cho khách thử tải, GitHub tự trả lỗi nếu thật sự không có
+    _release_check_cache[url] = (ok, time.time())
+    return ok
+
+
+@app.route('/download/<industry>/windows')
+def download_windows(industry):
+    code = _DOWNLOAD_ALIASES.get(industry.lower(), industry.lower())
+    filename = DESKTOP_RELEASE_FILES.get(code)
+    if not filename:
+        return redirect(url_for('landingpage'))
+    url = f"{DESKTOP_RELEASE_BASE}/{filename}"
+    available = _desktop_release_available(url)
+    if db is not None:
+        try:  # đếm lượt tải theo ngành (không lưu IP/thông tin cá nhân)
+            db.download_events.insert_one({'industry': code, 'platform': 'windows', 'available': available,
+                                           'created_at': datetime.now().isoformat(),
+                                           'referrer_path': urlparse(request.referrer or '').path[:120]})
+        except Exception:
+            pass
+    if available:
+        return redirect(url)
+    cfg = INDUSTRY_CONFIG.get(code, {})
+    return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
+                           industry_icon=cfg.get('icon', ''), filename=filename), 503
 
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -6958,6 +7011,21 @@ def _qr_svg_inline(data, color='#111827'):
     svg = _generate_qr_svg(data, color).decode('utf-8')
     svg = re.sub(r'^<\?xml[^>]*>\s*', '', svg)
     return re.sub(r'\swidth="[^"]*"\s+height="[^"]*"', '', svg, count=1)
+
+
+def _signup_url(industry_code):
+    """Link "dùng ngay" đúng ngành (khu Tải về trên landing, mã QR quét bằng điện thoại)."""
+    host = request.host.split(':')[0]
+    base = request.url_root.rstrip('/') if host in ('127.0.0.1', 'localhost') else f"https://{request.host}"
+    return f"{base}/login?industry={industry_code}&tab=register"
+
+
+def _signup_qr(industry_code):
+    from markupsafe import Markup
+    return Markup(_qr_svg_inline(_signup_url(industry_code), '#0f172a'))
+
+
+app.jinja_env.globals['signup_qr'] = _signup_qr
 
 
 # Theme poster QR theo ngành — màu + câu chữ hợp với khách của từng ngành
