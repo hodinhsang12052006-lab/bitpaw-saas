@@ -1,0 +1,142 @@
+{
+  "ranAt": "2026-10-17T18:55:20.248Z",
+  "token": "UXLAT320248",
+  "steps": [
+    {
+      "name": "Đăng nhập chủ tiệm",
+      "status": "PASS",
+      "note": "business_id=000b2c16-ab4e-42bd-944a-29c925cad09b"
+    },
+    {
+      "name": "C1. Khách SĐT Úc (04xx) — AI trả lời",
+      "status": "PASS",
+      "note": "2133ms · \"Hi! Yes, we have a slot tomorrow (Sunday, Oct 18) at 3:00 PM for a Gel Manicure & Cuticle Care ($45). Would you like me to book it for you? If so, please confir\""
+    },
+    {
+      "name": "C1b. Hội thoại khách SĐT Úc có vào hộp thư /ai_bot của tiệm",
+      "status": "PASS",
+      "note": "2 tin"
+    },
+    {
+      "name": "C1c. Khách SĐT Úc nhờ AI đặt lịch -> đúng 1 lịch hẹn thật (không trùng)",
+      "status": "PASS",
+      "note": "[{\"id\":203,\"book_time\":\"2026-10-18T15:00:00\",\"status\":\"pending\",\"source\":\"ai_bot\"}] · AI: \"You're all set, Chloe! 🌸 Your Gel Manicure & Cuticle Care is booked for tomorrow, Sunday Oct 18 at 3:00 PM ($45). We'll see you then!\n\nWould you like to add anything on top — say a Custom 3D Chrome Nail Art ($25) or Dia\""
+    },
+    {
+      "name": "C2. AI trả lời khách",
+      "status": "PASS",
+      "note": "1780ms · \"Dạ chị, chiều mai 3h (18/10) em còn chỗ ạ! Làm gel tay mình có Gel Manicure & Cuticle Care $45 hoặc Shellac Hand Treatment $50 ạ. Chị muốn chọn món nào để em đặ\""
+    },
+    {
+      "name": "C2b. Khách mới hiện trong hộp thư /ai_bot của tiệm (không F5)",
+      "status": "PASS",
+      "note": "730ms sau khi khách bấm gửi"
+    },
+    {
+      "name": "C2c. Hộp thư chủ tiệm hiện đúng chữ khách gõ (không lộ câu chỉ dẫn nội bộ cho AI)",
+      "status": "PASS",
+      "note": "CUSTOMER Chị muốn làm gel tay chiều mai 3h, còn chỗ không em? UXLAT320248 08:55 pm Dạ chị, chiều mai 3h (18/10) em còn chỗ ạ! Làm gel tay mình có Gel Manicur"
+    },
+    {
+      "name": "C3. Chủ tiệm trả lời ở /ai_bot -> khách đang mở widget thấy",
+      "status": "PASS",
+      "note": "308ms"
+    },
+    {
+      "name": "C4. Khách nhắn -> tiệm thấy trong /ai_bot",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 269ms · trung vị 287ms · chậm nhất 481ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C5. Tiệm nhắn -> khách thấy trên /portal",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 272ms · trung vị 298ms · chậm nhất 650ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C6. Chat nội bộ (thợ -> chủ)",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 316ms · trung vị 333ms · chậm nhất 358ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C7. Khách đặt lịch QR -> /calendar tự hiện",
+      "status": "PASS",
+      "note": "2772ms (gồm cả tải lại trang lịch)"
+    },
+    {
+      "name": "C7b. Check-in ở lịch -> badge POS tự tăng",
+      "status": "PASS",
+      "note": "301ms"
+    },
+    {
+      "name": "Lỗi JS trên trang",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "name": "Dọn dữ liệu test",
+      "status": "INFO",
+      "note": "{\"bot_messages\":24,\"bot_customers\":2,\"chat_messages\":8,\"appointments\":2}"
+    }
+  ],
+  "latency": {
+    "ai_reply_au_ms": 2133,
+    "ai_booking_reply_ms": 2642,
+    "ai_reply_ms": 1780,
+    "customer_to_inbox_first_ms": 730,
+    "owner_reply_to_widget_ms": 308,
+    "customer_to_ai_bot": {
+      "n": 8,
+      "miss": 0,
+      "min": 269,
+      "median": 287,
+      "max": 481,
+      "all": [
+        270,
+        273,
+        481,
+        327,
+        284,
+        287,
+        269,
+        287
+      ]
+    },
+    "owner_to_portal": {
+      "n": 8,
+      "miss": 0,
+      "min": 272,
+      "median": 298,
+      "max": 650,
+      "all": [
+        650,
+        298,
+        289,
+        272,
+        283,
+        437,
+        623,
+        283
+      ]
+    },
+    "internal_chat": {
+      "n": 8,
+      "miss": 0,
+      "min": 316,
+      "median": 333,
+      "max": 358,
+      "all": [
+        358,
+        316,
+        335,
+        322,
+        338,
+        321,
+        320,
+        333
+      ]
+    },
+    "booking_to_calendar_ms": 2772,
+    "checkin_to_pos_badge_ms": 301
+  },
+  "businessId": "000b2c16-ab4e-42bd-944a-29c925cad09b"
+}

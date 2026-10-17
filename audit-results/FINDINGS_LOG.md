@@ -434,3 +434,30 @@ Icon chức năng của Nails là glyph Font Awesome đơn sắc, nhỏ, giống
 
 Áp dụng: POS Nails (6 tab nhanh, 5 ô thao tác trên vé, tab Vé/Hàng chờ, chip danh mục — icon tự chọn theo tên danh mục chủ tiệm đặt, 4 nút cách thanh toán, ô giỏ trống), sidebar của tiệm Nails (32 mục; ngành khác giữ nguyên), trang Salon Staff Management + Calculate Pay. Chip danh mục chuyển sang `data-cat` + escape tên (tên có dấu nháy từng làm hỏng nút).
 Kiểm thử: Nails master 10/10, chu trình kinh doanh 9/9, module dùng chung 9/9, gap 8/8, đóng vai 36/36 + 14/14, giao diện 42 màn hình sạch, chữ dịch thô 0, tách ngành Nails/F&B/Spa đạt; F&B kiểm tra không bị đổi icon.
+
+## Pha 18 — Đóng vai khách + chủ tiệm + thợ Nails, đo độ trễ tin nhắn thật (17/10/2026)
+
+Script mới `scripts/nail_customer_experience_latency.mjs` (2-3 trình duyệt cùng lúc: khách trên điện thoại, chủ tiệm trên máy POS, thợ): đo thời gian từ lúc bấm gửi tới lúc bên kia THẤY tin, rải 8 lần qua chu kỳ kết nối lại của SSE.
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | Khách nhắn tới tiệm: 3/8 tin KHÔNG BAO GIỜ hiện ở `/ai_bot` (1/8 tiệm->khách ở `/portal`; chat nội bộ trễ tới 10s). Mỗi stream SSE tự đóng sau 25s, trình duyệt chờ ~3s mới nối lại, watch() mới bỏ qua thay đổi trong khe đó | `_sse_change_signal` gửi `id: <resume token>` mỗi nhịp + `retry: 1000`; khi nối lại đọc `Last-Event-ID` -> `watch(resume_after=...)` phát lại tin trong khe; token hết hạn thì báo client tải lại 1 lần. Sau sửa: 0/24 tin mất, trung vị ~0.3s, chậm nhất <0.8s |
+| 2 | 🔴 | Chủ tiệm trả lời khách trong `/ai_bot` -> khách đang chat trên trang đặt lịch KHÔNG BAO GIỜ thấy (widget không nghe kênh nào) | Widget đặt lịch nghe `/api/portal/stream` + `/api/portal/messages` của hội thoại `business_id:SĐT`, hiện tin "Salon staff / Nhân viên tiệm" (hồng) — tới khách sau ~0.4s |
+| 3 | 🔴 | AI đặt lịch qua chat KHÔNG BAO GIỜ thành công: tool gửi `service_id` dạng chuỗi, DB lưu số nguyên; prompt không có id dịch vụ, không biết hôm nay là ngày nào ("mai 3h" không đặt được) | `ai_function_tools.book_appointment` ép kiểu id + khớp theo tên; `_booking_assistant_facts()` đưa giờ địa phương (máy khách gửi `client_now`) + danh sách `service_id`; thêm `customer_name` |
+| 4 | 🟠 | AI đặt TRÙNG: khách hỏi "mai 3h còn chỗ không" AI đặt luôn, khách nói "ok đặt giúp" AI đặt thêm lần nữa | Chặn trùng trong tool (cùng khách + dịch vụ + giờ còn hiệu lực -> trả lịch cũ); persona: câu hỏi còn chỗ không phải xác nhận, hỏi tên + xác nhận trước |
+| 5 | 🟠 | Khách SĐT Úc/Mỹ (04xx...) bị coi là "chưa có SĐT" (regex chỉ nhận số VN): hội thoại không lưu, tiệm không thấy khách nhắn, AI không đặt được lịch | Nhận số 8-15 chữ số (có thể +); lưu SĐT đã bỏ khoảng trắng |
+| 6 | 🟠 | Khách nói tiếng Anh nhận trả lời tiếng Việt (lượt đầu ép "Trả lời tiếng Việt"); widget chào tiếng Việt + nhãn "SĐT Zalo" trên trang đặt lịch tiếng Anh | Theo `<html lang>` của trang; persona: trả lời đúng ngôn ngữ khách |
+| 7 | 🟠 | Hộp thư chủ tiệm hiện nguyên câu chỉ dẫn nội bộ cho AI ("Khách hàng (SĐT..) vừa nhắn: ... book_appointment") thay vì chữ khách gõ | Widget gửi kèm `customer_message`, server lưu đúng chữ khách |
+| 8 | 🟠 | Thợ Nails không có chỗ nào xem hôm nay làm mấy khách / được bao nhiêu hoa hồng + tips | Thẻ "My earnings" trong app thợ (hôm nay + tháng này, từng bill), tự cập nhật qua `/api/stream/payroll` — hiện sau ~0.6s khi chủ tiệm thanh toán bill |
+| 9 | 🟠 | Server (Vercel) chạy giờ UTC: tiệm ở Úc thanh toán trước ~10-11h sáng -> hoa hồng/tips ghi sang NGÀY HÔM QUA (sai lương ngày, lệch ranh giới tháng); hoàn tiền cũng vậy | POS Nails gửi `client_local_date`; server dùng nếu đúng định dạng và lệch ≤1 ngày so với UTC (`_client_local_date`) |
+| 10 | 🟡 | Trang đặt lịch trên điện thoại rộng 421px thay vì 390px (quầng sáng trang trí thò ra) -> trượt ngang, khung chat bị cắt nút đóng | Quầng sáng không thò ra mép trên màn hình nhỏ |
+| 11 | 🟡 | AI trả `**chữ đậm**` / xuống dòng -> khách và chủ tiệm thấy nguyên dấu `**`, danh sách dính 1 dòng | Escape rồi đổi `**..**` -> `<strong>`, `\n` -> `<br>` (widget + `/ai_bot`) |
+| 12 | 🟡 | Thẻ hồ sơ trong `/ai_bot` của tiệm thật: "No Business Profile Yet · 0 Staff · Joined 2026-05-29" (đọc file SQLite cục bộ, ngày viết cứng) | Đọc `businesses` + đếm `employees` trên MongoDB |
+| 13 | 🟡 | Nút "Sales Demo Tools" (mô phỏng bán phần mềm BitPaw) chen đầu hộp thư khách thật | Chỉ hiện khi hộp thư trống hoặc bật Demo Mode |
+| 14 | 🟡 | Dữ liệu: hộp thư demo Nails có 20 hội thoại test (cả 2 payload XSS PoC cũ) — `nail_ai_bot_customer_care_e2e` không tự dọn | Đã sao lưu (`~/bitpaw_backups/nail_demo_bot_inbox_2026-10-17.json`) + xoá; script tự dọn từ nay |
+
+Độ trễ sau sửa (máy local, MongoDB Atlas thật): khách -> hộp thư tiệm trung vị 0.29s (tối đa 0.48s); tiệm -> khách 0.30s / 0.41s (widget) ; chat nội bộ 0.33s; đặt lịch QR -> lịch 2.8s (trang lịch tự tải lại); check-in -> badge POS 0.3s; bill -> thu nhập thợ 0.6s; AI trả lời 1.5-3.4s.
+
+Ghi chú môi trường: Python trên máy dev không xác minh được chứng chỉ TLS của DeepSeek (Avast quét HTTPS chèn CA riêng) -> AI trả câu "đang xử lý hơi chậm". Chạy server local với `SSL_CERT_FILE`/`REQUESTS_CA_BUNDLE` = bundle gồm certifi + kho chứng chỉ Windows; không đụng cấu hình hệ thống. Không ảnh hưởng production.
+
+Còn treo (không sửa lần này): toàn app dùng `datetime.now()` không múi giờ — ngoài hoa hồng Nails đã sửa, các mốc khác (lịch sử đơn, báo cáo ngày) của tiệm ở Úc/Mỹ vẫn theo giờ UTC trên Vercel. Cần thêm múi giờ cho từng tiệm (quyết định kiến trúc). Công tắc "AI ACTIVE / MANUAL CHAT" trong `/ai_bot` chỉ đổi giao diện, chưa tắt AI trả lời khách thật.

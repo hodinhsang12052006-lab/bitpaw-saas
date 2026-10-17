@@ -77,7 +77,7 @@ async function main() {
     const quickRepliesVisible = await page.locator('#quick-replies-container').isVisible().catch(() => false);
     await shot(page, '01_widget_opened.png');
     record('2. Widget mở đúng persona "Trợ Lý Đặt Lịch" (không phải bot sales BitPaw)',
-      /đặt lịch/i.test(headerText) && !humanTabVisible && !quickRepliesVisible ? 'PASS' : 'FAIL',
+      /đặt lịch|booking assistant/i.test(headerText) && !humanTabVisible && !quickRepliesVisible ? 'PASS' : 'FAIL',
       `header="${headerText}", tab_human_agent_hien=${humanTabVisible}, quick_replies_sales_hien=${quickRepliesVisible}`);
 
     // ============================================================
@@ -151,6 +151,12 @@ async function main() {
   }
 
   record('Console errors trong toàn bộ luồng', consoleErrors.length === 0 ? 'PASS' : 'WARN', `${consoleErrors.length} lỗi: ${consoleErrors.slice(0, 3).join(' | ')}`);
+
+  // Dọn hội thoại test — trước đây không dọn, hộp thư /ai_bot của tiệm demo đầy hội thoại "Khách 093xxxx"
+  try {
+    const out = execFileSync('python', ['scripts/_nail_latency_db.py', 'cleanup', BIZ_ID, 'NO_TOKEN_MATCH_' + Date.now(), testPhone], { encoding: 'utf-8' }).trim().split('\n');
+    console.log('Dọn dữ liệu test:', out[out.length - 1]);
+  } catch (e) { console.log('Không dọn được dữ liệu test:', e.message); }
 
   console.table(steps.map((s) => ({ Step: s.name, Status: s.status })));
   const pass = steps.filter((s) => s.status === 'PASS').length;

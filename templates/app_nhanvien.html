@@ -211,6 +211,21 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 
                 <!-- TAB HOME -->
                 <div id="tab_home" class="space-y-6 block">
+                    <!-- Thu nhập của tôi (Nails/Spa): thợ ăn hoa hồng + tips theo bill POS nhưng trước đây KHÔNG có chỗ
+                         nào trong app cho thợ xem hôm nay mình làm mấy khách, được bao nhiêu — phải đi hỏi chủ tiệm. -->
+                    <div id="myEarningsCard" class="hidden bg-gradient-to-br from-pink-500/15 to-fuchsia-600/10 border border-pink-400/30 p-5 rounded-3xl shadow-lg relative overflow-hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-black text-white text-sm uppercase tracking-widest"><i class="fas fa-wallet text-pink-300 mr-2"></i> My earnings</h3>
+                            <span class="text-[10px] text-pink-200/80 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-black/30 rounded-2xl p-3"><p class="text-[10px] text-gray-400 font-bold uppercase">Clients today</p><p id="earn_today_count" class="text-xl font-black text-white mt-1">0</p></div>
+                            <div class="bg-black/30 rounded-2xl p-3"><p class="text-[10px] text-gray-400 font-bold uppercase">Commission</p><p id="earn_today_comm" class="text-lg font-black text-emerald-300 mt-1">0</p></div>
+                            <div class="bg-black/30 rounded-2xl p-3"><p class="text-[10px] text-gray-400 font-bold uppercase">Tips</p><p id="earn_today_tips" class="text-lg font-black text-amber-300 mt-1">0</p></div>
+                        </div>
+                        <p class="text-[11px] text-pink-100/80 mt-3 font-medium">This month: <span id="earn_month_total" class="font-black text-white">0</span> · <span id="earn_month_count">0</span> clients</p>
+                        <div id="earn_today_list" class="mt-3 space-y-1.5"></div>
+                    </div>
                     <div id="workZone" class="space-y-6">
                         <!-- GPS Card -->
                         <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl shadow-lg relative overflow-hidden">
@@ -664,7 +679,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if(canRequestSwap()) document.getElementById('box_swap').style.display = "block";
                 
                 setupEvidenceUI(); 
-                loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); setupJobRealtime();
+                loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); loadMyEarnings(); setupJobRealtime();
 
             } else {
                 setTimeout(() => {
@@ -858,7 +873,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             
             setupEvidenceUI();
             if(canRequestSwap()) document.getElementById('box_swap').style.display = "block";
-            loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); setupJobRealtime();
+            loadJobMarket(); loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); loadMyEarnings(); setupJobRealtime();
             
             showToast(msg, type);
             if(type === 'success') triggerConfetti();
@@ -1145,6 +1160,45 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             try { return Number(v).toLocaleString(SHOP_CURRENCY === 'VND' ? 'vi-VN' : 'en-US', { style: 'currency', currency: SHOP_CURRENCY, maximumFractionDigits: SHOP_CURRENCY === 'VND' ? 0 : 2 }); }
             catch (e) { return String(v); }
         }
+        // Thu nhập của tôi — đọc đúng các dòng chấm công mà POS tự ghi khi thanh toán bill (tien_tua/tien_tips,
+        // ngay_cham DD/MM/YYYY), cập nhật ngay khi có bill mới qua /api/stream/payroll (watch chamcong).
+        let earningsStream = null;
+        async function loadMyEarnings() {
+            if (!isPosPaidIndustry() || !currentUser || !currentUser.code) return;
+            const card = document.getElementById('myEarningsCard');
+            try {
+                const res = await fetch(`/api/hr/chamcong?ma_nv=${encodeURIComponent(currentUser.code)}&limit=600`);
+                const body = await res.json();
+                if (!body.success) return;
+                const now = new Date();
+                const today = now.toLocaleDateString('en-GB');
+                const mm = String(now.getMonth() + 1).padStart(2, '0'), yyyy = String(now.getFullYear());
+                const isSale = (r) => Number(r.tien_tua || 0) !== 0 || Number(r.tien_tips || 0) !== 0;
+                const todayRows = body.data.filter(r => r.ngay_cham === today && isSale(r));
+                const monthRows = body.data.filter(r => {
+                    const p = String(r.ngay_cham || '').split('/');
+                    return p[1] === mm && p[2] === yyyy && isSale(r);
+                });
+                const sum = (rows, f) => rows.reduce((a, r) => a + Number(r[f] || 0), 0);
+                // Bill hoàn tiền ghi dòng âm (thu hồi hoa hồng) — không tính là 1 khách
+                const clients = (rows) => rows.filter(r => Number(r.tien_tua || 0) > 0 || Number(r.tien_tips || 0) > 0).length;
+                document.getElementById('earn_today_count').textContent = clients(todayRows);
+                document.getElementById('earn_today_comm').textContent = formatShopMoney(sum(todayRows, 'tien_tua'));
+                document.getElementById('earn_today_tips').textContent = formatShopMoney(sum(todayRows, 'tien_tips'));
+                document.getElementById('earn_month_total').textContent = formatShopMoney(sum(monthRows, 'tien_tua') + sum(monthRows, 'tien_tips'));
+                document.getElementById('earn_month_count').textContent = clients(monthRows);
+                document.getElementById('earn_today_list').innerHTML = todayRows.slice(0, 6).map(r => {
+                    const order = (String(r.ghi_chu || '').match(/Order #\d+/) || ['Bill'])[0];
+                    return `<div class="flex justify-between text-[11px] bg-black/25 rounded-xl px-3 py-2"><span class="text-gray-300 font-semibold">${__escHtml(order)}</span><span class="text-white font-bold">${formatShopMoney(Number(r.tien_tua || 0))} <span class="text-amber-300">+ ${formatShopMoney(Number(r.tien_tips || 0))} tip</span></span></div>`;
+                }).join('');
+                card.classList.remove('hidden');
+                if (!earningsStream && window.EventSource) {
+                    earningsStream = new EventSource('/api/stream/payroll');
+                    earningsStream.onmessage = () => loadMyEarnings();
+                }
+            } catch (e) { /* offline — giữ số cũ */ }
+        }
+
         const EXPENSE_STATUS_LABEL = { pending: '⏳ Chờ duyệt', approved: '✅ Đã duyệt', rejected: '❌ Từ chối' };
         async function loadMyExpenseRequests() {
             const box = document.getElementById('myExpenseRequestsBox');

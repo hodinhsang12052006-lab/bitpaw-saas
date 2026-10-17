@@ -15,6 +15,7 @@ nối vào app.py, nên bản SQLite kia là 1 kho dữ liệu cô lập, không
 lịch hẹn trên máy Desktop — dữ liệu giờ nằm chung MongoDB Atlas như mọi collection khác.
 """
 import json
+import re
 from datetime import datetime
 
 from mongo_client import db
@@ -41,6 +42,10 @@ TOOL_SCHEMAS = [
                         "type": "string",
                         "description": "Thời gian hẹn, định dạng ISO 8601 (vd: 2026-08-01T14:00:00).",
                     },
+                    "customer_name": {
+                        "type": "string",
+                        "description": "Tên khách nếu khách đã cho biết (để tiệm thấy đúng tên trên lịch hẹn).",
+                    },
                 },
                 "required": ["service_id", "appointment_time"],
             },
@@ -55,7 +60,7 @@ class ToolExecutionError(Exception):
     biết việc ghi DB thất bại và có thể tiếp tục bịa với khách là đã đặt lịch thành công."""
 
 
-def book_appointment(business_id, customer_id, service_id, appointment_time):
+def book_appointment(business_id, customer_id, service_id, appointment_time, customer_name=None):
     """Ghi 1 lịch hẹn THẬT vào MongoDB `db.appointments` (cùng collection với
     blueprints/spa_bp.py::create_appointment — cùng schema để route /calendar đọc chung được
     cả 2 nguồn). Luôn raise ToolExecutionError khi có lỗi, không bao giờ trả về "coi như thành
@@ -75,8 +80,27 @@ def book_appointment(business_id, customer_id, service_id, appointment_time):
         ) from e
     book_time_str = parsed_time.isoformat()
 
+    # BUG THẬT đã vá (đóng vai khách chat đặt lịch, 10/2026): schema khai service_id kiểu "string" nên
+    # DeepSeek luôn gửi "192", còn db.products.id lưu số nguyên 192 -> find_one không bao giờ khớp,
+    # MỌI lượt AI đặt lịch đều báo "Không tìm thấy dịch vụ". Cùng loại lỗi lệch kiểu đã vá ở
+    # spa_bp.py::create_appointment. Thử id dạng số trước, rồi tới id gốc, cuối cùng khớp đúng tên dịch vụ.
+    candidates = []
+    if isinstance(service_id, (int, str)) and str(service_id).strip().isdigit():
+        candidates.append(int(str(service_id).strip()))
+    if isinstance(service_id, (int, str)):
+        candidates.append(service_id)
     try:
-        service_doc = db.products.find_one({'id': service_id, 'business_id': business_id}, {'_id': 0})
+        service_doc = None
+        for cand in candidates:
+            service_doc = db.products.find_one({'id': cand, 'business_id': business_id}, {'_id': 0})
+            if service_doc:
+                break
+        if not service_doc and isinstance(service_id, str) and service_id.strip():
+            service_doc = db.products.find_one(
+                {'business_id': business_id,
+                 'name': {'$regex': f"^{re.escape(service_id.strip())}$", '$options': 'i'}}, {'_id': 0})
+        if service_doc:
+            service_id = service_doc.get('id', service_id)
     except Exception as e:
         raise ToolExecutionError(f"Lỗi tra cứu dịch vụ trong Database: {e}") from e
     if not service_doc:
@@ -90,7 +114,25 @@ def book_appointment(business_id, customer_id, service_id, appointment_time):
         customer_doc = db.bot_customers.find_one({'id': customer_id}, {'full_name': 1, '_id': 0})
     except Exception:
         customer_doc = None
-    customer_name = (customer_doc or {}).get('full_name') or f"Khách AI Bot ({customer_phone})"
+    given_name = customer_name.strip()[:80] if isinstance(customer_name, str) else ''
+    customer_name = given_name or (customer_doc or {}).get('full_name') or f"Khách AI Bot ({customer_phone})"
+
+    # Chống đặt TRÙNG (đo thật: khách hỏi "mai 3h còn chỗ không" AI đặt luôn, khách nói "ok đặt giúp
+    # em" AI đặt thêm lần nữa -> tiệm thấy 2 lịch giống hệt): cùng khách + cùng dịch vụ + cùng giờ còn
+    # hiệu lực thì trả lại đúng lịch cũ thay vì tạo mới.
+    try:
+        existing = db.appointments.find_one({
+            'business_id': business_id, 'customer_phone': customer_phone, 'service_id': service_id,
+            'book_time': book_time_str, 'status': {'$nin': ['cancelled', 'canceled']},
+        }, {'_id': 0, 'id': 1})
+    except Exception:
+        existing = None
+    if existing:
+        if given_name:
+            db.appointments.update_one({'id': existing['id'], 'business_id': business_id},
+                                       {'$set': {'customer_name': given_name}})
+        return {"success": True, "already_booked": True, "appointment_id": existing['id'],
+                "service_name": service_doc.get('name'), "appointment_time": book_time_str, "status": "pending"}
 
     # Dùng chung booking_engine.book_appointment() với UI đặt lịch công khai
     # (blueprints/spa_bp.py::create_appointment) — đảm bảo AI Bot và UI áp dụng ĐÚNG 1 rule

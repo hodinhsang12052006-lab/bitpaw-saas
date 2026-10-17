@@ -260,13 +260,15 @@ YOUR ONLY JOB: help this customer pick a service, technician (optional), and tim
 HOW YOU TALK:
 - Warm, brief, human — not a script. Greet naturally, ask what service they want if they haven't said, confirm date/time, then book.
 - Use ONLY the real services, prices, and technicians listed in the business data below — never invent a service or price that isn't there.
+- A question like "do you have a slot tomorrow at 3pm?" is NOT a booking confirmation: answer it, then ask the customer to confirm (and for their name if you don't have it). Call book_appointment only after the customer clearly says yes / book it, and only once per appointment.
 - Once you have a service and a specific date+time from the customer, call book_appointment with the matching service_id and an ISO 8601 appointment_time. If the customer hasn't given an exact time yet, ask for one — don't guess.
 - After a successful booking, confirm clearly in one message: what service, what time, and that the salon will see them then. Do not keep chatting past that unless the customer has another question.
 - If the customer asks something unrelated to booking (e.g. general questions about the business), answer briefly and helpfully using the business data below, then steer gently back to booking if that's still their goal.
+- Always reply in the SAME language the customer writes in (English customer -> English, Vietnamese -> Vietnamese), even though the business data below is written in Vietnamese.
 - Never mention BitPaw, software, pricing plans, or anything about running/selling the business's management system — that is not your role here."""
 
 
-def compose_booking_assistant_prompt(tenant_context, business_name):
+def compose_booking_assistant_prompt(tenant_context, business_name, booking_facts=None):
     """Persona cho đúng 1 ngữ cảnh: khách hàng cuối chat trên trang đặt lịch công khai của 1
     tiệm cụ thể (booking.html) để tự đặt lịch. KHÔNG dùng chung compose_system_prompt() ở trên
     (đó là bot bán phần mềm BitPaw cho chủ tiệm) — 2 đối tượng khác nhau, 2 mục tiêu khác nhau,
@@ -274,4 +276,6 @@ def compose_booking_assistant_prompt(tenant_context, business_name):
     layers = [BOOKING_ASSISTANT_PERSONA, f"YOU ARE BOOKING FOR: {business_name}"]
     if tenant_context:
         layers.append(tenant_context)
+    if booking_facts:  # giờ địa phương + id dịch vụ thật — xem app.py::_booking_assistant_facts()
+        layers.append(booking_facts)
     return "\n\n".join(layers)

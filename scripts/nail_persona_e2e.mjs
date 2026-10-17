@@ -207,15 +207,38 @@ try {
   check('Chủ tiệm', 'Nhập ca 6 giờ -> lượt check-in camera chuyển "Check-in" (không tính thêm 8h)',
     shift.json?.success && st.chamcong.filter((r) => r.trang_thai === 'Có mặt').length === 1 && st.chamcong.some((r) => r.trang_thai === 'Check-in'));
 
+  // Thợ mở lại app trên điện thoại trong lúc chủ tiệm bán bill -> thẻ "My earnings" phải tự nhảy số
+  await staff.fill('#login_manv', MA_NV);
+  await staff.click('#btn_login_submit');
+  await staff.waitForSelector('#mainApp:not(.hidden), #checkinScreen:not(.hidden)', { timeout: 15000 });
+  await staff.waitForTimeout(700);
+  if (await staff.locator('#checkinScreen:not(.hidden)').count()) {
+    await staff.click('[onclick="startCameraAndGPS()"]', { force: true });
+    await staff.waitForSelector('#captureBtn:not([disabled])', { timeout: 15000 });
+    await staff.click('#captureBtn');
+  }
+  await staff.waitForSelector('#mainApp:not(.hidden)', { timeout: 15000 });
+  const earnCardShown = await staff.waitForSelector('#myEarningsCard:not(.hidden)', { timeout: 10000 }).then(() => true).catch(() => false);
+  const earnBefore = await staff.locator('#earn_today_comm').innerText().catch(() => '');
+  check('Thợ', 'App thợ Nails có thẻ "My earnings" (khách hôm nay / hoa hồng / tips)', earnCardShown, earnBefore);
+
   // Bán 1 bill POS gán cho thợ test: dịch vụ thật của tiệm + tip thẻ
   await gotoSell(owner, BASE);
   const services = await owner.evaluate(() => SERVICES);
   const svc = services.find((s) => Number(s.price) > 0);
+  const saleT0 = Date.now();
   const sale = await api(owner, 'POST', '/api/nail_pos/checkout', {
     items: [{ product_id: svc.id, quantity: 1, ma_nv: MA_NV }], payment_method: 'card',
-    card_tip: 10, cc_fee_percent: 3, currency: 'AUD',
+    card_tip: 10, cc_fee_percent: 3, currency: 'AUD', client_local_date: todayGB,
   });
   check('Chủ tiệm', `Bán bill POS "${svc?.name}" $${svc?.price} gán thợ test`, sale.json?.success && sale.json?.order_id, `order #${sale.json?.order_id}`);
+  const earnLive = await staff.waitForFunction((b) => {
+    const el = document.getElementById('earn_today_comm');
+    return el && el.textContent !== b && /[1-9]/.test(el.textContent);
+  }, earnBefore, { timeout: 15000, polling: 100 }).then(() => true).catch(() => false);
+  check('Thợ', 'Thẻ "My earnings" tự hiện hoa hồng + tips bill vừa bán (không F5)', earnLive,
+    `${Date.now() - saleT0}ms · hoa hồng ${await staff.locator('#earn_today_comm').innerText()} · tips ${await staff.locator('#earn_today_tips').innerText()} · ${await staff.locator('#earn_today_count').innerText()} khách`);
+  await safeScreenshot(staff, { path: path.join(OUT, '06_staff_my_earnings.png') });
   st = db('state', BID, MA_NV);
   const commission = st.chamcong.filter((r) => r.trang_thai === 'Đã chốt').reduce((a, r) => a + (r.tien_tua || 0), 0);
   check('Chủ tiệm', 'Hoa hồng của thợ ghi vào chấm công từ bill', commission > 0, `$${commission}`);

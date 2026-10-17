@@ -46,7 +46,7 @@ sqlite3.connect = custom_sqlite3_connect
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, Response, stream_with_context, current_app, g, abort
 from markupsafe import Markup
 from jinja2.exceptions import TemplateNotFound
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import time
 import math
@@ -72,7 +72,7 @@ from pymongo import UpdateOne, ReturnDocument
 # Mã 4.1 (Offline-Sync) + Mã 1.2 (Redis Streams check-in/out) audit — lỗi mất kết nối Atlas cần
 # bắt RIÊNG (không phải Exception chung) để route biết chính xác lúc nào nên rơi vào nhánh lưu
 # tạm offline, thay vì coi mọi lỗi (kể cả lỗi dữ liệu/logic) đều là "mất mạng".
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect, OperationFailure
 import redis_queue
 import sync_worker
 import industry_access
@@ -2190,7 +2190,28 @@ def stream_dashboard_tasks():
 # đây chỉ gửi tín hiệu "đã đổi" — client nhận tín hiệu rồi tự gọi lại đúng API REST đã có sẵn
 # (loadEmployees()/loadBangLuong()/loadJobMarket()), để không phải chép lại logic sort/filter
 # đã viết ở /api/hr/employees, /api/hr/chamcong, /api/tasks* ra một bản thứ hai trong này.
+def _sse_resume_token():
+    """Resume token từ header Last-Event-ID (EventSource tự gửi lại khi reconnect) — chỉ nhận chuỗi
+    hex hợp lệ, không bao giờ đưa nguyên giá trị client gửi vào query."""
+    raw = (request.headers.get('Last-Event-ID') or '').strip()
+    if raw and len(raw) <= 1024 and re.fullmatch(r'[0-9A-Fa-f]+', raw):
+        return {'_data': raw}
+    return None
+
+
 def _sse_change_signal(watchable, match_stage):
+    # BUG THẬT đã vá (đo độ trễ tin nhắn thật, 10/2026): mỗi stream tự đóng sau SSE_MAX_SECONDS, trình
+    # duyệt chờ ~3s rồi mới kết nối lại và watch() mới chỉ thấy thay đổi TỪ LÚC MỞ — tin nhắn rơi vào
+    # khe đó bị mất hẳn (3/8 tin khách gửi không bao giờ hiện ở /ai_bot cho tới khi có tin khác tới).
+    # Giờ mỗi nhịp gửi kèm `id: <resume token>`; khi reconnect EventSource tự gửi lại Last-Event-ID,
+    # watch(resume_after=...) phát lại mọi thay đổi trong khe đó. `retry: 1000` rút khe còn ~1s.
+    resume_token = _sse_resume_token()
+
+    def _sse_id(stream):
+        tok = stream.resume_token
+        data = tok.get('_data') if isinstance(tok, dict) else None
+        return f'id: {data}\n' if isinstance(data, str) else ''
+
     def event_stream():
         try:
             # Event có TÊN RIÊNG ("connected"), KHÔNG dùng "data:" trần (event "message" mặc
@@ -2200,18 +2221,31 @@ def _sse_change_signal(watchable, match_stage):
             # sau reload lại kết nối lại -> lại nhận signal này -> lặp vô hạn mỗi ~2s, đã bắt được
             # qua log server thật). `.onmessage` chỉ nhận event mặc định nên sẽ tự động bỏ qua
             # event có tên khác như thế này — không cần sửa gì ở phía client.
-            yield 'event: connected\ndata: {}\n\n'
+            yield 'retry: 1000\nevent: connected\ndata: {}\n\n'
         except Exception:
             pass
         start_time = time.time()
         try:
-            with watchable.watch([match_stage], full_document='updateLookup', max_await_time_ms=SSE_MAX_AWAIT_MS) as stream:
+            def _open(token):
+                return watchable.watch([match_stage], full_document='updateLookup',
+                                       max_await_time_ms=SSE_MAX_AWAIT_MS, resume_after=token)
+            missed_unknown = False
+            try:
+                stream = _open(resume_token)
+            except OperationFailure:
+                # Token hết hạn (oplog đã xoay vòng) hoặc không hợp lệ — mở mới, và báo client tải lại 1 lần
+                # vì có thể đã lỡ thay đổi trong lúc mất kết nối.
+                stream = _open(None)
+                missed_unknown = resume_token is not None
+            with stream:
+                if missed_unknown:
+                    yield f'{_sse_id(stream)}data: {{"changed": true}}\n\n'
                 while time.time() - start_time < SSE_MAX_SECONDS:
                     change = stream.try_next()
                     if change is not None:
-                        yield 'data: {"changed": true}\n\n'
+                        yield f'{_sse_id(stream)}data: {{"changed": true}}\n\n'
                     else:
-                        yield ": keep-alive\n\n"
+                        yield f'{_sse_id(stream)}: keep-alive\n\n'
         except Exception as e:
             # Cluster không hỗ trợ Change Streams hoặc lỗi kết nối — xuống cấp an toàn về 1 nhịp
             # refresh chậm thay vì bỏ hẳn tính năng (giữ đúng hành vi fallback của dashboard_tasks).
@@ -9037,7 +9071,24 @@ def _compute_nail_pos_order(business_id, data, offline_catalog=None):
         'split_cash_amount': split_cash_amount, 'split_card_amount': split_card_amount,
         'commission_rate': commission_rate, 'per_tech_revenue': per_tech_revenue,
         'currency': data.get('currency') or 'AUD', 'stock_items': stock_items,
+        'local_date': _client_local_date(data.get('client_local_date')),
     }
+
+
+def _client_local_date(value):
+    """Ngày địa phương của tiệm (DD/MM/YYYY) do máy POS gửi lên. BUG THẬT đã vá (đóng vai thợ xem thu
+    nhập, 10/2026): server (Vercel) chạy giờ UTC nên datetime.now() của 1 tiệm ở Úc trước ~10-11h sáng vẫn
+    là NGÀY HÔM QUA -> hoa hồng/tips mọi bill buổi sáng bị ghi sang ngày trước (sai lương ngày, lệch cả
+    ranh giới tháng). Chỉ nhận đúng định dạng và lệch tối đa ±1 ngày so với ngày UTC (mọi múi giờ trên
+    thế giới đều nằm trong khoảng đó) — giá trị khác bỏ qua, quay về giờ server như cũ."""
+    if not isinstance(value, str) or not re.fullmatch(r'\d{2}/\d{2}/\d{4}', value):
+        return None
+    try:
+        d = datetime.strptime(value, '%d/%m/%Y').date()
+    except ValueError:
+        return None
+    utc_today = datetime.now(timezone.utc).date()
+    return value if abs((d - utc_today).days) <= 1 else None
 
 
 def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAILS POS]'):
@@ -9076,7 +9127,8 @@ def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAI
                 # getFormattedDate() ghi ở chamcong_nail.html, vì bangluong.html lọc
                 # theo tháng bằng ngay_cham.split('/')[1]/[2] (month/year); ghi sai định
                 # dạng khiến mọi bill Nails POS bị lọc mất khỏi báo cáo lương tháng đó.
-                'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                'ngay_cham': computed.get('local_date') or now_dt.strftime('%d/%m/%Y'),
+                'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
                 'ghi_chu': f"{note_prefix} Order #{order_id} — {commission_rate}% hoa hồng",
                 'tien_tua': worker_tua, 'tien_tips': tip_share,
                 'tien_tips_cash': cash_tip_share, 'tien_tips_card': card_tip_share,
@@ -9520,7 +9572,8 @@ def api_nail_pos_refund():
                 continue
             db.chamcong.insert_one({
                 'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': rec.get('ma_nv'),
-                'ngay_cham': now_dt.strftime('%d/%m/%Y'), 'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
+                'ngay_cham': _client_local_date(data.get('client_local_date')) or now_dt.strftime('%d/%m/%Y'),
+                'nganh_nghe': 'Nails', 'trang_thai': 'Đã chốt',
                 'ghi_chu': f"[REFUND] Deduction for Order #{original_order_id} — linked to original chamcong #{rec.get('id')}",
                 'tien_tua': -clawback_tua, 'tien_tips': -clawback_tip, 'phu_cap': 0, 'so_gio': 0,
                 'tang_ca': 0,
@@ -10085,7 +10138,23 @@ def ai_bot():
                 has_profile = True
         except Exception as e:
             print(f"[!] MongoDB profile query failed: {str(e)}")
-            
+        # Thẻ hồ sơ trước đây chỉ đọc file SQLite cục bộ (không tồn tại trên Vercel) + ngày tham gia viết
+        # cứng -> chủ tiệm nails thật thấy "No Business Profile Yet · 0 Staff · 2026-05-29" dù tiệm có tên,
+        # có 6 thợ. Đọc đúng hồ sơ doanh nghiệp + số nhân viên thật trên MongoDB.
+        try:
+            biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'phone': 1, 'created_at': 1})
+            if biz:
+                if brand_name == 'No Business Profile Yet' and biz.get('name'):
+                    brand_name = biz['name']
+                brand_phone = biz.get('phone') or brand_phone
+                brand_joined = str(biz.get('created_at') or brand_joined)[:10]
+                has_profile = True
+            staff_total = db.employees.count_documents({'business_id': business_id})
+            if staff_total:
+                brand_staff = f"{staff_total} Staff"
+        except Exception as e:
+            print(f"[!] MongoDB business profile lookup failed: {str(e)}")
+
     # Try fetching local cskh settings from SQLite database
     try:
         conn = sqlite3.connect('database.db')
@@ -10503,6 +10572,36 @@ def stream_bot_chat():
     return _sse_change_signal(db, _sse_tenant_match('bot_customers', 'bot_messages'))
 
 
+_CLIENT_NOW_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}')
+
+
+def _booking_assistant_facts(business_id, client_now=None):
+    """BUG THẬT đã vá (đóng vai khách chat đặt lịch, 10/2026): trợ lý đặt lịch được bảo gọi
+    book_appointment(service_id, appointment_time) nhưng prompt chỉ có TÊN + giá dịch vụ (không có id)
+    và không hề biết hôm nay là ngày nào -> khách nói "mai 3h chiều" là AI không đặt được, lần nào cũng
+    báo "hệ thống chưa khớp dịch vụ". Bổ sung giờ địa phương hiện tại (lấy từ máy khách — khách ở gần
+    tiệm nên cùng múi giờ; không có thì dùng giờ server) + danh sách dịch vụ kèm id thật."""
+    now_str = client_now[:16] if isinstance(client_now, str) and _CLIENT_NOW_RE.match(client_now) else \
+        datetime.now().strftime('%Y-%m-%dT%H:%M')
+    try:
+        weekday = datetime.fromisoformat(now_str).strftime('%A')
+    except ValueError:
+        now_str, weekday = datetime.now().strftime('%Y-%m-%dT%H:%M'), datetime.now().strftime('%A')
+    lines = [f"CURRENT LOCAL DATE/TIME AT THE SALON: {now_str} ({weekday}). Resolve 'today', 'tomorrow', "
+             f"'this Friday', 'chiều mai'... from this, and pass appointment_time as local time without timezone "
+             f"(e.g. 2026-08-01T15:00:00). Never book a time in the past."]
+    if db is not None and business_id:
+        try:
+            services = list(db.products.find({'business_id': business_id, 'is_active': 1},
+                                             {'_id': 0, 'id': 1, 'name': 1}).limit(60))
+            if services:
+                lines.append("BOOKABLE SERVICES — use the exact service_id in book_appointment:\n" +
+                             "\n".join(f"- service_id {s.get('id')}: {s.get('name')}" for s in services))
+        except Exception:
+            pass
+    return "\n\n".join(lines)
+
+
 def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, customer_id, api_key):
     """Vòng lặp Function Calling: gọi DeepSeek, nếu nó yêu cầu gọi tool (vd book_appointment)
     thì THỰC SỰ thực thi tool đó trong Python, nối kết quả thật vào messages rồi gọi lại
@@ -10629,6 +10728,12 @@ def secure_ai_generate():
     # GIỜ được phép làm chậm/gãy luồng trả lời chính. classify_objection() tự bỏ qua bằng
     # regex trước khi gọi LLM cho các tin nhắn rõ ràng không phải phản đối (Phase 2 optimization).
     latest_customer_message = user_prompt or (str(history[-1].get('content') or '') if history else '')
+    # Widget đặt lịch bọc lượt đầu thành câu chỉ dẫn cho AI ("Khách hàng (SĐT ..) vừa nhắn: ... book_appointment")
+    # — trước đây NGUYÊN câu chỉ dẫn đó được lưu làm tin của khách và hiện trong hộp thư /ai_bot của chủ tiệm.
+    # Lưu đúng chữ khách gõ nếu widget gửi kèm.
+    raw_customer_message = data.get('customer_message')
+    if isinstance(raw_customer_message, str) and raw_customer_message.strip():
+        latest_customer_message = raw_customer_message.strip()[:2000]
     # Objection playbook (giá/tin tưởng/đối thủ...) chỉ có ý nghĩa cho bot BÁN PHẦN MỀM — khách
     # hàng cuối đang đặt lịch làm nail không "phản đối giá BitPaw", gọi classify_objection() ở
     # đây vừa vô nghĩa vừa tốn 1 lệnh gọi DeepSeek phụ mỗi lượt chat.
@@ -10645,7 +10750,9 @@ def secure_ai_generate():
     extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
     if chat_context == 'customer_booking':
-        system_prompt = compose_booking_assistant_prompt(tenant_context, business_name)
+        system_prompt = compose_booking_assistant_prompt(
+            tenant_context, business_name,
+            booking_facts=_booking_assistant_facts(business_id, data.get('client_now')))
     else:
         system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
 

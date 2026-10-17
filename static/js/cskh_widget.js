@@ -492,12 +492,28 @@ document.addEventListener("DOMContentLoaded", () => {
     // chính tiệm khi ở ngữ cảnh này (server cũng branch riêng persona, xem app.py::secure_ai_generate
     // + ai_sales_prompts.compose_booking_assistant_prompt()).
     const CHAT_CONTEXT = window.BITPAW_CHAT_CONTEXT || null;
+    // Trang đặt lịch hiện theo ngôn ngữ mặc định của tiệm (<html lang>) — tiệm ở Úc/Mỹ là tiếng Anh;
+    // trước đây widget luôn chào tiếng Việt + nhãn "SĐT Zalo" với khách Úc.
+    const BOOKING_VI = (document.documentElement.lang || '').toLowerCase().startsWith('vi');
+    const BT = BOOKING_VI ? {
+        title: "Trợ Lý Đặt Lịch",
+        greeting: "Chào bạn! Mình là trợ lý đặt lịch của tiệm 💅 Bạn muốn đặt dịch vụ gì và vào lúc nào ạ? Mình sẽ xếp lịch giúp bạn ngay.",
+        phone: "Số điện thoại của bạn", phoneLabel: "SĐT", request: "Yêu cầu",
+        typeMsg: "Nhập tin nhắn...", needPhone: "Nhập số điện thoại để bắt đầu chat...",
+        shop: "Nhân viên tiệm", typing: "Đang trả lời...",
+        slow: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!",
+        slow2: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!",
+    } : {
+        title: "Booking Assistant",
+        greeting: "Hi! I'm the salon's booking assistant 💅 Which service would you like, and when? I'll book it for you right away.",
+        phone: "Your phone number", phoneLabel: "Phone", request: "Request",
+        typeMsg: "Type your message...", needPhone: "Enter your phone number to start chatting...",
+        shop: "Salon staff", typing: "Typing...",
+        slow: "Sorry, we're a little slow right now — please send the service and time you'd like again!",
+        slow2: "Sorry, we're a little slow right now — please send that again!",
+    };
     const dna = CHAT_CONTEXT === 'customer_booking'
-        ? {
-            title: "Đặt lịch",
-            greeting: "Chào bạn! Mình là trợ lý đặt lịch của tiệm 💅 Bạn muốn đặt dịch vụ gì và vào lúc nào ạ? Mình sẽ xếp lịch giúp bạn ngay.",
-            prompt: "",
-        }
+        ? { title: BT.title, greeting: BT.greeting, prompt: "" }
         : (industryData[safeIndustry] || industryData.general);
 
     // Đa doanh nghiệp (multi-tenant): nếu trang hiện tại là widget nhúng thật của 1 doanh
@@ -514,13 +530,23 @@ document.addEventListener("DOMContentLoaded", () => {
     // (để tiệm liên hệ xác nhận lịch, không phải "chuyên viên tư vấn gọi lại").
     if (CHAT_CONTEXT === 'customer_booking') {
         const headerTitleEl = chatWidget.querySelector(".font-bold.text-sm");
-        if (headerTitleEl) headerTitleEl.textContent = "Trợ Lý Đặt Lịch";
+        if (headerTitleEl) headerTitleEl.textContent = BT.title;
+        const headerSubEl = headerTitleEl && headerTitleEl.nextElementSibling;
+        if (headerSubEl && !BOOKING_VI) headerSubEl.innerHTML = '<i class="fas fa-bolt"></i> Online 24/7';
         const quickRepliesEl = document.getElementById("quick-replies-container");
         if (quickRepliesEl) quickRepliesEl.style.display = "none";
-        const humanBtnEl = document.getElementById("chatModeHumanBtn");
-        if (humanBtnEl) humanBtnEl.style.display = "none";
+        // Chỉ còn 1 chế độ (AI) -> cả hàng chọn chế độ chỉ chiếm chỗ trên màn hình điện thoại.
+        const modeSelectorEl = document.getElementById("chat-mode-selector");
+        if (modeSelectorEl) modeSelectorEl.style.display = "none";
         const phoneInputEl = document.getElementById("chatPhone");
-        if (phoneInputEl) phoneInputEl.placeholder = "Số điện thoại của bạn";
+        if (phoneInputEl) { phoneInputEl.placeholder = BT.phone; phoneInputEl.type = "tel"; phoneInputEl.autocomplete = "tel"; }
+    }
+
+    // Giờ địa phương của khách (cùng múi giờ với tiệm) — để trợ lý đặt lịch hiểu "mai 3h chiều".
+    function localNowIso() {
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
     // 5. Initialize State Variables and DOM References
@@ -547,7 +573,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const hasPhoneValue = !!(chatPhoneInput && chatPhoneInput.value.trim().length > 0);
         if (chatMsgInput) {
             chatMsgInput.disabled = !hasPhoneValue;
-            chatMsgInput.placeholder = hasPhoneValue ? "Type your message here..." : "Enter your phone number to start chatting...";
+            chatMsgInput.placeholder = CHAT_CONTEXT === 'customer_booking'
+                ? (hasPhoneValue ? BT.typeMsg : BT.needPhone)
+                : (hasPhoneValue ? "Type your message here..." : "Enter your phone number to start chatting...");
         }
         if (chatSendBtn) chatSendBtn.disabled = !hasPhoneValue;
         return hasPhoneValue;
@@ -645,6 +673,36 @@ document.addEventListener("DOMContentLoaded", () => {
         humanChatStream = new EventSource("/api/stream/cskh_chat?phone=" + encodeURIComponent(phone));
         humanChatStream.onmessage = () => fetchHumanAgentReplies(phone);
         humanChatStream.onerror = () => { /* EventSource tự reconnect, không cần xử lý thêm */ };
+    }
+
+    // 6d. Nhân viên tiệm trả lời khách NGAY trong widget đặt lịch. BUG THẬT đã vá (đo thật 10/2026): chủ
+    // tiệm trả lời trong /ai_bot (sender_type='staff') nhưng widget trên trang đặt lịch không hề nghe kênh
+    // nào cho hội thoại "business_id:SĐT" -> khách đang chờ KHÔNG BAO GIỜ thấy câu trả lời. Dùng lại kênh
+    // public của /portal (/api/portal/stream + /api/portal/messages, cùng khoá customer_id).
+    let shopReplyStream = null;
+    let shopReplySeen = null; // số tin staff đã có lúc bắt đầu nghe — chỉ hiện tin MỚI
+    async function fetchShopReplies(customerId) {
+        try {
+            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId));
+            const json = await res.json();
+            if (!json.success) return false;
+            const staff = (json.data || []).filter(m => m.sender_type === "staff");
+            if (shopReplySeen === null) { shopReplySeen = staff.length; return true; }
+            staff.slice(shopReplySeen).forEach(m => appendMessage("shop", m.content));
+            shopReplySeen = Math.max(shopReplySeen, staff.length);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async function startShopReplyStream(phone) {
+        if (CHAT_CONTEXT !== 'customer_booking' || !BUSINESS_ID || !phone || shopReplyStream) return;
+        const customerId = BUSINESS_ID + ":" + phone;
+        shopReplyStream = "pending";
+        if (!(await fetchShopReplies(customerId))) { shopReplyStream = null; return; } // hội thoại chưa lưu
+        shopReplyStream = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId));
+        shopReplyStream.onmessage = () => fetchShopReplies(customerId);
     }
 
     async function handleHumanAgentSubmit(msgVal, phoneVal) {
@@ -745,7 +803,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // 8. Append Message Markup & Auto Scroll
     function appendMessage(sender, text, isHtml = false) {
         if (!msgContainer) return;
-        const safeText = isHtml ? text : escapeHtml(text);
+        let safeText = isHtml ? text : escapeHtml(text);
+        // AI hay trả **chữ đậm** kiểu Markdown — trước đây khách thấy nguyên dấu ** trong khung chat.
+        if (!isHtml && sender !== "user") safeText = safeText.replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+        if (sender === "shop") {
+            const shopDiv = document.createElement("div");
+            shopDiv.className = "flex gap-2.5 items-start mt-2";
+            shopDiv.innerHTML = `
+        <div class="w-6 h-6 rounded-full bg-pink-500/20 border border-pink-400/60 flex items-center justify-center shrink-0 text-[11px]">💅</div>
+        <div class="chat-shop text-pink-100 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm bg-pink-500/15 border border-pink-400/40">
+            <div class="text-[10px] font-black uppercase tracking-wider text-pink-300 mb-1">${escapeHtml(BT.shop)}</div>
+            ${safeText}
+        </div>`;
+            msgContainer.appendChild(shopDiv);
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+            return;
+        }
         const msgDiv = document.createElement("div");
         if (sender === "user") {
             msgDiv.className = "flex gap-2.5 items-start justify-end mt-2";
@@ -776,7 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
         indicator.id = "aiTypingBubble";
         indicator.className = "flex flex-col gap-1 items-start mt-2";
         indicator.innerHTML = `
-        <span class="text-[9px] text-cyan-400 font-black ml-8 flex items-center gap-1"> <i class="fas fa-spinner fa-spin"></i> AI đang phân tích dữ liệu...</span>
+        <span class="text-[9px] text-cyan-400 font-black ml-8 flex items-center gap-1"> <i class="fas fa-spinner fa-spin"></i> ${CHAT_CONTEXT === 'customer_booking' ? escapeHtml(BT.typing) : 'AI đang phân tích dữ liệu...'}</span>
 <div class="flex gap-2.5 items-start">
     <div class="w-6 h-6 rounded-full bg-[#08061a] border border-cyan-500/50 flex items-center justify-center shrink-0 overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
     <div class="typing-bubble bg-cyan-500/10 border border-cyan-500/20">
@@ -812,8 +885,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const cleanedPhone = phoneVal.replace(/[\s.-]/g, '');
-            const hasValidPhone = /^(0|84)[3|5|7|8|9][0-9]{8}$/.test(cleanedPhone);
+            // BUG THẬT đã vá: trước đây chỉ nhận SĐT Việt Nam (0[35789]xxxxxxxx) — khách Úc 04xx / Mỹ
+            // bị coi là "chưa có SĐT": hội thoại không lưu (tiệm không thấy khách nhắn trong /ai_bot) và AI
+            // không đặt lịch được vì thiếu SĐT. Nhận mọi số 8-15 chữ số (có thể có + ở đầu).
+            const cleanedPhone = phoneVal.replace(/[\s.()-]/g, '');
+            const hasValidPhone = /^(0|84)[3|5|7|8|9][0-9]{8}$/.test(cleanedPhone) || /^\+?[0-9]{8,15}$/.test(cleanedPhone);
 
             const startTime = Date.now();
 
@@ -826,7 +902,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (hasValidPhone && !isLeadSubmitted) {
-                appendMessage("user", `SĐT Zalo: <strong>${escapeHtml(phoneVal)}</strong><br>Yêu cầu: ${escapeHtml(msgVal)}`, true);
+                appendMessage("user", CHAT_CONTEXT === 'customer_booking'
+                    ? `${BT.phoneLabel}: <strong>${escapeHtml(phoneVal)}</strong><br>${BT.request}: ${escapeHtml(msgVal)}`
+                    : `SĐT Zalo: <strong>${escapeHtml(phoneVal)}</strong><br>Yêu cầu: ${escapeHtml(msgVal)}`, true);
             } else {
                 appendMessage("user", msgVal);
             }
@@ -842,6 +920,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 removeTypingIndicator();
                 appendMessage("ai", finalReply);
                 chatHistory.push({ role: "assistant", content: finalReply });
+                if (userPhone) startShopReplyStream(userPhone);
 
                 // Re-enable inputs
                 chatMsgInput.disabled = false;
@@ -853,7 +932,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
 
             if (hasValidPhone && !isLeadSubmitted) {
-                userPhone = phoneVal;
+                userPhone = cleanedPhone;
                 const phoneDiv = document.getElementById("phone-container");
                 if (phoneDiv) phoneDiv.style.display = "none";
 
@@ -888,10 +967,12 @@ document.addEventListener("DOMContentLoaded", () => {
                                 industry: industryCode,
                                 context: CHAT_CONTEXT,
                                 customer_phone: userPhone,
+                                client_now: localNowIso(),
+                                customer_message: msgVal,
                                 history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
                                 userPrompt: CHAT_CONTEXT === 'customer_booking'
-                                    ? `Khách hàng (SĐT ${userPhone}) vừa nhắn: "${msgVal}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật qua book_appointment. (Trả lời tiếng Việt tự nhiên, dưới 350 ký tự).`
+                                    ? `Khách hàng (SĐT ${userPhone}) vừa nhắn: "${msgVal}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật qua book_appointment. (Trả lời bằng ĐÚNG ngôn ngữ khách dùng trong tin nhắn, tự nhiên, dưới 350 ký tự).`
                                     : `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
                                 max_tokens: 220,
                                 temperature: 0.75
@@ -902,14 +983,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else if (CHAT_CONTEXT === 'customer_booking') {
-                            aiReply = "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!";
+                            aiReply = BT.slow;
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
                         aiReply = CHAT_CONTEXT === 'customer_booking'
-                            ? "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!"
+                            ? BT.slow
                             : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }
@@ -956,6 +1037,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                 industry: industryCode,
                                 context: CHAT_CONTEXT,
                                 customer_phone: userPhone,
+                                client_now: localNowIso(),
+                                customer_message: msgVal,
                                 history: chatHistory.slice(-10),
                                 systemPrompt: dna.prompt,
                                 userPrompt: msgVal,
@@ -968,14 +1051,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else if (CHAT_CONTEXT === 'customer_booking') {
-                            aiReply = "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!";
+                            aiReply = BT.slow2;
                         } else {
                             aiReply = generateBitPawSalesReply(msgVal, userPhone, industryCode, chatHistory);
                         }
                     } catch (error) {
                         console.log("AI generation deferred: ", error);
                         aiReply = CHAT_CONTEXT === 'customer_booking'
-                            ? "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!"
+                            ? BT.slow2
                             : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
                     }
                 }

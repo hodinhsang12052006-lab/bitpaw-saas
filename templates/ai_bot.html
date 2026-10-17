@@ -626,6 +626,10 @@
                 return m;
             });
         }
+        // Escape rồi mới đổi **chữ đậm** (AI trả Markdown) thành <strong> — trước đây hiện nguyên dấu **.
+        function richText(str) {
+            return escapeHtml(str).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+        }
 
         // DOM Elements
         const customerListDiv = document.getElementById('customerList');
@@ -865,7 +869,9 @@
         }
 
         function renderCustomerList(customers) {
-            customerListDiv.innerHTML = renderLiveDemoTriggers();
+            // Nút "Sales Demo Tools" (mô phỏng hội thoại bán phần mềm BitPaw) chỉ hữu ích khi hộp thư trống
+            // hoặc đang bật Demo Mode — tiệm đã có khách thật thì nó chỉ chen lên đầu danh sách khách.
+            customerListDiv.innerHTML = (isDemoMode || customers.length === 0) ? renderLiveDemoTriggers() : '';
             if (customers.length === 0) {
                 customerListDiv.insertAdjacentHTML('beforeend', `<p class="text-center text-gray-500 text-xs py-8 font-medium">No customers found</p>`);
                 return;
@@ -981,7 +987,7 @@
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
                         <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
-                        <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${escapeHtml(text)}</div>
+                        <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${richText(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;
@@ -995,7 +1001,7 @@
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
                         <p class="text-[11px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
-                        <div class="chat-ai text-gray-200 font-medium">${escapeHtml(text)}</div>
+                        <div class="chat-ai text-gray-200 font-medium">${richText(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
                 </div>`;

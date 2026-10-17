@@ -2212,7 +2212,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const res = await fetch('/api/nail_pos/refund', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ order_id: isNaN(orderId) ? orderId : Number(orderId), amount, reason: document.getElementById('refundReason').value.trim() }),
+                    body: JSON.stringify({ order_id: isNaN(orderId) ? orderId : Number(orderId), amount, reason: document.getElementById('refundReason').value.trim(), client_local_date: new Date().toLocaleDateString('en-GB') }),
                 });
                 const json = await res.json();
                 if (!json.success) throw new Error(json.message || 'Unknown error');
@@ -2497,6 +2497,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 cc_fee_percent: 3,
                 commission_rate: DEFAULT_COMMISSION_RATE,
                 currency: 'AUD',
+                // Ngày địa phương của tiệm — hoa hồng/tips ghi đúng ngày (server chạy giờ UTC)
+                client_local_date: new Date().toLocaleDateString('en-GB'),
                 discount_type: discount.value > 0 ? discount.type : null,
                 discount_value: discount.value > 0 ? discount.value : 0,
             };
