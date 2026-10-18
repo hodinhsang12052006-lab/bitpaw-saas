@@ -512,3 +512,31 @@ Quét `full_site_audit` 3 lượt × 9 ngành (≈1.090 lượt mở trang, desk
 | 21 | 🟡 | Trang mua gói còn câu "tài khoản tự kích hoạt khi giao dịch hoàn tất" | Sửa đúng quy trình cấp License Key thủ công |
 
 Còn treo: bảng nhân viên trên điện thoại dùng cuộn ngang (không có gợi ý "vuốt để xem thêm"); nhiều trang khác của app còn lẫn tiếng Việt khi chọn tiếng Anh (đã dịch đủ trang cổng thanh toán; các trang khác cần 1 đợt dịch riêng).
+
+## Pha 21 — Nails quy mô 60 thợ: có chạy ổn không (18/10/2026)
+
+Dựng tiệm thử riêng (`scripts/nail_scale_seed.py`): **60 thợ, 1.500 khách, 10.800 bill / 30 ngày (360 bill/ngày), 16.575 dòng chấm công, 2.360 lịch hẹn**. Đo bằng `scripts/nail_scale_audit.mjs` (chỉ server local) + 3 script kiểm tra riêng. Xoá sạch tiệm thử sau khi đo.
+
+| # | Mức | Lỗi khi tiệm có 60 thợ | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | **Bảng lương không mở được trên web thật**: tải TOÀN BỘ lịch sử chấm công rồi cộng ở trình duyệt — 1 tháng đã 5,2 MB (116% trần 4,5 MB/phản hồi của Vercel), mỗi tháng thêm ~5 MB | `/api/hr/payroll_summary` cộng sẵn trên server (7 KB cho 60 thợ); đối chiếu cách tính cũ: 60/60 thợ × 2 tháng, lệch 0 |
+| 2 | 🔴 | **Cả tiệm bị chặn 429 giữa giờ làm**: giới hạn 1.200 lượt/giờ đếm theo IP + route, cả tiệm chung 1 Wi-Fi. Mỗi bill làm 60 điện thoại cùng tải lại "My earnings" -> ~10 bill là hết lượt; luồng real-time (SSE) tự nối lại mỗi 25s cũng bị đếm (~9 máy là chạm trần, trình duyệt bỏ hẳn luồng). Đo thật: request thứ **1.201 bị 429** | Tiệm đã đăng nhập 6.000/giờ (khách lạ/bot giữ 1.200), không đếm lượt nối lại SSE; đo lại: 1.250 lượt + 1.210 lượt nối SSE -> 0 lần 429, khách lạ vẫn bị chặn ở lượt 1.201 |
+| 3 | 🟠 | Mỗi bill của cả tiệm báo cho MỌI điện thoại thợ tải lại thu nhập (60 máy × ~200 KB) | `/api/stream/payroll?ma_nv=` chỉ báo cho đúng thợ có bill + gộp tín hiệu 1,2s; kiểm tra: thợ khác nhận 0 tín hiệu |
+| 4 | 🟠 | "My earnings": lấy 600 dòng mới nhất -> thợ đông khách (>600 dòng/tháng) bị **thiếu tổng tháng** | Lấy đúng tháng này (`?month=&year=`, dùng index) |
+| 5 | 🟠 | Chia tips theo giờ cộng 8h cho MỌI dòng chấm công, kể cả dòng hoa hồng từng bill -> thợ làm 270 bill/tháng bị tính ~2.160 "giờ", nhận phần tips gấp nhiều lần người làm cùng giờ | Dùng đúng giờ làm hợp lệ (cùng quy tắc tính lương); lưu tips theo nhóm 8 thay vì tuần tự 60 lượt |
+| 6 | 🟠 | CRM + POS tải toàn bộ khách mỗi lần mở (1.500 khách = 459 KB; ~7.500 khách là vượt trần Vercel); POS bắt thu ngân cuộn 1.500 dòng để chọn khách | CRM lọc/phân trang/thống kê ở server (6 KB/trang); POS ô tìm tên/SĐT (≤20 kết quả, 3 KB) |
+| 7 | 🟡 | Xuất phiếu lương 1 thợ tải toàn bộ lịch sử (~3.300 dòng/năm) và gộp mọi tháng vào 1 phiếu | Xuất theo tháng đang xem, ghi rõ tháng trên phiếu + tên file |
+| 8 | 🟡 | Index webhook Square đặt sai trường; chấm công thiếu index theo ngày | Index `metadata.square_checkout_id` + `(business_id, ngay_cham)` |
+
+Đo lại sau khi sửa (server local, Atlas thật, tiệm 60 thợ):
+- 12 màn hình chính (POS, chấm công, bảng lương, lịch, nhân viên, CRM, dashboard, báo cáo, lịch sử thanh toán, AI, nghỉ phép, đặt lịch công khai) mở xong **0,5–2,3 s**, không phản hồi nào quá 54 KB.
+- Bán 1 bill 2 dịch vụ 2 thợ: ~0,8–1,3 s; hoa hồng đúng tới từng xu (QS001 $95×40% = $38, QS002 $60×40% = $24, tip thẻ $10 − 3% phí = $9,70 chia đôi $4,85).
+- Đồng thời: 60 thợ mở "My earnings" (lỗi 0, chậm nhất 4,5 s) · **60 thợ chấm công vào ca cùng 1 lúc** (lỗi 0, chậm nhất 8,5 s — máy local 1 tiến trình; trên Vercel mỗi request chạy instance riêng) · 5 thu ngân bán cùng lúc (lỗi 0, chậm nhất 1,4 s) · 20 lượt lịch hẹn + khách (lỗi 0).
+- Toàn vẹn dữ liệu: 0 mã trùng ở orders/order_items/chamcong/transactions; mỗi bill đúng 1 giao dịch.
+- Hồi quy Nails: persona 38/38 · master 10/10 · gap 8/8 · business cycle 9/9 · realtime SSE 6/6 · POS acceptance không lỗi.
+
+Còn treo / cần theo dõi:
+- Mỗi điện thoại thợ mở app giữ 2 luồng SSE (thu nhập + chợ việc) — 60 máy = ~120 hàm Vercel chạy liên tục khi app đang mở: không lỗi nhưng tốn thời lượng hàm; nếu hoá đơn Vercel tăng, đổi sang 1 luồng gộp hoặc dịch vụ realtime riêng.
+- Giới hạn tần suất trên Vercel chỉ chính xác khi có `REDIS_URL` (không có thì mỗi instance đếm riêng).
+- Trang Công nợ + CRM Automation vẫn tải toàn bộ khách (~300 byte/khách -> chạm trần Vercel khoảng 12–15 nghìn khách) — cần phân trang như CRM khi có tiệm lớn tới mức đó.
+- Không thử 60 ảnh chấm công tải lên cùng lúc (`.env` local trỏ kho ảnh thật).

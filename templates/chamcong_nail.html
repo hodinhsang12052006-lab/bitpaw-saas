@@ -554,7 +554,13 @@
             btn.disabled = true;
             
             try {
-                const recordsBody = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&nganh_nghe=${encodeURIComponent('Nails')}`);
+                // Xuất theo THÁNG (tháng đang xem trên lịch, mặc định tháng này). Trước đây tải toàn bộ lịch sử của thợ:
+                // thợ làm ~270 bill/tháng -> sau 1 năm ~3.300 dòng/lần bấm, càng lâu càng chậm và phiếu lương lẫn mọi tháng.
+                const now = new Date();
+                const expMonth = payrollGridMonth || (now.getMonth() + 1);
+                const expYear = payrollGridYear || now.getFullYear();
+                const period = `${String(expMonth).padStart(2, '0')}/${expYear}`;
+                const recordsBody = await hrApi(`/api/hr/chamcong?ma_nv=${encodeURIComponent(ma_nv)}&nganh_nghe=${encodeURIComponent('Nails')}&month=${expMonth}&year=${expYear}`);
                 const records = (recordsBody.data || []).slice().sort((a, b) => (b.ngay_cham || '').localeCompare(a.ngay_cham || ''));
 
                 if(!records || records.length === 0) {
@@ -564,7 +570,7 @@
 
                 let totalTua = 0; let totalTip = 0;
                 let csvContent = "\uFEFF"; 
-                csvContent += `${t('cnl_csv_title')}\n${t('cnl_csv_employee')}:,${ho_ten}\n${t('cnl_csv_worker_id')}:,${ma_nv}\n${t('cnl_csv_export_date')}:,${new Date().toLocaleDateString('vi-VN')}\n\n`;
+                csvContent += `${t('cnl_csv_title')}\n${t('cnl_csv_employee')}:,${ho_ten}\n${t('cnl_csv_worker_id')}:,${ma_nv}\n${t('cnl_csv_period')}:,${period}\n${t('cnl_csv_export_date')}:,${new Date().toLocaleDateString('vi-VN')}\n\n`;
                 csvContent += `${t('cnl_csv_date')},${t('cnl_csv_status')},${t('cnl_csv_pay')},${t('cnl_csv_tips')},${t('cnl_csv_bill_detail')}\n`;
 
                 let receiptRows = '';
@@ -591,7 +597,7 @@
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
-                link.setAttribute("href", url); link.setAttribute("download", `Bang_Luong_${ma_nv}_${ho_ten}.csv`);
+                link.setAttribute("href", url); link.setAttribute("download", `Bang_Luong_${ma_nv}_${ho_ten}_${expYear}-${String(expMonth).padStart(2, '0')}.csv`);
                 document.body.appendChild(link); link.click(); document.body.removeChild(link);
 
                 // Xuất ảnh biên lai
@@ -987,8 +993,8 @@
                 cnl_calc_pay_btn: 'Tính Tua',
                 cnl_toast_load_error: 'Lỗi tải danh sách thợ!',
                 cnl_toast_exporting: 'Đang kết xuất báo cáo lương...',
-                cnl_toast_no_bills: 'Thợ này chưa làm bill nào để xuất!',
-                cnl_csv_title: 'BẢNG TỔNG KẾT LƯƠNG - BITPAW SOFTWARE',
+                cnl_toast_no_bills: 'Thợ này chưa có bill nào trong tháng này để xuất!',
+                cnl_csv_title: 'BẢNG TỔNG KẾT LƯƠNG - BITPAW SOFTWARE', cnl_csv_period: 'Tháng',
                 cnl_csv_employee: 'Nhân viên',
                 cnl_csv_worker_id: 'Mã NV',
                 cnl_csv_export_date: 'Ngày xuất',
@@ -1078,8 +1084,8 @@
                 cnl_calc_pay_btn: 'Calculate Pay',
                 cnl_toast_load_error: 'Error loading staff list!',
                 cnl_toast_exporting: 'Exporting salary report...',
-                cnl_toast_no_bills: 'This staff member has no bills to export!',
-                cnl_csv_title: 'SALARY SUMMARY - BITPAW SOFTWARE',
+                cnl_toast_no_bills: 'This staff member has no bills this month to export!',
+                cnl_csv_title: 'SALARY SUMMARY - BITPAW SOFTWARE', cnl_csv_period: 'Month',
                 cnl_csv_employee: 'Employee',
                 cnl_csv_worker_id: 'Staff ID',
                 cnl_csv_export_date: 'Export Date',

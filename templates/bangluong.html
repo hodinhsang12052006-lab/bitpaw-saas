@@ -280,7 +280,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // phải "đ". Toggle switch cho phép xem đối chiếu nhanh sang USD nếu khác USD sẵn.
         const TENANT_CURRENCY = "{{ tenant_currency }}";
         let currentCurrency = TENANT_CURRENCY;
-        let globalPayrollData = []; let rawEmployeesData = []; let rawRecordsData = [];
+        let globalPayrollData = []; let rawEmployeesData = []; let rawSummaryData = {};
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -488,37 +488,23 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         || (industryLower === 'spa' && linhVucLower.includes('nail'));
                     return matchesIndustry || (e.linh_vuc || '') === 'Chưa phân bổ';
                 });
-                const recordsBody = await hrApi('/api/hr/chamcong');
-                const records = recordsBody.data || [];
+                // Tổng theo nhân viên tính sẵn trên server (/api/hr/payroll_summary). Trước đây tải TOÀN BỘ lịch sử chấm
+                // công rồi lọc tháng + cộng ở trình duyệt: tiệm 60 thợ 1 tháng đã 16.575 dòng = 5,3 MB, vượt trần 4,5 MB/phản
+                // hồi của Vercel -> trang lỗi trên web thật. Quy tắc giờ làm giữ nguyên (xem docstring route).
+                const sumBody = await hrApi(`/api/hr/payroll_summary?month=${Number(month)}&year=${Number(year)}`);
+                const summary = sumBody.data || {};
 
                 rawEmployeesData = emps;
-                const filteredRecords = records.filter(r => {
-                    if (!r.ngay_cham) return false;
-                    const parts = r.ngay_cham.split('/'); 
-                    return parts.length === 3 && parts[1] === month && parts[2] === year;
-                });
-                rawRecordsData = filteredRecords; 
+                rawSummaryData = summary;
                 globalPayrollData = [];
 
                 emps.forEach(emp => {
-                    const myRecords = filteredRecords.filter(r => r.ma_nv === emp.ma_nv);
+                    const sm = summary[emp.ma_nv] || {};
                     const luongCoBan = Number(emp.luong_cb || 0); const luongTheoGio = Number(emp.luong_gio || 0); const phuCapCoDinh = Number(emp.phu_cap || 0);
-                    
-                    let totalGioLam = 0; let totalTangCa = 0; let totalHoaHong = 0; let totalTips = 0; let phuCapPhatSinh = 0; 
-                    let soNgayLam = myRecords.filter(r => r.trang_thai === 'Có mặt' || r.trang_thai === 'Trọn Ngày').length;
 
-                    myRecords.forEach(r => {
-                        // Chỉ mặc định 8h cho bản ghi ĐIỂM DANH thật (Có mặt/Trọn Ngày, vd check-in
-                        // camera+GPS ở diemdanh.html) khi thiếu so_gio chi tiết — KHÔNG áp dụng cho
-                        // bản ghi giao dịch/hoa hồng (vd mỗi lượt Tua ở chamcong_nail.html có
-                        // so_gio=0 thật sự), nếu không 1 thợ làm 3 khách/ngày sẽ bị cộng khống 24h.
-                        let gioLamHopLe;
-                        if (Number(r.so_gio) > 0) gioLamHopLe = Number(r.so_gio);
-                        else if (r.trang_thai === 'Có mặt' || r.trang_thai === 'Trọn Ngày') gioLamHopLe = 8;
-                        else gioLamHopLe = 0;
-                        totalGioLam += gioLamHopLe; totalTangCa += Number(r.tang_ca || 0); totalHoaHong += Number(r.tien_tua || 0);
-                        totalTips += Number(r.tien_tips || 0); phuCapPhatSinh += Number(r.phu_cap || 0);
-                    });
+                    const totalGioLam = Number(sm.gio_hop_le || 0); const totalTangCa = Number(sm.tang_ca || 0);
+                    const totalHoaHong = Number(sm.hoa_hong || 0); const totalTips = Number(sm.tips || 0);
+                    const phuCapPhatSinh = Number(sm.phu_cap || 0); const soNgayLam = Number(sm.so_ngay_lam || 0);
 
                     let luongChinh = 0; let cot2 = 0; let cot3 = 0; let thucLanh = 0;
 
@@ -551,7 +537,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         thucLanh = luongChinh + cot2 + cot3;
                     }
 
-                    if (thucLanh > 0 || luongCoBan > 0 || myRecords.length > 0) {
+                    if (thucLanh > 0 || luongCoBan > 0 || Number(sm.so_ban_ghi || 0) > 0) {
                         globalPayrollData.push({ ma_nv: emp.ma_nv, ho_ten: emp.ho_ten, avatar_url: emp.avatar_url, luong_hien_thi: luongChinh, cot2_hien_thi: cot2, cot3_hien_thi: cot3, thuc_lanh: thucLanh });
                     }
                 });
@@ -635,10 +621,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             try {
                 let totalCompanyHours = 0; let workerStats = {};
 
+                // BUG THẬT đã vá: trước đây cộng 8h cho MỌI dòng chấm công không có số giờ — kể cả dòng hoa hồng của từng
+                // bill POS — nên thợ làm 270 bill/tháng bị tính ~2.160 "giờ" và nhận phần tips lớn gấp nhiều lần người
+                // làm cùng giờ. Dùng đúng giờ làm hợp lệ server đã tính (cùng quy tắc với lương).
                 rawEmployeesData.forEach(emp => {
-                    const myRecords = rawRecordsData.filter(r => r.ma_nv === emp.ma_nv);
-                    let myHours = 0;
-                    myRecords.forEach(r => { myHours += (Number(r.so_gio) > 0 ? Number(r.so_gio) : 8); }); // Chặn giờ âm để không bị loại khỏi chia Tips
+                    const myHours = Number((rawSummaryData[emp.ma_nv] || {}).gio_hop_le || 0);
                     if(myHours > 0) { workerStats[emp.ma_nv] = myHours; totalCompanyHours += myHours; }
                 });
 
@@ -658,8 +645,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     }
                 }
 
-                for (const upd of updates) {
-                    await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(upd) });
+                // Gửi theo nhóm 8 (trước đây tuần tự từng người: 60 thợ = 60 lượt chờ nối tiếp)
+                for (let i = 0; i < updates.length; i += 8) {
+                    await Promise.all(updates.slice(i, i + 8).map(upd => hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(upd) })));
                 }
 
                 showToast(t('bl_toast_tips_success'), 'success');

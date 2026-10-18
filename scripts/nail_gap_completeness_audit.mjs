@@ -214,6 +214,9 @@ async function main() {
     // ============================================================
     // 6. Gắn khách hàng có sẵn (CRM) vào ticket trước khi thanh toán
     // ============================================================
+    // POS không còn đổ toàn bộ khách vào dropdown — thu ngân gõ tên/SĐT để tìm (server trả ≤20 dòng)
+    await page.fill('#customerSearch', '04');
+    await page.waitForTimeout(1200);
     const customerOptions = await page.locator('#customerSelect option').count();
     let customerAttached = false;
     if (customerOptions > 1) {

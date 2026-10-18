@@ -18,7 +18,10 @@ from mongo_client import db  # noqa: E402
 
 BID = ('business_id', 1)
 INDEXES = {
-    'chamcong': [[BID, ('ma_nv', 1)], [BID, ('id', 1)]],
+    # ngay_cham: Bảng lương / phiếu lương lọc theo tháng bằng $in các ngày DD/MM/YYYY (đo thật tiệm 60 thợ)
+    'chamcong': [[BID, ('ma_nv', 1)], [BID, ('id', 1)], [BID, ('ngay_cham', 1)]],
+    # webhook Square tra đơn theo metadata.square_checkout_id (index cũ đặt nhầm ở square_checkout_id)
+    'orders': [[('metadata.square_checkout_id', 1)]],
     'transactions': [[BID, ('id', 1)]],
     'user_logs': [[BID]],
     'table_orders': [[BID, ('table_id', 1)], [BID, ('id', 1)]],

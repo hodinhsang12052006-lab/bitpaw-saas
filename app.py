@@ -50,6 +50,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import time
 import math
+import calendar as _calendar_lib  # tên "calendar" đã là 1 route Flask trong file này
 import uuid
 import json
 import random
@@ -570,6 +571,25 @@ def _get_real_client_ip():
     return request.remote_addr or '127.0.0.1'
 
 
+def _is_sse_reconnect():
+    """/api/stream/* là luồng SSE giữ kết nối 25s rồi TỰ nối lại — mỗi điện thoại/tab đang mở = ~140 lượt/giờ/luồng.
+    Đếm vào giới hạn mặc định theo IP thì tiệm ~9 máy chung Wi-Fi đã chạm 1200/giờ và trình duyệt bỏ hẳn luồng
+    real-time (EventSource không tự nối lại sau 429). Mọi route stream đều @login_required."""
+    return request.path.startswith('/api/stream/')
+
+
+def _default_hourly_limit():
+    """Tiệm đã đăng nhập: 6000/giờ mỗi route. Giới hạn đếm THEO IP + ROUTE, mà cả tiệm (chủ, thu ngân, 60 thợ) dùng
+    chung 1 Wi-Fi = 1 IP. Đo thật (scripts/_salon_rate_limit_check.py): 60 điện thoại cùng tải lại "My earnings" thì
+    request thứ 1.201 trong giờ đã bị 429 — chỉ khoảng 10 bill là cả tiệm mất bảng thu nhập tới hết giờ.
+    Khách ẩn danh/bot vẫn giữ 1200/giờ; route nhạy cảm (đăng nhập, AI tốn tiền) có limit riêng chặt hơn."""
+    return "6000 per hour" if session.get('user_id') else "1200 per hour"
+
+
+def _default_daily_limit():
+    return "100000 per day" if session.get('user_id') else "20000 per day"
+
+
 limiter = Limiter(
     _get_real_client_ip,
     app=app,
@@ -582,7 +602,8 @@ limiter = Limiter(
     # cao điểm. Route thật sự nhạy cảm (đăng nhập, đăng ký, sinh nội dung AI tốn tiền) đã có
     # @limiter.limit() RIÊNG chặt hơn ngay tại route đó (5/15 phút) — default_limits ở đây chỉ
     # cần chặn bot/scraper càn quét, không phải giới hạn hoạt động kinh doanh bình thường.
-    default_limits=["20000 per day", "1200 per hour"],
+    default_limits=[_default_daily_limit, _default_hourly_limit],
+    default_limits_exempt_when=_is_sse_reconnect,
     storage_uri=_ratelimit_storage_uri,
 )
 
@@ -2369,7 +2390,16 @@ def stream_hr_employees():
 @login_required
 def stream_payroll():
     """Thay kênh Supabase Realtime `payroll_realtime` (bangluong.html) — bảng chamcong VÀ
-    employees cùng lúc, nên watch ở cấp Database thay vì 1 collection đơn lẻ."""
+    employees cùng lúc, nên watch ở cấp Database thay vì 1 collection đơn lẻ.
+
+    ?ma_nv=<mã thợ> (app thợ, thẻ "My earnings"): chỉ báo khi dòng chấm công CỦA THỢ ĐÓ đổi. Trước đây mọi
+    điện thoại nhận tín hiệu cho MỌI bill của cả tiệm — tiệm 60 thợ, mỗi bill làm 60 máy cùng tải lại thu nhập."""
+    ma_nv = request.args.get('ma_nv')
+    if ma_nv:
+        stage = _sse_tenant_match('chamcong')
+        stage['$match'] = {'$and': [stage['$match'], {'$or': [
+            {'fullDocument.ma_nv': str(ma_nv)[:64]}, {'operationType': 'delete'}]}]}
+        return _sse_change_signal(db.chamcong, stage)
     return _sse_change_signal(db, _sse_tenant_match('chamcong', 'employees'))
 
 
@@ -4991,6 +5021,57 @@ def api_customers_list():
     đợt migrate HR — danh sách khách hàng của 1 tenant thường đủ nhỏ để làm vậy, và tránh phải
     dựng lại y hệt bộ query builder .or()/.gte()/.lte()/.range() của Supabase ở phía server."""
     business_id = session.get('business_id') or session['user_id']
+    args = request.args
+    # Chế độ SERVER (crm.html, ô tìm khách ở POS Nails): lọc + phân trang + thống kê ngay trong DB. Đo thật tiệm 60 thợ:
+    # tải toàn bộ 1.500 khách = 459 KB MỖI lần mở POS/CRM; khách thật (có ghi chú AI) ~600 byte/người -> ~7.500 khách là
+    # vượt trần 4,5 MB/phản hồi của Vercel. Không có tham số nào -> giữ hành vi cũ (trang khác vẫn dùng).
+    if any(k in args for k in ('page', 'page_size', 'q', 'tier', 'from', 'to', 'export')):
+        query = {'business_id': business_id}
+        q = (args.get('q') or '').strip()[:80]
+        if q:
+            rx = {'$regex': re.escape(q), '$options': 'i'}
+            query['$or'] = [{'name': rx}, {'phone': rx}, {'email': rx}, {'social_contact': rx}]
+        tier = args.get('tier')
+        if tier and tier != 'all':
+            query['tier'] = tier[:20]
+        jd = {}
+        if args.get('from'):
+            jd['$gte'] = args['from'][:10]
+        if args.get('to'):
+            jd['$lte'] = args['to'][:10] + 'T23:59:59.999999'
+        if jd:
+            query['join_date'] = jd
+        light = {'_id': 0, 'ai_notes': 0, 'ai_insight': 0}
+        try:
+            if args.get('export'):
+                rows = list(db.customers.find(query, {'_id': 0, 'id': 1, 'name': 1, 'phone': 1, 'email': 1, 'social_contact': 1,
+                                                      'tier': 1, 'total_spent': 1, 'loyalty_points': 1, 'join_date': 1})
+                            .sort('id', -1).limit(25000))
+                return jsonify({"success": True, "data": rows})
+            page = max(1, min(100000, args.get('page', 1, type=int) or 1))
+            size = max(1, min(100, args.get('page_size', 20, type=int) or 20))
+            facet = list(db.customers.aggregate([
+                {'$match': query},
+                {'$facet': {
+                    'rows': [{'$sort': {'id': -1}}, {'$skip': (page - 1) * size}, {'$limit': size}, {'$project': light}],
+                    'stats': [{'$group': {
+                        '_id': None, 'total': {'$sum': 1},
+                        'vip': {'$sum': {'$cond': [{'$in': ['$tier', ['Gold', 'Platinum']]}, 1, 0]}},
+                        'total_spent': {'$sum': _num_expr('total_spent')},
+                        'total_points': {'$sum': _num_expr('loyalty_points')},
+                        'gold': {'$sum': {'$cond': [{'$eq': ['$tier', 'Gold']}, 1, 0]}},
+                        'silver': {'$sum': {'$cond': [{'$eq': ['$tier', 'Silver']}, 1, 0]}},
+                        'platinum': {'$sum': {'$cond': [{'$eq': ['$tier', 'Platinum']}, 1, 0]}},
+                    }}],
+                }},
+            ]))[0]
+            st = (facet['stats'] or [{}])[0]
+            st.pop('_id', None)
+            total = st.get('total', 0)
+            st['normal'] = total - st.get('gold', 0) - st.get('silver', 0) - st.get('platinum', 0)
+            return jsonify({"success": True, "data": facet['rows'], "total": total, "page": page, "page_size": size, "stats": st})
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)}), 500
     try:
         customers_data = list(db.customers.find({'business_id': business_id}, {'_id': 0}).sort('id', -1))
         return jsonify({"success": True, "data": customers_data})
@@ -13196,6 +13277,14 @@ def api_hr_chamcong_list():
     nganh_nghe = request.args.get('nganh_nghe')
     if nganh_nghe:
         query['nganh_nghe'] = nganh_nghe
+    # Lọc theo tháng (dùng index business_id+ngay_cham). Không lọc gì thì trả TOÀN BỘ lịch sử — tiệm 60 thợ
+    # 1 tháng đã 16.575 dòng = 5,2 MB, vượt trần 4,5 MB/phản hồi của Vercel; màn hình nào cần theo tháng phải gửi month/year.
+    month = request.args.get('month', type=int)
+    year = request.args.get('year', type=int)
+    if month and year and not ngay_cham:
+        if not (1 <= month <= 12 and 2000 <= year <= 2100):
+            return jsonify({"success": False, "error": "month/year không hợp lệ"}), 400
+        query['ngay_cham'] = {'$in': _month_ngay_cham_list(month, year)}
     limit = request.args.get('limit', type=int)
     try:
         cursor = db.chamcong.find(query, {'_id': 0}).sort('id', -1)
@@ -13243,7 +13332,8 @@ def api_hr_chamcong_month_summary():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'Thiếu hoặc sai month/year.'}), 400
 
-    query = {'business_id': business_id, 'ma_nv': ma_nv}
+    # Chỉ đọc đúng tháng cần (trước đây đọc MỌI bản ghi của thợ từ trước tới nay rồi lọc hậu tố trong Python).
+    query = {'business_id': business_id, 'ma_nv': ma_nv, 'ngay_cham': {'$in': _month_ngay_cham_list(month, year)}}
     nganh_nghe = request.args.get('nganh_nghe')
     if nganh_nghe:
         query['nganh_nghe'] = nganh_nghe
@@ -13279,6 +13369,61 @@ def api_hr_chamcong_month_summary():
             d[k] = round(d[k], 2)
 
     return jsonify({'success': True, 'days': days})
+
+
+def _month_ngay_cham_list(month, year):
+    """Mọi chuỗi ngày DD/MM/YYYY của 1 tháng — lọc ngay_cham bằng $in (dùng index business_id+ngay_cham) thay vì
+    tải mọi bản ghi rồi lọc hậu tố trong Python/trình duyệt."""
+    days = _calendar_lib.monthrange(year, month)[1]
+    return [f"{d:02d}/{month:02d}/{year:04d}" for d in range(1, days + 1)]
+
+
+def _num_expr(field):
+    return {'$convert': {'input': f'${field}', 'to': 'double', 'onError': 0, 'onNull': 0}}
+
+
+@app.route('/api/hr/payroll_summary', methods=['GET'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_hr_payroll_summary():
+    """Tổng chấm công/hoa hồng/tips THEO TỪNG NHÂN VIÊN trong 1 tháng, tính trên server (bangluong.html).
+
+    BUG QUY MÔ đã vá (đo thật tiệm 60 thợ, 10.800 bill/tháng): Bảng lương trước đây tải TOÀN BỘ lịch sử chấm công
+    của tiệm (/api/hr/chamcong, mọi tháng) rồi mới lọc + cộng trên trình duyệt — chỉ 1 tháng đã 16.575 dòng = 5,3 MB,
+    vượt trần 4,5 MB/phản hồi của Vercel -> trang Bảng lương lỗi trên web thật. Giờ trả đúng 1 dòng/nhân viên.
+
+    gio_hop_le: cùng quy tắc với công thức lương cũ — so_gio > 0 thì lấy so_gio; bản ghi điểm danh (Có mặt/Trọn Ngày)
+    thiếu giờ thì tính 8h; bản ghi giao dịch/hoa hồng (so_gio = 0) KHÔNG cộng giờ."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        month = int(request.args.get('month'))
+        year = int(request.args.get('year'))
+        if not (1 <= month <= 12 and 2000 <= year <= 2100):
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Thiếu hoặc sai month/year.'}), 400
+    attendance = {'$in': ['$trang_thai', ['Có mặt', 'Trọn Ngày']]}
+    pipeline = [
+        {'$match': {'business_id': business_id, 'ngay_cham': {'$in': _month_ngay_cham_list(month, year)}}},
+        {'$group': {
+            '_id': '$ma_nv',
+            'gio_hop_le': {'$sum': {'$cond': [{'$gt': [_num_expr('so_gio'), 0]}, _num_expr('so_gio'),
+                                              {'$cond': [attendance, 8, 0]}]}},
+            'tang_ca': {'$sum': _num_expr('tang_ca')},
+            'hoa_hong': {'$sum': _num_expr('tien_tua')},
+            'tips': {'$sum': _num_expr('tien_tips')},
+            'phu_cap': {'$sum': _num_expr('phu_cap')},
+            'so_ngay_lam': {'$sum': {'$cond': [attendance, 1, 0]}},
+            'so_ban_ghi': {'$sum': 1},
+        }},
+    ]
+    try:
+        rows = list(db.chamcong.aggregate(pipeline))
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    data = {r['_id']: {k: (round(v, 2) if isinstance(v, float) else v) for k, v in r.items() if k != '_id'}
+            for r in rows if r.get('_id')}
+    return jsonify({'success': True, 'month': month, 'year': year, 'data': data})
 
 
 @app.route('/api/hr/chamcong', methods=['POST'])

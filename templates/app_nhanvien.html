@@ -1162,12 +1162,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
         // Thu nhập của tôi — đọc đúng các dòng chấm công mà POS tự ghi khi thanh toán bill (tien_tua/tien_tips,
         // ngay_cham DD/MM/YYYY), cập nhật ngay khi có bill mới qua /api/stream/payroll (watch chamcong).
-        let earningsStream = null;
+        // Chỉ tải ĐÚNG tháng này (trước đây 600 dòng mới nhất: thợ đông khách >600 dòng/tháng thì tổng tháng bị
+        // thiếu) và chỉ nghe thay đổi CỦA CHÍNH MÌNH (trước đây mỗi bill của cả tiệm làm mọi máy tải lại).
+        let earningsStream = null, earningsTimer = null;
         async function loadMyEarnings() {
             if (!isPosPaidIndustry() || !currentUser || !currentUser.code) return;
             const card = document.getElementById('myEarningsCard');
             try {
-                const res = await fetch(`/api/hr/chamcong?ma_nv=${encodeURIComponent(currentUser.code)}&limit=600`);
+                const cur = new Date();
+                const res = await fetch(`/api/hr/chamcong?ma_nv=${encodeURIComponent(currentUser.code)}&month=${cur.getMonth() + 1}&year=${cur.getFullYear()}`);
                 const body = await res.json();
                 if (!body.success) return;
                 const now = new Date();
@@ -1193,8 +1196,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 }).join('');
                 card.classList.remove('hidden');
                 if (!earningsStream && window.EventSource) {
-                    earningsStream = new EventSource('/api/stream/payroll');
-                    earningsStream.onmessage = () => loadMyEarnings();
+                    earningsStream = new EventSource(`/api/stream/payroll?ma_nv=${encodeURIComponent(currentUser.code)}`);
+                    // 1 bill ghi vài dòng liền nhau -> gộp thành 1 lần tải lại
+                    earningsStream.onmessage = () => { clearTimeout(earningsTimer); earningsTimer = setTimeout(loadMyEarnings, 1200); };
                 }
             } catch (e) { /* offline — giữ số cũ */ }
         }

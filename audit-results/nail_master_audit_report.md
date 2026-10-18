@@ -1,21 +1,21 @@
 # Nail Industry Master Audit Report
 
-Generated: 2026-10-18T08:48:19.203Z
+Generated: 2026-10-18T10:08:57.332Z
 
 **10 PASS · 0 WARN · 0 FAIL** (10 test clusters)
 
 | # | Chức năng | Trạng thái | Thời gian | Ghi chú |
 |---|---|---|---|---|
-| 1 | 1. Khởi tạo & Giao diện POS Nails | PASS | 8577ms | console_errors=0, network_5xx=0, services=18, technicians=6, search_placeholder="Search services, techs, code..." |
-| 2 | 2. Chọn Dịch Vụ & Modifier/Custom Item | PASS | 5529ms | Đã thêm: Acrylic Full Set (Ombre/Design), Callus Treatment & Heel Scrub + 1 Custom Item ($15). Tổng 3 dòng trong giỏ. |
-| 3 | 3. Gán Thợ & Quản Lý Vé (Hold/Resume) | PASS | 4483ms | Thợ gán: "Ava Robertson" (NV0053). Badge hàng chờ sau Hold: 1. Giỏ trước Hold=3, sau Resume=3. |
-| 4 | 4. Tính Tiền, Tip & Payment Modal | PASS | 2042ms | Total: "$230.00 AUD" -> "$238.00 AUD" (Tip: +$8.00). Dual-pricing UI toggle tồn tại: true. |
-| 5 | 5. Xác Nhận Thanh Toán & Lưu DB | PASS | 2252ms | HTTP 200, order_id=2117, total_amount=238, receipt hiển thị: "Order #2117" |
-| 6 | 6. Lịch Sử Hóa Đơn & In Lại Bill | PASS | 3317ms | Số dòng lịch sử hôm nay: 8. Đơn #2117 xuất hiện trong danh sách: true. |
-| 7 | 7. Đối Soát Chấm Công & Payroll (US) | PASS | 6110ms | 6 nhân viên hiển thị. Lịch sử "Tính Tua" của thợ vừa gán có dữ liệu mới: true. Snippet: "[NAILS POS] ORDER #2117 — 40.0 18/10/2026 $80.11 Pay: $72.2 \| Tip: $7.91 [NAILS POS] ORDER #2107 — 40.0 18/10/2026 $47.98 Pay: $36.1 \| Tip: $11.88 [NAILS POS] ORDER #2106 — 40.0 18/10/2026 $" |
-| 8 | 8. Booking Website Công Khai + QR Code | PASS | 13892ms | Business "000b2c16-ab4e-42bd-944a-29c925cad09b" — public page: 18 dịch vụ / 6 thợ. Đặt lịch HTTP 200, appointment id=211, ticket="TICKET-211". Xuất hiện trong /calendar của chủ tiệm: true. Console errors (trang khách): 0. |
-| 9 | 9. Giảm Giá, Thanh Toán Chia Đôi & Hoàn Tiền | PASS | 8861ms | Discount preview: $9.50 (áp dụng: true). Split total=85.5, cash=card=42.75, mismatch=false, order_id=2118. Refund order #2118: true ({"order_status":"partially_refunded","refund_id":2119,"success":true,"techs_clawed_back":[]}). |
-| 10 | 10. Dual Pricing (Cash Price / Card Price) | PASS | 11520ms | UI: cash=$95 card=$97.85 (kỳ vọng $97.85). Order Cash #2120: total=95, hoa hồng=36.1. Order Card #2121: total=97.85, subtotal=95, phụ phí=2.85, hoa hồng=36.1 (phải bằng hoa hồng Cash — chứng minh phụ phí KHÔNG lọt vào hoa hồng thợ). |
+| 1 | 1. Khởi tạo & Giao diện POS Nails | PASS | 3949ms | console_errors=0, network_5xx=0, services=18, technicians=6, search_placeholder="Search services, techs, code..." |
+| 2 | 2. Chọn Dịch Vụ & Modifier/Custom Item | PASS | 2815ms | Đã thêm: Acrylic Full Set (Ombre/Design), Callus Treatment & Heel Scrub + 1 Custom Item ($15). Tổng 3 dòng trong giỏ. |
+| 3 | 3. Gán Thợ & Quản Lý Vé (Hold/Resume) | PASS | 2420ms | Thợ gán: "Ava Robertson" (NV0053). Badge hàng chờ sau Hold: 1. Giỏ trước Hold=3, sau Resume=3. |
+| 4 | 4. Tính Tiền, Tip & Payment Modal | PASS | 1248ms | Total: "$230.00 AUD" -> "$238.00 AUD" (Tip: +$8.00). Dual-pricing UI toggle tồn tại: true. |
+| 5 | 5. Xác Nhận Thanh Toán & Lưu DB | PASS | 1663ms | HTTP 200, order_id=34550, total_amount=238, receipt hiển thị: "Order #34550" |
+| 6 | 6. Lịch Sử Hóa Đơn & In Lại Bill | PASS | 2027ms | Số dòng lịch sử hôm nay: 13. Đơn #34550 xuất hiện trong danh sách: true. |
+| 7 | 7. Đối Soát Chấm Công & Payroll (US) | PASS | 2776ms | 6 nhân viên hiển thị. Lịch sử "Tính Tua" của thợ vừa gán có dữ liệu mới: true. Snippet: "[NAILS POS] ORDER #34550 — 40. 18/10/2026 $80.11 Pay: $72.2 \| Tip: $7.91 [NAILS POS] ORDER #2121 — 40.0 18/10/2026 $36.10 Pay: $36.1 \| Tip: $0 [NAILS POS] ORDER #2120 — 40.0 18/10/2026 $36.1" |
+| 8 | 8. Booking Website Công Khai + QR Code | PASS | 7104ms | Business "000b2c16-ab4e-42bd-944a-29c925cad09b" — public page: 18 dịch vụ / 6 thợ. Đặt lịch HTTP 200, appointment id=5716, ticket="TICKET-5716". Xuất hiện trong /calendar của chủ tiệm: true. Console errors (trang khách): 0. |
+| 9 | 9. Giảm Giá, Thanh Toán Chia Đôi & Hoàn Tiền | PASS | 5278ms | Discount preview: $9.50 (áp dụng: true). Split total=85.5, cash=card=42.75, mismatch=false, order_id=34551. Refund order #34551: true ({"order_status":"partially_refunded","refund_id":34552,"success":true,"techs_clawed_back":[]}). |
+| 10 | 10. Dual Pricing (Cash Price / Card Price) | PASS | 7167ms | UI: cash=$95 card=$97.85 (kỳ vọng $97.85). Order Cash #34553: total=95, hoa hồng=36.1. Order Card #34554: total=97.85, subtotal=95, phụ phí=2.85, hoa hồng=36.1 (phải bằng hoa hồng Cash — chứng minh phụ phí KHÔNG lọt vào hoa hồng thợ). |
 
 ## Findings (Spec vs. Implementation Gaps)
 - Yêu cầu spec có nhắc "modal modifier: chọn độ dài móng, form móng" — tính năng này KHÔNG tồn tại trong pos_nail.html hiện tại. Chỉ có modal "Add Custom Item" (tên + giá + số lượng tự do), đã test thay thế ở bước này.

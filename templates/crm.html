@@ -169,11 +169,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
     <script type="module">
 
-        // Flask API nội bộ (db.customers) thay Supabase JS. Backend `/api/customers` trả về
-        // TOÀN BỘ danh sách của tenant (không phân trang/filter server-side) — search/tier/
-        // khoảng ngày/phân trang giờ làm ở client trên `allCustomers` (cache 1 lần, chỉ fetch
-        // lại sau khi thêm/sửa), thay vì dựng lại y hệt query builder .or()/.gte()/.range()
-        // của Supabase ở phía server. Danh sách khách hàng 1 tenant thường đủ nhỏ để làm vậy.
+        // Flask API nội bộ (db.customers) thay Supabase JS — lọc/phân trang/thống kê làm ở server (xem filterParams).
         async function hrApi(path, options) {
             const res = await fetch(path, {
                 ...options,
@@ -186,27 +182,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             return body;
         }
 
-        let allCustomers = [];
-        async function fetchAllCustomers() {
-            const body = await hrApi('/api/customers');
-            allCustomers = body.data || [];
-        }
-
-        function getFilteredCustomers() {
-            const search = searchInput.value.trim().toLowerCase();
-            const tier = tierFilter.value;
-            const from = startDate.value;
-            const to = endDate.value;
-            return allCustomers.filter(c => {
-                if (search) {
-                    const hay = `${c.name || ''} ${c.phone || ''} ${c.email || ''} ${c.social_contact || ''}`.toLowerCase();
-                    if (!hay.includes(search)) return false;
-                }
-                if (tier !== 'all' && c.tier !== tier) return false;
-                if (from && (!c.join_date || c.join_date < from)) return false;
-                if (to && (!c.join_date || c.join_date > to)) return false;
-                return true;
-            });
+        // Lọc + phân trang + thống kê làm ở SERVER (/api/customers?page=...). Trước đây tải TOÀN BỘ khách về trình duyệt
+        // rồi mới lọc: đo thật tiệm 60 thợ 1.500 khách = 459 KB mỗi lần mở; ~7.500 khách là vượt trần 4,5 MB của Vercel.
+        let lastStats = {};
+        function filterParams() {
+            const p = new URLSearchParams();
+            const q = searchInput.value.trim(); if (q) p.set('q', q);
+            if (tierFilter.value !== 'all') p.set('tier', tierFilter.value);
+            if (startDate.value) p.set('from', startDate.value);
+            if (endDate.value) p.set('to', endDate.value);
+            return p;
         }
 
         // ========== i18n ==========
@@ -455,7 +440,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         const toast = document.getElementById('toast');
         let tierChart = null;
 
-        let currentPage = 1, rowsPerPage = 5, totalRecords = 0;
+        let currentPage = 1, rowsPerPage = 20, totalRecords = 0;
         let selectedCustomerIds = new Set();
         let currentCustomers = [];
 
@@ -482,24 +467,25 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             return `<span class="vip-badge ${map[tier]}">${tier}</span>`;
         }
 
-        async function loadCustomers(refetch = true) {
+        let loadSeq = 0;
+        async function loadCustomers() {
+            const seq = ++loadSeq;
             loadingOverlay.classList.add('active');
             try {
-                if (refetch) await fetchAllCustomers();
+                const p = filterParams();
+                p.set('page', currentPage); p.set('page_size', rowsPerPage);
+                const body = await hrApi('/api/customers?' + p.toString());
+                if (seq !== loadSeq) return;  // người dùng đã gõ tiếp — bỏ kết quả cũ
+                currentCustomers = body.data || [];
+                totalRecords = body.total || 0;
+                lastStats = body.stats || {};
+                renderTable();
+                updateStatsAndChart();
             } catch (err) {
                 showToast(t('crm_toast_load_error') + err.message, true);
-                loadingOverlay.classList.remove('active');
-                return;
+            } finally {
+                if (seq === loadSeq) loadingOverlay.classList.remove('active');
             }
-            const filtered = getFilteredCustomers().sort((a, b) => b.id - a.id);
-            const from = (currentPage - 1) * rowsPerPage;
-            const data = filtered.slice(from, from + rowsPerPage);
-            const count = filtered.length;
-            totalRecords = count || 0;
-            currentCustomers = data || [];
-            renderTable();
-            updateStatsAndChart();
-            loadingOverlay.classList.remove('active');
         }
 
         function renderTable() {
@@ -533,18 +519,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
 function updateStatsAndChart() {
-            const data = getFilteredCustomers();
-            const total = data.length;
-            const vipCount = data.filter(c => c.tier === 'Gold' || c.tier === 'Platinum').length;
-            const totalSpent = data.reduce((s, c) => s + (c.total_spent || 0), 0);
-            const totalPoints = data.reduce((s, c) => s + (c.loyalty_points || 0), 0);
-            totalCustomersSpan.innerText = total;
-            totalVipSpan.innerText = vipCount;
-            totalSpentSpan.innerText = formatCurrency(totalSpent);
-            totalPointsSpan.innerText = totalPoints;
-
-            const tierCount = { Gold:0, Silver:0, Platinum:0, Normal:0 };
-            data.forEach(c => { if (c.tier in tierCount) tierCount[c.tier]++; else tierCount.Normal++; });
+            const st = lastStats || {};
+            totalCustomersSpan.innerText = st.total || 0;
+            totalVipSpan.innerText = st.vip || 0;
+            totalSpentSpan.innerText = formatCurrency(st.total_spent || 0);
+            totalPointsSpan.innerText = st.total_points || 0;
+            const tierCount = { Gold: st.gold || 0, Silver: st.silver || 0, Platinum: st.platinum || 0, Normal: st.normal || 0 };
             // Biểu đồ trước đây RỖNG: canvas bị ép max-height 200px trong khi Chart.js giữ tỉ lệ vuông theo bề ngang
             // (~600px) -> vòng tròn không còn chỗ vẽ. Giờ khung cao cố định + maintainAspectRatio:false.
             if (tierChart) tierChart.destroy();
@@ -557,7 +537,7 @@ function updateStatsAndChart() {
         }
 
         async function showDetail(id) {
-            const c = allCustomers.find(c => c.id === id);
+            const c = currentCustomers.find(c => c.id === id);
             if (!c) return;
             detailContent.innerHTML = `
                 <div class="flex justify-between border-b border-white/10 pb-1"><span class="text-gray-400">${t('crm_detail_name')}</span><span class="font-bold">${escapeHtml(c.name)}</span></div>
@@ -658,10 +638,12 @@ function updateStatsAndChart() {
             finally { loadingOverlay.classList.remove('active'); }
         });
 
-        function applyFilters() { currentPage = 1; loadCustomers(false); }
+        let filterTimer = null;
+        function applyFilters() { currentPage = 1; clearTimeout(filterTimer); filterTimer = setTimeout(loadCustomers, 250); }
         function resetFilters() { searchInput.value = ''; tierFilter.value = 'all'; startDate.value = ''; endDate.value = ''; applyFilters(); }
         async function exportToExcel() {
-            const data = getFilteredCustomers();
+            const p = filterParams(); p.set('export', '1');
+            const data = (await hrApi('/api/customers?' + p.toString())).data || [];
             if (!data || data.length === 0) { showToast(t('crm_toast_no_export_data'), true); return; }
             const wsData = [[t('crm_export_col_id'), t('crm_export_col_name'), t('crm_export_col_phone'), t('crm_export_col_email'), t('crm_export_col_social'), t('crm_export_col_tier'), t('crm_export_col_spend'), t('crm_export_col_points'), t('crm_export_col_joindate')]];
             data.forEach(c => wsData.push([c.id, c.name, c.phone, c.email, c.social_contact || '', c.tier, c.total_spent || 0, c.loyalty_points || 0, c.join_date]));
@@ -686,8 +668,8 @@ function updateStatsAndChart() {
         tierFilter.addEventListener('change', applyFilters);
         startDate.addEventListener('change', applyFilters);
         endDate.addEventListener('change', applyFilters);
-        prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadCustomers(false); } });
-        nextBtn.addEventListener('click', () => { const total = Math.ceil(totalRecords / rowsPerPage); if (currentPage < total) { currentPage++; loadCustomers(false); } });
+        prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadCustomers(); } });
+        nextBtn.addEventListener('click', () => { const total = Math.ceil(totalRecords / rowsPerPage); if (currentPage < total) { currentPage++; loadCustomers(); } });
         document.getElementById('customerModal').addEventListener('click', (e) => { if(e.target === customerModal) closeModals(); });
         document.getElementById('detailModal').addEventListener('click', (e) => { if(e.target === detailModal) closeModals(); });
 

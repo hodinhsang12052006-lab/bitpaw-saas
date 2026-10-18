@@ -912,6 +912,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="ticket-summary-panel p-4 border-t border-white/5 space-y-3 overflow-y-auto custom-scrollbar">
                         <div>
                             <label class="block text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 font-title" data-i18n="npos_customer_label">Customer</label>
+                            <!-- Gõ tên/SĐT để tìm (server trả ≤20 khách). Trước đây đổ TOÀN BỘ khách vào ô chọn mỗi lần mở POS:
+                                 tiệm lớn 1.500 khách = 459 KB và 1.500 dòng phải cuộn tìm. -->
+                            <input id="customerSearch" type="search" autocomplete="off" class="pos-input text-sm mb-2 font-title"
+                                   placeholder="Search name / phone..." data-i18n-placeholder="npos_customer_search_ph">
                             <div class="relative">
                                 <select id="customerSelect" class="pos-input icon-input-pl text-base leading-normal pl-11 font-title">
                                     <option value="" data-i18n="npos_walkin_option">Walk-in (no customer)</option>
@@ -1488,7 +1492,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_header_title: 'Nail Salon POS', npos_header_subtitle: 'Tap a service to add it to the ticket',
                 npos_no_services: 'No services yet. Add products under Nails category first.',
                 npos_add_service_btn: 'Add a service',
-                npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)',
+                npos_ticket_title: 'Current Ticket', npos_customer_label: 'Customer', npos_walkin_option: 'Walk-in (no customer)', npos_customer_search_ph: 'Search customer name / phone...',
                 npos_empty_cart: 'No services added yet', npos_supply_label: 'Supply %', npos_tax_pct_label: 'Tax %', npos_cashtip_label: 'Cash Tip',
                 npos_cardtip_label: 'Card Tip', npos_subtotal_label: 'Subtotal', npos_discount_row_label: 'Discount', npos_tax_label: 'Tax', npos_tip_label: 'Tips', npos_total_label: 'Final Total',
                 npos_checkout_btn: 'Pay Now', npos_payment_title: 'Take Payment', npos_pay_cash: 'Cash', npos_pay_card: 'Card / Terminal',
@@ -1556,7 +1560,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 npos_header_title: 'POS Tiệm Nail', npos_header_subtitle: 'Chạm vào dịch vụ để thêm vào hoá đơn',
                 npos_no_services: 'Chưa có dịch vụ nào. Vui lòng thêm sản phẩm trong danh mục Nails trước.',
                 npos_add_service_btn: 'Thêm dịch vụ',
-                npos_ticket_title: 'Hoá Đơn Hiện Tại', npos_customer_label: 'Khách hàng', npos_walkin_option: 'Khách vãng lai (không chọn khách)',
+                npos_ticket_title: 'Hoá Đơn Hiện Tại', npos_customer_label: 'Khách hàng', npos_walkin_option: 'Khách vãng lai (không chọn khách)', npos_customer_search_ph: 'Tìm tên / SĐT khách...',
                 npos_empty_cart: 'Chưa có dịch vụ nào được thêm', npos_supply_label: 'Phí vật tư %', npos_tax_pct_label: 'Thuế %', npos_cashtip_label: 'Tip tiền mặt',
                 npos_cardtip_label: 'Tip thẻ', npos_subtotal_label: 'Tạm tính', npos_discount_row_label: 'Giảm giá', npos_tax_label: 'Thuế', npos_tip_label: 'Tiền tip', npos_total_label: 'Tổng cộng',
                 npos_checkout_btn: 'Thanh toán ngay', npos_payment_title: 'Nhận thanh toán', npos_pay_cash: 'Tiền mặt', npos_pay_card: 'Thẻ / Máy quẹt',
@@ -1876,25 +1880,48 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         // ===== Customers =====
-        async function loadCustomers() {
-            try {
-                const res = await fetch('/api/customers');
-                const json = await res.json();
-                if (json.success) {
-                    allCustomers = json.data || [];
-                    const sel = document.getElementById('customerSelect');
-                    const walkinOpt = sel.querySelector('option[value=""]');
-                    sel.innerHTML = '';
-                    sel.appendChild(walkinOpt);
-                    allCustomers.forEach(c => {
-                        const opt = document.createElement('option');
-                        opt.value = c.phone || '';
-                        opt.innerText = `${c.name || 'Customer'} (${c.phone || ''})`;
-                        sel.appendChild(opt);
-                    });
-                }
-            } catch (e) { console.log('Customer list load deferred:', e); }
+        function ensureCustomerOption(phone, label) {
+            // Hoá đơn treo/khôi phục mang SĐT khách chưa có trong danh sách tìm hiện tại -> thêm 1 dòng để chọn lại được
+            const sel = document.getElementById('customerSelect');
+            if (!phone) { sel.value = ''; return; }
+            if (![...sel.options].some(o => o.value === phone)) {
+                const opt = document.createElement('option');
+                opt.value = phone; opt.innerText = label || phone;
+                sel.appendChild(opt);
+            }
+            sel.value = phone;
         }
+
+        let customerSearchSeq = 0;
+        async function loadCustomers(q) {
+            q = (q || '').trim();
+            if (q.length < 2) return;  // không tải toàn bộ khách nữa — chỉ tìm khi thu ngân gõ
+            const seq = ++customerSearchSeq;
+            try {
+                const res = await fetch('/api/customers?page_size=20&q=' + encodeURIComponent(q));
+                const json = await res.json();
+                if (!json.success || seq !== customerSearchSeq) return;
+                allCustomers = json.data || [];
+                const sel = document.getElementById('customerSelect');
+                const keep = sel.value;
+                const walkinOpt = sel.querySelector('option[value=""]');
+                sel.innerHTML = '';
+                sel.appendChild(walkinOpt);
+                allCustomers.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.phone || '';
+                    opt.innerText = `${c.name || 'Customer'} (${c.phone || ''})`;
+                    sel.appendChild(opt);
+                });
+                if (allCustomers.length === 1) sel.value = allCustomers[0].phone || '';
+                else if (keep) ensureCustomerOption(keep);
+            } catch (e) { console.log('Customer search deferred:', e); }
+        }
+        (function () {
+            const box = document.getElementById('customerSearch');
+            let timer = null;
+            if (box) box.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => loadCustomers(box.value), 250); });
+        })();
 
         // ===== Add Custom Item / Tip modal =====
         function openCustomItemModal() {
@@ -2134,7 +2161,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             localStorage.setItem('bitpaw_held_tickets', JSON.stringify(held));
             cart = ticket.cart || [];
             discount = ticket.discount || { type: 'percent', value: 0 };
-            document.getElementById('customerSelect').value = ticket.customerPhone || '';
+            ensureCustomerOption(ticket.customerPhone || '');
             renderCart();
             renderHeldTicketsIndicator();
             switchLeftTab('ticket');
@@ -2716,7 +2743,6 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         renderServiceGrid();
         renderCart();
         renderHeldTicketsIndicator();
-        loadCustomers();
         refreshCheckedInBadge().then(items => { lastCheckedInCount = items.length; });
 
         // Real-time: khách đặt lịch mới qua QR, hoặc /calendar bấm Check-in ở tab khác, đều đẩy
