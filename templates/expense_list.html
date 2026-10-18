@@ -16,13 +16,13 @@
         .scan-line {
             position: fixed; top: 0; left: 0; width: 100%; height: 2px;
             background: linear-gradient(90deg, transparent, #f43f5e, #a855f7, transparent);
-            z-index: 9998; pointer-events: none; opacity: 0.5;
+            z-index: -1; pointer-events: none; opacity: 0.5;
             animation: scanMove 8s linear infinite;
         }
         .laser-vertical {
             position: fixed; top: 0; left: 0; width: 1px; height: 100%;
             background: linear-gradient(180deg, transparent, #f43f5e, #a855f7, transparent);
-            z-index: 9998; pointer-events: none; opacity: 0.3;
+            z-index: -1; pointer-events: none; opacity: 0.3;
             animation: laserVertical 12s ease-in-out infinite;
         }
         @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
@@ -121,6 +121,9 @@
         .custom-table tr:hover {
             background: rgba(244, 63, 94, 0.05);
         }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body class="antialiased relative">

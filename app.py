@@ -60,7 +60,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 import jwt as pyjwt  # PyJWT — Giai đoạn 5 audit: JWT auth cho Mobile App (Flutter/React Native)
 import qrcode
 import qrcode.image.svg
@@ -150,6 +150,85 @@ except Exception as _import_err:
     payment_us_engine = _PaymentUsEngineFallback()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+
+
+# ========== SỐ TIỀN TỪ CLIENT: luôn hữu hạn + có giới hạn ==========
+# BUG THẬT đã vá (rà cổng thanh toán 10/2026): json của Python nhận cả NaN/Infinity, và float("nan")/float("inf")
+# từ chuỗi cũng hợp lệ. NaN lọt qua MỌI phép so sánh (nan <= 0 và nan > x đều False) -> hoàn tiền "NaN" qua được
+# kiểm tra số dư; tip/giá "Infinity" làm tổng bill = inf. (1) JSON body chứa NaN/Infinity bị từ chối 400 ngay
+# khi đọc; (2) mọi số tiền/phần trăm đi qua _money() — không hữu hạn hoặc ngoài khoảng -> ValueError.
+from flask.json.provider import DefaultJSONProvider as _DefaultJSONProvider
+
+
+class _StrictJSONProvider(_DefaultJSONProvider):
+    def loads(self, s, **kwargs):
+        def _reject(const):
+            raise ValueError(f"Số không hợp lệ trong JSON: {const}")
+        kwargs.setdefault('parse_constant', _reject)
+        return super().loads(s, **kwargs)
+
+
+app.json = _StrictJSONProvider(app)
+
+
+@app.before_request
+def _reject_malformed_json():
+    """Body JSON hỏng (cú pháp sai, NaN/Infinity) -> 400 ngay, trước khi vào route. Nhiều route bọc toàn bộ trong
+    `except Exception` nên lỗi đọc JSON bên trong bị biến thành 500 (đo thật: /api/payment/local_checkout)."""
+    if request.method in ('POST', 'PUT', 'PATCH') and request.is_json and request.content_length:
+        try:
+            request.get_json()
+        except Exception:
+            return jsonify({'success': False, 'message': 'Dữ liệu gửi lên không hợp lệ (malformed JSON).'}), 400
+    return None
+
+MAX_MONEY = 100_000_000  # trần cho 1 số tiền đơn lẻ (đủ cho bill VND lớn nhất), chặn số khổng lồ phá báo cáo
+
+
+def _money(value, default=0.0, lo=0.0, hi=MAX_MONEY, field='Số tiền'):
+    """Đọc 1 số tiền/phần trăm từ dữ liệu client: None/'' -> default; không phải số, NaN/Infinity, hoặc ngoài
+    [lo, hi] -> ValueError(thông báo tiếng Việt). Trả float."""
+    if value is None or value == '':
+        return float(default)
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError(f"{field} không hợp lệ.")
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field} không hợp lệ.")
+    if not math.isfinite(num):
+        raise ValueError(f"{field} không hợp lệ.")
+    if (lo is not None and num < lo) or (hi is not None and num > hi):
+        raise ValueError(f"{field} phải nằm trong khoảng {lo:g} – {hi:g}.")
+    return num
+
+
+PAYMENT_METHODS = {'cash', 'card', 'split', 'pos', 'bank', 'vietqr', 'momo', 'zalopay', 'vnpay', 'stripe', 'square',
+                   'square_terminal', 'paypal', 'applepay', 'googlepay', 'crypto', 'terminal', 'transfer', 'qr',
+                   'ewallet', 'other'}
+INDUSTRY_CODES = {'fnb', 'retail', 'spa', 'nail', 'karaoke', 'hotel', 'production', 'technical', 'office'}
+
+
+def _industry_code(value, default='fnb'):
+    v = value.strip().lower() if isinstance(value, str) else ''
+    return v if v in INDUSTRY_CODES else default
+
+
+def _tenant_currency(business_id):
+    try:
+        return (TenantEngine.get_region_config(business_id) or {}).get('currency') or 'VND'
+    except Exception:
+        return 'VND'
+
+
+def _payment_method(value, default='cash'):
+    m = (value or default)
+    if not isinstance(m, str):
+        raise ValueError("Phương thức thanh toán không hợp lệ.")
+    m = m.strip().lower()[:32]
+    if m not in PAYMENT_METHODS:
+        raise ValueError("Phương thức thanh toán không hợp lệ.")
+    return m
 
 # BUG THẬT NGHIÊM TRỌNG đã vá (phát hiện khi live-test QR booking Nails): chạy `python app.py`
 # khiến Python nạp file này dưới tên module '__main__', KHÔNG PHẢI 'app'. Các file
@@ -1014,7 +1093,9 @@ def _industry_isolation_guard():
                 return redirect(url_for('public_booking', spa_id=target_bid))
             if _wants_json():
                 return jsonify({'success': False, 'message': 'Tiệm này không dùng tính năng này.'}), 404
-            return "Tiệm này không dùng tính năng này.", 404
+            return render_message_page(404, '🔒', 'Tiệm không dùng tính năng này', 'This business does not offer this',
+                                       'Đường dẫn này thuộc tính năng tiệm không sử dụng. Hãy dùng đúng mã QR/đường dẫn tiệm cung cấp.',
+                                       'This link is for a feature the business does not use. Please use the QR code or link they gave you.')
         return None
 
     if 'user_id' not in session or _is_superadmin():
@@ -2492,24 +2573,35 @@ def api_checkout_payment_methods():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+# Giá gói lấy ở SERVER (khớp bảng giá trong templates/checkout.html). Trước đây total_price do trình duyệt tự gửi
+# -> sửa thành 1đ thì superadmin vẫn thấy "khách đã đăng ký gói 1đ".
+SAAS_PLAN_PRICES = {'hrm': 1500000, 'pos': 1200000, 'ecom': 1800000, 'agency': 0}
+
+
 @app.route('/api/checkout/signup', methods=['POST'])
+@limiter.limit("10 per hour")
 def api_checkout_signup():
     """PUBLIC — ghi nhận lead đăng ký mua gói (chưa có business_id vì doanh nghiệp chưa được
     tạo). Lưu vào db.saas_signups, KHÔNG đụng tới db.orders của POS."""
     data = request.json or {}
-    required = ('customer_name', 'phone', 'shop_name', 'email', 'module_plan', 'total_price')
-    if not all((data.get(f) or '').strip() if isinstance(data.get(f), str) else data.get(f) for f in required):
-        return jsonify({"success": False, "message": "Thiếu thông tin bắt buộc."}), 400
+    fields = {}
+    for f, max_len in (('customer_name', 120), ('phone', 32), ('shop_name', 160), ('email', 160), ('module_plan', 20)):
+        v = data.get(f)
+        if not isinstance(v, str) or not v.strip():
+            return jsonify({"success": False, "message": "Thiếu thông tin bắt buộc."}), 400
+        fields[f] = v.strip()[:max_len]
+    if fields['module_plan'] not in SAAS_PLAN_PRICES:
+        return jsonify({"success": False, "message": "Gói không hợp lệ."}), 400
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', fields['email']):
+        return jsonify({"success": False, "message": "Email không hợp lệ."}), 400
+    memo = data.get('memo_code')
+    memo = memo.strip()[:32] if isinstance(memo, str) and re.fullmatch(r'[A-Za-z0-9 _-]{0,32}', memo.strip()) else ''
     try:
         doc = {
             'id': next_mongo_id('saas_signups'),
-            'customer_name': data.get('customer_name', ''),
-            'phone': data.get('phone', ''),
-            'shop_name': data.get('shop_name', ''),
-            'email': data.get('email', ''),
-            'module_plan': data.get('module_plan', ''),
-            'total_price': data.get('total_price', 0),
-            'memo_code': data.get('memo_code', ''),
+            **fields,
+            'total_price': SAAS_PLAN_PRICES[fields['module_plan']],
+            'memo_code': memo,
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
         }
@@ -2591,6 +2683,14 @@ def download_windows(industry):
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
                            industry_icon=cfg.get('icon', ''), filename=filename), 503
+
+
+def render_message_page(status, icon, title_vi, title_en, message_vi, message_en='', primary_href=None,
+                        primary_label=None, back_href='/', back_label=None):
+    """Trang thông báo/lỗi có giao diện (templates/message_page.html) thay cho chữ trắng trơn."""
+    return render_template('message_page.html', status=status, icon=icon, title_vi=title_vi, title_en=title_en,
+                           message_vi=message_vi, message_en=message_en, primary_href=primary_href,
+                           primary_label=primary_label, back_href=back_href, back_label=back_label), status
 
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -3112,13 +3212,8 @@ def _compute_cart_order(business_id, data):
     # subtotal/tip_amount được lưu riêng để đối soát/hiển thị hoá đơn tách bạch.
     tip_amount = data.get('tip_amount')
     if tip_amount is None and data.get('tip_percent') is not None:
-        tip_amount = subtotal * (float(data['tip_percent']) / 100)
-    try:
-        tip_amount = round(float(tip_amount or 0), 2)
-    except (TypeError, ValueError):
-        raise ValueError("Tiền tip không hợp lệ.")
-    if tip_amount < 0:
-        raise ValueError("Tiền tip không được âm.")
+        tip_amount = subtotal * (_money(data['tip_percent'], hi=100, field='Tip (%)') / 100)
+    tip_amount = round(_money(tip_amount, field='Tiền tip'), 2)  # NaN/Infinity/âm -> ValueError (400)
     total_amount = round(subtotal + tip_amount, 2)
 
     # Phân loại thanh toán cho báo cáo Cash/Card: payment_method giữ nguyên chuỗi gốc
@@ -3127,7 +3222,10 @@ def _compute_cart_order(business_id, data):
     # KHÔNG PHẢI tiền mặt (bank, momo, thẻ, ví điện tử...) đều gộp vào 'card' vì bản chất
     # đều là tiền vào tài khoản/không phải tiền mặt tại quầy — Dashboard tổng hợp doanh thu
     # dựa trên field này để đối soát 2 quỹ tách biệt (tiền mặt vs tiền vào tài khoản).
-    payment_method = (data.get('payment_method') or 'cash').strip().lower()
+    payment_method = data.get('payment_method') or 'cash'
+    if not isinstance(payment_method, str):
+        raise ValueError("Phương thức thanh toán không hợp lệ.")
+    payment_method = payment_method.strip().lower()[:32]
     payment_bucket = 'cash' if payment_method == 'cash' else 'card'
 
     # Hoa hồng Chủ/Thợ: chỉ áp dụng khi đơn có gắn staff_id (ai trực tiếp phục vụ khách).
@@ -3158,15 +3256,18 @@ def _compute_cart_order(business_id, data):
         'total_amount': total_amount,
         'payment_method': payment_method,
     }
+    # BUG đã vá: tiền tệ trước đây lấy từ client -> tiệm VND gửi currency "USD" là điểm thưởng tính như 100.000 USD
+    # (_award_loyalty_points đổi theo currency). Luôn dùng tiền tệ thật của tiệm.
     metadata_fields = {
         'subtotal': subtotal,
         'tip_amount': tip_amount,
         'payment_bucket': payment_bucket,
-        'currency': data.get('currency', 'VND'),
+        'currency': _tenant_currency(business_id),
     }
     metadata_fields.update(commission_fields)
-    if data.get('customer_phone'):
-        metadata_fields['customer_phone'] = data['customer_phone']
+    phone = data.get('customer_phone')
+    if isinstance(phone, str) and phone.strip():
+        metadata_fields['customer_phone'] = phone.strip()[:32]
     return order_fields, metadata_fields, order_items_docs, stock_items
 
 
@@ -3313,12 +3414,18 @@ def api_order_refund(order_id):
     số lượng nào bị trả)."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
+    # BUG đã vá: amount "NaN" lọt qua mọi so sánh (<= 0, > số dư) -> ghi hoàn "NaN"; reason không phải chuỗi làm
+    # lỗi SAU KHI hoá đơn đã chuyển "đã hoàn" -> hoá đơn hoàn mà không có bản ghi hoàn tiền. Kiểm tra hết ở đây.
     try:
-        amount = round(float(data.get('amount') or 0), 2)
-    except (TypeError, ValueError):
+        amount = round(_money(data.get('amount'), field='Số tiền hoàn'), 2)
+    except ValueError:
         return jsonify({"success": False, "message": "Số tiền hoàn không hợp lệ."}), 400
     if amount <= 0:
         return jsonify({"success": False, "message": "Số tiền hoàn phải lớn hơn 0."}), 400
+    refund_reason = data.get('reason')
+    if refund_reason is not None and not isinstance(refund_reason, str):
+        return jsonify({"success": False, "message": "Lý do hoàn tiền không hợp lệ."}), 400
+    refund_reason = (refund_reason or '').strip()[:300]
 
     try:
         original_order = db.orders.find_one({'id': order_id, 'business_id': business_id}, {'_id': 0})
@@ -3385,7 +3492,7 @@ def api_order_refund(order_id):
                 'channel': (original_metadata.get('channel') or 'order') + '_refund',
                 'payment_bucket': original_metadata.get('payment_bucket', 'cash'),
                 'original_order_id': order_id,
-                'refund_reason': (data.get('reason') or '').strip(),
+                'refund_reason': refund_reason,
             },
         })
         return jsonify({"success": True, "refund_id": refund_id, "order_status": new_status})
@@ -3425,10 +3532,6 @@ def api_square_checkout():
                 "SQUARE_ACCESS_TOKEN_set": bool(payment_us_engine.SQUARE_ACCESS_TOKEN),
                 "SQUARE_LOCATION_ID_set": bool(payment_us_engine.SQUARE_LOCATION_ID),
                 "SQUARE_DEVICE_ID_set": bool(payment_us_engine.SQUARE_DEVICE_ID),
-                "SQUARE_DEVICE_ID_is_none": payment_us_engine.SQUARE_DEVICE_ID is None,
-                "SQUARE_DEVICE_ID_len": len(payment_us_engine.SQUARE_DEVICE_ID) if payment_us_engine.SQUARE_DEVICE_ID is not None else -1,
-                "SQUARE_DEVICE_ID_from_os_environ_directly_len": len(os.environ.get('SQUARE_DEVICE_ID') or ''),
-                "SQUARE_ENV": payment_us_engine.SQUARE_ENV,
             }
         }), 503
 
@@ -4021,9 +4124,13 @@ def view_table(table_id):
     try:
         table = db.dining_tables.find_one({'id': table_id}, {'_id': 0})
         if not table:
-            return "Bàn không tồn tại", 404
+            return render_message_page(404, '🪑', 'Bàn không tồn tại', 'Table not found',
+                                       'Bàn này đã bị xoá hoặc đường dẫn sai.', 'This table was removed or the link is wrong.',
+                                       back_href='/sell', back_label='Về màn hình bán hàng · Back to POS')
         if table.get('business_id') != business_id:
-            return "Bàn này không thuộc quyền quản lý của bạn.", 403
+            return render_message_page(403, '🔒', 'Không có quyền xem bàn này', 'Not your table',
+                                       'Bàn này thuộc cửa hàng khác.', 'This table belongs to another business.',
+                                       back_href='/sell', back_label='Về màn hình bán hàng · Back to POS')
 
         # $lookup nối table_orders với products ngay trong 1 lần gọi DB, thay vì trước đây
         # phải SELECT products riêng cho từng dòng order (N+1 query).
@@ -5146,8 +5253,10 @@ def payment_transactions():
 def update_payment_status(id):
     business_id = session.get('business_id') or session['user_id']
     new_status = (request.get_json(silent=True) or {}).get('status')
-    if not isinstance(new_status, str) or not new_status.strip():
+    # Trước đây nhận MỌI chuỗi (kể cả rất dài) làm trạng thái giao dịch.
+    if not isinstance(new_status, str) or new_status.strip().lower() not in ('pending', 'completed', 'failed', 'refunded'):
         return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
+    new_status = new_status.strip().lower()
     try:
         owns, err = _assert_owns_row_mongo('payment_transactions', id, business_id)
         if not owns:
@@ -7093,7 +7202,8 @@ def qr_poster_table(table_id):
     business_id = session.get('business_id') or session['user_id']
     table = db.dining_tables.find_one({'id': table_id, 'business_id': business_id}, {'qr_token': 1, 'name': 1, '_id': 0})
     if not table:
-        return "Không tìm thấy bàn.", 404
+        return render_message_page(404, '🪑', 'Không tìm thấy bàn', 'Table not found',
+                                   'Bàn này đã bị xoá hoặc không thuộc cửa hàng của bạn.', 'This table was removed or is not yours.')
     url = url_for('table_order', table_id=table['qr_token'], _external=True)
     return _render_qr_poster('fnb', url, table_name=table.get('name'))
 
@@ -7155,7 +7265,9 @@ def qr_menu_base():
     except Exception as e:
         print(f"qr_menu_base lookup failed: {e}")
     if not token:
-        return "Chưa có bàn nào để xem thực đơn QR. Hãy tạo bàn trong màn hình POS trước. / No tables yet — create a table in the POS first.", 404
+        return render_message_page(404, '🍽️', 'Chưa có bàn nào', 'No tables yet',
+                                   'Hãy tạo bàn trong màn hình bán hàng trước, rồi in mã QR cho từng bàn.',
+                                   'Create tables in the POS first, then print a QR code for each table.')
     return redirect(url_for('qr_menu', identifier=token))
 
 
@@ -7171,11 +7283,11 @@ def qr_menu(identifier):
         return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
 
     if not table_data:
-        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+        return render_message_page(404, '🧾', 'Mã QR không hợp lệ', 'QR code not valid', 'Mã QR này không còn dùng được hoặc bàn đã bị xoá. Vui lòng gọi nhân viên để được hỗ trợ gọi món.', 'This QR code is no longer valid. Please ask a staff member to help you order.')
     # Bàn ăn chỉ có nghĩa với tiệm F&B — bàn rác của tiệm ngành khác (do /pos từng tự tạo 200 bàn cho
     # mọi tiệm) không được mở thành thực đơn gọi món.
     if _business_industry(table_data.get('business_id')) not in (None, 'fnb'):
-        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+        return render_message_page(404, '🧾', 'Mã QR không hợp lệ', 'QR code not valid', 'Mã QR này không còn dùng được hoặc bàn đã bị xoá. Vui lòng gọi nhân viên để được hỗ trợ gọi món.', 'This QR code is no longer valid. Please ask a staff member to help you order.')
 
     # Chỉ load đúng thực đơn của tenant sở hữu bàn này — cấm lộ sản phẩm của tiệm khác.
     # channel_type đọc từ query string (mặc định 'retail' giữ đúng hành vi cũ) — trước đây bản
@@ -7985,6 +8097,10 @@ def payment_gateway():
     return render_template('payment_gateway.html', config=config)
 
 
+PAYMENT_CONFIG_TYPES = {'vietqr', 'square_terminal', 'clover_terminal', 'stripe_terminal', 'external_terminal',
+                        'zelle', 'ach', 'cash_app', 'paypal_venmo', 'wise', 'paypal_intl', 'stripe_intl'}
+
+
 @app.route('/api/payment/save_config', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
@@ -7993,10 +8109,24 @@ def api_save_payment_config():
         business_id, _biz_err = _get_tenant_business_id_or_401()
         if _biz_err:
             return _biz_err
-        config = request.get_json() or {}
-
-        if not config:
+        raw = request.get_json() or {}
+        if not raw or not isinstance(raw, dict):
             return jsonify({'success': False, 'message': 'Không nhận được cấu hình.'}), 400
+        # Trước đây lưu NGUYÊN body (mọi kiểu, mọi kích thước) rồi in ra trang chờ thanh toán của khách.
+        config = {}
+        for k, v in raw.items():
+            if not isinstance(k, str) or len(k) > 40:
+                continue
+            if isinstance(v, bool) or v is None:
+                config[k] = v
+            elif isinstance(v, (int, float)) and math.isfinite(v):
+                config[k] = v
+            elif isinstance(v, str):
+                config[k] = v.strip()[:300]
+        if config.get('type') and config['type'] not in PAYMENT_CONFIG_TYPES:
+            return jsonify({'success': False, 'message': 'Loại cổng thanh toán không hợp lệ.'}), 400
+        if len(config) > 40:
+            return jsonify({'success': False, 'message': 'Cấu hình quá nhiều trường.'}), 400
 
         val_str = json.dumps(config)
         db.system_settings.update_one(
@@ -8025,14 +8155,12 @@ def payment_pending():
         flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
         return redirect(url_for('login'))
     
+    # BUG BẢO MẬT đã vá: trước đây table_id trên URL GHI ĐÈ business_id -> người của tiệm A truyền table_id của tiệm
+    # B là xem được số tài khoản/QR nhận tiền của tiệm B. Bàn phải thuộc đúng tiệm đang đăng nhập.
     if table_id:
-        try:
-            # Look up table to find business_id
-            tbl_doc = db.dining_tables.find_one({'id': int(table_id) if str(table_id).isdigit() else table_id}, {'business_id': 1, '_id': 0})
-            if tbl_doc and tbl_doc.get('business_id'):
-                business_id = tbl_doc['business_id']
-        except Exception as e:
-            print(f"Error resolving table business_id: {e}")
+        owns, _err = _assert_owns_table(table_id, business_id)
+        if not owns:
+            return redirect(url_for('payment_history'))
 
     config = None
     try:
@@ -8051,9 +8179,12 @@ def api_payment_start():
     try:
         data = request.get_json() or {}
         table_id = data.get('table_id')
-        amount = data.get('amount')
-        method = data.get('method', 'POS')
-        industry = data.get('industry', 'fnb')
+        try:
+            amount = _money(data.get('amount'), field='Số tiền')
+            method = _payment_method(data.get('method'), 'pos')
+        except ValueError as ve:
+            return jsonify({'success': False, 'message': str(ve)}), 400
+        industry = _industry_code(data.get('industry'))
 
         if not table_id:
             return jsonify({'success': False, 'message': 'Missing table_id'}), 400
@@ -8070,17 +8201,11 @@ def api_payment_start():
         # way to know about them at all and silently recomputed revenue from raw line items only,
         # which never matched the receipt the customer actually saw.
         try:
-            discount_percent = max(0.0, min(100.0, float(data.get('discount_percent') or 0)))
-        except (TypeError, ValueError):
-            discount_percent = 0.0
-        try:
-            tax_percent = max(0.0, float(data.get('tax_percent') or 0))
-        except (TypeError, ValueError):
-            tax_percent = 0.0
-        try:
-            tip_amount = max(0.0, float(data.get('tip_amount') or 0))
-        except (TypeError, ValueError):
-            tip_amount = 0.0
+            discount_percent = _money(data.get('discount_percent'), hi=100, field='Giảm giá (%)')
+            tax_percent = _money(data.get('tax_percent'), hi=100, field='Thuế (%)')
+            tip_amount = _money(data.get('tip_amount'), field='Tiền tip')
+        except ValueError as ve:
+            return jsonify({'success': False, 'message': str(ve)}), 400
 
         # Chia hoá đơn (split): thu ngân nhập riêng số tiền mặt/thẻ cộng lại = tổng bill — lưu
         # NGAY LÚC pending để api_payment_confirm() đọc lại đối chiếu, mirror đúng cách Nail POS
@@ -8089,11 +8214,11 @@ def api_payment_start():
         split_card_amount = None
         if method == 'split':
             try:
-                split_cash_amount = round(max(0.0, float(data.get('split_cash_amount') or 0)), 2)
-                split_card_amount = round(max(0.0, float(data.get('split_card_amount') or 0)), 2)
-            except (TypeError, ValueError):
-                split_cash_amount = 0.0
-                split_card_amount = 0.0
+                split_cash_amount = round(_money(data.get('split_cash_amount'), field='Tiền mặt'), 2)
+                split_card_amount = round(_money(data.get('split_card_amount'), field='Tiền thẻ'), 2)
+            except ValueError as ve:
+                return jsonify({'success': False, 'message': str(ve)}), 400
+        currency = _tenant_currency(business_id)
 
         # Insert payment_transactions with status = pending
         try:
@@ -8103,7 +8228,7 @@ def api_payment_start():
                 'customer_name': 'Khách POS Vãng Lai',
                 'customer_email': 'pos_walkin@bitpaw.com',
                 'amount': amount,
-                'currency': 'VND',
+                'currency': currency,
                 'method': method,
                 'status': 'pending',
                 'business_id': business_id,
@@ -8119,7 +8244,8 @@ def api_payment_start():
         except Exception as db_err:
             print(f"Database insert pending txn failed: {str(db_err)}")
             
-        redirect_url = f"/payment_pending?table_id={table_id}&txn_id={txn_id}&amount={amount}&method={method}&industry={industry}"
+        redirect_url = "/payment_pending?" + urlencode({'table_id': table_id, 'txn_id': txn_id, 'amount': amount,
+                                                      'method': method, 'industry': industry, 'currency': currency})
         return jsonify({
             'success': True,
             'txn_id': txn_id,
@@ -8211,12 +8337,14 @@ def api_payment_confirm():
         data = request.get_json() or {}
         table_id = data.get('table_id')
         txn_id = data.get('txn_id')
-        method = data.get('method', 'POS')
-
         if not table_id or not txn_id:
             return jsonify({'success': False, 'message': 'Missing table_id or txn_id'}), 400
-        if not isinstance(txn_id, str) or not isinstance(method, str) or len(method) > 32:
-            return jsonify({'success': False, 'message': 'Invalid txn_id or method'}), 400
+        try:
+            method = _payment_method(data.get('method'), 'pos')
+        except ValueError as ve:
+            return jsonify({'success': False, 'message': str(ve)}), 400
+        if not isinstance(txn_id, str) or len(txn_id) > 64:
+            return jsonify({'success': False, 'message': 'Invalid txn_id'}), 400
 
         business_id = session.get('business_id') or session['user_id']
         owns, err = _assert_owns_table(table_id, business_id)
@@ -8257,17 +8385,19 @@ def api_payment_confirm():
         # server-verified subtotal — NOT the raw amount the client sent — so the final revenue
         # figure can't be tampered with client-side while still matching what the customer saw.
         pending_txn = db.payment_transactions.find_one({'transaction_id': txn_id, 'business_id': business_id}, {'_id': 0})
+        # BUG đã vá: txn_id không tồn tại (gõ bừa) trước đây vẫn đi tiếp KHÔNG qua bước giữ nguyên tử -> 2 lần xác
+        # nhận cùng lúc với txn_id bịa tạo 2 đơn + 2 bút toán doanh thu. Bắt buộc phải có giao dịch pending thật.
+        if not pending_txn:
+            return jsonify({'success': False, 'message': 'Không tìm thấy giao dịch đang chờ thanh toán.'}), 404
         # Giữ giao dịch NGUYÊN TỬ (pending -> processing): bấm "Xác nhận" 2 lần/2 máy cùng lúc từng
         # tạo 2 đơn + 2 bút toán doanh thu cho cùng 1 bàn.
-        claimed_txn = False
-        if pending_txn:
-            claim = db.payment_transactions.update_one(
-                {'transaction_id': txn_id, 'business_id': business_id, 'status': 'pending'},
-                {'$set': {'status': 'processing'}}
-            )
-            if claim.modified_count != 1:
-                return jsonify({'success': False, 'message': 'Giao dịch này đã được xử lý.'}), 409
-            claimed_txn = True
+        claim = db.payment_transactions.update_one(
+            {'transaction_id': txn_id, 'business_id': business_id, 'status': 'pending'},
+            {'$set': {'status': 'processing'}}
+        )
+        if claim.modified_count != 1:
+            return jsonify({'success': False, 'message': 'Giao dịch này đã được xử lý.'}), 409
+        claimed_txn = True
         discount_percent = max(0.0, min(100.0, float((pending_txn or {}).get('discount_percent') or 0)))
         tax_percent = max(0.0, float((pending_txn or {}).get('tax_percent') or 0))
         tip_amount = max(0.0, float((pending_txn or {}).get('tip_amount') or 0))
@@ -8280,7 +8410,8 @@ def api_payment_confirm():
 
         # Lấy industry từ transaction hoặc mặc định fnb
         industry = 'fnb'
-        customer_phone = (data.get('customer_phone') or '').strip() or None
+        customer_phone = data.get('customer_phone')
+        customer_phone = (customer_phone.strip()[:32] or None) if isinstance(customer_phone, str) else None
 
         # Chia hoá đơn (split): đọc lại cash/card đã lưu lúc /api/payment/start — KHÔNG tin số
         # client gửi lại ở bước confirm này (giống nguyên tắc discount/tax/tip ở trên: mọi số
@@ -8383,7 +8514,9 @@ def api_payment_confirm():
         # 8. Loyalty tự động: nếu thu ngân có nhập SĐT khách -> tự cộng điểm/xét lên hạng (không chặn luồng nếu lỗi)
         _award_loyalty_points(business_id, customer_phone, total_bill)
 
-        redirect_url = f"/payment_success?txn_id={txn_id}&method={method}&amount={total_bill}&currency=VND&industry={industry}"
+        redirect_url = "/payment_success?" + urlencode({'txn_id': txn_id, 'method': method, 'amount': total_bill,
+                                                      'currency': pending_txn.get('currency') or _tenant_currency(business_id),
+                                                      'industry': industry})
         return jsonify({
             'success': True,
             'redirect_url': redirect_url
@@ -8405,12 +8538,18 @@ def api_payment_local_checkout():
     try:
         data = request.get_json() or {}
         items = data.get('items') or []
-        table_name = (data.get('table_name') or 'Local Table').strip()[:120]
-        method = data.get('method', 'POS')
-        industry = data.get('industry', 'fnb')
+        table_name = data.get('table_name')
+        table_name = (table_name if isinstance(table_name, str) else 'Local Table').strip()[:120] or 'Local Table'
+        try:
+            method = _payment_method(data.get('method'), 'pos')
+        except ValueError as ve:
+            return jsonify({'success': False, 'message': str(ve)}), 400
+        industry = _industry_code(data.get('industry'))
 
         if not items:
             return jsonify({'success': False, 'message': 'Empty cart'}), 400
+        if not isinstance(items, list) or len(items) > 200:
+            return jsonify({'success': False, 'message': 'Invalid cart'}), 400
 
         business_id = session.get('business_id') or session['user_id']
 
@@ -8420,10 +8559,10 @@ def api_payment_local_checkout():
             try:
                 name = str(it.get('name') or '').strip()[:200]
                 qty = int(it.get('quantity'))
-                price = float(it.get('price'))
+                price = _money(it.get('price'), field='Giá món')
             except (TypeError, ValueError, AttributeError):
                 return jsonify({'success': False, 'message': 'Invalid item in cart'}), 400
-            if not name or qty <= 0 or price < 0:
+            if not name or qty <= 0 or qty > 1000 or price < 0:
                 return jsonify({'success': False, 'message': 'Invalid item in cart'}), 400
             line_total = round(qty * price, 2)
             subtotal += line_total
@@ -8431,17 +8570,11 @@ def api_payment_local_checkout():
         subtotal = round(subtotal, 2)
 
         try:
-            discount_percent = max(0.0, min(100.0, float(data.get('discount_percent') or 0)))
-        except (TypeError, ValueError):
-            discount_percent = 0.0
-        try:
-            tax_percent = max(0.0, float(data.get('tax_percent') or 0))
-        except (TypeError, ValueError):
-            tax_percent = 0.0
-        try:
-            tip_amount = max(0.0, float(data.get('tip_amount') or 0))
-        except (TypeError, ValueError):
-            tip_amount = 0.0
+            discount_percent = _money(data.get('discount_percent'), hi=100, field='Giảm giá (%)')
+            tax_percent = _money(data.get('tax_percent'), hi=100, field='Thuế (%)')
+            tip_amount = _money(data.get('tip_amount'), field='Tiền tip')
+        except ValueError as ve:
+            return jsonify({'success': False, 'message': str(ve)}), 400
 
         discount_amount = round(subtotal * (discount_percent / 100), 2)
         discount_amount = max(0.0, min(discount_amount, subtotal))
@@ -8454,10 +8587,10 @@ def api_payment_local_checkout():
         split_metadata = {}
         if method == 'split':
             try:
-                split_cash_amount = round(max(0.0, float(data.get('split_cash_amount') or 0)), 2)
-                split_card_amount = round(max(0.0, float(data.get('split_card_amount') or 0)), 2)
-            except (TypeError, ValueError):
-                split_cash_amount, split_card_amount = 0.0, 0.0
+                split_cash_amount = round(_money(data.get('split_cash_amount'), field='Tiền mặt'), 2)
+                split_card_amount = round(_money(data.get('split_card_amount'), field='Tiền thẻ'), 2)
+            except ValueError as ve:
+                return jsonify({'success': False, 'message': str(ve)}), 400
             if abs((split_cash_amount + split_card_amount) - grand_total) > 0.02:
                 split_cash_amount, split_card_amount = grand_total, 0.0
             split_metadata = {'split_cash_amount': split_cash_amount, 'split_card_amount': split_card_amount}
@@ -8492,7 +8625,7 @@ def api_payment_local_checkout():
         db.payment_transactions.insert_one({
             'id': next_mongo_id('payment_transactions'), 'transaction_id': txn_id,
             'customer_name': 'Khách POS Vãng Lai (Local Demo Table)',
-            'customer_email': 'pos_walkin@bitpaw.com', 'amount': grand_total, 'currency': 'VND',
+            'customer_email': 'pos_walkin@bitpaw.com', 'amount': grand_total, 'currency': _tenant_currency(business_id),
             'method': method, 'status': 'completed', 'business_id': business_id,
             'created_at': now_iso, 'updated_at': now_iso,
         })
@@ -8874,10 +9007,13 @@ def api_payment_cancel():
         if not txn_check or txn_check.get('business_id') != business_id:
             return jsonify({'success': False, 'message': 'Giao dịch không tồn tại hoặc không thuộc quyền quản lý của bạn.'}), 403
         old_status = txn_check.get('status')
+        # BUG đã vá: trước đây huỷ được cả giao dịch ĐÃ thu tiền (completed) -> giao dịch thành "failed" trong khi
+        # đơn hàng + doanh thu vẫn ghi nhận, sổ sách lệch. Đã thu tiền thì phải dùng Hoàn tiền.
+        if old_status not in ('pending', 'processing'):
+            return jsonify({'success': False, 'message': 'Giao dịch đã hoàn tất — hãy dùng chức năng Hoàn tiền.'}), 409
 
-        # Update transaction status = failed
         db.payment_transactions.update_one(
-            {'transaction_id': txn_id, 'business_id': business_id},
+            {'transaction_id': txn_id, 'business_id': business_id, 'status': old_status},
             {'$set': {'status': 'failed', 'updated_at': datetime.now().isoformat()}}
         )
         _log_audit(business_id, 'cancel_order', entity_type='payment_transaction', entity_id=txn_id,
@@ -9011,8 +9147,8 @@ def _compute_nail_pos_order(business_id, data, offline_catalog=None):
             # hồng như 1 dòng dịch vụ thường, chỉ khác là không tồn tại product_id thật.
             custom_name = (it.get('custom_name') or '').strip()
             try:
-                price = round(float(it.get('custom_price')), 2)
-            except (TypeError, ValueError):
+                price = round(_money(it.get('custom_price'), default=-1, lo=-1, field='Giá dịch vụ'), 2)
+            except ValueError:
                 price = None
             if not custom_name or price is None or price < 0:
                 continue  # chặn bán dịch vụ không thuộc tenant này hoặc dòng custom thiếu dữ liệu
@@ -9039,13 +9175,14 @@ def _compute_nail_pos_order(business_id, data, offline_catalog=None):
     # — chi phí vật tư (gel/bột...), không phải phụ phí khách nhìn thấy trên hoá đơn.
     # Clamp 0-100 và net_revenue >= 0 — nếu không, supply% > 100 (fat-finger hoặc override) sẽ
     # tạo net_revenue âm, khiến tien_tua ghi vào db.chamcong bị âm, âm thầm trừ lương thợ.
-    supply_percent = max(0.0, min(100.0, float(data.get('supply_percent') or 0)))
+    supply_percent = _money(data.get('supply_percent'), hi=100, field='Supply (%)')
     supply_amount = round(subtotal * (supply_percent / 100), 2)
     net_revenue = max(0.0, subtotal - supply_amount)
 
-    cash_tip = round(max(0.0, float(data.get('cash_tip') or 0)), 2)
-    card_tip = round(max(0.0, float(data.get('card_tip') or 0)), 2)
-    cc_fee_percent = float(data.get('cc_fee_percent') or 0)
+    cash_tip = round(_money(data.get('cash_tip'), field='Tip tiền mặt'), 2)
+    card_tip = round(_money(data.get('card_tip'), field='Tip thẻ'), 2)
+    # Phí cà thẻ trước đây không giới hạn: âm -> thợ nhận tip thẻ NHIỀU hơn khách trả; > 100% -> tip âm.
+    cc_fee_percent = _money(data.get('cc_fee_percent'), hi=10, field='Phí thẻ (%)')
     card_tip_fee = round(card_tip * (cc_fee_percent / 100), 2)
     net_card_tip = round(card_tip - card_tip_fee, 2)
     total_tip = round(cash_tip + card_tip, 2)  # khách thấy đúng số tip đã nhập trên hoá đơn
@@ -9053,8 +9190,9 @@ def _compute_nail_pos_order(business_id, data, offline_catalog=None):
 
     # Discount áp trực tiếp lên giá khách trả (KHÔNG đụng subtotal/supply/hoa hồng thợ ở trên)
     # — thợ vẫn được tính công đúng giá trị dịch vụ đã làm, salon chịu phần giảm giá.
-    discount_type = (data.get('discount_type') or '').strip().lower()
-    discount_value = float(data.get('discount_value') or 0)
+    discount_type = data.get('discount_type')
+    discount_type = discount_type.strip().lower() if isinstance(discount_type, str) else ''
+    discount_value = _money(data.get('discount_value'), field='Giảm giá')
     if discount_type == 'percent':
         discount_amount = round(subtotal * (discount_value / 100), 2)
     elif discount_type == 'fixed':
@@ -9065,7 +9203,7 @@ def _compute_nail_pos_order(business_id, data, offline_catalog=None):
 
     # Tax/GST — cộng thêm SAU khi đã trừ discount, không đụng supply/hoa hồng thợ ở trên.
     # Mặc định 0% vì không phải salon nào cũng đăng ký GST — chủ salon tự bật nếu cần.
-    tax_percent = float(data.get('tax_percent') or 0)
+    tax_percent = _money(data.get('tax_percent'), hi=100, field='Thuế (%)')
     taxable_amount = max(0.0, subtotal - discount_amount)
     tax_amount = round(taxable_amount * (tax_percent / 100), 2) if tax_percent > 0 else 0.0
 
@@ -9572,12 +9710,18 @@ def api_nail_pos_refund():
         original_order_id = int(original_order_id)
     except (TypeError, ValueError):
         return jsonify({"success": False, "message": "Mã hoá đơn không hợp lệ."}), 400
+    # BUG đã vá: amount "NaN" lọt qua mọi so sánh (<= 0, > số dư) -> ghi hoàn "NaN"; reason không phải chuỗi làm
+    # lỗi SAU KHI hoá đơn đã chuyển "đã hoàn" -> hoá đơn hoàn mà không có bản ghi hoàn tiền. Kiểm tra hết ở đây.
     try:
-        amount = round(float(data.get('amount') or 0), 2)
-    except (TypeError, ValueError):
+        amount = round(_money(data.get('amount'), field='Số tiền hoàn'), 2)
+    except ValueError:
         return jsonify({"success": False, "message": "Số tiền hoàn không hợp lệ."}), 400
     if amount <= 0:
         return jsonify({"success": False, "message": "Số tiền hoàn phải lớn hơn 0."}), 400
+    refund_reason = data.get('reason')
+    if refund_reason is not None and not isinstance(refund_reason, str):
+        return jsonify({"success": False, "message": "Lý do hoàn tiền không hợp lệ."}), 400
+    refund_reason = (refund_reason or '').strip()[:300]
 
     try:
         original_order = db.orders.find_one({'id': original_order_id, 'business_id': business_id}, {'_id': 0})
@@ -9678,7 +9822,7 @@ def api_nail_pos_refund():
                 'discount_amount': 0, 'tip_amount': 0,
                 'payment_bucket': original_metadata.get('payment_bucket', 'cash'),
                 'currency': original_metadata.get('currency') or 'AUD',
-                'original_order_id': original_order_id, 'refund_reason': (data.get('reason') or '').strip(),
+                'original_order_id': original_order_id, 'refund_reason': refund_reason,
             },
         })
         return jsonify({
@@ -9872,7 +10016,9 @@ def chamcong_industry(industry_code):
 def table_order():
     table_id = request.args.get('table_id')
     if not table_id:
-        return "Thiếu mã bàn (table_id) trong đường dẫn QR.", 400
+        return render_message_page(400, '🧾', 'Thiếu mã bàn trong đường dẫn', 'Table code missing',
+                                   'Đường dẫn gọi món phải có mã bàn. Hãy quét lại mã QR dán trên bàn hoặc gọi nhân viên.',
+                                   'The order link needs a table code. Please re-scan the QR code on your table or ask a staff member.')
 
     table_data = None
     try:
@@ -9886,11 +10032,11 @@ def table_order():
         return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
 
     if not table_data:
-        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+        return render_message_page(404, '🧾', 'Mã QR không hợp lệ', 'QR code not valid', 'Mã QR này không còn dùng được hoặc bàn đã bị xoá. Vui lòng gọi nhân viên để được hỗ trợ gọi món.', 'This QR code is no longer valid. Please ask a staff member to help you order.')
     # Bàn ăn chỉ có nghĩa với tiệm F&B — bàn rác của tiệm ngành khác (do /pos từng tự tạo 200 bàn cho
     # mọi tiệm) không được mở thành thực đơn gọi món.
     if _business_industry(table_data.get('business_id')) not in (None, 'fnb'):
-        return "Mã QR không hợp lệ hoặc bàn không còn tồn tại. Vui lòng liên hệ nhân viên.", 404
+        return render_message_page(404, '🧾', 'Mã QR không hợp lệ', 'QR code not valid', 'Mã QR này không còn dùng được hoặc bàn đã bị xoá. Vui lòng gọi nhân viên để được hỗ trợ gọi món.', 'This QR code is no longer valid. Please ask a staff member to help you order.')
 
     # Khách quét QR KHÔNG có session — inject_industry_config() (context_processor toàn cục)
     # sẽ resolve tenant_country/tenant_currency theo session.get('business_id') là None, tức
@@ -10171,7 +10317,10 @@ def _is_superadmin():
 @login_required
 def super_admin():
     if not _is_superadmin():
-        return "Access denied: this page is for Superadmin only.", 403
+        return render_message_page(403, '🛡️', 'Trang dành cho quản trị BitPaw', 'BitPaw admins only',
+                                   'Tài khoản của bạn không có quyền vào trang quản trị hệ thống.',
+                                   'Your account does not have access to the system admin page.',
+                                   back_href='/dashboard', back_label='Về trang của tiệm · Back to my dashboard')
     return render_template('super_admin.html')
 
 @app.route('/ai_bot')
@@ -11081,6 +11230,29 @@ def delete_key(key_id):
 # ========== SUPER ADMIN: CỔNG THANH TOÁN NHẬN TIỀN (thay Supabase JS ở super_admin.html)
 # db.payment_methods — collection mới, TOÀN CỤC dùng chung cho mọi tenant (danh sách ngân
 # hàng nhận tiền hiển thị ở checkout.html), không có business_id — chỉ superadmin sửa được. ==========
+def _clean_payment_method_fields(data):
+    """Tài khoản nhận tiền hiện trên trang /checkout công khai (mã QR VietQR). Trước đây nhận mọi kiểu dữ liệu;
+    logo_url có thể là javascript:/data:. Trả (dict sạch, lỗi|None)."""
+    out = {}
+    for k, max_len in (('bin_code', 10), ('provider_name', 80), ('account_number', 30), ('account_name', 80), ('logo_url', 500)):
+        if k in data:
+            v = data[k]
+            if not isinstance(v, str):
+                return None, f"{k} không hợp lệ."
+            out[k] = v.strip()[:max_len]
+    if out.get('bin_code') and not out['bin_code'].isdigit():
+        return None, "Mã BIN ngân hàng chỉ gồm chữ số."
+    if out.get('account_number') and not re.fullmatch(r'[0-9 ]+', out['account_number']):
+        return None, "Số tài khoản chỉ gồm chữ số."
+    if out.get('logo_url') and not out['logo_url'].startswith(('https://', '/static/')):
+        return None, "Logo phải là đường dẫn https:// hoặc /static/."
+    if 'is_active' in data:
+        if not isinstance(data['is_active'], bool):
+            return None, "is_active phải là true/false."
+        out['is_active'] = data['is_active']
+    return out, None
+
+
 @app.route('/api/superadmin/payment_methods', methods=['GET'])
 @login_required
 def api_superadmin_payment_methods_list():
@@ -11099,14 +11271,17 @@ def api_superadmin_payment_methods_create():
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     data = request.json or {}
+    clean, err = _clean_payment_method_fields(data)
+    if err:
+        return jsonify({"success": False, "message": err}), 400
     try:
         doc = {
             'id': next_mongo_id('payment_methods'),
-            'bin_code': data.get('bin_code', ''),
-            'provider_name': data.get('provider_name', ''),
-            'account_number': data.get('account_number', ''),
-            'account_name': data.get('account_name', ''),
-            'logo_url': data.get('logo_url', ''),
+            'bin_code': clean.get('bin_code', ''),
+            'provider_name': clean.get('provider_name', ''),
+            'account_number': clean.get('account_number', ''),
+            'account_name': clean.get('account_name', ''),
+            'logo_url': clean.get('logo_url', ''),
             'is_active': True,
         }
         db.payment_methods.insert_one(doc)
@@ -11122,7 +11297,9 @@ def api_superadmin_payment_methods_update(id):
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     data = request.json or {}
-    updates = {k: v for k, v in data.items() if k in ('bin_code', 'provider_name', 'account_number', 'account_name', 'logo_url', 'is_active')}
+    updates, err = _clean_payment_method_fields(data)
+    if err:
+        return jsonify({"success": False, "message": err}), 400
     if not updates:
         return jsonify({"success": False, "message": "No valid fields to update."}), 400
     try:

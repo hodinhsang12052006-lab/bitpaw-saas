@@ -24,8 +24,8 @@
         }
         
         /* Scanlines */
-        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
-        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: 9998; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent); z-index: -1; pointer-events: none; opacity: 0.5; animation: scanMove 8s linear infinite; }
+        .laser-vertical { position: fixed; top: 0; left: 0; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent); z-index: -1; pointer-events: none; opacity: 0.3; animation: laserVertical 12s ease-in-out infinite; }
         @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
         @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
         .absolute-blur { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 80vw; height: 500px; background: rgba(6,182,212,0.15); border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
@@ -78,6 +78,9 @@
         .glass-input-sm:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
         
         @media (max-width: 768px) { body { padding: 1rem; } .custom-table th, .custom-table td { font-size: 0.7rem; padding: 0.5rem; } }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body class="antialiased">
@@ -246,7 +249,7 @@
         const TENANT_CURRENCY = "{{ tenant_currency }}";
         function formatMoney(value) {
             const v = Number(value) || 0;
-            if (TENANT_CURRENCY === 'USD') {
+            if (['USD', 'AUD'].includes(TENANT_CURRENCY)) {
                 return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return Math.round(v).toLocaleString('vi-VN') + '₫';

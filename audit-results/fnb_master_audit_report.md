@@ -1,18 +1,18 @@
 # F&B Industry Master Audit Report
 
-Generated: 2026-10-17T13:24:02.054Z
+Generated: 2026-10-18T04:26:05.103Z
 
 **8 PASS · 0 WARN · 0 FAIL** (8 test clusters)
 
 | # | Chức năng | Trạng thái | Thời gian | Ghi chú |
 |---|---|---|---|---|
-| 1 | 1. Đăng nhập & Khởi tạo POS F&B | PASS | 4948ms | console_errors=0, network_5xx=0, tables=12, menu_items=9, bàn_tiếng_việt_hiển_thị=12 |
-| 2 | 2. Chọn Bàn & Thêm Món Vào Order | PASS | 3239ms | Bàn "Bàn 1" (id=6518). Đã thêm 2 món (mỗi món x2). Khu vực Checkout hiện: true. |
-| 3 | 3. Thanh Toán Tiền Mặt (payment/start -> pending -> confirm) | PASS | 4646ms | start: HTTP 200 txn_id=FNB-F8E2455F. confirm: HTTP 200 success=true. URL cuối: http://127.0.0.1:5001/payment_success?txn_id=FNB-F8E2455F&method=cash&amount=121000.0&currency=VND&industry=fnb |
-| 4 | 4. Chọn Phương Thức Thanh Toán Chia Đôi (Split) | PASS | 3526ms | Bàn id=6519. Nút Split active: true. /api/payment/start: HTTP 200, body={"redirect_url":"/payment_pending?table_id=6519&txn_id=FNB-F4D22B05&amount=286000&method=split&industry=fnb","success":true,"txn_id":"FNB-F4D22B05"} |
-| 5 | 5. QR Tự Gọi Món (khách) -> Kitchen Display Real-time (SSE) | PASS | 11637ms | submit_qr_order: HTTP 200 success=true. Kitchen orders: 52 -> 53 (không reload, chờ SSE). Console errors trang khách: 0. |
-| 6 | 6. Đặt Bàn Công Khai (khách vãng lai, không đăng nhập) | PASS | 2594ms | POST /api/public/reservations/39821fa8-e42a-4052-bc9d-eb061eaaae11: HTTP 200, body={"id":22,"success":true}. Console errors: 0. |
-| 7 | 7. Chấm Công F&B (/chamcong_fnb) | PASS | 3376ms | Trang tải nội dung dài 1115 ký tự, 0 lỗi console mới. Snippet: "BitPaw VI Dashboard Smart POS Kitchen Display QR Menu Customer Management AI Copilot AI Studio Staff Management Attendance Payroll Leave Requests Expe" |
-| 8 | 8. Module Dùng Chung Cho F&B (CRM/AI Bot/Nhân Viên/Báo Cáo) | PASS | 4958ms | /customers=200, /ai_bot=200, /nhanvien=200, /report=200 |
+| 1 | 1. Đăng nhập & Khởi tạo POS F&B | PASS | 5234ms | console_errors=0, network_5xx=0, tables=12, menu_items=9, bàn_tiếng_việt_hiển_thị=12 |
+| 2 | 2. Chọn Bàn & Thêm Món Vào Order | PASS | 3600ms | Bàn "Bàn 1" (id=6518). Đã thêm 2 món (mỗi món x2). Khu vực Checkout hiện: true. |
+| 3 | 3. Thanh Toán Tiền Mặt (payment/start -> pending -> confirm) | PASS | 4513ms | start: HTTP 200 txn_id=FNB-C8625275. confirm: HTTP 200 success=true. URL cuối: http://127.0.0.1:5001/payment_success?txn_id=FNB-C8625275&method=cash&amount=121000.0&currency=VND&industry=fnb |
+| 4 | 4. Chọn Phương Thức Thanh Toán Chia Đôi (Split) | PASS | 3890ms | Bàn id=6519. Nút Split active: true. /api/payment/start: HTTP 200, body={"redirect_url":"/payment_pending?table_id=6519&txn_id=FNB-027279BE&amount=308000.0&method=split&industry=fnb&currency=VND","success":true,"txn_id":"FNB-027279BE"} |
+| 5 | 5. QR Tự Gọi Món (khách) -> Kitchen Display Real-time (SSE) | PASS | 12203ms | submit_qr_order: HTTP 200 success=true. Kitchen orders: 56 -> 57 (không reload, chờ SSE). Console errors trang khách: 0. |
+| 6 | 6. Đặt Bàn Công Khai (khách vãng lai, không đăng nhập) | PASS | 2647ms | POST /api/public/reservations/39821fa8-e42a-4052-bc9d-eb061eaaae11: HTTP 200, body={"id":23,"success":true}. Console errors: 0. |
+| 7 | 7. Chấm Công F&B (/chamcong_fnb) | PASS | 3313ms | Trang tải nội dung dài 1115 ký tự, 0 lỗi console mới. Snippet: "BitPaw VI Dashboard Smart POS Kitchen Display QR Menu Customer Management AI Copilot AI Studio Staff Management Attendance Payroll Leave Requests Expe" |
+| 8 | 8. Module Dùng Chung Cho F&B (CRM/AI Bot/Nhân Viên/Báo Cáo) | PASS | 5391ms | /customers=200, /ai_bot=200, /nhanvien=200, /report=200 |
 
 ## Findings (Spec vs. Implementation Gaps)

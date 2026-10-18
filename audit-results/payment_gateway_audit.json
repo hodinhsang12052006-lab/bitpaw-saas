@@ -1,0 +1,200 @@
+{
+  "ranAt": "2026-10-18T06:32:33",
+  "results": [
+    {
+      "name": "JSON chứa NaN bị từ chối ngay khi đọc",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "JSON chứa Infinity bị từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: phí thẻ âm (-50%) -> từ chối, không tạo bill",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: phí thẻ 500% -> từ chối, không tạo bill",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: tip thẻ \"Infinity\" -> từ chối, không tạo bill",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: thuế \"NaN\" -> từ chối, không tạo bill",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: giảm giá \"inf\" -> từ chối, không tạo bill",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: dòng tự nhập giá \"inf\" -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "POS Nails: bill hợp lệ vẫn thanh toán bình thường",
+      "ok": true,
+      "note": "order #2109"
+    },
+    {
+      "name": "Hoàn tiền Nails: số tiền \"NaN\" -> từ chối, hoá đơn không đổi",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Hoàn tiền Nails: số tiền \"Infinity\" -> từ chối, hoá đơn không đổi",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Hoàn tiền Nails: số tiền âm -> từ chối, hoá đơn không đổi",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Hoàn tiền Nails: lý do là số (từng làm hoá đơn \"đã hoàn\" mà không có bản ghi hoàn) -> từ chối, hoá đơn không đổi",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Hoàn tiền Nails hợp lệ $1 vẫn chạy",
+      "ok": true,
+      "note": "{'status': 'partially_refunded', 'metadata': {'refunded_amount': 1.0}}"
+    },
+    {
+      "name": "Hoàn vượt số dư -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Tiệm khác hoàn bill của tiệm Nails -> không tìm thấy",
+      "ok": true,
+      "note": "HTTP 403"
+    },
+    {
+      "name": "Bán lẻ: tip \"Infinity\" -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Bán lẻ: phương thức thanh toán không phải chữ -> từ chối (trước đây lỗi 500)",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Bán lẻ: client gửi currency \"USD\" -> đơn vẫn ghi đúng VND của tiệm (chặn thổi điểm thưởng)",
+      "ok": true,
+      "note": "HTTP 200 currency=VND phone=None"
+    },
+    {
+      "name": "F&B start: số tiền \"NaN\" -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "F&B start: phương thức lạ -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Tiệm khác khởi tạo thanh toán trên bàn F&B -> chặn",
+      "ok": true,
+      "note": "HTTP 403"
+    },
+    {
+      "name": "F&B confirm với mã giao dịch bịa -> từ chối (trước đây vẫn tạo đơn, không chống bấm 2 lần)",
+      "ok": true,
+      "note": "HTTP 404"
+    },
+    {
+      "name": "F&B start hợp lệ -> có mã giao dịch, link chờ thanh toán đã mã hoá",
+      "ok": true,
+      "note": "/payment_pending?table_id=7537&txn_id=FNB-CA9551CA&amount=65000.0&method=cash&industry=fnb&currency=VND"
+    },
+    {
+      "name": "F&B confirm hợp lệ -> đơn hoàn tất",
+      "ok": true,
+      "note": "/payment_success?txn_id=FNB-CA9551CA&method=cash&amount=65000.0&currency=VND&industry=fnb"
+    },
+    {
+      "name": "F&B confirm lần 2 cùng giao dịch -> không tạo đơn thứ 2",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Huỷ giao dịch ĐÃ thu tiền -> từ chối (phải dùng Hoàn tiền)",
+      "ok": true,
+      "note": "HTTP 409 status=completed"
+    },
+    {
+      "name": "Tiệm Nails mở /payment_pending bằng bàn của tiệm F&B -> không thấy tài khoản nhận tiền F&B",
+      "ok": true,
+      "note": "HTTP 302"
+    },
+    {
+      "name": "Lưu cấu hình: loại cổng lạ -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Lưu cấu hình: bỏ trường lồng nhau/mảng, cắt chuỗi quá dài",
+      "ok": true,
+      "note": "keys=['active', 'device_name', 'type']"
+    },
+    {
+      "name": "Lưu cấu hình: cả 12 loại cổng trên giao diện đều lưu được",
+      "ok": true,
+      "note": ""
+    },
+    {
+      "name": "Đổi trạng thái giao dịch thành chuỗi lạ -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Local checkout: giá \"inf\" -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Local checkout: số lượng 1 tỷ -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Square chưa cấu hình -> không lộ độ dài Device ID / môi trường",
+      "ok": true,
+      "note": "HTTP 503"
+    },
+    {
+      "name": "Mua gói: sửa giá thành 1đ -> server vẫn ghi đúng giá gói 1.200.000",
+      "ok": true,
+      "note": "HTTP 200 giá lưu=1200000"
+    },
+    {
+      "name": "Mua gói Agency (giá 0 = liên hệ) gửi được (trước đây luôn lỗi 400)",
+      "ok": true,
+      "note": "HTTP 200"
+    },
+    {
+      "name": "Mua gói: gói không tồn tại -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    },
+    {
+      "name": "Mua gói: tên là object -> từ chối",
+      "ok": true,
+      "note": "HTTP 400"
+    }
+  ]
+}

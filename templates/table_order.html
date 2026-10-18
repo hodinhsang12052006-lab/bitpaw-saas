@@ -313,7 +313,7 @@
 
         function formatMoney(amount) {
             const value = Number(amount) || 0;
-            if (TENANT_CURRENCY === 'USD') {
+            if (['USD', 'AUD'].includes(TENANT_CURRENCY)) {
                 return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return Math.round(value).toLocaleString('vi-VN') + '₫';
@@ -814,7 +814,7 @@
                 // Demo fallback CHỈ hiện khi tenant chưa cấu hình menu thật — giá phải cùng đơn vị
                 // với TENANT_CURRENCY (USD tenant demo phải là giá USD thực tế, không phải số VND
                 // cũ đem gắn "$" vào là thành vô lý, vd "$120,000" cho 1 lần làm gel).
-                const isUSD = TENANT_CURRENCY === 'USD';
+                const isUSD = ['USD', 'AUD'].includes(TENANT_CURRENCY);
                 if (ind === 'nail') {
                     productsList = isUSD ? [
                         { id: 201, name: "Premium Gel Polish", price: 35, category: "Nail Services", image: "" },

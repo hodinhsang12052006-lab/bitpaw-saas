@@ -27,7 +27,7 @@
             width: 100%;
             height: 2px;
             background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
+            z-index: -1;
             pointer-events: none;
             opacity: 0.5;
             animation: scanMove 8s linear infinite;
@@ -39,7 +39,7 @@
             width: 1px;
             height: 100%;
             background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
+            z-index: -1;
             pointer-events: none;
             opacity: 0.3;
             animation: laserVertical 12s ease-in-out infinite;
@@ -233,6 +233,9 @@
         @media (max-width: 768px) {
             body { padding: 1rem; }
         }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body class="antialiased">
@@ -521,7 +524,7 @@
         const method = urlParams.get('method') || storedMethod || 'Stripe (Credit Card)';
         let amountRaw = urlParams.get('amount') || storedAmount || '0.00';
         let currency = urlParams.get('currency') || storedCurrency || 'USD';
-        let amountDisplay = (currency === 'USD' ? '$' : (currency === 'EUR' ? '€' : '₫')) + amountRaw;
+        let amountDisplay = (['USD', 'AUD'].includes(currency) ? '$' : (currency === 'EUR' ? '€' : '₫')) + amountRaw;
         if (currency === 'VND') amountDisplay = parseInt(amountRaw).toLocaleString('vi-VN') + '₫';
 
         // Format a raw numeric amount consistently with the transaction's own currency
@@ -529,8 +532,8 @@
         // the tenant's default currency, so we keep using the local `currency` variable).
         function formatAmt(value) {
             value = value || 0;
-            if (currency === 'USD' || currency === 'EUR') {
-                return (currency === 'USD' ? '$' : '€') + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (['USD', 'AUD', 'EUR'].includes(currency)) {
+                return (currency === 'EUR' ? '€' : '$') + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return Math.round(value).toLocaleString('vi-VN') + 'đ';
         }

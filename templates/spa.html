@@ -49,7 +49,7 @@
             width: 100%; 
             height: 2px; 
             background: linear-gradient(90deg, transparent, var(--theme-color, #06b6d4), transparent); 
-            z-index: 9998; 
+            z-index: -1; 
             pointer-events: none; 
             opacity: 0.5; 
             animation: scanMove 8s linear infinite; 
@@ -62,7 +62,7 @@
             width: 1px; 
             height: 100%; 
             background: linear-gradient(180deg, transparent, var(--theme-color, #06b6d4), transparent); 
-            z-index: 9998; 
+            z-index: -1; 
             pointer-events: none; 
             opacity: 0.3; 
             animation: laserVertical 12s ease-in-out infinite; 
@@ -648,6 +648,9 @@
             .search-filter-bar { flex-direction: column; align-items: stretch; }
             .search-box { max-width: 100%; }
         }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body class="antialiased">

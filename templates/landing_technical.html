@@ -53,7 +53,7 @@
         .scan-line {
             position: fixed; top: 0; left: 0; width: 100%; height: 2px;
             background: linear-gradient(90deg, transparent, #ef4444, #f97316, transparent);
-            z-index: 9998; pointer-events: none; opacity: 0.15;
+            z-index: -1; pointer-events: none; opacity: 0.15;
             animation: scanMove 14s linear infinite;
         }
         @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
@@ -242,6 +242,9 @@
         .lang-wrapper.open .lang-dropdown {
             display: block;
         }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body class="antialiased selection:bg-red-500 selection:text-black relative">

@@ -677,12 +677,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // Mỗi tenant tự có currency/country riêng (US: USD, VN: VND) — không có FX convert ở
         // đây, chỉ format lại đúng theo currency của tenant hiện tại.
         const TENANT_CURRENCY = "{{ tenant_currency }}";
+        // Làm tròn tiền theo loại tiền của tiệm: VND tròn đồng, AUD/USD giữ 2 số lẻ. Trước đây Math.round() ở mọi
+        // chỗ -> tiệm AUD/USD tip $4.50 bị ghi $5, tổng bill $45.50 hiện $46.
+        const roundMoney = (v) => TENANT_CURRENCY === 'VND' ? Math.round(v) : Math.round(v * 100) / 100;
         const TENANT_COUNTRY = "{{ tenant_country }}";
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
 
         function formatMoney(amount) {
             const value = Number(amount) || 0;
-            if (TENANT_CURRENCY === 'USD') {
+            if (['USD', 'AUD'].includes(TENANT_CURRENCY)) {
                 return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return Math.round(value).toLocaleString('vi-VN') + '₫';
@@ -1446,9 +1449,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function calculateTotals() {
             const totals = computeOrderTotals();
             orderSubtotal.innerText = formatMoney(totals.subtotal);
-            orderTax.innerText = formatMoney(Math.round(totals.vatVal));
-            orderTipAmount.innerText = formatMoney(Math.round(totals.tipVal));
-            orderTotal.innerText = formatMoney(Math.round(totals.grandTotal));
+            orderTax.innerText = formatMoney(roundMoney(totals.vatVal));
+            orderTipAmount.innerText = formatMoney(roundMoney(totals.tipVal));
+            orderTotal.innerText = formatMoney(roundMoney(totals.grandTotal));
         }
 
         function resetTipSelection() {
@@ -1724,7 +1727,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             items: activeOrders.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
                             discount_percent: totals.discPercent,
                             tax_percent: TAX_RATE * 100,
-                            tip_amount: Math.round(totals.tipVal),
+                            tip_amount: roundMoney(totals.tipVal),
                             table_name: selectedTableName,
                             industry: ind,
                             ...getPosPaymentPayload()
@@ -1759,10 +1762,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     },
                     body: JSON.stringify({
                         table_id: selectedTableId,
-                        amount: Math.round(totals.grandTotal),
+                        amount: roundMoney(totals.grandTotal),
                         discount_percent: totals.discPercent,
                         tax_percent: TAX_RATE * 100,
-                        tip_amount: Math.round(totals.tipVal),
+                        tip_amount: roundMoney(totals.tipVal),
                         industry: ind,
                         ...getPosPaymentPayload()
                     })
@@ -1777,7 +1780,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     localStorage.setItem('customerAddress', selectedTableName);
                     localStorage.setItem('lastTransactionId', result.txn_id);
                     localStorage.setItem('lastPaymentMethod', 'POS');
-                    localStorage.setItem('lastPaymentAmount', Math.round(totals.grandTotal).toString());
+                    localStorage.setItem('lastPaymentAmount', roundMoney(totals.grandTotal).toString());
                     localStorage.setItem('lastPaymentCurrency', TENANT_CURRENCY);
 
                     const invoiceItems = activeOrders.map(i => ({
@@ -1787,10 +1790,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         total: i.price * i.quantity
                     }));
                     localStorage.setItem('lastInvoiceItems', JSON.stringify(invoiceItems));
-                    localStorage.setItem('lastDiscountValue', Math.round(totals.discountVal).toString());
+                    localStorage.setItem('lastDiscountValue', roundMoney(totals.discountVal).toString());
                     localStorage.setItem('lastDiscountPercent', totals.discPercent.toString());
-                    localStorage.setItem('lastVatValue', Math.round(totals.vatVal).toString());
-                    localStorage.setItem('lastTipValue', Math.round(totals.tipVal).toString());
+                    localStorage.setItem('lastVatValue', roundMoney(totals.vatVal).toString());
+                    localStorage.setItem('lastTipValue', roundMoney(totals.tipVal).toString());
 
                     showToast(t('pos_toast_redirecting_payment'));
                     resetTipSelection();

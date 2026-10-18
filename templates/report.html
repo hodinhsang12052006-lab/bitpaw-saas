@@ -36,7 +36,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             width: 100%;
             height: 2px;
             background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
+            z-index: -1;
             pointer-events: none;
             opacity: 0.5;
             animation: scanMove 8s linear infinite;
@@ -48,7 +48,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             width: 1px;
             height: 100%;
             background: linear-gradient(180deg, transparent, #06b6d4, #a855f7, transparent);
-            z-index: 9998;
+            z-index: -1;
             pointer-events: none;
             opacity: 0.3;
             animation: laserVertical 12s ease-in-out infinite;
@@ -229,6 +229,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+    
+        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
+        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
     </style>
 </head>
 <body>
@@ -501,12 +504,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         const TENANT_CURRENCY = "{{ tenant_currency }}";
         function formatMoney(value) {
             value = value || 0;
-            if (TENANT_CURRENCY === 'USD') {
+            if (['USD', 'AUD'].includes(TENANT_CURRENCY)) {
                 return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return Math.round(value).toLocaleString('vi-VN') + 'đ';
         }
-        const currencySymbol = TENANT_CURRENCY === 'USD' ? '$' : '₫';
+        const currencySymbol = ['USD', 'AUD'].includes(TENANT_CURRENCY) ? '$' : '₫';
 
         // DOM elements
         const revenueSpan = document.getElementById('revenueValue');

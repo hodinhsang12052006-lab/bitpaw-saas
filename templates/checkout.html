@@ -279,9 +279,9 @@
                         tabsContainer.innerHTML += `
                             <button type="button" class="pay-tab ${isActiveClass} flex flex-col items-center justify-center p-3 rounded-xl gap-2 h-full" onclick="generateQR(${index}, this)">
                                 <div class="w-8 h-8 rounded bg-white p-1 flex items-center justify-center">
-                                    <img src="${bank.logo_url || 'https://via.placeholder.com/50?text=Bank'}" class="w-full h-full object-contain">
+                                    ${bank.logo_url ? `<img src="${esc(bank.logo_url)}" class="w-full h-full object-contain" alt="">` : '<i class="fas fa-university text-gray-700"></i>'}
                                 </div>
-                                <span class="text-[10px] font-bold line-clamp-1 truncate w-full px-1">${bank.provider_name}</span>
+                                <span class="text-[10px] font-bold line-clamp-1 truncate w-full px-1">${esc(bank.provider_name)}</span>
                             </button>
                         `;
                     });
@@ -310,7 +310,7 @@
             const amount = currentModule.price;
             const addInfo = encodeURIComponent(randomMemo);
             const accountName = encodeURIComponent(bank.account_name);
-            const qrUrl = `https://img.vietqr.io/image/${bank.bin_code}-${bank.account_number}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
+            const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(bank.bin_code)}-${encodeURIComponent(bank.account_number)}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
 
             setTimeout(() => {
                 qrWrapper.innerHTML = `
@@ -318,8 +318,8 @@
                         <div class="bg-white p-2 rounded-xl shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-4 w-48 h-48 sm:w-56 sm:h-56">
                             <img src="${qrUrl}" alt="QR Code" class="w-full h-full object-contain rounded-lg">
                         </div>
-                        <p class="text-sm font-bold text-white mb-1 uppercase">${bank.account_name}</p>
-                        <p class="text-xs text-gray-400 font-mono tracking-widest bg-gray-800 px-3 py-1 rounded-md mb-3">${bank.account_number}</p>
+                        <p class="text-sm font-bold text-white mb-1 uppercase">${esc(bank.account_name)}</p>
+                        <p class="text-xs text-gray-400 font-mono tracking-widest bg-gray-800 px-3 py-1 rounded-md mb-3">${esc(bank.account_number)}</p>
                         <div class="text-[10px] text-gray-500 bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-center">
                             <p>Amount: <strong class="text-white">${amount.toLocaleString('vi-VN')} VND</strong></p>
                             <p>Memo: <strong style="color: var(--theme-color);">${randomMemo}</strong></p>
@@ -373,7 +373,9 @@
                     if(moduleType === 'agency') {
                         document.getElementById('successDesc').innerText = 'A BitPaw marketing specialist will contact you via your registered phone number within the next 15 minutes.';
                     } else {
-                        document.getElementById('successDesc').innerHTML = `Order code <strong class="text-white">${randomMemo}</strong> has been recorded. The system is waiting for the payment to arrive to automatically activate your account.`;
+                        // Kích hoạt là THỦ CÔNG (superadmin đối soát chuyển khoản rồi cấp License Key) — trước đây câu này hứa
+                        // "hệ thống tự kích hoạt khi tiền về", sai với cách vận hành thật.
+                        document.getElementById('successDesc').innerHTML = `Order code <strong class="text-white">${esc(randomMemo)}</strong> has been recorded. Once BitPaw confirms your transfer (usually within business hours), your License Key will be sent to your email/phone to activate your account.`;
                     }
                     
                     document.getElementById('btnLoginGo').classList.remove('hidden');
@@ -389,6 +391,8 @@
             }
         }
 
+        // Thông tin tài khoản nhận tiền do superadmin nhập -> escape trước khi chèn vào HTML.
+        function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
         window.addEventListener('DOMContentLoaded', fetchPaymentMethods);
     </script>
 </body>

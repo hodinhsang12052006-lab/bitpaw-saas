@@ -127,7 +127,7 @@ async function audit(url, viewport, shot) {
   if (m.brokenImages && m.brokenImages.length) issues.push(`${m.brokenImages.length} ảnh vỡ`);
   if (m.missingHandlers && m.missingHandlers.length) issues.push(`${m.missingHandlers.length} nút gọi hàm không tồn tại`);
   const file = `${viewport.width}_${url.replace(/[^\w]+/g, '_').replace(/^_|_$/g, '') || 'root'}.png`;
-  if (shot || issues.length) await safeScreenshot(page, { path: path.join(shotDir, file) });
+  if (shot || issues.length) await safeScreenshot(page, { path: path.join(shotDir, file), fullPage: true }); // cả trang để soi từng nút
   const rec = { url, finalUrl, viewport: viewport.width, status, title: m.title, issues, pageErrors: cur.pageErrors, consoleErrors: realConsole,
     envNoise: cur.consoleErrors.length - realConsole.length, badResponses: [...new Set(cur.badResponses)], offender: m.offender,
     brokenImages: m.brokenImages, missingHandlers: m.missingHandlers, screenshot: (shot || issues.length) ? file : null };
@@ -139,7 +139,11 @@ async function audit(url, viewport, shot) {
 
 // 1) Trang chính + sidebar (desktop + mobile, có ảnh chụp)
 const first = await audit(home, { width: 1440, height: 900 }, true);
-const sidebar = (first.sidebar || []).filter((h) => !UNSAFE.test(h) && h !== '/logout');
+// Trang chủ của F&B/Spa/Bán lẻ... là màn POS KHÔNG có sidebar -> trước đây không thu được menu nên không chụp ảnh
+// trang nào trong menu của các ngành đó. Lấy menu từ /ai_bot (có app_sidebar ở mọi ngành).
+let menuSource = first;
+if (!(first.sidebar || []).length) menuSource = await audit('/ai_bot', { width: 1440, height: 900 }, true);
+const sidebar = (menuSource.sidebar || []).filter((h) => !UNSAFE.test(h) && h !== '/logout');
 const linkSet = new Set(first.links || []);
 for (const s of sidebar) {
   const m = await audit(s, { width: 1440, height: 900 }, true);
