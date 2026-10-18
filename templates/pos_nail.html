@@ -2362,8 +2362,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         // ===== Payment modal =====
+        // Mã của lần thanh toán này — bấm lại (mạng chập chờn, chưa thấy phản hồi) gửi CÙNG mã nên server không ghi 2 đơn.
+        // Mở lại hộp thanh toán = lần thanh toán mới.
+        let checkoutRequestId = null;
+        function newCheckoutRequestId() {
+            return (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
+                : Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+        }
         function openPaymentModal() {
             if (!cart.length) return;
+            checkoutRequestId = newCheckoutRequestId();
             const { total } = computeTotals();
             document.getElementById('splitCashAmount').value = total.toFixed(2);
             document.getElementById('splitCardAmount').value = '0.00';
@@ -2511,7 +2519,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const cardTip = parseFloat(document.getElementById('cardTip').value) || 0;
             const customerPhone = document.getElementById('customerSelect').value;
 
+            if (!checkoutRequestId) checkoutRequestId = newCheckoutRequestId();
             const payload = {
+                client_request_id: checkoutRequestId,
                 items: cart.map(c => c.custom
                     ? { product_id: null, quantity: c.quantity, ma_nv: c.ma_nv || null, custom_name: c.name, custom_price: c.price }
                     : { product_id: c.product_id, quantity: c.quantity, ma_nv: c.ma_nv || null }),
@@ -2557,6 +2567,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const json = await res.json();
                 if (!json.success) throw new Error(json.message || 'Unknown error');
 
+                checkoutRequestId = null;
                 populateReceipt(json);
                 closePaymentModal();
                 document.getElementById('receiptModal').classList.add('active');

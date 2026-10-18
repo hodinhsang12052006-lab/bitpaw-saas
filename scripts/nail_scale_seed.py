@@ -24,7 +24,7 @@ from mongo_client import db, next_mongo_id_batch  # noqa: E402
 PASSWORD = 'QaNailScale2026!'
 COLLECTIONS = ['orders', 'order_items', 'chamcong', 'transactions', 'customers', 'appointments', 'employees', 'staff',
                'products', 'payment_transactions', 'bot_customers', 'bot_messages', 'leave_requests', 'expense_requests',
-               'system_settings', 'download_events', 'kitchen_orders', 'audit_logs', 'user_logs', 'tasks', 'security_events', 'business_memberships']
+               'system_settings', 'download_events', 'kitchen_orders', 'audit_logs', 'user_logs', 'tasks', 'security_events', 'business_memberships', 'loyalty_events', 'email_quota']
 SERVICES = [  # (tên, nhóm, giá, giá vốn)
     ('Gel Manicure & Cuticle Care', 'Gel', 45, 9), ('Shellac Hand Treatment', 'Gel', 50, 10),
     ('Acrylic Full Set (Ombre/Design)', 'Acrylic', 95, 28.5), ('Acrylic Refill', 'Acrylic', 60, 15),

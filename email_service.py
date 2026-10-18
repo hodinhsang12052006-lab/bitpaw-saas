@@ -18,6 +18,10 @@ class EmailService:
 
     @staticmethod
     def send_email(nguoi_nhan, tieu_de, noi_dung_html):
+        # Server test/kiểm thử tải: EMAIL_DISABLED=1 thì không gửi gì (file .env local dùng Gmail THẬT — 1.000 lượt đặt
+        # lịch thử = 1.000 email thật, vượt hạn mức Gmail và làm hỏng uy tín địa chỉ gửi).
+        if os.environ.get('EMAIL_DISABLED') == '1':
+            return False, "EMAIL_DISABLED=1 (server test) — không gửi email."
         if not GMAIL_USERNAME or not GMAIL_APP_PASSWORD:
             return False, "Chưa cấu hình GMAIL_USERNAME / GMAIL_APP_PASSWORD trong biến môi trường."
 

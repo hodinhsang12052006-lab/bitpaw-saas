@@ -50,6 +50,17 @@ INDEXES = {
     'cskh_requests': [[('status', 1)]],
 }
 
+# Index UNIQUE (chặn ghi trùng ngay trong DB — kiểm thử tải 18/10/2026: kiểm tra-rồi-ghi trong code không đủ khi nhiều
+# request tới cùng lúc). Partial: chỉ áp cho bản ghi có trường đó, dữ liệu cũ không bị ảnh hưởng.
+UNIQUE_INDEXES = [
+    # 1 thợ + 1 giờ = 1 lịch còn hiệu lực (booking_engine.slot_key; huỷ lịch thì gỡ slot_key)
+    ('appointments', [BID, ('slot_key', 1)], {'slot_key': {'$type': 'string'}}),
+    # 1 SĐT = 1 hồ sơ khách mỗi tiệm (2 bill cùng lúc của khách mới từng tạo 2 hồ sơ)
+    ('customers', [BID, ('phone', 1)], {'phone': {'$gt': ''}}),
+    # 1 lần bấm thanh toán = 1 đơn, kể cả khi mạng chập chờn và POS gửi lại
+    ('orders', [BID, ('metadata.client_request_id', 1)], {'metadata.client_request_id': {'$type': 'string'}}),
+]
+
 
 def main():
     created = 0
@@ -61,6 +72,16 @@ def main():
             name = db[coll].create_index(keys, background=True)
             created += 1
             print(f'+ {coll}: {name}')
+    for coll, keys, partial in UNIQUE_INDEXES:
+        info = db[coll].index_information().values()
+        if any(tuple(v['key']) == tuple(keys) and v.get('unique') for v in info):
+            continue
+        for v in list(db[coll].index_information().items()):
+            if tuple(v[1]['key']) == tuple(keys):  # index thường cùng khoá -> thay bằng bản unique
+                db[coll].drop_index(v[0])
+        name = db[coll].create_index(keys, unique=True, partialFilterExpression=partial, background=True)
+        created += 1
+        print(f'+ {coll}: {name} (unique)')
     print(f'Xong — tạo mới {created} index.')
 
 

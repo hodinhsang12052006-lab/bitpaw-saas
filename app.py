@@ -74,7 +74,7 @@ from pymongo import UpdateOne, ReturnDocument
 # Mã 4.1 (Offline-Sync) + Mã 1.2 (Redis Streams check-in/out) audit — lỗi mất kết nối Atlas cần
 # bắt RIÊNG (không phải Exception chung) để route biết chính xác lúc nào nên rơi vào nhánh lưu
 # tạm offline, thay vì coi mọi lỗi (kể cả lỗi dữ liệu/logic) đều là "mất mạng".
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect, OperationFailure
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect, OperationFailure, DuplicateKeyError
 import redis_queue
 import sync_worker
 import industry_access
@@ -3148,6 +3148,24 @@ def _decrement_stock_atomic(business_id, stock_items, db_session=None):
             raise InsufficientStockError(product_id, product_name)
 
 
+def _decrement_stock_or_rollback(business_id, stock_items):
+    """Trừ kho NGOÀI transaction: mỗi sản phẩm 1 lệnh $inc có điều kiện stock >= qty (vẫn không bao giờ bán âm); thiếu
+    hàng thì cộng trả các món đã trừ rồi raise. Trả về danh sách đã trừ để hoàn lại nếu bill không ghi được.
+
+    Vì sao không trừ trong transaction nữa (kiểm thử tải 18/10/2026): dịch vụ Nails cũng có trường stock nên MỌI bill đều
+    sửa bản ghi products của dịch vụ đó trong transaction; 20 bill cùng lúc cùng 1 dịch vụ hot thì các transaction xung đột
+    (WriteConflict) và tự thử lại liên tục: 1,9 bill/giây, bill chậm nhất chờ 33 giây — so với 7,6 bill/giây khi không đụng kho."""
+    done = []
+    try:
+        for item in stock_items:
+            _decrement_stock_atomic(business_id, [item])
+            done.append(item)
+    except InsufficientStockError:
+        _restock_atomic(business_id, done)
+        raise
+    return done
+
+
 def _restock_atomic(business_id, stock_items, db_session=None):
     """Cộng lại tồn kho (hoàn hàng/refund, Giai đoạn 5 audit) — ngược chiều
     _decrement_stock_atomic(), dùng $inc dương nguyên tử. Không cần điều kiện $gte (cộng thêm
@@ -4239,8 +4257,14 @@ LOYALTY_TIER_THRESHOLDS_USD = [
 ]
 
 
+def _is_dollar_currency(currency):
+    """Đô (USD/AUD/CAD/...) dùng chung bảng điểm/hạng theo $. Trước đây CHỈ 'USD' được coi là đô: tiệm Nails ở Úc (AUD)
+    bị tính như VND — int($95 × 1/10000) = 0 điểm, ngưỡng hạng 2 triệu -> khách KHÔNG BAO GIỜ được cộng điểm/lên hạng."""
+    return (currency or 'VND').upper() != 'VND'
+
+
 def _tier_for_spend(total_spent, currency='VND'):
-    thresholds = LOYALTY_TIER_THRESHOLDS_USD if (currency or 'VND').upper() == 'USD' else LOYALTY_TIER_THRESHOLDS
+    thresholds = LOYALTY_TIER_THRESHOLDS_USD if _is_dollar_currency(currency) else LOYALTY_TIER_THRESHOLDS
     tier = 'Normal'
     for threshold, name in thresholds:
         if total_spent >= threshold:
@@ -4346,37 +4370,47 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='V
     if not customer_phone or not amount_spent or amount_spent <= 0:
         return
     try:
-        is_usd = (currency or 'VND').upper() == 'USD'
+        is_usd = _is_dollar_currency(currency)
         points_rate = LOYALTY_POINTS_PER_USD if is_usd else LOYALTY_POINTS_PER_VND
-        customer = db.customers.find_one({'business_id': business_id, 'phone': customer_phone}, {'_id': 0})
         points_earned = int(amount_spent * points_rate)
-        if customer:
-            old_tier = customer.get('tier') or 'Normal'
-            new_total_spent = (customer.get('total_spent') or 0) + amount_spent
-            new_points = (customer.get('loyalty_points') or 0) + points_earned
-            new_tier = _tier_for_spend(new_total_spent, currency=currency)
-            db.customers.update_one(
-                {'id': customer['id'], 'business_id': business_id},
-                {'$set': {'total_spent': new_total_spent, 'loyalty_points': new_points, 'tier': new_tier}}
-            )
-            customer['total_spent'] = new_total_spent
-            customer['loyalty_points'] = new_points
-            customer['tier'] = new_tier
-        else:
-            new_tier = _tier_for_spend(amount_spent, currency=currency)
-            new_id = next_mongo_id('customers')
-            customer = {
-                'id': new_id,
+        # Cộng bằng $inc NGUYÊN TỬ. Trước đây đọc -> cộng trong Python -> $set: kiểm thử tải (khách quen trả nhiều bill
+        # cùng lúc ở các máy POS) thì các lượt ghi đè lên nhau, tổng chi tiêu/điểm của khách bị MẤT.
+        inc = {'$inc': {'total_spent': amount_spent, 'loyalty_points': points_earned}}
+        customer = db.customers.find_one_and_update({'business_id': business_id, 'phone': customer_phone}, inc,
+                                                    projection={'_id': 0}, return_document=ReturnDocument.AFTER)
+        created = False
+        if customer is None:
+            new_doc = {
+                'id': next_mongo_id('customers'),
                 'business_id': business_id,
                 'phone': customer_phone,
                 'name': f'Khách {customer_phone[-4:]}',
-                'tier': new_tier,
+                'tier': _tier_for_spend(amount_spent, currency=currency),
                 'loyalty_points': points_earned,
                 'total_spent': amount_spent,
                 'join_date': datetime.now().date().isoformat(),
             }
-            db.customers.insert_one(customer)
-            old_tier = None
+            try:
+                db.customers.insert_one(new_doc)
+                new_doc.pop('_id', None)
+                customer, created = new_doc, True
+            except DuplicateKeyError:
+                # Bill khác của CÙNG khách mới vừa tạo hồ sơ trước (index unique business_id+phone) -> cộng vào hồ sơ đó
+                customer = db.customers.find_one_and_update({'business_id': business_id, 'phone': customer_phone}, inc,
+                                                            projection={'_id': 0}, return_document=ReturnDocument.AFTER)
+        if customer is None:
+            return
+        if created:
+            old_tier, new_tier = None, customer['tier']
+        else:
+            old_tier = customer.get('tier') or 'Normal'
+            new_tier = _tier_for_spend(customer.get('total_spent') or 0, currency=currency)
+            if new_tier != old_tier:
+                # Chỉ ghi hạng nếu tổng chi tiêu vẫn đúng con số vừa tính — bill khác chen vào sau thì chính nó sẽ ghi hạng
+                # theo tổng mới hơn (tránh 2 bill đồng thời ghi hạng ngược thứ tự, để lại hạng thấp hơn thực tế).
+                db.customers.update_one({'business_id': business_id, 'phone': customer_phone, 'total_spent': customer.get('total_spent')},
+                                        {'$set': {'tier': new_tier}})
+                customer['tier'] = new_tier
 
         _queue_loyalty_notification(
             business_id, customer, 'points_awarded',
@@ -5127,6 +5161,8 @@ def add_customer():
             'business_id': business_id
         })
         return jsonify({'success': True})
+    except DuplicateKeyError:
+        return jsonify({'success': False, 'message': 'Số điện thoại này đã có trong danh sách khách hàng.'}), 409
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi thêm khách hàng: {str(e)}'}), 500
 
@@ -5144,6 +5180,8 @@ def update_customer(id):
         data.pop('id', None)
         db.customers.update_one({'id': id, 'business_id': business_id}, {'$set': data})
         return jsonify({'success': True})
+    except DuplicateKeyError:
+        return jsonify({'success': False, 'message': 'Số điện thoại này đã có trong danh sách khách hàng.'}), 409
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi cập nhật khách hàng: {str(e)}'}), 500
 
@@ -8593,7 +8631,8 @@ def api_payment_confirm():
         db.dining_tables.update_one({'id': table_id, 'business_id': business_id}, {'$set': {'status': 'Còn trống'}})
 
         # 8. Loyalty tự động: nếu thu ngân có nhập SĐT khách -> tự cộng điểm/xét lên hạng (không chặn luồng nếu lỗi)
-        _award_loyalty_points(business_id, customer_phone, total_bill)
+        _award_loyalty_points(business_id, customer_phone, total_bill,
+                              currency=pending_txn.get('currency') or _tenant_currency(business_id))
 
         redirect_url = "/payment_success?" + urlencode({'txn_id': txn_id, 'method': method, 'amount': total_bill,
                                                       'currency': pending_txn.get('currency') or _tenant_currency(business_id),
@@ -9413,11 +9452,12 @@ def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAI
         else:
             cash_tip_share = 0.0
             card_tip_share = tip_share
+        cc_ids = iter(next_mongo_id_batch('chamcong', len(per_tech_revenue)))  # 1 lệnh DB cho mọi thợ của bill
         for ma_nv, tech_revenue_share in per_tech_revenue.items():
             tech_net_share = round(tech_revenue_share * (net_revenue / subtotal), 2) if subtotal else 0
             worker_tua = round(tech_net_share * (commission_rate / 100), 2)
             chamcong_docs.append({
-                'id': next_mongo_id('chamcong'), 'business_id': business_id, 'ma_nv': ma_nv,
+                'id': next(cc_ids), 'business_id': business_id, 'ma_nv': ma_nv,
                 # DD/MM/YYYY — KHÔNG phải ISO YYYY-MM-DD — phải khớp đúng định dạng
                 # getFormattedDate() ghi ở chamcong_nail.html, vì bangluong.html lọc
                 # theo tháng bằng ngay_cham.split('/')[1]/[2] (month/year); ghi sai định
@@ -9434,6 +9474,21 @@ def _build_nail_chamcong_docs(order_id, business_id, computed, note_prefix='[NAI
                 'tip_cash': cash_tip_share, 'tip_card': card_tip_share,
             })
     return chamcong_docs, techs_paid
+
+
+def _nail_checkout_replay(order):
+    """Phản hồi y như lần thanh toán đầu cho 1 đơn ĐÃ ghi (POS gửi lại cùng client_request_id) — không ghi gì thêm."""
+    m = order.get('metadata') or {}
+    techs = [{'ma_nv': r.get('ma_nv'), 'commission': r.get('tien_tua'), 'tip': r.get('tien_tips'),
+              'tip_cash': r.get('tien_tips_cash'), 'tip_card': r.get('tien_tips_card')}
+             for r in db.chamcong.find({'business_id': order['business_id'], 'ghi_chu': {'$regex': rf"^\[NAILS POS\] Order #{int(order['id'])} "}},
+                                       {'_id': 0, 'ma_nv': 1, 'tien_tua': 1, 'tien_tips': 1, 'tien_tips_cash': 1, 'tien_tips_card': 1})]
+    return jsonify({
+        "success": True, "duplicate": True, "order_id": order['id'], "subtotal": m.get('subtotal'),
+        "supply_amount": m.get('supply_amount'), "discount_amount": m.get('discount_amount'), "tax_amount": m.get('tax_amount'),
+        "tip_amount": m.get('tip_amount'), "total_amount": order.get('total_amount'), "techs_paid": techs,
+        "card_surcharge_amount": m.get('card_surcharge_amount'), "payment_bucket": m.get('payment_bucket'),
+    })
 
 
 @app.route('/api/nail_pos/checkout', methods=['POST'])
@@ -9458,6 +9513,15 @@ def api_nail_pos_checkout():
     is_desktop = _is_desktop_mode()
     customer_phone = (data.get('customer_phone') or '').strip()
     customer_name = (data.get('customer_name') or '').strip()
+    # Mã của LẦN BẤM thanh toán (POS tự sinh, gửi lại y nguyên khi bấm lại). Mạng chập chờn: đơn đã ghi nhưng POS
+    # không nhận được phản hồi, thu ngân bấm lại -> trước đây thành 2 đơn (thu tiền 2 lần, trả hoa hồng 2 lần).
+    client_request_id = data.get('client_request_id')
+    if not (isinstance(client_request_id, str) and re.fullmatch(r'[A-Za-z0-9_-]{8,64}', client_request_id)):
+        client_request_id = None
+    if client_request_id:
+        prior = db.orders.find_one({'business_id': business_id, 'metadata.client_request_id': client_request_id}, {'_id': 0})
+        if prior:
+            return _nail_checkout_replay(prior)
 
     def _queue_offline(computed):
         """Bản Desktop mất mạng: lưu bill xuống máy, thread nền sync_worker tự đẩy lên khi có mạng."""
@@ -9525,6 +9589,8 @@ def api_nail_pos_checkout():
             metadata['customer_phone'] = customer_phone
         if customer_name:
             metadata['customer_name'] = customer_name
+        if client_request_id:
+            metadata['client_request_id'] = client_request_id
         order_doc = {
             'id': order_id,
             'business_id': business_id,
@@ -9536,8 +9602,9 @@ def api_nail_pos_checkout():
         }
 
         order_items_docs = computed['order_items_docs']
+        oi_ids = iter(next_mongo_id_batch('order_items', len(order_items_docs))) if order_items_docs else iter(())
         for oi in order_items_docs:
-            oi['id'] = next_mongo_id('order_items')
+            oi['id'] = next(oi_ids)
             oi['order_id'] = order_id
             oi['business_id'] = business_id
             if customer_phone:
@@ -9549,23 +9616,26 @@ def api_nail_pos_checkout():
         # MongoDB transaction — previously a mid-write failure (e.g. a dropped connection after
         # the 2nd of 3 assigned technicians) could leave the order marked 'completed' with some
         # techs paid and others silently unpaid, or a retry double-paying the first tech.
-        with mongo_client_instance.start_session() as db_session:
-            def _do_nail_checkout_txn(s):
-                # Giai đoạn 5 audit — trừ kho nguyên tử NGAY TRONG transaction này: trước đây
-                # Nail POS không hề trừ tồn kho cho sản phẩm vật lý bán kèm (sơn, phụ kiện...),
-                # để tồn kho lệch dần vô thời hạn. Nếu InsufficientStockError -> transaction tự
-                # rollback toàn bộ (order/order_items/chamcong CHƯA có gì được ghi).
-                _decrement_stock_atomic(business_id, computed['stock_items'], db_session=s)
-                db.orders.insert_one(order_doc, session=s)
-                if order_items_docs:
-                    db.order_items.insert_many(order_items_docs, session=s)
-                if chamcong_docs:
-                    db.chamcong.insert_many(chamcong_docs, session=s)
-                _record_pos_transaction(
-                    business_id, order_id, computed['total_amount'], computed['payment_method'],
-                    db_session=s,
-                )
-            db_session.with_transaction(_do_nail_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
+        # Trừ kho (sơn, phụ kiện bán kèm... và dịch vụ có trường stock) TRƯỚC transaction — xem _decrement_stock_or_rollback.
+        stock_taken = _decrement_stock_or_rollback(business_id, computed['stock_items'])
+        try:
+            with mongo_client_instance.start_session() as db_session:
+                def _do_nail_checkout_txn(s):
+                    db.orders.insert_one(order_doc, session=s)
+                    if order_items_docs:
+                        db.order_items.insert_many(order_items_docs, session=s)
+                    if chamcong_docs:
+                        db.chamcong.insert_many(chamcong_docs, session=s)
+                    _record_pos_transaction(
+                        business_id, order_id, computed['total_amount'], computed['payment_method'],
+                        db_session=s,
+                    )
+                db_session.with_transaction(_do_nail_checkout_txn)  # tự retry khi WriteConflict — xem giải thích ở api_sales_checkout
+        except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect):
+            raise  # mất mạng giữa chừng: không rõ đã ghi hay chưa -> KHÔNG cộng trả kho (thà lệch thiếu hơn bán âm)
+        except Exception:
+            _restock_atomic(business_id, stock_taken)  # transaction chắc chắn không ghi (vd bill gửi trùng) -> trả lại kho
+            raise
 
         if customer_phone:
             _finalize_paid_order(order_doc)
@@ -9580,6 +9650,12 @@ def api_nail_pos_checkout():
         })
     except InsufficientStockError as e:
         return jsonify({"success": False, "message": str(e)}), 400
+    except DuplicateKeyError:
+        # 2 lượt gửi CÙNG lúc của 1 lần bấm: lượt sau va index unique -> cả transaction của nó huỷ, trả lại đơn đã ghi
+        prior = db.orders.find_one({'business_id': business_id, 'metadata.client_request_id': client_request_id}, {'_id': 0}) if client_request_id else None
+        if prior:
+            return _nail_checkout_replay(prior)
+        return jsonify({"success": False, "message": "Đơn trùng — vui lòng tải lại lịch sử thanh toán."}), 409
     except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect) as e:
         # Mã 4.1 audit — rớt mạng tới Atlas giữa lúc tính tiền. CHỈ bản Desktop mới có ổ cứng
         # cục bộ để lưu tạm (local_db.py/MontyDB); bản Web/Vercel không có nơi nào để buffer
@@ -10604,11 +10680,22 @@ def api_appointment_update_status(appointment_id):
     if status not in ('confirmed', 'cancelled', 'completed', 'pending', 'checked_in'):
         return jsonify({'success': False, 'message': 'Trạng thái không hợp lệ.'}), 400
     try:
-        result = db.appointments.update_one(
-            {'id': appointment_id, 'business_id': business_id}, {'$set': {'status': status}}
-        )
-        if result.matched_count == 0:
+        appt = db.appointments.find_one({'id': appointment_id, 'business_id': business_id}, {'_id': 0, 'staff_id': 1, 'book_time': 1})
+        if not appt:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch hẹn.'}), 404
+        # slot_key giữ chỗ thợ+giờ (index unique, xem booking_engine): huỷ thì gỡ để khách khác đặt lại được giờ đó,
+        # mở lại lịch đã huỷ thì giữ chỗ lại — nếu trong lúc đó đã có người khác đặt thì báo trùng thay vì ghi đè.
+        if status == 'cancelled':
+            update = {'$set': {'status': status}, '$unset': {'slot_key': ''}}
+        elif appt.get('staff_id') and appt.get('book_time'):
+            import booking_engine
+            update = {'$set': {'status': status, 'slot_key': booking_engine.slot_key(appt['staff_id'], appt['book_time'])}}
+        else:
+            update = {'$set': {'status': status}}
+        try:
+            db.appointments.update_one({'id': appointment_id, 'business_id': business_id}, update)
+        except DuplicateKeyError:
+            return jsonify({'success': False, 'message': 'Thợ này đã có khách khác đặt đúng giờ đó — không mở lại được lịch đã huỷ.'}), 409
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

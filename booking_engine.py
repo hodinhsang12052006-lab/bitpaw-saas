@@ -19,8 +19,16 @@ có, không cần từng nơi tự nhớ gọi thêm.
 from datetime import datetime
 from html import escape as _html_escape
 
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
+
 from mongo_client import db, next_mongo_id
 from email_service import EmailService
+
+# Email báo chủ tiệm: tối đa bấy nhiêu thư/tiệm/ngày. Cả hệ thống gửi qua 1 tài khoản Gmail (~500 thư/ngày cho MỌI
+# tiệm); kiểm thử tải: 1 tiệm nhận 1.000 lượt đặt = 1.000 thư -> hết hạn mức của cả hệ thống, thư quên mật khẩu/
+# thông báo của các tiệm khác cũng không đi được. Quá mức thì lịch vẫn lưu bình thường, chủ tiệm xem trên Lịch.
+OWNER_BOOKING_EMAILS_PER_DAY = 30
 
 
 class SlotAlreadyBookedError(Exception):
@@ -51,6 +59,11 @@ def book_appointment(business_id, customer_info, staff_id, book_time, service_id
         raise RuntimeError("Không có kết nối Database — không thể đặt lịch lúc này.")
     if not book_time:
         raise ValueError("Thiếu book_time — không thể đặt lịch.")
+    book_time = normalize_book_time(book_time)
+    if staff_id in ('', None):
+        staff_id = None  # "thợ nào cũng được" — không giữ chỗ riêng thợ nào
+    else:
+        staff_id = str(staff_id)[:64]
 
     if staff_id is not None:
         # $ne 'cancelled': lịch đã huỷ không còn chiếm chỗ, thợ được đặt lại đúng khung giờ đó.
@@ -79,9 +92,46 @@ def book_appointment(business_id, customer_info, staff_id, book_time, service_id
         'source': source,
         'created_at': datetime.now().isoformat(),
     }
-    db.appointments.insert_one(appointment_doc)
+    if staff_id is not None:
+        # Khoá chỗ NGUYÊN TỬ: index unique (business_id, slot_key). Bước find_one ở trên KHÔNG đủ — kiểm thử tải: 50 khách
+        # cùng bấm đặt 1 thợ 1 giờ thì nhiều người cùng thấy "còn trống" trước khi ai kịp ghi, và cùng được nhận lịch.
+        # Huỷ lịch thì gỡ slot_key (api_appointment_update_status) để giờ đó mở lại.
+        appointment_doc['slot_key'] = slot_key(staff_id, book_time)
+    try:
+        db.appointments.insert_one(appointment_doc)
+    except DuplicateKeyError:
+        raise SlotAlreadyBookedError(
+            f"Nhân viên đã có lịch hẹn khác vào lúc {book_time} — vui lòng chọn giờ khác hoặc thợ khác."
+        )
+    appointment_doc.pop('_id', None)
     _notify_owner_new_appointment(appointment_doc)
     return appointment_doc
+
+
+def slot_key(staff_id, book_time):
+    return f"{staff_id}|{book_time}"
+
+
+def normalize_book_time(book_time):
+    """1 thời điểm = 1 chuỗi duy nhất 'YYYY-MM-DDTHH:MM' — '2026-10-20T10:00', '2026-10-20T10:00:00' hay
+    '2026-10-20 10:00' trước đây là 3 chuỗi khác nhau nên chặn trùng (so khớp chuỗi) không bắt được nhau."""
+    try:
+        return datetime.fromisoformat(str(book_time).strip().replace('Z', '')).strftime('%Y-%m-%dT%H:%M')
+    except ValueError:
+        raise ValueError("Giờ hẹn không hợp lệ.")
+
+
+def _owner_email_quota_ok(business_id):
+    """Đếm thư báo lịch hẹn đã gửi hôm nay cho tiệm này (1 lệnh $inc nguyên tử) — False khi vượt mức/ngày."""
+    try:
+        doc = db.email_quota.find_one_and_update(
+            {'_id': f"booking_owner|{business_id}|{datetime.now().strftime('%Y-%m-%d')}"},
+            {'$inc': {'n': 1}, '$setOnInsert': {'business_id': business_id, 'created_at': datetime.now().isoformat()}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        return (doc or {}).get('n', 1) <= OWNER_BOOKING_EMAILS_PER_DAY
+    except Exception:
+        return True
 
 
 def _notify_owner_new_appointment(appointment):
@@ -92,6 +142,8 @@ def _notify_owner_new_appointment(appointment):
     thực lúc đăng ký) là kênh duy nhất THẬT SỰ gửi được. Best-effort tuyệt đối: lỗi gửi email
     KHÔNG BAO GIỜ được làm hỏng việc đặt lịch đã ghi DB thành công — gọi SAU insert_one()."""
     try:
+        if not _owner_email_quota_ok(appointment['business_id']):
+            return
         owner = db.users.find_one(
             {'business_id': appointment['business_id'], 'role': 'admin'}, {'email': 1, '_id': 0}
         )

@@ -540,3 +540,33 @@ Còn treo / cần theo dõi:
 - Giới hạn tần suất trên Vercel chỉ chính xác khi có `REDIS_URL` (không có thì mỗi instance đếm riêng).
 - Trang Công nợ + CRM Automation vẫn tải toàn bộ khách (~300 byte/khách -> chạm trần Vercel khoảng 12–15 nghìn khách) — cần phân trang như CRM khi có tiệm lớn tới mức đó.
 - Không thử 60 ảnh chấm công tải lên cùng lúc (`.env` local trỏ kho ảnh thật).
+
+## Pha 22 — Kiểm thử TẢI Nails: hàng trăm/nghìn khách đặt lịch + tính tiền cùng lúc (18/10/2026)
+
+Cách test (`scripts/nail_load_test.py`, chỉ server local, `EMAIL_DISABLED=1` để không gửi email thật, tiệm thử 60 thợ, xoá sau khi đo): mỗi "khách" là 1 phiên + 1 IP riêng, mở trang đặt lịch thật (CSRF + cookie như trình duyệt) rồi gửi; sau mỗi pha **đọc lại database để đối soát**, không chỉ đếm HTTP 200. Kèm: `_booking_race_check.py` (30 khách bấm đặt CÙNG 1 khoảnh khắc × 10 vòng), `_checkout_contention_check.py` (A/B tranh chấp kho), `_count_db_ops.py` (đếm lệnh DB/thao tác), `_verify_load_fixes.py` (6 tình huống biên). Theo dõi RAM/CPU/luồng của tiến trình server suốt bài test.
+
+| # | Mức | Lỗi (đo trên code cũ) | Đã sửa | Đo lại |
+|---|---|---|---|---|
+| 1 | 🔴 | **Đặt trùng thợ**: 30 khách bấm cùng lúc 1 thợ 1 giờ -> 9/10 vòng nhiều người cùng được nhận, có vòng **29 người cùng 1 chỗ** (kiểm-tra-rồi-ghi không nguyên tử) | `slot_key` + index unique (business_id, slot_key); huỷ lịch gỡ khoá, mở lại lịch đã huỷ khi giờ đã có người -> 409; giờ chuẩn hoá (10:00 = 10:00:00) | 10/10 vòng đúng 1 người |
+| 2 | 🔴 | **Điểm thưởng tiệm AUD luôn = 0, khách không bao giờ lên hạng** (chỉ 'USD' được coi là đô; AUD tính như VND: int($95 × 1/10000) = 0) | Mọi tiền tệ khác VND dùng bảng $ (1 điểm/$1, Silver $80 / Gold $400 / Platinum $1.200); sửa luôn luồng thanh toán bàn quên truyền tiền tệ | 30 khách quen: đủ điểm, đúng hạng Platinum |
+| 3 | 🔴 | **CRM mất tiền của khách**: 1.000 bill, khách quen trả song song -> tổng chi tiêu mất **$585** (đọc-cộng-ghi đè lên nhau); khách mới trả 2 bill cùng lúc có thể thành 2 hồ sơ | `$inc` nguyên tử + index unique (business_id, phone); ghi hạng có điều kiện | Mất $0, điểm lệch 0, 1 hồ sơ/khách |
+| 4 | 🔴 | **1 bill gửi 2 lần (mạng chập chờn, bấm lại) = 2 đơn**: thu tiền 2 lần, trả hoa hồng 2 lần | POS gửi `client_request_id` mỗi lần bấm thanh toán; index unique; gửi lại trả đúng đơn cũ | 1 đơn |
+| 5 | 🟠 | **Spam đặt lịch**: 1 IP + 1 SĐT gửi 300 lịch giả -> **300/300 vào thẳng Lịch** của chủ tiệm | 30 lượt/giờ/IP + tối đa 3 lịch sắp tới/SĐT (giới hạn mềm — gửi dồn cùng lúc có thể lọt 1–2) | 4/300 lọt |
+| 6 | 🟠 | **Tính tiền nghẽn giờ cao điểm**: dịch vụ Nails có trường stock nên mọi bill sửa bản ghi dịch vụ TRONG transaction -> 20 bill cùng 1 dịch vụ hot: 1,9 bill/giây, bill chậm nhất chờ **33 giây** | Trừ kho nguyên tử TRƯỚC transaction, hoàn kho nếu bill không ghi; cấp id hàng loạt | 7,1 bill/giây, chậm nhất 3 giây; kho vẫn không bán âm (còn 1 + 10 bill cùng lúc -> đúng 1 bán được) |
+| 7 | 🟠 | Mỗi lượt đặt lịch gửi 1 email Gmail cho chủ tiệm ngay trong request -> 1.000 lượt = 1.000 thư, cả hệ thống dùng chung 1 Gmail (~500 thư/ngày) -> thư quên mật khẩu của mọi tiệm ngừng đi | Tối đa 30 thư báo lịch/tiệm/ngày (lịch vẫn lưu đủ); `EMAIL_DISABLED=1` cho server test | — |
+| 8 | 🟡 | Lịch của chủ tiệm kêu chuông + toast cho TỪNG lịch mới (1.000 lịch = 1.000 tiếng chuông) | Tối đa 1 lần/5 giây | — |
+| 9 | 🟡 | CRM thêm khách trùng SĐT trả lỗi 500 khó hiểu (sau khi có index unique) | 409 "Số điện thoại này đã có trong danh sách khách hàng." | ✅ |
+
+Kết quả 1.000 khách đặt lịch (100 người cùng lúc) + 1.000 bill (20 máy cùng lúc), code mới: 0 lịch trùng thợ, DB khớp từng lịch; tiền orders = transactions = $117.718,00, hoa hồng + tip $49.390,62 khớp từng xu với số POS báo; RAM server 171→193 MB rồi về 187 MB (không rò rỉ), CPU trung bình 0,2 nhân. Hồi quy Nails: xem cuối mục.
+
+Giới hạn của máy test (không phải lỗi code): từ máy này Atlas chỉ đạt ~105 lệnh/giây dù 20 hay 50 luồng -> số giây/bill ở trên là của máy local, không phải của web thật.
+
+**Database đang chạy gói Atlas dùng chung (M0/Flex)**: tối đa 500 kết nối, không xem được RAM/ổ đĩa, `hostInfo` bị chặn; thông lượng đo được khớp trần ~100 lệnh/giây của gói M0 — trần này là của CẢ HỆ THỐNG (mọi tiệm cộng lại):
+- 1 lượt đặt lịch ≈ 13 lệnh DB (mở trang 5 + gửi 6–8), 1 bill ≈ 16–18 lệnh -> cả hệ thống ~7 lượt đặt lịch/giây hoặc ~6 bill/giây. Tiệm 60 thợ giờ cao điểm (~60 bill/giờ) chỉ dùng ~0,3% — ổn; nhưng 1 đợt khuyến mãi 1.000 khách đặt trong 1 phút sẽ làm chậm MỌI tiệm khác ~2 phút.
+- **Dung lượng 512 MB (M0)**: ~3,3 KB/bill (đơn + giao dịch + dịch vụ + chấm công + điểm) -> ~155.000 bill cho cả hệ thống; riêng 1 tiệm 60 thợ (360 bill/ngày) đầy trong ~14 tháng. Khi đầy, MỌI lệnh ghi bị từ chối (không tính tiền, không đặt lịch được).
+- **500 kết nối**: 1 tiến trình server giữ ~56 kết nối khi tải cao (đo), mỗi instance Vercel tối thiểu ~6–7 (giám sát 3 node). Luồng real-time (SSE) giữ instance 25 giây: 60 điện thoại thợ × 2 luồng ≈ 120 instance ≈ 700–850 kết nối > 500 -> có thể bị từ chối kết nối khi cả tiệm cùng mở app. Chưa đo trên web thật (không kiểm thử tải production).
+- Khuyến nghị (chủ dự án quyết định, có chi phí): nâng Atlas lên M10 (dedicated: không giới hạn lệnh/giây kiểu M0, 10 GB, 1.500 kết nối) trước khi nhận tiệm cỡ 60 thợ hoặc chạy khuyến mãi đặt lịch lớn.
+
+Còn treo: F&B/Bán lẻ (`api_sales_checkout`) vẫn trừ kho trong transaction — cùng kiểu nghẽn khi nhiều đơn cùng 1 món hot; Lịch 1 ngày ~2,6 KB/lịch hẹn (200 lịch = 500 KB, ~1.700 lịch/ngày mới chạm trần Vercel).
+
+Hồi quy Nails sau khi sửa (server `EMAIL_DISABLED=1`): persona 38/38 · master 10/10 · gap 8/8 · business cycle 9/9 · realtime SSE 6/6 · AI bot đặt lịch/CSKH 7/7 · POS acceptance không lỗi · 6/6 bill tạo từ giao diện POS thật có mã chống gửi trùng · `_verify_load_fixes` 6/6.

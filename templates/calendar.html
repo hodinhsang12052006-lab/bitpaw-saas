@@ -323,11 +323,15 @@
         // vừa tự thao tác trong tab này (updateStatus/markReminded) để khỏi giật lại UI đang patch.
         // Báo NGAY bằng toast + chuông (không đợi reload) — reload chỉ để đồng bộ lại dữ liệu,
         // còn việc "báo cho nhân viên biết" phải xảy ra tức thì, không im lặng.
-        let reloadTimer = null;
+        // Chuông/toast tối đa 1 lần / 5 giây: kiểm thử tải 1.000 khách đặt lịch trong ~80 giây = 1.000 tiếng chuông liên tục.
+        let reloadTimer = null, lastChimeAt = 0;
         new EventSource('/api/stream/appointments').onmessage = () => {
             if (Date.now() - lastLocalActionAt < 4000) return;
-            showToast(t('toast_new_booking'));
-            playNotifyChime();
+            if (Date.now() - lastChimeAt > 5000) {
+                lastChimeAt = Date.now();
+                showToast(t('toast_new_booking'));
+                playNotifyChime();
+            }
             clearTimeout(reloadTimer);
             reloadTimer = setTimeout(() => location.reload(), 1600);
         };

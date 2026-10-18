@@ -35,7 +35,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, jsonify, session
 
 from mongo_client import db, next_mongo_id
-from app import app, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get
+from app import app, limiter, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get
 from booking_engine import book_appointment, SlotAlreadyBookedError
 from werkzeug.utils import secure_filename
 
@@ -200,7 +200,14 @@ def public_booking(spa_id=None, service_id=None):
     )
 
 
+# Trang đặt lịch công khai: 1 IP tối đa 30 lượt/giờ (khách quét QR trên Wi-Fi của tiệm dùng chung IP nên không để
+# quá thấp) + 1 SĐT tối đa PUBLIC_BOOKINGS_PER_PHONE lịch sắp tới. Kiểm thử tải: 1 kẻ phá gửi 300 lịch giả từ 1 IP/1 SĐT
+# thì CẢ 300 vào thẳng Lịch của chủ tiệm, đẩy lịch thật của khách xuống dưới.
+PUBLIC_BOOKINGS_PER_PHONE = 3
+
+
 @app.route('/create_appointment', methods=['POST'])
+@limiter.limit("30 per hour")
 def create_appointment():
     data = request.json or {}
     try:
@@ -228,9 +235,16 @@ def create_appointment():
         svc = db.products.find_one({'id': service_id}, {'business_id': 1, 'name': 1, '_id': 0})
         if not svc:
             return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
+        upcoming = db.appointments.count_documents({
+            'business_id': svc['business_id'], 'customer_phone': data['phone'].strip(),
+            'status': {'$in': ['pending', 'confirmed']}, 'book_time': {'$gte': datetime.now().strftime('%Y-%m-%dT%H:%M')},
+        })
+        if upcoming >= PUBLIC_BOOKINGS_PER_PHONE:
+            return jsonify({'success': False, 'message': f'Số điện thoại này đã có {upcoming} lịch hẹn sắp tới. '
+                                                         'Vui lòng gọi tiệm nếu cần đổi hoặc đặt thêm.'}), 429
         appointment = book_appointment(
             business_id=svc['business_id'],
-            customer_info={'name': data['name'], 'phone': data['phone']},
+            customer_info={'name': data['name'].strip()[:80], 'phone': data['phone'].strip()[:20]},
             staff_id=data.get('staff_id'),
             book_time=data['book_time'],
             service_id=service_id,
