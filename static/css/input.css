@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Quầng sáng/vệt sáng trang trí (absolute, rộng 600-700px) thò ra ngoài màn hình: <body class="overflow-hidden"> KHÔNG đủ,
+   vì overflow của body bị đẩy lên khung nhìn và Chrome điện thoại vẫn nới khung nhìn theo phần thò ra (đo thật: 678px
+   trên máy 390px) rồi thu nhỏ cả trang ~57%. overflow-x:hidden ở <html> để body tự cắt phần thò ra. */
+html { overflow-x: hidden; }

@@ -193,7 +193,7 @@
             position: fixed;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(calc(100% + 40px));
+            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none;
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(12px);
             border: 1px solid #10b981;
@@ -213,8 +213,7 @@
             transform: translateX(-50%) translateY(0);
             opacity: 1;
             visibility: visible;
-            pointer-events: auto;
-        }
+            pointer-events: auto; opacity: 1; visibility: visible; pointer-events: auto; }
         
         .confetti {
             position: fixed;
@@ -280,7 +279,7 @@
                 <span id="successTitleText" data-i18n="pay_success_title_default">Your payment was successful</span>
             </h2>
             <p class="text-gray-300 text-lg mb-2" data-i18n="pay_success_thanks">🎉 Thank you for your purchase! 🎉</p>
-            <p class="text-gray-400 text-sm mb-6" id="successDescText" data-i18n="pay_success_desc_default">A confirmation email has been sent to your inbox.</p>
+            <p class="text-gray-400 text-sm mb-6" id="successDescText" data-i18n="pay_success_desc_default">The transaction has been recorded.</p>
             
             <div class="bg-black/30 rounded-2xl p-6 text-left max-w-md mx-auto mb-6">
                 <h3 class="text-lg font-bold text-cyan-400 mb-4 border-b border-white/10 pb-2 flex items-center gap-2">
@@ -311,7 +310,7 @@
                     </div>
                 </div>
                 <div class="border-t border-white/10 pt-3">
-                    <div class="flex justify-between text-sm"><span class="text-gray-400">Mô tả / Description:</span><span class="font-medium">BitPaw Premium Service</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-400">Mô tả / Description:</span><span class="font-medium" id="invoiceDescription">POS</span></div>
                     <div class="flex justify-between text-sm mt-2"><span class="text-gray-400">Mã số thuế / Tax ID (if any):</span><span class="font-mono" id="taxId">N/A</span></div>
                     <div class="flex justify-between text-sm mt-2"><span class="text-gray-400">Địa chỉ / Address:</span><span class="truncate" id="address">123 Lê Lợi, Quận 1, TP.HCM</span></div>
                 </div>
@@ -328,7 +327,7 @@
                     <div class="flex justify-between"><span class="text-gray-300">Phương thức / Method:</span><span class="font-bold text-white" data-i18n="pay_success_pos_method_value">POS (Cash/Card at Counter)</span></div>
                     <div class="flex justify-between"><span class="text-gray-300">Số tiền / Amount:</span><span class="text-emerald-400 font-bold text-lg" id="posAmount">35.200đ</span></div>
                 </div>
-                <p class="text-xs text-gray-400 mt-4 italic text-center" data-i18n="pay_success_pos_note">The F&B order has been closed and the table has been automatically released in the system.</p>
+                <p class="text-xs text-gray-400 mt-4 italic text-center" id="posNoteText" data-i18n="pay_success_pos_note">The F&B order has been closed and the table has been automatically released in the system.</p>
             </div>
             
             <div class="flex flex-wrap gap-4 justify-center">
@@ -384,7 +383,7 @@
             <hr>
             <div class="invoice-row">
                 <span>Description:</span>
-                <span>BitPaw Premium Service</span>
+                <span id="printDescription">POS</span>
             </div>
             <div class="invoice-row invoice-total">
                 <span>Total Amount:</span>
@@ -411,11 +410,12 @@
                 pay_success_congrats: 'Chúc mừng!',
                 pay_success_title_default: 'Thanh toán của bạn đã thành công',
                 pay_success_thanks: '🎉 Cảm ơn bạn đã mua hàng! 🎉',
-                pay_success_desc_default: 'Email xác nhận đã được gửi đến hộp thư của bạn.',
+                pay_success_desc_default: 'Giao dịch đã được ghi nhận vào hệ thống.',
                 pay_success_pos_title: 'ĐÃ NHẬN THANH TOÁN TẠI QUẦY (POS)',
                 pay_success_pos_status_value: '✓ Đã nhận thanh toán',
                 pay_success_pos_method_value: 'POS (Tiền mặt/Thẻ tại quầy)',
                 pay_success_pos_note: 'Đơn hàng F&B đã được đóng và bàn đã được giải phóng tự động trong hệ thống.',
+                pay_success_pos_note_generic: 'Hoá đơn đã được đóng và ghi nhận vào doanh thu.',
                 pay_success_back_pos: 'Quay lại POS',
                 pay_success_new_order: 'Tạo đơn mới',
                 pay_success_print_btn: 'In hóa đơn (Invoice)',
@@ -442,11 +442,12 @@
                 pay_success_congrats: 'Congratulations!',
                 pay_success_title_default: 'Your payment was successful',
                 pay_success_thanks: '🎉 Thank you for your purchase! 🎉',
-                pay_success_desc_default: 'A confirmation email has been sent to your inbox.',
+                pay_success_desc_default: 'The transaction has been recorded.',
                 pay_success_pos_title: 'PAYMENT RECEIVED AT COUNTER (POS)',
                 pay_success_pos_status_value: '✓ Payment received',
                 pay_success_pos_method_value: 'POS (Cash/Card at Counter)',
                 pay_success_pos_note: 'The F&B order has been closed and the table has been automatically released in the system.',
+                pay_success_pos_note_generic: 'The bill has been closed and recorded in revenue.',
                 pay_success_back_pos: 'Back to POS',
                 pay_success_new_order: 'Create new order',
                 pay_success_print_btn: 'Print receipt (Invoice)',
@@ -526,6 +527,7 @@
         let currency = urlParams.get('currency') || storedCurrency || 'USD';
         let amountDisplay = (['USD', 'AUD'].includes(currency) ? '$' : (currency === 'EUR' ? '€' : '₫')) + amountRaw;
         if (currency === 'VND') amountDisplay = parseInt(amountRaw).toLocaleString('vi-VN') + '₫';
+        else if (!isNaN(parseFloat(amountRaw))) amountDisplay = formatAmt(parseFloat(amountRaw));
 
         // Format a raw numeric amount consistently with the transaction's own currency
         // (this page tracks currency per-transaction via URL/localStorage, independent of
@@ -544,16 +546,21 @@
         
         // Dynamic Store Name & Labels based on industry
         const ind = urlParams.get('industry') || 'fnb';
-        let storeName = "BitPaw Restaurant & Cafe";
+        // Tên THẬT của tiệm (trước đây viết cứng "BitPaw Restaurant & Cafe"/"BitPaw Nails & Beauty Salon" -> hoá đơn
+        // khách in ra mang tên sai).
+        const storeName = escapeHtml({{ (store_name or 'BitPaw') | tojson }});
         let locationLabel = "Table";
         if (ind === 'nail') {
-            storeName = "BitPaw Nails & Beauty Salon";
             locationLabel = "Nail Chair";
         } else if (ind === 'spa') {
-            storeName = "BitPaw Spa & Wellness Center";
             locationLabel = "Spa Bed";
         }
         
+        const INDUSTRY_DESC = { fnb: 'Food & Beverage', nail: 'Nail services', spa: 'Spa services', retail: 'Retail sale',
+                                karaoke: 'Karaoke / Billiards', hotel: 'Hotel stay' };
+        ['invoiceDescription', 'printDescription'].forEach(id => { const el = document.getElementById(id); if (el) el.innerText = INDUSTRY_DESC[ind] || 'POS sale'; });
+        if (ind !== 'fnb') { const note = document.getElementById('posNoteText'); if (note) { note.setAttribute('data-i18n', 'pay_success_pos_note_generic'); note.innerText = t('pay_success_pos_note_generic'); } }
+
         // Cập nhật UI Chi tiết giao dịch
         document.getElementById('txnId').innerText = txnId;
         document.getElementById('paymentMethod').innerText = method;
@@ -561,7 +568,10 @@
         document.getElementById('dateTime').innerText = dateStr;
         
         // Cải tiến hiển thị Trạng thái POS
-        const isPosMethod = method.toUpperCase() === 'POS' || method.toLowerCase().includes('pos');
+        // Trả tại quầy: tiền mặt/thẻ/chia/máy quẹt — trước đây chỉ "POS" mới tính là tại quầy, nên bill tiền mặt hiện
+        // "Đã thanh toán online qua cổng cash".
+        const isPosMethod = ['pos', 'cash', 'card', 'split', 'square', 'square_terminal', 'terminal'].includes(String(method).toLowerCase())
+            || String(method).toLowerCase().includes('pos');
         const badgeContainer = document.getElementById('paymentStatusBadgeContainer');
         const successTitleEl = document.getElementById('successTitleText');
         const successDescEl = document.getElementById('successDescText');

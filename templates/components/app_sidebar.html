@@ -12,6 +12,9 @@
    riêng (vd dashboard.html) để nút đổi ngôn ngữ tại chỗ vẫn cập nhật được sidebar tức thì;
    với các trang chưa có cơ chế đó, các span này chỉ đơn thuần hiển thị đúng ngôn ngữ mặc
    định server-side (default_lang), không có gì bị hỏng cả. #}
+{# Trang dùng Tailwind CDN (chấm công 8 ngành...) không nạp tailwind.output.css: quầng sáng trang trí thò ra ngoài màn hình
+   làm Chrome điện thoại nới khung nhìn 678px rồi thu nhỏ cả trang — xem static/css/input.css. #}
+<style>html { overflow-x: hidden; }</style>
 {% set is_staff = session.get('role') == 'staff' %}
 {% set modules = (active_industry_cfg.modules if active_industry_cfg else []) %}
 {# Tiệm Nails: icon sidebar dùng bộ "ô sơn gel" riêng của ngành (components/nail_icons.html); ngành khác giữ icon cũ #}

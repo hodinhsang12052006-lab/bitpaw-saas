@@ -56,7 +56,7 @@
         .p-stock { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
         .p-barcode { font-size: 10px; color: rgba(255,255,255,0.3); font-family: monospace; margin-top: 2px; }
 
-        .cart-sidebar { position: fixed; top: 0; right: 0; width: 380px; height: 100vh; background: rgba(8,6,26,0.97); backdrop-filter: blur(20px); border-left: 1px solid var(--theme-color); transform: translateX(100%); transition: transform 0.3s ease; z-index: 1000; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.5); }
+        .cart-sidebar { position: fixed; top: 0; right: 0; width: 380px; height: 100vh; background: rgba(8,6,26,0.97); backdrop-filter: blur(20px); border-left: 1px solid var(--theme-color); transform: translateX(100%); transition: transform 0.3s ease, opacity 0.3s ease; z-index: 1000; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.5); }
         .cart-sidebar.open { transform: translateX(0); }
         .cart-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
         .cart-items { flex: 1; overflow-y: auto; padding: 15px; }
@@ -80,8 +80,8 @@
         .pm-option { border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 14px; text-align: center; cursor: pointer; transition: 0.2s; }
         .pm-option.active { border-color: var(--theme-color); background: rgba(99,102,241,0.15); box-shadow: 0 0 12px rgba(99,102,241,0.3); }
 
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px)); background: rgba(0,0,0,0.9); border: 1px solid #10b981; color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 20000; transition: transform 0.3s ease; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none; background: rgba(0,0,0,0.9); border: 1px solid #10b981; color: #fff; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 20000; transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
         @media (max-width: 640px) {
             .overlay { padding: 16px; }

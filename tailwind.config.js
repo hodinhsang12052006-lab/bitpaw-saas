@@ -30,11 +30,18 @@ module.exports = {
   },
   plugins: [],
   safelist: [
-    // Colors & Borders (covers dynamically built themes and badges)
+    // Màu ghép động trong JS (vd `border-${colorClass}-500/50`, `bg-${p.color}-500/10`, `text-${color}-400`).
+    // Pattern CÓ mốc ^...$ : bản cũ không có mốc nên khớp cả MỌI mức trong suốt (/5../100) x 4 trạng thái -> 70.000
+    // quy tắc, file CSS 8,5 MB mọi trang phải tải. Bổ sung rose/amber/fuchsia... (đang được ghép động nhưng thiếu).
     {
-      pattern: /(bg|text|border|shadow|from|to|via)-(cyan|purple|pink|emerald|violet|blue|dark|slate|zinc|gray|red|yellow|indigo)-(100|200|300|400|500|600|700|800|900|deep|panel|cyan|purple|pink|emerald)/,
+      pattern: /^(bg|text|border|shadow|from|to|via)-(cyan|purple|pink|emerald|violet|blue|slate|zinc|gray|red|yellow|indigo|rose|amber|fuchsia|orange|green|teal|sky|lime)-(100|200|300|400|500|600|700|800|900)$/,
       variants: ['hover', 'focus', 'group-hover'],
     },
+    {
+      pattern: /^(bg|text|border)-(cyan|purple|pink|emerald|violet|blue|slate|zinc|gray|red|yellow|indigo|rose|amber|fuchsia|orange|green|teal|sky|lime)-(300|400|500|600)\/(10|20|30|40|50)$/,
+    },
+    { pattern: /^(bg|text|border)-dark-(deep|panel)$/ },
+    { pattern: /^(bg|text|border|shadow)-neon-(cyan|purple|pink|emerald)$/ },
     // Backdrop blur, opacities
     {
       pattern: /backdrop-blur-(none|xs|sm|md|lg|xl|2xl)/,

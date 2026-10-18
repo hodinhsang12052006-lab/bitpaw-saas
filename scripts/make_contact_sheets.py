@@ -21,7 +21,7 @@ def sheet(files, cols, rows, tile, prefix):
         d = ImageDraw.Draw(canvas)
         for i, f in enumerate(batch):
             im = Image.open(os.path.join(src, f)).convert('RGB')
-            im.thumbnail((tw, th * 3))
+            im = im.resize((tw, max(1, int(im.height * tw / im.width))))  # giữ tỉ lệ theo chiều ngang ô
             im = im.crop((0, 0, tw, min(th, im.height)))
             x, y = (i % cols) * tw, (i // cols) * (th + 22)
             canvas.paste(im, (x, y + 22))
@@ -33,5 +33,5 @@ def sheet(files, cols, rows, tile, prefix):
 
 
 files = sorted(f for f in os.listdir(src) if f.endswith('.png'))
-sheet([f for f in files if f.startswith('1440_')], 3, 3, (480, 300), 'desk')
-sheet([f for f in files if f.startswith('390_')], 6, 1, (260, 563), 'mob')
+sheet([f for f in files if f.startswith('1440_')], 3, 2, (480, 560), 'desk')
+sheet([f for f in files if f.startswith('390_')], 6, 1, (240, 900), 'mob')

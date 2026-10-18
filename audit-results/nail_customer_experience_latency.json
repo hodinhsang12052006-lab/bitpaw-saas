@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-10-18T04:04:54.340Z",
-  "token": "UXLAT294340",
+  "ranAt": "2026-10-18T09:02:29.998Z",
+  "token": "UXLAT149998",
   "steps": [
     {
       "name": "Đăng nhập chủ tiệm",
@@ -10,7 +10,7 @@
     {
       "name": "C1. Khách SĐT Úc (04xx) — AI trả lời",
       "status": "PASS",
-      "note": "3602ms · \"Hi! Yes, we have an opening tomorrow (Monday, Oct 19) at 3:00 PM for our Gel Manicure & Cuticle Care — $45. Would you like me to book that for you? Just share y\""
+      "note": "3237ms · \"Hi! Yes, we have tomorrow (Monday, Oct 19) at 3:00 PM open for our Gel Manicure & Cuticle Care — $45. Would you like me to book that for you? If so, just share \""
     },
     {
       "name": "C1b. Hội thoại khách SĐT Úc có vào hộp thư /ai_bot của tiệm",
@@ -20,27 +20,52 @@
     {
       "name": "C1c. Khách SĐT Úc nhờ AI đặt lịch -> đúng 1 lịch hẹn thật (không trùng)",
       "status": "PASS",
-      "note": "[{\"id\":206,\"book_time\":\"2026-10-19T15:00:00\",\"status\":\"pending\",\"source\":\"ai_bot\"}] · AI: \"All set, Chloe! ✅ Your Gel Manicure & Cuticle Care is booked for tomorrow, Monday Oct 19 at 3:00 PM. We'll see you then at Golden Lotus Nails & Beauty Bar!\n\nWould you like to add anything while you're in — a Custom 3D Ch\""
+      "note": "[{\"id\":214,\"book_time\":\"2026-10-19T15:00:00\",\"status\":\"pending\",\"source\":\"ai_bot\"}] · AI: \"All set, Chloe! ✅ You're booked for Gel Manicure & Cuticle Care tomorrow, Monday, Oct 19 at 3:00 PM ($45), any technician. We'll see you then! 💅\n\nIf you'd like, I can also add a little something extra — our Custom Nail \""
     },
     {
       "name": "C2. AI trả lời khách",
       "status": "PASS",
-      "note": "1786ms · \"Dạ em chào chị! Chiều mai (thứ Hai 19/10) lúc 3h chiều em còn chỗ ạ. Chị muốn làm gel tay món nào để em đặt đúng nhé:\n- Gel Manicure & Cuticle Care: $45\n- Shell\""
+      "note": "1693ms · \"Dạ chị, chiều mai 3h (19/10) em vẫn còn chỗ ạ. Gel tay bên em có Gel Manicure & Cuticle Care $45, hoặc Shellac Hand Treatment $50. Chị muốn chọn món nào ạ? Nếu \""
     },
     {
       "name": "C2b. Khách mới hiện trong hộp thư /ai_bot của tiệm (không F5)",
       "status": "PASS",
-      "note": "361ms sau khi khách bấm gửi"
+      "note": "354ms sau khi khách bấm gửi"
     },
     {
       "name": "C2c. Hộp thư chủ tiệm hiện đúng chữ khách gõ (không lộ câu chỉ dẫn nội bộ cho AI)",
       "status": "PASS",
-      "note": "CUSTOMER Chị muốn làm gel tay chiều mai 3h, còn chỗ không em? UXLAT294340 06:05 am Dạ em chào chị! Chiều mai (thứ Hai 19/10) lúc 3h chiều em còn chỗ ạ. Chị m"
+      "note": "CUSTOMER Chị muốn làm gel tay chiều mai 3h, còn chỗ không em? UXLAT149998 11:02 am Dạ chị, chiều mai 3h (19/10) em vẫn còn chỗ ạ. Gel tay bên em có Gel Manic"
     },
     {
       "name": "C3. Chủ tiệm trả lời ở /ai_bot -> khách đang mở widget thấy",
       "status": "PASS",
-      "note": "368ms"
+      "note": "540ms"
+    },
+    {
+      "name": "C4. Khách nhắn -> tiệm thấy trong /ai_bot",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 240ms · trung vị 299ms · chậm nhất 677ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C5. Tiệm nhắn -> khách thấy trên /portal",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 217ms · trung vị 264ms · chậm nhất 293ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C6. Chat nội bộ (thợ -> chủ)",
+      "status": "PASS",
+      "note": "n=8 · nhanh nhất 324ms · trung vị 400ms · chậm nhất 931ms · KHÔNG tới trong 20s: 0"
+    },
+    {
+      "name": "C7. Khách đặt lịch QR -> /calendar tự hiện",
+      "status": "PASS",
+      "note": "2382ms (gồm cả tải lại trang lịch)"
+    },
+    {
+      "name": "C7b. Check-in ở lịch -> badge POS tự tăng",
+      "status": "PASS",
+      "note": "327ms"
     },
     {
       "name": "Lỗi JS trên trang",
@@ -50,15 +75,68 @@
     {
       "name": "Dọn dữ liệu test",
       "status": "INFO",
-      "note": "{\"bot_messages\":7,\"bot_customers\":2,\"chat_messages\":0,\"appointments\":1}"
+      "note": "{\"bot_messages\":24,\"bot_customers\":2,\"chat_messages\":8,\"appointments\":2}"
     }
   ],
   "latency": {
-    "ai_reply_au_ms": 3602,
-    "ai_booking_reply_ms": 3523,
-    "ai_reply_ms": 1786,
-    "customer_to_inbox_first_ms": 361,
-    "owner_reply_to_widget_ms": 368
+    "ai_reply_au_ms": 3237,
+    "ai_booking_reply_ms": 3126,
+    "ai_reply_ms": 1693,
+    "customer_to_inbox_first_ms": 354,
+    "owner_reply_to_widget_ms": 540,
+    "customer_to_ai_bot": {
+      "n": 8,
+      "miss": 0,
+      "min": 240,
+      "median": 299,
+      "max": 677,
+      "all": [
+        604,
+        281,
+        240,
+        299,
+        252,
+        677,
+        605,
+        290
+      ]
+    },
+    "owner_to_portal": {
+      "n": 8,
+      "miss": 0,
+      "min": 217,
+      "median": 264,
+      "max": 293,
+      "all": [
+        242,
+        236,
+        264,
+        293,
+        250,
+        267,
+        266,
+        217
+      ]
+    },
+    "internal_chat": {
+      "n": 8,
+      "miss": 0,
+      "min": 324,
+      "median": 400,
+      "max": 931,
+      "all": [
+        445,
+        493,
+        326,
+        324,
+        400,
+        389,
+        331,
+        931
+      ]
+    },
+    "booking_to_calendar_ms": 2382,
+    "checkin_to_pos_badge_ms": 327
   },
   "businessId": "000b2c16-ab4e-42bd-944a-29c925cad09b"
 }

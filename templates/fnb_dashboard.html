@@ -265,7 +265,7 @@
             position: fixed;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(calc(100% + 40px));
+            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none;
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(12px);
             border: 1px solid #10b981;
@@ -275,12 +275,11 @@
             font-size: 14px;
             font-weight: 600;
             z-index: 10002;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s ease;
             white-space: nowrap;
         }
         .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
+            transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
     
         /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
         @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }

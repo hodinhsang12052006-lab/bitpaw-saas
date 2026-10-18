@@ -83,7 +83,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             position: fixed;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(calc(100% + 40px));
+            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none;
             background: rgba(0,0,0,0.9);
             backdrop-filter: blur(12px);
             border: 1px solid #06b6d4;
@@ -103,8 +103,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             transform: translateX(-50%) translateY(0);
             opacity: 1;
             visibility: visible;
-            pointer-events: auto;
-        }
+            pointer-events: auto; opacity: 1; visibility: visible; pointer-events: auto; }
         
         .loading-overlay {
             position: fixed;
@@ -333,13 +332,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_bank_code_label">Mã ngân hàng (Bank Code) *</label>
-                                <input type="text" id="bankCodeManual" class="glass-input" placeholder="e.g. MB, VCB (Tự động hoặc nhập tay)" data-i18n-placeholder="payment_gateway_bank_code_placeholder">
+                                <input type="text" id="bankCodeManual" class="glass-input" placeholder="e.g. MB, VCB (Tự động hoặc nhập tay)" data-i18n-placeholder="payment_gateway_bank_code_placeholder" data-i18n-placeholder="payment_gateway_bank_code_placeholder">
                             </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_account_number_label">Số tài khoản *</label>
-                                <input type="text" id="accountNumber" class="glass-input" placeholder="Nhập số tài khoản nhận tiền" data-i18n-placeholder="payment_gateway_account_number_placeholder">
+                                <input type="text" id="accountNumber" class="glass-input" placeholder="Nhập số tài khoản nhận tiền" data-i18n-placeholder="payment_gateway_account_number_placeholder" data-i18n-placeholder="payment_gateway_account_number_placeholder">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="payment_gateway_account_holder_label">Tên chủ tài khoản * (VIẾT HOA KHÔNG DẤU)</label>
@@ -378,7 +377,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                     <input type="text" id="squareLocationId" class="glass-input" placeholder="e.g. L-XXXXXXX">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên thiết bị (Device Name)</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_device_name">Tên thiết bị (Device Name)</span></label>
                                     <input type="text" id="squareDevice" class="glass-input" placeholder="e.g. Front Desk Terminal">
                                 </div>
                             </div>
@@ -392,7 +391,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                     <input type="text" id="cloverMerchantId" class="glass-input" placeholder="e.g. 123456789012">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên thiết bị (Device Name)</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_device_name">Tên thiết bị (Device Name)</span></label>
                                     <input type="text" id="cloverDevice" class="glass-input" placeholder="e.g. Station 1 Clover Flex">
                                 </div>
                             </div>
@@ -416,11 +415,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div id="fields_zelle" class="space-y-3 us-fields hidden">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Zelle Email hoặc Số điện thoại *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_zelle_contact">Zelle Email hoặc Số điện thoại *</span></label>
                                     <input type="text" id="zelleEmailPhone" class="glass-input" placeholder="e.g. pay@salonbeauty.com">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên doanh nghiệp (Business Name) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_business_name_req">Tên doanh nghiệp (Business Name) *</span></label>
                                     <input type="text" id="zelleBusinessName" class="glass-input" placeholder="e.g. Nails & Spa LLC">
                                 </div>
                             </div>
@@ -430,25 +429,25 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div id="fields_ach" class="space-y-3 us-fields hidden">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Routing Number (9 chữ số) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_routing">Routing Number (9 chữ số) *</span></label>
                                     <input type="text" id="achRouting" class="glass-input" placeholder="e.g. 021000021">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên ngân hàng (Bank Name) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_bank_name">Tên ngân hàng (Bank Name) *</span></label>
                                     <input type="text" id="achBankName" class="glass-input" placeholder="e.g. Chase Bank">
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Số tài khoản che (Masked Account/Last 4) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_masked_account">Số tài khoản che (Masked Account/Last 4) *</span></label>
                                     <input type="text" id="achAccountLast4" class="glass-input" placeholder="e.g. *******1234">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên chủ tài khoản *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_holder_req">Tên chủ tài khoản *</span></label>
                                     <input type="text" id="achAccountHolder" class="glass-input" placeholder="e.g. Nails & Spa LLC">
                                 </div>
                             </div>
-                            <p class="text-[10px] text-rose-400"><i class="fas fa-lock"></i> Để bảo mật, số tài khoản đầy đủ sẽ không hiển thị công khai ở trang thanh toán POS của khách hàng.</p>
+                            <p class="text-[10px] text-rose-400"><i class="fas fa-lock"></i> <span data-i18n="pg_ach_note">Để bảo mật, số tài khoản đầy đủ sẽ không hiển thị công khai ở trang thanh toán POS của khách hàng.</span></p>
                         </div>
 
                         <!-- Fields cho Cash App -->
@@ -459,7 +458,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                     <input type="text" id="cashappCashtag" class="glass-input" placeholder="e.g. $NailBeautySalon">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên hiển thị (Business Name)</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_display_name">Tên hiển thị (Business Name)</span></label>
                                     <input type="text" id="cashappBusinessName" class="glass-input" placeholder="e.g. Nails & Spa LLC">
                                 </div>
                             </div>
@@ -483,7 +482,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div id="fields_external" class="space-y-3 us-fields hidden">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên máy quẹt thẻ (e.g. Clover, Square, Verifone) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_terminal_name">Tên máy quẹt thẻ (e.g. Clover, Square, Verifone) *</span></label>
                                     <input type="text" id="externalProvider" class="glass-input" placeholder="e.g. Verifone VX520">
                                 </div>
                                 <div>
@@ -495,15 +494,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                         <!-- Ghi chú chung cho các Terminal -->
                         <div class="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl text-xs text-yellow-300">
-                            <i class="fas fa-info-circle mr-1"></i> <strong>Chế độ thủ công:</strong> Thu ngân sẽ quẹt thẻ trên máy terminal thực tế bên ngoài, đợi báo Approved rồi bấm "Xác nhận đã nhận tiền" trên POS để chốt đơn.
+                            <i class="fas fa-info-circle mr-1"></i> <strong><span data-i18n="pg_manual_mode">Chế độ thủ công:</span></strong> <span data-i18n="pg_manual_desc">Thu ngân sẽ quẹt thẻ trên máy terminal thực tế bên ngoài, đợi báo Approved rồi bấm "Xác nhận đã nhận tiền" trên POS để chốt đơn.</span>
                         </div>
                     </div>
 
                     <!-- PHẦN C: QUỐC TẾ (International Generic) -->
                     <div id="sectionIntl" class="space-y-4 hidden">
-                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-globe mr-2"></i> Thiết lập Cổng thanh toán Quốc tế</h3>
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-2"><i class="fas fa-globe mr-2"></i> <span data-i18n="pg_intl_title">Thiết lập Cổng thanh toán Quốc tế</span></h3>
                         <div class="mb-4">
-                            <label class="block text-xs font-bold text-gray-400 mb-1">Phương thức thanh toán quốc tế *</label>
+                            <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_intl_method">Phương thức thanh toán quốc tế *</span></label>
                             <select id="intlProviderSelect" class="glass-input cursor-pointer">
                                 <option value="wise">Wise Business (Bank Transfer / ACH / SWIFT)</option>
                                 <option value="paypal_intl">PayPal Global Business Checkout</option>
@@ -513,11 +512,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div id="fields_intl_generic" class="space-y-3">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Email / Tài khoản thụ hưởng *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_intl_account">Email / Tài khoản thụ hưởng *</span></label>
                                     <input type="text" id="intlEmailAccount" class="glass-input" placeholder="e.g. billing@salon.com">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1">Tên thụ hưởng (Beneficiary Name) *</label>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1"><span data-i18n="pg_intl_beneficiary">Tên thụ hưởng (Beneficiary Name) *</span></label>
                                     <input type="text" id="intlBeneficiary" class="glass-input" placeholder="e.g. Global Spa & Beauty Ltd">
                                 </div>
                             </div>
@@ -531,19 +530,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                 <input type="checkbox" id="activeCheckbox" checked>
                                 <span class="slider"></span>
                             </label>
-                            <span class="text-xs font-bold text-gray-300">Kích hoạt cổng</span>
+                            <span class="text-xs font-bold text-gray-300"><span data-i18n="pg_active">Kích hoạt cổng</span></span>
                         </div>
                         <div class="flex items-center gap-2">
                             <label class="switch">
                                 <input type="checkbox" id="defaultCheckbox" checked>
                                 <span class="slider"></span>
                             </label>
-                            <span class="text-xs font-bold text-gray-300">Cổng mặc định</span>
+                            <span class="text-xs font-bold text-gray-300"><span data-i18n="pg_default">Cổng mặc định</span></span>
                         </div>
                     </div>
 
                     <button type="submit" id="saveBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-black py-4 rounded-xl transition shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2 text-sm uppercase">
-                        <i class="fas fa-save"></i> Lưu cấu hình Cổng thanh toán
+                        <i class="fas fa-save"></i> <span data-i18n="pg_save">Lưu cấu hình Cổng thanh toán</span>
                     </button>
                 </form>
             </div>
@@ -552,18 +551,18 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div class="lg:col-span-1 space-y-6">
                 <!-- Preview Panel -->
                 <div class="glass-panel p-6 text-center">
-                    <h3 class="text-sm font-bold text-cyan-400 mb-4 border-b border-white/10 pb-2 text-left uppercase tracking-wider"><i class="fas fa-eye mr-2"></i> Trình xem trước (Preview)</h3>
+                    <h3 class="text-sm font-bold text-cyan-400 mb-4 border-b border-white/10 pb-2 text-left uppercase tracking-wider"><i class="fas fa-eye mr-2"></i> <span data-i18n="pg_preview">Trình xem trước (Preview)</span></h3>
                     
                     <!-- Khối hiển thị khi là VietQR -->
                     <div id="previewVietQR" class="space-y-4">
                         <div class="bg-white p-3 rounded-2xl inline-block shadow-lg">
                             <img id="previewQRImage" class="w-48 h-48 mx-auto">
-                            <div id="previewQRWarning" class="hidden text-rose-500 font-bold text-[10px] w-48 py-10">Chưa đủ thông tin tài khoản nhận tiền để tạo QR.</div>
+                            <div id="previewQRWarning" class="hidden text-rose-500 font-bold text-[10px] w-48 py-10"><span data-i18n="pg_qr_missing">Chưa đủ thông tin tài khoản nhận tiền để tạo QR.</span></div>
                         </div>
                         <div class="text-xs text-left bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
-                            <div class="flex justify-between"><span class="text-gray-400">Ngân hàng:</span><span class="font-bold text-white" id="previewBank">Chưa chọn</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Số tài khoản:</span><span class="font-mono font-bold text-white" id="previewAccount">Chưa nhập</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Chủ tài khoản:</span><span class="font-bold text-cyan-300" id="previewHolder">Chưa nhập</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400"><span data-i18n="pg_bank_lbl">Ngân hàng:</span></span><span class="font-bold text-white" id="previewBank"><span data-i18n="pg_not_selected">Chưa chọn</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-400"><span data-i18n="pg_account_lbl">Số tài khoản:</span></span><span class="font-mono font-bold text-white" id="previewAccount"><span data-i18n="pg_not_entered">Chưa nhập</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-400"><span data-i18n="pg_holder_lbl">Chủ tài khoản:</span></span><span class="font-bold text-cyan-300" id="previewHolder"><span data-i18n="pg_not_entered">Chưa nhập</span></span></div>
                         </div>
                     </div>
 
@@ -573,17 +572,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <i class="fas fa-desktop text-5xl text-cyan-400 mb-3 animate-pulse"></i>
                             <h4 class="text-xs font-bold text-cyan-300 uppercase tracking-widest" id="previewTerminalTitle">SQUARE TERMINAL</h4>
                             <p class="text-[10px] text-gray-400 mt-2 leading-relaxed" id="previewTerminalDesc">
-                                Khách hàng sẽ thực hiện quẹt thẻ/Tap to Pay trên máy POS ngoài tiệm.
+                                <span data-i18n="pg_terminal_hint">Khách hàng sẽ thực hiện quẹt thẻ/Tap to Pay trên máy POS ngoài tiệm.</span>
                             </p>
                         </div>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-2 mt-4">
                         <button type="button" id="btnPreviewUpdate" class="flex-1 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold py-2 rounded-xl text-[11px] transition uppercase py-2.5">
-                            Cập nhật QR
+                            <span data-i18n="pg_update_qr">Cập nhật QR</span>
                         </button>
                         <button type="button" id="btnPreviewTest" class="flex-1 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 text-cyan-400 font-bold py-2 rounded-xl text-[11px] transition uppercase py-2.5">
-                            Test với số tiền mẫu
+                            <span data-i18n="pg_test_amount">Test với số tiền mẫu</span>
                         </button>
                     </div>
                 </div>
@@ -591,24 +590,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <!-- Auto Detection Box -->
                 <div class="glass-panel p-6">
                     <h3 class="text-sm font-bold text-cyan-400 mb-3 border-b border-white/10 pb-2 uppercase tracking-wider flex items-center justify-between">
-                        <span><i class="fas fa-magic mr-1"></i> Tự động nhận diện</span>
+                        <span><i class="fas fa-magic mr-1"></i> <span data-i18n="pg_auto_detect">Tự động nhận diện</span></span>
                         <span class="bg-rose-500/20 border border-rose-500/50 text-rose-400 px-2 py-0.5 rounded text-[8px] uppercase font-black font-mono">Manual Confirm</span>
                     </h3>
                     <p class="text-xs text-gray-300 leading-relaxed mb-3">
-                        Hệ thống đang hoạt động ở chế độ <strong>Thu ngân xác nhận thủ công</strong> để đảm bảo an toàn tối đa dòng tiền demo.
+                        <span data-i18n="pg_mode_prefix">Hệ thống đang hoạt động ở chế độ</span> <strong><span data-i18n="pg_mode_manual">Thu ngân xác nhận thủ công</span></strong> <span data-i18n="pg_mode_suffix">để đảm bảo an toàn tối đa dòng tiền demo.</span>
                     </p>
                     <p class="text-[10px] text-gray-400 leading-relaxed">
-                        Giai đoạn tiếp theo hỗ trợ tích hợp API/Webhook để đối soát tự động:
-                        <br>• Tự động khớp mã giao dịch VietQR
-                        <br>• Đồng bộ real-time Square/Clover Webhooks
-                        <br>• Cổng thanh toán trực tuyến Stripe API
+                        <span data-i18n="pg_next_phase">Giai đoạn tiếp theo hỗ trợ tích hợp API/Webhook để đối soát tự động:</span>
+                        <br><span data-i18n="pg_next_1">• Tự động khớp mã giao dịch VietQR</span>
+                        <br><span data-i18n="pg_next_2">• Đồng bộ real-time Square/Clover Webhooks</span>
+                        <br><span data-i18n="pg_next_3">• Cổng thanh toán trực tuyến Stripe API</span>
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/90 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm font-bold">Đang lưu dữ liệu cấu hình...</span></div></div>
+    <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/90 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm font-bold"><span data-i18n="pg_saving">Đang lưu dữ liệu cấu hình...</span></span></div></div>
     <div id="toast" class="toast"></div>
 
     <!-- Seeded Vietnamese Banks -->
@@ -641,6 +640,76 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 payment_gateway_us_section_title: 'Thiết lập Cổng thanh toán tiệm Nails / Salon tại Mỹ',
                 payment_gateway_us_provider_label: 'Chọn Nhà cung cấp (US Payment Provider) *',
                 payment_gateway_option_external_terminal: 'Máy quẹt thẻ ngoài (External Card Terminal)',
+                pg_device_name: 'Tên thiết bị (Device Name)',
+                pg_zelle_contact: 'Zelle Email hoặc Số điện thoại *',
+                pg_business_name_req: 'Tên doanh nghiệp (Business Name) *',
+                pg_routing: 'Routing Number (9 chữ số) *',
+                pg_bank_name: 'Tên ngân hàng (Bank Name) *',
+                pg_masked_account: 'Số tài khoản che (Masked Account/Last 4) *',
+                pg_holder_req: 'Tên chủ tài khoản *',
+                pg_ach_note: 'Để bảo mật, số tài khoản đầy đủ sẽ không hiển thị công khai ở trang thanh toán POS của khách hàng.',
+                pg_display_name: 'Tên hiển thị (Business Name)',
+                pg_terminal_name: 'Tên máy quẹt thẻ (e.g. Clover, Square, Verifone) *',
+                pg_manual_mode: 'Chế độ thủ công:',
+                pg_desc_square: 'Thanh toán thẻ tại quầy. Khách quẹt thẻ hoặc Tap to Pay trên máy Square Terminal, thu ngân bấm xác nhận khi máy báo thành công.',
+                pg_desc_clover: 'Khách quẹt thẻ trên máy Clover Flex/Clover Mini, đợi máy báo thành công rồi thu ngân bấm hoàn tất.',
+                pg_desc_stripe: 'Máy đọc thẻ tại quầy (Stripe Reader). Khách cắm, quẹt hoặc Tap to Pay; khi được duyệt thu ngân bấm xác nhận.',
+                pg_desc_zelle: 'Khách chuyển khoản Zelle tới {x}. Thu ngân kiểm tra app ngân hàng rồi bấm xác nhận.',
+                pg_desc_ach: 'Chuyển khoản ACH thẳng vào tài khoản ngân hàng Mỹ {x} (Routing / số tài khoản đã che).',
+                pg_desc_cashapp: 'Khách chuyển tiền bằng Cash App tới Cashtag {x}.',
+                pg_desc_paypal: 'Chuyển Venmo tới {x} hoặc qua email PayPal.',
+                pg_desc_external: 'Máy quẹt thẻ riêng của tiệm. Thu ngân quẹt thẻ trên máy đó, in biên lai thành công rồi bấm hoàn tất.',
+                pg_desc_intl: 'Chuyển khoản quốc tế / SWIFT. Người thụ hưởng: {x}.',
+                pg_f_bank_code: 'mã ngân hàng',
+                pg_f_account: 'số tài khoản',
+                pg_f_holder: 'tên chủ tài khoản',
+                pg_missing: 'Thiếu {x}.',
+                pg_enable_hint: 'Bật "Kích hoạt cổng" để dùng QR trong POS.',
+                pg_t_uat: '✅ Cổng {x}: giao dịch thử $10 đã sẵn sàng.',
+                pg_not_filled: '(chưa điền)',
+                pg_manual_desc: 'Thu ngân quẹt thẻ trên máy terminal thật tại quầy, đợi báo Approved rồi bấm "Xác nhận đã nhận tiền" trên POS để chốt đơn.',
+                pg_intl_title: 'Thiết lập Cổng thanh toán Quốc tế',
+                pg_intl_method: 'Phương thức thanh toán quốc tế *',
+                pg_intl_account: 'Email / Tài khoản thụ hưởng *',
+                pg_intl_beneficiary: 'Tên thụ hưởng (Beneficiary Name) *',
+                pg_active: 'Kích hoạt cổng',
+                pg_default: 'Cổng mặc định',
+                pg_save: 'Lưu cấu hình Cổng thanh toán',
+                pg_preview: 'Trình xem trước (Preview)',
+                pg_qr_missing: 'Chưa đủ thông tin tài khoản nhận tiền để tạo QR.',
+                pg_bank_lbl: 'Ngân hàng:',
+                pg_not_selected: 'Chưa chọn',
+                pg_account_lbl: 'Số tài khoản:',
+                pg_not_entered: 'Chưa nhập',
+                pg_holder_lbl: 'Chủ tài khoản:',
+                pg_terminal_hint: 'Khách hàng sẽ thực hiện quẹt thẻ/Tap to Pay trên máy POS ngoài tiệm.',
+                pg_update_qr: 'Cập nhật QR',
+                pg_test_amount: 'Test với số tiền mẫu',
+                pg_auto_detect: 'Tự động nhận diện',
+                pg_mode_prefix: 'Hệ thống đang hoạt động ở chế độ',
+                pg_mode_manual: 'Thu ngân xác nhận thủ công',
+                pg_mode_suffix: 'để đảm bảo an toàn tối đa dòng tiền demo.',
+                pg_next_phase: 'Giai đoạn tiếp theo hỗ trợ tích hợp API/Webhook để đối soát tự động:',
+                pg_next_1: '• Tự động khớp mã giao dịch VietQR',
+                pg_next_2: '• Đồng bộ real-time Square/Clover Webhooks',
+                pg_next_3: '• Cổng thanh toán trực tuyến Stripe API',
+                pg_saving: 'Đang lưu dữ liệu cấu hình...',
+                pg_t_enabled: 'Đã bật tài khoản để tạo QR preview.',
+                pg_t_preview: 'Đã cập nhật màn hình Preview thành công!',
+                pg_t_test_qr: '✅ Đang hiển thị QR chuyển khoản thử nghiệm 100.000₫!',
+                pg_t_need_vietqr: 'Vui lòng nhập đầy đủ thông tin VietQR!',
+                pg_t_need_square: 'Vui lòng điền Square Location ID!',
+                pg_t_need_clover: 'Vui lòng điền Clover Merchant ID!',
+                pg_t_need_stripe: 'Vui lòng điền Stripe Location ID!',
+                pg_t_need_zelle: 'Vui lòng điền đầy đủ thông tin Zelle!',
+                pg_t_need_ach: 'Vui lòng điền đầy đủ thông tin tài khoản ACH!',
+                pg_t_need_cashapp: 'Vui lòng điền Cash App Cashtag!',
+                pg_t_need_paypal: 'Vui lòng điền ít nhất PayPal email hoặc Venmo handle!',
+                pg_t_need_terminal: 'Vui lòng điền tên máy quẹt thẻ!',
+                pg_t_need_intl: 'Vui lòng điền đầy đủ email/beneficiary quốc tế!',
+                pg_t_saved: '✅ Đã lưu cấu hình Cổng thanh toán thành công!',
+                pg_t_error: 'Lỗi: ',
+                pg_t_conn_error: 'Lỗi kết nối server: ',
             },
             en: {
                 payment_gateway_title: 'BitPay | Payment Gateway Configuration & Payout Setup',
@@ -661,6 +730,76 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 payment_gateway_us_section_title: 'US Nail Salon / Spa Payment Gateway Setup',
                 payment_gateway_us_provider_label: 'Select Provider (US Payment Provider) *',
                 payment_gateway_option_external_terminal: 'External Card Terminal',
+                pg_device_name: 'Device Name',
+                pg_zelle_contact: 'Zelle Email or Phone *',
+                pg_business_name_req: 'Business Name *',
+                pg_routing: 'Routing Number (9 digits) *',
+                pg_bank_name: 'Bank Name *',
+                pg_masked_account: 'Masked Account / Last 4 *',
+                pg_holder_req: 'Account Holder Name *',
+                pg_ach_note: 'For security, the full account number is never shown on the customer-facing POS payment page.',
+                pg_display_name: 'Display Name (Business Name)',
+                pg_terminal_name: 'Card terminal name (e.g. Clover, Square, Verifone) *',
+                pg_manual_mode: 'Manual mode:',
+                pg_desc_square: 'In-person card payment. The customer taps or swipes on the Square Terminal; the cashier confirms once it shows Approved.',
+                pg_desc_clover: 'The customer pays on the Clover Flex / Clover Mini; once it shows Approved the cashier completes the bill.',
+                pg_desc_stripe: 'Counter card reader (Stripe Reader). The customer inserts, swipes or taps; the cashier confirms once approved.',
+                pg_desc_zelle: 'The customer sends a Zelle payment to {x}. The cashier checks the banking app, then confirms.',
+                pg_desc_ach: 'ACH bank transfer straight into the US bank account at {x} (routing / masked account).',
+                pg_desc_cashapp: 'The customer pays with Cash App to the $Cashtag {x}.',
+                pg_desc_paypal: 'Pay by Venmo to {x} or via the PayPal email.',
+                pg_desc_external: "The shop's own card terminal. The cashier runs the card there, prints the receipt, then completes the bill.",
+                pg_desc_intl: 'International / SWIFT transfer. Beneficiary: {x}.',
+                pg_f_bank_code: 'bank code',
+                pg_f_account: 'account number',
+                pg_f_holder: 'account holder',
+                pg_missing: 'Missing {x}.',
+                pg_enable_hint: 'Turn on "Gateway active" to use this QR in the POS.',
+                pg_t_uat: '✅ {x} gateway: a $10 test transaction is ready.',
+                pg_not_filled: '(not filled)',
+                pg_manual_desc: 'The cashier runs the card on the physical terminal, waits for Approved, then taps "Confirm payment received" on the POS to close the bill.',
+                pg_intl_title: 'International Payment Setup',
+                pg_intl_method: 'International payment method *',
+                pg_intl_account: 'Beneficiary email / account *',
+                pg_intl_beneficiary: 'Beneficiary Name *',
+                pg_active: 'Gateway active',
+                pg_default: 'Default gateway',
+                pg_save: 'Save payment gateway settings',
+                pg_preview: 'Preview',
+                pg_qr_missing: 'Not enough payout account details to build the QR yet.',
+                pg_bank_lbl: 'Bank:',
+                pg_not_selected: 'Not selected',
+                pg_account_lbl: 'Account number:',
+                pg_not_entered: 'Not entered',
+                pg_holder_lbl: 'Account holder:',
+                pg_terminal_hint: 'The customer swipes / taps to pay on the card terminal at the counter.',
+                pg_update_qr: 'Update QR',
+                pg_test_amount: 'Test with a sample amount',
+                pg_auto_detect: 'Automatic matching',
+                pg_mode_prefix: 'The system currently runs in',
+                pg_mode_manual: 'cashier manual confirmation',
+                pg_mode_suffix: 'mode to keep the money flow safe.',
+                pg_next_phase: 'Next phase adds API/Webhook integrations for automatic reconciliation:',
+                pg_next_1: '• Automatic VietQR transaction matching',
+                pg_next_2: '• Real-time Square/Clover webhook sync',
+                pg_next_3: '• Stripe API online payments',
+                pg_saving: 'Saving settings...',
+                pg_t_enabled: 'Account enabled for the QR preview.',
+                pg_t_preview: 'Preview updated!',
+                pg_t_test_qr: '✅ Showing a test transfer QR for 100,000₫!',
+                pg_t_need_vietqr: 'Please fill in all VietQR details!',
+                pg_t_need_square: 'Please enter the Square Location ID!',
+                pg_t_need_clover: 'Please enter the Clover Merchant ID!',
+                pg_t_need_stripe: 'Please enter the Stripe Location ID!',
+                pg_t_need_zelle: 'Please fill in all Zelle details!',
+                pg_t_need_ach: 'Please fill in all ACH account details!',
+                pg_t_need_cashapp: 'Please enter the Cash App $Cashtag!',
+                pg_t_need_paypal: 'Please enter a PayPal email or a Venmo handle!',
+                pg_t_need_terminal: 'Please enter the card terminal name!',
+                pg_t_need_intl: 'Please fill in the international email/beneficiary!',
+                pg_t_saved: '✅ Payment gateway settings saved!',
+                pg_t_error: 'Error: ',
+                pg_t_conn_error: 'Server connection error: ',
             }
         };
         function t(key) {
@@ -856,38 +995,38 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if (currentType === 'square_terminal') {
                     document.getElementById('fields_square').classList.remove('hidden');
                     previewTerminalTitle.innerText = "SQUARE TERMINAL";
-                    previewTerminalDesc.innerText = "In-person card payment / Invoices. Hướng dẫn: Khách hàng sẽ thực hiện quẹt thẻ hoặc Tap to Pay trên máy Square Terminal ngoài tiệm. Cashier nhấn đối soát hoàn thành.";
+                    previewTerminalDesc.innerText = t('pg_desc_square');
                 } else if (currentType === 'clover_terminal') {
                     document.getElementById('fields_clover').classList.remove('hidden');
                     previewTerminalTitle.innerText = "CLOVER TERMINAL";
-                    previewTerminalDesc.innerText = "POS Nail Salon hardware integration. Hướng dẫn: Khách quẹt thẻ qua máy Clover Flex/Clover Mini, đợi báo thành công và Cashier bấm hoàn tất.";
+                    previewTerminalDesc.innerText = t('pg_desc_clover');
                 } else if (currentType === 'stripe_terminal') {
                     document.getElementById('fields_stripe').classList.remove('hidden');
                     previewTerminalTitle.innerText = "STRIPE TERMINAL";
-                    previewTerminalDesc.innerText = "Counter Card Reader. Hướng dẫn: Thiết bị đọc thẻ BBP Reader. Khách hàng chèn, quẹt hoặc Tap to Pay, sau khi API duyệt cashier bấm xác nhận.";
+                    previewTerminalDesc.innerText = t('pg_desc_stripe');
                 } else if (currentType === 'zelle') {
                     document.getElementById('fields_zelle').classList.remove('hidden');
                     previewTerminalTitle.innerText = "ZELLE BUSINESS";
-                    previewTerminalDesc.innerText = `Khách hàng chuyển khoản qua Zelle đến email/sdt: ${document.getElementById('zelleEmailPhone').value || '(Chưa điền)'}. Cashier kiểm tra app banking rồi bấm đối soát.`;
+                    previewTerminalDesc.innerText = t('pg_desc_zelle').replace('{x}', document.getElementById('zelleEmailPhone').value || t('pg_not_filled'));
                 } else if (currentType === 'ach') {
                     document.getElementById('fields_ach').classList.remove('hidden');
                     previewTerminalTitle.innerText = "ACH / BANK TRANSFER";
-                    previewTerminalDesc.innerText = `ACH Bank Transfer. Nhận tiền gửi thẳng vào tài khoản ngân hàng Mỹ ${document.getElementById('achBankName').value || '(Chưa điền)'} bằng số Routing/Account masked.`;
+                    previewTerminalDesc.innerText = t('pg_desc_ach').replace('{x}', document.getElementById('achBankName').value || t('pg_not_filled'));
                 } else if (currentType === 'cash_app') {
                     document.getElementById('fields_cashapp').classList.remove('hidden');
                     previewTerminalTitle.innerText = "CASH APP PAY";
-                    previewTerminalDesc.innerText = `Khách hàng chuyển tiền bằng ứng dụng Cash App đến Cashtag: ${document.getElementById('cashappCashtag').value || '(Chưa điền)'}.`;
+                    previewTerminalDesc.innerText = t('pg_desc_cashapp').replace('{x}', document.getElementById('cashappCashtag').value || t('pg_not_filled'));
                 } else if (currentType === 'paypal_venmo') {
                     document.getElementById('fields_paypal_venmo').classList.remove('hidden');
                     previewTerminalTitle.innerText = "PAYPAL / VENMO";
-                    previewTerminalDesc.innerText = `Chuyển khoản Venmo: ${document.getElementById('venmoHandle').value || '(Chưa điền)'} hoặc qua email Paypal.`;
+                    previewTerminalDesc.innerText = t('pg_desc_paypal').replace('{x}', document.getElementById('venmoHandle').value || t('pg_not_filled'));
                 } else if (currentType === 'external_terminal') {
                     document.getElementById('fields_external').classList.remove('hidden');
                     previewTerminalTitle.innerText = "EXTERNAL TERMINAL";
-                    previewTerminalDesc.innerText = `Thiết bị quẹt thẻ ngoài tiệm. Thu ngân quẹt thẻ ngoài máy, sau khi in receipt thành công thì bấm hoàn tất thủ công.`;
+                    previewTerminalDesc.innerText = t('pg_desc_external');
                 } else if (currentType === 'wise' || currentType === 'paypal_intl' || currentType === 'stripe_intl') {
                     previewTerminalTitle.innerText = currentType.toUpperCase();
-                    previewTerminalDesc.innerText = `Cổng thanh toán quốc tế / SWIFT chuyển khoản an toàn. Đối tượng thụ hưởng: ${document.getElementById('intlBeneficiary').value || '(Chưa điền)'}.`;
+                    previewTerminalDesc.innerText = t('pg_desc_intl').replace('{x}', document.getElementById('intlBeneficiary').value || t('pg_not_filled'));
                 }
             }
         }
@@ -907,19 +1046,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const prefix = document.getElementById('transferPrefix').value.trim() || 'BITPAW';
 
                 // Cập nhật text preview bên dưới luôn luôn
-                previewBank.innerText = bCode || 'Chưa chọn';
-                previewAccount.innerText = accNum || 'Chưa nhập';
-                previewHolder.innerText = accHolder || 'Chưa nhập';
+                previewBank.innerText = bCode || t('pg_not_selected');
+                previewAccount.innerText = accNum || t('pg_not_entered');
+                previewHolder.innerText = accHolder || t('pg_not_entered');
 
                 // 1. Kiểm tra thiếu trường
                 let missingFields = [];
-                if(!bCode) missingFields.push("mã ngân hàng");
-                if(!accNum) missingFields.push("số tài khoản");
-                if(!accHolder) missingFields.push("tên chủ tài khoản");
+                if(!bCode) missingFields.push(t('pg_f_bank_code'));
+                if(!accNum) missingFields.push(t('pg_f_account'));
+                if(!accHolder) missingFields.push(t('pg_f_holder'));
 
                 if(missingFields.length > 0) {
                     previewQRImage.style.display = 'none';
-                    previewQRWarning.innerText = "Thiếu " + missingFields.join(", ") + ".";
+                    previewQRWarning.innerText = t('pg_missing').replace('{x}', missingFields.join(', '));
                     previewQRWarning.className = "text-rose-500 font-bold text-[10px] w-48 py-10 mx-auto block";
                     previewQRWarning.style.display = 'block';
                     return;
@@ -929,7 +1068,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if(!active && forceActive && activeCheckbox) {
                     activeCheckbox.checked = true;
                     active = true;
-                    showToast("Đã bật tài khoản để tạo QR preview.");
+                    showToast(t('pg_t_enabled'));
                 }
 
                 const amount = testAmount || 100000;
@@ -952,7 +1091,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                 // 4. Nếu toggle active vẫn đang OFF (sau khi render mà người dùng chủ động tắt)
                 if(!active) {
-                    previewQRWarning.innerText = "Bật Kích hoạt tài khoản để dùng QR trong POS.";
+                    previewQRWarning.innerText = t('pg_enable_hint');
                     previewQRWarning.className = "text-rose-500 font-bold text-[10px] w-48 mt-2 mx-auto block";
                     previewQRWarning.style.display = 'block';
                 } else {
@@ -987,7 +1126,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         document.getElementById('btnPreviewUpdate').addEventListener('click', (e) => {
             e.preventDefault();
             updateQRPreview(null, true);
-            showToast("Đã cập nhật màn hình Preview thành công!");
+            showToast(t('pg_t_preview'));
         });
 
         // Test QR with sample amount ($10 or 100.000 VND)
@@ -996,9 +1135,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const currentType = providerTypeInput.value;
             if(currentType === 'vietqr') {
                 updateQRPreview(100000, true);
-                showToast("✅ Đang hiển thị QR chuyển khoản thử nghiệm 100.000₫!");
+                showToast(t('pg_t_test_qr'));
             } else {
-                showToast(`✅ Cổng ${currentType.toUpperCase()} UAT Test: Giao dịch thử nghiệm trị giá $10 USD sẵn sàng.`);
+                showToast(t('pg_t_uat').replace('{x}', currentType.toUpperCase()));
             }
         });
 
@@ -1037,7 +1176,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const prefix = document.getElementById('transferPrefix').value.trim() || 'BITPAW';
 
                 if(!bCode || !accNum || !accHolder) {
-                    showToast("Vui lòng nhập đầy đủ thông tin VietQR!", true);
+                    showToast(t('pg_t_need_vietqr'), true);
                     return;
                 }
                 configPayload.bank_code = bCode;
@@ -1048,26 +1187,26 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } 
             else if (currentType === 'square_terminal') {
                 const locId = document.getElementById('squareLocationId').value.trim();
-                if(!locId) { showToast("Vui lòng điền Square Location ID!", true); return; }
+                if(!locId) { showToast(t('pg_t_need_square'), true); return; }
                 configPayload.square_location_id = locId;
                 configPayload.device_name = document.getElementById('squareDevice').value.trim();
             }
             else if (currentType === 'clover_terminal') {
                 const mid = document.getElementById('cloverMerchantId').value.trim();
-                if(!mid) { showToast("Vui lòng điền Clover Merchant ID!", true); return; }
+                if(!mid) { showToast(t('pg_t_need_clover'), true); return; }
                 configPayload.clover_merchant_id = mid;
                 configPayload.device_name = document.getElementById('cloverDevice').value.trim();
             }
             else if (currentType === 'stripe_terminal') {
                 const locId = document.getElementById('stripeLocationId').value.trim();
-                if(!locId) { showToast("Vui lòng điền Stripe Location ID!", true); return; }
+                if(!locId) { showToast(t('pg_t_need_stripe'), true); return; }
                 configPayload.stripe_location_id = locId;
                 configPayload.reader_label = document.getElementById('stripeReaderLabel').value.trim();
             }
             else if (currentType === 'zelle') {
                 const emailPhone = document.getElementById('zelleEmailPhone').value.trim();
                 const busName = document.getElementById('zelleBusinessName').value.trim();
-                if(!emailPhone || !busName) { showToast("Vui lòng điền đầy đủ thông tin Zelle!", true); return; }
+                if(!emailPhone || !busName) { showToast(t('pg_t_need_zelle'), true); return; }
                 configPayload.zelle_email_or_phone = emailPhone;
                 configPayload.business_name = busName;
                 configPayload.transfer_prefix = document.getElementById('transferPrefix').value.trim() || 'BITPAW';
@@ -1077,7 +1216,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const bank = document.getElementById('achBankName').value.trim();
                 const last4 = document.getElementById('achAccountLast4').value.trim();
                 const holder = document.getElementById('achAccountHolder').value.trim();
-                if(!routing || !bank || !last4 || !holder) { showToast("Vui lòng điền đầy đủ thông tin tài khoản ACH!", true); return; }
+                if(!routing || !bank || !last4 || !holder) { showToast(t('pg_t_need_ach'), true); return; }
                 configPayload.routing_number = routing;
                 configPayload.bank_name = bank;
                 configPayload.account_last4_or_masked = last4;
@@ -1085,27 +1224,27 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }
             else if (currentType === 'cash_app') {
                 const cashtag = document.getElementById('cashappCashtag').value.trim();
-                if(!cashtag) { showToast("Vui lòng điền Cash App Cashtag!", true); return; }
+                if(!cashtag) { showToast(t('pg_t_need_cashapp'), true); return; }
                 configPayload.cashtag = cashtag;
                 configPayload.business_name = document.getElementById('cashappBusinessName').value.trim();
             }
             else if (currentType === 'paypal_venmo') {
                 const email = document.getElementById('paypalEmail').value.trim();
                 const handle = document.getElementById('venmoHandle').value.trim();
-                if(!email && !handle) { showToast("Vui lòng điền ít nhất PayPal email hoặc Venmo handle!", true); return; }
+                if(!email && !handle) { showToast(t('pg_t_need_paypal'), true); return; }
                 configPayload.paypal_email = email;
                 configPayload.venmo_handle = handle;
             }
             else if (currentType === 'external_terminal') {
                 const provider = document.getElementById('externalProvider').value.trim();
-                if(!provider) { showToast("Vui lòng điền tên máy quẹt thẻ!", true); return; }
+                if(!provider) { showToast(t('pg_t_need_terminal'), true); return; }
                 configPayload.provider_name = provider;
                 configPayload.terminal_id = document.getElementById('externalTerminalId').value.trim();
             }
             else if (currentType === 'wise' || currentType === 'paypal_intl' || currentType === 'stripe_intl') {
                 const emailAcc = document.getElementById('intlEmailAccount').value.trim();
                 const beneficiary = document.getElementById('intlBeneficiary').value.trim();
-                if(!emailAcc || !beneficiary) { showToast("Vui lòng điền đầy đủ email/beneficiary quốc tế!", true); return; }
+                if(!emailAcc || !beneficiary) { showToast(t('pg_t_need_intl'), true); return; }
                 configPayload.intl_email_account = emailAcc;
                 configPayload.intl_beneficiary = beneficiary;
             }
@@ -1122,12 +1261,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                 const result = await response.json();
                 if(result.success) {
-                    showToast("✅ Đã lưu cấu hình Cổng thanh toán thành công!");
+                    showToast(t('pg_t_saved'));
                 } else {
-                    showToast("Lỗi: " + result.message, true);
+                    showToast(t('pg_t_error') + result.message, true);
                 }
             } catch(err) {
-                showToast("Lỗi kết nối server: " + err.message, true);
+                showToast(t('pg_t_conn_error') + err.message, true);
             } finally {
                 showLoading(false);
             }
@@ -1136,7 +1275,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // Populate fields from database
         function populateFields() {
             if (!window.savedConfig) {
-                switchTab('vietqr');
+                // Chưa cấu hình: mở đúng tab theo khu vực tiệm (trước đây tiệm ở Úc/Mỹ cũng mở sẵn tab VietQR)
+                switchTab({{ (tenant_currency or 'VND') | tojson }} === 'VND' ? 'vietqr' : 'us');
                 return;
             }
             
@@ -1222,23 +1362,23 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const previewAccountEl = document.getElementById('previewAccount') || document.querySelector('#previewAccount');
                 const previewHolderEl = document.getElementById('previewHolder') || document.querySelector('#previewHolder');
                 
-                if (previewBankEl) previewBankEl.innerText = bCode || 'Chưa chọn';
-                if (previewAccountEl) previewAccountEl.innerText = accNum || 'Chưa nhập';
-                if (previewHolderEl) previewHolderEl.innerText = accHolder || 'Chưa nhập';
+                if (previewBankEl) previewBankEl.innerText = bCode || t('pg_not_selected');
+                if (previewAccountEl) previewAccountEl.innerText = accNum || t('pg_not_entered');
+                if (previewHolderEl) previewHolderEl.innerText = accHolder || t('pg_not_entered');
                 
                 // Check missing
                 const previewQRImageEl = document.getElementById('previewQRImage');
                 const previewQRWarningEl = document.getElementById('previewQRWarning');
                 
                 let missing = [];
-                if (!bCode) missing.push("ngân hàng");
-                if (!accNum) missing.push("số tài khoản");
-                if (!accHolder) missing.push("chủ tài khoản");
+                if (!bCode) missing.push(t('pg_f_bank_code'));
+                if (!accNum) missing.push(t('pg_f_account'));
+                if (!accHolder) missing.push(t('pg_f_holder'));
                 
                 if (missing.length > 0) {
                     if (previewQRImageEl) previewQRImageEl.style.display = 'none';
                     if (previewQRWarningEl) {
-                        previewQRWarningEl.innerText = "Thiếu " + missing.join(", ") + ".";
+                        previewQRWarningEl.innerText = t('pg_missing').replace('{x}', missing.join(', '));
                         previewQRWarningEl.className = "text-rose-500 font-bold text-[10px] w-48 py-10 mx-auto block";
                         previewQRWarningEl.style.display = 'block';
                     }
@@ -1263,7 +1403,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 // Show toast thông báo
                 const toastEl = document.getElementById('toast');
                 if (toastEl) {
-                    toastEl.innerText = "✅ Đã cập nhật màn hình Preview thành công!";
+                    toastEl.innerText = t('pg_t_preview');
                     toastEl.style.borderColor = '#06b6d4';
                     toastEl.classList.add('show');
                     setTimeout(() => toastEl.classList.remove('show'), 3000);

@@ -461,3 +461,54 @@ Script mới `scripts/nail_customer_experience_latency.mjs` (2-3 trình duyệt 
 Ghi chú môi trường: Python trên máy dev không xác minh được chứng chỉ TLS của DeepSeek (Avast quét HTTPS chèn CA riêng) -> AI trả câu "đang xử lý hơi chậm". Chạy server local với `SSL_CERT_FILE`/`REQUESTS_CA_BUNDLE` = bundle gồm certifi + kho chứng chỉ Windows; không đụng cấu hình hệ thống. Không ảnh hưởng production.
 
 Còn treo (không sửa lần này): toàn app dùng `datetime.now()` không múi giờ — ngoài hoa hồng Nails đã sửa, các mốc khác (lịch sử đơn, báo cáo ngày) của tiệm ở Úc/Mỹ vẫn theo giờ UTC trên Vercel. Cần thêm múi giờ cho từng tiệm (quyết định kiến trúc). Công tắc "AI ACTIVE / MANUAL CHAT" trong `/ai_bot` chỉ đổi giao diện, chưa tắt AI trả lời khách thật.
+
+## Pha 19 — Tải về đúng ngành + từng AI chạy chuyên nghiệp (17-18/10/2026)
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | Nút "Download for Windows" trỏ tới file zip 142 KB trên Google Drive (bản build hỏng 265 KB, không có app bên trong); bản Desktop cũ cần chuỗi kết nối MongoDB trên máy khách + server license `license.bitpawsoftware.com` không tồn tại -> không file nào khách tải về chạy được | App Windows theo ngành `desktop_app/shell.py` (~18 MB, WebView2 mở hệ thống cloud đúng ngành, đọc ngành từ tên file BitPaw-Nails.exe..., không chứa khoá/mật khẩu). `/download/<ngành>/windows` -> GitHub Releases, chưa phát hành thì hiện trang mời dùng bản web. **Còn treo: chủ dự án upload 9 file `dist/releases/*.exe` lên GitHub Releases** |
+| 2 | 🟠 | Landing ngành không có chỗ tải/dùng ngay; nút Đăng ký/Đăng nhập không mang ngành; link "Mac App Store" trỏ trang chủ apps.apple.com | Khu "Tải về & dùng ngay" trên 10 landing (Windows / Web / QR điện thoại), mọi nút mang `?industry=`, form đăng ký chọn sẵn ngành; popup landing chính chọn ngành trước |
+| 3 | 🔴 | AI Copilot: 4 nút Tips gửi NGUYÊN câu hỏi nội bộ cho KHÁCH như tin của tiệm; sau mỗi tin nhân viên lại gọi 1 "BitPaw AI Advisor" (bán phần mềm, ép tiếng Anh) | Copilot riêng `/api/ai/copilot` (khách không thấy) tư vấn bằng số liệu thật (`ai_copilot.business_snapshot`), nháp trả lời cho tin mới của khách |
+| 4 | 🟠 | Công tắc "AI ACTIVE / MANUAL" chỉ đổi màu chữ | `ai_paused` theo từng khách; nhân viên trả lời tự tắt AI; widget báo 1 lần "nhân viên sẽ trả lời" |
+| 5 | 🟠 | Bot tư vấn landing: khách hỏi tiếng Anh nhận tiếng Việt; lời chào trộn Việt-Anh trong 1 câu; prompt cũ trong JS dặn "TUYỆT ĐỐI không nhận là AI"; dòng chèn `<br><span>` hiện mã HTML thô; landing Office trên điện thoại không có nút mở chat | Server chốt ngôn ngữ theo tin mới nhất (cả tiếng Việt không dấu); lời chào theo ngôn ngữ trang; gỡ prompt cũ; chữ thường; thêm thanh dưới + nút nổi cho landing Office |
+
+Kiểm thử: `landing_download_audit` 44/44, `ai_copilot_e2e` 18/18, `landing_sales_bot_audit` 18/18.
+
+## Pha 20 — Soát toàn bộ giao diện + cổng thanh toán (18/10/2026)
+
+Cổng thanh toán (`scripts/payment_gateway_audit.py`, chỉ server local, tiệm demo, tự dọn dữ liệu): **39/39**.
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | Số tiền `NaN`/`Infinity` (JSON hoặc chuỗi) lọt qua mọi kiểm tra: hoàn tiền "NaN" qua được kiểm tra số dư, tip/giá Infinity làm tổng bill vô hạn | JSON NaN/Infinity -> 400 trước khi vào route; mọi số tiền qua `_money()` (hữu hạn, có trần) |
+| 2 | 🔴 | Hoàn tiền: lý do không phải chữ gây lỗi SAU khi hoá đơn đã chuyển "đã hoàn" -> hoá đơn hoàn mà không có bản ghi hoàn | Kiểm tra trước khi đổi trạng thái |
+| 3 | 🔴 | `/api/payment/confirm` với mã giao dịch bịa vẫn tạo đơn, bỏ qua chống bấm 2 lần | Bắt buộc giao dịch pending thật |
+| 4 | 🟠 | `/payment_pending?table_id=<bàn tiệm khác>` hiện số tài khoản nhận tiền của tiệm khác | Bàn phải thuộc tiệm đang đăng nhập |
+| 5 | 🟠 | Tiền tệ đơn hàng lấy từ client: tiệm VND gửi "USD" -> điểm thưởng tính như 100.000 USD | Lấy theo tiệm |
+| 6 | 🟠 | Huỷ được giao dịch đã thu tiền (giao dịch "failed" nhưng doanh thu vẫn ghi) | Chỉ huỷ pending/processing |
+| 7 | 🟠 | POS Nails: phí cà thẻ không giới hạn (âm -> thợ nhận tip thẻ nhiều hơn khách trả) | 0–10% |
+| 8 | 🟠 | Mua gói BitPaw: giá do trình duyệt gửi (sửa thành 1đ); gói Agency (giá 0) không bao giờ gửi được; không giới hạn số lần gửi; màn hình hứa "tự kích hoạt khi tiền về" (thực tế cấp mã thủ công) | Giá theo bảng ở server, Agency gửi được, 10 lần/giờ, câu chữ đúng thực tế |
+| 9 | 🟡 | Lưu cấu hình cổng nhận mọi kiểu/kích thước; đổi trạng thái giao dịch thành chuỗi bất kỳ; lỗi Square lộ độ dài Device ID; tài khoản nhận tiền superadmin không kiểm tra (logo `javascript:`) | Kiểm tra kiểu + danh sách 12 loại cổng; chỉ 4 trạng thái; bỏ chi tiết; kiểm tra BIN/số TK/https |
+| 10 | 🟡 | POS F&B/bán lẻ làm tròn tip & tổng về số nguyên (AUD/USD mất số lẻ) | Làm tròn theo loại tiền |
+| 11 | 🟡 | 14 trang định dạng AUD như VND (₫, không số lẻ) | Tiền đô cho USD + AUD |
+| 12 | 🟡 | 10 chỗ trả chữ trắng trơn (QR gọi món hỏng, bàn không tồn tại, không phải superadmin...) — khách thấy như web sập | `message_page.html` đúng giao diện, song ngữ |
+| 13 | 🟡 | Tia quét trang trí trên 59 trang nằm ĐÈ nội dung (z-index 9998), trên điện thoại trông như màn hình lỗi | Nằm dưới nội dung, tắt trên điện thoại / giảm chuyển động |
+
+Ghi chú: lần chạy đầu của bài test thanh toán gom nhầm 1 món có sẵn (1 Bia Sài Gòn, dữ liệu sót từ test hôm trước) trên Bàn 1 tiệm F&B demo — đã khôi phục ngay; script giờ dùng bàn tạm riêng.
+
+### Pha 20 (tiếp) — soi bằng mắt từng màn hình
+
+Quét `full_site_audit` 3 lượt × 9 ngành (≈1.090 lượt mở trang, desktop + điện thoại, chụp toàn trang mọi trang trong menu), so từng điểm ảnh trước/sau (`scripts/compare_screenshots.py`): sau khi sửa, chỉ còn 3 trang cố ý chặn (`/table_order` thiếu mã bàn, `/super_admin` ×2) — nay hiện trang thông báo có giao diện.
+
+| # | Mức | Lỗi | Đã sửa |
+|---|---|---|---|
+| 14 | 🔴 | Trên điện thoại, 27 trang (màn chấm công = trang chủ của chủ tiệm ở cả 9 ngành, AI Copilot, Dashboard, báo cáo...) bị trình duyệt nới khung nhìn 678px rồi **thu nhỏ cả trang ~57%** — quầng sáng trang trí rộng 600-700px thò ra ngoài, `<body class="overflow-hidden">` không chặn được | `html { overflow-x: hidden }` (CSS dùng chung + sidebar cho trang Tailwind CDN) — đo lại trên giả lập điện thoại: cả 9 ngành `innerWidth` = 390 |
+| 15 | 🟠 | File CSS dùng chung nặng **8,5 MB** (70.022 quy tắc) — safelist Tailwind không có mốc nên sinh mọi mức trong suốt × 4 trạng thái | Safelist có mốc + đủ màu ghép động (thêm rose/amber/fuchsia đang thiếu): **929 KB** (-89%); so điểm ảnh 264 ảnh: không trang nào mất style |
+| 16 | 🟠 | Biểu đồ "Phân hạng khách" (CRM) luôn rỗng — canvas bị ép 200px trong khi Chart.js giữ tỉ lệ vuông | Khung cao cố định, `maintainAspectRatio:false` |
+| 17 | 🟡 | Thông báo (toast) ẩn bằng cách đẩy xuống dưới mép màn hình trên 40 trang -> lộ ra thành ô viền rỗng / chữ "Notification" khi chiều cao màn hình đổi (thanh địa chỉ điện thoại) | Ẩn thật (opacity/visibility) khi chưa có thông báo |
+| 18 | 🟡 | Trang thành công: tên cửa hàng viết cứng "BitPaw Restaurant & Cafe"/"BitPaw Nails & Beauty Salon" trên hoá đơn; bill tiền mặt ghi "Paid online via cash gateway"; hứa "đã gửi email xác nhận" (không có email nào); mô tả "BitPaw Premium Service"; tiệm Nails hiện câu "đơn F&B đã đóng, bàn đã giải phóng"; "$107.5" thiếu số lẻ | Tên thật của tiệm, "đã nhận tại quầy", bỏ câu email, mô tả theo ngành, ghi chú chung, "$107.50" |
+| 19 | 🟡 | Trang chờ thanh toán: 3 nút chung 1 hàng, chữ gãy 3 dòng / tràn khỏi nút trên điện thoại | Nút chính cả hàng, 2 nút phụ chia đôi |
+| 20 | 🟡 | Cổng thanh toán: tiệm ở Úc/Mỹ mở sẵn tab VietQR; ~55 câu tiếng Việt viết cứng hiện cả khi dùng tiếng Anh | Tab theo khu vực tiệm; dịch đủ (giao diện + mô tả + thông báo) |
+| 21 | 🟡 | Trang mua gói còn câu "tài khoản tự kích hoạt khi giao dịch hoàn tất" | Sửa đúng quy trình cấp License Key thủ công |
+
+Còn treo: bảng nhân viên trên điện thoại dùng cuộn ngang (không có gợi ý "vuốt để xem thêm"); nhiều trang khác của app còn lẫn tiếng Việt khi chọn tiếng Anh (đã dịch đủ trang cổng thanh toán; các trang khác cần 1 đợt dịch riêng).

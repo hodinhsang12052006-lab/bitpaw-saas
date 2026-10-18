@@ -68,8 +68,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         .modal-overlay.active .modal-container { transform: scale(1); }
         .glass-textarea { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 0.6rem 1rem; width: 100%; color: white; outline: none; resize: vertical; }
         
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px)); background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border: 1px solid #10b981; color: white; padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 600; z-index: 10002; transition: transform 0.3s ease, opacity 0.3s ease; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
         .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10003; visibility: hidden; opacity: 0; transition: 0.2s; }
         .loading-overlay.active { visibility: visible; opacity: 1; }
         
@@ -151,7 +151,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         <!-- Chart & bulk messaging -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="crm_chart_title">Distribution by Tier</span></h3><canvas id="tierChart" height="200" style="max-height: 200px;"></canvas></div>
+            <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-pie mr-2"></i> <span data-i18n="crm_chart_title">Distribution by Tier</span></h3><div style="position:relative;height:220px"><canvas id="tierChart"></canvas></div></div>
             <div class="glass-panel p-5"><h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-envelope mr-2"></i> <span data-i18n="crm_broadcast_title">Send Bulk Message</span></h3><textarea id="broadcastMsg" rows="3" class="glass-textarea w-full mb-3" placeholder="Enter message content (SMS/Zalo)..." data-i18n-placeholder="crm_broadcast_ph"></textarea><button id="sendBroadcastBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-full font-bold"><i class="fas fa-paper-plane mr-1"></i> <span data-i18n="crm_broadcast_send_btn">Send to Selected Customers</span></button><p class="text-[10px] text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i> <span data-i18n="crm_broadcast_note">Note: Check the boxes in the table to send to multiple customers</span></p></div>
         </div>
 
@@ -544,13 +544,15 @@ function updateStatsAndChart() {
             totalPointsSpan.innerText = totalPoints;
 
             const tierCount = { Gold:0, Silver:0, Platinum:0, Normal:0 };
-            data.forEach(c => tierCount[c.tier]++);
+            data.forEach(c => { if (c.tier in tierCount) tierCount[c.tier]++; else tierCount.Normal++; });
+            // Biểu đồ trước đây RỖNG: canvas bị ép max-height 200px trong khi Chart.js giữ tỉ lệ vuông theo bề ngang
+            // (~600px) -> vòng tròn không còn chỗ vẽ. Giờ khung cao cố định + maintainAspectRatio:false.
             if (tierChart) tierChart.destroy();
             const ctx = document.getElementById('tierChart').getContext('2d');
             tierChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: { labels: ['Gold', 'Silver', 'Platinum', 'Normal'], datasets: [{ data: [tierCount.Gold, tierCount.Silver, tierCount.Platinum, tierCount.Normal], backgroundColor: ['#f59e0b', '#9ca3af', '#a855f7', '#06b6d4'] }] },
-                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#ccc' } } } }
             });
         }
 

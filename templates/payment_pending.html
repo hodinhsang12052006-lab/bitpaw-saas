@@ -86,7 +86,7 @@
             position: fixed;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(calc(100% + 40px));
+            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none;
             background: rgba(0,0,0,0.9);
             backdrop-filter: blur(12px);
             border: 1px solid #eab308;
@@ -106,8 +106,7 @@
             transform: translateX(-50%) translateY(0);
             opacity: 1;
             visibility: visible;
-            pointer-events: auto;
-        }
+            pointer-events: auto; opacity: 1; visibility: visible; pointer-events: auto; }
     
         /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
         @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
@@ -282,16 +281,19 @@
             </div>
 
             <!-- Cụm nút Cashier -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-                <button id="confirmPaymentBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+            <!-- Nút chính chiếm hết bề ngang, 2 nút phụ chia đôi hàng dưới (trước đây 3 nút 1 hàng -> chữ gãy 3 dòng) -->
+            <div class="max-w-md mx-auto flex flex-col gap-3">
+                <button id="confirmPaymentBtn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-check-double"></i> <span data-i18n="payment_pending_btn_confirm">Xác nhận đã nhận tiền</span>
                 </button>
-                <button id="backToPosBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
+                <div class="grid grid-cols-2 gap-3">
+                <button id="backToPosBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-bold py-3 px-2 rounded-xl text-center leading-tight transition flex items-center justify-center gap-2">
                     <i class="fas fa-arrow-left"></i> <span data-i18n="payment_pending_btn_back_to_pos">Quay lại POS</span>
                 </button>
-                <button id="cancelPaymentBtn" class="bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-400 font-bold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2">
+                <button id="cancelPaymentBtn" class="bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-400 text-sm font-bold py-3 px-2 rounded-xl text-center leading-tight transition flex items-center justify-center gap-2">
                     <i class="fas fa-times-circle"></i> <span data-i18n="payment_pending_btn_cancel">Hủy giao dịch</span>
                 </button>
+                </div>
             </div>
         </div>
     </div>

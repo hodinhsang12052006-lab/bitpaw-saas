@@ -9028,7 +9028,15 @@ def api_payment_cancel():
 @app.route('/payment_success')
 @login_required
 def payment_success():
-    return render_template('payment_success.html')
+    business_id = session.get('business_id') or session.get('user_id')
+    store_name = None
+    try:
+        brand = _brand_setting_get(business_id, 'brand_name')
+        store_name = (brand if brand and brand.strip().lower() != 'bitpaw' else None) or \
+            (db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0}) or {}).get('name')
+    except Exception:
+        pass
+    return render_template('payment_success.html', store_name=store_name)
 
 @app.route('/sell')
 @login_required
