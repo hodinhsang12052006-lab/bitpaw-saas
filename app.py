@@ -748,6 +748,64 @@ def _security_headers(response):
     return response
 
 
+# Icon chữ B (static/brand/, sinh bằng scripts/make_brand_icons.py) + khai báo cài web app ra màn hình chính
+# (iPhone/iPad/Android/máy POS) — chèn vào MỌI trang HTML ngay trước </head> thay vì sửa từng template (94 template,
+# phần lớn tự viết <head> riêng). ?v= đổi khi đổi logo để trình duyệt bỏ favicon cũ đã cache.
+BRAND_ASSET_VERSION = 'b2'
+_PWA_HEAD = (
+    f'<link rel="icon" href="/favicon.ico?v={BRAND_ASSET_VERSION}" sizes="any" data-bp-pwa>'
+    f'<link rel="icon" type="image/png" sizes="32x32" href="/static/brand/icon-32.png?v={BRAND_ASSET_VERSION}">'
+    f'<link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png?v={BRAND_ASSET_VERSION}">'
+    '<link rel="manifest" href="/manifest.webmanifest">'
+    '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">'
+    '<meta name="apple-mobile-web-app-title" content="BitPaw"><meta name="apple-mobile-web-app-status-bar-style" content="black">'
+    '<script>if("serviceWorker" in navigator){addEventListener("load",function(){'
+    'navigator.serviceWorker.register("/sw.js").catch(function(){})})}</script>'
+).encode('utf-8')
+
+
+@app.after_request
+def _inject_pwa_head(response):
+    if (response.mimetype != 'text/html' or response.direct_passthrough or response.is_streamed
+            or response.status_code >= 300 or request.path.startswith('/static/')):
+        return response
+    body = response.get_data()
+    i = body.find(b'</head>')
+    if i == -1 or b'data-bp-pwa' in body[:i]:
+        return response
+    response.set_data(body[:i] + _PWA_HEAD + body[i:])
+    return response
+
+
+@app.route('/manifest.webmanifest')
+def web_manifest():
+    """Cài BitPaw ra màn hình chính như 1 app (không qua CH Play/App Store) — iPhone/iPad: Safari > Chia sẻ >
+    Thêm vào MH chính; Android/POS: Chrome > Cài đặt ứng dụng. Mở thẳng trang đăng nhập, đăng nhập xong vào đúng ngành."""
+    v = BRAND_ASSET_VERSION
+    resp = jsonify({
+        'id': '/?app=bitpaw', 'name': 'BitPaw Software', 'short_name': 'BitPaw',
+        'description': 'POS, chấm công, lương và CRM cho tiệm Nails, Spa, nhà hàng, bán lẻ.',
+        'start_url': '/login?src=pwa', 'scope': '/', 'display': 'standalone', 'orientation': 'any',
+        'background_color': '#0b0f17', 'theme_color': '#0b0f17', 'lang': 'vi',
+        'icons': [
+            {'src': f'/static/brand/icon-192.png?v={v}', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': f'/static/brand/icon-512.png?v={v}', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': f'/static/brand/icon-maskable-192.png?v={v}', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'maskable'},
+            {'src': f'/static/brand/icon-maskable-512.png?v={v}', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+        ],
+    })
+    resp.mimetype = 'application/manifest+json'
+    return resp
+
+
+@app.route('/sw.js')
+def service_worker():
+    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'sw.js', mimetype='application/javascript')
+    resp.headers['Service-Worker-Allowed'] = '/'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+
 # Upload ảnh
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -2458,8 +2516,9 @@ def sitemap():
 # trang landing (static/logo_b.jpg) thay vì phải sửa từng template.
 @app.route('/favicon.ico')
 def favicon():
-    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'logo_b.jpg', mimetype='image/jpeg')
-    resp.headers['Cache-Control'] = 'public, max-age=604800'
+    # favicon.ico nhiều cỡ (16–256px, logo chữ B mới — scripts/make_brand_icons.py)
+    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/x-icon')
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
     return resp
 
 
@@ -2675,46 +2734,79 @@ DESKTOP_RELEASE_FILES = {
     'production': 'BitPaw-Production.exe', 'technical': 'BitPaw-Technical.exe', 'office': 'BitPaw-Office.exe',
 }
 _DOWNLOAD_ALIASES = {'nails': 'nail', 'hr': 'office', 'restaurant': 'fnb'}
-DESKTOP_RELEASE_BASE = os.environ.get(
-    'DESKTOP_RELEASE_BASE',
-    'https://github.com/hodinhsang12052006-lab/bitpaw-saas/releases/latest/download').rstrip('/')
-_release_check_cache = {}
+# File cài đặt nằm NGAY trên bitpawsoftware.com (static/downloads/, Vercel phục vụ qua CDN — vercel.json, không qua
+# Flask vì Flask trên Vercel giới hạn 4,5 MB/phản hồi): 1 file .exe dùng chung cho 9 ngành + 1 file .apk Android.
+# /dl/BitPaw-<Ngành>.exe trả CÙNG 1 file nhưng lưu về với tên đúng ngành -> app tự mở đúng ngành (shell.py đọc tên file).
+# Không cần GitHub Releases. iPhone/iPad: Apple không cho cài file ngoài App Store -> cài web app (PWA) ra màn hình chính.
+DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'downloads')
+WINDOWS_BINARY = 'BitPaw-Windows.exe'
+ANDROID_BINARY = 'BitPaw.apk'
 
 
-def _desktop_release_available(url):
-    """HEAD tới file trên GitHub (cache 10 phút) — chưa upload bản phát hành thì KHÔNG đẩy khách tới trang 404
-    của GitHub, mà hiện trang báo rõ + mời dùng bản web ngay."""
-    hit = _release_check_cache.get(url)
-    if hit and time.time() - hit[1] < 600:
-        return hit[0]
-    try:
-        ok = requests.head(url, allow_redirects=True, timeout=5).status_code == 200
-    except requests.RequestException:
-        ok = True  # mạng server lỗi thoáng qua -> vẫn cho khách thử tải, GitHub tự trả lỗi nếu thật sự không có
-    _release_check_cache[url] = (ok, time.time())
-    return ok
+def _download_code(industry):
+    code = _DOWNLOAD_ALIASES.get((industry or '').lower(), (industry or '').lower())
+    return code if code in DESKTOP_RELEASE_FILES else None
+
+
+def _log_download(code, platform, available):
+    if db is None:
+        return
+    try:  # đếm lượt tải theo ngành/nền tảng (không lưu IP/thông tin cá nhân)
+        db.download_events.insert_one({'industry': code, 'platform': platform, 'available': available,
+                                       'created_at': datetime.now().isoformat(),
+                                       'referrer_path': urlparse(request.referrer or '').path[:120]})
+    except Exception:
+        pass
+
+
+@app.route('/download')
+@app.route('/download/<industry>')
+def download_page(industry=None):
+    """Trang tải về TỰ NHẬN DIỆN máy (Windows/máy POS Windows, Mac, Android, máy POS Android, iPhone, iPad) và gợi ý
+    đúng bản. Mã QR trên landing trỏ về đây để điện thoại quét là ra đúng lựa chọn cho máy đó."""
+    code = _download_code(industry) or 'nail'
+    if industry and not _download_code(industry):
+        return redirect(url_for('download_page'))
+    return render_template('download.html', dl_code=code, dl_generic=industry is None)
 
 
 @app.route('/download/<industry>/windows')
 def download_windows(industry):
-    code = _DOWNLOAD_ALIASES.get(industry.lower(), industry.lower())
-    filename = DESKTOP_RELEASE_FILES.get(code)
-    if not filename:
+    code = _download_code(industry)
+    if not code:
         return redirect(url_for('landingpage'))
-    url = f"{DESKTOP_RELEASE_BASE}/{filename}"
-    available = _desktop_release_available(url)
-    if db is not None:
-        try:  # đếm lượt tải theo ngành (không lưu IP/thông tin cá nhân)
-            db.download_events.insert_one({'industry': code, 'platform': 'windows', 'available': available,
-                                           'created_at': datetime.now().isoformat(),
-                                           'referrer_path': urlparse(request.referrer or '').path[:120]})
-        except Exception:
-            pass
+    available = os.path.exists(os.path.join(DOWNLOAD_DIR, WINDOWS_BINARY))
+    _log_download(code, 'windows', available)
     if available:
-        return redirect(url)
+        return redirect(f"/dl/{DESKTOP_RELEASE_FILES[code]}")
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
-                           industry_icon=cfg.get('icon', ''), filename=filename), 503
+                           industry_icon=cfg.get('icon', ''), filename=DESKTOP_RELEASE_FILES[code]), 503
+
+
+@app.route('/download/android')
+@app.route('/download/<industry>/android')
+def download_android(industry='nail'):
+    code = _download_code(industry) or 'nail'
+    available = os.path.exists(os.path.join(DOWNLOAD_DIR, ANDROID_BINARY))
+    _log_download(code, 'android', available)
+    if available:
+        return redirect(f"/dl/{ANDROID_BINARY}")
+    cfg = INDUSTRY_CONFIG.get(code, {})
+    return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
+                           industry_icon=cfg.get('icon', ''), filename=ANDROID_BINARY), 503
+
+
+@app.route('/dl/<name>')
+def download_file(name):
+    """Máy dev / dự phòng: trên Vercel đường dẫn này do CDN phục vụ trực tiếp (vercel.json)."""
+    if name in DESKTOP_RELEASE_FILES.values():
+        return send_from_directory(DOWNLOAD_DIR, WINDOWS_BINARY, as_attachment=True, download_name=name,
+                                   mimetype='application/octet-stream')
+    if name == ANDROID_BINARY:
+        return send_from_directory(DOWNLOAD_DIR, ANDROID_BINARY, as_attachment=True, download_name=name,
+                                   mimetype='application/vnd.android.package-archive')
+    abort(404)
 
 
 def render_message_page(status, icon, title_vi, title_en, message_vi, message_en='', primary_href=None,
@@ -7256,6 +7348,16 @@ def _signup_qr(industry_code):
 
 
 app.jinja_env.globals['signup_qr'] = _signup_qr
+
+
+def _download_qr(industry_code):
+    """QR tới trang tải về của ngành — điện thoại quét là trang tự nhận ra máy (Android/iPhone/iPad) và gợi ý đúng bản."""
+    from markupsafe import Markup
+    base = _signup_url(industry_code).split('/login')[0]
+    return Markup(_qr_svg_inline(f"{base}/download/{industry_code}", '#0f172a'))
+
+
+app.jinja_env.globals['download_qr'] = _download_qr
 
 
 # Theme poster QR theo ngành — màu + câu chữ hợp với khách của từng ngành

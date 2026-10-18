@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang or 'vi' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tải BitPaw · Download BitPaw</title>
+    <meta name="description" content="Tải BitPaw cho Windows, Android, máy POS, iPhone và iPad — trang tự nhận diện máy và đưa đúng bản.">
+    <meta property="og:image" content="{{ url_for('static', filename='brand/bitpaw-b-dark-1024.png', _external=True) }}">
+    <meta name="theme-color" content="#0b0f17">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        html { overflow-x: hidden; }
+        body { margin: 0; background: #06051a; color: #e5e7eb; font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif; }
+        .dl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 1120px; margin: 0 auto; padding: 18px 16px 0; }
+        .dl-brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 900; font-size: 20px; letter-spacing: .02em; }
+        .dl-brand img { width: 40px; height: 40px; border-radius: 11px; }
+        .dl-brand span b { color: #fb923c; }
+        .dl-lang { background: transparent; color: #e5e7eb; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 8px 14px; font-weight: 800;
+                   cursor: pointer; font-size: 13px; min-height: 40px; }
+        .dl-industries { max-width: 1120px; margin: 18px auto 0; padding: 0 16px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .dl-industries a { color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 999px;
+                           border: 1px solid rgba(255,255,255,.1); }
+        .dl-industries a.on { color: #fff; border-color: #fb923c; background: rgba(251,146,60,.12); }
+        .dl-main .bpdl { background: transparent; border-top: 0; padding-top: 28px; }
+    </style>
+</head>
+<body>
+    <header class="dl-top">
+        <a class="dl-brand" href="/"><img src="{{ url_for('static', filename='brand/icon-192.png') }}?v=b2" alt="BitPaw"><span>Bit<b>Paw</b></span></a>
+        <button type="button" class="dl-lang" id="dlLang">EN</button>
+    </header>
+    {% if dl_generic %}
+    <nav class="dl-industries" aria-label="industry">
+        {% for c, label in [('nail','💅 Nails'),('spa','🌸 Spa'),('fnb','🍻 F&B'),('karaoke','🎤 Karaoke'),('hotel','🏨 Hotel'),('retail','🛍️ Retail'),('production','🏭 Production'),('technical','🛠️ Technical'),('office','🏢 Office')] %}
+        <a href="/download/{{ c }}" class="{{ 'on' if c == dl_code else '' }}">{{ label }}</a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+    <main class="dl-main">
+        {% include 'components/download_section.html' %}
+    </main>
+    <script>
+        (function () {
+            var b = document.getElementById('dlLang');
+            // cùng thứ tự với khu tải về (download_section.html): lựa chọn đã lưu -> cookie -> ngôn ngữ mặc định của trang
+            var DEF = document.documentElement.lang || 'vi';
+            function cur() {
+                var l = '';
+                try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
+                if (!l) { var m = document.cookie.match(/bitpaw_lang=(vi|en)/); l = m ? m[1] : ''; }
+                return l || DEF;
+            }
+            function paint() { b.textContent = cur() === 'en' ? 'VI' : 'EN'; }
+            b.addEventListener('click', function () {
+                var next = cur() === 'en' ? 'vi' : 'en';
+                try { localStorage.setItem('bitpaw_lang', next); } catch (e) { /* bị chặn */ }
+                document.cookie = 'bitpaw_lang=' + next + ';path=/;max-age=31536000';
+                paint();
+            });
+            paint();
+        })();
+    </script>
+</body>
+</html>

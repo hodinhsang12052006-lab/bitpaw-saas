@@ -3,10 +3,33 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": { "excludeFiles": "{static/downloads/**,mobile_app/**,desktop_app/**,build_env/**,audit-results/**}" }
+    },
+    {
+      "src": "static/downloads/*",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/dl/BitPaw-(Nails|Spa|FnB|Karaoke|Hotel|Retail|Production|Technical|Office)\\.exe",
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment; filename=\"BitPaw-$1.exe\"",
+        "Cache-Control": "public, max-age=3600"
+      },
+      "dest": "/static/downloads/BitPaw-Windows.exe"
+    },
+    {
+      "src": "/dl/BitPaw\\.apk",
+      "headers": {
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": "attachment; filename=\"BitPaw.apk\"",
+        "Cache-Control": "public, max-age=3600"
+      },
+      "dest": "/static/downloads/BitPaw.apk"
+    },
     {
       "src": "/(.*)",
       "dest": "app.py"
