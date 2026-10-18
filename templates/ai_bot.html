@@ -437,34 +437,38 @@
                     </div>
                 </div>
 
-                <!-- AI suggestion to close the deal -->
+                <!-- Copilot soạn sẵn câu trả lời cho tin mới nhất của khách (trước đây là câu "Deal-Closing Tip" viết cứng) -->
                 <div id="aiClosingAlert"
                     class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-magic text-purple-400 animate-pulse text-sm"></i>
-                        <span><strong class="text-cyan-400 font-bold">AI Deal-Closing Tip:</strong> <span
-                                id="aiClosingText">Offer a 15% discount voucher to close the service booking
-                                today!</span></span>
+                    <div class="flex items-start gap-2 min-w-0">
+                        <i class="fas fa-magic text-purple-400 text-sm mt-0.5"></i>
+                        <span class="min-w-0"><strong class="text-cyan-400 font-bold" data-cp="draftLabel">Copilot suggested reply:</strong>
+                            <span id="aiClosingText" class="text-gray-200"></span></span>
                     </div>
-                    <button onclick="applyAISuggestion()"
-                        class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i
-                            class="fas fa-check mr-1"></i> Use Suggestion</button>
+                    <div class="flex gap-2 shrink-0">
+                        <button type="button" id="btnRegenDraft" onclick="requestReplyDraft(true)" title="Regenerate"
+                            class="bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] px-2.5 py-1 rounded transition"><i class="fas fa-redo"></i></button>
+                        <button type="button" id="btnUseDraft" onclick="applyAISuggestion()"
+                            class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap"><i
+                                class="fas fa-pen mr-1"></i> <span data-cp="useDraft">Use &amp; edit</span></button>
+                    </div>
                 </div>
 
 
                 <div
-                    class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0">
-                    <button onclick="sendQuickMessage('Suggest a revenue-boosting campaign for this week?')"
+                    class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0 items-center">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider whitespace-nowrap" data-cp="privateHint"><i class="fas fa-lock mr-1"></i>Ask Copilot (private):</span>
+                    <button onclick="askCopilot('revenue')"
                         class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
                             class="fas fa-chart-line mr-1"></i> Revenue Tips</button>
-                    <button onclick="sendQuickMessage('Effective retention messaging for past customers?')"
+                    <button onclick="askCopilot('retention')"
                         class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
                             class="fas fa-heart mr-1"></i> Customer Care Tips</button>
-                    <button onclick="sendQuickMessage('Analyze stock and suggest clearance options for near-expiry inventory?')"
+                    <button onclick="askCopilot('inventory')"
                         class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
                             class="fas fa-boxes mr-1"></i> Inventory Tips</button>
                     <button
-                        onclick="sendQuickMessage('Optimize scheduling and smart staff shift planning?')"
+                        onclick="askCopilot('staffing')"
                         class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
                             class="fas fa-users mr-1"></i> Staffing Tips</button>
                 </div>
@@ -485,6 +489,21 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div id="copilotPanel" class="hidden shrink-0 border-t border-purple-500/30 bg-[#120a2a]/95 max-h-[45vh] overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between px-5 pt-3">
+                        <p class="text-[11px] font-black uppercase tracking-widest text-purple-300"><i class="fas fa-user-shield mr-1"></i>
+                            <span data-cp="panelTitle">BitPaw Copilot · only you can see this</span></p>
+                        <button type="button" onclick="closeCopilot()" class="text-gray-400 hover:text-white text-sm"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div id="copilotAnswer" class="px-5 py-3 text-sm text-gray-200 leading-relaxed"></div>
+                    <form id="copilotForm" class="flex gap-2 px-5 pb-4" onsubmit="askCopilotQuestion(event)">
+                        <input id="copilotQuestion" type="text" autocomplete="off" maxlength="600"
+                            class="flex-1 bg-black/50 border border-purple-500/30 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-400"
+                            data-cp-placeholder="askPlaceholder" placeholder="Ask about your business...">
+                        <button type="submit" class="px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold"><i class="fas fa-paper-plane"></i></button>
+                    </form>
                 </div>
 
                 <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
@@ -524,6 +543,7 @@
         let currentCustomerId = null;
         let currentCustomerPhone = null;
         let conversationHistory = [];
+        let lastLoadedMessages = []; // hội thoại thật đang mở (để Copilot biết tin cuối có phải của khách)
         let allCustomers = [];
         let isMockMode = false;
         let isDemoMode = false;
@@ -628,7 +648,7 @@
         }
         // Escape rồi mới đổi **chữ đậm** (AI trả Markdown) thành <strong> — trước đây hiện nguyên dấu **.
         function richText(str) {
-            return escapeHtml(str).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+            return escapeHtml(str).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
         }
 
         // DOM Elements
@@ -641,20 +661,57 @@
         const modeLabelOn = document.getElementById('modeLabelOn');
         const modeLabelOff = document.getElementById('modeLabelOff');
 
-        // Logic Công tắc AI
-        aiToggleSwitch.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                modeLabelOn.classList.add('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
-                modeLabelOn.classList.remove('text-gray-500');
-                modeLabelOff.classList.remove('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
-                modeLabelOff.classList.add('text-gray-500');
-                showToast('AI Bot mode turned ON', 'success');
-            } else {
-                modeLabelOn.classList.remove('text-cyan-400', 'drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]');
-                modeLabelOn.classList.add('text-gray-500');
-                modeLabelOff.classList.add('text-rose-400', 'drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]');
-                modeLabelOff.classList.remove('text-gray-500');
-                showToast('Bot turned OFF. Switched to manual chat!', 'error');
+        // ====== Ngôn ngữ của Copilot theo ngôn ngữ giao diện chủ tiệm đang dùng ======
+        function cpLang() {
+            let l = '';
+            try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
+            return (l || document.documentElement.lang || 'en').slice(0, 2) === 'vi' ? 'vi' : 'en';
+        }
+        const CP_TEXT = {
+            vi: { draftLabel: 'Copilot gợi ý trả lời:', useDraft: 'Dùng & sửa', privateHint: 'Hỏi Copilot (chỉ bạn thấy):',
+                  panelTitle: 'BitPaw Copilot · chỉ bạn thấy, khách không thấy', askPlaceholder: 'Hỏi về tiệm của bạn...',
+                  thinking: 'Copilot đang đọc số liệu của tiệm...', drafting: 'Copilot đang soạn câu trả lời...',
+                  aiOn: 'AI tự trả lời khách này', aiOff: 'Bạn đang trả lời khách này — AI đã dừng', pickFirst: 'Chọn 1 khách ở danh sách bên trái trước',
+                  failed: 'Copilot đang bận, thử lại sau ít giây.' },
+            en: { draftLabel: 'Copilot suggested reply:', useDraft: 'Use & edit', privateHint: 'Ask Copilot (private):',
+                  panelTitle: 'BitPaw Copilot · only you can see this', askPlaceholder: 'Ask about your business...',
+                  thinking: 'Copilot is reading your shop data...', drafting: 'Copilot is drafting a reply...',
+                  aiOn: 'AI is answering this customer', aiOff: 'You are handling this customer — AI paused', pickFirst: 'Select a customer on the left first',
+                  failed: 'Copilot is busy, try again in a few seconds.' },
+        };
+        const cpt = (k) => (CP_TEXT[cpLang()] || CP_TEXT.en)[k];
+        function applyCopilotLabels() {
+            document.querySelectorAll('[data-cp]').forEach(el => { el.textContent = cpt(el.dataset.cp); });
+            document.querySelectorAll('[data-cp-placeholder]').forEach(el => { el.placeholder = cpt(el.dataset.cpPlaceholder); });
+        }
+        applyCopilotLabels();
+        document.addEventListener('click', () => setTimeout(applyCopilotLabels, 80), true);
+
+        function renderAiMode(enabled) {
+            aiToggleSwitch.checked = !!enabled;
+            modeLabelOn.classList.toggle('text-cyan-400', !!enabled);
+            modeLabelOn.classList.toggle('text-gray-500', !enabled);
+            modeLabelOff.classList.toggle('text-rose-400', !enabled);
+            modeLabelOff.classList.toggle('text-gray-500', !!enabled);
+        }
+
+        // Công tắc AI THẬT cho từng khách (trước đây chỉ đổi màu chữ, AI vẫn trả lời khách như cũ)
+        aiToggleSwitch.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            if (!currentCustomerId || isMockMode || String(currentCustomerId).startsWith('mock-') || String(currentCustomerId).startsWith('live-demo-')) {
+                renderAiMode(!enabled);
+                showToast(cpt('pickFirst'), 'error');
+                return;
+            }
+            try {
+                await hrApi('/api/bot/ai_mode', { method: 'POST', body: JSON.stringify({ customer_id: currentCustomerId, enabled }) });
+                renderAiMode(enabled);
+                const c = allCustomers.find(x => x.id === currentCustomerId);
+                if (c) c.ai_paused = !enabled;
+                showToast(enabled ? cpt('aiOn') : cpt('aiOff'), enabled ? 'success' : 'error');
+            } catch (err) {
+                renderAiMode(!enabled);
+                showToast('Failed to update AI mode', 'error');
             }
         });
 
@@ -862,10 +919,71 @@
             `;
         }
 
+        // Đưa bản nháp Copilot vào ô nhập để chủ tiệm SỬA rồi mới gửi (trước đây chèn "[AI Closing] Send special
+        // offer: ..." — nguyên câu nhắc nội bộ — vào tin nhắn gửi khách).
         window.applyAISuggestion = function () {
-            const closingText = document.getElementById("aiClosingText").innerText;
-            userInput.value = `[AI Closing] Send special offer: ${closingText}`;
+            const draft = document.getElementById("aiClosingText").innerText.trim();
+            if (!draft || draft === cpt('drafting')) return;
+            userInput.value = draft;
             userInput.focus();
+        }
+
+        // ====== Copilot: soạn sẵn câu trả lời cho tin mới nhất của khách ======
+        let draftForKey = null;
+        let draftToken = 0;
+        function localNowIso() {
+            const d = new Date(), p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+        window.requestReplyDraft = async function (force) {
+            const alertEl = document.getElementById('aiClosingAlert');
+            const textEl = document.getElementById('aiClosingText');
+            if (!currentCustomerId || isMockMode || String(currentCustomerId).startsWith('mock-') || String(currentCustomerId).startsWith('live-demo-')) {
+                alertEl.classList.add('hidden');
+                return;
+            }
+            const last = lastLoadedMessages[lastLoadedMessages.length - 1];
+            if (!last || last.sender_type !== 'customer') { alertEl.classList.add('hidden'); draftForKey = null; return; }
+            const key = currentCustomerId + '|' + lastLoadedMessages.length + '|' + (last.created_at || '');
+            if (!force && key === draftForKey) return;
+            draftForKey = key;
+            const token = ++draftToken;
+            alertEl.classList.remove('hidden');
+            textEl.innerText = cpt('drafting');
+            try {
+                const res = await hrApi('/api/ai/copilot', { method: 'POST', body: JSON.stringify({
+                    mode: 'reply', customer_id: currentCustomerId, lang: cpLang(), client_now: localNowIso() }) });
+                if (token !== draftToken) return;
+                textEl.innerText = (res.text || '').replace(/\*\*/g, '');
+            } catch (err) {
+                if (token !== draftToken) return;
+                textEl.innerText = '';
+                alertEl.classList.add('hidden');
+            }
+        }
+
+        // ====== Copilot riêng của chủ tiệm (khách không thấy) ======
+        function openCopilot() { document.getElementById('copilotPanel').classList.remove('hidden'); }
+        window.closeCopilot = function () { document.getElementById('copilotPanel').classList.add('hidden'); }
+        async function runCopilot(payload) {
+            openCopilot();
+            const box = document.getElementById('copilotAnswer');
+            box.innerHTML = `<i class="fas fa-circle-notch fa-spin text-purple-400 mr-2"></i>${escapeHtml(cpt('thinking'))}`;
+            try {
+                const res = await hrApi('/api/ai/copilot', { method: 'POST', body: JSON.stringify(Object.assign({ mode: 'insight', lang: cpLang() }, payload)) });
+                box.innerHTML = richText(res.text || '');
+            } catch (err) {
+                box.innerHTML = `<span class="text-rose-300">${escapeHtml(cpt('failed'))}</span>`;
+            }
+        }
+        window.askCopilot = function (topic) { runCopilot({ topic }); }
+        window.askCopilotQuestion = function (e) {
+            e.preventDefault();
+            const q = document.getElementById('copilotQuestion');
+            const text = q.value.trim();
+            if (!text) return;
+            q.value = '';
+            runCopilot({ question: text });
         }
 
         function renderCustomerList(customers) {
@@ -904,30 +1022,14 @@
             chatCustomerName.innerText = customer.full_name || 'Customer';
             chatAvatar.innerText = customer.full_name?.charAt(0) || '👤';
 
-            // Show AI Closing suggestion
-            const aiClosingAlert = document.getElementById("aiClosingAlert");
-            const aiClosingText = document.getElementById("aiClosingText");
-            if (aiClosingAlert && aiClosingText) {
-                aiClosingAlert.classList.remove("hidden");
-                if (customer.id.includes('mock-1')) {
-                    aiClosingText.innerText = "Booked and confirmed — offer a free nail art design upgrade on her first visit to turn her into a repeat customer!";
-                } else if (customer.id.includes('mock-2')) {
-                    aiClosingText.innerText = "Booked and confirmed — suggest she add a Classic Manicure to her Volume Lash visit for a bundle discount!";
-                } else if (customer.id.includes('mock-3')) {
-                    aiClosingText.innerText = "Still hesitant — the 10% online booking voucher expires in 24h, send 1 gentle follow-up reminder tomorrow.";
-                } else if (customer.id.includes('mock-4')) {
-                    aiClosingText.innerText = "First-time customer, booked — offer 15% off her next visit to convert her into a regular.";
-                } else if (customer.id.includes('mock-5')) {
-                    aiClosingText.innerText = "VIP repeat customer — offer a complimentary callus treatment add-on as a loyalty thank-you.";
-                } else if (customer.id.includes('mock-6')) {
-                    aiClosingText.innerText = "Booked a refill only — offer a discounted upgrade to a full Volume Lash set on her next visit.";
-                } else {
-                    aiClosingText.innerText = "Offer a 10% discount voucher to close the automated customer care booking!";
-                }
-            }
+            // Công tắc AI phản ánh đúng trạng thái THẬT của khách này
+            renderAiMode(!customer.ai_paused);
+            draftForKey = null;
+            document.getElementById('aiClosingAlert').classList.add('hidden');
 
             renderCustomerList(allCustomers);
             await loadMessages(customer.id);
+            requestReplyDraft(false);
         }
 
 
@@ -949,13 +1051,14 @@
             try {
                 const body = await hrApi(`/api/bot/messages?customer_id=${encodeURIComponent(customerId)}`);
                 const data = body.data || [];
+                lastLoadedMessages = data;
                 chatBox.innerHTML = '';
 
                 if (data.length === 0) {
                     appendAIMessageStatic("System connected. Waiting for a customer message...");
                 } else {
                     data.forEach(msg => {
-                        if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
+                        if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type);
                         else appendAIMessageStatic(msg.content, msg.created_at);
                     });
                 }
@@ -968,13 +1071,16 @@
             }
         }
 
-        function appendUserMessageStatic(text, time = null) {
+        function appendUserMessageStatic(text, time = null, senderType = 'staff') {
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+            const who = senderType === 'ai'
+                ? '<i class="fas fa-robot text-purple-300"></i> AI'
+                : '<i class="fas fa-user-tie text-cyan-300"></i> ' + (cpLang() === 'vi' ? 'Nhân viên' : 'Staff');
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-end">
-                        <div class="chat-user text-white font-medium">${escapeHtml(text)}</div>
-                        <p class="text-[10px] text-gray-500 mt-1.5 mr-2 font-bold"><i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
+                        <div class="chat-user text-white font-medium">${richText(text)}</div>
+                        <p class="text-[10px] text-gray-500 mt-1.5 mr-2 font-bold">${who} · <i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -994,20 +1100,6 @@
             chatBox.insertAdjacentHTML('beforeend', html);
         }
 
-        function appendCopilotMessageStatic(text) {
-            const timeStr = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
-            const html = `
-                <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white shrink-0 border border-cyan-400 mt-1"><i class="fas fa-robot"></i></div>
-                    <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[11px] text-cyan-400 mb-1 ml-1 font-black uppercase tracking-widest drop-shadow-md">BitPaw Copilot</p>
-                        <div class="chat-ai text-gray-200 font-medium">${richText(text)}</div>
-                        <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
-                    </div>
-                </div>`;
-            chatBox.insertAdjacentHTML('beforeend', html);
-            scrollToBottom();
-        }
 
         function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
 
@@ -1032,11 +1124,7 @@
             if (el) el.remove();
         }
 
-        window.sendQuickMessage = function (text) {
-            if (!currentCustomerId) { showToast('Please select a customer or branch on the left first!', 'error'); return; }
-            userInput.value = text;
-            handleUserSubmit(new Event('submit'));
-        }
+        // (Đã bỏ sendQuickMessage: các nút Tips giờ hỏi Copilot riêng qua askCopilot(), không gửi gì cho khách.)
 
         function showTypingIndicator() {
             const html = `
@@ -1060,125 +1148,36 @@
             if (indicator) indicator.remove();
         }
 
-        // Xử lý gửi tin
+        // Gửi tin của NHÂN VIÊN cho khách. Trước đây sau mỗi tin, trang còn gọi thêm 1 "BitPaw AI Advisor" (persona
+        // tư vấn BÁN PHẦN MỀM, ép tiếng Anh) coi chính tin của nhân viên là "tin mới của khách" rồi trả lời lại — vô
+        // nghĩa với chủ tiệm. Giờ gợi ý trả lời nằm ở thẻ "Copilot gợi ý trả lời" phía trên (requestReplyDraft).
         window.handleUserSubmit = async function (e) {
             if (e) e.preventDefault();
             const text = userInput.value.trim();
             if (!text) return;
-            if (!currentCustomerId) { showToast('Please select a customer on the left first!', 'error'); return; }
+            if (!currentCustomerId) { showToast(cpt('pickFirst'), 'error'); return; }
 
             userInput.value = '';
-            appendUserMessageStatic(text);
+            appendUserMessageStatic(text, null, 'staff');
             scrollToBottom();
+            document.getElementById('aiClosingAlert').classList.add('hidden');
 
-            // Hiển thị typing và disable input/button để chống spam
-            showTypingIndicator();
-            userInput.disabled = true;
+            if (isMockMode || String(currentCustomerId).startsWith('mock-') || String(currentCustomerId).startsWith('live-demo-')) return;
             const btnSend = document.getElementById('btnSend');
-            if (btnSend) {
-                btnSend.disabled = true;
-                btnSend.classList.add('opacity-50', 'pointer-events-none');
-            }
-
-            // Lưu tin nhắn mới nhất vào conversationHistory
-            conversationHistory.push({ role: "user", content: text });
-            if (conversationHistory.length > 6) {
-                conversationHistory.shift();
-            }
-
-            // Lưu tin nhắn trả lời của nhân viên vào hội thoại thật của khách hàng
-            // (server tự gắn sender_type='staff' và cập nhật last_message của bot_customers)
-            if (!isMockMode && !String(currentCustomerId).startsWith('mock-')) {
-                try {
-                    await hrApi('/api/bot/messages', {
-                        method: 'POST',
-                        body: JSON.stringify({ customer_id: currentCustomerId, content: text })
-                    });
-                } catch (ex) {
-                    console.error("Failed to send message:", ex);
-                    showToast('Failed to send message', 'error');
-                }
-            }
-
-            let aiResponse = "";
+            if (btnSend) btnSend.disabled = true;
             try {
-                const systemPrompt = `You are BitPaw AI Advisor, a genuine software consultant — not a generic scripted chatbot.
-LANGUAGE: Always respond in clear, professional English, matching the tone expected by Australian small-business owners.
-Don't repeat filler openers like “Hi there” or “Great question” in every single reply.
-Never claim to have sent a link or price list unless the system has actually performed that action.
-Never quote a specific price unless official pricing data is available.
-If asked about pricing, say: “Cost depends on the modules and scale you need — let's nail down your core requirements first so I can recommend the right plan.”
-Always keep track of context within the current conversation.
-Once the customer has shared their industry/scale, summarize it back in one sentence and suggest the next step.
-Keep replies to 2-4 sentences, under 350 characters.
-Ask at most one short, focused follow-up question.
-Don't push contact details repeatedly — only mention support channels when the customer asks for a demo, pricing, or human assistance.
-If the customer wants a trial, don't say “I'll send you a link” unless a real link exists. Instead say: “I can pass this along to our team to set up a demo tailored to you.”
-
-BitPaw Software supports POS, QR ordering, HR management, attendance, payroll, CRM, AI customer support, marketing, inventory, reporting, and payments.
-If asked about QR payments: explain that demo transactions are confirmed manually; automatic payment detection requires a webhook/bank/payment-gateway integration.
-Don't promise features that may not exist.
-Direct customers to the in-app support channels when they need further assistance.`;
-
-                // Build rolling chat history context
-                const historyContext = conversationHistory.slice(-6).map(item => `${item.role === "user" ? "Customer" : "BitPaw AI"}: ${item.content}`).join("\n");
-                const rollingContext = `Recent conversation history:
-${historyContext}
-
-Customer's latest message:
-${text}`;
-
-                const response = await fetch('/api/ai/studio/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        systemPrompt: systemPrompt,
-                        userPrompt: rollingContext,
-                        temperature: 0.7,
-                        max_tokens: 220,
-                        source: "ai_bot_console",
-                        customer_phone: currentCustomerPhone
-                    })
-                });
-
-                if (!response.ok) throw new Error("HTTP error " + response.status);
-                const resData = await response.json();
-
-                if (resData && resData.choices && resData.choices[0] && resData.choices[0].message) {
-                    aiResponse = resData.choices[0].message.content;
-                } else if (resData && resData.error) {
-                    throw new Error(resData.error);
-                } else {
-                    throw new Error("Invalid response format");
-                }
-            } catch (err) {
-                console.error("API Call error:", err);
-                aiResponse = "I'm running a little slow right now, but I've noted your request. Which part should we prioritize setting up first?";
+                await hrApi('/api/bot/messages', { method: 'POST', body: JSON.stringify({ customer_id: currentCustomerId, content: text }) });
+                // Nhân viên đã nhận chat -> server tắt AI cho khách này (tránh khách nhận 2 câu trả lời chồng nhau)
+                renderAiMode(false);
+                const c = allCustomers.find(x => x.id === currentCustomerId);
+                if (c) c.ai_paused = true;
+            } catch (ex) {
+                console.error("Failed to send message:", ex);
+                showToast('Failed to send message', 'error');
             } finally {
-                // Xóa typing và enable lại input/button
-                removeTypingIndicator();
-                userInput.disabled = false;
-                if (btnSend) {
-                    btnSend.disabled = false;
-                    btnSend.classList.remove('opacity-50', 'pointer-events-none');
-                }
+                if (btnSend) btnSend.disabled = false;
                 userInput.focus();
             }
-
-            // Cắt mềm dưới 350 ký tự nếu response quá dài
-            if (aiResponse.length > 350) {
-                aiResponse = aiResponse.substring(0, 347) + "...";
-            }
-
-            // Lưu câu trả lời của AI vào conversationHistory
-            conversationHistory.push({ role: "assistant", content: aiResponse });
-            if (conversationHistory.length > 6) {
-                conversationHistory.shift();
-            }
-
-            appendCopilotMessageStatic(aiResponse);
-            // Gợi ý của BitPaw Copilot chỉ hiển thị tạm thời cho nhân viên tham khảo,
-            // không lưu vào hội thoại thật của khách hàng (tin nhắn thật đã lưu ở trên).
         };
 
         // Realtime lắng nghe tin nhắn mới — thay kênh Realtime BaaS cũ bằng SSE
@@ -1189,7 +1188,7 @@ ${text}`;
                 stream.onmessage = () => {
                     fetchCustomers();
                     if (currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-') && !String(currentCustomerId).startsWith('live-demo-')) {
-                        loadMessages(currentCustomerId, { silent: true });
+                        loadMessages(currentCustomerId, { silent: true }).then(() => requestReplyDraft(false));
                     }
                 };
                 stream.onerror = () => { /* EventSource tự động reconnect */ };

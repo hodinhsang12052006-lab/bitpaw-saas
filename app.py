@@ -10624,13 +10624,80 @@ def api_bot_messages_create():
             'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
             'business_id': business_id, 'created_at': now_iso, 'is_read': True,
         })
+        # Nhân viên đã nhảy vào trả lời -> AI ngừng tự trả lời khách này (chủ tiệm bật lại bằng công tắc), để
+        # khách không nhận 2 câu trả lời chồng nhau (1 của người, 1 của AI) cho cùng 1 tin.
         db.bot_customers.update_one(
             {'id': customer_id, 'business_id': business_id},
-            {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
+            {'$set': {'last_message': content[:500], 'last_message_time': now_iso, 'ai_paused': True}}
         )
-        return jsonify({"success": True})
+        return jsonify({"success": True, "ai_paused": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/bot/ai_mode', methods=['POST'])
+@login_required
+def api_bot_ai_mode():
+    """Công tắc "AI tự trả lời / Nhân viên trả lời" cho TỪNG khách. Trước đây công tắc chỉ đổi màu chữ trên màn
+    hình, AI vẫn trả lời khách như cũ."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    customer_id = data.get('customer_id')
+    if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+    paused = not bool(data.get('enabled'))
+    db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused}})
+    return jsonify({"success": True, "ai_paused": paused})
+
+
+@app.route('/api/ai/copilot', methods=['POST'])
+@login_required
+@limiter.limit("60 per hour")
+def api_ai_copilot():
+    """Copilot riêng của chủ tiệm (xem ai_copilot.py): mode='reply' soạn sẵn câu trả lời cho khách đang mở,
+    mode='insight' tư vấn kinh doanh từ số liệu thật. Không ghi gì vào hội thoại của khách."""
+    import ai_copilot
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    mode = data.get('mode')
+    lang = 'en' if data.get('lang') == 'en' else 'vi'
+    try:
+        snapshot, _name, industry = ai_copilot.business_snapshot(business_id, session.get('business_mode'))
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Không đọc được số liệu tiệm: {e}"}), 500
+    if mode == 'insight':
+        topic = data.get('topic')
+        question = ai_copilot.INSIGHT_TOPICS.get(topic) if isinstance(topic, str) else None
+        if not question:
+            q = data.get('question')
+            question = q.strip()[:600] if isinstance(q, str) and q.strip() else None
+        if not question:
+            return jsonify({"success": False, "message": "Thiếu câu hỏi."}), 400
+        messages = ai_copilot.insight_messages(snapshot, question, lang)
+        max_tokens = 700
+    elif mode == 'reply':
+        customer_id = data.get('customer_id')
+        if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
+            return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+        convo = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0, 'sender_type': 1, 'content': 1})
+                     .sort('created_at', -1).limit(12))[::-1]
+        messages = ai_copilot.reply_messages(snapshot, _booking_assistant_facts(business_id, data.get('client_now')), convo)
+        max_tokens = 260
+    else:
+        return jsonify({"success": False, "message": "mode không hợp lệ."}), 400
+
+    is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+    try:
+        result = deepseek_chat_completion(
+            {"model": "deepseek-chat", "messages": messages, "temperature": 0.5, "max_tokens": max_tokens},
+            business_id=business_id,
+            proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop_mode else None,
+            direct_api_key=os.environ.get('DEEPSEEK_API_KEY') if not is_desktop_mode else None,
+        )
+        text = (result['choices'][0]['message']['content'] or '').strip()
+    except Exception as e:
+        return jsonify({"success": False, "message": f"AI đang bận, thử lại sau ít giây. ({str(e)[:120]})"}), 502
+    return jsonify({"success": True, "mode": mode, "text": text, "industry": industry})
 
 
 @app.route('/api/stream/bot_chat')
@@ -10823,6 +10890,16 @@ def secure_ai_generate():
             booking_facts=_booking_assistant_facts(business_id, data.get('client_now')))
     else:
         system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
+    # Dữ liệu ngành/tiệm trong prompt viết tiếng Việt nên AI hay trả lời tiếng Việt cho khách hỏi tiếng Anh (đo thật:
+    # landing Production/Office EN). Chỉ định rõ ngôn ngữ theo chính tin nhắn mới nhất của khách.
+    if latest_customer_message:
+        vi_marks = (re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', latest_customer_message, re.I)
+                    # gõ không dấu: "gia bao nhieu", "co duoc khong", "em oi"
+                    or re.search(r'\b(khong|duoc|bao nhieu|nhieu|em oi|anh oi|chi oi|minh|cho em|cua|nhe|nha|vay|gium|giup|tiem|quan)\b',
+                                 latest_customer_message, re.I))
+        system_prompt += ("\n\nLANGUAGE: the customer's latest message is in "
+                          + ("Vietnamese — reply in Vietnamese." if vi_marks else
+                             "English (or another non-Vietnamese language) — reply in that same language, not Vietnamese."))
 
     messages = [{"role": "system", "content": system_prompt}]
     for turn in history[-12:]:
@@ -10837,6 +10914,15 @@ def secure_ai_generate():
 
     # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
     _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer')
+
+    # Chủ tiệm đã tắt AI cho khách này (hoặc đã tự nhảy vào trả lời) -> KHÔNG để AI chen vào; widget báo khách
+    # là nhân viên sẽ trả lời ngay trong khung chat (tin của nhân viên tới qua /api/portal/stream).
+    if chat_context == 'customer_booking' and customer_id and db is not None:
+        try:
+            if (db.bot_customers.find_one({'id': customer_id}, {'ai_paused': 1, '_id': 0}) or {}).get('ai_paused'):
+                return jsonify({"choices": [{"message": {"content": ""}}], "paused": True})
+        except Exception:
+            pass
 
     # Câu dự phòng khi AI lỗi/timeout — 2 bản khác nhau theo đúng đối tượng đang chat (khách
     # hàng cuối đặt lịch KHÔNG được nhận câu "tư vấn gói phần mềm" của bot bán BitPaw).

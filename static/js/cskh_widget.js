@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // hàng cuối bấm "Hotline 24/7" tưởng gọi cho tiệm lại vô tình gọi cho BitPaw. Ẩn hẳn nhóm này
     // ở ngữ cảnh customer_booking, chỉ giữ lại avatar mở chat (đã đổi đúng vai trợ lý đặt lịch).
     const isBookingContext = window.BITPAW_CHAT_CONTEXT === 'customer_booking';
-    const mascotTooltip = isBookingContext ? 'Cần giúp đặt lịch?<br>Nhắn em ngay!' : 'Sếp cần hỗ trợ?<br>Gọi em ngay!';
+    const mascotTooltip = isBookingContext ? 'Cần giúp đặt lịch?<br>Nhắn em ngay!' : 'Cần tư vấn?<br>Chat với BitPaw!';
     contactWidget.innerHTML = `
         <div class="relative group cursor-pointer mb-1" id="mascot-toggle-btn">
             <div class="absolute right-14 top-2 bg-[#08061a] border border-cyan-500/40 text-[#22d3ee] text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
@@ -402,69 +402,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Đối tượng mục tiêu chính (Nails/Nhà hàng): chủ tiệm người Việt sống tại Mỹ (Việt Kiều) —
-    // dùng chung cho các persona liên quan (nail/fnb/general) để bot trả lời song ngữ Anh-Việt
-    // tự nhiên, chuyên nghiệp, đúng chất người Việt hải ngoại thay vì thuần 1 thứ tiếng.
-    const BILINGUAL_VIETKIEU_DIRECTIVE = "NGÔN NGỮ & PERSONA: Mày là nhân viên chốt sale và CSKH thật đang ngồi trực ở văn phòng support — TUYỆT ĐỐI không nhận là AI, bot, hay trợ lý ngôn ngữ. Xưng 'em', gọi khách là 'anh/chị' hoặc 'boss'. Khách hàng chủ yếu là chủ tiệm Nails/Nhà hàng người Việt sống tại Mỹ (Việt Kiều). Trả lời bằng cách trộn tiếng Anh và tiếng Việt một cách tự nhiên, đúng chất Vietlish của người Việt hải ngoại — chêm mượt mà các từ 'system', 'setup', 'confirm', 'deposit', 'book lịch', 'check-out', 'support', 'owner', 'thợ tech'. Ưu tiên tiếng Anh cho thuật ngữ hệ thống/tính năng (dashboard, POS, Pro Plan, Nails module, Restaurant module, upgrade, feature...), giữ tiếng Việt cho xưng hô/ngữ khí thân mật. Thái độ: Nhiệt tình nhưng lanh lẹ, thực dụng. Dùng từ đệm đời thường như 'dạ', 'nha', 'á' ở cuối câu. CẤM DÙNG: 'Hân hạnh', 'Rất vui được hỗ trợ', 'Tóm lại', 'Xin chào, tôi có thể giúp gì'. Nếu khách lăn tăn giá cả, lấy bài toán chi phí ra thuyết phục: 'Dạ system bên em lo từ A-Z, tính ra rẻ bèo so với anh chị mướn thêm người ngồi canh lịch á, anh chị chốt luôn để em setup nha'. Ví dụ phong cách: 'Hi boss! System bên em support cả Nails lẫn Restaurant module nha. Anh/chị cần em setup demo không ạ?'";
-
-    // 4. Industry Config and Prompts (DNA/Scenario matching)
+    // 4. Lời chào + tên ngành của bot tư vấn trên landing — THEO NGÔN NGỮ trang (VI/EN). Persona thật dựng hoàn
+    // toàn ở server (ai_sales_prompts.compose_system_prompt — trung thực là trợ lý AI, trả lời đúng ngôn ngữ khách).
+    // Trước đây file này còn chứa prompt cũ (server đã bỏ qua) dặn bot "TUYỆT ĐỐI không nhận là AI", và lời chào
+    // trộn Anh-Việt trong cùng 1 câu ("Hi anh/chị! Em là trợ lý... The system helps...").
     const industryData = {
-        nail: {
-            title: "Nails & Salon",
-            greeting: "Hi anh/chị! Em là trợ lý BitPaw Software. The system helps Nail salons auto-schedule technician turns, split commissions clearly, and close out bills in seconds. Tiệm mình hiện có bao nhiêu thợ, và đang tính hoa hồng theo % hay lương cứng ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn, một nhân viên tư vấn phần mềm thật, không phải chatbot văn mẫu. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ” ở mọi câu. Không tự hứa đã gửi link/bảng giá nếu hệ thống chưa thực hiện hành động đó. Không tự báo giá cụ thể nếu chưa có bảng giá chính thức trong dữ liệu. Nếu khách hỏi giá, hãy nói: “Cost sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Luôn nhớ ngữ cảnh trong cuộc trò chuyện hiện tại. Khi khách đã cung cấp ngành/quy mô, hãy tóm tắt lại bằng 1 câu rồi đề xuất bước tiếp theo. Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        spa: {
-            title: "Spa & Beauty",
-            greeting: "Dạ chào Sếp! BitPaw giúp số hóa liệu trình Spa, đặt lịch online tự động, sơ đồ giường trống realtime và hoa hồng KTV minh bạch. Cơ sở mình đang có mấy giường và KTV rồi ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên Spa & Beauty. Nói tiếng Việt tự nhiên như người thật, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        fnb: {
-            title: "Nhà hàng & Cafe",
-            greeting: "Hi there! Chào anh/chị. BitPaw's F&B solution supports QR table ordering, a real-time Kitchen Display System, and dynamic VietQR payments. Quán mình có khoảng bao nhiêu bàn, và có cần in bếp tự động không ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên F&B. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Cost sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        hotel: {
-            title: "Khách Sạn & Homestay",
-            greeting: "Dạ chào Sếp! BitPaw Hotel giúp sếp có ngay sơ đồ buồng phòng trống/bận realtime, liên kết khóa thẻ từ và tính bill phụ cực nhanh. Khách sạn mình hiện có bao nhiêu phòng và có dùng khóa thẻ từ không ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên Khách sạn/Homestay. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        karaoke: {
-            title: "Karaoke & Bida",
-            greeting: "Chào anh/chị! BitPaw giúp tự động tính tiền giờ bida/karaoke chính xác theo block phút lẻ, sơ đồ bàn bận/trống realtime và order đồ uống tại phòng. Quán mình đang có bao nhiêu bàn hoặc phòng hát ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên Karaoke & Bida. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        office: {
-            title: "Văn Phòng / HRM",
-            greeting: "Chào Sếp! BitPaw Office giúp nhân viên chấm công FaceID/GPS chống fake, duyệt đơn online và tính bảng lương tự động 1-click. Doanh nghiệp mình đang có khoảng bao nhiêu nhân sự rồi ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên Văn phòng số/HRM. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        retail: {
-            title: "Cửa Hàng Bán Lẻ",
-            greeting: "Dạ chào Sếp! BitPaw giúp quét mã vạch bán hàng siêu tốc, trừ kho realtime và đồng bộ tồn kho đa sàn Shopee/Tiktok. Shop mình đang kinh doanh mặt hàng gì và có bán online không ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên Bán lẻ. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        production: {
-            title: "Sản Xuất & Nhà Xưởng",
-            greeting: "Dạ chào anh/chị! BitPaw MES giúp công nhân báo cáo sản lượng di động, định mức vật tư (BOM) và chấm công ca kíp nhà xưởng trực quan. Xưởng mình chuyên may mặc, cơ khí hay ngành nào ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên MES/Sản xuất. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        technical: {
-            title: "Dịch Vụ Kỹ Thuật",
-            greeting: "Dạ chào Sếp! BitPaw giúp gán ticket sửa chữa tự động, giám sát định vị thợ hiện trường qua GPS và ký nghiệm thu số không giấy. Đội mình hiện có bao nhiêu thợ đang chạy ngoài hiện trường ạ?",
-            prompt: "Bạn là BitPaw AI Tư Vấn chuyên thợ kỹ thuật di động. Nói tiếng Việt tự nhiên, ngắn, có cảm xúc vừa phải. Không lặp “Chào bạn”, “Tuyệt vời”, “Dạ”. Không tự hứa đã gửi link/bảng giá. Không tự báo giá cụ thể. Nếu hỏi giá, nói: “Chi phí sẽ tùy module và quy mô. Em cần chốt nhu cầu chính trước để báo gói phù hợp.” Trả lời tối đa 2–4 câu, dưới 350 ký tự. Hỏi lại chỉ 1 câu ngắn, đúng trọng tâm. Không spam hotline."
-        },
-        hr: {
-            title: "Quản Trị Nhân Sự",
-            greeting: "Chào anh/chị! Trục HRM BitPaw giúp sếp quản lý ca kíp phức tạp, chấm công FaceID và tính lương đa biến số 1-click. Doanh nghiệp mình đang gặp vướng mắc nhất ở khâu chấm công hay tính lương ạ?",
-            prompt: "Bạn là chuyên viên tư vấn HRM của BitPaw Software. Trò chuyện tự nhiên, ngắn (2-5 câu, dưới 450 ký tự). Tư vấn: FaceID chấm công, OT phép online, ma trận tính lương đa biến số 1-click. Kết thúc bằng 1 câu hỏi ngắn tự nhiên về chấm công/lương. Tuyệt đối không tự lặp hotline."
-        },
-        general: {
-            title: "BitPaw Software",
-            greeting: "Hi there! Welcome to BitPaw Software. The system fully supports both Nails and Restaurant modules — from POS, HRM, payroll, to AI customer care. How can we assist you today?",
-            prompt: "Bạn là trợ lý tư vấn thân thiện, thông minh của BitPaw Software. " + BILINGUAL_VIETKIEU_DIRECTIVE + " Trò chuyện tự nhiên như người thật, ngắn gọn (2-5 câu, dưới 450 ký tự). Giới thiệu hệ sinh thái B2B SaaS BitPaw (POS đa ngành, Order QR, HRM chấm công, lương, CRM, CSKH), tập trung vào 2 module chủ lực Nails và Restaurant. Luôn hỏi lại một câu ngắn tự nhiên để hiểu ngành/quy mô của khách. Tuyệt đối không nhồi nhét hotline ở mọi câu trả lời."
-        }
+        nail: { vi: ["Nails & Salon", "Chào anh/chị! BitPaw giúp tiệm nail xếp tua thợ tự động, chia hoa hồng + tips rõ ràng và tính bill trong vài giây. Tiệm mình đang có bao nhiêu thợ ạ?"],
+                en: ["Nails & Salon", "Hi! BitPaw helps nail salons rotate technician turns automatically, split commission and tips clearly, and close bills in seconds. How many technicians does your salon have?"] },
+        spa: { vi: ["Spa & Beauty", "Chào anh/chị! BitPaw giúp spa quản lý liệu trình còn lại của khách, đặt lịch online và tính hoa hồng kỹ thuật viên minh bạch. Cơ sở mình có bao nhiêu giường và kỹ thuật viên ạ?"],
+               en: ["Spa & Beauty", "Hi! BitPaw helps spas track each client's remaining treatment sessions, take online bookings and pay therapist commission transparently. How many beds and therapists do you have?"] },
+        fnb: { vi: ["Nhà hàng & Cafe", "Chào anh/chị! BitPaw giúp quán gọi món bằng QR tại bàn, đẩy món thẳng xuống màn hình bếp và thanh toán nhanh. Quán mình có khoảng bao nhiêu bàn ạ?"],
+               en: ["Restaurant & Cafe", "Hi! BitPaw gives restaurants QR table ordering, a live kitchen display and fast checkout. Roughly how many tables do you run?"] },
+        hotel: { vi: ["Khách sạn & Homestay", "Chào anh/chị! BitPaw cho khách sạn sơ đồ phòng trống/đang ở theo thời gian thực, check-in/check-out và tính tiền phụ thu nhanh. Bên mình có bao nhiêu phòng ạ?"],
+                 en: ["Hotel & Homestay", "Hi! BitPaw gives hotels a live room board (free / occupied), quick check-in/out and extra-charge billing. How many rooms do you have?"] },
+        karaoke: { vi: ["Karaoke & Bida", "Chào anh/chị! BitPaw tự tính tiền giờ karaoke/bida theo block phút, hiện phòng/bàn trống-bận theo thời gian thực và gọi đồ uống tại phòng. Quán mình có bao nhiêu phòng hoặc bàn ạ?"],
+                   en: ["Karaoke & Billiards", "Hi! BitPaw bills karaoke rooms and pool tables by the minute block, shows free/busy rooms live and takes in-room drink orders. How many rooms or tables do you have?"] },
+        office: { vi: ["Văn phòng & Nhân sự", "Chào anh/chị! BitPaw giúp nhân viên chấm công bằng camera + GPS, duyệt đơn nghỉ/hoàn ứng online và tính bảng lương tự động. Công ty mình có khoảng bao nhiêu nhân sự ạ?"],
+                  en: ["Office & HR", "Hi! BitPaw lets staff clock in with camera + GPS, approves leave and expense requests online and runs payroll automatically. Roughly how many employees do you have?"] },
+        retail: { vi: ["Cửa hàng bán lẻ", "Chào anh/chị! BitPaw giúp bán hàng bằng quét mã vạch, trừ kho ngay khi bán và cảnh báo hàng sắp hết. Shop mình đang bán mặt hàng gì ạ?"],
+                  en: ["Retail store", "Hi! BitPaw gives retail stores barcode checkout, real-time stock deduction and low-stock alerts. What kind of products do you sell?"] },
+        production: { vi: ["Sản xuất & Nhà xưởng", "Chào anh/chị! BitPaw giúp xưởng ghi sản lượng theo ca, trừ nguyên vật liệu theo định mức và chấm công công nhân. Xưởng mình sản xuất mặt hàng gì ạ?"],
+                      en: ["Production", "Hi! BitPaw helps workshops log output per shift, deduct materials by recipe (BOM) and track worker attendance. What do you manufacture?"] },
+        technical: { vi: ["Dịch vụ kỹ thuật", "Chào anh/chị! BitPaw giúp giao việc sửa chữa cho thợ, thợ báo cáo kèm ảnh + chữ ký khách ngay tại chỗ và tính công tự động. Đội mình có bao nhiêu thợ đi hiện trường ạ?"],
+                     en: ["Technical services", "Hi! BitPaw dispatches repair jobs to technicians, who report on-site with photos and the customer's signature, and pays them automatically. How many field technicians do you have?"] },
+        hr: { vi: ["Quản trị nhân sự", "Chào anh/chị! BitPaw giúp quản lý ca làm, chấm công camera + GPS và tính lương nhiều thành phần chỉ với 1 lần bấm. Bên mình đang vướng nhất ở chấm công hay tính lương ạ?"],
+              en: ["HR management", "Hi! BitPaw manages shifts, camera + GPS clock-in and multi-part payroll in one click. Is attendance or payroll your biggest headache right now?"] },
+        general: { vi: ["BitPaw Software", "Chào anh/chị! BitPaw là phần mềm quản lý cho tiệm nail, spa, nhà hàng, bán lẻ, khách sạn... gồm bán hàng (POS), nhân sự, tính lương và chăm sóc khách. Anh/chị đang kinh doanh ngành nào ạ?"],
+                   en: ["BitPaw Software", "Hi! BitPaw is business software for nail salons, spas, restaurants, retail, hotels and more — POS, staff, payroll and customer care in one place. What kind of business do you run?"] },
     };
+    function pageLangIsVi() {
+        let l = "";
+        try { l = localStorage.getItem("bitpaw_lang") || ""; } catch (e) { /* bị chặn */ }
+        if (!l) { const m = document.cookie.match(/bitpaw_lang=(vi|en)/); l = m ? m[1] : ""; }
+        return (l || document.documentElement.lang || "en").slice(0, 2) === "vi";
+    }
 
     function getPageIndustry() {
         const path = window.location.pathname.toLowerCase();
@@ -501,6 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
         phone: "Số điện thoại của bạn", phoneLabel: "SĐT", request: "Yêu cầu",
         typeMsg: "Nhập tin nhắn...", needPhone: "Nhập số điện thoại để bắt đầu chat...",
         shop: "Nhân viên tiệm", typing: "Đang trả lời...",
+        handoff: "Nhân viên tiệm đã nhận tin của bạn và sẽ trả lời ngay trong khung chat này 💅",
         slow: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!",
         slow2: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!",
     } : {
@@ -509,12 +481,14 @@ document.addEventListener("DOMContentLoaded", () => {
         phone: "Your phone number", phoneLabel: "Phone", request: "Request",
         typeMsg: "Type your message...", needPhone: "Enter your phone number to start chatting...",
         shop: "Salon staff", typing: "Typing...",
+        handoff: "A staff member has your message and will reply right here in this chat 💅",
         slow: "Sorry, we're a little slow right now — please send the service and time you'd like again!",
         slow2: "Sorry, we're a little slow right now — please send that again!",
     };
     const dna = CHAT_CONTEXT === 'customer_booking'
         ? { title: BT.title, greeting: BT.greeting, prompt: "" }
-        : (industryData[safeIndustry] || industryData.general);
+        : (() => { const d = (industryData[safeIndustry] || industryData.general)[pageLangIsVi() ? 'vi' : 'en'];
+                   return { title: d[0], greeting: d[1] }; })();
 
     // Đa doanh nghiệp (multi-tenant): nếu trang hiện tại là widget nhúng thật của 1 doanh
     // nghiệp đã đăng nhập (session có business_id, xem templates/components/cskh_global.html),
@@ -679,6 +653,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // tiệm trả lời trong /ai_bot (sender_type='staff') nhưng widget trên trang đặt lịch không hề nghe kênh
     // nào cho hội thoại "business_id:SĐT" -> khách đang chờ KHÔNG BAO GIỜ thấy câu trả lời. Dùng lại kênh
     // public của /portal (/api/portal/stream + /api/portal/messages, cùng khoá customer_id).
+    let handoffNoticeShown = false;
     let shopReplyStream = null;
     let shopReplySeen = null; // số tin staff đã có lúc bắt đầu nghe — chỉ hiện tin MỚI
     async function fetchShopReplies(customerId) {
@@ -912,14 +887,18 @@ document.addEventListener("DOMContentLoaded", () => {
             chatMsgInput.value = "";
 
             const finishSubmit = (reply) => {
-                let finalReply = reply;
-                if (finalReply.length > 350) {
+                let finalReply = reply || "";
+                // Trợ lý đặt lịch: KHÔNG cắt cụt (từng cắt ngang câu xác nhận lịch "...add the Signature Sp");
+                // độ dài đã được giới hạn bằng max_tokens phía server.
+                if (CHAT_CONTEXT !== 'customer_booking' && finalReply.length > 350) {
                     finalReply = finalReply.substring(0, 347) + "...";
                 }
 
                 removeTypingIndicator();
-                appendMessage("ai", finalReply);
-                chatHistory.push({ role: "assistant", content: finalReply });
+                if (finalReply) {
+                    appendMessage("ai", finalReply);
+                    chatHistory.push({ role: "assistant", content: finalReply });
+                }
                 if (userPhone) startShopReplyStream(userPhone);
 
                 // Re-enable inputs
@@ -939,7 +918,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 isLeadSubmitted = true;
                 window.isLeadSubmittedGlobal = true; // sync globally
 
-                chatHistory.push({ role: "user", content: `SĐT Zalo: ${userPhone}, Yêu cầu: ${msgVal}` });
+                chatHistory.push({ role: "user", content: msgVal }); // chỉ chữ khách gõ (trước đây "SĐT Zalo: ..., Yêu cầu: ..." kéo AI sang tiếng Việt)
 
                 showTypingIndicator();
 
@@ -970,17 +949,23 @@ document.addEventListener("DOMContentLoaded", () => {
                                 client_now: localNowIso(),
                                 customer_message: msgVal,
                                 history: chatHistory.slice(-10),
-                                systemPrompt: dna.prompt,
                                 userPrompt: CHAT_CONTEXT === 'customer_booking'
                                     ? `Khách hàng (SĐT ${userPhone}) vừa nhắn: "${msgVal}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật qua book_appointment. (Trả lời bằng ĐÚNG ngôn ngữ khách dùng trong tin nhắn, tự nhiên, dưới 350 ký tự).`
-                                    : `Khách hàng sử dụng SĐT Zalo ${userPhone} vừa yêu cầu tư vấn: "${msgVal}". Bạn hãy trả lời tư vấn ngắn gọn, chốt sale nhẹ nhàng và hỏi lại 1 câu. (Chú ý: trả lời tiếng Việt tự nhiên, dưới 350 ký tự, KHÔNG lặp lại hotline nếu không cần thiết).`,
-                                max_tokens: 220,
+                                    // Gửi NGUYÊN câu khách gõ: trước đây bọc trong câu chỉ dẫn tiếng Việt ép "trả lời
+                                    // tiếng Việt" -> khách hỏi tiếng Anh trên landing EN nhận câu trả lời tiếng Việt.
+                                    // Persona server tự trả lời đúng ngôn ngữ khách (ai_sales_prompts.MASTER_CLOSER_PERSONA).
+                                    : msgVal,
+                                max_tokens: CHAT_CONTEXT === 'customer_booking' ? 320 : 220,
                                 temperature: 0.75
                             })
                         });
 
                         const resData = await response.json();
-                        if (resData.choices && resData.choices[0] && resData.choices[0].message) {
+                        if (resData.paused) {
+                            // Tiệm đã nhận chat (AI tắt cho khách này): báo 1 lần là nhân viên sẽ trả lời ngay tại đây
+                            aiReply = handoffNoticeShown ? "" : BT.handoff;
+                            handoffNoticeShown = true;
+                        } else if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else if (CHAT_CONTEXT === 'customer_booking') {
                             aiReply = BT.slow;
@@ -991,19 +976,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         console.log("AI generation deferred: ", error);
                         aiReply = CHAT_CONTEXT === 'customer_booking'
                             ? BT.slow
-                            : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
+                            : (pageLangIsVi() ? `Dạ hệ thống đang hơi chậm. Anh/chị để lại số điện thoại, chuyên viên BitPaw sẽ gọi lại tư vấn ${dna.title} ngay ạ.` : `Sorry, we're a little slow right now. Leave your phone number and a BitPaw specialist will call you about ${dna.title} shortly.`);
                     }
                 }
 
                 if (CHAT_CONTEXT !== 'customer_booking') {
-                    // Tối ưu hóa chèn hotline ở câu chào đầu chốt lead nếu chưa có
-                    if (!aiReply.includes("8593 7410") && !aiReply.includes("tư vấn gói tối ưu")) {
-                        aiReply += ` Sếp kết nối nhanh Hotline **🇦🇺 +61 3 8593 7410** / Zalo **0794.678.904** để em gửi kịch bản flow chi tiết nhé!`;
-                    }
-
-                    if (userPhone && !aiReply.includes(userPhone) && !aiReply.includes("tư vấn gói tối ưu")) {
-                        aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${userPhone}</span>`;
-                    }
+                    // Lượt đầu: xác nhận đã nhận SĐT + kênh liên hệ trực tiếp, 1 LẦN, đúng ngôn ngữ trang. Trước đây chèn
+                    // "<br><br><span ...>Đã ghi nhận SĐT/Zalo của Sếp" — sau bản vá XSS (escape mọi chữ) khách thấy
+                    // nguyên mã HTML thô; và câu hotline "Sếp kết nối nhanh..." trộn Việt-Anh dán vào mọi trang EN.
+                    aiReply += pageLangIsVi()
+                        ? `\n\n✓ Đã nhận số ${userPhone} — chuyên viên BitPaw sẽ liên hệ anh/chị. Gọi ngay: +61 3 8593 7410 · Zalo 0794 678 904`
+                        : `\n\n✓ Got your number ${userPhone} — a BitPaw specialist will reach out. Call now: +61 3 8593 7410`;
                 }
 
                 const elapsed = Date.now() - startTime;
@@ -1040,15 +1023,18 @@ document.addEventListener("DOMContentLoaded", () => {
                                 client_now: localNowIso(),
                                 customer_message: msgVal,
                                 history: chatHistory.slice(-10),
-                                systemPrompt: dna.prompt,
                                 userPrompt: msgVal,
-                                max_tokens: 220,
+                                max_tokens: CHAT_CONTEXT === 'customer_booking' ? 320 : 220,
                                 temperature: 0.75
                             })
                         });
 
                         const resData = await response.json();
-                        if (resData.choices && resData.choices[0] && resData.choices[0].message) {
+                        if (resData.paused) {
+                            // Tiệm đã nhận chat (AI tắt cho khách này): báo 1 lần là nhân viên sẽ trả lời ngay tại đây
+                            aiReply = handoffNoticeShown ? "" : BT.handoff;
+                            handoffNoticeShown = true;
+                        } else if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
                         } else if (CHAT_CONTEXT === 'customer_booking') {
                             aiReply = BT.slow2;
@@ -1059,14 +1045,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         console.log("AI generation deferred: ", error);
                         aiReply = CHAT_CONTEXT === 'customer_booking'
                             ? BT.slow2
-                            : `Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em gọi lại tư vấn gói tối ưu nhất cho ${dna.title} luôn nhé!`;
+                            : (pageLangIsVi() ? `Dạ hệ thống đang hơi chậm. Anh/chị để lại số điện thoại, chuyên viên BitPaw sẽ gọi lại tư vấn ${dna.title} ngay ạ.` : `Sorry, we're a little slow right now. Leave your phone number and a BitPaw specialist will call you about ${dna.title} shortly.`);
                     }
-                }
-
-                // Chỉ append dòng "Đã ghi nhận..." nếu SĐT hợp lệ và chưa từng thông báo
-                const hasMentionedSuccess = chatHistory.some(h => h.content && h.content.includes("Đã ghi nhận SĐT"));
-                if (CHAT_CONTEXT !== 'customer_booking' && hasValidPhone && !hasMentionedSuccess && !aiReply.includes("tư vấn gói tối ưu")) {
-                    aiReply += `<br><br><span class="text-[11px] text-cyan-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Đã ghi nhận SĐT/Zalo của Sếp: ${phoneVal}</span>`;
                 }
 
                 const elapsed = Date.now() - startTime;

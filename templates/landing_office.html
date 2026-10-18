@@ -24,6 +24,7 @@
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/bp_mobile_ui.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     
     <!-- CSS cho AOS hoạt ảnh mượt mà -->
@@ -261,7 +262,7 @@
                 <a href="{{ url_for('register', industry='office') }}" class="btn-neon-indigo bg-indigo-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.3)] whitespace-nowrap">
                     <i class="fas fa-rocket"></i> <span data-i18n="nav_trial">Dùng Thử Miễn Phí</span>
                 </a>
-                <button onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-indigo-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="lg:hidden text-2xl text-indigo-400 p-2 focus:outline-none" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
     </header>
@@ -289,6 +290,12 @@
             </div>
         </nav>
     </div>
+
+    <!-- Mobile app-like nav + Smart FAB (dùng chung với 9 landing khác). Trước đây trang này thiếu -> trên điện thoại
+         mascot chat bị ẩn mà không có nút thay thế, khách không mở được chat tư vấn. -->
+    {% set pricing_anchor = 'calculator' %}
+    {% include 'components/mobile_bottom_nav.html' %}
+    {% include 'components/smart_fab.html' %}
 
     <main class="overflow-x-hidden w-full relative">
     <!-- 1. Hero Section -->
@@ -1282,6 +1289,7 @@
     {% include 'components/cskh_global.html' %}
 
     <!-- Background Animation (Three.js Indigo Particles Network) -->
+    <script src="{{ url_for('static', filename='js/bp_mobile_ui.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -1493,6 +1501,10 @@
 
         const translations = {
             vi: {
+                bnav_home: 'Trang chủ', bnav_solutions: 'Giải pháp', bnav_pricing: 'Bảng giá', bnav_more: 'Thêm',
+                solsheet_title: 'Khám Phá Giải Pháp', fab_label: 'Liên hệ', fabsheet_title: 'Liên Hệ Ngay',
+                fabsheet_chat: 'Chat với Trợ Lý AI', fabsheet_zalo: 'Tư Vấn Zalo', fabsheet_messenger: 'Messenger',
+                fabsheet_telegram: 'Telegram', fabsheet_call: 'Gọi Hotline', fabsheet_email: 'Gửi Email',
                 hero_badge: '🏢 BitPaw Software: Số Hóa Quy Trình & Tính Lương Tự Động Khối Văn Phòng',
                 hero_title: 'Chốt lương tự động, <br class="hidden sm:inline"> <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">không còn giấy tờ, sai số.</span> <br class="hidden sm:inline">',
                 hero_desc: 'Hệ thống chấm công Wifi/GPS thông minh chống gian lận, tự động tính toán KPI hiệu suất phức tạp, quy trình duyệt đề xuất không giấy tờ và tự tổng hợp báo cáo lợi nhuận ròng P&L tức thời.',
@@ -1666,6 +1678,10 @@
                 feat8_desc: "Trợ lý AI tự bóc tách dữ liệu thu chi thực tế, xuất báo cáo P&L lợi nhuận ròng trực quan tại <a href=\"{{ url_for('baocao_loinhuan') }}\" class=\"text-indigo-400 underline hover:text-indigo-300\">baocao_loinhuan.html</a>.",
             },
             en: {
+                bnav_home: 'Home', bnav_solutions: 'Solutions', bnav_pricing: 'Pricing', bnav_more: 'More',
+                solsheet_title: 'Explore Solutions', fab_label: 'Contact', fabsheet_title: 'Get in Touch',
+                fabsheet_chat: 'Chat with AI Assistant', fabsheet_zalo: 'Zalo Consulting', fabsheet_messenger: 'Messenger',
+                fabsheet_telegram: 'Telegram', fabsheet_call: 'Call Hotline', fabsheet_email: 'Send Email',
                 hero_badge: '🏢 BitPaw Software: Digitize Office Workflows & Automatic Payroll',
                 hero_title: 'Automatic payroll closing, <br class="hidden sm:inline"> <span class="text-gradient-indigo drop-shadow-[0_4px_25px_rgba(79,70,229,0.65)]">no more paperwork, no more errors.</span> <br class="hidden sm:inline">',
                 hero_desc: 'A smart Wifi/GPS attendance system that prevents fraud, automatically calculates complex performance KPIs, a paperless approval workflow, and instant P&L profit reporting.',
