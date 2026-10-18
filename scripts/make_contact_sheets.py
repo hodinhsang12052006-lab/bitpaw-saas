@@ -1,7 +1,7 @@
 """Ghép ảnh chụp màn hình thành các tấm lưới có ghi tên trang, để soi bằng mắt nhanh mà không sót trang nào.
 
-    python scripts/make_contact_sheets.py <thư mục ảnh> <thư mục ra>
-Ảnh desktop (1440_*.png) -> lưới 3x3; ảnh mobile (390_*.png) -> lưới 6x2.
+    python scripts/make_contact_sheets.py <thư mục ảnh> <thư mục ra> [tiền_tố_desktop=1440_] [tiền_tố_mobile=390_]
+Ảnh desktop -> lưới 3x2; ảnh mobile -> lưới 6x1. Tiền tố '*' = mọi ảnh (vd ảnh cửa sổ app Windows).
 """
 import os
 import sys
@@ -33,5 +33,8 @@ def sheet(files, cols, rows, tile, prefix):
 
 
 files = sorted(f for f in os.listdir(src) if f.endswith('.png'))
-sheet([f for f in files if f.startswith('1440_')], 3, 2, (480, 560), 'desk')
-sheet([f for f in files if f.startswith('390_')], 6, 1, (240, 900), 'mob')
+dp = sys.argv[3] if len(sys.argv) > 3 else '1440_'
+mp = sys.argv[4] if len(sys.argv) > 4 else '390_'
+sheet([f for f in files if dp == '*' or f.startswith(dp)], 3, 2, (480, 560), 'desk')
+if dp != '*':
+    sheet([f for f in files if f.startswith(mp)], 6, 1, (240, 900), 'mob')

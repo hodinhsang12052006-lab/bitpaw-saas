@@ -1486,9 +1486,11 @@ def _superadmin_emergency_login(email):
 
 
 @app.route('/login', methods=['GET', 'POST'])
-# Chỉ đếm lượt GỬI form (POST): trước đây GET cũng bị tính nên chỉ cần mở/tải lại trang 5 lần
-# (vd quay lại sau khi gõ sai) là bị 429 ngay cả khi chưa thử đăng nhập lần nào.
-@limiter.limit("5 per 15 minutes", methods=['POST'])
+# Chỉ đếm lượt GỬI form (POST) THẤT BẠI (đăng nhập đúng trả 302 -> không trừ lượt). Trước đây đếm cả lần đăng nhập
+# ĐÚNG, 5 lần/15 phút cho cả 1 IP: cả tiệm chung 1 Wi-Fi, đầu ca chủ + vài máy POS + điện thoại đăng nhập là lần thứ 6
+# bị 429 suốt 15 phút (gặp thật khi test 9 app Windows trên 1 máy). Chống dò mật khẩu vẫn đủ: 20 lần SAI/IP ở đây
+# + _login_attempts_blocked (MongoDB, dùng chung mọi instance): 20 lần sai/IP, 10 lần sai/email.
+@limiter.limit("20 per 15 minutes", methods=['POST'], deduct_when=lambda response: response.status_code != 302)
 def login():
     # Xem giải thích ở register() ngay phía trên — csrf.protect() gọi trong thân hàm, không
     # phải decorator.
@@ -1652,7 +1654,7 @@ def login():
 
 
 @app.route('/api/auth/token', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("20 per 15 minutes", deduct_when=lambda response: response.status_code >= 400)  # chỉ đếm lần cấp token thất bại
 def api_auth_token():
     """Cấp JWT cho Mobile App (Flutter/React Native) — thay session cookie không dùng được trên
     native client. Nhận {email, password} JSON, trả về access_token (JWT tự chứa user_id/
@@ -7650,8 +7652,12 @@ def api_public_pos_products():
 def api_kitchen_orders_list():
     business_id = session.get('business_id') or session['user_id']
     try:
+        # Chỉ phiếu trong 12 giờ gần nhất: phiếu bếp chỉ đóng khi bếp tự bấm "Hoàn thành" — quán không dùng màn bếp
+        # thường xuyên (hoặc bàn đã thanh toán, dọn bàn) thì phiếu cũ treo "OVERDUE" mãi, đếm được 65 phiếu từ 3 tuần trước
+        # trên tiệm demo. KHÔNG tự đóng phiếu khi bàn thanh toán: quán trả tiền trước thì món vẫn đang chờ nấu.
+        since = (datetime.now() - timedelta(hours=12)).isoformat()
         orders = list(db.kitchen_orders.find(
-            {'business_id': business_id, 'status': {'$in': ['pending', 'cooking']}},
+            {'business_id': business_id, 'status': {'$in': ['pending', 'cooking']}, 'created_at': {'$gte': since}},
             {'_id': 0}
         ).sort('created_at', 1))
         return jsonify({"success": True, "data": orders})
@@ -10852,8 +10858,14 @@ def api_cskh_chat_send():
     lai), khoá hội thoại theo SĐT khách nhập. Tái dùng _persist_chat_turn() best-effort y hệt
     luồng AI/tenant, chỉ khác business_id là sentinel BITPAW_LEADS_BUSINESS_ID."""
     data = request.json or {}
-    phone = (data.get('phone') or '').strip()
-    content = (data.get('content') or '').strip()
+    raw_phone, raw_content = data.get('phone'), data.get('content')
+    # SĐT gửi dạng số (vd 412345678) -> chấp nhận; kiểu khác (object/mảng) -> 400. Trước đây int.strip() ném lỗi -> 503.
+    if isinstance(raw_phone, int) and not isinstance(raw_phone, bool):
+        raw_phone = str(raw_phone)
+    if not isinstance(raw_phone, (str, type(None))) or not isinstance(raw_content, (str, type(None))):
+        return jsonify({"success": False, "message": "Dữ liệu tin nhắn không hợp lệ."}), 400
+    phone = (raw_phone or '').strip()[:32]
+    content = (raw_content or '').strip()
     if not phone or not content:
         return jsonify({"success": False, "message": "Thiếu số điện thoại hoặc nội dung tin nhắn."}), 400
     _persist_chat_turn(BITPAW_LEADS_BUSINESS_ID, phone, content[:2000], sender_type='customer')

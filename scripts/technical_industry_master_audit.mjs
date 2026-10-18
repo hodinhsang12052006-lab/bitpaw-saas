@@ -19,6 +19,7 @@
  */
 
 import { chromium } from 'playwright';
+import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
@@ -57,7 +58,7 @@ async function main() {
   const networkErrors = [];
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext(ownerContextOptions());
   const page = await context.newPage();
 
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });

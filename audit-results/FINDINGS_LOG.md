@@ -570,3 +570,41 @@ Giới hạn của máy test (không phải lỗi code): từ máy này Atlas ch
 Còn treo: F&B/Bán lẻ (`api_sales_checkout`) vẫn trừ kho trong transaction — cùng kiểu nghẽn khi nhiều đơn cùng 1 món hot; Lịch 1 ngày ~2,6 KB/lịch hẹn (200 lịch = 500 KB, ~1.700 lịch/ngày mới chạm trần Vercel).
 
 Hồi quy Nails sau khi sửa (server `EMAIL_DISABLED=1`): persona 38/38 · master 10/10 · gap 8/8 · business cycle 9/9 · realtime SSE 6/6 · AI bot đặt lịch/CSKH 7/7 · POS acceptance không lỗi · 6/6 bill tạo từ giao diện POS thật có mã chống gửi trùng · `_verify_load_fixes` 6/6.
+
+## Pha 23 — Test lại toàn bộ: tải app Windows, 9 ngành, chủ + nhân viên, máy tính + điện thoại, lỗi "đợi vài giây mới lỗi" (18/10/2026)
+
+Cách test (chỉ server local, `EMAIL_DISABLED=1`):
+- **App Windows** (`scripts/desktop_app_e2e.mjs`): chạy THẬT 9 file `dist/releases/BitPaw-<Ngành>.exe`, nối vào chính cửa sổ WebView2 qua cổng debug -> trang đăng nhập đúng ngành, đăng nhập, ngồi 20 giây, chụp ảnh; ca mất mạng -> trang báo + tự vào lại khi có mạng.
+- **Điện thoại thật** (`scripts/lib/device.mjs`, `DEVICE=mobile`): giả lập iPhone 13 (UA iOS, cảm ứng, isMobile) — chạy lại ĐÚNG các kịch bản của máy tính.
+- **Lỗi xuất hiện muộn** (`scripts/linger_audit.mjs`): mở từng trang trong menu, ngồi lại 35 giây (quá 1 chu kỳ real-time 25s), ghi mọi lỗi JS / request lỗi / thông báo lỗi kèm GIÂY THỨ MẤY nó hiện. Tự kiểm script bằng trang mồi (lỗi ở giây 5, 8, 10): bắt đủ cả 3 trên 2 thiết bị.
+- **Chủ tiệm tự thêm nhân viên** (`scripts/hr_onboarding_e2e.mjs`): bằng giao diện, 9 ngành × 2 thiết bị.
+- Mỗi bộ test ghi lại PID server trước/sau — phát hiện ngay nếu server bị khởi động lại giữa chừng.
+
+| # | Mức | Lỗi | Đã sửa | Đo lại |
+|---|---|---|---|---|
+| 1 | 🔴 | **Chấm công camera**: nút Chụp mở ngay khi GPS bắt được vị trí, không đợi camera -> chụp lúc video 0×0 (bắt được: F&B, Khách sạn, Sản xuất readyState=0) -> ảnh chấm công RỖNG, hoặc tải lên lỗi rồi HUỶ chấm công sau vài giây | Mở nút khi CẢ GPS + camera sẵn sàng; video `muted` + `play()`; chặn gửi ảnh rỗng | Camera 640×480 lúc mở nút ở 9 ngành; persona 147/147 máy tính + 147/147 iPhone |
+| 2 | 🔴 | **8/9 ngành không có cách thêm nhân viên** dùng app nhân viên / chấm công / lương (chỉ Nails có nút tới /nhanvien; menu "Staff Management" là danh sách hoa hồng POS khác). Form thêm nhân viên thiếu phòng ban Retail/Karaoke, mặc định "Văn Phòng" -> nhân viên không có trong Bảng lương (đo: 25 FAIL ở 8 ngành) | Menu "Nhân viên & tài khoản app" cho mọi ngành; trang Staff Management giải thích + nút mở; thêm Retail/Karaoke; chọn sẵn đúng ngành | 54/54 máy tính + 54/54 iPhone |
+| 3 | 🟠 | Đăng nhập giới hạn 5 lần/15 phút/IP tính cả lần ĐÚNG -> cả tiệm chung Wi-Fi, lần thứ 6 bị khoá 15 phút (gặp thật khi test 9 app Windows) | Chỉ đếm lần SAI (20/IP; MongoDB: 20/IP, 10/email) | 25/25 đăng nhập đúng qua; sai bị chặn lần 21/IP, lần 11/email |
+| 4 | 🟠 | Điện thoại: thông báo "đã thêm vào vé/giỏ" nằm ĐÈ nút PAY NOW/Checkout (POS Nails, Bán lẻ, F&B/Spa, gọi món QR) -> chạm thanh toán ngay sau khi thêm món thì trúng thông báo, hộp thanh toán không mở | Thông báo lên trên + chạm xuyên qua | Chạm PAY NOW ngay sau khi thêm -> hộp thanh toán mở |
+| 5 | 🟠 | Bán lẻ trên điện thoại: mỗi lần quét mã vạch giỏ hàng tự bật che kín màn hình; nút đóng giỏ rộng 16px | Điện thoại không tự mở giỏ; nút đóng 44×44 | Bán lẻ iPhone 6/6 |
+| 6 | 🟠 | Màn bếp: phiếu chỉ mất khi bếp bấm "Hoàn thành" -> 65 phiếu OVERDUE từ 27/9 trên tiệm demo | Chỉ hiện phiếu trong 12 giờ (KHÔNG tự đóng khi bàn thanh toán — quán trả tiền trước vẫn cần phiếu) | — |
+| 7 | 🟡 | 3 script test tự chạy `~/restart_flask.sh` mỗi 4 lần đăng nhập: GIẾT mọi tiến trình Python rồi bật server khác (không `EMAIL_DISABLED`) -> sập các bài test chạy song song; đây chính là nguyên nhân "đăng nhập nhân viên chập chờn" các đợt trước | Bỏ (đăng nhập giờ chỉ đếm lần sai) | Không còn server bị khởi động lại giữa lượt |
+| 8 | 🟡 | Chat CSKH công khai: SĐT gửi dạng số -> 503 | Nhận số, sai kiểu -> 400 | — |
+| 9 | 🟡 | Bảng lương trên điện thoại: câu "chưa có dữ liệu" bị cắt nửa (nằm trong vùng cuộn ngang 760px) | Ghim trong khung nhìn | — |
+| 10 | 🟡 | Test F&B để lại đơn bàn + phiếu bếp (bàn 1–2 "Đang phục vụ" trên tiệm demo); 36 bản ghi test khác trong 12 tiệm demo | Test F&B tự khôi phục trạng thái bàn/phiếu bếp; dọn dữ liệu demo | — |
+
+Cần chủ dự án quyết định:
+- File `.exe` **chưa ký số** -> Windows SmartScreen cảnh báo "Windows protected your PC" khi khách mở (cần chứng chỉ ký mã — có phí). 9 file chưa được upload GitHub Releases -> nút tải về hiện trang "sắp phát hành".
+- POS Spa không gán kỹ thuật viên cho từng dịch vụ -> hoa hồng Spa phải nhập tay ở màn Chấm công Spa (nhập 2 lần).
+- 2 danh sách nhân viên (`/staff` hoa hồng POS vs `/nhanvien` nhân sự/app) — đã có hướng dẫn qua lại; về lâu dài nên gộp.
+- Dữ liệu demo Spa (tiệm AUD) có khách chi tiêu kiểu VND ($1.500.000) -> CRM demo hiện tổng $5,4 triệu.
+
+Kết quả cuối (sau khi sửa):
+- **App Windows**: 9/9 file `.exe` chạy thật — 38/38 (mở đúng ngành, đăng nhập, 20 giây không lỗi, cửa sổ vừa khung; mất mạng -> trang báo song ngữ, có mạng lại tự vào trong ~10 giây).
+- **Chủ tiệm, nghiệp vụ 9 ngành**: tất cả PASS trên máy tính VÀ iPhone (Nails 10, F&B 8, Spa 6, Bán lẻ 6, Karaoke 4, Khách sạn 5, Sản xuất 3, Kỹ thuật 3, Văn phòng 4 — mỗi thiết bị).
+- **Nhân viên 9 ngành** (đăng nhập, chấm công camera + GPS, báo cáo, xin nghỉ, hoàn ứng, khen, đăng xuất): 147/147 máy tính + 147/147 iPhone.
+- **Chủ tiệm tự thêm nhân viên**: 54/54 máy tính + 54/54 iPhone (trước khi sửa: 25 FAIL).
+- **Lỗi xuất hiện muộn** (ngồi 35 giây mỗi trang): 9 ngành × ~15 trang × 2 thiết bị + trang nhân sự — 0 lỗi muộn (các lỗi duy nhất ghi được là lúc server bị script test cũ giết — đã bỏ script đó, chạy lại sạch).
+- **Quét toàn trang**: 1.101 lượt mở trang × 9 ngành, chỉ 3 trang chặn có chủ đích/ngành (/table_order thiếu mã bàn, /super_admin), 0 link nội bộ hỏng.
+- **Phía khách & hệ thống**: tải về 44/44 · landing 66/66 · bot tư vấn 18/18 · cổng thanh toán 39/39 · màn thanh toán 16/16 · AI Copilot 18/18 · Nails (gap 8/8, chu trình 9/9, real-time 6/6, bot CSKH 7/7, persona 38/38, POS acceptance sạch) · cách ly dữ liệu giữa ngành 30/30 + 28/28 + 28/28 · khoá dịch thô 0 (28 trang × 2 ngôn ngữ) · input dị dạng: server sống, 0 lỗi 5xx.
+- Dọn: 36 bản ghi test trong 12 tiệm demo (có sao lưu), 69 phiếu bếp treo + 2 bàn "đang phục vụ" giả ở F&B demo, tin nhắn test lọt vào hộp thư khách tiềm năng, thư mục tạm của 9 app Windows.

@@ -158,7 +158,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div class="absolute inset-0 border border-cyan-500/30 pointer-events-none z-10 m-4 rounded-xl border-dashed"></div>
                         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 border-2 border-cyan-400 rounded-full opacity-50 z-10 flex items-center justify-center"><div class="w-1 h-1 bg-cyan-400 rounded-full"></div></div>
                         
-                        <video id="cameraFeed" class="w-full h-[240px] object-cover relative z-0" autoplay playsinline></video>
+                        <video id="cameraFeed" class="w-full h-[240px] object-cover relative z-0" autoplay playsinline muted></video>
                         
                         <div id="gpsStatus" class="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30 z-20 font-bold uppercase tracking-widest">
                             <i class="fas fa-satellite fa-spin"></i> Locating...
@@ -808,9 +808,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('step1_Start').classList.add('hidden');
             document.getElementById('step2_Camera').classList.remove('hidden'); document.getElementById('step2_Camera').classList.add('flex');
 
+            // Nút Chụp chỉ mở khi CẢ GPS lẫn camera đã sẵn sàng. Trước đây mở ngay khi GPS bắt được vị trí — GPS nhanh hơn
+            // camera (hay gặp) thì bấm chụp lúc video chưa có hình: ảnh chấm công rỗng 0x0, hoặc tải lên lỗi rồi huỷ chấm công
+            // sau vài giây (bắt được khi test: nút mở lúc video 0x0, readyState=0).
+            gpsReady = false; camReady = false;
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                document.getElementById('cameraFeed').srcObject = videoStream;
+                const feed = document.getElementById('cameraFeed');
+                const markCam = () => { if (feed.videoWidth > 0) { camReady = true; enableCaptureIfReady(); } };
+                feed.addEventListener('loadeddata', markCam, { once: true });
+                feed.addEventListener('playing', markCam, { once: true });
+                feed.srcObject = videoStream;
+                feed.play().catch(() => {});  // iOS Safari / Chrome có lúc không tự phát dù có autoplay -> camera đứng hình 0x0
+                markCam();
             } catch (err) { showToast("Cannot access the camera. Please grant permission!", 'error'); cancelCheckin(); return; }
 
             if (navigator.geolocation) {
@@ -820,8 +830,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         const gpsUI = document.getElementById('gpsStatus');
                         gpsUI.innerHTML = `<i class="fas fa-map-marker-check"></i> GPS target locked`;
                         gpsUI.className = "absolute bottom-2 left-2 right-2 bg-[#0a0f25]/90 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-emerald-400 flex items-center justify-center gap-2 border border-emerald-400/50 z-20 font-bold uppercase tracking-widest";
-                        const capBtn = document.getElementById('captureBtn');
-                        capBtn.disabled = false; capBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        gpsReady = true; enableCaptureIfReady();
                     },
                     (error) => { showToast("Could not get GPS location. Please enable Location!", 'error'); cancelCheckin(); },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -829,17 +838,29 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }
         }
 
+        let gpsReady = false, camReady = false;
+        function enableCaptureIfReady() {
+            if (!(gpsReady && camReady)) return;
+            const capBtn = document.getElementById('captureBtn');
+            capBtn.disabled = false; capBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
         async function captureAndSubmit() {
             const btn = document.getElementById('captureBtn');
+            const video = document.getElementById('cameraFeed'); const canvas = document.getElementById('snapshotCanvas');
+            if (!video.videoWidth) {  // chốt chặn cuối: camera chưa có hình thì không gửi ảnh rỗng
+                showToast("Camera is still starting — please tap again in a moment.", 'warning');
+                return;
+            }
             btn.innerHTML = `<i class="fas fa-spinner fa-spin text-xl"></i> ĐANG XỬ LÝ...`; btn.disabled = true;
 
-            const video = document.getElementById('cameraFeed'); const canvas = document.getElementById('snapshotCanvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d'); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             if(videoStream) videoStream.getTracks().forEach(track => track.stop());
 
             canvas.toBlob(async (blob) => {
+                if (!blob || !blob.size) { showToast("Could not capture the photo — please try again.", 'error'); cancelCheckin(); return; }
                 const todayStr = new Date().toLocaleDateString('en-GB');
                 const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                 const toa_do = `${currentLat},${currentLng}`;

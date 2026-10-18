@@ -22,7 +22,7 @@
 {% set NAIL_NAV_ICON = {
   'fa-chart-pie': 'dashboard', 'fa-spa': 'polish', 'fa-cash-register': 'checkout', 'fa-shopping-cart': 'checkout', 'fa-calendar-alt': 'booking',
   'fa-calendar-days': 'booking', 'fa-qrcode': 'qr', 'fa-address-book': 'customers', 'fa-robot': 'ai', 'fa-magic': 'design',
-  'fa-users': 'staff', 'fa-calendar-check': 'checkedin', 'fa-coins': 'payroll', 'fa-calendar-times': 'leave',
+  'fa-users': 'staff', 'fa-id-card': 'staff', 'fa-calendar-check': 'checkedin', 'fa-coins': 'payroll', 'fa-calendar-times': 'leave',
   'fa-hand-holding-dollar': 'refund', 'fa-hand-holding-usd': 'refund', 'fa-chart-line': 'chart', 'fa-sitemap': 'chart',
   'fa-cog': 'settings', 'fa-sign-out-alt': 'exit', 'fa-file-invoice-dollar': 'history', 'fa-boxes-stacked': 'package',
   'fa-warehouse': 'package'
@@ -328,6 +328,15 @@
                     <span class="nav-icon-chip">{{ navico('fa-users', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_hr">{{ menu_i18n.hr }}</span>
                 </a>
+                {# Nhân viên dùng app nhân viên / chấm công / bảng lương nằm ở db.employees (trang /nhanvien) — KHÁC danh sách
+                   /staff (db.staff, chỉ để tính hoa hồng POS). Trước đây chỉ Nails có nút tới /nhanvien: chủ tiệm 8 ngành còn
+                   lại KHÔNG có cách nào thêm nhân viên đăng nhập app nhân viên / có trong chấm công, lương. #}
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <a href="{{ url_for('nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <span class="nav-icon-chip">{{ navico('fa-id-card', ' group-hover:text-cyan-400 transition-colors') }}</span>
+                    <span data-i18n="menu_employees_hr">{{ menu_i18n.employees_hr }}</span>
+                </a>
+                {% endif %}
                 <a href="{{ industry_chamcong_url }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-calendar-check', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_attendance">{{ menu_i18n.attendance }}</span>

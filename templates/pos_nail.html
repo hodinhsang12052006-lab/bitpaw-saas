@@ -757,7 +757,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             opacity: 0; 
             visibility: hidden; 
         }
-        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; opacity: 1; visibility: visible; pointer-events: auto; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: none; }
+        /* Điện thoại: toast "đã thêm vào vé" từng nằm ĐÈ đúng nút PAY NOW (ghim đáy) vài giây — thu ngân thêm dịch vụ rồi
+           bấm thanh toán ngay là chạm trúng toast, hộp thanh toán không mở. Đưa toast lên trên + cho chạm xuyên qua. */
+        @media (max-width: 767px) {
+            .toast { bottom: auto; top: 12px; transform: translateX(-50%) translateY(calc(-100% - 40px)); max-width: calc(100vw - 32px); }
+            .toast.show { transform: translateX(-50%) translateY(0); }
+        }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

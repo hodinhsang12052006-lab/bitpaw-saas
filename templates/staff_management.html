@@ -368,6 +368,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
         </div>
 
+        <!-- 2 danh sách khác nhau: trang này (hoa hồng POS) và Nhân viên & tài khoản app (/nhanvien: đăng nhập app nhân viên,
+             chấm công, bảng lương). Trước đây chủ tiệm thêm ở đây rồi không hiểu vì sao nhân viên không đăng nhập app được. -->
+        <div class="glass-panel p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-cyan-500/30">
+            <p class="text-sm text-gray-300" data-i18n="staff_management_hr_hint">Danh sách này dùng để tính hoa hồng khi bán hàng. Muốn nhân viên đăng nhập app nhân viên, chấm công và có trong bảng lương, hãy thêm họ ở mục Nhân viên &amp; tài khoản app.</p>
+            <a href="{{ url_for('nhanvien') }}" class="shrink-0 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><i class="fas fa-id-card"></i> <span data-i18n="staff_management_hr_link">Mở Nhân viên &amp; tài khoản</span></a>
+        </div>
+
         <!-- Danh sách nhân viên -->
         <div class="glass-panel p-5">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
@@ -511,6 +518,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
             vi: {
+                staff_management_hr_hint: 'Danh sách này dùng để tính hoa hồng khi bán hàng. Muốn nhân viên đăng nhập app nhân viên, chấm công và có trong bảng lương, hãy thêm họ ở mục Nhân viên & tài khoản app.',
+                staff_management_hr_link: 'Mở Nhân viên & tài khoản',
                 staff_management_title_suffix: 'Quản lý Nhân viên',
                 staff_management_subtitle: 'Quản lý thông tin, phân quyền và hoa hồng',
                 staff_management_btn_add: 'Thêm nhân viên',
@@ -565,6 +574,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 staff_management_err_generic: 'Lỗi: '
             },
             en: {
+                staff_management_hr_hint: 'This list is used for sales commission. For staff to sign in to the Staff app, clock in and appear in payroll, add them under Employees & App Logins.',
+                staff_management_hr_link: 'Open Employees & App Logins',
                 staff_management_title_suffix: 'Staff Management',
                 staff_management_subtitle: 'Manage staff info, permissions, and commissions',
                 staff_management_btn_add: 'Add Staff',

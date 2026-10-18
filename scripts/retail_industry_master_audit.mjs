@@ -15,6 +15,7 @@
  */
 
 import { chromium } from 'playwright';
+import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
@@ -54,7 +55,7 @@ async function main() {
   let checkoutOrderId = null;
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext(ownerContextOptions());
   const page = await context.newPage();
 
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
@@ -115,6 +116,8 @@ async function main() {
     await page.waitForTimeout(200);
     const cartLineCount = await page.locator('#cartItemsList .cart-item').count();
     await shot(page, '02_retail_cart_added.png');
+    // Đóng giỏ như người dùng thật (trên điện thoại giỏ chiếm cả màn hình, che ô quét mã vạch)
+    if (await page.locator('#closeCartBtn').isVisible().catch(() => false)) { await page.click('#closeCartBtn'); await page.waitForTimeout(300); }
 
     // Tìm kiếm theo tên (client-side filter)
     const firstName = await cards.first().getAttribute('data-name');
@@ -180,6 +183,9 @@ async function main() {
   // ============================================================
   t0 = Date.now();
   try {
+    // Nút Checkout nằm trong giỏ; trên điện thoại giỏ không tự mở sau khi quét -> người dùng chạm biểu tượng giỏ trước
+    // (giỏ đóng chỉ bị đẩy ra ngoài mép phải bằng transform nên isVisible() vẫn true -> kiểm class .open)
+    if (!(await page.locator('.cart-sidebar').evaluate((el) => el.classList.contains('open')))) { await page.click('#cartIcon'); await page.waitForTimeout(400); }
     await page.click('#openCheckoutBtn');
     await page.waitForSelector('#checkoutModal.active', { timeout: 3000 });
     await page.click('.pm-option[data-method="cash"]');

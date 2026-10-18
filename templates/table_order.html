@@ -89,7 +89,13 @@
             white-space: nowrap;
         }
         .toast.show {
-            transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
+            transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: none; }
+        /* Điện thoại: toast từng nằm ĐÈ nút thanh toán/giỏ hàng ghim đáy màn hình (test iPhone: chạm "Checkout" ngay sau
+           khi thêm món thì trúng toast). Đưa toast lên trên + luôn cho chạm xuyên qua (toast chỉ là thông báo). */
+        @media (max-width: 767px) {
+            .toast { bottom: auto; top: 12px; transform: translateX(-50%) translateY(calc(-100% - 40px)); max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+            .toast.show { transform: translateX(-50%) translateY(0); }
+        }
         
         .cart-sidebar {
             position: fixed;

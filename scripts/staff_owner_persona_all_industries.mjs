@@ -11,6 +11,7 @@
  *   node scripts/staff_owner_persona_all_industries.mjs        (ONLY=nail,fnb để chạy vài ngành)
  */
 import { chromium } from 'playwright';
+import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
 
@@ -30,7 +31,6 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : Object.keys(T);
 const POS_PAID = new Set(['nail', 'spa']);                    // hoa hồng/tip từ bill POS -> không tự khai tiền
 const HOURLY = new Set(['nail', 'spa', 'fnb', 'hotel', 'retail', 'karaoke', 'production', 'technical']);
 const EVIDENCE = { photo: new Set(['nail', 'spa', 'fnb', 'technical', 'production']), signature: new Set(['technical', 'production']) };
-const RESTART = `${process.env.HOME || process.env.USERPROFILE}/restart_flask.sh`;
 const NOISE = /ERR_CONNECTION_RESET|ERR_ABORTED|ERR_NETWORK_CHANGED|net::ERR_FAILED/;
 
 const results = [];
@@ -55,7 +55,6 @@ function watch(page, bucket) {
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 const todayGB = new Date().toLocaleDateString('en-GB');
-let logins = 0;
 
 for (const ind of ONLY) {
   const [email, pw, linhVuc, ccPage] = T[ind];
@@ -64,10 +63,10 @@ for (const ind of ONLY) {
   const { business_id: BID } = db('business', email);
   let colleague = null; let kudoBefore = 0;
   try {
-    if (logins >= 4 && fs.existsSync(RESTART)) { execFileSync('bash', [RESTART], { stdio: 'ignore' }); logins = 0; }
-    logins++;
+    // (Đã bỏ mẹo cũ: cứ 4 lần đăng nhập lại chạy ~/restart_flask.sh — script đó GIẾT MỌI tiến trình Python trên máy rồi
+    // bật server khác, làm sập các bài test chạy song song và gây "đăng nhập nhân viên chập chờn". /login giờ chỉ đếm lần SAI.)
     // ---------- CHỦ TIỆM ----------
-    const ownerCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const ownerCtx = await browser.newContext(ownerContextOptions());
     const owner = await ownerCtx.newPage();
     const ownerErr = []; watch(owner, ownerErr);
     await go(owner, '/login');
@@ -100,8 +99,18 @@ for (const ind of ONLY) {
     await staff.waitForSelector('#checkinScreen:not(.hidden)', { timeout: 10000 });
     await staff.click('[onclick="startCameraAndGPS()"]', { force: true });   // nút có hiệu ứng nhịp thở
     await staff.waitForSelector('#captureBtn:not([disabled])', { timeout: 15000 });
+    // Nút Chụp chỉ được mở khi camera ĐÃ có hình (trước đây mở theo GPS -> chụp lúc video 0x0: ảnh rỗng / huỷ chấm công)
+    const v = await staff.evaluate(() => { const vd = document.getElementById('cameraFeed'); return { w: vd.videoWidth, h: vd.videoHeight, ready: vd.readyState }; });
+    rec(ind, 'Thợ', 'Nút Chụp chỉ mở khi camera đã có hình', v.w > 0 && v.ready >= 2, `video ${v.w}x${v.h}`);
+    if (process.env.DIAG) {
+      staff.on('response', (r) => { if (r.url().includes('/api/storage/upload') || r.url().includes('/api/hr/chamcong')) console.log(`   [DIAG ${ind}] ${r.request().method()} ${r.url().replace(BASE, '')} -> ${r.status()}`); });
+    }
     await staff.click('#captureBtn');
-    await staff.waitForSelector('#mainApp:not(.hidden)', { timeout: 15000 });
+    const okMain = await staff.waitForSelector('#mainApp:not(.hidden)', { timeout: 15000 }).then(() => true).catch(() => false);
+    if (!okMain) {
+      const toasts = await staff.evaluate(() => [...document.querySelectorAll('[id*="toast" i], [class*="toast" i]')].map((e) => e.innerText.trim()).filter(Boolean));
+      throw new Error('Chấm công xong không vào màn chính sau 15s — thông báo trên màn: ' + JSON.stringify(toasts).slice(0, 300));
+    }
     await staff.waitForTimeout(800);
     let st = db('state', BID, MA_NV);
     const ci = st.chamcong.find((r) => r.trang_thai === 'Có mặt');

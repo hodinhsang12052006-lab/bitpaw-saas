@@ -25,7 +25,7 @@ FIELDS = {
     'hotel_reservations': ['guest_name', 'customer_name'], 'karaoke_reservations': ['customer_name', 'guest_name'],
     'reservations': ['customer_name', 'guest_name'], 'tasks': ['ten_khach'], 'tech_parts': ['name'],
     'promotions': ['name', 'code'], 'expenses': ['description'], 'leave_requests': ['ho_ten'],
-    'expense_requests': ['ho_ten'], 'karaoke_rooms': ['name'], 'hotel_rooms': ['name'],
+    'expense_requests': ['ho_ten'], 'karaoke_rooms': ['name'], 'hotel_rooms': ['name'], 'dining_tables': ['name'],
 }
 
 

@@ -125,6 +125,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <option value="F&B" data-i18n="nhanvien_dept_fnb_full">F&B / Nhà Hàng</option>
                         <option value="Khách Sạn" data-i18n="nhanvien_dept_hotel">Khách Sạn</option>
                         <option value="Sản Xuất" data-i18n="nhanvien_dept_prod">Sản Xuất</option>
+                        {# Thiếu 2 ngành này: nhân viên tiệm Bán lẻ/Karaoke thêm ở đây bị gán sai phòng ban và bị lọc khỏi Bảng lương
+                           (bangluong.html khớp theo 'Retail'/'Karaoke'). #}
+                        <option value="Retail" data-i18n="nhanvien_dept_retail">Bán lẻ (Retail)</option>
+                        <option value="Karaoke" data-i18n="nhanvien_dept_karaoke">Karaoke & Bida</option>
                     </select>
                 </div>
                 <div>
@@ -263,7 +267,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 nhanvien_label_name: 'Họ và Tên', nhanvien_name_placeholder: 'Họ và tên nhân viên',
                 nhanvien_label_dept: 'Phòng Ban',
                 nhanvien_dept_office: 'Văn Phòng', nhanvien_dept_tech: 'Kỹ Thuật', nhanvien_dept_spa: 'Spa & Beauty', nhanvien_dept_nails: 'Nails & Salon',
-                nhanvien_dept_fnb_full: 'F&B / Nhà Hàng', nhanvien_dept_fnb: 'F&B', nhanvien_dept_hotel: 'Khách Sạn', nhanvien_dept_prod: 'Sản Xuất',
+                nhanvien_dept_fnb_full: 'F&B / Nhà Hàng', nhanvien_dept_fnb: 'F&B', nhanvien_dept_retail: 'Bán lẻ (Retail)', nhanvien_dept_karaoke: 'Karaoke & Bida', nhanvien_dept_hotel: 'Khách Sạn', nhanvien_dept_prod: 'Sản Xuất',
                 nhanvien_label_role: 'Chức Vụ', nhanvien_role_placeholder: 'Nhân viên',
                 nhanvien_btn_save_profile: 'Lưu Hồ Sơ',
                 nhanvien_search_placeholder: 'Tìm theo tên, mã NV...',
@@ -308,7 +312,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 nhanvien_label_name: 'Full Name', nhanvien_name_placeholder: "Employee's full name",
                 nhanvien_label_dept: 'Department',
                 nhanvien_dept_office: 'Office', nhanvien_dept_tech: 'Technical', nhanvien_dept_spa: 'Spa & Beauty', nhanvien_dept_nails: 'Nails & Salon',
-                nhanvien_dept_fnb_full: 'F&B / Restaurant', nhanvien_dept_fnb: 'F&B', nhanvien_dept_hotel: 'Hotel', nhanvien_dept_prod: 'Production',
+                nhanvien_dept_fnb_full: 'F&B / Restaurant', nhanvien_dept_fnb: 'F&B', nhanvien_dept_retail: 'Retail', nhanvien_dept_karaoke: 'Karaoke & Billiards', nhanvien_dept_hotel: 'Hotel', nhanvien_dept_prod: 'Production',
                 nhanvien_label_role: 'Role', nhanvien_role_placeholder: 'Staff',
                 nhanvien_btn_save_profile: 'Save Profile',
                 nhanvien_search_placeholder: 'Search by name, staff ID...',
@@ -431,7 +435,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function deptLabel(dept) {
             const map = {
                 'Spa & Beauty': 'nhanvien_dept_spa', 'Nails': 'nhanvien_dept_nails', 'Khách Sạn': 'nhanvien_dept_hotel',
-                'F&B': 'nhanvien_dept_fnb', 'Sản Xuất': 'nhanvien_dept_prod',
+                'F&B': 'nhanvien_dept_fnb', 'Sản Xuất': 'nhanvien_dept_prod', 'Retail': 'nhanvien_dept_retail', 'Karaoke': 'nhanvien_dept_karaoke',
                 'Kỹ Thuật': 'nhanvien_dept_tech', 'Văn Phòng': 'nhanvien_dept_office'
             };
             return map[dept] ? t(map[dept]) : (dept || t('nhanvien_dept_unassigned'));
@@ -618,6 +622,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         applyStaticTranslations();
+        // Chọn sẵn phòng ban = ngành của tiệm (trước đây luôn mặc định "Văn Phòng": chủ tiệm F&B quên đổi thì nhân viên
+        // không xuất hiện ở chấm công/bảng lương F&B).
+        (function presetDept() {
+            const map = { nail: 'Nails', spa: 'Spa & Beauty', fnb: 'F&B', retail: 'Retail', karaoke: 'Karaoke', hotel: 'Khách Sạn',
+                          production: 'Sản Xuất', technical: 'Kỹ Thuật', office: 'Văn Phòng' };
+            const v = map[{{ (active_industry_code or '') | tojson }}];
+            const sel = document.getElementById('linh_vuc');
+            if (v && sel) sel.value = v;
+        })();
         loadEmployees();
 
         // Layer 2: thay kênh Supabase Realtime `hr_realtime` bằng SSE (MongoDB Change Stream ở

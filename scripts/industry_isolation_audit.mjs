@@ -50,12 +50,11 @@ async function pageFetch(page, path, json) {
     return { status: r.status, finalPath: new URL(r.url).pathname, redirected: r.redirected };
   }, { path, json });
 }
-const RESTART = `${process.env.HOME || process.env.USERPROFILE}/restart_flask.sh`;
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 let loginsSinceRestart = 0;
 for (const ind of ONLY) {
   // giới hạn đăng nhập 5 lần/15 phút/IP -> khởi động lại server local sau mỗi 4 tài khoản
-  if (loginsSinceRestart >= 4 && !process.env.NO_SELF_RESTART && fs.existsSync(RESTART)) { execFileSync('bash', [RESTART], { stdio: 'ignore' }); loginsSinceRestart = 0; }
+  // (đã bỏ tự khởi động lại server mỗi 4 lần đăng nhập — /login giờ chỉ đếm lần SAI; restart giết mọi tiến trình Python)
   loginsSinceRestart++;
   const [email, pw] = TENANTS[ind];
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

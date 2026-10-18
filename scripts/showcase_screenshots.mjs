@@ -11,7 +11,6 @@ import { gotoSell } from './lib/nail_nav.mjs';
 const BASE = 'http://127.0.0.1:5001';
 const OUT = path.resolve(process.argv[2] || 'audit-results/showcase');
 fs.mkdirSync(OUT, { recursive: true });
-const RESTART = `${process.env.HOME || process.env.USERPROFILE}/restart_flask.sh`;
 const T = {
   nail: ['demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!'],
   fnb: ['demo.fnb.343602@bitpawdemo.com', 'DemoBitPaw2026!'],
@@ -45,7 +44,7 @@ async function go(page, p, wait = 900) {
   return false;
 }
 async function login(ind, opts = DESK, lang = 'vi') {
-  if (logins >= 4 && fs.existsSync(RESTART)) { execFileSync('bash', [RESTART], { stdio: 'ignore' }); logins = 0; }
+  // (đã bỏ tự khởi động lại server mỗi 4 lần đăng nhập — /login giờ chỉ đếm lần SAI; restart giết mọi tiến trình Python)
   logins++;
   const ctx = await browser.newContext(opts);
   await ctx.addCookies([{ name: 'bitpaw_lang', value: lang, url: BASE }]);
