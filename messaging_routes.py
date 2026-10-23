@@ -207,3 +207,60 @@ def unsubscribe():
     return (f'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>Unsubscribe</title><body style="font-family:system-ui;background:#0b0e17;color:#e8ecf5;display:grid;place-items:center;min-height:100vh;margin:0">'
             f'<div style="max-width:420px;padding:24px;text-align:center"><h1 style="font-size:22px">{"Done" if ok else "Link not valid"}</h1><p style="color:#9aa4ba;line-height:1.6">{msg}</p></div>'), (200 if ok else 400)
+
+
+# ---------------------------------------------------------------- bảng lương cá nhân qua email
+@messaging_bp.route('/api/payroll/pay_summaries', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def payroll_pay_summaries():
+    """Gửi mỗi nhân viên bảng lương CỦA RIÊNG HỌ (email trong hồ sơ / lịch ca). Số liệu là con số chủ tiệm đang xem ở
+    /bangluong. Ghi rõ đây là bảng tóm tắt, không thay phiếu lương theo luật (Úc: Fair Work; Mỹ: luật bang)."""
+    bid = _bid()
+    data = request.json or {}
+    try:
+        month, year = int(data.get('month')), int(data.get('year'))
+        assert 1 <= month <= 12 and 2000 <= year <= 2100
+    except (TypeError, ValueError, AssertionError):
+        return jsonify({'success': False, 'message': 'Invalid pay period.'}), 400
+    cur = str(data.get('currency') or 'USD').upper()[:3]
+    labels = data.get('labels') or {}
+    lab = [str(labels.get(k) or d)[:40] for k, d in (('col1', 'Base pay'), ('col2', 'Commission'), ('col3', 'Tips / allowances'))]
+    s = messaging.get_settings(bid)
+    vi = s['language'] == 'vi'
+
+    def money(v):
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            v = 0.0
+        return f"{v:,.0f} ₫" if cur == 'VND' else f"{'A$' if cur == 'AUD' else '$'}{v:,.2f}"
+    sent, no_email = 0, []
+    for row in (data.get('rows') or [])[:300]:
+        code = str(row.get('ma_nv') or '')
+        emp = db.employees.find_one({'business_id': bid, 'ma_nv': code}, {'_id': 0, 'ho_ten': 1, 'email': 1})
+        if not emp:
+            continue
+        if not emp.get('email'):
+            no_email.append(emp.get('ho_ten') or code)
+            continue
+        first = (emp.get('ho_ten') or '').split(' ')[0]
+        lines = [f"{lab[0]}: {money(row.get('col1'))}", f"{lab[1]}: {money(row.get('col2'))}", f"{lab[2]}: {money(row.get('col3'))}",
+                 f"{'Thực lãnh' if vi else 'Total'}: {money(row.get('net'))}"]
+        if vi:
+            body = (f"Chào {first},\n\nBảng lương tháng {month}/{year} của bạn tại {s['business_name']}:\n\n" + '\n'.join(lines) +
+                    "\n\nĐây là bảng tóm tắt để bạn đối chiếu. Có sai sót, vui lòng báo quản lý trước ngày trả lương.")
+            subject = f"Bảng lương tháng {month}/{year} — {s['business_name']}"
+        else:
+            body = (f"Hi {first},\n\nHere is your pay summary for {month}/{year} at {s['business_name']}:\n\n" + '\n'.join(lines) +
+                    "\n\nThis is a summary for you to check, not a formal payslip. If anything looks wrong, tell your manager before payday.")
+            subject = f"Your pay summary {month}/{year} — {s['business_name']}"
+        if messaging.queue(bid, 'email', emp['email'], body, 'pay_summary', subject=subject,
+                           dedupe_key=f"pay:{bid}:{code}:{year}-{month}:{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"):
+            sent += 1
+    if sent:
+        try:
+            messaging.pump(bid, base_url=request.host_url, produce=False)
+        except Exception as ex:
+            print(f"[pay_summaries] pump: {ex}")
+    return jsonify({'success': True, 'sent': sent, 'no_email': no_email})

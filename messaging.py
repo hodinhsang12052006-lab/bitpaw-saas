@@ -442,7 +442,7 @@ def pump(business_id, base_url='', now_utc=None, produce=True, limit=40):
     due = list(db.outbound_messages.find({'business_id': business_id, 'status': 'queued', 'send_after': {'$lte': cutoff.isoformat()}},
                                          {'_id': 0}).sort('send_after', 1).limit(limit))
     for m in due:
-        transactional = m['kind'] in ('owner_report', 'missed_call', 'test')
+        transactional = m['kind'] in ('owner_report', 'missed_call', 'test', 'on_my_way')
         if not transactional and not in_send_window(settings, now_utc):
             db.outbound_messages.update_one({'id': m['id']}, {'$set': {'send_after': next_window_start_utc(settings, now_utc).isoformat()}})
             stats['deferred'] += 1

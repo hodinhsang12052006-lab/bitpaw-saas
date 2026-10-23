@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ (room.name if room else 'Order') }} · {{ biz.name or 'BitPaw' }}</title>
+    <meta name="robots" content="noindex">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Khách trong phòng karaoke quét QR gọi món. Không cần tài khoản; giá tính ở máy chủ. */
+        :root { --bg: #0b0718; --panel: #15102a; --line: rgba(255,255,255,.08); --ink: #f5f3ff; --muted: #a59fc0; --accent: #c084fc; --ok: #34d399; --err: #fb7185; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(11,7,24,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top)); }
+        header small { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+        header h1 { margin: 2px 0 0; font-size: 20px; font-weight: 800; }
+        main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+        h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 22px 0 10px; }
+        .item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; }
+        .item .nm { flex: 1; min-width: 0; } .item .nm b { display: block; font-size: 15px; } .item .nm span { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+        .qty { display: flex; align-items: center; gap: 8px; }
+        .qty button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--ink); font-size: 18px; font-weight: 700; cursor: pointer; }
+        .qty button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .qty output { min-width: 18px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(21,16,42,.97); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 12px; align-items: center; }
+        .bar .sum { flex: 1; font-size: 14px; color: var(--muted); } .bar .sum b { display: block; color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+        .bar button { border: 0; border-radius: 14px; padding: 14px 20px; font: inherit; font-weight: 800; font-size: 15px; background: var(--accent); color: #1a0b2e; cursor: pointer; }
+        .bar button[disabled] { opacity: .5; cursor: not-allowed; }
+        .note { border-radius: 14px; padding: 14px; margin-top: 16px; font-size: 14px; line-height: 1.5; }
+        .note.ok { background: rgba(52,211,153,.1); color: var(--ok); } .note.err { background: rgba(251,113,133,.1); color: var(--err); }
+        .ordered { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 14px; }
+        .ordered div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+        .ordered div:last-child { border-bottom: 0; font-weight: 800; }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+{% set vi = lang == 'vi' %}
+<header>
+    <small>{{ biz.name or 'BitPaw' }}</small>
+    <h1>{% if invalid %}{{ 'Liên kết không hợp lệ' if vi else 'Link not valid' }}{% else %}<i class="fas fa-microphone-lines" style="color:var(--accent)"></i> {{ room.name }}{% endif %}</h1>
+</header>
+<main>
+{% if invalid %}
+    <p class="note err">{{ 'Mã QR này không đúng. Vui lòng hỏi quầy lễ tân.' if vi else 'This QR code is not valid. Please ask the front desk.' }}</p>
+{% else %}
+    <p class="note err" id="closed" {% if room.status == 'Đang chơi' %}hidden{% endif %}>{{ 'Phòng chưa mở. Vui lòng nhờ quầy mở phòng rồi gọi món.' if vi else 'This room is not open yet. Ask the front desk to start it, then order here.' }}</p>
+    {% set cats = menu | groupby('category') %}
+    {% for cat in cats %}
+    <h2>{{ cat.grouper or ('Món khác' if vi else 'Other') }}</h2>
+    {% for p in cat.list %}
+    <div class="item" data-id="{{ p.id }}" data-price="{{ p.price }}">
+        <div class="nm"><b>{{ p.name }}</b><span class="pr" data-amt="{{ p.price }}"></span></div>
+        <div class="qty"><button type="button" class="minus" aria-label="{{ 'Bớt' if vi else 'Less' }} {{ p.name }}">−</button><output>0</output><button type="button" class="plus" aria-label="{{ 'Thêm' if vi else 'More' }} {{ p.name }}">+</button></div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="note err">{{ 'Tiệm chưa có thực đơn.' if vi else 'No menu items yet.' }}</p>
+    {% endfor %}
+    <p class="note ok" id="sentNote" hidden></p>
+    <div id="orderedBox" hidden>
+        <h2>{{ 'Đã gọi trong lượt này' if vi else 'Ordered this session' }}</h2>
+        <div class="ordered" id="ordered"></div>
+    </div>
+{% endif %}
+</main>
+{% if not invalid %}
+<div class="bar">
+    <div class="sum"><span id="cnt">0</span> {{ 'món' if vi else 'items' }}<b id="total"></b></div>
+    <button type="button" id="sendBtn" disabled>{{ 'Gửi món' if vi else 'Send order' }}</button>
+</div>
+<script>
+(function () {
+    var VI = {{ 'true' if vi else 'false' }}, CUR = {{ currency | tojson }}, URL_ = {{ post_url | tojson }};
+    var money = function (v) {
+        try { return new Intl.NumberFormat(VI ? 'vi-VN' : 'en-US', { style: 'currency', currency: CUR, maximumFractionDigits: CUR === 'VND' ? 0 : 2 }).format(v); }
+        catch (e) { return String(v); }
+    };
+    var cart = {};
+    document.querySelectorAll('[data-amt]').forEach(function (el) { el.textContent = money(+el.dataset.amt); });
+    function refresh() {
+        var n = 0, t = 0;
+        document.querySelectorAll('.item').forEach(function (row) {
+            var q = cart[row.dataset.id] || 0; row.querySelector('output').textContent = q; n += q; t += q * +row.dataset.price;
+        });
+        document.getElementById('cnt').textContent = n; document.getElementById('total').textContent = money(t);
+        document.getElementById('sendBtn').disabled = n === 0;
+    }
+    document.querySelectorAll('.item').forEach(function (row) {
+        row.querySelector('.plus').addEventListener('click', function () { cart[row.dataset.id] = Math.min(50, (cart[row.dataset.id] || 0) + 1); refresh(); });
+        row.querySelector('.minus').addEventListener('click', function () { cart[row.dataset.id] = Math.max(0, (cart[row.dataset.id] || 0) - 1); refresh(); });
+    });
+    function showOrdered(d) {
+        var box = document.getElementById('orderedBox'), el = document.getElementById('ordered');
+        document.getElementById('closed').hidden = !!d.open;
+        if (!d.items || !d.items.length) { box.hidden = true; return; }
+        el.innerHTML = d.items.map(function (i) { return '<div><span>' + i.qty + ' × ' + i.name.replace(/[<>&]/g, '') + '</span><span>' + money(i.line_total) + '</span></div>'; }).join('') +
+            '<div><span>' + (VI ? 'Tổng món' : 'Items total') + '</span><span>' + money(d.items_total) + '</span></div>';
+        box.hidden = false;
+    }
+    fetch(URL_).then(function (r) { return r.json(); }).then(showOrdered).catch(function () {});
+    document.getElementById('sendBtn').addEventListener('click', async function () {
+        var btn = this, note = document.getElementById('sentNote');
+        var items = Object.keys(cart).filter(function (k) { return cart[k] > 0; }).map(function (k) { return { product_id: +k, qty: cart[k] }; });
+        btn.disabled = true;
+        try {
+            var r = await fetch(URL_, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: items }) });
+            var d = await r.json().catch(function () { return {}; });
+            if (!r.ok || !d.success) throw new Error(d.message || (VI ? 'Gửi chưa được, thử lại.' : 'Could not send, please try again.'));
+            cart = {}; refresh(); showOrdered(d);
+            note.className = 'note ok'; note.textContent = VI ? 'Đã gửi! Nhân viên sẽ mang món tới phòng. Món được cộng vào hoá đơn phòng.' : 'Sent! Staff will bring it to your room. Items are added to the room bill.';
+            note.hidden = false; note.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) { note.className = 'note err'; note.textContent = e.message; note.hidden = false; btn.disabled = false; }
+    });
+    refresh();
+})();
+</script>
+{% endif %}
+</body>
+</html>

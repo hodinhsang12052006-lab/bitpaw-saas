@@ -135,6 +135,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <button onclick="exportToImage()" class="glass-panel hover:bg-cyan-500/20 hover:border-cyan-400 text-cyan-400 font-bold py-3 px-5 rounded-2xl transition-all shadow-lg flex items-center gap-2 active:scale-95">
                     <i class="fas fa-print"></i> <span data-i18n="bl_print_btn">In Báo Cáo</span>
                 </button>
+                <button id="btnPaySummaries" onclick="emailPaySummaries()" class="glass-panel hover:bg-emerald-500/20 hover:border-emerald-400 text-emerald-400 font-bold py-3 px-5 rounded-2xl transition-all shadow-lg flex items-center gap-2 active:scale-95">
+                    <i class="fas fa-envelope"></i> <span data-i18n="bl_email_btn">Gửi bảng lương</span>
+                </button>
             </div>
         </div>
 
@@ -248,7 +251,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -296,6 +299,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 bl_ind_prod: 'Sản xuất / Xưởng', bl_ind_tech: 'Kỹ Thuật / Dịch Vụ', bl_ind_hotel: 'Khách sạn',
                 bl_ind_retail: 'Bán lẻ (Retail)', bl_ind_karaoke: 'Karaoke & Bida',
                 bl_print_btn: 'In Báo Cáo',
+                bl_email_btn: 'Gửi bảng lương',
+                bl_email_confirm: 'Gửi email cho mỗi nhân viên bảng lương tháng này của riêng họ?',
+                bl_email_done: 'Đã gửi {n} bảng lương.',
+                bl_email_missing: 'Chưa có email (thêm ở trang Lịch ca tuần): {names}',
+                bl_email_none: 'Chưa có dữ liệu lương tháng này.',
                 bl_col_staff: 'Nhân Sự', bl_col_net: 'Thực Lãnh',
                 bl_tips_pool_btn: 'Bể Bơi Tiền Tips', bl_autosync_matrix: 'Auto-sync Matrix', bl_total_fund: 'TỔNG QUỸ LƯƠNG XUẤT RA',
                 bl_tips_modal_desc: 'Hệ thống sẽ chia <strong>Công Bằng</strong> tổng số tiền Tips/SVC nhập dưới đây cho toàn bộ nhân sự dựa trên <strong>Số Giờ Làm Thực Tế</strong> (Hoặc số công) của họ trong tháng.',
@@ -326,6 +334,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 bl_ind_prod: 'Production / Workshop', bl_ind_tech: 'Technical / Services', bl_ind_hotel: 'Hotel',
                 bl_ind_retail: 'Retail', bl_ind_karaoke: 'Karaoke & Billiards',
                 bl_print_btn: 'Print Report',
+                bl_email_btn: 'Email pay summaries',
+                bl_email_confirm: 'Email each person their own pay summary for this month?',
+                bl_email_done: 'Sent {n} pay summaries.',
+                bl_email_missing: 'No email on file (add it on the Shift roster page): {names}',
+                bl_email_none: 'No payroll data for this month yet.',
                 bl_col_staff: 'Employee', bl_col_net: 'Net Pay',
                 bl_tips_pool_btn: 'Tips Pool', bl_autosync_matrix: 'Auto-sync Matrix', bl_total_fund: 'TOTAL PAYROLL FUND',
                 bl_tips_modal_desc: 'The system will <strong>fairly split</strong> the total Tips/SVC amount entered below among all staff based on their <strong>actual hours worked</strong> (or days worked) this month.',
@@ -664,6 +677,23 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // ========================================================
         // EXPORT & CHAT WIDGET
         // ========================================================
+        async function emailPaySummaries() {
+            if (!globalPayrollData.length) { showToast(t('bl_email_none'), 'warning'); return; }
+            if (!confirm(t('bl_email_confirm'))) return;
+            const btn = document.getElementById('btnPaySummaries'); btn.disabled = true;
+            const [year, month] = document.getElementById('monthFilter').value.split('-');
+            try {
+                const body = await hrApi('/api/payroll/pay_summaries', { method: 'POST', body: JSON.stringify({
+                    month: Number(month), year: Number(year), currency: {{ tenant_currency | tojson }},
+                    labels: { col1: document.getElementById('header_col1').innerText, col2: document.getElementById('header_col2').innerText, col3: document.getElementById('header_col3').innerText },
+                    rows: globalPayrollData.map((r) => ({ ma_nv: r.ma_nv, col1: r.luong_hien_thi, col2: r.cot2_hien_thi, col3: r.cot3_hien_thi, net: r.thuc_lanh })),
+                }) });
+                showToast(tf('bl_email_done', { n: body.sent }), 'success');
+                if (body.no_email && body.no_email.length) setTimeout(() => showToast(tf('bl_email_missing', { names: body.no_email.slice(0, 6).join(', ') }), 'warning'), 1800);
+            } catch (e) { showToast(e.message, 'error'); }
+            btn.disabled = false;
+        }
+
         function exportToImage() {
             showToast(t('bl_toast_exporting'), 'warning');
             const printArea = document.getElementById('printArea');

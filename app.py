@@ -56,6 +56,7 @@ import json
 import random
 import re
 import base64
+import hashlib
 import hmac
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -509,6 +510,8 @@ _CSRF_EXEMPT_ENDPOINTS = [
     'messaging.twilio_voice',
     'messaging.twilio_voice_after',
     'messaging.cron_messages',
+    # Khách trong phòng karaoke quét QR gọi món (không có tài khoản/cookie phiên)
+    'api_public_karaoke_order',
 ]
 
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
@@ -5901,6 +5904,13 @@ def api_karaoke_rooms_list():
     business_id = session.get('business_id') or session['user_id']
     try:
         rooms = list(db.karaoke_rooms.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
+        base = request.url_root.rstrip('/')
+        for r in rooms:
+            items = _karaoke_session_items(business_id, r) if r.get('status') == 'Đang chơi' else []
+            r['items_total'] = round(sum(i['line_total'] for i in items), 2)
+            r['items_count'] = sum(i['qty'] for i in items)
+            r['new_qr_orders'] = sum(1 for i in items if i.get('source') == 'qr' and not i.get('seen'))
+            r['order_url'] = f"{base}/karaoke/order/{business_id}/{r['id']}/{_karaoke_room_token(business_id, r['id'])}"
         return jsonify({"success": True, "data": rooms})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -5956,6 +5966,121 @@ def api_karaoke_room_start(room_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+def _karaoke_room_token(business_id, room_id):
+    """Mã ký riêng từng phòng cho link QR gọi món — không đoán được link của phòng/tiệm khác."""
+    return hmac.new((app.secret_key or 'bitpaw').encode(), f"ktv|{business_id}|{room_id}".encode(), hashlib.sha256).hexdigest()[:16]
+
+
+def _karaoke_session_items(business_id, room):
+    """Món của LƯỢT HÁT hiện tại (gắn theo start_time của phòng), chưa tính tiền."""
+    if not room or not room.get('start_time'):
+        return []
+    return list(db.karaoke_room_items.find({'business_id': business_id, 'room_id': room['id'], 'session_start': room['start_time'],
+                                            'order_id': None}, {'_id': 0}).sort('id', 1))
+
+
+def _karaoke_menu(business_id):
+    return list(db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}, 'category': {'$ne': 'Phòng'},
+                                  'name': {'$ne': 'Phí Giờ Karaoke'}, 'price': {'$gt': 0}},
+                                 {'_id': 0, 'id': 1, 'name': 1, 'category': 1, 'price': 1, 'image_url': 1}).sort([('category', 1), ('name', 1)]).limit(200))
+
+
+def _karaoke_add_items(business_id, room, items, source):
+    """Thêm món vào lượt hát đang chạy. Giá lấy ở máy chủ. Trả số dòng đã thêm."""
+    menu = {p['id']: p for p in _karaoke_menu(business_id)}
+    added = 0
+    for it in (items or [])[:30]:
+        try:
+            pid = int(it.get('product_id'))
+            qty = int(it.get('qty') or 1)
+        except (TypeError, ValueError):
+            continue
+        if pid not in menu or not (1 <= qty <= 50):
+            continue
+        p = menu[pid]
+        db.karaoke_room_items.insert_one({
+            'id': next_mongo_id('karaoke_room_items'), 'business_id': business_id, 'room_id': room['id'],
+            'session_start': room['start_time'], 'product_id': pid, 'name': p['name'], 'qty': qty,
+            'price': float(p['price']), 'line_total': round(float(p['price']) * qty, 2), 'source': source,
+            'seen': source != 'qr', 'order_id': None, 'created_at': datetime.now().isoformat(),
+        })
+        added += 1
+    return added
+
+
+@app.route('/api/karaoke/rooms/<int:room_id>/items', methods=['GET', 'POST'])
+@login_required
+def api_karaoke_room_items(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    room = db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
+    if not room:
+        return jsonify({"success": False, "message": "Room not found."}), 404
+    if request.method == 'POST':
+        if room.get('status') != 'Đang chơi':
+            return jsonify({"success": False, "message": "Start the room before adding items."}), 409
+        n = _karaoke_add_items(business_id, room, (request.json or {}).get('items'), 'staff')
+        if not n:
+            return jsonify({"success": False, "message": "No valid items."}), 400
+    items = _karaoke_session_items(business_id, room)
+    db.karaoke_room_items.update_many({'business_id': business_id, 'room_id': room_id, 'source': 'qr', 'seen': False}, {'$set': {'seen': True}})
+    return jsonify({"success": True, "items": items, "menu": _karaoke_menu(business_id),
+                    "items_total": round(sum(i['line_total'] for i in items), 2)})
+
+
+@app.route('/api/karaoke/room_items/<int:item_id>', methods=['DELETE'])
+@login_required
+def api_karaoke_room_item_delete(item_id):
+    business_id = session.get('business_id') or session['user_id']
+    r = db.karaoke_room_items.delete_one({'id': item_id, 'business_id': business_id, 'order_id': None})
+    return jsonify({"success": r.deleted_count == 1})
+
+
+@app.route('/api/karaoke/rooms/<int:room_id>/qr', methods=['GET'])
+@login_required
+def api_karaoke_room_qr(room_id):
+    business_id = session.get('business_id') or session['user_id']
+    if not db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 1}):
+        return jsonify({"success": False}), 404
+    url = f"{request.url_root.rstrip('/')}/karaoke/order/{business_id}/{room_id}/{_karaoke_room_token(business_id, room_id)}"
+    return jsonify({"success": True, "url": url, "svg": _qr_svg_inline(url)})
+
+
+def _karaoke_public_room(business_id, room_id, token):
+    if not hmac.compare_digest(_karaoke_room_token(business_id, room_id), token or ''):
+        return None
+    return db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'_id': 0})
+
+
+@app.route('/karaoke/order/<business_id>/<int:room_id>/<token>')
+def karaoke_room_order_page(business_id, room_id, token):
+    """Trang khách quét QR trong phòng để gọi món (không cần tài khoản)."""
+    room = _karaoke_public_room(business_id, room_id, token)
+    if not room:
+        return render_template('karaoke_room_order.html', invalid=True, room=None, menu=[], biz={}, lang='en', currency='USD', post_url=''), 404
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'country': 1, 'currency': 1}) or {}
+    lang = 'vi' if (biz.get('country') or '').upper() == 'VN' else 'en'
+    return render_template('karaoke_room_order.html', invalid=False, room=room, menu=_karaoke_menu(business_id), biz=biz, lang=lang,
+                           currency=(biz.get('currency') or 'USD').upper(), post_url=f"/api/public/karaoke_order/{business_id}/{room_id}/{token}")
+
+
+@app.route('/api/public/karaoke_order/<business_id>/<int:room_id>/<token>', methods=['GET', 'POST'])
+@limiter.limit("40 per hour")
+def api_public_karaoke_order(business_id, room_id, token):
+    room = _karaoke_public_room(business_id, room_id, token)
+    if not room:
+        return jsonify({"success": False, "message": "Invalid room link."}), 404
+    if request.method == 'POST':
+        if room.get('status') != 'Đang chơi':
+            return jsonify({"success": False, "message": "This room is not open right now. Please ask the front desk."}), 409
+        n = _karaoke_add_items(business_id, room, (request.json or {}).get('items'), 'qr')
+        if not n:
+            return jsonify({"success": False, "message": "Please choose at least one item."}), 400
+    items = _karaoke_session_items(business_id, room)
+    return jsonify({"success": True, "open": room.get('status') == 'Đang chơi',
+                    "items": [{'name': i['name'], 'qty': i['qty'], 'line_total': i['line_total']} for i in items],
+                    "items_total": round(sum(i['line_total'] for i in items), 2)})
+
+
 @app.route('/api/karaoke/rooms/<int:room_id>/checkout', methods=['POST'])
 @login_required
 def api_karaoke_room_checkout(room_id):
@@ -5982,7 +6107,10 @@ def api_karaoke_room_checkout(room_id):
         else:
             duration_minutes = math.ceil(duration_minutes / 15.0) * 15
         duration_hours = duration_minutes / 60.0
-        total_price = duration_hours * room['price_per_hour']
+        time_price = round(duration_hours * room['price_per_hour'], 2)
+        session_items = _karaoke_session_items(business_id, room)
+        items_price = round(sum(i['line_total'] for i in session_items), 2)
+        total_price = round(time_price + items_price, 2)
         order_id = None
         # BUG THẬT đã vá (audit QA cuối trước khi lên production): trước đây route này CHỈ ghi
         # order/doanh thu nếu tenant đã có SẴN 1 sản phẩm tên đúng y hệt 'Phí Giờ Karaoke' —
@@ -6021,12 +6149,21 @@ def api_karaoke_room_checkout(room_id):
                 'order_id': order_id,
                 'product_id': prod['id'],
                 'quantity': 1,
-                'price': total_price,
-                'total_price': total_price,
+                'price': time_price,
+                'total_price': time_price,
                 'business_id': business_id,
             })
+            for it in session_items:
+                db.order_items.insert_one({'id': next_mongo_id('order_items'), 'order_id': order_id, 'product_id': it['product_id'],
+                                           'quantity': it['qty'], 'price': it['price'], 'total_price': it['line_total'], 'business_id': business_id,
+                                           **({'customer_phone': customer_phone} if customer_phone else {})})
+                db.products.update_one({'id': it['product_id'], 'business_id': business_id, 'stock': {'$gte': it['qty']}}, {'$inc': {'stock': -it['qty']}})
+            if session_items:
+                db.karaoke_room_items.update_many({'id': {'$in': [i['id'] for i in session_items]}}, {'$set': {'order_id': order_id}})
             _record_pos_transaction(business_id, order_id, total_price, 'cash')
-        return jsonify({"success": True, "total_amount": total_price, "order_id": order_id})
+        return jsonify({"success": True, "total_amount": total_price, "time_amount": time_price, "items_amount": items_price,
+                        "items": [{'name': i['name'], 'qty': i['qty'], 'total': i['line_total']} for i in session_items],
+                        "minutes": duration_minutes, "order_id": order_id})
     except Exception as e:
         # Lỗi khi ghi doanh thu -> mở lại phòng để thu ngân chốt lại, không mất lượt hát.
         if room and order_id is None:
@@ -13121,6 +13258,20 @@ except Exception as bp_err:
     print(f"Error registering face_bp: {str(bp_err)}")
 
 try:
+    # "Thợ đang đến": SMS + link theo dõi cho khách ngành Kỹ thuật — job_tracking.py
+    from job_tracking import tracking_bp
+    app.register_blueprint(tracking_bp)
+except Exception as bp_err:
+    print(f"Error registering tracking_bp: {str(bp_err)}")
+
+try:
+    # Xếp lịch ca theo tuần (tự xếp theo nhu cầu người, nghỉ phép, giờ tối đa; công bố + báo nhân viên) — shift_roster.py
+    from shift_roster import roster_bp
+    app.register_blueprint(roster_bp)
+except Exception as bp_err:
+    print(f"Error registering roster_bp: {str(bp_err)}")
+
+try:
     # Xương sống nhắn tin (SMS Twilio + email, từ chối STOP, khung giờ, cuộc gọi nhỡ) — messaging.py
     from messaging_routes import messaging_bp
     app.register_blueprint(messaging_bp)
@@ -13213,6 +13364,42 @@ def _enforce_checkin_geofence(business_id, lat, lng):
     return True, None
 
 
+def _checkin_geofence_verdict(business_id, toa_do, accuracy=None, offline=False):
+    """(ok, lỗi, trường thêm vào bản ghi). Chưa đặt toạ độ cửa hàng -> luôn cho qua. Sai số GPS của máy (tối đa 100 m)
+    được trừ vào khoảng cách để không chặn oan người đứng trong tiệm. Bản ghi offline đồng bộ sau: không chặn, chỉ đánh dấu."""
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'office_latitude': 1, 'office_longitude': 1, 'office_radius_m': 1}) or {}
+    if biz.get('office_latitude') is None or biz.get('office_longitude') is None:
+        return True, None, {}
+    radius = int(biz.get('office_radius_m') or 100)
+    try:
+        lat, lng = [float(x) for x in str(toa_do).split(',')[:2]]
+    except (TypeError, ValueError):
+        if offline:
+            return True, None, {'geo_flag': 'no_gps'}
+        return False, "Location is required to clock in here. Turn on location for this app and try again.", {}
+    try:
+        acc = max(0.0, min(float(accuracy or 0), 100.0))
+    except (TypeError, ValueError):
+        acc = 0.0
+    dist = _haversine_distance_meters(lat, lng, float(biz['office_latitude']), float(biz['office_longitude']))
+    extra = {'geo_distance_m': round(dist), 'geo_radius_m': radius}
+    if dist - acc > radius:
+        if offline:
+            return True, None, {**extra, 'geo_flag': 'outside'}
+        return False, f"You are about {dist:.0f} m from the shop. Clock-in is only allowed within {radius} m.", {}
+    return True, None, extra
+
+
+@app.route('/api/business/geofence', methods=['GET'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_get_business_geofence():
+    business_id = session.get('business_id') or session['user_id']
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'office_latitude': 1, 'office_longitude': 1, 'office_radius_m': 1}) or {}
+    return jsonify({"success": True, "latitude": biz.get('office_latitude'), "longitude": biz.get('office_longitude'),
+                    "radius_m": int(biz.get('office_radius_m') or 100)})
+
+
 @app.route('/api/business/geofence', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
@@ -13229,8 +13416,11 @@ def api_set_business_geofence():
     else:
         try:
             update = {'office_latitude': float(lat), 'office_longitude': float(lng)}
+            if not (-90 <= update['office_latitude'] <= 90 and -180 <= update['office_longitude'] <= 180):
+                raise ValueError
+            update['office_radius_m'] = max(30, min(int(data.get('radius_m') or 100), 2000))
         except (TypeError, ValueError):
-            return jsonify({"success": False, "message": "Toạ độ không hợp lệ."}), 400
+            return jsonify({"success": False, "message": "Invalid coordinates."}), 400
     try:
         db.businesses.update_one({'id': business_id}, {'$set': update})
         return jsonify({"success": True, "data": update})
@@ -13641,6 +13831,8 @@ def api_hr_employees_update(ma_nv):
     updates = {k: v for k, v in data.items() if k in _EMPLOYEE_PATCHABLE_FIELDS}
     if not updates:
         return jsonify({"success": False, "error": "No valid fields to update."}), 400
+    if 'toa_do_lat' in updates:
+        updates['gps_at'] = datetime.now().isoformat()  # độ "tươi" của vị trí — link theo dõi thợ (job_tracking.py) không hiện vị trí cũ
     try:
         result = db.employees.update_one({'ma_nv': ma_nv, 'business_id': business_id}, {'$set': updates})
         if result.matched_count == 0:
@@ -13870,7 +14062,14 @@ def api_hr_chamcong_create():
         print(f"[chamcong] face guard: {e}")
     if not face_ok:
         return jsonify({"success": False, "error": face_err, "face_required": True}), 403
-    data = {k: v for k, v in data.items() if k not in ('face_token', 'offline_sync')}
+    # Vị trí chấm công (geofence): tiệm đã đặt toạ độ cửa hàng -> check-in từ app phải ở trong bán kính.
+    if data.get('toa_do') is not None:
+        geo_ok, geo_err, geo_extra = _checkin_geofence_verdict(business_id, data.get('toa_do'), data.get('gps_accuracy'),
+                                                               offline=bool(data.get('offline_sync')))
+        if not geo_ok:
+            return jsonify({"success": False, "error": geo_err, "geofence": True}), 403
+        face_extra = {**face_extra, **geo_extra}
+    data = {k: v for k, v in data.items() if k not in ('face_token', 'offline_sync', 'gps_accuracy')}
     data.update(face_extra)
     try:
         doc = _clamp_chamcong_money_fields(dict(data))

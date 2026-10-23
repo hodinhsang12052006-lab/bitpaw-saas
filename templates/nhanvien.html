@@ -96,6 +96,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <button type="button" id="faceToggleBtn" onclick="toggleFaceCheckin()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2" aria-pressed="false">
                     <i class="fas fa-face-smile text-cyan-400"></i><span id="faceToggleLabel">Face check-in</span>
                 </button>
+                <!-- Vị trí chấm công (geofence): chỉ cho check-in trong bán kính quanh cửa hàng -->
+                <button type="button" id="geoToggleBtn" onclick="toggleGeofence()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2" aria-pressed="false">
+                    <i class="fas fa-location-crosshairs text-cyan-400"></i><span id="geoToggleLabel">Clock-in location</span>
+                </button>
                 <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-bold transition">EN</button>
                 <div class="hidden md:flex bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl items-center gap-2">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></div>
@@ -578,6 +582,40 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             if (r.ok) { await loadFaceSettings(); if (typeof loadEmployees === 'function') loadEmployees(); else location.reload(); }
         }
         document.addEventListener('DOMContentLoaded', loadFaceSettings);
+
+        // ===== Vị trí chấm công (geofence) =====
+        async function loadGeofence() {
+            try {
+                const d = await (await fetch('/api/business/geofence')).json();
+                const btn = document.getElementById('geoToggleBtn'); if (!btn || !d.success) return;
+                const on = d.latitude != null;
+                btn.setAttribute('aria-pressed', on ? 'true' : 'false'); btn.dataset.radius = d.radius_m;
+                btn.style.borderColor = on ? 'rgba(52,211,153,.6)' : '';
+                document.getElementById('geoToggleLabel').textContent = on
+                    ? (FACE_VI ? `Chỉ chấm công tại tiệm: BẬT (${d.radius_m} m)` : `Clock-in at shop only: ON (${d.radius_m} m)`)
+                    : (FACE_VI ? 'Chỉ chấm công tại tiệm: TẮT' : 'Clock-in at shop only: OFF');
+            } catch (e) { /* bỏ qua */ }
+        }
+        async function toggleGeofence() {
+            const btn = document.getElementById('geoToggleBtn');
+            const save = async (body) => {
+                const r = await fetch('/api/business/geofence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.success) showToast(d.message || 'Error', 'error'); else await loadGeofence();
+            };
+            if (btn.getAttribute('aria-pressed') === 'true') {
+                if (confirm(FACE_VI ? 'Tắt giới hạn vị trí? Nhân viên chấm công được ở bất kỳ đâu (vẫn ghi lại GPS).' : 'Turn off the location limit? Staff can clock in from anywhere (GPS is still recorded).')) await save({ latitude: null, longitude: null });
+                return;
+            }
+            const radius = parseInt(prompt(FACE_VI ? 'Hãy đứng TẠI cửa hàng. Bán kính cho phép chấm công (mét, 30–2000):' : 'Stand AT the shop. Allowed clock-in radius in metres (30–2000):', '100'), 10);
+            if (!radius) return;
+            if (!navigator.geolocation) { showToast(FACE_VI ? 'Thiết bị không hỗ trợ định vị.' : 'This device has no location support.', 'error'); return; }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => save({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, radius_m: radius }),
+                () => showToast(FACE_VI ? 'Chưa lấy được vị trí — hãy cho phép định vị rồi thử lại.' : 'Could not get your location — allow location access and try again.', 'error'),
+                { enableHighAccuracy: true, timeout: 15000 });
+        }
+        document.addEventListener('DOMContentLoaded', loadGeofence);
 
         async function deleteEmployee(ma_nv) {
             if (!confirm(tf('nhanvien_confirm_delete', { ma_nv }))) return;

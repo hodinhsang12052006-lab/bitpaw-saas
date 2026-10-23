@@ -317,6 +317,31 @@
 
     </div>
 
+    <!-- Modal món của phòng (nhân viên thêm; khách gọi qua QR cũng hiện ở đây) -->
+    <div id="itemsModal" class="modal-overlay">
+        <div class="modal-container" style="max-width:520px;text-align:left">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
+                <h3 class="text-lg font-bold" id="itemsTitle">Items</h3>
+                <button type="button" onclick="closeItems()" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="itemsList" class="bg-black/40 rounded-xl p-3 mb-3 text-sm" style="max-height:30vh;overflow:auto"></div>
+            <p class="text-xs text-gray-400 mb-2" id="itemsMenuLabel">Add</p>
+            <div id="itemsMenu" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:34vh;overflow:auto"></div>
+        </div>
+    </div>
+    <div id="qrModal" class="modal-overlay">
+        <div class="modal-container" style="max-width:360px">
+            <h3 class="text-lg font-bold mb-1" id="qrTitle">QR</h3>
+            <p class="text-xs text-gray-400 mb-3" id="qrHint"></p>
+            <div id="qrBox" style="background:#fff;border-radius:14px;padding:12px;margin:0 auto 10px;width:220px;height:220px"></div>
+            <p class="text-[11px] text-gray-500 mb-3" style="word-break:break-all" id="qrUrl"></p>
+            <div class="flex gap-3">
+                <button type="button" onclick="printQr()" class="flex-1 bg-gradient-to-r from-purple-500 to-fuchsia-600 py-2 rounded-full font-bold"><i class="fas fa-print mr-1"></i> <span id="qrPrintLbl">Print</span></button>
+                <button type="button" onclick="document.getElementById('qrModal').classList.remove('active')" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-full font-bold" id="qrCloseLbl">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal xác nhận thanh toán -->
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal-container">
@@ -326,6 +351,7 @@
             <div class="bg-black/40 rounded-xl p-3 mb-4">
                 <p class="text-sm text-gray-400" data-i18n="karaoke_time_used">Thời gian đã sử dụng</p>
                 <p id="modalDuration" class="text-2xl font-bold text-emerald-400">0 giờ 0 phút</p>
+                <div id="modalBreakdown" class="text-sm text-gray-300 mt-2"></div>
                 <p class="text-sm text-gray-400 mt-2" data-i18n="karaoke_total_amount">Thành tiền</p>
                 <p id="modalAmount" class="text-3xl font-black text-white">0₫</p>
             </div>
@@ -427,21 +453,30 @@
         function renderRooms(rooms) {
             const grid = document.getElementById('roomGrid');
             grid.innerHTML = rooms.map(room => `
-                <div class="glass-card p-5 ${room.status === 'Đang chơi' ? 'room-card-active' : ''}" data-room-id="${room.id}" data-status="${room.status}" data-start="${room.start_time || ''}" data-price="${room.price_per_hour || 0}">
+                <div class="glass-card p-5 ${room.status === 'Đang chơi' ? 'room-card-active' : ''}" data-room-id="${room.id}" data-status="${room.status}" data-start="${room.start_time || ''}" data-price="${room.price_per_hour || 0}" data-items="${room.items_total || 0}">
                     <div class="text-center">
                         <div class="text-2xl font-bold text-white mb-2">${escapeHtml(room.name)}</div>
-                        <div class="text-emerald-400 font-mono text-sm mb-3">${(room.price_per_hour || 0).toLocaleString('vi-VN')} đ / ${t('karaoke_unit_hr_long')}</div>
+                        <div class="text-emerald-400 font-mono text-sm mb-3">${fmtMoney(room.price_per_hour || 0)} / ${t('karaoke_unit_hr_long')}</div>
                         ${room.status === 'Trống' ? `
                             <div class="text-gray-400 text-xs mb-3"><i class="fas fa-door-open"></i> ${t('karaoke_available')}</div>
                             <button class="btn-start start-room" data-id="${room.id}">
                                 <i class="fas fa-play mr-1"></i> ${t('karaoke_btn_start')}
                             </button>
+                            <button type="button" class="mt-2 px-3 py-1.5 rounded-full text-xs font-bold bg-white/5 hover:bg-white/15 text-gray-300" onclick="openQr(${room.id}, '${escapeHtml(room.name)}')"><i class="fas fa-qrcode mr-1"></i>${t('karaoke_qr_print')}</button>
                         ` : `
                             <div class="text-gray-300 text-xs mb-2">
                                 <i class="fas fa-hourglass-half"></i> ${t('karaoke_started_label')} ${room.start_time ? new Date(room.start_time).toLocaleTimeString() : '--:--'}
                             </div>
                             <div class="text-rose-400 font-mono text-sm mb-3" id="timer-${room.id}">
                                 <i class="fas fa-clock"></i> ${t('karaoke_playing_label')} <span class="timer-value">0 ${t('karaoke_unit_min')}</span>
+                            </div>
+                            <div class="text-xs mb-3 ${room.new_qr_orders ? 'text-amber-300 font-bold' : 'text-gray-400'}">
+                                <i class="fas fa-martini-glass-citrus"></i> ${room.items_count || 0} ${t('karaoke_items')} · ${fmtMoney(room.items_total || 0)}
+                                ${room.new_qr_orders ? `<span class="ml-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40">${room.new_qr_orders} ${t('karaoke_new_qr')}</span>` : ''}
+                            </div>
+                            <div class="flex gap-2 justify-center mb-2">
+                                <button type="button" class="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20" onclick="openItems(${room.id}, '${escapeHtml(room.name)}')"><i class="fas fa-plus mr-1"></i>${t('karaoke_items')}</button>
+                                <button type="button" class="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20" onclick="openQr(${room.id}, '${escapeHtml(room.name)}')"><i class="fas fa-qrcode mr-1"></i>QR</button>
                             </div>
                             <button class="btn-stop checkout-room" data-id="${room.id}" data-name="${escapeHtml(room.name)}">
                                 <i class="fas fa-money-bill-wave mr-1"></i> ${t('karaoke_btn_payment')}
@@ -482,7 +517,12 @@
                     const minsShow = roundedMinutes % 60;
                     document.getElementById('modalRoomName').innerText = tf('karaoke_modal_room_label', { name: currentRoomName });
                     document.getElementById('modalDuration').innerText = `${hoursShow > 0 ? hoursShow + ' ' + t('karaoke_unit_hr') + ' ' : ''}${minsShow} ${t('karaoke_unit_min')}`;
-                    document.getElementById('modalAmount').innerText = totalAmount.toLocaleString('vi-VN') + '₫';
+                    document.getElementById('modalAmount').innerText = fmtMoney(totalAmount);
+                    const itemsAmt = parseFloat(card.getAttribute('data-items') || '0') || 0;
+                    document.getElementById('modalBreakdown').innerHTML = itemsAmt > 0
+                        ? `${escapeHtml(t('karaoke_room_time'))}: <b>${fmtMoney(totalAmount)}</b> · ${escapeHtml(t('karaoke_items'))}: <b>${fmtMoney(itemsAmt)}</b>` : '';
+                    currentTotalAmount = totalAmount + itemsAmt;
+                    document.getElementById('modalAmount').innerText = fmtMoney(totalAmount + itemsAmt);
                     document.getElementById('checkoutModal').classList.add('active');
                 });
             });
@@ -519,11 +559,12 @@
                     method: 'POST',
                     body: JSON.stringify({ customer_phone: customerPhone }),
                 });
-                const amountStr = (body.total_amount || 0).toLocaleString('vi-VN') + '₫';
+                const amountStr = fmtMoney(body.total_amount || 0);
                 showToast(tf('karaoke_toast_payment_success', { amount: amountStr }));
                 printReceipt({
                     subtitle: currentRoomName,
-                    items: [{ name: 'Tiền phòng (' + currentRoomName + ')', qty: 1, total: body.total_amount || 0 }],
+                    items: [{ name: t('karaoke_room_time') + ' (' + currentRoomName + ')', qty: 1, total: body.time_amount != null ? body.time_amount : (body.total_amount || 0) }]
+                        .concat((body.items || []).map(i => ({ name: i.name, qty: i.qty, total: i.total }))),
                     subtotal: body.total_amount || 0,
                     total: body.total_amount || 0,
                     paymentMethod: 'Tiền mặt',
@@ -541,8 +582,77 @@
             }
         }
 
+        // ===== Món theo phòng + QR gọi món =====
+        let itemsRoomId = null, lastNewQr = null;
+        async function openItems(roomId, name) {
+            itemsRoomId = roomId;
+            document.getElementById('itemsTitle').textContent = name + ' — ' + t('karaoke_items');
+            document.getElementById('itemsMenuLabel').textContent = t('karaoke_add_items');
+            document.getElementById('itemsModal').classList.add('active');
+            await renderItems(await hrApi(`/api/karaoke/rooms/${roomId}/items`));
+        }
+        window.openItems = openItems;
+        function closeItems() { document.getElementById('itemsModal').classList.remove('active'); itemsRoomId = null; loadRooms(); }
+        window.closeItems = closeItems;
+        async function renderItems(body) {
+            const list = document.getElementById('itemsList');
+            list.innerHTML = (body.items || []).length ? body.items.map(i => `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <span>${i.qty} × ${escapeHtml(i.name)} ${i.source === 'qr' ? '<span class="text-[10px] text-amber-300">(QR)</span>' : ''}</span>
+                    <span style="display:flex;gap:10px;align-items:center"><b>${fmtMoney(i.line_total)}</b>
+                    <button type="button" class="text-rose-400" aria-label="${escapeHtml(t('karaoke_remove'))}" onclick="removeItem(${i.id})"><i class="fas fa-trash"></i></button></span>
+                </div>`).join('') + `<div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:800"><span>${escapeHtml(t('karaoke_items_total'))}</span><span>${fmtMoney(body.items_total)}</span></div>`
+                : `<div class="text-gray-500">${escapeHtml(t('karaoke_no_items'))}</div>`;
+            document.getElementById('itemsMenu').innerHTML = (body.menu || []).map(p => `
+                <button type="button" class="text-left bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2" onclick="addItem(${p.id})">
+                    <div class="text-sm font-bold">${escapeHtml(p.name)}</div><div class="text-xs text-emerald-400">${fmtMoney(p.price)}</div></button>`).join('')
+                || `<div class="text-gray-500 text-sm">${escapeHtml(t('karaoke_no_menu'))}</div>`;
+        }
+        async function addItem(pid) {
+            try { await renderItems(await hrApi(`/api/karaoke/rooms/${itemsRoomId}/items`, { method: 'POST', body: JSON.stringify({ items: [{ product_id: pid, qty: 1 }] }) })); }
+            catch (e) { showToast(e.message, true); }
+        }
+        window.addItem = addItem;
+        async function removeItem(id) {
+            await hrApi(`/api/karaoke/room_items/${id}`, { method: 'DELETE' });
+            await renderItems(await hrApi(`/api/karaoke/rooms/${itemsRoomId}/items`));
+        }
+        window.removeItem = removeItem;
+        async function openQr(roomId, name) {
+            const body = await hrApi(`/api/karaoke/rooms/${roomId}/qr`);
+            document.getElementById('qrTitle').textContent = name;
+            document.getElementById('qrHint').textContent = t('karaoke_qr_hint');
+            document.getElementById('qrBox').innerHTML = body.svg;
+            document.getElementById('qrUrl').textContent = body.url;
+            document.getElementById('qrPrintLbl').textContent = t('karaoke_qr_print_btn');
+            document.getElementById('qrCloseLbl').textContent = t('karaoke_btn_cancel');
+            document.getElementById('qrModal').classList.add('active');
+        }
+        window.openQr = openQr;
+        function printQr() {
+            const w = window.open('', '_blank', 'width=420,height=560'); if (!w) return;
+            w.document.write(`<html><head><title>${escapeHtml(document.getElementById('qrTitle').textContent)}</title></head><body style="font-family:sans-serif;text-align:center;padding:24px">
+                <h2>${escapeHtml(document.getElementById('qrTitle').textContent)}</h2><p>${escapeHtml(t('karaoke_qr_hint'))}</p>
+                <div style="width:260px;margin:0 auto">${document.getElementById('qrBox').innerHTML}</div></body></html>`);
+            w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+        }
+        window.printQr = printQr;
+        // Món khách gọi qua QR: màn quầy tự cập nhật mỗi 15 giây (khi không mở hộp thoại nào)
+        setInterval(async () => {
+            if (document.querySelector('.modal-overlay.active') || document.hidden) return;
+            try {
+                const body = await hrApi('/api/karaoke/rooms');
+                const n = (body.data || []).reduce((a, r) => a + (r.new_qr_orders || 0), 0);
+                if (lastNewQr !== null && n > lastNewQr) showToast(t('karaoke_toast_new_qr'));
+                lastNewQr = n;
+                renderRooms(body.data || []);
+            } catch (e) { /* bỏ qua lượt này */ }
+        }, 15000);
+
+        let timersStarted = false;
         function startTimers() {
-            setInterval(() => {
+            // cập nhật NGAY khi vẽ thẻ phòng (trước đây chờ 60 giây mới chạy lần đầu -> phòng hát 1 tiếng vẫn ghi "0 phút")
+            const tick = () => {
                 document.querySelectorAll('.glass-card[data-status="Đang chơi"]').forEach(card => {
                     const startStr = card.getAttribute('data-start');
                     if (startStr) {
@@ -561,7 +671,9 @@
                         }
                     }
                 });
-            }, 60000);
+            };
+            tick();
+            if (!timersStarted) { timersStarted = true; setInterval(tick, 30000); }
         }
 
         document.getElementById('confirmCheckoutBtn').addEventListener('click', async () => {
@@ -588,7 +700,14 @@
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
-        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+        function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m])); }
+        // Tiền theo tiền tệ của TIỆM (trước đây luôn "đ"/"₫" kể cả tiệm ở Mỹ/Úc)
+        const SHOP_CUR = {{ (tenant_currency or 'VND') | tojson }};
+        function fmtMoney(v) {
+            try { return new Intl.NumberFormat(SHOP_CUR === 'VND' ? 'vi-VN' : 'en-US', { style: 'currency', currency: SHOP_CUR, maximumFractionDigits: SHOP_CUR === 'VND' ? 0 : 2 }).format(v || 0); }
+            catch (e) { return String(v); }
+        }
+        window.fmtMoney = fmtMoney;
 
         // ========== MULTI-REGION i18n ==========
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
@@ -619,6 +738,10 @@
                 karaoke_started_label: 'Bắt đầu:',
                 karaoke_playing_label: 'Đã chơi:',
                 karaoke_btn_payment: 'Thanh toán',
+                karaoke_items: 'món', karaoke_room_time: 'Tiền giờ', karaoke_new_qr: 'món mới qua QR', karaoke_add_items: 'Thêm món (bấm để thêm 1)',
+                karaoke_remove: 'Xoá', karaoke_items_total: 'Tổng món', karaoke_no_items: 'Chưa có món nào.', karaoke_no_menu: 'Chưa có thực đơn — thêm sản phẩm ở mục Kho.',
+                karaoke_qr_hint: 'Dán mã này trong phòng: khách quét để gọi món, món tự cộng vào hoá đơn phòng.', karaoke_qr_print: 'In QR gọi món', karaoke_qr_print_btn: 'In',
+                karaoke_toast_new_qr: 'Có món mới khách gọi qua QR!',
                 karaoke_toast_no_start_time: 'Không tìm thấy thời gian bắt đầu!',
                 karaoke_toast_time_error: 'Lỗi thời gian, vui lòng thử lại.',
                 karaoke_modal_room_label: 'Phòng: {name}',
@@ -658,6 +781,10 @@
                 karaoke_started_label: 'Started:',
                 karaoke_playing_label: 'Playing:',
                 karaoke_btn_payment: 'Payment',
+                karaoke_items: 'items', karaoke_room_time: 'Room time', karaoke_new_qr: 'new via QR', karaoke_add_items: 'Add items (tap to add 1)',
+                karaoke_remove: 'Remove', karaoke_items_total: 'Items total', karaoke_no_items: 'No items yet.', karaoke_no_menu: 'No menu yet — add products in Inventory.',
+                karaoke_qr_hint: 'Stick this in the room: guests scan to order, items are added to the room bill.', karaoke_qr_print: 'Print order QR', karaoke_qr_print_btn: 'Print',
+                karaoke_toast_new_qr: 'New order from a room QR!',
                 karaoke_toast_no_start_time: 'Start time not found!',
                 karaoke_toast_time_error: 'Time error, please try again.',
                 karaoke_modal_room_label: 'Room: {name}',

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Lịch ca tuần' if default_lang == 'vi' else 'Shift roster' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Lịch ca tuần (shift_roster.py). CSS tự chứa như trang Nhắn tin. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --ok: #34d399; --warn: #fbbf24; --err: #fb7185; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+        .rs-main { flex: 1; min-width: 0; padding: 28px 28px 80px; max-width: 1280px; }
+        .rs-head { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
+        .rs-head h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.01em; }
+        .rs-head p { color: var(--muted); margin: 0; max-width: 70ch; line-height: 1.6; font-size: 14px; }
+        .weeknav { display: flex; align-items: center; gap: 8px; }
+        .weeknav b { min-width: 170px; text-align: center; font-variant-numeric: tabular-nums; }
+        .btn { border: 0; border-radius: 11px; padding: 10px 16px; font: inherit; font-weight: 800; font-size: 13.5px; cursor: pointer; background: var(--accent); color: #031522; display: inline-flex; align-items: center; gap: 8px; }
+        .btn.ghost { background: rgba(255,255,255,.07); color: var(--ink); border: 1px solid var(--line); }
+        .btn.pub { background: var(--ok); color: #04140d; }
+        .btn.sm { padding: 7px 11px; font-size: 12.5px; }
+        .btn[disabled] { opacity: .55; cursor: progress; }
+        .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; }
+        .card small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+        .card b { font-size: 20px; font-variant-numeric: tabular-nums; }
+        section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+        section.box h2 { font-size: 16px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+        section.box > p.sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; line-height: 1.55; }
+        .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table.rgrid { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 900px; font-size: 13px; }
+        table.rgrid th { text-align: left; padding: 10px 8px; color: var(--muted); font-size: 11.5px; font-weight: 700; border-bottom: 1px solid var(--line); vertical-align: bottom; }
+        table.rgrid th .cov { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
+        .cov.ok { color: var(--ok); } .cov.short { color: var(--warn); }
+        table.rgrid td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; min-width: 104px; }
+        table.rgrid td.who { min-width: 150px; position: sticky; left: 0; background: #0c0a20; z-index: 1; }
+        .who b { display: block; font-size: 13.5px; } .who span { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+        .who span.over { color: var(--err); font-weight: 700; }
+        .chip { display: block; width: 100%; text-align: left; border-radius: 9px; padding: 6px 8px; margin-bottom: 4px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums;
+                background: rgba(56,189,248,.14); border: 1px solid rgba(56,189,248,.35); color: #bae6fd; }
+        .chip.draft { background: transparent; border-style: dashed; color: #e2e8f0; }
+        .chip small { display: block; font-weight: 600; color: var(--muted); font-size: 10.5px; }
+        .leave { font-size: 11px; font-weight: 700; color: var(--warn); background: rgba(251,191,36,.1); border-radius: 8px; padding: 5px 7px; margin-bottom: 4px; }
+        .add { width: 100%; border: 1px dashed rgba(255,255,255,.12); background: transparent; color: var(--muted); border-radius: 9px; padding: 5px; cursor: pointer; font-size: 12px; opacity: .55; }
+        .add:hover, .add:focus-visible { opacity: 1; color: var(--ink); }
+        .in { color-scheme: dark; width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; padding: 9px 10px; font: inherit; font-size: 13.5px; }
+        .in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,.15); }
+        select.in option { background: #10131f; }
+        label.f { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 5px; }
+        .need { display: grid; grid-template-columns: 1.1fr 1fr 1fr .7fr 1.3fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .staffrow { display: grid; grid-template-columns: 1.3fr 1.2fr 1.4fr 2fr .8fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.05); }
+        .days { display: flex; gap: 3px; flex-wrap: wrap; }
+        .days label { position: relative; }
+        .days input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+        .days span { display: inline-block; min-width: 28px; text-align: center; padding: 5px 4px; border-radius: 7px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,.06); color: var(--muted); }
+        .days input:checked + span { background: rgba(251,113,133,.18); color: var(--err); }
+        .days input:focus-visible + span { outline: 2px solid #fff; }
+        table.log { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.log th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 8px; border-bottom: 1px solid var(--line); }
+        table.log td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.05); font-variant-numeric: tabular-nums; }
+        .st-late { color: var(--warn); font-weight: 700; } .st-no_show { color: var(--err); font-weight: 700; } .st-on_time { color: var(--ok); font-weight: 700; } .st-upcoming { color: var(--muted); }
+        .msg { font-size: 13px; color: var(--muted); padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); margin-bottom: 14px; line-height: 1.55; }
+        .msg.ok { color: var(--ok); background: rgba(52,211,153,.08); } .msg.err { color: var(--err); background: rgba(251,113,133,.08); }
+        .msg ul { margin: 6px 0 0; padding-left: 18px; }
+        dialog { border: 1px solid var(--line); border-radius: 18px; background: #0f0d24; color: var(--ink); padding: 20px; width: min(420px, calc(100vw - 32px)); }
+        dialog::backdrop { background: rgba(0,0,0,.6); }
+        dialog h3 { margin: 0 0 14px; font-size: 17px; }
+        .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+        .legend i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+        @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, minmax(0,1fr)); } .staffrow { grid-template-columns: 1fr 1fr; } .need { grid-template-columns: 1fr 1fr 1fr; } }
+        @media (max-width: 640px) { .rs-main { padding: 72px 14px 90px; } .weeknav b { min-width: 0; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% include 'components/app_sidebar.html' %}
+<main class="rs-main">
+    <div class="rs-head">
+        <div>
+            <h1><i class="fas fa-calendar-week" style="color: var(--accent)"></i> {{ 'Lịch ca tuần' if vi else 'Shift roster' }}</h1>
+            <p>{{ 'Khai số người cần theo khung giờ, bấm "Tự xếp lịch" — hệ thống chia ca đều, né ngày nghỉ phép đã duyệt, thứ nhân viên báo bận và giới hạn giờ/tuần. Kiểm tra lại rồi "Công bố" để nhân viên thấy lịch trong app và nhận tin nhắn.' if vi else 'Set how many people you need per time block, press "Auto-fill" — shifts are shared out evenly, skipping approved leave, days staff are unavailable and weekly hour limits. Review, then "Publish" so staff see it in their app and get a text or email.' }}</p>
+        </div>
+        <div class="weeknav">
+            <button class="btn ghost sm" id="prevW" aria-label="{{ 'Tuần trước' if vi else 'Previous week' }}"><i class="fas fa-chevron-left"></i></button>
+            <b id="weekLbl">…</b>
+            <button class="btn ghost sm" id="nextW" aria-label="{{ 'Tuần sau' if vi else 'Next week' }}"><i class="fas fa-chevron-right"></i></button>
+            <button class="btn ghost sm" id="thisW">{{ 'Tuần này' if vi else 'This week' }}</button>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" id="autoBtn"><i class="fas fa-wand-magic-sparkles"></i> {{ 'Tự xếp lịch' if vi else 'Auto-fill' }}</button>
+        <button class="btn ghost" id="copyBtn"><i class="fas fa-copy"></i> {{ 'Chép tuần trước' if vi else 'Copy last week' }}</button>
+        <button class="btn pub" id="pubBtn"><i class="fas fa-paper-plane"></i> <span id="pubLbl">{{ 'Công bố' if vi else 'Publish' }}</span></button>
+    </div>
+    <div class="msg" id="msg" hidden></div>
+
+    <div class="cards">
+        <div class="card"><small>{{ 'Tổng giờ đã xếp' if vi else 'Hours scheduled' }}</small><b id="cHours">–</b></div>
+        <div class="card"><small>{{ 'Chi phí lương ước tính' if vi else 'Estimated wages' }}</small><b id="cCost">–</b></div>
+        <div class="card"><small>{{ 'Khung còn thiếu người' if vi else 'Understaffed blocks' }}</small><b id="cShort">–</b></div>
+        <div class="card"><small>{{ 'Ca nháp chưa công bố' if vi else 'Unpublished drafts' }}</small><b id="cDraft">–</b></div>
+    </div>
+
+    <section class="box">
+        <div class="scroll"><table class="rgrid" id="grid"></table></div>
+        <div class="legend">
+            <span><i style="background: rgba(56,189,248,.35)"></i>{{ 'Đã công bố' if vi else 'Published' }}</span>
+            <span><i style="border: 1px dashed #e2e8f0"></i>{{ 'Nháp' if vi else 'Draft' }}</span>
+            <span><i style="background: rgba(251,191,36,.3)"></i>{{ 'Nghỉ phép đã duyệt' if vi else 'Approved leave' }}</span>
+            <span>{{ 'Ước tính lương = giờ × lương giờ trong hồ sơ nhân viên (chưa gồm hoa hồng, tăng ca).' if vi else 'Wage estimate = hours × hourly rate on the staff profile (excludes commission and overtime loading).' }}</span>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-users-viewfinder" style="color: var(--warn)"></i> {{ 'Nhu cầu người theo khung giờ' if vi else 'Staffing needs' }}</h2>
+        <p class="sub">{{ 'Ví dụ: Thứ 7, 09:00–17:00 cần 3 người, vai trò "Nail". Vai trò để trống = ai cũng được; có ghi thì chỉ xếp người có chức vụ/lĩnh vực chứa chữ đó.' if vi else 'Example: Saturday 09:00–17:00 needs 3 people, role "Nail". Leave role empty for anyone; otherwise only staff whose title/department contains that word are used.' }}</p>
+        <div id="needs"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px">
+            <button class="btn ghost sm" id="addNeed"><i class="fas fa-plus"></i> {{ 'Thêm khung' if vi else 'Add block' }}</button>
+            <div style="width:170px"><label class="f" for="maxH">{{ 'Giờ tối đa/người/tuần' if vi else 'Max hours / person / week' }}</label><input class="in" id="maxH" type="number" min="1" max="80" inputmode="numeric"></div>
+            <button class="btn sm" id="saveNeeds"><i class="fas fa-floppy-disk"></i> {{ 'Lưu nhu cầu' if vi else 'Save needs' }}</button>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-address-book" style="color: var(--ok)"></i> {{ 'Nhân viên: liên hệ & ngày bận' if vi else 'Staff contact & availability' }}</h2>
+        <p class="sub">{{ 'SĐT/email để gửi lịch khi công bố (SMS cần nối Twilio ở trang Nhắn tin; không có thì gửi email). Bấm vào thứ để đánh dấu ngày nhân viên KHÔNG làm được.' if vi else 'Phone/email receive the roster when you publish (SMS needs Twilio on the Messaging page; otherwise email). Tap the days a person CANNOT work.' }}</p>
+        <div id="staffBox"></div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-user-clock" style="color: var(--err)"></i> {{ 'Đi trễ & vắng (so với ca đã công bố)' if vi else 'Late & no-shows (vs published shifts)' }}</h2>
+        <p class="sub">{{ 'Lấy giờ check-in thật trong app nhân viên. Trễ quá 5 phút mới tính trễ; quá giờ vào ca 30 phút chưa check-in tính vắng.' if vi else 'Uses real check-in times from the staff app. Late counts after a 5-minute grace; no check-in 30 minutes after start counts as a no-show.' }}</p>
+        <div id="attBox"></div>
+    </section>
+</main>
+
+<dialog id="dlg">
+    <form method="dialog" id="dlgForm">
+        <h3 id="dlgTitle"></h3>
+        <div style="margin-bottom:10px"><label class="f" for="fEmp">{{ 'Nhân viên' if vi else 'Staff' }}</label><select class="in" id="fEmp"></select></div>
+        <div style="margin-bottom:10px"><label class="f" for="fDate">{{ 'Ngày' if vi else 'Date' }}</label><input class="in" id="fDate" type="date" required></div>
+        <div class="g2">
+            <div><label class="f" for="fStart">{{ 'Bắt đầu' if vi else 'Start' }}</label><input class="in" id="fStart" type="time" required></div>
+            <div><label class="f" for="fEnd">{{ 'Kết thúc' if vi else 'End' }}</label><input class="in" id="fEnd" type="time" required></div>
+        </div>
+        <div class="g2">
+            <div><label class="f" for="fRole">{{ 'Vai trò' if vi else 'Role' }}</label><input class="in" id="fRole" maxlength="40"></div>
+            <div><label class="f" for="fNote">{{ 'Ghi chú' if vi else 'Note' }}</label><input class="in" id="fNote" maxlength="200"></div>
+        </div>
+        <p class="msg err" id="dlgErr" hidden></p>
+        <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap">
+            <button type="button" class="btn ghost sm" id="dlgDel" style="margin-right:auto; color: var(--err)"><i class="fas fa-trash"></i> {{ 'Xoá ca' if vi else 'Delete' }}</button>
+            <button type="button" class="btn ghost sm" id="dlgCancel">{{ 'Huỷ' if vi else 'Cancel' }}</button>
+            <button type="submit" class="btn sm" id="dlgSave">{{ 'Lưu' if vi else 'Save' }}</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    const VI = {{ 'true' if vi else 'false' }};
+    const T = VI ? {
+        days: ['T2','T3','T4','T5','T6','T7','CN'], week: 'Tuần', add: 'Thêm ca', edit: 'Sửa ca', leave: 'Nghỉ phép', h: 'giờ',
+        need: 'cần', short: 'thiếu', full: 'đủ', role: 'Vai trò', count: 'Số người', del: 'Xoá', save: 'Lưu', saved: 'Đã lưu.',
+        phone: 'SĐT', email: 'Email', maxh: 'Giờ tối đa',
+        autoDone: (n) => `Đã xếp ${n} ca nháp.`, unfilled: 'Chưa đủ người:', reasons: { leave: 'nghỉ phép', unavailable: 'báo bận', busy: 'đã có ca', max_hours: 'đủ giờ tuần', role: 'không đúng vai trò' },
+        copyDone: (n, k) => `Đã chép ${n} ca từ tuần trước` + (k ? `, bỏ qua ${k} ca trùng nghỉ phép/ca khác.` : '.'),
+        pubDone: (p, n) => `Đã công bố ${p} ca, đã gửi lịch cho ${n} nhân viên.`, noContact: 'Chưa có SĐT/email (chưa được báo):',
+        pubConfirm: 'Công bố mọi ca nháp của tuần này và gửi lịch cho nhân viên?', noDraft: 'Không có ca nháp nào để công bố.',
+        replace: 'Xoá các ca tự xếp (nháp) cũ của tuần này rồi xếp lại?', none: 'Chưa có ca đã công bố nào tới hôm nay.',
+        st: { on_time: 'Đúng giờ', late: 'Trễ', no_show: 'Vắng', upcoming: 'Sắp tới' }, cols: ['Nhân viên','Ngày','Ca','Check-in','Trạng thái'],
+        sum: (x) => `${x.ho_ten}: ${x.shifts} ca · trễ ${x.late} lần (${x.late_min} phút) · vắng ${x.no_show}`, noStaff: 'Chưa có nhân viên. Thêm ở trang Nhân sự.'
+    } : {
+        days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], week: 'Week of', add: 'Add shift', edit: 'Edit shift', leave: 'On leave', h: 'h',
+        need: 'need', short: 'short', full: 'covered', role: 'Role', count: 'People', del: 'Remove', save: 'Save', saved: 'Saved.',
+        phone: 'Phone', email: 'Email', maxh: 'Max hours',
+        autoDone: (n) => `Added ${n} draft shift${n === 1 ? '' : 's'}.`, unfilled: 'Still understaffed:', reasons: { leave: 'on leave', unavailable: 'unavailable', busy: 'already working', max_hours: 'at weekly limit', role: 'wrong role' },
+        copyDone: (n, k) => `Copied ${n} shift${n === 1 ? '' : 's'} from last week` + (k ? `, skipped ${k} that clash with leave or other shifts.` : '.'),
+        pubDone: (p, n) => `Published ${p} shift${p === 1 ? '' : 's'} and sent the roster to ${n} staff.`, noContact: 'No phone/email (not notified):',
+        pubConfirm: 'Publish all draft shifts for this week and send each person their roster?', noDraft: 'There are no draft shifts to publish.',
+        replace: 'Remove this week\'s earlier auto-filled drafts and fill again?', none: 'No published shifts up to today yet.',
+        st: { on_time: 'On time', late: 'Late', no_show: 'No-show', upcoming: 'Upcoming' }, cols: ['Staff','Date','Shift','Check-in','Status'],
+        sum: (x) => `${x.ho_ten}: ${x.shifts} shifts · late ${x.late}× (${x.late_min} min) · no-shows ${x.no_show}`, noStaff: 'No staff yet. Add them on the HR page.'
+    };
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let state = null, week = null, editing = null;
+
+    async function api(url, method, body) {
+        const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.success === false) throw new Error(j.message || j.error || ('HTTP ' + r.status));
+        return j;
+    }
+    function say(html, kind) { const m = $('msg'); m.className = 'msg ' + (kind || ''); m.innerHTML = html; m.hidden = !html; }
+    const money = (v) => { try { return new Intl.NumberFormat(VI ? 'vi-VN' : 'en-US', { style: 'currency', currency: state.currency, maximumFractionDigits: state.currency === 'VND' ? 0 : 0 }).format(v); } catch (e) { return v; } };
+    const dlabel = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${T.days[(d.getDay() + 6) % 7]} ${d.getDate()}/${d.getMonth() + 1}`; };
+    const hours = (s, e) => { const [a, b] = [s, e].map((x) => +x.slice(0, 2) * 60 + +x.slice(3)); return ((b <= a ? b + 1440 : b) - a) / 60; };
+
+    async function load(w) {
+        state = await api('/api/roster' + (w ? '?week=' + w : ''));
+        week = state.week_start;
+        $('weekLbl').textContent = `${T.week} ${dlabel(week)}`;
+        render();
+        loadAttendance();
+    }
+    function render() {
+        const S = state;
+        const total = S.shifts.reduce((a, s) => a + hours(s.start, s.end), 0);
+        $('cHours').textContent = (Math.round(total * 10) / 10) + ' ' + T.h;
+        $('cCost').textContent = money(S.labor_cost);
+        $('cShort').textContent = S.coverage.filter((c) => c.short > 0).length;
+        $('cDraft').textContent = S.drafts;
+        $('pubLbl').textContent = (VI ? 'Công bố' : 'Publish') + (S.drafts ? ` (${S.drafts})` : '');
+        if (!S.staff.length) { $('grid').innerHTML = `<tr><td>${T.noStaff}</td></tr>`; }
+        else {
+            let h = '<thead><tr><th></th>' + S.days.map((d) => {
+                const cov = S.coverage.filter((c) => c.date === d);
+                const short = cov.reduce((a, c) => a + c.short, 0);
+                const tag = cov.length ? `<span class="cov ${short ? 'short' : 'ok'}">${short ? `${T.short} ${short}` : T.full}</span>` : '';
+                return `<th>${dlabel(d)}${tag}</th>`;
+            }).join('') + '</tr></thead><tbody>';
+            for (const e of S.staff) {
+                const over = e.hours > e.max_hours;
+                h += `<tr><td class="who"><b>${esc(e.ho_ten || e.ma_nv)}</b><span class="${over ? 'over' : ''}">${e.hours} / ${e.max_hours} ${T.h}</span></td>`;
+                for (const d of S.days) {
+                    h += '<td>';
+                    if (e.leave_dates.includes(d)) h += `<div class="leave">${T.leave}</div>`;
+                    for (const s of S.shifts.filter((x) => x.ma_nv === e.ma_nv && x.date === d)) {
+                        h += `<button class="chip ${s.status === 'draft' ? 'draft' : ''}" data-id="${s.id}">${s.start}–${s.end}${s.role ? `<small>${esc(s.role)}</small>` : ''}</button>`;
+                    }
+                    h += `<button class="add" data-emp="${esc(e.ma_nv)}" data-date="${d}" aria-label="${T.add} ${esc(e.ho_ten)} ${dlabel(d)}">+</button></td>`;
+                }
+                h += '</tr>';
+            }
+            $('grid').innerHTML = h + '</tbody>';
+        }
+        $('maxH').value = S.max_hours_week;
+        $('needs').innerHTML = '';
+        (S.needs.length ? S.needs : []).forEach(addNeedRow);
+        renderStaff();
+    }
+    function addNeedRow(n) {
+        n = n || { weekday: 5, start: '09:00', end: '17:00', count: 2, role: '' };
+        const row = document.createElement('div');
+        row.className = 'need';
+        row.innerHTML = `<select class="in" aria-label="day">${T.days.map((d, i) => `<option value="${i}" ${i === +n.weekday ? 'selected' : ''}>${d}</option>`).join('')}</select>
+            <input class="in" type="time" value="${n.start}" aria-label="start"><input class="in" type="time" value="${n.end}" aria-label="end">
+            <input class="in" type="number" min="1" max="50" value="${n.count}" aria-label="${T.count}" title="${T.count}">
+            <input class="in" maxlength="40" value="${esc(n.role)}" placeholder="${T.role}" aria-label="${T.role}">
+            <button class="btn ghost sm" type="button" aria-label="${T.del}"><i class="fas fa-xmark"></i></button>`;
+        row.querySelector('button').onclick = () => row.remove();
+        $('needs').appendChild(row);
+    }
+    function renderStaff() {
+        $('staffBox').innerHTML = state.staff.map((e) => `<div class="staffrow" data-emp="${esc(e.ma_nv)}">
+            <b style="font-size:13.5px">${esc(e.ho_ten || e.ma_nv)}</b>
+            <input class="in" data-k="phone" value="${esc(e.phone || '')}" placeholder="${T.phone}" inputmode="tel" aria-label="${T.phone}">
+            <input class="in" data-k="email" value="${esc(e.email || '')}" placeholder="${T.email}" type="email" aria-label="${T.email}">
+            <div class="days">${T.days.map((d, i) => `<label><input type="checkbox" value="${i}" ${(e.unavailable_days || []).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
+            <input class="in" data-k="max_hours" type="number" min="0" max="80" value="${e.max_hours || ''}" aria-label="${T.maxh}" title="${T.maxh}">
+            <button class="btn ghost sm" type="button">${T.save}</button></div>`).join('');
+        $('staffBox').querySelectorAll('.staffrow').forEach((row) => {
+            row.querySelector('button').onclick = async (ev) => {
+                const b = ev.currentTarget; b.disabled = true;
+                try {
+                    await api('/api/roster/staff/' + encodeURIComponent(row.dataset.emp), 'POST', {
+                        phone: row.querySelector('[data-k=phone]').value, email: row.querySelector('[data-k=email]').value,
+                        max_hours: row.querySelector('[data-k=max_hours]').value,
+                        unavailable_days: [...row.querySelectorAll('.days input:checked')].map((x) => +x.value)
+                    });
+                    b.textContent = T.saved;
+                } catch (e) { say(esc(e.message), 'err'); }
+                setTimeout(() => { b.disabled = false; b.textContent = T.save; }, 1200);
+            };
+        });
+    }
+    async function loadAttendance() {
+        try {
+            const a = await api('/api/roster/attendance?week=' + week);
+            if (!a.rows.length) { $('attBox').innerHTML = `<p class="sub" style="color:var(--muted)">${T.none}</p>`; return; }
+            $('attBox').innerHTML = `<div class="msg">${a.summary.map((x) => esc(T.sum(x))).join('<br>')}</div><div class="scroll"><table class="log"><thead><tr>${T.cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>` +
+                a.rows.map((r) => `<tr><td>${esc(r.ho_ten)}</td><td>${dlabel(r.date)}</td><td>${r.start}–${r.end}</td><td>${r.check_in || '–'}</td><td class="st-${r.status}">${T.st[r.status]}${r.late_min ? ` · ${r.late_min}′` : ''}</td></tr>`).join('') + '</tbody></table></div>';
+        } catch (e) { $('attBox').textContent = e.message; }
+    }
+
+    // ---- hộp thêm/sửa ca
+    function openDlg(shift, emp, date) {
+        editing = shift || null;
+        $('dlgTitle').textContent = shift ? T.edit : T.add;
+        $('fEmp').innerHTML = state.staff.map((e) => `<option value="${esc(e.ma_nv)}">${esc(e.ho_ten || e.ma_nv)}</option>`).join('');
+        $('fEmp').value = shift ? shift.ma_nv : emp; $('fEmp').disabled = !!shift;
+        const need = state.needs.find((n) => n.weekday === (new Date((date || shift.date) + 'T00:00:00').getDay() + 6) % 7);
+        $('fDate').value = shift ? shift.date : date;
+        $('fStart').value = shift ? shift.start : (need ? need.start : '09:00');
+        $('fEnd').value = shift ? shift.end : (need ? need.end : '17:00');
+        $('fRole').value = shift ? (shift.role || '') : (need ? need.role : '');
+        $('fNote').value = shift ? (shift.note || '') : '';
+        $('dlgDel').hidden = !shift; $('dlgErr').hidden = true;
+        $('dlg').showModal();
+    }
+    $('grid').addEventListener('click', (ev) => {
+        const chip = ev.target.closest('.chip'), add = ev.target.closest('.add');
+        if (chip) openDlg(state.shifts.find((s) => s.id === +chip.dataset.id));
+        else if (add) openDlg(null, add.dataset.emp, add.dataset.date);
+    });
+    $('dlgCancel').onclick = () => $('dlg').close();
+    $('dlgForm').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const body = { ma_nv: $('fEmp').value, date: $('fDate').value, start: $('fStart').value, end: $('fEnd').value, role: $('fRole').value, note: $('fNote').value };
+        try {
+            if (editing) await api('/api/roster/shifts/' + editing.id, 'PATCH', body);
+            else await api('/api/roster/shifts', 'POST', body);
+            $('dlg').close(); await load(week);
+        } catch (e) { $('dlgErr').textContent = e.message; $('dlgErr').hidden = false; }
+    });
+    $('dlgDel').onclick = async () => { try { await api('/api/roster/shifts/' + editing.id, 'DELETE'); $('dlg').close(); await load(week); } catch (e) { $('dlgErr').textContent = e.message; $('dlgErr').hidden = false; } };
+
+    // ---- thao tác tuần
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    $('prevW').onclick = () => { const d = new Date(week + 'T00:00:00'); d.setDate(d.getDate() - 7); say(''); load(iso(d)); };
+    $('nextW').onclick = () => { const d = new Date(week + 'T00:00:00'); d.setDate(d.getDate() + 7); say(''); load(iso(d)); };
+    $('thisW').onclick = () => { say(''); load(); };
+    $('addNeed').onclick = () => addNeedRow();
+    $('saveNeeds').onclick = async (ev) => {
+        const needs = [...$('needs').querySelectorAll('.need')].map((r) => { const f = r.querySelectorAll('.in'); return { weekday: +f[0].value, start: f[1].value, end: f[2].value, count: +f[3].value, role: f[4].value }; });
+        try { await api('/api/roster/needs', 'POST', { needs, max_hours_week: +$('maxH').value }); say(T.saved, 'ok'); await load(week); } catch (e) { say(esc(e.message), 'err'); }
+    };
+    async function busy(btn, fn) { btn.disabled = true; try { await fn(); } catch (e) { say(esc(e.message), 'err'); } btn.disabled = false; }
+    $('autoBtn').onclick = (ev) => busy(ev.currentTarget, async () => {
+        const hasAuto = state.shifts.some((s) => s.status === 'draft' && s.source === 'auto');
+        const r = await api('/api/roster/auto', 'POST', { week, replace_drafts: hasAuto && confirm(T.replace) });
+        let html = esc(T.autoDone(r.created));
+        if (r.unfilled.length) html += `<br>${T.unfilled}<ul>` + r.unfilled.map((u) => `<li>${dlabel(u.date)} ${u.start}–${u.end}${u.role ? ' (' + esc(u.role) + ')' : ''}: ${T.short} ${u.missing} — ${Object.entries(u.reasons).map(([k, v]) => `${v} ${T.reasons[k]}`).join(', ')}</li>`).join('') + '</ul>';
+        say(html, r.unfilled.length ? '' : 'ok'); await load(week);
+    });
+    $('copyBtn').onclick = (ev) => busy(ev.currentTarget, async () => {
+        const r = await api('/api/roster/copy', 'POST', { week });
+        say(esc(T.copyDone(r.copied, r.skipped.length)), 'ok'); await load(week);
+    });
+    $('pubBtn').onclick = (ev) => busy(ev.currentTarget, async () => {
+        if (!state.drafts) { say(T.noDraft); return; }
+        if (!confirm(T.pubConfirm)) return;
+        const r = await api('/api/roster/publish', 'POST', { week });
+        let html = esc(T.pubDone(r.published, r.notified));
+        if (r.no_contact.length) html += `<br>${T.noContact} ${r.no_contact.map(esc).join(', ')}`;
+        say(html, 'ok'); await load(week);
+    });
+    load().catch((e) => say(esc(e.message), 'err'));
+})();
+</script>
+</body>
+</html>
