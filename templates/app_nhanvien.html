@@ -122,7 +122,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-sm text-gray-300 leading-relaxed">
                     <p class="font-bold text-white mb-2"><i class="fas fa-user-plus mr-1 text-cyan-400"></i> New employee?</p>
                     <p>Ask the shop owner to add you in <b>Staff Management</b>. You will receive an employee code (e.g. NV0012) to sign in here.</p>
-                    <p class="mt-2 text-gray-400">Nhân viên mới: nhờ chủ tiệm thêm bạn ở mục <b>Quản lý nhân viên</b> để nhận mã nhân viên, rồi đăng nhập bằng mã đó.</p>
+                    {% if default_lang == 'vi' %}<p class="mt-2 text-gray-400">Nhân viên mới: nhờ chủ tiệm thêm bạn ở mục <b>Quản lý nhân viên</b> để nhận mã nhân viên, rồi đăng nhập bằng mã đó.</p>{% endif %}
                 </div>
                 <button type="button" onclick="switchAuthTab('login')" class="w-full bg-white/5 border border-white/10 font-bold tracking-widest p-4 rounded-xl text-white active:scale-95 transition-transform">
                     <i class="fas fa-arrow-left mr-2"></i> SIGN IN
@@ -151,6 +151,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <span class="tracking-widest">CLOCK IN</span>
                     </button>
                     <p class="text-[10px] text-cyan-400/60 mt-8 uppercase tracking-widest font-bold"><i class="fas fa-shield-alt mr-1"></i> Photo + location recorded at clock-in</p>
+                    <button id="btnOffDuty" type="button" onclick="openOffDuty()" class="mt-5 text-xs font-bold text-sky-300 underline underline-offset-4">{{ 'Xem lịch ca & yêu cầu (không chấm công)' if default_lang == 'vi' else 'View my shifts & requests (not clocking in)' }}</button>
                 </div>
 
                 <div id="step2_Camera" class="w-full hidden flex-col items-center">
@@ -229,13 +230,34 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <p class="text-[11px] text-pink-100/80 mt-3 font-medium">This month: <span id="earn_month_total" class="font-black text-white">0</span> · <span id="earn_month_count">0</span> clients</p>
                         <div id="earn_today_list" class="mt-3 space-y-1.5"></div>
                     </div>
+                    <!-- Ngoài ca: xem lịch/nhận ca trống/trả lời đổi ca mà KHÔNG phải chấm công (trước đây màn chấm công chặn hết) -->
+                    <div id="offDutyBar" class="hidden flex items-center justify-between gap-3 bg-sky-500/10 border border-sky-400/30 rounded-2xl px-4 py-3">
+                        <span class="text-xs text-sky-100 font-bold"><i class="fas fa-moon mr-1"></i> {{ 'Bạn chưa chấm công vào ca.' if default_lang == 'vi' else "You're not clocked in." }}</span>
+                        <button type="button" onclick="backToClockIn()" class="px-3 py-2 rounded-xl bg-cyan-500 text-black text-[11px] font-black uppercase">{{ 'Chấm công' if default_lang == 'vi' else 'Clock in' }}</button>
+                    </div>
                     <!-- Lịch ca của tôi (shift_roster.py): ca chủ tiệm đã công bố trong 14 ngày tới. -->
                     <div id="myShiftsCard" class="hidden bg-black/60 backdrop-blur-md border border-sky-400/25 p-5 rounded-3xl shadow-lg">
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="font-black text-white text-sm uppercase tracking-widest"><i class="fas fa-calendar-week text-sky-300 mr-2"></i> My shifts</h3>
+                            <h3 class="font-black text-white text-sm uppercase tracking-widest"><i class="fas fa-calendar-week text-sky-300 mr-2"></i> {{ 'Lịch ca của tôi' if default_lang == 'vi' else 'My shifts' }}</h3>
                             <span id="myShiftsHours" class="text-[11px] text-sky-200/80 font-bold"></span>
                         </div>
                         <div id="myShiftsList" class="space-y-1.5"></div>
+                        <div id="swapForm" class="hidden mt-3 rounded-2xl bg-white/5 border border-white/10 p-3 space-y-2">
+                            <p class="text-[11px] text-gray-300 font-bold" id="swapFormTitle"></p>
+                            <select id="swapTo" class="w-full bg-black/70 border border-white/10 p-2.5 rounded-xl text-white text-xs outline-none"></select>
+                            <input id="swapNote" maxlength="200" class="w-full bg-black/70 border border-white/10 p-2.5 rounded-xl text-white text-xs outline-none">
+                            <div class="flex gap-2"><button id="swapSend" class="flex-1 py-2.5 rounded-xl bg-sky-500 text-black text-xs font-black"></button><button id="swapCancel" class="px-4 py-2.5 rounded-xl bg-white/10 text-gray-200 text-xs font-bold"></button></div>
+                        </div>
+                        <div id="mySwapsBox" class="mt-3 space-y-1.5"></div>
+                        <div id="openShiftsBox" class="hidden mt-4">
+                            <p class="text-[10px] text-amber-300 font-black uppercase tracking-widest mb-1.5"><i class="fas fa-hand-pointer mr-1"></i> <span id="openShiftsTitle"></span></p>
+                            <div id="openShiftsList" class="space-y-1.5"></div>
+                        </div>
+                        <details class="mt-4">
+                            <summary class="text-[11px] text-gray-400 font-bold cursor-pointer" id="availTitle"></summary>
+                            <div id="availDays" class="flex flex-wrap gap-1.5 mt-2"></div>
+                            <p class="text-[10px] text-gray-500 mt-1.5" id="availHint"></p>
+                        </details>
                     </div>
                     <div id="workZone" class="space-y-6">
                         <!-- GPS Card -->
@@ -404,7 +426,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </div>
 
                     <div class="bg-black/60 backdrop-blur-md border border-white/10 p-5 rounded-3xl hover:border-emerald-500/30 transition-colors group" id="box_swap" style="display: none;">
-                        <h4 class="text-emerald-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-exchange-alt"></i> Shift Swap Market (F&B)</h4>
+                        <h4 class="text-emerald-400 font-bold mb-4 text-sm flex items-center gap-2 uppercase tracking-widest"><i class="fas fa-exchange-alt"></i> Ask someone to cover today</h4>
                         <div class="relative mb-3">
                             <select id="app_swap_receiver" class="w-full bg-black/80 border border-white/10 p-3 rounded-xl text-white text-xs outline-none appearance-none focus:border-emerald-500">
                                 <option value="">-- Choose who to ask to cover your shift --</option>
@@ -484,6 +506,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     </div>
 
     <script>
+        // Chữ hệ thống theo ngôn ngữ trang (tiệm US/AU thấy tiếng Anh). Trước đây toast/nhãn trộn tiếng Việt lóng
+        // ("Đã ném thiệp nhờ vả. Chờ Rep!", "chốt kèo", "Sếp") hiện cho cả nhân viên tiệm ở Mỹ/Úc.
+        const APP_VI = (document.documentElement.lang || '').toLowerCase().startsWith('vi');
+        const L = (en, vi) => (APP_VI ? vi : en);
         // ========================================================
         // 🚀 UI/UX SYSTEM (TOAST & CONFIRM MODAL & CONFETTI)
         // ========================================================
@@ -564,7 +590,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || L(`Server error (${res.status})`, `Lỗi máy chủ (${res.status})`));
             }
             return body;
         }
@@ -580,7 +606,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const res = await fetch('/api/storage/upload', { method: 'POST', body: formData });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi upload (${res.status})`);
+                throw new Error(body.error || L(`Upload failed (${res.status})`, `Lỗi tải lên (${res.status})`));
             }
             return body.url;
         }
@@ -1003,8 +1029,22 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }, 'image/jpeg', 0.8);
         }
 
+        function openOffDuty() {
+            document.getElementById('checkinScreen').classList.remove('flex'); document.getElementById('checkinScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('mainApp').classList.add('flex');
+            document.getElementById('workZone').classList.add('hidden');
+            document.getElementById('offDutyBar').classList.remove('hidden');
+            loadColleaguesList(); loadMyLeaveRequests(); loadMyExpenseRequests(); loadMyEarnings(); loadMyShifts();
+        }
+        function backToClockIn() {
+            document.getElementById('mainApp').classList.remove('flex'); document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('checkinScreen').classList.remove('hidden'); document.getElementById('checkinScreen').classList.add('flex');
+        }
+
         function hoanTatCheckin(msg, type) {
             localStorage.setItem('bp_da_diem_danh', new Date().toDateString());
+            document.getElementById('workZone').classList.remove('hidden');
+            document.getElementById('offDutyBar').classList.add('hidden');
             document.getElementById('checkinScreen').classList.remove('flex'); document.getElementById('checkinScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('mainApp').classList.add('flex');
             
@@ -1025,8 +1065,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('step1_Start').classList.remove('hidden'); document.getElementById('step1_Start').classList.add('flex');
             const btn = document.getElementById('captureBtn');
             btn.disabled = true; btn.className = "w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black py-4 rounded-xl shadow-[0_10px_20px_rgba(16,185,129,0.3)] transition-all opacity-50 cursor-not-allowed flex justify-center items-center gap-2 tracking-widest";
-            btn.innerHTML = `<i class="fas fa-camera text-xl"></i> CHỤP & LƯU BẰNG CHỨNG`;
-            document.getElementById('gpsStatus').innerHTML = `<i class="fas fa-satellite fa-spin"></i> Đang định vị...`;
+            btn.innerHTML = `<i class="fas fa-camera text-xl"></i> ${L('TAKE & SAVE PHOTO', 'CHỤP & LƯU BẰNG CHỨNG')}`;
+            document.getElementById('gpsStatus').innerHTML = `<i class="fas fa-satellite fa-spin"></i> ${L('Locating…', 'Đang định vị...')}`;
             document.getElementById('gpsStatus').className = "absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30 z-20 font-bold uppercase tracking-widest";
         }
 
@@ -1039,10 +1079,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const money = isPosPaidIndustry() ? 0 : (document.getElementById('work_money').value || 0);
             const tip = isPosPaidIndustry() ? 0 : (document.getElementById('work_tip').value || 0);
 
-            if(!content) return showToast("Vui lòng ghi chú nội dung báo cáo!", 'error');
+            if(!content) return showToast(L('Please describe the work done.', 'Vui lòng ghi nội dung báo cáo!'), 'error');
 
             const btn = document.getElementById('btn_submit_report');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl mr-2"></i> ĐANG UP DATA...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl mr-2"></i> ' + L('UPLOADING…', 'ĐANG TẢI LÊN...'); btn.disabled = true;
 
             const photoInput = document.getElementById('work_photo');
             let hasPhoto = photoInput && photoInput.files.length > 0;
@@ -1060,9 +1100,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         await saveToIndexedDB('images', { fileName: sigName, blob: blob, type: 'signature', metadata: offlinePayload });
                     } else { await saveToIndexedDB('reports', offlinePayload); }
 
-                    showToast("Mất mạng! Lưu báo cáo vào thiết bị an toàn.", 'warning');
+                    showToast(L("You're offline — the report is saved on this phone and will send when you're back online.", 'Mất mạng — báo cáo đã lưu trên máy, có mạng sẽ tự gửi.'), 'warning');
                     resetReportForm(btn); setWorkStatus('Rảnh'); return;
-                } catch(e) { showToast("Lỗi bộ nhớ ngoại tuyến!", 'error'); resetReportForm(btn); return; }
+                } catch(e) { showToast(L('Could not save offline.', 'Lỗi lưu ngoại tuyến!'), 'error'); resetReportForm(btn); return; }
             }
 
             try {
@@ -1084,16 +1124,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const payload = { ma_nv: currentUser.code, ngay_cham: new Date().toLocaleDateString('en-GB'), ghi_chu: finalContent, tien_tua: parseFloat(money), tien_tips: parseFloat(tip), nganh_nghe: currentUser.linhVuc };
                 await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) });
 
-                showToast("Báo cáo nghiệm thu đã đẩy lên hệ thống!", 'success');
+                showToast(L('Report submitted.', 'Đã gửi báo cáo!'), 'success');
                 triggerConfetti();
                 resetReportForm(btn); setWorkStatus('Rảnh'); 
-            } catch(e) { showToast("Lỗi Máy chủ khi up bằng chứng!", 'error'); resetReportForm(btn); }
+            } catch(e) { showToast(L('Could not upload — please try again.', 'Lỗi tải bằng chứng, thử lại nhé!'), 'error'); resetReportForm(btn); }
         }
 
         function resetReportForm(btn) {
             document.getElementById('work_address').value = ''; document.getElementById('work_content').value = '';
             document.getElementById('work_money').value = ''; document.getElementById('work_tip').value = '';
-            if(document.getElementById('work_photo')) { document.getElementById('work_photo').value = ''; document.getElementById('photo_name_display').innerHTML = 'Bấm để tải ảnh lên'; }
+            if(document.getElementById('work_photo')) { document.getElementById('work_photo').value = ''; document.getElementById('photo_name_display').innerHTML = L('Tap to add a photo', 'Bấm để tải ảnh lên'); }
             clearSignature();
             btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> CHỐT BÁO CÁO'; btn.disabled = false;
         }
@@ -1213,11 +1253,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function toggleGPS() {
             const toggle = document.getElementById('gpsToggle'); const statusText = document.getElementById('gpsStatusText'); const workBox = document.getElementById('workStatusBox');
             if(toggle.checked) {
-                statusText.innerHTML = '<span class="text-emerald-400 font-bold animate-pulse">📡 Vệ tinh Radar đang kết nối...</span>';
+                statusText.innerHTML = '<span class="text-emerald-400 font-bold animate-pulse">📡 ' + L('Connecting to the live map…', 'Đang kết nối bản đồ...') + '</span>';
                 workBox.style.display = 'grid'; workBox.style.pointerEvents = 'auto'; workBox.style.opacity = '1';
                 startLiveTracking();
             } else {
-                statusText.innerHTML = 'Đang tắt. Bật GPS để hệ thống Radar nhận diện.';
+                statusText.innerHTML = L('Off. Turn on GPS so the shop can see you on the live map.', 'Đang tắt. Bật GPS để tiệm thấy bạn trên bản đồ.');
                 workBox.style.pointerEvents = 'none'; workBox.style.opacity = '0.5';
                 if(watchId) navigator.geolocation.clearWatch(watchId);
             }
@@ -1230,8 +1270,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 btnRanh.className = "bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-transform active:scale-95";
                 btnBan.className = "bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10";
             } else {
-                currentTask = overrideTask || prompt("Ghi chú ngắn tác vụ đang bận:");
-                if(!currentTask) currentTask = "Đang thao tác NV";
+                currentTask = overrideTask || prompt(L('What are you busy with? (short note)', 'Đang bận việc gì? (ghi ngắn)'));
+                if(!currentTask) currentTask = L('Busy', 'Đang bận');
                 btnBan.className = "bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(244,63,94,0.3)] transition-transform active:scale-95";
                 btnRanh.className = "bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10";
             }
@@ -1245,16 +1285,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         function startLiveTracking() {
             if ("geolocation" in navigator) {
+                // Gửi vị trí CÓ CHỌN LỌC (như app giao vận): đi được > 25 m hoặc đã 30 s chưa gửi, và không quá 1 lần/8 s.
+                // Trước đây gửi MỖI lần GPS nhích (nhiều lần/giây khi đi xe) -> ghi DB liên tục + bản đồ chủ tải lại cả danh sách.
+                let lastSent = { t: 0, lat: null, lng: null };
+                const metres = (a, b, c, d) => { const R = 6371000, toR = Math.PI / 180; const x = (d - b) * toR * Math.cos((a + c) / 2 * toR), y = (c - a) * toR; return Math.sqrt(x * x + y * y) * R; };
                 watchId = navigator.geolocation.watchPosition(async (position) => {
                     currentLat = position.coords.latitude; currentLng = position.coords.longitude;
                     if(!navigator.onLine) return;
-                    await hrApi(`/api/hr/employees/${encodeURIComponent(currentUser.code)}`, {
+                    const now = Date.now();
+                    const moved = lastSent.lat === null ? Infinity : metres(lastSent.lat, lastSent.lng, currentLat, currentLng);
+                    if (now - lastSent.t < 8000 || (moved < 25 && now - lastSent.t < 30000)) return;
+                    lastSent = { t: now, lat: currentLat, lng: currentLng };
+                    hrApi(`/api/hr/employees/${encodeURIComponent(currentUser.code)}`, {
                         method: 'PATCH',
                         body: JSON.stringify({ toa_do_lat: currentLat, toa_do_lng: currentLng, trang_thai_gps: currentStatus, nhiem_vu_hien_tai: currentTask }),
-                    });
+                    }).catch(() => {});
                 }, (error) => {
-                    document.getElementById('gpsStatusText').innerHTML = '<span class="text-rose-400 font-bold">Mất tín hiệu GPS! Hãy kiểm tra cài đặt.</span>';
-                }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+                    document.getElementById('gpsStatusText').innerHTML = '<span class="text-rose-400 font-bold">GPS signal lost — check that location is on.</span>';
+                }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
             }
         }
 
@@ -1265,7 +1313,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             try {
                 const body = await hrApi('/api/hr/employees');
                 const data = (body.data || []).filter(e => e.ma_nv !== currentUser.code);
-                let options = '<option value="">-- Chọn đồng nghiệp --</option>';
+                let options = `<option value="">${L('-- Choose a colleague --', '-- Chọn đồng nghiệp --')}</option>`;
                 data.forEach(e => options += `<option value="${e.ma_nv}">${__escHtml(e.ho_ten)}</option>`);
                 document.getElementById('app_kudo_receiver').innerHTML = options; document.getElementById('app_swap_receiver').innerHTML = options;
             } catch(e) {}
@@ -1275,42 +1323,111 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const dateFrom = document.getElementById('app_leave_date').value;
             const dateTo = document.getElementById('app_leave_date_to').value || dateFrom;
             const type = document.getElementById('app_leave_type').value; const reason = document.getElementById('app_leave_reason').value;
-            if(!dateFrom || !reason) return showToast("Vui lòng chọn ngày và ghi rõ lý do!", 'error');
+            if(!dateFrom || !reason) return showToast(L('Please pick the date and give a reason.', 'Vui lòng chọn ngày và ghi rõ lý do!'), 'error');
             try {
                 const payload = { ma_nv: currentUser.code, from_date: dateFrom, to_date: dateTo, leave_type: type, reason };
                 if(!navigator.onLine) {
                     await saveToIndexedDB('reports', { ...payload, _kind: 'leave_request' });
-                    showToast("Mất mạng! Đã lưu nháp Đơn xin phép.", 'warning'); document.getElementById('app_leave_reason').value = ''; return;
+                    showToast(L("You're offline — the request is saved and will send automatically.", 'Mất mạng — đơn đã lưu, có mạng sẽ tự gửi.'), 'warning'); document.getElementById('app_leave_reason').value = ''; return;
                 }
                 await hrApi('/api/leave_requests', { method: 'POST', body: JSON.stringify(payload) });
-                showToast("Đã gửi đơn xin nghỉ lên HR — chờ duyệt!", 'success');
+                showToast(L('Leave request sent — waiting for approval.', 'Đã gửi đơn xin nghỉ — chờ duyệt!'), 'success');
                 document.getElementById('app_leave_reason').value = '';
                 loadMyLeaveRequests();
-            } catch(e) { showToast("Lỗi gửi đơn: " + e.message, 'error'); }
+            } catch(e) { showToast(L('Could not send: ', 'Lỗi gửi đơn: ') + e.message, 'error'); }
         }
 
-        const LEAVE_STATUS_LABEL = { pending: '⏳ Chờ duyệt', approved: '✅ Đã duyệt', rejected: '❌ Từ chối' };
+        const LEAVE_STATUS_LABEL = { pending: L('⏳ Pending', '⏳ Chờ duyệt'), approved: L('✅ Approved', '✅ Đã duyệt'), rejected: L('❌ Declined', '❌ Từ chối') };
+        // Lịch ca (shift_roster.py) như Deputy/7shifts: nhận ca trống, xin đổi 1 ca CỤ THỂ cho đồng nghiệp (đồng nghiệp đồng ý ->
+        // chủ duyệt -> lịch tự đổi người), tự khai thứ không làm được để chủ xếp lịch né.
+        let rosterState = null, colleagues = [];
+        const SHIFT_DAYS = () => [L('Sun', 'CN'), L('Mon', 'T2'), L('Tue', 'T3'), L('Wed', 'T4'), L('Thu', 'T5'), L('Fri', 'T6'), L('Sat', 'T7')];
+        const shiftLabel = (s) => { const d = new Date(s.date + 'T00:00:00'); return `${SHIFT_DAYS()[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} ${s.start}–${s.end}`; };
+        async function rosterAct(url, payload, okMsg) {
+            try { await hrApi(url, { method: 'POST', body: JSON.stringify(Object.assign({ ma_nv: currentUser.code }, payload || {})) }); if (okMsg) showToast(okMsg, 'success'); }
+            catch (e) { showToast(e.message, 'error'); }
+            loadMyShifts();
+        }
+        function openSwapForm(shift) {
+            const f = document.getElementById('swapForm');
+            document.getElementById('swapFormTitle').textContent = L('Ask a colleague to take ', 'Nhờ đồng nghiệp làm thay ca ') + shiftLabel(shift);
+            document.getElementById('swapTo').innerHTML = `<option value="">${L('-- Choose a colleague --', '-- Chọn đồng nghiệp --')}</option>` +
+                colleagues.map((e) => `<option value="${__escHtml(e.ma_nv)}">${__escHtml(e.ho_ten || e.ma_nv)}</option>`).join('');
+            document.getElementById('swapNote').placeholder = L('Note (optional)', 'Ghi chú (không bắt buộc)');
+            document.getElementById('swapSend').textContent = L('Send request', 'Gửi yêu cầu');
+            document.getElementById('swapCancel').textContent = L('Cancel', 'Huỷ');
+            f.classList.remove('hidden');
+            document.getElementById('swapCancel').onclick = () => f.classList.add('hidden');
+            document.getElementById('swapSend').onclick = async () => {
+                const to = document.getElementById('swapTo').value;
+                if (!to) return showToast(L('Choose a colleague.', 'Chọn đồng nghiệp.'), 'warning');
+                f.classList.add('hidden');
+                await rosterAct('/api/roster/swap', { shift_id: shift.id, to_ma_nv: to, note: document.getElementById('swapNote').value },
+                                L('Sent — they accept first, then your manager approves.', 'Đã gửi — đồng nghiệp đồng ý rồi quản lý duyệt.'));
+            };
+        }
+        function renderRosterExtras(body) {
+            const me = currentUser.code;
+            const st = { pending_peer: L('waiting for them', 'chờ đồng nghiệp'), pending_owner: L('waiting for manager', 'chờ quản lý duyệt') };
+            const swaps = body.swaps || [];
+            document.getElementById('mySwapsBox').innerHTML = swaps.map((w) => {
+                const when = shiftLabel(w);
+                if (w.to_ma_nv === me && w.status === 'pending_peer') {
+                    return `<div class="rounded-xl px-3 py-2 text-xs bg-amber-500/10 border border-amber-400/30"><p class="text-amber-100 font-bold mb-2">${__escHtml(w.from_name)} ${L('asks you to take', 'nhờ bạn làm thay')} ${when}${w.note ? ` · <i>${__escHtml(w.note)}</i>` : ''}</p>
+                        <div class="flex gap-2"><button data-swap="${w.id}" data-acc="1" class="flex-1 py-2 rounded-lg bg-emerald-500 text-black font-black">${L('Accept', 'Đồng ý')}</button><button data-swap="${w.id}" data-acc="0" class="flex-1 py-2 rounded-lg bg-white/10 text-gray-200 font-bold">${L('Decline', 'Từ chối')}</button></div></div>`;
+                }
+                const other = w.from_ma_nv === me ? w.to_name : w.from_name;
+                return `<div class="rounded-xl px-3 py-2 text-[11px] bg-white/5 text-gray-300"><i class="fas fa-right-left text-sky-300 mr-1"></i> ${when} · ${__escHtml(other)} · <b class="text-sky-200">${st[w.status] || w.status}</b></div>`;
+            }).join('');
+            document.querySelectorAll('#mySwapsBox [data-swap]').forEach((b) => b.onclick = () => rosterAct(`/api/roster/swap/${b.dataset.swap}/respond`, { accept: b.dataset.acc === '1' },
+                b.dataset.acc === '1' ? L('Accepted — waiting for your manager to approve.', 'Đã đồng ý — chờ quản lý duyệt.') : L('Declined.', 'Đã từ chối.')));
+            const open = body.open_shifts || [];
+            document.getElementById('openShiftsBox').classList.toggle('hidden', !open.length);
+            document.getElementById('openShiftsTitle').textContent = L('Open shifts — first to claim gets it', 'Ca trống — ai nhận trước được');
+            document.getElementById('openShiftsList').innerHTML = open.map((s) => `<div class="flex justify-between items-center rounded-xl px-3 py-2 text-xs bg-amber-500/10 border border-dashed border-amber-400/40">
+                <span class="font-bold text-amber-100">${shiftLabel(s)}${s.role ? ` <span class="text-gray-400 font-medium">· ${__escHtml(s.role)}</span>` : ''}</span>
+                <button data-claim="${s.id}" class="px-3 py-1.5 rounded-lg bg-amber-400 text-black font-black text-[11px]">${L('Claim', 'Nhận ca')}</button></div>`).join('');
+            document.querySelectorAll('#openShiftsList [data-claim]').forEach((b) => b.onclick = () => { b.disabled = true; rosterAct(`/api/roster/open/${b.dataset.claim}/claim`, {}, L("It's yours — added to your shifts.", 'Đã nhận ca — đã thêm vào lịch của bạn.')); });
+            const un = body.unavailable_days || [];
+            const wd = [L('Mon', 'T2'), L('Tue', 'T3'), L('Wed', 'T4'), L('Thu', 'T5'), L('Fri', 'T6'), L('Sat', 'T7'), L('Sun', 'CN')];
+            document.getElementById('availTitle').textContent = L("Days I can't work", 'Ngày tôi không làm được') + (un.length ? ` (${un.map((i) => wd[i]).join(', ')})` : '');
+            document.getElementById('availHint').textContent = L('Your manager sees this when building the roster.', 'Quản lý thấy khi xếp lịch ca.');
+            document.getElementById('availDays').innerHTML = wd.map((d, i) => `<button data-day="${i}" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black ${un.includes(i) ? 'bg-rose-500/25 text-rose-200 border border-rose-400/40' : 'bg-white/5 text-gray-400 border border-white/10'}">${d}</button>`).join('');
+            document.querySelectorAll('#availDays [data-day]').forEach((b) => b.onclick = () => {
+                const i = +b.dataset.day; const next = un.includes(i) ? un.filter((x) => x !== i) : un.concat([i]);
+                rosterAct('/api/roster/my_availability', { unavailable_days: next }, L('Saved.', 'Đã lưu.'));
+            });
+        }
         async function loadMyShifts() {
             const card = document.getElementById('myShiftsCard');
             if (!card || !currentUser.code) return;
             try {
                 const body = await hrApi('/api/roster/my?ma_nv=' + encodeURIComponent(currentUser.code));
-                if (!body.data.length) { card.classList.add('hidden'); return; }
+                rosterState = body;
+                if (!colleagues.length) { try { colleagues = ((await hrApi('/api/hr/employees')).data || []).filter((e) => e.ma_nv !== currentUser.code); } catch (e) {} }
+                const hasRoster = body.data.length || (body.open_shifts || []).length || (body.swaps || []).length;
+                // tiệm đã dùng Lịch ca: đổi ca đi qua ca thật, ẩn hộp "nhờ làm thay" kiểu cũ
+                const legacy = document.getElementById('box_swap');
+                if (legacy && hasRoster) legacy.style.display = 'none';
+                if (!hasRoster) { card.classList.add('hidden'); return; }
                 const todayIso = new Date().toLocaleDateString('en-CA');
-                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const days = SHIFT_DAYS();
                 const esc = (v) => String(v || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-                document.getElementById('myShiftsList').innerHTML = body.data.map((s) => {
+                const pendingIds = new Set((body.swaps || []).filter((w) => w.from_ma_nv === currentUser.code).map((w) => w.shift_id));
+                document.getElementById('myShiftsList').innerHTML = body.data.length ? body.data.map((s) => {
                     const d = new Date(s.date + 'T00:00:00');
                     const today = s.date === todayIso;
-                    return `<div class="flex justify-between items-center rounded-xl px-3 py-2 text-xs ${today ? 'bg-sky-500/20 border border-sky-400/40' : 'bg-white/5'}">
-                        <span class="font-bold text-white">${today ? 'Today' : days[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}${s.role ? ` <span class="text-gray-400 font-medium">· ${esc(s.role)}</span>` : ''}</span>
-                        <span class="font-black text-sky-200 tabular-nums">${s.start}–${s.end}</span></div>`;
-                }).join('');
-                document.getElementById('myShiftsHours').textContent = body.hours + ' h · next 14 days';
+                    return `<div class="flex justify-between items-center gap-2 rounded-xl px-3 py-2 text-xs ${today ? 'bg-sky-500/20 border border-sky-400/40' : 'bg-white/5'}">
+                        <span class="font-bold text-white">${today ? L('Today', 'Hôm nay') : days[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}${s.role ? ` <span class="text-gray-400 font-medium">· ${esc(s.role)}</span>` : ''}</span>
+                        <span class="flex items-center gap-2"><span class="font-black text-sky-200 tabular-nums">${s.start}–${s.end}</span>${pendingIds.has(s.id) ? '' : `<button data-swapshift="${s.id}" class="px-2 py-1 rounded-lg bg-white/10 text-[10px] font-bold text-gray-200" aria-label="${L('Swap this shift', 'Đổi ca này')}"><i class="fas fa-right-left"></i></button>`}</span></div>`;
+                }).join('') : `<p class="text-[11px] text-gray-400">${L('No shifts in the next 14 days.', 'Chưa có ca trong 14 ngày tới.')}</p>`;
+                document.querySelectorAll('#myShiftsList [data-swapshift]').forEach((b) => b.onclick = () => openSwapForm(body.data.find((s) => s.id === +b.dataset.swapshift)));
+                document.getElementById('myShiftsHours').textContent = body.hours + L(' h · next 14 days', ' giờ · 14 ngày tới');
+                renderRosterExtras(body);
                 card.classList.remove('hidden');
                 const todays = body.data.filter((s) => s.date === todayIso);
                 const pill = document.getElementById('checkin_shift');
-                if (pill && todays.length) { pill.textContent = 'Your shift today: ' + todays.map((s) => `${s.start}–${s.end}`).join(', '); pill.classList.remove('hidden'); }
+                if (pill && todays.length) { pill.textContent = L('Your shift today: ', 'Ca hôm nay: ') + todays.map((s) => `${s.start}–${s.end}`).join(', '); pill.classList.remove('hidden'); }
             } catch (e) { card.classList.add('hidden'); }
         }
 
@@ -1333,19 +1450,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const amount = parseFloat(document.getElementById('app_expense_amount').value);
             const category = document.getElementById('app_expense_category').value;
             const description = document.getElementById('app_expense_desc').value;
-            if (!amount || amount <= 0 || !description) return showToast("Vui lòng nhập số tiền và mô tả!", 'error');
+            if (!amount || amount <= 0 || !description) return showToast(L('Please enter the amount and what it was for.', 'Vui lòng nhập số tiền và mô tả!'), 'error');
             try {
                 const payload = { ma_nv: currentUser.code, amount, category, description };
                 if (!navigator.onLine) {
                     await saveToIndexedDB('reports', { ...payload, _kind: 'expense_request' });
-                    showToast("Mất mạng! Đã lưu nháp Đơn hoàn ứng.", 'warning'); document.getElementById('app_expense_desc').value = ''; return;
+                    showToast(L("You're offline — the claim is saved and will send automatically.", 'Mất mạng — đơn đã lưu, có mạng sẽ tự gửi.'), 'warning'); document.getElementById('app_expense_desc').value = ''; return;
                 }
                 await hrApi('/api/expense_requests', { method: 'POST', body: JSON.stringify(payload) });
-                showToast("Đã gửi đơn hoàn ứng lên HR — chờ duyệt!", 'success');
+                showToast(L('Expense claim sent — waiting for approval.', 'Đã gửi đơn hoàn ứng — chờ duyệt!'), 'success');
                 document.getElementById('app_expense_amount').value = '';
                 document.getElementById('app_expense_desc').value = '';
                 loadMyExpenseRequests();
-            } catch (e) { showToast("Lỗi gửi đơn: " + e.message, 'error'); }
+            } catch (e) { showToast(L('Could not send: ', 'Lỗi gửi đơn: ') + e.message, 'error'); }
         }
 
         const SHOP_CURRENCY = {{ (tenant_currency or 'VND') | tojson }};
@@ -1396,7 +1513,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } catch (e) { /* offline — giữ số cũ */ }
         }
 
-        const EXPENSE_STATUS_LABEL = { pending: '⏳ Chờ duyệt', approved: '✅ Đã duyệt', rejected: '❌ Từ chối' };
+        const EXPENSE_STATUS_LABEL = { pending: L('⏳ Pending', '⏳ Chờ duyệt'), approved: L('✅ Approved', '✅ Đã duyệt'), rejected: L('❌ Declined', '❌ Từ chối') };
         async function loadMyExpenseRequests() {
             const box = document.getElementById('myExpenseRequestsBox');
             if (!box || !currentUser || !currentUser.code) return;
@@ -1414,31 +1531,31 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         
         async function sendKudo() {
             const receiverId = document.getElementById('app_kudo_receiver').value;
-            if(!receiverId) return showToast("Chọn người nhận Kudo đã sếp!", 'warning');
+            if(!receiverId) return showToast(L('Choose who gets the star.', 'Chọn người nhận sao nhé!'), 'warning');
             try {
                 await hrApi(`/api/hr/employees/${encodeURIComponent(receiverId)}/kudo`, {
                     method: 'POST',
                     body: JSON.stringify({ points: 1 }),
                 });
-                showToast("⭐ Bắn tim BitPaw thành công!", 'success'); triggerConfetti();
-            } catch(e) { showToast("Lỗi tặng quà!", 'error'); }
+                showToast(L('⭐ Star sent!', '⭐ Đã tặng sao!'), 'success'); triggerConfetti();
+            } catch(e) { showToast(L('Could not send the star.', 'Lỗi tặng sao!'), 'error'); }
         }
         
         async function sendSwapRequest() {
             const receiverId = document.getElementById('app_swap_receiver').value;
-            if(!receiverId) return showToast("Chọn người chốt kèo làm thay!", 'warning');
+            if(!receiverId) return showToast(L('Choose who you are asking to cover.', 'Chọn người làm thay giúp bạn.'), 'warning');
             try {
                 await hrApi('/api/shift_swaps', {
                     method: 'POST',
                     body: JSON.stringify({ ma_nv_xin: currentUser.code, ma_nv_nhan: receiverId, ngay_ca: new Date().toLocaleDateString('en-GB'), trang_thai: 'Chờ chốt' }),
                 });
-                showToast("Đã ném thiệp nhờ vả. Chờ Rep!", 'success');
-            } catch(e) { showToast("Lỗi gửi yêu cầu!", 'error'); }
+                showToast(L('Request sent — your manager will confirm.', 'Đã gửi yêu cầu — chờ quản lý xác nhận.'), 'success');
+            } catch(e) { showToast(L('Could not send the request.', 'Lỗi gửi yêu cầu!'), 'error'); }
         }
         
         async function xuLyUploadAvatar(input) {
             const file = input.files[0]; if(!file) return;
-            if (!navigator.onLine) return showToast("Wifi rớt! Không up ảnh được.", 'error');
+            if (!navigator.onLine) return showToast(L("You're offline — try the photo again when you're connected.", 'Mất mạng — chưa tải ảnh được.'), 'error');
             document.getElementById('profile_avatar_img').src = URL.createObjectURL(file);
             document.getElementById('profile_avatar_img').onerror = null;
             try {
@@ -1450,8 +1567,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 });
                 currentUser.avatar = avatarUrl; localStorage.setItem('bp_emp_avatar', avatarUrl);
                 document.getElementById('ui_avatar_img').src = avatarUrl;
-                showToast("Giao diện mới xịn xò!", 'success'); triggerConfetti();
-            } catch(e) { showToast("Lỗi up ảnh!", 'error'); }
+                showToast(L('Profile photo updated.', 'Đã cập nhật ảnh đại diện.'), 'success');
+            } catch(e) { showToast(L('Could not upload the photo.', 'Lỗi tải ảnh!'), 'error'); }
         }
 
         // Layer 2: thay kênh Supabase Realtime `public:tasks_app` bằng SSE (MongoDB Change
@@ -1462,7 +1579,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function setupJobRealtime() {
             if (jobMarketStream) return;
             jobMarketStream = new EventSource('/api/stream/job_market');
-            jobMarketStream.onmessage = () => loadJobMarket();
+            let jmTimer = null;  // gộp nhiều thay đổi liên tiếp (giao việc + nhận việc) thành 1 lần tải
+            jobMarketStream.onmessage = () => { clearTimeout(jmTimer); jmTimer = setTimeout(loadJobMarket, 300); };
         }
 
         // ========================================================
@@ -1483,7 +1601,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         await deleteFromIndexedDB('reports', localId);
                     } catch(e) {}
                 }
-                showToast("Đã đồng bộ Nháp Text lên Đám mây.", 'success');
+                showToast(L('Saved offline items are now sent.', 'Đã gửi các mục lưu ngoại tuyến.'), 'success');
                 loadMyLeaveRequests(); loadMyExpenseRequests();
             }
             const images = await getAllFromIndexedDB('images');
@@ -1500,12 +1618,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) }); await deleteFromIndexedDB('images', record.id); syncedCount++;
                     } catch(e) {}
                 }
-                if(syncedCount > 0) showToast(`Đã Sync ${syncedCount} Ảnh/File kẹt mạng lên Máy chủ!`, 'success');
+                if(syncedCount > 0) showToast(L(`${syncedCount} offline photo(s) uploaded.`, `Đã tải lên ${syncedCount} ảnh lưu ngoại tuyến.`), 'success');
             }
         }
 
         async function dangXuat() {
-            if(await showConfirm("Đăng xuất sẽ xóa các trạng thái lưu tạm. Đi tiếp chứ Sếp?")) {
+            if(await showConfirm(L('Sign out of the staff app on this phone?', 'Đăng xuất khỏi app nhân viên trên máy này?'))) {
                 if(watchId) navigator.geolocation.clearWatch(watchId);
                 localStorage.removeItem('bp_emp_name'); localStorage.removeItem('bp_emp_code'); localStorage.removeItem('bp_emp_linhvuc'); localStorage.removeItem('bp_emp_avatar'); localStorage.removeItem('bp_da_diem_danh');
                 location.reload(); 
@@ -1526,8 +1644,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('nav_' + tabName).classList.replace('text-gray-500', 'text-cyan-400');
             
             const h = document.getElementById('header_greeting');
-            if (tabName === 'home') h.innerText = "Xin chào,"; if (tabName === 'jobs') h.innerText = "Radar Vệ Tinh,";
-            if (tabName === 'apps') h.innerText = "Tiện Ích Nội Bộ,"; if (tabName === 'profile') h.innerText = "Hồ Sơ Của Bạn,";
+            const greet = { home: L('Hello,', 'Xin chào,'), jobs: L('Jobs,', 'Việc,'), apps: L('Utilities,', 'Tiện ích,'), profile: L('Your profile,', 'Hồ sơ của bạn,') };
+            if (greet[tabName]) h.innerText = greet[tabName];
         }
     </script>
 </body>

@@ -21,8 +21,9 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { gotoSell } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 
@@ -303,14 +304,11 @@ async function main() {
     // validation HTML5 gốc (không có lỗi console, ticket "thành công" build từ instructions cũ,
     // che mất việc submit thật ra đã bị chặn — đã bắt được qua ảnh chụp thật, tooltip cảnh báo
     // "Value must be ... or later" đè lên nút Confirm Booking).
-    const midnight = new Date();
-    midnight.setHours(23, 55, 0, 0);
-    const maxOffsetMin = Math.max(35, Math.min(330, Math.floor((midnight - Date.now()) / 60000)));
-    const bookingDt = new Date(Date.now() + (30 + Math.floor(Math.random() * (maxOffsetMin - 30))) * 60000);
-    bookingDateStr = todayISO(bookingDt);
-    const randomHour = String(bookingDt.getHours()).padStart(2, '0');
-    const randomMinute = String(bookingDt.getMinutes()).padStart(2, '0');
-    await guestPage.fill('#cus_datetime', `${bookingDateStr}T${randomHour}:${randomMinute}`);
+    const picked = await pickSlot(guestPage, todayISO(), { random: true });   // giờ trống thật (booking_rules)
+    if (picked && picked.slice(0, 10) !== bookingDateStr) {   // hôm nay hết giờ -> mở lịch chủ tiệm đúng ngày khách đặt
+      bookingDateStr = picked.slice(0, 10);
+      await page.goto(`${BASE}/calendar?date=${bookingDateStr}`, { waitUntil: 'networkidle' });
+    }
     await shot(guestPage, { slug: 'khach_dien_form', vi: 'Khách điền thông tin và chọn dịch vụ', group: 'Đặt lịch QR' });
 
     const [bookingResp] = await Promise.all([

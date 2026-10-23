@@ -44,6 +44,13 @@
         .chip { display: block; width: 100%; text-align: left; border-radius: 9px; padding: 6px 8px; margin-bottom: 4px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums;
                 background: rgba(56,189,248,.14); border: 1px solid rgba(56,189,248,.35); color: #bae6fd; }
         .chip.draft { background: transparent; border-style: dashed; color: #e2e8f0; }
+        .chip.open { background: rgba(251,191,36,.1); border: 1px dashed rgba(251,191,36,.55); color: #fde68a; }
+        tr.openrow td { background: rgba(251,191,36,.035); }
+        .card b small { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: 6px; }
+        .card .sub2 { display: block; font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+        .card .sub2.bad { color: var(--warn); }
+        .swap { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.05); font-size: 13.5px; }
+        .swap .acts { display: flex; gap: 6px; }
         .chip small { display: block; font-weight: 600; color: var(--muted); font-size: 10.5px; }
         .leave { font-size: 11px; font-weight: 700; color: var(--warn); background: rgba(251,191,36,.1); border-radius: 8px; padding: 5px 7px; margin-bottom: 4px; }
         .add { width: 100%; border: 1px dashed rgba(255,255,255,.12); background: transparent; color: var(--muted); border-radius: 9px; padding: 5px; cursor: pointer; font-size: 12px; opacity: .55; }
@@ -103,10 +110,18 @@
 
     <div class="cards">
         <div class="card"><small>{{ 'Tổng giờ đã xếp' if vi else 'Hours scheduled' }}</small><b id="cHours">–</b></div>
-        <div class="card"><small>{{ 'Chi phí lương ước tính' if vi else 'Estimated wages' }}</small><b id="cCost">–</b></div>
+        <div class="card"><small>{{ 'Chi phí lương ước tính' if vi else 'Estimated wages' }}</small><b id="cCost">–</b><span class="sub2" id="cPct"></span></div>
         <div class="card"><small>{{ 'Khung còn thiếu người' if vi else 'Understaffed blocks' }}</small><b id="cShort">–</b></div>
         <div class="card"><small>{{ 'Ca nháp chưa công bố' if vi else 'Unpublished drafts' }}</small><b id="cDraft">–</b></div>
     </div>
+
+    <section class="box" id="swapBox" hidden>
+        <h2><i class="fas fa-right-left" style="color: var(--accent)"></i> {{ 'Yêu cầu đổi ca chờ bạn duyệt' if vi else 'Shift swaps waiting for you' }}</h2>
+        <p class="sub">{{ 'Đồng nghiệp đã đồng ý nhận ca. Duyệt thì lịch tự đổi người và cả 2 được báo.' if vi else 'The colleague already agreed to take the shift. Approve and the roster updates itself; both people are told.' }}</p>
+        <div id="swapList"></div>
+    </section>
+
+    <div class="msg" id="otBox" hidden></div>
 
     <section class="box">
         <div class="scroll"><table class="rgrid" id="grid"></table></div>
@@ -114,7 +129,8 @@
             <span><i style="background: rgba(56,189,248,.35)"></i>{{ 'Đã công bố' if vi else 'Published' }}</span>
             <span><i style="border: 1px dashed #e2e8f0"></i>{{ 'Nháp' if vi else 'Draft' }}</span>
             <span><i style="background: rgba(251,191,36,.3)"></i>{{ 'Nghỉ phép đã duyệt' if vi else 'Approved leave' }}</span>
-            <span>{{ 'Ước tính lương = giờ × lương giờ trong hồ sơ nhân viên (chưa gồm hoa hồng, tăng ca).' if vi else 'Wage estimate = hours × hourly rate on the staff profile (excludes commission and overtime loading).' }}</span>
+            <span><i style="border: 1px dashed rgba(251,191,36,.8)"></i>{{ 'Ca trống — nhân viên tự nhận trên app' if vi else 'Open shift — staff claim it in the app' }}</span>
+            <span>{{ 'Ước tính lương = giờ × lương giờ trong hồ sơ + phụ trội tăng ca 1,5× (quá 38 giờ/tuần ở Úc, 40 giờ ở Mỹ). Chưa gồm hoa hồng.' if vi else 'Wage estimate = hours × hourly rate on the staff profile + 1.5× overtime loading (over 38 h/week in Australia, 40 h in the US). Excludes commission.' }}</span>
         </div>
     </section>
 
@@ -177,7 +193,12 @@
         pubConfirm: 'Công bố mọi ca nháp của tuần này và gửi lịch cho nhân viên?', noDraft: 'Không có ca nháp nào để công bố.',
         replace: 'Xoá các ca tự xếp (nháp) cũ của tuần này rồi xếp lại?', none: 'Chưa có ca đã công bố nào tới hôm nay.',
         st: { on_time: 'Đúng giờ', late: 'Trễ', no_show: 'Vắng', upcoming: 'Sắp tới' }, cols: ['Nhân viên','Ngày','Ca','Check-in','Trạng thái'],
-        sum: (x) => `${x.ho_ten}: ${x.shifts} ca · trễ ${x.late} lần (${x.late_min} phút) · vắng ${x.no_show}`, noStaff: 'Chưa có nhân viên. Thêm ở trang Nhân sự.'
+        sum: (x) => `${x.ho_ten}: ${x.shifts} ca · trễ ${x.late} lần (${x.late_min} phút) · vắng ${x.no_show}`, noStaff: 'Chưa có nhân viên. Thêm ở trang Nhân sự.',
+        openRow: 'Ca trống', openOpt: '— Ca trống (nhân viên tự nhận) —', addOpen: 'Thêm ca trống', open: 'trống',
+        pct: (p, s) => `${p}% doanh thu 7 ngày qua (${s})`, noSales: 'Chưa có doanh thu 7 ngày qua để so',
+        ot: (lim) => `Tăng ca (quá ${lim} giờ/tuần, tính 1,5×):`, otRow: (o) => `${o.ho_ten}: ${o.hours} giờ (+${o.over} giờ) · phụ trội`,
+        swapLine: (w) => `<b>${w.from}</b> → <b>${w.to}</b> · ${w.when}`, approve: 'Duyệt', reject: 'Từ chối',
+        swapOk: 'Đã duyệt — lịch đã đổi người và đã báo cho cả 2.', swapNo: 'Đã từ chối yêu cầu đổi ca.'
     } : {
         days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], week: 'Week of', add: 'Add shift', edit: 'Edit shift', leave: 'On leave', h: 'h',
         need: 'need', short: 'short', full: 'covered', role: 'Role', count: 'People', del: 'Remove', save: 'Save', saved: 'Saved.',
@@ -188,7 +209,12 @@
         pubConfirm: 'Publish all draft shifts for this week and send each person their roster?', noDraft: 'There are no draft shifts to publish.',
         replace: 'Remove this week\'s earlier auto-filled drafts and fill again?', none: 'No published shifts up to today yet.',
         st: { on_time: 'On time', late: 'Late', no_show: 'No-show', upcoming: 'Upcoming' }, cols: ['Staff','Date','Shift','Check-in','Status'],
-        sum: (x) => `${x.ho_ten}: ${x.shifts} shifts · late ${x.late}× (${x.late_min} min) · no-shows ${x.no_show}`, noStaff: 'No staff yet. Add them on the HR page.'
+        sum: (x) => `${x.ho_ten}: ${x.shifts} shifts · late ${x.late}× (${x.late_min} min) · no-shows ${x.no_show}`, noStaff: 'No staff yet. Add them on the HR page.',
+        openRow: 'Open shifts', openOpt: '— Open shift (staff claim it) —', addOpen: 'Add open shift', open: 'open',
+        pct: (p, s) => `${p}% of the last 7 days' sales (${s})`, noSales: 'No sales in the last 7 days to compare',
+        ot: (lim) => `Overtime (over ${lim} h/week, paid at 1.5×):`, otRow: (o) => `${o.ho_ten}: ${o.hours} h (+${o.over} h) · loading`,
+        swapLine: (w) => `<b>${w.from}</b> → <b>${w.to}</b> · ${w.when}`, approve: 'Approve', reject: 'Decline',
+        swapOk: 'Approved — the roster now shows the new person and both were notified.', swapNo: 'Swap declined.'
     };
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -214,9 +240,14 @@
     }
     function render() {
         const S = state;
-        const total = S.shifts.reduce((a, s) => a + hours(s.start, s.end), 0);
+        const total = S.shifts.filter((s) => s.ma_nv).reduce((a, s) => a + hours(s.start, s.end), 0);
         $('cHours').textContent = (Math.round(total * 10) / 10) + ' ' + T.h;
-        $('cCost').textContent = money(S.labor_cost);
+        $('cCost').textContent = money(S.labor_cost_with_ot);
+        $('cPct').textContent = S.labor_pct != null ? T.pct(S.labor_pct, money(S.sales_last_7_days)) : T.noSales;
+        $('cPct').className = 'sub2' + (S.labor_pct != null && S.labor_pct > 35 ? ' bad' : '');
+        $('otBox').hidden = !S.overtime.length;
+        if (S.overtime.length) $('otBox').innerHTML = `<b style="color:var(--warn)">${T.ot(S.overtime_limit)}</b><br>` + S.overtime.map((o) => `${esc(T.otRow(o))} ${money(o.extra_cost)}`).join('<br>');
+        renderSwaps();
         $('cShort').textContent = S.coverage.filter((c) => c.short > 0).length;
         $('cDraft').textContent = S.drafts;
         $('pubLbl').textContent = (VI ? 'Công bố' : 'Publish') + (S.drafts ? ` (${S.drafts})` : '');
@@ -225,9 +256,17 @@
             let h = '<thead><tr><th></th>' + S.days.map((d) => {
                 const cov = S.coverage.filter((c) => c.date === d);
                 const short = cov.reduce((a, c) => a + c.short, 0);
-                const tag = cov.length ? `<span class="cov ${short ? 'short' : 'ok'}">${short ? `${T.short} ${short}` : T.full}</span>` : '';
+                const posted = cov.reduce((a, c) => a + (c.open || 0), 0);
+                const tag = cov.length ? `<span class="cov ${short ? 'short' : 'ok'}">${short ? `${T.short} ${short}` : T.full}${posted ? ` · ${posted} ${T.open}` : ''}</span>` : '';
                 return `<th>${dlabel(d)}${tag}</th>`;
             }).join('') + '</tr></thead><tbody>';
+            h += `<tr class="openrow"><td class="who"><b style="color:#fde68a">${T.openRow}</b><span>${S.open_shifts.length}</span></td>`;
+            for (const d of S.days) {
+                h += '<td>';
+                for (const s of S.open_shifts.filter((x) => x.date === d)) h += `<button class="chip open" data-id="${s.id}">${s.start}–${s.end}${s.role ? `<small>${esc(s.role)}</small>` : ''}</button>`;
+                h += `<button class="add" data-emp="__open__" data-date="${d}" aria-label="${T.addOpen} ${dlabel(d)}">+</button></td>`;
+            }
+            h += '</tr>';
             for (const e of S.staff) {
                 const over = e.hours > e.max_hours;
                 h += `<tr><td class="who"><b>${esc(e.ho_ten || e.ma_nv)}</b><span class="${over ? 'over' : ''}">${e.hours} / ${e.max_hours} ${T.h}</span></td>`;
@@ -283,6 +322,17 @@
             };
         });
     }
+    function renderSwaps() {
+        const list = state.swaps_pending || [];
+        $('swapBox').hidden = !list.length;
+        $('swapList').innerHTML = list.map((w) => `<div class="swap" data-id="${w.id}"><span>${T.swapLine({ from: esc(w.from_name), to: esc(w.to_name), when: `${dlabel(w.date)} ${w.start}–${w.end}` })}${w.note ? ` · <i>${esc(w.note)}</i>` : ''}</span>
+            <span class="acts"><button class="btn pub sm" data-ok="1">${T.approve}</button><button class="btn ghost sm" data-ok="0">${T.reject}</button></span></div>`).join('');
+        $('swapList').querySelectorAll('button').forEach((b) => b.onclick = () => busy(b, async () => {
+            const id = b.closest('.swap').dataset.id, ok = b.dataset.ok === '1';
+            await api(`/api/roster/swap/${id}/decide`, 'POST', { approve: ok });
+            say(ok ? T.swapOk : T.swapNo, 'ok'); await load(week);
+        }));
+    }
     async function loadAttendance() {
         try {
             const a = await api('/api/roster/attendance?week=' + week);
@@ -296,8 +346,8 @@
     function openDlg(shift, emp, date) {
         editing = shift || null;
         $('dlgTitle').textContent = shift ? T.edit : T.add;
-        $('fEmp').innerHTML = state.staff.map((e) => `<option value="${esc(e.ma_nv)}">${esc(e.ho_ten || e.ma_nv)}</option>`).join('');
-        $('fEmp').value = shift ? shift.ma_nv : emp; $('fEmp').disabled = !!shift;
+        $('fEmp').innerHTML = `<option value="__open__">${T.openOpt}</option>` + state.staff.map((e) => `<option value="${esc(e.ma_nv)}">${esc(e.ho_ten || e.ma_nv)}</option>`).join('');
+        $('fEmp').value = shift ? (shift.ma_nv || '__open__') : emp; $('fEmp').disabled = !!shift;
         const need = state.needs.find((n) => n.weekday === (new Date((date || shift.date) + 'T00:00:00').getDay() + 6) % 7);
         $('fDate').value = shift ? shift.date : date;
         $('fStart').value = shift ? shift.start : (need ? need.start : '09:00');
@@ -316,6 +366,7 @@
     $('dlgForm').addEventListener('submit', async (ev) => {
         ev.preventDefault();
         const body = { ma_nv: $('fEmp').value, date: $('fDate').value, start: $('fStart').value, end: $('fEnd').value, role: $('fRole').value, note: $('fNote').value };
+        if (body.ma_nv === '__open__') { body.open = true; delete body.ma_nv; }
         try {
             if (editing) await api('/api/roster/shifts/' + editing.id, 'PATCH', body);
             else await api('/api/roster/shifts', 'POST', body);

@@ -99,13 +99,13 @@
 
         const checkinInput = document.querySelector('input[name="checkin_date"]');
         const checkoutInput = document.querySelector('input[name="checkout_date"]');
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA');
         checkinInput.min = today;
         checkinInput.value = today;
         function syncCheckoutMin() {
             const nextDay = new Date(checkinInput.value || today);
             nextDay.setDate(nextDay.getDate() + 1);
-            const nextDayStr = nextDay.toISOString().split('T')[0];
+            const nextDayStr = nextDay.toLocaleDateString('en-CA');
             checkoutInput.min = nextDayStr;
             if (!checkoutInput.value || checkoutInput.value <= checkinInput.value) checkoutInput.value = nextDayStr;
         }

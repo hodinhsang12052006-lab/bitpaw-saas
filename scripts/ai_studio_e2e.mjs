@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const steps = [];
 const rec = (n, ok, note = '') => { steps.push({ n, ok }); console.log(`${ok ? '✅' : '❌'} ${n}${note ? ' — ' + note : ''}`); };

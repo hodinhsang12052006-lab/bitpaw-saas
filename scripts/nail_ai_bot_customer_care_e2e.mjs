@@ -25,7 +25,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const BIZ_ID = '000b2c16-ab4e-42bd-944a-29c925cad09b';
 
 const SCREEN_DIR = path.resolve('audit-results/screenshots/nail_ai_bot_customer_care_e2e');

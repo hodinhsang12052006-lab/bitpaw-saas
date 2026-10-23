@@ -236,7 +236,9 @@ class AINurturingEngine:
             "You write short, warm customer-retention text messages for a local business. "
             + ("Write in natural US/Australian English. " if en else "Write in natural Vietnamese. ")
             + "Use these placeholders exactly where they fit: {first_name}, {last_service}, {days_since_visit}. "
-            "Each message under 280 characters, no prices or offers that were not given, no emoji spam (max 1). "
+            "Each message under 190 characters (a booking link is added after it; long texts cost extra SMS segments), "
+            "no prices or offers that were not given, no emoji spam (max 1). Only use {days_since_visit} to talk about time — "
+            "never count time between messages. Don't claim things you can't know (a favourite seat, a saved spot, a new product). "
             'Return STRICT JSON only: {"3days": "...", "7days": "...", "14days": "..."}'
         )
         user_prompt = (f"Business: {business_name or 'this business'} ({industry or 'local'} business). Tone: {tone or 'friendly'}. "
@@ -253,12 +255,29 @@ class AINurturingEngine:
         return fallback
 
     @staticmethod
-    def fill_template(text, first_name, last_service, days_since_visit, lang='en'):
+    def fill_template(text, first_name, last_service, days_since_visit, lang='en', booking_link=None):
         en = lang == 'en'
-        out = (text.replace('{first_name}', first_name or ('there' if en else 'bạn'))
-                   .replace('{last_service}', last_service or ('visit' if en else 'dịch vụ'))
-                   .replace('{days_since_visit}', str(days_since_visit) if days_since_visit else ('a few' if en else 'vài')))
-        return re.sub(r'\s{2,}', ' ', out).strip()
+        # số ngày luôn kèm đơn vị (AI hay viết "đã {days_since_visit} rồi" -> "đã 45 rồi")
+        unit = 'days' if en else 'ngày'
+        days_txt = f"{days_since_visit if days_since_visit else ('a few' if en else 'vài')} {unit}"
+        out = re.sub(r'\{days_since_visit\}(?:\s*(?:ngày|days?)(?![A-Za-zÀ-ỹ]))?', lambda m: days_txt, text)
+        out = (out.replace('{first_name}', first_name or ('there' if en else 'bạn'))
+                  .replace('{last_service}', last_service or ('visit' if en else 'dịch vụ')))
+        out = re.sub(r'\s{2,}', ' ', out).strip()
+        # Link đặt lịch online thật của tiệm ở cuối tin (như tin "rebook" của Fresha/Square) — khách bấm là đặt được ngay
+        if booking_link and booking_link not in out:
+            out += (f" Book: {booking_link}" if en else f" Đặt lịch: {booking_link}")
+        return out
+
+    @staticmethod
+    def booking_link(business_id, industry, base_url=None):
+        """Trang đặt lịch công khai của tiệm (chỉ ngành có đặt lịch online: Nails, Spa)."""
+        base = (base_url or os.environ.get('PUBLIC_BASE_URL') or 'https://www.bitpawsoftware.com').rstrip('/')
+        if industry in ('nail', 'nails'):
+            return f"{base}/booking/nail/qr/{business_id}"
+        if industry == 'spa':
+            return f"{base}/booking/qr/{business_id}"
+        return None
 
     @staticmethod
     def real_recommendations(business_id, industry, lang='en', currency='USD'):

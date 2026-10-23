@@ -16,8 +16,9 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 
@@ -126,17 +127,9 @@ async function main() {
     const staffVisible = await bookingPage.locator('#staffFieldWrap').isVisible().catch(() => false);
     if (staffVisible) await bookingPage.selectOption('#cus_staff', String(ava.id));
 
-    // Giờ hẹn: HÔM NAY, +1 giờ tính từ hiện tại (không được ở quá khứ — JS chặn) CỘNG random
-    // 1-58 phút — book_appointment() chặn double-booking đúng thợ/đúng phút (đã thấy thật khi
-    // chạy lại script trong cùng giờ), nên mỗi lần chạy phải rơi vào 1 slot khác nhau.
-    const randomOffsetMin = 1 + Math.floor(Math.random() * 58);
-    const now = new Date(Date.now() + 60 * 60 * 1000 + randomOffsetMin * 60 * 1000);
-    // Lấy NGUYÊN cả ngày/giờ/phút từ CÙNG 1 object `now` (địa phương) — không gọi todayISO()
-    // riêng ở đây nữa, vì nó phản ánh "hôm nay" tại THỜI ĐIỂM GỌI, có thể khác ngày với `now`
-    // nếu offset đẩy qua nửa đêm địa phương (chính là bug gốc đã vá phía trên).
-    bookingDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const dtLocal = `${bookingDateStr}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    await bookingPage.fill('#cus_datetime', dtLocal);
+    // Giờ trống THẬT từ booking_rules (giờ mở cửa/sức chứa) — ngẫu nhiên trong các giờ còn trống, từ hôm nay trở đi
+    const picked = await pickSlot(bookingPage, isoDate(new Date()), { random: true });
+    bookingDateStr = picked ? picked.slice(0, 10) : bookingDateStr;
     await bookingPage.fill('#cus_note', 'E2E business-cycle test.');
 
     const [apptResp] = await Promise.all([

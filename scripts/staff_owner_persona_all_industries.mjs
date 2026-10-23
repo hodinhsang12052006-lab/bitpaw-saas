@@ -15,7 +15,7 @@ import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const T = {
   nail: ['demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!', 'Nails', '/chamcong/nail'],
   fnb: ['demo.fnb.343602@bitpawdemo.com', 'DemoBitPaw2026!', 'F&B', '/chamcong/fnb'],

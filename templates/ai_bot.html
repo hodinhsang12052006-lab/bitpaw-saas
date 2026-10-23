@@ -739,7 +739,7 @@
             { id: 'mock-3', full_name: 'Chị Thảo', last_message: 'Bên em combo tay chân nước giá nhiêu vậy?', last_message_time: new Date().toISOString(), status: 'NEEDS_CARE', potential_score: 45 },
             { id: 'mock-4', full_name: 'Jessica Nguyen', last_message: 'First time here, is gel-x good for short nails?', last_message_time: new Date().toISOString(), status: 'NEW', potential_score: 70 },
             { id: 'mock-5', full_name: 'Anh Minh (VIP)', last_message: 'Cho anh đặt lịch làm móng chân + tay như lần trước nha', last_message_time: new Date().toISOString(), status: 'VIP', potential_score: 90 },
-            { id: 'mock-6', full_name: 'Sarah Lee', last_message: 'How much for lash refill and do I need to book?', last_message_time: new Date().toISOString(), status: 'HOT', potential_score: 88 }
+            { id: 'mock-6', full_name: 'Sarah Lee', last_message: 'My gel lifted after 3 days, I want to talk to the manager', last_message_time: new Date().toISOString(), status: 'HOT', potential_score: 88, needs_human: true, handoff_urgent: true, handoff_reason: 'Gel lifted after 3 days — wants the manager' }
         ];
 
         const mockMessages = {
@@ -753,15 +753,15 @@
             ],
             'mock-2': [
                 { sender_type: 'customer', content: 'Hi, do you guys do eyelash extensions too? Looking to book for this weekend', created_at: '2026-07-28T11:03:00+11:00' },
-                { sender_type: 'ai', content: 'Hi Emily! 😊 Yes, we do Classic Lash Extensions ($65) and Volume Lash ($85). Saturday we have 11am and 2pm open — which works for you?', created_at: '2026-07-28T11:03:22+11:00' },
-                { sender_type: 'customer', content: '2pm volume lash please', created_at: '2026-07-28T11:04:10+11:00' },
-                { sender_type: 'ai', content: "Perfect, you're booked: Saturday 2:00 PM — Volume Lash Extensions ✅ See you then!", created_at: '2026-07-28T11:04:28+11:00' }
+                { sender_type: 'ai', content: "Hi Emily! We don't do lash extensions, sorry — we're nails and spa pedicures. If you'd like something for the weekend, Gel Manicure & Cuticle Care is $45 (60 min). Want me to check Saturday?", created_at: '2026-07-28T11:03:22+11:00' },
+                { sender_type: 'customer', content: 'oh ok, sat 2pm gel mani then', created_at: '2026-07-28T11:04:10+11:00' },
+                { sender_type: 'ai', content: "You're booked, Emily — Gel Manicure & Cuticle Care, Saturday 2:00 PM, $45. Booking #1042. Message here if you need to change it.", created_at: '2026-07-28T11:04:28+11:00' }
             ],
             'mock-3': [
                 { sender_type: 'customer', content: 'Bên em combo tay chân nước giá nhiêu vậy?', created_at: '2026-07-28T13:20:00+11:00' },
                 { sender_type: 'ai', content: 'Dạ Combo Tay Chân Nước bên em $65, đã gồm ngâm nước ấm + tẩy da chết + sơn dưỡng ạ. Chị đặt lịch hôm nào để em giữ chỗ nha?', created_at: '2026-07-28T13:20:15+11:00' },
                 { sender_type: 'customer', content: 'Để chị coi lịch rồi nhắn lại', created_at: '2026-07-28T13:21:00+11:00' },
-                { sender_type: 'ai', content: 'Dạ không sao ạ, em giữ ưu đãi 10% đặt lịch online cho chị trong 24h nha, chị nhắn em bất cứ lúc nào ạ 💕', created_at: '2026-07-28T13:21:15+11:00' }
+                { sender_type: 'ai', content: 'Dạ không sao ạ, khi nào chị chọn được ngày cứ nhắn em, em kiểm tra giờ trống và đặt ngay cho chị nha 💕', created_at: '2026-07-28T13:21:15+11:00' }
             ],
             'mock-4': [
                 { sender_type: 'customer', content: 'First time here, is gel-x good for short nails?', created_at: '2026-07-28T15:02:00+11:00' },
@@ -776,10 +776,9 @@
                 { sender_type: 'ai', content: 'Dạ đã đặt: Ngày mai 3:00 PM — Classic Mani & Pedi Combo ✅ Cảm ơn anh đã tin tưởng tiệm nha!', created_at: '2026-07-28T16:41:20+11:00' }
             ],
             'mock-6': [
-                { sender_type: 'customer', content: 'How much for lash refill and do I need to book?', created_at: '2026-07-28T18:15:00+11:00' },
-                { sender_type: 'ai', content: 'Lash Refill (2-3 weeks) is $45, and yes booking ahead guarantees your spot 💕 We have Friday 1pm or Saturday 10am open — which suits you?', created_at: '2026-07-28T18:15:20+11:00' },
-                { sender_type: 'customer', content: 'Friday 1pm works', created_at: '2026-07-28T18:16:05+11:00' },
-                { sender_type: 'ai', content: 'All set! Friday 1:00 PM — Lash Refill ✅ See you soon, Sarah!', created_at: '2026-07-28T18:16:22+11:00' }
+                { sender_type: 'customer', content: 'My gel lifted after 3 days, I want to talk to the manager', created_at: '2026-07-28T18:15:00+11:00' },
+                { sender_type: 'ai', content: "I'm really sorry, Sarah — gel lifting after only 3 days isn't what you should get. I've passed this to the manager; we're open until 7pm and they'll reply right here.", created_at: '2026-07-28T18:15:20+11:00' },
+                { sender_type: 'system', content: '🔴 Khách cần nhân viên: Gel lifted after 3 days — wants the manager', created_at: '2026-07-28T18:15:21+11:00' }
             ]
         };
 
@@ -1008,7 +1007,9 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
                             <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${escapeHtml(cus.full_name || 'Customer')}</p>
+                            ${cus.needs_human ? `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${cus.handoff_urgent ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}" title="${escapeHtml(cus.handoff_reason || '')}">${cus.handoff_urgent ? 'Urgent' : 'Needs reply'}</span>` : ''}
                         </div>
+                        ${cus.needs_human && cus.handoff_reason ? `<p class="text-[11px] text-amber-200/80 truncate font-semibold">${escapeHtml(cus.handoff_reason)}</p>` : ''}
                         <p class="text-[11px] text-gray-500 truncate font-medium">${escapeHtml(cus.last_message || 'No messages yet')}</p>
                     </div>
                 `;
@@ -1058,10 +1059,11 @@
                 chatBox.innerHTML = '';
 
                 if (data.length === 0) {
-                    appendAIMessageStatic("System connected. Waiting for a customer message...");
+                    appendSystemNote(cpLang() === 'vi' ? 'Chưa có tin nhắn nào trong cuộc trò chuyện này.' : 'No messages in this conversation yet.');
                 } else {
                     data.forEach(msg => {
-                        if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type);
+                        if (msg.sender_type === 'system') appendSystemNote(msg.content, msg.created_at);
+                        else if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type);
                         else appendAIMessageStatic(msg.content, msg.created_at);
                     });
                 }
@@ -1087,6 +1089,15 @@
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
+        }
+
+        // Dòng thông báo hệ thống (AI chuyển nhân viên, khách tự huỷ/dời lịch qua chat) — không lẫn với tin của khách
+        function appendSystemNote(text, time = null) {
+            const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
+            const urgent = /^🔴/.test(String(text || ''));
+            chatBox.insertAdjacentHTML('beforeend', `
+                <div class="flex justify-center my-3"><div class="max-w-[85%] text-center text-[12px] font-semibold px-3 py-2 rounded-xl border ${urgent ? 'bg-rose-500/10 border-rose-400/40 text-rose-200' : 'bg-amber-500/10 border-amber-400/30 text-amber-200'}">
+                    <i class="fas ${urgent ? 'fa-triangle-exclamation' : 'fa-circle-info'} mr-1"></i>${richText(text)}${timeStr ? ` <span class="opacity-60 ml-1">${timeStr}</span>` : ''}</div></div>`);
         }
 
         function appendAIMessageStatic(text, time = null) {
@@ -1188,11 +1199,22 @@
         function startBotRealtime() {
             try {
                 const stream = new EventSource('/api/stream/bot_chat');
-                stream.onmessage = () => {
-                    fetchCustomers();
-                    if (currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-') && !String(currentCustomerId).startsWith('live-demo-')) {
-                        loadMessages(currentCustomerId, { silent: true }).then(() => requestReplyDraft(false));
-                    }
+                // 1 tin của khách = 2 tín hiệu (bảng khách + bảng tin) -> gộp trong 250 ms; chỉ tải lại hội thoại đang mở
+                // khi tín hiệu thuộc đúng khách đó (server kèm customer_id — app.py::_sse_change_signal payload_colls).
+                let pend = null, touchedOpen = false;
+                stream.onmessage = (ev) => {
+                    let d = {};
+                    try { d = JSON.parse(ev.data || '{}'); } catch (e) { d = {}; }
+                    const cid = d.doc && (d.doc.customer_id || d.doc.id);
+                    if (!cid || cid === currentCustomerId) touchedOpen = true;
+                    clearTimeout(pend);
+                    pend = setTimeout(() => {
+                        fetchCustomers();
+                        if (touchedOpen && currentCustomerId && !isMockMode && !String(currentCustomerId).startsWith('mock-') && !String(currentCustomerId).startsWith('live-demo-')) {
+                            loadMessages(currentCustomerId, { silent: true }).then(() => requestReplyDraft(false));
+                        }
+                        touchedOpen = false;
+                    }, 250);
                 };
                 stream.onerror = () => { /* EventSource tự động reconnect */ };
             } catch (ex) {

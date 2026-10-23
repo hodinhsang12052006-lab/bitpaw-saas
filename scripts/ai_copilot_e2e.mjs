@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 const OUT = path.resolve('audit-results/screenshots/ai_copilot_e2e');
@@ -100,7 +100,7 @@ try {
   const aiBubblesAfter = await cust.locator('.chat-ai').count();
   const handoffText = await cust.locator('.chat-ai').last().innerText();
   rec('AI tắt: khách nhắn 2 tin -> AI không chen vào, chỉ báo 1 lần "nhân viên sẽ trả lời"',
-    aiBubblesAfter - aiBubblesBefore === 1 && /staff|nhân viên/i.test(handoffText), `+${aiBubblesAfter - aiBubblesBefore} bong bóng: "${handoffText.slice(0, 90)}"`);
+    aiBubblesAfter - aiBubblesBefore === 1 && /staff|team|nhân viên/i.test(handoffText), `+${aiBubblesAfter - aiBubblesBefore} bong bóng: "${handoffText.slice(0, 90)}"`);
   await owner.waitForFunction((t) => document.getElementById('chatBox')?.innerText.includes(t), 'Is Ava available tomorrow?', { timeout: 10000 }).catch(() => {});
   rec('Chủ tiệm thấy tin khách gửi khi AI tắt', (await owner.locator('#chatBox').innerText()).includes('Is Ava available tomorrow?'));
 
@@ -137,6 +137,9 @@ try {
 } finally {
   rec('Không lỗi JS', errors.length === 0, errors.slice(0, 3).join(' | '));
   if (bid) console.log('Dọn:', JSON.stringify(db('cleanup', bid, 'NO_TOKEN_' + Date.now(), PHONE)));
+  // thư báo chủ tiệm "khách đang chờ" do bước tắt AI tạo ra (khách thử của bài này)
+  if (bid) execFileSync('python', ['-c', `from mongo_client import db; print(db.outbound_messages.delete_many({'business_id': '${bid}', 'kind': 'staff_alert', 'body': {'$regex': '${PHONE}'}}).deleted_count)`],
+                        { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
   await browser.close();
   const fail = steps.filter((s) => !s.ok).length;
   console.log(`\nTổng: ${steps.length - fail} PASS · ${fail} FAIL`);

@@ -3,7 +3,7 @@
 import { chromium, devices } from 'playwright';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const steps = [];
 const rec = (n, ok, note = '') => { steps.push({ n, ok }); console.log(`${ok ? '✅' : '❌'} ${n}${note ? ' — ' + note : ''}`); };
@@ -90,18 +90,36 @@ r = await api('/api/payroll/pay_summaries', 'POST', { month: 13, year: 2026, row
 rec('Kỳ lương sai -> từ chối', r.status === 400);
 
 // ---- tuần hiện tại: app nhân viên + đối chiếu đi trễ/vắng
-const now = new Date(); const pad = (n) => String(n).padStart(2, '0');
+// Giờ THEO TIỆM (máy chủ tính trễ/vắng theo giờ tiệm — Golden Lotus ở Sydney, máy test ở múi khác)
+const [shopNowIso, shopTz] = py(`
+import booking_rules
+from mongo_client import db
+n = booking_rules.local_now(${B})
+tz = (db.messaging_settings.find_one({'business_id': ${B}}, {'timezone': 1}) or {}).get('timezone') or booking_rules.COUNTRY_TZ.get(((db.businesses.find_one({'id': ${B}}, {'country': 1}) or {}).get('country') or '').upper()) or ''
+print(n.strftime('%Y-%m-%dT%H:%M:%S') + '|' + tz)`).split('|');
+const now = new Date(shopNowIso); const pad = (n) => String(n).padStart(2, '0');
 const hm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-const st = new Date(now.getTime() - 60 * 60000), en = new Date(now.getTime() + 120 * 60000), late = new Date(st.getTime() + 12 * 60000);
-await api('/api/roster/shifts', 'POST', { ma_nv: E[0], date: today, start: hm(st), end: hm(en), role: 'Nails' });
-await api('/api/roster/shifts', 'POST', { ma_nv: E[1], date: today, start: hm(st), end: hm(en) });
+// Chạy trong 70 phút sau nửa đêm: "vào ca 1 giờ trước" sẽ thành 23:xx TỐI NAY (ca chưa tới) -> đối chiếu trễ/vắng
+// dùng ca tối HÔM QUA, còn app nhân viên dùng 1 ca sắp tới của hôm nay.
+const nearMidnight = now.getHours() * 60 + now.getMinutes() < 70;
+const yd = new Date(now.getTime() - 86400000);
+const attDay = nearMidnight ? `${yd.getFullYear()}-${pad(yd.getMonth() + 1)}-${pad(yd.getDate())}` : today;
+const attDate = nearMidnight ? yd : now;
+const st = nearMidnight ? new Date(`${attDay}T20:00:00`) : new Date(now.getTime() - 60 * 60000);
+const en = nearMidnight ? new Date(`${attDay}T23:00:00`) : new Date(now.getTime() + 120 * 60000);
+const late = new Date(st.getTime() + 12 * 60000);
+const appSt = nearMidnight ? new Date(now.getTime() + 30 * 60000) : st, appEn = nearMidnight ? new Date(now.getTime() + 150 * 60000) : en;
+await api('/api/roster/shifts', 'POST', { ma_nv: E[0], date: attDay, start: hm(st), end: hm(en), role: 'Nails' });
+await api('/api/roster/shifts', 'POST', { ma_nv: E[1], date: attDay, start: hm(st), end: hm(en) });
+if (nearMidnight) await api('/api/roster/shifts', 'POST', { ma_nv: E[0], date: today, start: hm(appSt), end: hm(appEn), role: 'Nails' });
 r = await api('/api/roster/publish', 'POST', { week: today });
+if (nearMidnight) await api('/api/roster/publish', 'POST', { week: attDay });
 py(`
 from mongo_client import db, next_mongo_id
-db.chamcong.insert_one({'id': next_mongo_id('chamcong'), 'business_id': ${B}, 'ma_nv': '${E[0]}', 'ngay_cham': '${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}', 'gio_den': '${hm(late)}', 'trang_thai': 'Có mặt', 'nganh_nghe': 'Nails'})
+db.chamcong.insert_one({'id': next_mongo_id('chamcong'), 'business_id': ${B}, 'ma_nv': '${E[0]}', 'ngay_cham': '${pad(attDate.getDate())}/${pad(attDate.getMonth() + 1)}/${attDate.getFullYear()}', 'gio_den': '${hm(late)}', 'trang_thai': 'Có mặt', 'nganh_nghe': 'Nails'})
 print('ok')`);
-const att = await api('/api/roster/attendance?week=' + today);
+const att = await api('/api/roster/attendance?week=' + attDay);
 const a1 = att.rows.find((x) => x.ma_nv === E[0]), a2 = att.rows.find((x) => x.ma_nv === E[1]);
 rec('Đối chiếu chấm công: check-in trễ 12 phút -> "trễ 12"', a1 && a1.status === 'late' && a1.late_min === 12, JSON.stringify(a1));
 rec('Không check-in sau giờ vào ca 30 phút -> "vắng"', a2 && a2.status === 'no_show');
@@ -111,9 +129,13 @@ rec('API app nhân viên: chỉ thấy ca đã công bố của mình', my.succe
 // ---- giao diện quản lý
 await p.goto(BASE + '/roster', { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
 const grid = await p.textContent('#grid');
-rec('Trang /roster: lưới tuần có nhân viên + ca hôm nay', grid.includes('Roster Tester 1') && grid.includes(hm(st)));
+rec('Trang /roster: lưới tuần có nhân viên + ca hôm nay', grid.includes('Roster Tester 1') && grid.includes(hm(appSt)));
+const weekOf = (d) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x.toDateString(); };
+const otherWeek = weekOf(attDay) !== weekOf(today);
+if (otherWeek) { await Promise.all([p.waitForResponse((x) => x.url().includes('/api/roster/attendance')), p.click('#prevW')]); await p.waitForTimeout(300); }
 const attTxt = await p.textContent('#attBox');
 rec('Trang /roster: bảng đi trễ/vắng hiển thị', /Late|Trễ/.test(attTxt) && /No-show|Vắng/.test(attTxt));
+if (otherWeek) { await Promise.all([p.waitForResponse((x) => x.url().includes('/api/roster?')), p.click('#nextW')]); await p.waitForTimeout(300); }
 await p.click(`.add[data-emp="${E[3]}"][data-date="${today}"]`);
 await p.fill('#fStart', '06:00'); await p.fill('#fEnd', '07:00');
 await Promise.all([p.waitForResponse((x) => x.url().includes('/api/roster?')), p.click('#dlgSave')]); await p.waitForTimeout(300);
@@ -126,7 +148,7 @@ rec('Chuyển tuần hoạt động', !lbl.includes('…'), lbl);
 // app nhân viên trên iPhone
 {
   const { defaultBrowserType, ...iphone } = devices['iPhone 13'];
-  const mctx = await b.newContext({ ...iphone, storageState: await ctx.storageState() });
+  const mctx = await b.newContext({ ...iphone, ...(shopTz ? { timezoneId: shopTz } : {}), storageState: await ctx.storageState() });   // điện thoại thợ ở đúng múi giờ tiệm
   const m = await mctx.newPage(); const merr = []; m.on('pageerror', (e) => merr.push(e.message));
   await m.goto(BASE + '/app_nhanvien', { waitUntil: 'networkidle' });
   await m.evaluate(() => { ['bp_emp_name', 'bp_emp_code', 'bp_emp_linhvuc', 'bp_emp_avatar', 'bp_da_diem_danh'].forEach((k) => localStorage.removeItem(k)); });
@@ -134,9 +156,9 @@ rec('Chuyển tuần hoạt động', !lbl.includes('…'), lbl);
   await m.fill('#login_manv', E[0].toLowerCase()); await m.click('#btn_login_submit');
   await m.waitForSelector('#checkin_shift:not(.hidden)', { timeout: 8000 }).catch(() => {});
   const pill = await m.textContent('#checkin_shift').catch(() => '');
-  rec('App nhân viên (iPhone): màn check-in báo "ca hôm nay"', pill.includes(hm(st)), pill);
+  rec('App nhân viên (iPhone): màn check-in báo "ca hôm nay"', pill.includes(hm(appSt)), pill);
   const card = await m.textContent('#myShiftsList').catch(() => '');
-  rec('App nhân viên: danh sách "My shifts" có ca hôm nay', /Today/.test(card) && card.includes(hm(st)), card.replace(/\s+/g, ' ').trim().slice(0, 90));
+  rec('App nhân viên: danh sách "My shifts" có ca hôm nay', /Today/.test(card) && card.includes(hm(appSt)), card.replace(/\s+/g, ' ').trim().slice(0, 90));
   await m.screenshot({ path: 'audit-results/screenshots/shift_roster_staff_app.png' }).catch(() => {});
   rec('App nhân viên không lỗi JS', merr.length === 0, merr.slice(0, 2).join(' | '));
   await mctx.close();
@@ -153,6 +175,7 @@ db.chamcong.delete_many({'business_id': ${B}, 'ma_nv': {'$in': codes}})
 db.leave_requests.delete_many({'business_id': ${B}, 'ma_nv': {'$in': codes}})
 db.outbound_messages.delete_many({'business_id': ${B}, 'kind': {'$in': ['roster', 'pay_summary']}})
 db.employees.delete_many({'business_id': ${B}, 'ma_nv': {'$in': codes}})
+db.staff.delete_many({'business_id': ${B}, 'ma_nv': {'$in': codes}})
 saved = json.loads(${JSON.stringify(savedNeeds)})
 if saved: db.roster_needs.replace_one({'business_id': ${B}}, {**saved, 'business_id': ${B}}, upsert=True)
 else: db.roster_needs.delete_many({'business_id': ${B}})

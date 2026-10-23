@@ -2264,8 +2264,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         // ===== Payment / Order History =====
         function openOrderHistoryModal() {
-            const dateInput = document.getElementById('historyDateInput');
-            if (!dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+            // Ngày mặc định do máy chủ trả theo GIỜ TIỆM (trước: toISOString() = ngày UTC -> tiệm Úc mỗi sáng mở bill hôm qua)
             document.getElementById('orderHistoryModal').classList.add('active');
             loadOrderHistory();
         }
@@ -2288,6 +2287,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const res = await fetch(`/api/nail_pos/orders?date=${encodeURIComponent(dt)}`);
                 const json = await res.json();
                 if (!json.success) throw new Error(json.message || 'Failed to load history');
+                if (!dt && json.date) document.getElementById('historyDateInput').value = json.date;
                 const rows = json.data || [];
                 if (countEl) countEl.innerText = `${rows.length} bill${rows.length === 1 ? '' : 's'}`;
                 if (!rows.length) {

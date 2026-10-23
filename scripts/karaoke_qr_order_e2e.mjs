@@ -3,7 +3,7 @@
 import { chromium, devices } from 'playwright';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.karaoke.071443@bitpawdemo.com', PW = 'DemoBitPaw2026!';
 const steps = [];
 const rec = (n, ok, note = '') => { steps.push({ n, ok }); console.log(`${ok ? '✅' : '❌'} ${n}${note ? ' — ' + note : ''}`); };

@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.spa.596348@bitpawdemo.com', PW = 'DemoBitPaw2026!';
 const steps = [];
 const rec = (n, ok, note = '') => { steps.push({ n, ok }); console.log(`${ok ? '✅' : '❌'} ${n}${note ? ' — ' + note : ''}`); };
@@ -148,6 +148,7 @@ db.transactions.delete_many({'business_id': ${B}, 'order_id': {'$in': allids}})
 db.orders.delete_many({'business_id': ${B}, 'id': {'$in': allids}})
 db.chamcong.delete_many({'business_id': ${B}, 'ma_nv': '${TECH}'})
 db.employees.delete_many({'business_id': ${B}, 'ma_nv': '${TECH}'})
+db.staff.delete_many({'business_id': ${B}, 'ma_nv': '${TECH}'})
 db.customer_packages.delete_many({'business_id': ${B}, 'customer_phone': {'$in': ['${PHONE}', '${PHONE2}']}})
 db.service_packages.delete_many({'business_id': ${B}, 'name': '${PKG_NAME}'})
 db.customers.delete_many({'business_id': ${B}, 'phone': {'$in': ['${PHONE}', '${PHONE2}']}})

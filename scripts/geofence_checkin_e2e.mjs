@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const SHOP = { latitude: -33.8688, longitude: 151.2093 };   // Sydney CBD
 const steps = [];
@@ -77,6 +77,7 @@ py(`
 from mongo_client import db
 db.chamcong.delete_many({'business_id': ${B}, 'ma_nv': '${CODE}'})
 db.employees.delete_many({'business_id': ${B}, 'ma_nv': '${CODE}'})
+db.staff.delete_many({'business_id': ${B}, 'ma_nv': '${CODE}'})
 print('cleaned')`);
 await b.close();
 const fail = steps.filter((s) => !s.ok).length;

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Hoàn tất đăng ký' if default_lang == 'vi' else 'Finish signing up' }} - BitPaw Software</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Người mới đăng nhập Google/Facebook lần đầu (oauth_login.py) — chỉ cần mã kích hoạt + tên tiệm. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.04); --line: rgba(255,255,255,.1); --ink: #f1f5f9; --muted: #94a3b8; --accent: #22d3ee; --err: #fb7185; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at 30% 20%, #17123a, var(--bg) 60%); color: var(--ink); font-family: 'Inter', system-ui, sans-serif; padding: 24px 16px; }
+        .card { width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 26px; }
+        .who { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: rgba(34,211,238,.08); border: 1px solid rgba(34,211,238,.25); margin: 14px 0 18px; }
+        .who b { display: block; } .who span { color: var(--muted); font-size: 13px; }
+        h1 { margin: 0; font-size: 22px; font-weight: 800; }
+        p.sub { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 6px 0 0; }
+        label { display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin: 12px 0 6px; }
+        input, select { width: 100%; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; padding: 12px; font: inherit; font-size: 14px; color-scheme: dark; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.18); }
+        button { width: 100%; margin-top: 18px; border: 0; border-radius: 12px; padding: 14px; font: inherit; font-weight: 800; font-size: 15px; background: var(--accent); color: #04131a; cursor: pointer; }
+        button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .err { margin-top: 12px; color: var(--err); background: rgba(251,113,133,.08); border: 1px solid rgba(251,113,133,.3); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+        .help { margin-top: 14px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+        .help a { color: var(--accent); }
+    </style>
+</head>
+<body>
+{% set vi = default_lang == 'vi' %}
+<form class="card" method="POST" action="/auth/complete">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h1>{{ 'Hoàn tất đăng ký' if vi else 'Finish signing up' }}</h1>
+    <p class="sub">{{ 'Bạn đã đăng nhập bằng ' + pend.provider.title() + '. Nhập mã kích hoạt BitPaw gửi cho bạn sau khi chọn gói và tên tiệm — không cần đặt mật khẩu.' if vi else 'You signed in with ' + pend.provider.title() + '. Enter the activation code BitPaw sent you after you chose a plan, and your business name — no password needed.' }}</p>
+    <div class="who"><div><b>{{ pend.name or pend.email }}</b><span>{{ pend.email }}</span></div></div>
+    <label for="license_key">{{ 'Mã kích hoạt' if vi else 'Activation code' }}</label>
+    <input id="license_key" name="license_key" required autocomplete="off" autofocus>
+    <label for="business_name">{{ 'Tên tiệm / doanh nghiệp' if vi else 'Business name' }}</label>
+    <input id="business_name" name="business_name" required maxlength="120" value="{{ (form or {}).get('business_name', '') }}">
+    <label for="business_type">{{ 'Ngành' if vi else 'Industry' }}</label>
+    <select id="business_type" name="business_type">
+        {% for code, cfg in industries.items() %}<option value="{{ code }}" {% if (form or {}).get('business_type') == code %}selected{% endif %}>{{ cfg.get('name') if vi else industry_en.get(code, cfg.get('name') or code) }}</option>{% endfor %}
+    </select>
+    {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+    <button type="submit">{{ 'Tạo tài khoản' if vi else 'Create my account' }}</button>
+    <p class="help">{{ 'Chưa có mã? Chọn gói ở' if vi else "Don't have a code yet? Choose a plan at" }} <a href="/checkout">/checkout</a> — {{ 'BitPaw liên hệ và gửi mã trong 1 ngày làm việc.' if vi else 'BitPaw will contact you and send the code within 1 business day.' }}</p>
+</form>
+</body>
+</html>

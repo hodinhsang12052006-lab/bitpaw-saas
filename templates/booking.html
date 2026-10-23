@@ -202,7 +202,7 @@
             <div class="shop-logo"><div>{% if shop_logo_url %}<img src="{{ shop_logo_url }}" alt="{{ business_name }}">{% else %}<span>{{ business_name[:1] | upper }}</span>{% endif %}</div></div>
             <h1 class="shop-name">{{ business_name }}</h1>
             <p class="shop-sub">Book your appointment online — it only takes a minute.</p>
-            <div class="shop-chips"><span><i class="fas fa-clock"></i> Open 24/7</span><span><i class="fas fa-bolt"></i> Instant confirmation</span></div>
+            <div class="shop-chips"><span><i class="fas fa-globe"></i> Book online any time</span>{% if booking_auto_confirm %}<span><i class="fas fa-bolt"></i> Instant confirmation</span>{% else %}<span><i class="fas fa-circle-check"></i> The salon confirms your request</span>{% endif %}</div>
         </div>
         {% else %}
         <div class="text-center mb-8">
@@ -264,10 +264,18 @@
                 <div class="absolute -top-2 left-4 px-1 bg-[#0f172a] text-[9px] font-bold text-cyan-400 uppercase tracking-widest z-10 rounded">Preferred Technician</div>
             </div>
 
+            {# Chọn NGÀY rồi chọn 1 trong các GIỜ CÒN TRỐNG thật (giờ mở cửa, thời lượng dịch vụ, thợ có ca — booking_rules.py),
+               thay cho ô nhập ngày giờ tự do trước đây (khách đặt được 11 giờ đêm / giờ đã kín). #}
             <div class="relative">
                 <i class="far fa-calendar-alt input-icon text-cyan-500/70"></i>
-                <input type="datetime-local" id="cus_datetime" required class="select-field font-medium">
-                <div class="absolute -top-2 left-4 px-1 bg-[#0f172a] text-[9px] font-bold text-cyan-400 uppercase tracking-widest z-10 rounded">Requested Time</div>
+                <input type="date" id="cus_date" required class="select-field font-medium">
+                <div class="absolute -top-2 left-4 px-1 bg-[#0f172a] text-[9px] font-bold text-cyan-400 uppercase tracking-widest z-10 rounded">Date</div>
+            </div>
+            <input type="hidden" id="cus_datetime">
+            <div>
+                <p class="text-[11px] font-bold text-cyan-400 uppercase tracking-widest mb-2">Available times</p>
+                <div id="slotChips" class="grid grid-cols-4 gap-2" role="listbox" aria-label="Available times"></div>
+                <p id="slotHint" class="text-xs text-gray-400 mt-2">Choose a service and a date to see free times.</p>
             </div>
 
             <div class="floating-input">
@@ -287,17 +295,17 @@
             <circle class="success-checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
             <path class="success-checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
         </svg>
-        <h2 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mt-4 mb-2 drop-shadow">Success!</h2>
-        <p class="text-gray-300 text-sm mb-6 leading-relaxed">Great! Your request has been sent directly to the Satellite Station. A technician will contact you shortly.</p>
+        <h2 id="successTitle" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mt-4 mb-2 drop-shadow">You're booked!</h2>
+        <p id="successText" class="text-gray-300 text-sm mb-6 leading-relaxed">See you soon.</p>
 
         <div class="bg-black/30 border border-emerald-500/20 rounded-xl p-4 w-full text-center mb-6 shadow-inner relative overflow-hidden">
             <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent"></div>
-            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 relative z-10">Order Lookup Code:</p>
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 relative z-10">Booking number</p>
             <p class="text-xl font-mono font-black text-emerald-400 tracking-[0.2em] relative z-10" id="displayTicket">---</p>
         </div>
 
         <button onclick="window.location.reload()" class="w-full bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold py-3.5 rounded-xl transition-colors text-sm uppercase tracking-widest active:scale-95">
-            Close This Window
+            Done
         </button>
     </div>
 
@@ -363,11 +371,37 @@
             // Set minimum datetime for input (Chống khách đặt lùi thời gian)
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('cus_datetime').min = now.toISOString().slice(0,16);
+            document.getElementById('cus_date').min = now.toLocaleDateString('en-CA');
+            ['cus_date', 'cus_service', 'cus_staff'].forEach(id => document.getElementById(id).addEventListener('change', loadSlots));
             
             loadServices();
             loadTechnicians();
         };
+
+        // Giờ còn trống thật cho ngày/dịch vụ/thợ đang chọn
+        let slotReq = 0;
+        async function loadSlots() {
+            const date = document.getElementById('cus_date').value, svc = document.getElementById('cus_service').value;
+            const staff = document.getElementById('cus_staff').value, chips = document.getElementById('slotChips'), hint = document.getElementById('slotHint');
+            document.getElementById('cus_datetime').value = '';
+            if (!bookingBusinessId || !date || !svc) { chips.innerHTML = ''; hint.textContent = 'Choose a service and a date to see free times.'; return; }
+            const my = ++slotReq;
+            chips.innerHTML = '<div class="col-span-4 text-center text-gray-400 py-2"><i class="fas fa-circle-notch fa-spin"></i></div>';
+            try {
+                const r = await fetch(`/api/public/booking_slots/${encodeURIComponent(bookingBusinessId)}?date=${date}&service_id=${encodeURIComponent(svc)}` + (staff ? `&staff_id=${encodeURIComponent(staff)}` : ''));
+                const d = await r.json();
+                if (my !== slotReq) return;
+                if (!d.open) { chips.innerHTML = ''; hint.textContent = 'Closed on this day — please pick another date.'; return; }
+                if (!d.slots.length) { chips.innerHTML = ''; hint.textContent = staff ? 'No free times with this technician that day — try another day or "No preference".' : 'Fully booked that day — please pick another date.'; return; }
+                hint.textContent = `${d.duration} min service · tap a time`;
+                chips.innerHTML = d.slots.map(t => `<button type="button" class="slot-chip py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-100 font-bold text-sm hover:bg-cyan-500/25 transition" data-t="${t}" role="option" aria-selected="false">${t}</button>`).join('');
+                chips.querySelectorAll('.slot-chip').forEach(b => b.addEventListener('click', () => {
+                    chips.querySelectorAll('.slot-chip').forEach(x => { x.classList.remove('bg-cyan-500', 'text-black'); x.setAttribute('aria-selected', 'false'); });
+                    b.classList.add('bg-cyan-500', 'text-black'); b.setAttribute('aria-selected', 'true');
+                    document.getElementById('cus_datetime').value = `${date}T${b.dataset.t}`;
+                }));
+            } catch (e) { chips.innerHTML = ''; hint.textContent = 'Could not load free times — check your connection and try again.'; }
+        }
 
         function loadTechnicians() {
             // Ô chọn thợ CHỈ hiện khi tiệm thực sự có danh sách thợ trả về — ẩn hẳn (thay vì hiện
@@ -441,7 +475,7 @@
             const note = document.getElementById('cus_note').value.trim();
 
             if(!serviceId) { showToast("Please select a service!", 'error'); return; }
-            if(!datetimeInput) { showToast("Please provide the requested time!", 'error'); return; }
+            if(!datetimeInput) { showToast("Please pick one of the available times!", 'error'); return; }
 
             const btn = document.getElementById('btnSubmit');
             const origHTML = btn.innerHTML;
@@ -475,11 +509,22 @@
                 // Ghi nhận Cache chống Spam
                 localStorage.setItem('bp_last_booking', Date.now().toString());
 
-                const ticketId = `TICKET-${result.id}`;
-                showSuccessScreen(ticketId);
+                // Trước đây: "đã gửi tới Trạm Vệ Tinh, kỹ thuật viên sẽ liên hệ" cho MỌI lịch — giờ nói đúng trạng thái thật
+                const when = result.book_time ? new Date(result.book_time) : null;
+                const whenTxt = when && !isNaN(when) ? when.toLocaleString(document.documentElement.lang === 'vi' ? 'vi-VN' : 'en-AU', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }) : '';
+                const what = [result.service_name, whenTxt].filter(Boolean).join(' · ');
+                if (result.status === 'confirmed') {
+                    document.getElementById('successTitle').textContent = "You're booked!";
+                    document.getElementById('successText').textContent = (what ? what + '. ' : '') + 'Your appointment is confirmed. Need to change it? Message us in the chat or call the salon.';
+                } else {
+                    document.getElementById('successTitle').textContent = 'Request sent';
+                    document.getElementById('successText').textContent = (what ? what + '. ' : '') + 'The salon will confirm your appointment shortly.';
+                }
+                showSuccessScreen('#' + result.id);
 
             } catch(error) {
-                showToast("System error! Unable to send the request to the Satellite.", 'error');
+                showToast(error && error.message && error.message !== 'Unknown error' ? error.message : "Could not send your booking — please try again.", 'error');
+                loadSlots();
                 btn.innerHTML = origHTML;
                 btn.disabled = false;
             }

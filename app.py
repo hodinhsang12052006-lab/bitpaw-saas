@@ -92,7 +92,7 @@ from ai_sales_prompts import compose_system_prompt, classify_objection, compose_
 from ai_memory_engine import get_conversation_memory, maybe_distill_memory_async
 from ai_nurturing_engine import AINurturingEngine, recompute_customer_segments
 from email_service import EmailService
-from ai_function_tools import TOOL_SCHEMAS, execute_tool_call
+from ai_function_tools import TOOL_SCHEMAS, BOOKING_TOOLS, SALES_TOOLS, execute_tool_call
 from ai_deepseek_client import deepseek_chat_completion
 
 # Các module cho US market pivot (tenant_engine/currency_utils/payment_us_engine) từng làm
@@ -214,6 +214,27 @@ INDUSTRY_CODES = {'fnb', 'retail', 'spa', 'nail', 'karaoke', 'hotel', 'productio
 def _industry_code(value, default='fnb'):
     v = value.strip().lower() if isinstance(value, str) else ''
     return v if v in INDUSTRY_CODES else default
+
+
+def tenant_today(business_id):
+    """Ngày hôm nay THEO GIỜ CỦA TIỆM. Vercel chạy giờ UTC: tiệm Úc (UTC+10/11) mỗi sáng tới ~11 giờ, tiệm Mỹ mỗi tối,
+    datetime.now() là NGÀY KHÁC -> lịch/báo cáo mở nhầm hôm qua/ngày mai."""
+    try:
+        import booking_rules
+        return booking_rules.local_now(business_id).date()
+    except Exception:
+        return datetime.now().date()
+
+
+def tenant_day_bounds(business_id, day=None):
+    """[đầu ngày, đầu ngày sau) của 1 ngày theo giờ tiệm, đổi ra giờ MÁY CHỦ — vì created_at lưu bằng datetime.now() của
+    máy chủ. Trả 2 chuỗi ISO để so sánh với created_at."""
+    import booking_rules
+    off = datetime.now() - booking_rules.local_now(business_id)
+    off = timedelta(minutes=round(off.total_seconds() / 60))
+    d = day or tenant_today(business_id)
+    start = datetime.combine(d, datetime.min.time()) + off
+    return start.isoformat(), (start + timedelta(days=1)).isoformat()
 
 
 def _tenant_currency(business_id):
@@ -1890,8 +1911,12 @@ def create_cskh_request():
     phone = (data.get('phone') or '').strip()
     email = (data.get('email') or '').strip()
     message = (data.get('message') or '').strip()[:1000]
-    if not name or not re.match(r'^0\d{9,10}$', phone) or not message:
-        return jsonify({'error': 'Vui lòng nhập đầy đủ thông tin (số điện thoại phải hợp lệ)'}), 400
+    # SĐT quốc tế (US/AU: +1 555..., +61 4..., 04xx...) lẫn VN (09xx...) — trước đây chỉ nhận ^0\d{9,10}$ nên khách Mỹ/Úc
+    # để lại số +1/+61 đều bị từ chối.
+    digits = re.sub(r'\D', '', phone)
+    phone_ok = bool(re.fullmatch(r'\+?[\d\s().-]{8,22}', phone)) and 8 <= len(digits) <= 15
+    if not name or not phone_ok or not message:
+        return jsonify({'error': 'Please fill in your name, a valid phone number and a message. / Vui lòng nhập đầy đủ tên, số điện thoại hợp lệ và nội dung.'}), 400
 
     mongo_success = False
     new_id = None
@@ -2370,7 +2395,7 @@ def _sse_resume_token():
     return None
 
 
-def _sse_change_signal(watchable, match_stage):
+def _sse_change_signal(watchable, match_stage, payload_colls=()):
     # BUG THẬT đã vá (đo độ trễ tin nhắn thật, 10/2026): mỗi stream tự đóng sau SSE_MAX_SECONDS, trình
     # duyệt chờ ~3s rồi mới kết nối lại và watch() mới chỉ thấy thay đổi TỪ LÚC MỞ — tin nhắn rơi vào
     # khe đó bị mất hẳn (3/8 tin khách gửi không bao giờ hiện ở /ai_bot cho tới khi có tin khác tới).
@@ -2414,7 +2439,18 @@ def _sse_change_signal(watchable, match_stage):
                 while time.time() - start_time < SSE_MAX_SECONDS:
                     change = stream.try_next()
                     if change is not None:
-                        yield f'{_sse_id(stream)}data: {{"changed": true}}\n\n'
+                        # Kèm LOẠI thay đổi (bảng nào, thêm/sửa/xoá) để trình duyệt không phải tải lại mọi thứ cho mọi tín
+                        # hiệu (đo thật: 1 tab chat đứng yên phát 32 request/phút chỉ vì ping "đang online" của người khác),
+                        # và kèm NGUYÊN tài liệu mới cho các bảng trong payload_colls (vd tin chat) — hiện ngay, khỏi tải thêm.
+                        coll = (change.get('ns') or {}).get('coll')
+                        op = change.get('operationType')
+                        evt = {'changed': True, 'coll': coll, 'op': op}
+                        fields = payload_colls.get(coll, ...) if isinstance(payload_colls, dict) else (None if coll in payload_colls else ...)
+                        if fields is not ... and change.get('fullDocument') and (op == 'insert' or fields):
+                            full = change['fullDocument']
+                            # fields = danh sách trường AN TOÀN được gửi (vd nhân viên: không bao giờ gửi mẫu khuôn mặt)
+                            evt['doc'] = {k: full.get(k) for k in fields} if fields else {k: v for k, v in full.items() if k != '_id'}
+                        yield f'{_sse_id(stream)}data: {json.dumps(evt, default=str, ensure_ascii=False)}\n\n'
                     else:
                         yield f'{_sse_id(stream)}: keep-alive\n\n'
         except Exception as e:
@@ -2450,8 +2486,10 @@ def _sse_tenant_match(*collection_names):
 @app.route('/api/stream/hr_employees')
 @login_required
 def stream_hr_employees():
-    """Thay kênh Supabase Realtime `hr_realtime` (nhanvien.html) — bảng employees."""
-    return _sse_change_signal(db.employees, _sse_tenant_match())
+    """Thay kênh Supabase Realtime `hr_realtime` (nhanvien.html) — bảng employees. Kèm vị trí/trạng thái của đúng người
+    vừa đổi (chỉ các trường an toàn) để bản đồ dời đúng 1 chấm thay vì tải lại cả danh sách cho mỗi lần GPS nhích."""
+    return _sse_change_signal(db.employees, _sse_tenant_match(), payload_colls={
+        'employees': ['ma_nv', 'ho_ten', 'toa_do_lat', 'toa_do_lng', 'trang_thai_gps', 'nhiem_vu_hien_tai', 'gps_at', 'avatar_url', 'diem_kudo']})
 
 
 @app.route('/api/stream/payroll')
@@ -3166,11 +3204,11 @@ def reservations_page():
     """Trang quản trị đặt bàn trước — cùng khuôn với /calendar (Nails/Spa): chọn ngày, duyệt/
     xếp bàn/huỷ. business_id-scoped."""
     business_id = session.get('business_id') or session['user_id']
-    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    date_str = request.args.get('date') or tenant_today(business_id).isoformat()
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = tenant_today(business_id).isoformat()
     try:
         reservations = list(db.table_reservations.find(
             {
@@ -4143,9 +4181,7 @@ def api_dashboard_sales_summary():
     if db is None:
         return jsonify({"success": True, "data": stats})
     try:
-        now = datetime.now()
-        today_str = now.strftime('%Y-%m-%d')
-        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        today_str, tomorrow_str = tenant_day_bounds(business_id)
         orders_today = list(db.orders.find(
             {'business_id': business_id, 'created_at': {'$gte': today_str, '$lt': tomorrow_str}, **_REVENUE_ORDER_FILTER},
             {'total_amount': 1, 'metadata': 1, '_id': 0}
@@ -4192,9 +4228,7 @@ def api_staff_income_today(staff_id):
     if not staff_doc:
         return jsonify({"success": False, "message": "Nhân viên không tồn tại hoặc không thuộc cửa hàng này."}), 404
 
-    now = datetime.now()
-    today_str = now.strftime('%Y-%m-%d')
-    tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+    today_str, tomorrow_str = tenant_day_bounds(business_id)
     orders_today = list(db.orders.find({
         'business_id': business_id, 'metadata.staff_id': staff_id,
         'created_at': {'$gte': today_str, '$lt': tomorrow_str}, **_REVENUE_ORDER_FILTER
@@ -6274,11 +6308,11 @@ def karaoke_reservations_page():
     """Trang quản trị đặt phòng Karaoke — cùng khuôn với /reservations (F&B) / /calendar
     (Nails/Spa). business_id-scoped."""
     business_id = session.get('business_id') or session['user_id']
-    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    date_str = request.args.get('date') or tenant_today(business_id).isoformat()
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = tenant_today(business_id).isoformat()
     try:
         reservations = list(db.karaoke_room_reservations.find(
             {
@@ -6740,7 +6774,7 @@ def hotel_reservations_page():
     chỗ liệt kê TẤT CẢ đặt phòng còn hiệu lực sắp tới (không lọc theo 1 ngày), vì khách đặt
     trước hàng tuần/hàng tháng — lọc theo 1 ngày sẽ không thấy được các đặt phòng tương lai xa."""
     business_id = session.get('business_id') or session['user_id']
-    today_str = datetime.now().strftime('%Y-%m-%d')
+    today_str = tenant_today(session.get('business_id') or session['user_id']).isoformat()
     try:
         reservations = list(db.hotel_reservations.find(
             {'business_id': business_id, 'checkout_date': {'$gte': today_str}},
@@ -8263,7 +8297,7 @@ def api_chat_presence_list():
 def stream_chat():
     """Thay 2 kênh Supabase Realtime `public:messages` + presence `online-users` — 1 stream
     dùng chung, watch cả chat_messages và chat_presence ở cấp Database."""
-    return _sse_change_signal(db, _sse_tenant_match('chat_messages', 'chat_presence'))
+    return _sse_change_signal(db, _sse_tenant_match('chat_messages', 'chat_presence'), payload_colls=('chat_messages',))
 
 
 # ========== CÀI ĐẶT THƯƠNG HIỆU ==========
@@ -10455,13 +10489,16 @@ def api_nail_pos_orders_list():
     đúng trong DB. Mặc định lọc theo ngày hôm nay; truyền ?date=YYYY-MM-DD để xem ngày khác."""
     business_id = session.get('business_id') or session['user_id']
     req_date = (request.args.get('date') or '').strip()
-    now = datetime.now()
-    query_date_iso = req_date if req_date else now.strftime('%Y-%m-%d')
+    query_date_iso = req_date if req_date else tenant_today(business_id).isoformat()
+    try:
+        day_from, day_to = tenant_day_bounds(business_id, datetime.strptime(query_date_iso, '%Y-%m-%d').date())
+    except ValueError:
+        return jsonify({"success": False, "message": "date=YYYY-MM-DD"}), 400
 
     try:
         orders = list(db.orders.find({
             'business_id': business_id,
-            'created_at': {'$regex': f'^{query_date_iso}'},
+            'created_at': {'$gte': day_from, '$lt': day_to},
             'metadata.channel': {'$in': ['nail_pos', 'nail_pos_square', 'nail_pos_refund']},
         }, {'_id': 0}).sort('created_at', -1))
 
@@ -11048,11 +11085,11 @@ def calendar_view():
         flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
         return redirect(url_for('login'))
 
-    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    date_str = request.args.get('date') or tenant_today(business_id).isoformat()
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = tenant_today(business_id).isoformat()
 
     try:
         appointments = list(db.appointments.find(
@@ -11359,6 +11396,8 @@ def api_bot_customers_list():
     business_id = session.get('business_id') or session['user_id']
     try:
         customers = list(db.bot_customers.find({'business_id': business_id}, {'_id': 0}).sort('last_message_time', -1))
+        # khách đang chờ người trả lời (AI đã chuyển / khách hỏi điều AI không có dữ liệu) lên đầu hộp thư
+        customers.sort(key=lambda c: 0 if c.get('needs_human') else 1)
         return jsonify({"success": True, "data": customers})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -11407,7 +11446,8 @@ def api_bot_messages_create():
         # khách không nhận 2 câu trả lời chồng nhau (1 của người, 1 của AI) cho cùng 1 tin.
         db.bot_customers.update_one(
             {'id': customer_id, 'business_id': business_id},
-            {'$set': {'last_message': content[:500], 'last_message_time': now_iso, 'ai_paused': True}}
+            {'$set': {'last_message': content[:500], 'last_message_time': now_iso, 'ai_paused': True, 'handoff_by_ai': False,
+                      'needs_human': False}}
         )
         return jsonify({"success": True, "ai_paused": True})
     except Exception as e:
@@ -11425,7 +11465,7 @@ def api_bot_ai_mode():
     if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
     paused = not bool(data.get('enabled'))
-    db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused}})
+    db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused, 'handoff_by_ai': False}})
     return jsonify({"success": True, "ai_paused": paused})
 
 
@@ -11443,7 +11483,7 @@ def api_ai_copilot():
     try:
         snapshot, _name, industry = ai_copilot.business_snapshot(business_id, session.get('business_mode'))
     except Exception as e:
-        return jsonify({"success": False, "message": f"Không đọc được số liệu tiệm: {e}"}), 500
+        return jsonify({"success": False, "message": (f"Không đọc được số liệu tiệm: {e}" if lang == 'vi' else f"Could not read your business data: {e}")}), 500
     if mode == 'insight':
         topic = data.get('topic')
         question = ai_copilot.INSIGHT_TOPICS.get(topic) if isinstance(topic, str) else None
@@ -11451,19 +11491,52 @@ def api_ai_copilot():
             q = data.get('question')
             question = q.strip()[:600] if isinstance(q, str) and q.strip() else None
         if not question:
-            return jsonify({"success": False, "message": "Thiếu câu hỏi."}), 400
-        messages = ai_copilot.insight_messages(snapshot, question, lang)
-        max_tokens = 700
+            return jsonify({"success": False, "message": ("Thiếu câu hỏi." if lang == 'vi' else "Please type a question.")}), 400
+        messages = None
+        import ai_copilot_tools
+        import booking_rules as _br
+        _now = _br.local_now(business_id)
+        agent_msgs = ai_copilot.agent_messages(snapshot, question, lang, f"TODAY (local): {_now:%A %Y-%m-%d %H:%M}")
+        is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+        _t0 = time.time()
+        used = []
+        try:
+            text = ''
+            for _round in range(6):
+                result = deepseek_chat_completion(
+                    {"model": "deepseek-chat", "messages": agent_msgs, "temperature": 0.3, "max_tokens": 700,
+                     "tools": ai_copilot_tools.COPILOT_TOOLS, "tool_choice": "auto"},
+                    business_id=business_id,
+                    proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop_mode else None,
+                    direct_api_key=os.environ.get('DEEPSEEK_API_KEY') if not is_desktop_mode else None,
+                )
+                msg = result['choices'][0]['message']
+                calls = msg.get('tool_calls')
+                if not calls:
+                    text = (msg.get('content') or '').strip()
+                    break
+                agent_msgs.append(msg)
+                for tc in calls:
+                    used.append((tc.get('function') or {}).get('name'))
+                    agent_msgs.append({"role": "tool", "tool_call_id": tc.get('id'),
+                                       "content": ai_copilot_tools.run_tool(business_id, tc)})
+            _log_ai_run('copilot', business_id, time.time() - _t0, [{'tool': u} for u in used])
+            if not text:
+                raise RuntimeError('no answer')
+            return jsonify({"success": True, "mode": mode, "text": text, "industry": industry, "tools": used})
+        except Exception as e:
+            _log_ai_run('copilot', business_id, time.time() - _t0, [{'tool': u} for u in used], fallback=True, error=e)
+            return jsonify({"success": False, "message": (f"AI đang bận, thử lại sau ít giây. ({str(e)[:120]})" if lang == 'vi' else f"The AI is busy — please try again in a few seconds. ({str(e)[:120]})")}), 502
     elif mode == 'reply':
         customer_id = data.get('customer_id')
         if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
-            return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+            return jsonify({"success": False, "message": ("Không tìm thấy hội thoại này." if lang == 'vi' else "Conversation not found.")}), 403
         convo = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0, 'sender_type': 1, 'content': 1})
                      .sort('created_at', -1).limit(12))[::-1]
         messages = ai_copilot.reply_messages(snapshot, _booking_assistant_facts(business_id, data.get('client_now')), convo)
         max_tokens = 260
     else:
-        return jsonify({"success": False, "message": "mode không hợp lệ."}), 400
+        return jsonify({"success": False, "message": ("mode không hợp lệ." if lang == 'vi' else "Invalid mode.")}), 400
 
     is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
     try:
@@ -11475,7 +11548,7 @@ def api_ai_copilot():
         )
         text = (result['choices'][0]['message']['content'] or '').strip()
     except Exception as e:
-        return jsonify({"success": False, "message": f"AI đang bận, thử lại sau ít giây. ({str(e)[:120]})"}), 502
+        return jsonify({"success": False, "message": (f"AI đang bận, thử lại sau ít giây. ({str(e)[:120]})" if lang == 'vi' else f"The AI is busy — please try again in a few seconds. ({str(e)[:120]})")}), 502
     return jsonify({"success": True, "mode": mode, "text": text, "industry": industry})
 
 
@@ -11483,10 +11556,34 @@ def api_ai_copilot():
 @login_required
 def stream_bot_chat():
     """Thay kênh Supabase Realtime `public:bot_messages`."""
-    return _sse_change_signal(db, _sse_tenant_match('bot_customers', 'bot_messages'))
+    return _sse_change_signal(db, _sse_tenant_match('bot_customers', 'bot_messages'), payload_colls=('bot_messages',))
 
 
 _CLIENT_NOW_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}')
+
+
+def _paused_holding_reply(business_id, customer_id, bc, latest_message):
+    """AI đã chuyển cho người thật: khách nhắn tiếp thì KHÔNG im lặng (đo thật: khách nhắn 3-4 tin không ai đáp rồi bỏ đi).
+    Nhân viên đang trả lời (tin staff trong 15 phút) -> không chen vào. Không thì nhắc 1 câu hẹn giờ trả lời thật,
+    tối đa 1 lần / 10 phút để không spam."""
+    try:
+        now = datetime.now()
+        last_staff = db.bot_messages.find_one({'customer_id': customer_id, 'sender_type': 'staff'}, {'_id': 0, 'created_at': 1},
+                                              sort=[('created_at', -1)]) or {}
+        if last_staff.get('created_at') and last_staff['created_at'] >= (now - timedelta(minutes=15)).isoformat():
+            return ""
+        if bc.get('hold_notice_at') and bc['hold_notice_at'] >= (now - timedelta(minutes=10)).isoformat():
+            return ""
+        import ai_function_tools
+        vi = bool(re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', latest_message or '', re.I))
+        text = (("Dạ em đã chuyển tin của mình cho nhân viên rồi ạ. " if vi else "Thanks — your messages are with the team. ")
+                + ai_function_tools.reply_expectation(business_id, vi))
+        db.bot_customers.update_one({'id': customer_id}, {'$set': {'hold_notice_at': now.isoformat()}})
+        ai_function_tools._alert_owner(business_id, customer_id, "The customer is still waiting: " + (latest_message or '')[:200], 'waiting')
+        return text
+    except Exception as e:
+        print(f"[ai paused] {e}")
+        return ""
 
 
 def _booking_assistant_facts(business_id, client_now=None):
@@ -11495,8 +11592,16 @@ def _booking_assistant_facts(business_id, client_now=None):
     và không hề biết hôm nay là ngày nào -> khách nói "mai 3h chiều" là AI không đặt được, lần nào cũng
     báo "hệ thống chưa khớp dịch vụ". Bổ sung giờ địa phương hiện tại (lấy từ máy khách — khách ở gần
     tiệm nên cùng múi giờ; không có thì dùng giờ server) + danh sách dịch vụ kèm id thật."""
-    now_str = client_now[:16] if isinstance(client_now, str) and _CLIENT_NOW_RE.match(client_now) else \
-        datetime.now().strftime('%Y-%m-%dT%H:%M')
+    # Giờ ĐỊA PHƯƠNG CỦA TIỆM (cùng nguồn với luật đặt lịch — booking_rules.local_now) để "mai 3h" và kiểm giờ trống
+    # khớp nhau; giờ máy khách chỉ dùng khi không xác định được tiệm.
+    try:
+        import booking_rules
+        now_str = booking_rules.local_now(business_id).strftime('%Y-%m-%dT%H:%M') if business_id else None
+    except Exception:
+        now_str = None
+    if not now_str:
+        now_str = client_now[:16] if isinstance(client_now, str) and _CLIENT_NOW_RE.match(client_now) else \
+            datetime.now().strftime('%Y-%m-%dT%H:%M')
     try:
         weekday = datetime.fromisoformat(now_str).strftime('%A')
     except ValueError:
@@ -11506,17 +11611,25 @@ def _booking_assistant_facts(business_id, client_now=None):
              f"(e.g. 2026-08-01T15:00:00). Never book a time in the past."]
     if db is not None and business_id:
         try:
+            import booking_rules
+            rules = booking_rules.get_rules(business_id)
+            cur = _tenant_currency(business_id)
             services = list(db.products.find({'business_id': business_id, 'is_active': 1},
-                                             {'_id': 0, 'id': 1, 'name': 1}).limit(60))
+                                             {'_id': 0, 'id': 1, 'name': 1, 'price': 1}).limit(60))
             if services:
-                lines.append("BOOKABLE SERVICES — use the exact service_id in book_appointment:\n" +
-                             "\n".join(f"- service_id {s.get('id')}: {s.get('name')}" for s in services))
-        except Exception:
-            pass
+                lines.append("BOOKABLE SERVICES — use the exact service_id in tools (price, duration):\n" +
+                             "\n".join(f"- service_id {s.get('id')}: {s.get('name')} — {format_money(s.get('price') or 0, cur)}, "
+                                       f"{booking_rules.duration_of(rules, s.get('id'))} min" for s in services))
+            team = sorted({n for n in booking_rules._staff_names(business_id).values() if n})
+            if team:
+                lines.append("TEAM (customers may ask for someone by first name): " + ", ".join(team[:25]))
+            lines.append(booking_rules.describe_for_ai(business_id))
+        except Exception as e:
+            print(f"[booking facts] {e}")
     return "\n\n".join(lines)
 
 
-def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, customer_id, api_key):
+def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, customer_id, api_key, tools=None):
     """Vòng lặp Function Calling: gọi DeepSeek, nếu nó yêu cầu gọi tool (vd book_appointment)
     thì THỰC SỰ thực thi tool đó trong Python, nối kết quả thật vào messages rồi gọi lại
     DeepSeek để lấy câu trả lời cuối cùng dựa trên kết quả thật đó — thay vì để AI tự bịa ra
@@ -11527,13 +11640,17 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
     working_messages = list(messages)
     proxy_api_key = os.environ.get('BITPAW_AI_PROXY_KEY')  # set bởi desktop_app/launcher.py sau khi verify license
 
-    for _round in range(3):
+    tools = tools if tools is not None else TOOL_SCHEMAS
+    allowed = {t['function']['name'] for t in tools}
+    used = []
+    result = None
+    for _round in range(4):  # xem giờ trống -> đặt -> (thử giờ khác) -> trả lời
         payload = {
             "model": "deepseek-chat",
             "messages": working_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "tools": TOOL_SCHEMAS,
+            "tools": tools,
             "tool_choice": "auto",
         }
         # deepseek_chat_completion() tự chọn: gọi thẳng DeepSeek (Web/SaaS) hay qua AI Proxy
@@ -11546,22 +11663,36 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
         message = result["choices"][0]["message"]
         tool_calls = message.get("tool_calls")
         if not tool_calls:
+            result['tools_used'] = used
             return result
 
         # Model yêu cầu gọi tool — thực thi THẬT rồi vòng lại để lấy câu trả lời cuối cùng
         working_messages.append(message)
         for tool_call in tool_calls:
             tool_call_id, tool_result_json = execute_tool_call(
-                tool_call, business_id=business_id, customer_id=customer_id
+                tool_call, business_id=business_id, customer_id=customer_id, allowed=allowed
             )
+            used.append({'tool': (tool_call.get('function') or {}).get('name'), 'ok': '"success": true' in tool_result_json})
             working_messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call_id,
                 "content": tool_result_json,
             })
 
-    # Hết 3 vòng vẫn còn đòi gọi tool — trả về response cuối cùng nhận được thay vì treo vô hạn
+    # Hết số vòng vẫn còn đòi gọi tool — trả về response cuối cùng nhận được thay vì treo vô hạn
+    if result is not None:
+        result['tools_used'] = used
     return result
+
+
+def _log_ai_run(persona, business_id, seconds, tools=None, fallback=False, error=None):
+    """Nhật ký chất lượng AI (độ trễ, công cụ đã gọi, có rơi vào câu dự phòng không) — best-effort, không làm chậm chat."""
+    try:
+        db.ai_runs.insert_one({'persona': persona, 'business_id': business_id, 'ms': int(seconds * 1000), 'tools': tools or [],
+                               'fallback': bool(fallback), 'error': (str(error)[:200] if error else None),
+                               'created_at': datetime.now().isoformat()})
+    except Exception:
+        pass
 
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
@@ -11597,6 +11728,10 @@ def secure_ai_generate():
     user_prompt = data.get('userPrompt', '')
     if not isinstance(user_prompt, str):
         user_prompt = ''
+    # Widget đặt lịch bọc tin của khách trong câu chỉ dẫn tiếng Việt (kèm SĐT) — AI không cần câu đó (persona + công cụ
+    # đã đủ) và nó làm lệch ngôn ngữ trả lời. Dùng đúng chữ khách gõ.
+    if chat_context == 'customer_booking' and isinstance(data.get('customer_message'), str) and data['customer_message'].strip():
+        user_prompt = data['customer_message'].strip()[:2000]
     # Kẹp tham số model: endpoint công khai, client từng tự đặt max_tokens tuỳ ý (đốt chi phí AI).
     try:
         temperature = max(0.0, min(1.5, float(data.get('temperature', 0.7))))
@@ -11667,8 +11802,12 @@ def secure_ai_generate():
         system_prompt = compose_booking_assistant_prompt(
             tenant_context, business_name,
             booking_facts=_booking_assistant_facts(business_id, data.get('client_now')))
+        temperature = min(temperature, 0.4)  # đặt lịch cần chính xác hơn bay bổng
+        max_tokens = min(max_tokens, 600)
     else:
-        system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context)
+        from ai_sales_prompts import bitpaw_facts
+        system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context,
+                                              bitpaw=bitpaw_facts(SAAS_PLANS, SAAS_CURRENCIES))
     # Dữ liệu ngành/tiệm trong prompt viết tiếng Việt nên AI hay trả lời tiếng Việt cho khách hỏi tiếng Anh (đo thật:
     # landing Production/Office EN). Chỉ định rõ ngôn ngữ theo chính tin nhắn mới nhất của khách.
     if latest_customer_message:
@@ -11694,26 +11833,45 @@ def secure_ai_generate():
     # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
     _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer')
 
+    waiting_for_team = None
     # Chủ tiệm đã tắt AI cho khách này (hoặc đã tự nhảy vào trả lời) -> KHÔNG để AI chen vào; widget báo khách
     # là nhân viên sẽ trả lời ngay trong khung chat (tin của nhân viên tới qua /api/portal/stream).
     if chat_context == 'customer_booking' and customer_id and db is not None:
         try:
-            if (db.bot_customers.find_one({'id': customer_id}, {'ai_paused': 1, '_id': 0}) or {}).get('ai_paused'):
-                return jsonify({"choices": [{"message": {"content": ""}}], "paused": True})
+            bc = db.bot_customers.find_one({'id': customer_id}, {'ai_paused': 1, 'hold_notice_at': 1, 'handoff_by_ai': 1, 'handoff_at': 1,
+                                                                 'handoff_reason': 1, '_id': 0}) or {}
+            if bc.get('ai_paused'):
+                staff_since = bc.get('handoff_at') and db.bot_messages.find_one(
+                    {'customer_id': customer_id, 'sender_type': 'staff', 'created_at': {'$gte': bc['handoff_at']}}, {'_id': 1})
+                if bc.get('handoff_by_ai') and not staff_since:
+                    waiting_for_team = bc  # AI tự chuyển, chưa ai trả lời: vẫn tiếp khách (không im lặng), không quyết vấn đề đã chuyển
+                else:
+                    return jsonify({"choices": [{"message": {"content": _paused_holding_reply(business_id, customer_id, bc, latest_customer_message)}}],
+                                    "paused": True})
         except Exception:
             pass
+    if waiting_for_team:  # AI đã chuyển cho người, chưa ai trả lời: tiếp khách trong lúc chờ, không quyết vấn đề đã chuyển
+        from ai_sales_prompts import WAITING_FOR_TEAM
+        import ai_function_tools
+        _vi_w = bool(re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', latest_customer_message or '', re.I))
+        messages[0]['content'] += "\n\n" + WAITING_FOR_TEAM.format(reason=waiting_for_team.get('handoff_reason') or 'customer asked for a person',
+                                                                     expectation=ai_function_tools.reply_expectation(business_id, _vi_w))
+        ai_function_tools._alert_owner(business_id, customer_id, "The customer is still waiting: " + (latest_customer_message or '')[:200], 'waiting')
 
     # Câu dự phòng khi AI lỗi/timeout — 2 bản khác nhau theo đúng đối tượng đang chat (khách
     # hàng cuối đặt lịch KHÔNG được nhận câu "tư vấn gói phần mềm" của bot bán BitPaw).
+    _vi_fb = bool(re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', latest_customer_message or '', re.I))
     if chat_context == 'customer_booking':
         fallback_reply = (
-            f"Dạ {business_name} đang xử lý hơi chậm một chút, chị/anh thông cảm giúp em. "
-            f"Chị/anh có thể gọi trực tiếp cho tiệm hoặc thử nhắn lại sau ít phút để đặt lịch giúp em nhé!"
+            f"Dạ {business_name} đang xử lý hơi chậm một chút, chị/anh nhắn lại giúp em sau ít phút hoặc gọi trực tiếp cho tiệm nhé!"
+            if _vi_fb else
+            f"Sorry — {business_name}'s booking assistant is a bit slow right now. Please try again in a minute or call the salon directly."
         )
     else:
         fallback_reply = (
-            f"Dạ hệ thống đang xử lý hơi nhiều data một chút. Sếp cho em xin SĐT Zalo để chuyên viên bên em "
-            f"gọi lại tư vấn gói tối ưu nhất cho {business_name} luôn nhé!"
+            "Dạ hệ thống đang hơi chậm một chút. Anh/chị để lại số điện thoại hoặc email, đội BitPaw sẽ liên hệ trong 1 ngày làm việc nhé!"
+            if _vi_fb else
+            "Sorry, I'm running a little slow right now. Leave your phone or email and the BitPaw team will get back to you within 1 business day."
         )
 
     # Ở Desktop mode, không cần DEEPSEEK_API_KEY thật ở đây — ai_deepseek_client.py sẽ gọi
@@ -11729,9 +11887,17 @@ def secure_ai_generate():
         # tenant nhiều hàng hoá cần nhiều thời gian xử lý hơn so với persona ngắn cũ.
         # _call_deepseek_with_tools() cho phép AI THỰC SỰ gọi book_appointment() (Function
         # Calling) thay vì chỉ sinh văn bản "đã đặt lịch" mà không ghi gì vào Database.
+        _t0 = time.time()
+        _tools = BOOKING_TOOLS if chat_context == 'customer_booking' else SALES_TOOLS
+        if waiting_for_team:  # đang chờ người: không chuyển lần 2
+            _tools = [t for t in _tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
         result = _call_deepseek_with_tools(
-            messages, temperature, max_tokens, business_id, customer_id, api_key
+            messages, temperature, max_tokens, business_id, customer_id, api_key, tools=_tools,
         )
+        if waiting_for_team:
+            result['waiting_for_team'] = True
+        _log_ai_run('booking' if chat_context == 'customer_booking' else 'sales', business_id, time.time() - _t0,
+                    result.get('tools_used'), fallback=False)
         try:
             ai_text = result['choices'][0]['message']['content']
             _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai')
@@ -12540,31 +12706,7 @@ def omnichannel_test_api(channel):
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route('/api/cskh/lead-submit', methods=['POST'])
-@login_required
-def cskh_lead_submit():
-    data = request.json or {}
-    phone = data.get('phone', '').strip()
-    message = data.get('message', '').strip()
-
-    if not re.match(r'^0\d{9,10}$', phone) or not message:
-        return jsonify({"success": False, "message": "Vui lòng cung cấp đầy đủ thông tin (SĐT hợp lệ)!"}), 400
-
-    # Trước đây default 'mock-business-123' khi thiếu session khiến lead của MỌI tiệm bị trộn chung.
-    # Bắt buộc đăng nhập để luôn có business_id thật của đúng tiệm.
-    business_id = session.get('business_id') or session['user_id']
-
-    try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO customer_events (id, business_id, customer_id, event_type, description, created_at) VALUES (?, ?, ?, 'lead_submit', ?, CURRENT_TIMESTAMP)",
-                  (str(uuid.uuid4()), business_id, phone, f"Yêu cầu tư vấn Mascot AI: {message}"))
-        conn.commit()
-        conn.close()
-        return jsonify({"success": True, "message": "Lead submitted successfully."})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
+# /api/cskh/lead-submit đã gỡ (10/2026): không trang nào gọi, và ghi vào SQLite database.db — Vercel không có file đó.
 
 
 @app.route('/api/ai/nurture/customers', methods=['GET'])
@@ -12724,6 +12866,7 @@ def nurture_generate_campaign():
         })
 
         docs = []
+        link = AINurturingEngine.booking_link(business_id, industry, os.environ.get('PUBLIC_BASE_URL') or request.host_url)
         for cust in customers:
             first, last_service, days = customer_fill_values(business_id, cust)
             for step_key, delay in (('3days', 3), ('7days', 7), ('14days', 14)):
@@ -12732,7 +12875,8 @@ def nurture_generate_campaign():
                     'business_id': business_id, 'campaign_id': campaign_id,
                     'customer_id': cust.get('id'),  # int, khớp kiểu với db.customers.id để $lookup hoạt động
                     'step_delay': delay, 'channel': channel,
-                    'message_body': AINurturingEngine.fill_template(template[step_key], first, last_service, days, lang),
+                    'message_body': AINurturingEngine.fill_template(template[step_key], first, last_service, (days + delay) if days else days, lang,
+                                                                    booking_link=link if step_key != '3days' else None),
                     'approval_status': 'PENDING', 'created_at': datetime.now().isoformat(),
                 })
         if docs:
@@ -13295,6 +13439,20 @@ try:
     app.register_blueprint(tracking_bp)
 except Exception as bp_err:
     print(f"Error registering tracking_bp: {str(bp_err)}")
+
+try:
+    # Đăng nhập / đăng ký bằng Google + Facebook (nút chỉ hiện khi có khoá) — oauth_login.py
+    from oauth_login import oauth_bp
+    app.register_blueprint(oauth_bp)
+except Exception as bp_err:
+    print(f"Error registering oauth_bp: {str(bp_err)}")
+
+try:
+    # Cài đặt đặt lịch (giờ mở cửa, luật, thời lượng dịch vụ, thông tin tiệm cho AI) + giờ trống công khai — booking_rules.py
+    from booking_settings_routes import booking_settings_bp
+    app.register_blueprint(booking_settings_bp)
+except Exception as bp_err:
+    print(f"Error registering booking_settings_bp: {str(bp_err)}")
 
 try:
     # Gói liệu trình nhiều buổi (bán tại quầy, dùng buổi ở POS Spa) — service_packages.py
@@ -15015,4 +15173,4 @@ if __name__ == '__main__':
     # single-threaded — chỉ cần 1 tab đang mở /calendar hoặc /sell (tự mở EventSource) là chiếm
     # trọn worker duy nhất, khiến MỌI request khác (kể cả khách đặt lịch qua QR ở tab/máy khác)
     # bị treo/timeout cho tới khi connection SSE đó đóng lại.
-    app.run(port=5001, debug=os.environ.get('FLASK_DEBUG', '').lower() == 'true', threaded=True)
+    app.run(port=int(os.environ.get('PORT') or 5001), debug=os.environ.get('FLASK_DEBUG', '').lower() == 'true', threaded=True)

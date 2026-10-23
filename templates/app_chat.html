@@ -467,10 +467,21 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // ==========================================
         function startChatStream() {
             const stream = new EventSource('/api/stream/chat');
-            stream.onmessage = () => {
-                if (currentRoom && document.getElementById('screen_chat').classList.contains('active')) {
-                    pollNewMessages();
+            // Tin mới đi kèm trong tín hiệu (app.py::_sse_change_signal) -> hiện ngay; ping "đang online" thì bỏ qua.
+            stream.onmessage = (ev) => {
+                let d = {};
+                try { d = JSON.parse(ev.data || '{}'); } catch (e) { d = {}; }
+                if (d.coll === 'chat_presence') return;
+                const open = currentRoom && document.getElementById('screen_chat').classList.contains('active');
+                if (d.coll === 'chat_messages' && d.doc) {
+                    if (!open || d.doc.room !== currentRoom) { clearTimeout(window.__danhBaTimer); window.__danhBaTimer = setTimeout(() => loadDanhBa(), 3000); return; }
+                    if (lastMessageTimestamp && d.doc.timestamp <= lastMessageTimestamp) return;
+                    renderMessage(d.doc);
+                    lastMessageTimestamp = d.doc.timestamp;
+                    forceScrollToBottom();
+                    return;
                 }
+                if (open) pollNewMessages();
             };
         }
 

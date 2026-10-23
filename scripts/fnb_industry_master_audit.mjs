@@ -19,7 +19,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.FNB_DEMO_EMAIL || 'demo.fnb.343602@bitpawdemo.com';
 const PASSWORD = process.env.FNB_DEMO_PASSWORD || 'DemoBitPaw2026!';
 const BUSINESS_ID = process.env.FNB_DEMO_BUSINESS_ID || '39821fa8-e42a-4052-bc9d-eb061eaaae11';

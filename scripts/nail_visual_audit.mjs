@@ -19,7 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 const BUSINESS_ID = process.env.NAIL_DEMO_BUSINESS_ID || '000b2c16-ab4e-42bd-944a-29c925cad09b';

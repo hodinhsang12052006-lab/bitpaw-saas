@@ -6,7 +6,7 @@ import { execFileSync } from 'child_process';
 import http from 'http';
 import crypto from 'crypto';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const SID = 'ACtest0000000000000000000000000001', TOKEN = 'test_auth_token_123';
 const steps = [];

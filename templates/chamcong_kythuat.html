@@ -536,7 +536,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let currentWorkerId = ""; let currentWorkerName = ""; let activeTasksData = []; let globalInventory = [];
 
         function getFormattedDate() {
-            const rawDate = document.getElementById('pos_date').value || new Date().toISOString().split('T')[0];
+            const rawDate = document.getElementById('pos_date').value || new Date().toLocaleDateString('en-CA');
             const parts = rawDate.split('-');
             if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
             return rawDate;

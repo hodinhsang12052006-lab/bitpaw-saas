@@ -545,7 +545,7 @@
             nameInput.value = '';
             discountType.value = 'percentage';
             discountValue.value = '';
-            startDateInput.value = new Date().toISOString().slice(0,10);
+            startDateInput.value = new Date().toLocaleDateString('en-CA');
             endDateInput.value = '';
             usageLimitInput.value = '100';
             productIdsInput.value = '';
@@ -572,7 +572,7 @@
             }
             // Xác định trạng thái
             let status = 'active';
-            if (end_date && end_date < new Date().toISOString().slice(0,10)) status = 'expired';
+            if (end_date && end_date < new Date().toLocaleDateString('en-CA')) status = 'expired';
             showLoading(true);
             try {
                 if (id) {

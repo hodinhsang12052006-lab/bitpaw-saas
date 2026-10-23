@@ -15,12 +15,14 @@
  */
 
 import { chromium } from 'playwright';
+import { execFileSync } from 'child_process';
 import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.SPA_DEMO_EMAIL || 'demo.spa.596348@bitpawdemo.com';
 const PASSWORD = process.env.SPA_DEMO_PASSWORD || 'DemoBitPaw2026!';
 const BUSINESS_ID = process.env.SPA_DEMO_BUSINESS_ID || '3cd48d09-8028-486d-82da-038db3ac2892';
@@ -200,11 +202,8 @@ async function main() {
     await bookingPage.fill('#cus_address', '456 Audit Test Street');
     await bookingPage.selectOption('#cus_service', { index: 1 });
 
-    const bookDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    const bookDateStr = bookDate.toISOString().slice(0, 10);
-    const randomHour = String(9 + (Date.now() % 8)).padStart(2, '0');
-    const randomMinute = String(Date.now() % 60).padStart(2, '0');
-    await bookingPage.fill('#cus_datetime', `${bookDateStr}T${randomHour}:${randomMinute}`);
+    const picked = await pickSlot(bookingPage, isoDate(new Date(Date.now() + 3 * 86400000)), { random: true });   // giờ trống thật
+    const bookDateStr = picked ? picked.slice(0, 10) : isoDate(new Date(Date.now() + 3 * 86400000));
     await bookingPage.fill('#cus_note', 'Đặt qua audit script Spa — kiểm tra luồng QR end-to-end.');
 
     const [createApptResp] = await Promise.all([
@@ -228,7 +227,7 @@ async function main() {
       createApptStatus === 200 &&
       createApptBody?.success === true &&
       !!createApptBody?.id &&
-      /TICKET-/.test(ticketText) &&
+      /^#\d+$/.test(ticketText.trim()) &&   // số lịch hẹn thật (#id) — trước đây "TICKET-id"
       publicData.serviceCount > 0 &&
       noIdData.serviceCount <= 0 &&
       apptVisibleInCalendar &&
@@ -240,7 +239,11 @@ async function main() {
     record('4. Đặt Lịch Công Khai QR + Cách Ly Đa Tiệm', 'FAIL', Date.now() - t0, e.message);
     await shot(page, '04_spa_booking_FAILED.png').catch(() => {});
   } finally {
-    if (bookingContext) await bookingContext.close().catch(() => {});
+    if (bookingContext) await bookingContext.close().catch(() => {});    // Dọn lịch hẹn thử của bước này — trước đây để lại trong tiệm demo (Copilot của chủ tiệm còn đọc ra "QA Audit")
+    try {
+      execFileSync('python', ['-c', "from mongo_client import db; print(db.appointments.delete_many({'customer_name': 'QA Audit Spa Khach Hang', 'source': 'web'}).deleted_count)"],
+                   { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+    } catch (e) { /* không làm hỏng audit */ }
   }
 
   // ============================================================

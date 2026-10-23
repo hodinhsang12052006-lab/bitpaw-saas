@@ -14,7 +14,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const TENANTS = {
   nail: ['demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!'],
   fnb: ['demo.fnb.343602@bitpawdemo.com', 'DemoBitPaw2026!'],

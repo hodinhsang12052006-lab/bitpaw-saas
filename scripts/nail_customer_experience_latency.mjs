@@ -20,8 +20,9 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 const SAMPLES = Number(process.env.SAMPLES || 8);
@@ -248,14 +249,14 @@ async function main() {
       const midnight = new Date(); midnight.setHours(23, 55, 0, 0);
       const maxOff = Math.max(35, Math.min(330, Math.floor((midnight - Date.now()) / 60000)));
       const dt = new Date(Date.now() + (30 + Math.floor(Math.random() * (maxOff - 30))) * 60000);
-      await owner.goto(`${BASE}/calendar?date=${iso(dt)}`, { waitUntil: 'networkidle' });
       await cust.goto(`${BASE}/booking/nail/qr/${report.businessId}`, { waitUntil: 'networkidle' });
       await cust.fill('#cus_name', `UX Latency ${TOKEN}`);
       await cust.fill('#cus_phone', BOOK_PHONE);
       if (await cust.locator('#cus_address').count()) await cust.fill('#cus_address', '1 Test St');
       await cust.selectOption('#cus_service', { index: 1 });
       if ((await cust.locator('#cus_staff option').count()) > 1) await cust.selectOption('#cus_staff', { index: 1 });
-      await cust.fill('#cus_datetime', `${iso(dt)}T${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`);
+      const picked = await pickSlot(cust, iso(dt), { random: true });   // giờ trống thật (booking_rules)
+      await owner.goto(`${BASE}/calendar?date=${picked ? picked.slice(0, 10) : iso(dt)}`, { waitUntil: 'networkidle' });
       await shot(cust, 'c7_booking_form_mobile.png');
       const ms = await measure(owner, () => cust.click('#btnSubmit'),
         (ph) => Array.from(document.querySelectorAll('tr[data-appt-id]')).some((r) => r.textContent.includes(ph)), BOOK_PHONE);

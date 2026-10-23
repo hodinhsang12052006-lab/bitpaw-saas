@@ -70,7 +70,19 @@ def public_booking_nail(business_id=None, service_id=None):
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=business_id,
         business_name=business_name,
+        booking_auto_confirm=_auto_confirm(business_id),
         # Logo tiệm (Cài đặt thương hiệu) cho phần đầu trang đặt lịch — khách quét QR thấy đúng thương hiệu tiệm
         shop_logo_url=((db.system_settings.find_one({'key': 'brand_logo_url', 'business_id': business_id}, {'value': 1, '_id': 0}) or {}).get('value')
                        if business_id else None),
     )
+
+
+def _auto_confirm(business_id):
+    """Chip "Xác nhận ngay" trên trang đặt lịch chỉ hiện khi tiệm thật sự tự xác nhận (Cài đặt đặt lịch)."""
+    if not business_id:
+        return False
+    try:
+        import booking_rules
+        return bool(booking_rules.get_rules(business_id).get('auto_confirm', True))
+    except Exception:
+        return False

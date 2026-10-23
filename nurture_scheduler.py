@@ -98,7 +98,8 @@ def _process_rule(rule):
                 print(f"[nurture_scheduler] Lỗi sinh mẫu tin cho rule {rule_id}: {e}")
                 return
         first, last_service, days = customer_fill_values(business_id, cust)
-        message_body = AINurturingEngine.fill_template(template, first, last_service, days, lang)
+        message_body = AINurturingEngine.fill_template(template, first, last_service, days, lang,
+                                                       booking_link=AINurturingEngine.booking_link(business_id, industry))
 
         approval_status = 'APPROVED' if rule.get('auto_send') else 'PENDING'
         db.campaign_messages.insert_one({

@@ -17,7 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.HOTEL_DEMO_EMAIL || 'demo.hotel.071443@bitpawdemo.com';
 const PASSWORD = process.env.HOTEL_DEMO_PASSWORD || 'DemoBitPaw2026!';
 const BUSINESS_ID = process.env.HOTEL_DEMO_BUSINESS_ID || '885e1075-9191-4b1e-91ee-d100e961257d';

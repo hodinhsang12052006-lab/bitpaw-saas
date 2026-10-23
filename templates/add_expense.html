@@ -511,7 +511,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         amountRaw.addEventListener('input', formatNumberInput);
 
         // Ngày mặc định
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toLocaleDateString('en-CA');
         document.getElementById('expenseDate').value = today;
 
         // Chip nhanh
@@ -537,7 +537,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 for (let i = 0; i < 30; i++) {
                     const d = new Date();
                     d.setDate(d.getDate() - (29 - i));
-                    const key = d.toISOString().slice(0,10);
+                    const key = d.toLocaleDateString('en-CA');
                     dateMap.set(key, 0);
                 }
                 if (data) {
@@ -557,7 +557,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                 // 2. Pie chart 7 ngày theo category
                 const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                const recent7 = data?.filter(i => i.expense_date >= sevenDaysAgo.toISOString().slice(0,10)) || [];
+                const recent7 = data?.filter(i => i.expense_date >= sevenDaysAgo.toLocaleDateString('en-CA')) || [];
                 const catMap = new Map();
                 recent7.forEach(i => catMap.set(i.category, (catMap.get(i.category) || 0) + i.amount));
                 const ctxPie = document.getElementById('categoryChart').getContext('2d');

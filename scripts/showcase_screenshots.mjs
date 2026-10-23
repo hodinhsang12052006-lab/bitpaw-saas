@@ -8,7 +8,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { gotoSell } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const OUT = path.resolve(process.argv[2] || 'audit-results/showcase');
 fs.mkdirSync(OUT, { recursive: true });
 const T = {

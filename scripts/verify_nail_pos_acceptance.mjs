@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const SHOT_DIR = 'audit-results/screenshots/nail_pos_final';
 fs.mkdirSync(SHOT_DIR, { recursive: true });
 

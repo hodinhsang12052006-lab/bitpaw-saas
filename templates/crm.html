@@ -547,7 +547,7 @@ function updateStatsAndChart() {
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_tier')}</span>${getTierBadge(c.tier)}</div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_spend')}</span><span class="text-emerald-400">${formatCurrency(c.total_spent || 0)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_points')}</span><span class="text-purple-400">${c.loyalty_points || 0}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_joindate')}</span><span>${c.join_date || new Date().toISOString().slice(0,10)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">${t('crm_detail_joindate')}</span><span>${c.join_date || new Date().toLocaleDateString('en-CA')}</span></div>
                 ${c.notes ? `<div class="pt-2 mt-1 border-t border-white/10"><span class="text-gray-400 text-xs uppercase font-bold tracking-wider">${t('crm_detail_notes')}</span><p class="text-amber-300 mt-1 whitespace-pre-wrap">${escapeHtml(c.notes)}</p></div>` : ''}
                 <div class="pt-3 mt-2 border-t border-white/10">
                     <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">${t('crm_detail_order_history')}</div>

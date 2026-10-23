@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const ACC = JSON.parse(fs.readFileSync(process.env.ACC, 'utf8'));
 const OUT = process.env.OUT;
 const res = [];

@@ -269,6 +269,26 @@ def send_now(msg, settings, base_url=''):
     return _email_send(msg['to'], msg.get('subject') or settings['business_name'], body, unsub)
 
 
+def deliver(msg_id, base_url=''):
+    """Gửi NGAY đúng 1 tin vừa xếp hàng (báo chủ tiệm khách đang chờ, báo đổi ca...). pump() xử lý cả hàng đợi của tiệm
+    (tới 40 tin + tạo tin tự động) — gọi trong lúc khách đang chờ AI trả lời làm chậm 1-2 giây. Lỗi -> để pump/cron thử lại."""
+    m = db.outbound_messages.find_one({'id': msg_id, 'status': 'queued'}, {'_id': 0})
+    if not m:
+        return False
+    lock = db.outbound_messages.update_one({'id': msg_id, 'status': 'queued'}, {'$set': {'status': 'sending'}, '$inc': {'attempts': 1}})
+    if lock.modified_count != 1:
+        return False
+    try:
+        provider_id = send_now(m, get_settings(m['business_id']), base_url)
+        db.outbound_messages.update_one({'id': msg_id}, {'$set': {'status': 'sent', 'sent_at': datetime.now(timezone.utc).isoformat(),
+                                                                  'provider_id': provider_id}})
+        return True
+    except Exception as e:
+        db.outbound_messages.update_one({'id': msg_id}, {'$set': {'status': 'queued', 'error': str(e)[:300],
+                                                                  'send_after': (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()}})
+        return False
+
+
 # ---------------------------------------------------------------- nguồn tin tự động
 def _server_naive(dt_aware):
     """Đơn hàng/khách hàng lưu created_at = datetime.now() của MÁY CHỦ (UTC trên Vercel, giờ máy ở local) — so sánh
@@ -457,7 +477,7 @@ def pump(business_id, base_url='', now_utc=None, produce=True, limit=40):
     due = list(db.outbound_messages.find({'business_id': business_id, 'status': 'queued', 'send_after': {'$lte': cutoff.isoformat()}},
                                          {'_id': 0}).sort('send_after', 1).limit(limit))
     for m in due:
-        transactional = m['kind'] in ('owner_report', 'missed_call', 'test', 'on_my_way')
+        transactional = m['kind'] in ('owner_report', 'missed_call', 'test', 'on_my_way', 'staff_alert')
         if not transactional and not in_send_window(settings, now_utc):
             db.outbound_messages.update_one({'id': m['id']}, {'$set': {'send_after': next_window_start_utc(settings, now_utc).isoformat()}})
             stats['deferred'] += 1

@@ -3,7 +3,7 @@
 //   TENANT=nail PAGES=/chamcong_nail,/ai_bot node scripts/mobile_viewport_probe.mjs
 import { chromium, devices } from 'playwright';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const ACC = {
   nail: ['demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!'], fnb: ['demo.fnb.343602@bitpawdemo.com', 'DemoBitPaw2026!'],
   spa: ['demo.spa.596348@bitpawdemo.com', 'DemoBitPaw2026!'], retail: ['demo.retail.596348@bitpawdemo.com', 'DemoBitPaw2026!'],

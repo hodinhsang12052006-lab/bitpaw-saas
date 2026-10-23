@@ -9,7 +9,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.SCALE_EMAIL;
 const PASSWORD = process.env.SCALE_PASSWORD || 'QaNailScale2026!';
 const VERCEL_LIMIT = 4.5 * 1024 * 1024;

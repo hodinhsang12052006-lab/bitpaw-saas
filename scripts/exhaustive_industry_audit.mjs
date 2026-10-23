@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const SHOT_ROOT = 'audit-results/screenshots';
 const VIDEO_DIR = 'audit-results/videos';
 const MANIFEST_FILE = 'audit-results/exhaustive_manifest.json';

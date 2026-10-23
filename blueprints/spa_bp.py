@@ -204,6 +204,7 @@ def public_booking(spa_id=None, service_id=None):
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=spa_id,
         business_name=business_name,
+        booking_auto_confirm=_auto_confirm(spa_id),
         # Logo tiệm (Cài đặt thương hiệu) cho phần đầu trang đặt lịch — khách quét QR thấy đúng thương hiệu tiệm
         shop_logo_url=((db.system_settings.find_one({'key': 'brand_logo_url', 'business_id': spa_id}, {'value': 1, '_id': 0}) or {}).get('value')
                        if spa_id else None),
@@ -235,23 +236,25 @@ def create_appointment():
         try:
             service_id = int(raw_service_id)
         except (TypeError, ValueError):
-            return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
-        staff_raw = data.get('staff_id')
-        if staff_raw not in (None, '') and not isinstance(staff_raw, (str, int)):
-            return jsonify({'success': False, 'message': 'Nhân viên không hợp lệ.'}), 400
-        for _f in ('name', 'phone', 'book_time'):
-            if not isinstance(data.get(_f), str) or not data.get(_f).strip():
-                return jsonify({'success': False, 'message': 'Thiếu thông tin đặt lịch.'}), 400
+            return jsonify({'success': False, 'message': 'Service not found. / Dịch vụ không tồn tại.'}), 400
         svc = db.products.find_one({'id': service_id}, {'business_id': 1, 'name': 1, '_id': 0})
         if not svc:
-            return jsonify({'success': False, 'message': 'Dịch vụ không tồn tại.'}), 400
+            return jsonify({'success': False, 'message': 'Service not found. / Dịch vụ không tồn tại.'}), 400
+        vi = _shop_is_vi(svc['business_id'])
+        staff_raw = data.get('staff_id')
+        if staff_raw not in (None, '') and not isinstance(staff_raw, (str, int)):
+            return jsonify({'success': False, 'message': 'Nhân viên không hợp lệ.' if vi else 'Invalid team member.'}), 400
+        for _f in ('name', 'phone', 'book_time'):
+            if not isinstance(data.get(_f), str) or not data.get(_f).strip():
+                return jsonify({'success': False, 'message': 'Thiếu thông tin đặt lịch.' if vi else 'Please fill in your name, phone and time.'}), 400
         upcoming = db.appointments.count_documents({
             'business_id': svc['business_id'], 'customer_phone': data['phone'].strip(),
             'status': {'$in': ['pending', 'confirmed']}, 'book_time': {'$gte': datetime.now().strftime('%Y-%m-%dT%H:%M')},
         })
         if upcoming >= PUBLIC_BOOKINGS_PER_PHONE:
-            return jsonify({'success': False, 'message': f'Số điện thoại này đã có {upcoming} lịch hẹn sắp tới. '
-                                                         'Vui lòng gọi tiệm nếu cần đổi hoặc đặt thêm.'}), 429
+            return jsonify({'success': False, 'message': (f'Số điện thoại này đã có {upcoming} lịch hẹn sắp tới. Vui lòng gọi tiệm nếu cần đổi hoặc đặt thêm.'
+                                                         if vi else f'This phone number already has {upcoming} upcoming bookings. '
+                                                         'Please call the business to change or add more.')}), 429
         appointment = book_appointment(
             business_id=svc['business_id'],
             customer_info={'name': data['name'].strip()[:80], 'phone': data['phone'].strip()[:20]},
@@ -262,14 +265,24 @@ def create_appointment():
             source='web',
         )
     except SlotAlreadyBookedError as e:
-        return jsonify({'success': False, 'message': str(e)}), 409
+        msg = str(e)
+        if ' / ' in msg:  # "EN / VI" từ booking_rules -> đúng ngôn ngữ của tiệm
+            en, vi = msg.split(' / ', 1)
+            msg = vi if _shop_is_vi(svc.get('business_id')) else en
+        return jsonify({'success': False, 'message': msg}), 409
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Không thể tạo lịch hẹn: {str(e)}'}), 400
+        return jsonify({'success': False, 'message': f'Could not create the booking: {str(e)}'}), 400
 
     # Báo email chủ tiệm giờ nằm NGAY TRONG book_appointment() (booking_engine.py) — chạy cho
     # MỌI nguồn tạo lịch hẹn (QR công khai LẪN AI Bot), không riêng route này nữa. Xem comment
     # đầu file booking_engine.py để biết lý do dời (bug thật: AI Bot từng không báo được).
-    return jsonify({'success': True, 'id': appointment['id']})
+    return jsonify({'success': True, 'id': appointment['id'], 'status': appointment.get('status'), 'book_time': appointment.get('book_time'),
+                    'service_name': svc.get('name')})
+
+
+def _shop_is_vi(business_id):
+    b = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1}) or {}
+    return (b.get('country') or 'VN').upper() == 'VN'
 
 
 @app.route('/chamcong/spa')
@@ -278,3 +291,14 @@ def create_appointment():
 @role_required('admin', 'super_admin')
 def chamcong_spa():
     return render_template('chamcong_spa.html')
+
+
+def _auto_confirm(business_id):
+    """Chip "Xác nhận ngay" trên trang đặt lịch chỉ hiện khi tiệm thật sự tự xác nhận (Cài đặt đặt lịch)."""
+    if not business_id:
+        return False
+    try:
+        import booking_rules
+        return bool(booking_rules.get_rules(business_id).get('auto_confirm', True))
+    except Exception:
+        return False

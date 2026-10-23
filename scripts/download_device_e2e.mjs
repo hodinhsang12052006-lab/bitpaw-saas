@@ -4,7 +4,7 @@ import { chromium, devices } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const OUT = path.resolve('audit-results/screenshots/download_device_e2e');
 fs.mkdirSync(OUT, { recursive: true });
 const strip = ({ defaultBrowserType, ...d }) => d;

@@ -1,16 +1,16 @@
 # Spa Industry Master Audit Report
 
-Generated: 2026-10-23T18:47:54.298Z
+Generated: 2026-10-23T22:26:52.272Z
 
 **6 PASS · 0 WARN · 0 FAIL** (6 test clusters)
 
 | # | Chức năng | Trạng thái | Thời gian | Ghi chú |
 |---|---|---|---|---|
-| 1 | 1. Đăng nhập & Khởi tạo POS Spa | PASS | 4598ms | console_errors=0, network_5xx=0, services=8 |
-| 2 | 2. Thêm Dịch Vụ Vào Giỏ & Mở Checkout | PASS | 2051ms | Đã thêm 2 dịch vụ, giỏ hiển thị 2 dòng, modal checkout hiện: true. |
-| 3 | 3. Thanh Toán Tiền Mặt (/api/sales/checkout) | PASS | 1684ms | HTTP 200, order_id=38835, total_amount=240, receipt hiển thị: "#38835" |
-| 4 | 4. Đặt Lịch Công Khai QR + Cách Ly Đa Tiệm | PASS | 7741ms | Business "3cd48d09-8028-486d-82da-038db3ac2892" — public page: 8 dịch vụ / 7 thợ. /booking (thiếu id): 0 dịch vụ (phải = 0). Đặt lịch HTTP 200, id=9093, ticket="TICKET-9093". Hiện trong /calendar chủ tiệm: true. Console errors: 0. |
-| 5 | 5. Chấm Công Spa (/chamcong/spa) | PASS | 2424ms | 4 dòng nhân viên trong bảng, 0 lỗi console mới. Nội dung dài 696 ký tự. |
-| 6 | 6. Module Dùng Chung Cho Spa (Customers/AI Bot/Nhân Viên/Báo Cáo) | PASS | 4819ms | /customers=200, /ai_bot=200, /nhanvien=200, /report=200 |
+| 1 | 1. Đăng nhập & Khởi tạo POS Spa | PASS | 5285ms | console_errors=0, network_5xx=0, services=8 |
+| 2 | 2. Thêm Dịch Vụ Vào Giỏ & Mở Checkout | PASS | 2533ms | Đã thêm 2 dịch vụ, giỏ hiển thị 2 dòng, modal checkout hiện: true. |
+| 3 | 3. Thanh Toán Tiền Mặt (/api/sales/checkout) | PASS | 2005ms | HTTP 200, order_id=38867, total_amount=240, receipt hiển thị: "#38867" |
+| 4 | 4. Đặt Lịch Công Khai QR + Cách Ly Đa Tiệm | PASS | 8680ms | Business "3cd48d09-8028-486d-82da-038db3ac2892" — public page: 8 dịch vụ / 4 thợ. /booking (thiếu id): 0 dịch vụ (phải = 0). Đặt lịch HTTP 200, id=9387, ticket="#9387". Hiện trong /calendar chủ tiệm: true. Console errors: 0. |
+| 5 | 5. Chấm Công Spa (/chamcong/spa) | PASS | 2564ms | 4 dòng nhân viên trong bảng, 0 lỗi console mới. Nội dung dài 713 ký tự. |
+| 6 | 6. Module Dùng Chung Cho Spa (Customers/AI Bot/Nhân Viên/Báo Cáo) | PASS | 5742ms | /customers=200, /ai_bot=200, /nhanvien=200, /report=200 |
 
 ## Findings (Spec vs. Implementation Gaps)

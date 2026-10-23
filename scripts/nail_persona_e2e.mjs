@@ -15,8 +15,9 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 const OUT = path.resolve('audit-results/screenshots/nail_persona_e2e');
@@ -267,12 +268,12 @@ try {
   await cust.selectOption('#cus_service', String(svc.id));
   const techVal = await cust.locator('#cus_staff option', { hasText: HO_TEN }).getAttribute('value');
   if (techVal) await cust.selectOption('#cus_staff', techVal);
-  await cust.fill('#cus_datetime', localIso);
+  const picked = await pickSlot(cust, localIso.slice(0, 10));   // giờ trống thật của đúng thợ này (booking_rules)
   await cust.fill('#cus_address', 'QA');
   await cust.click('#btnSubmit');
   await cust.waitForTimeout(2500);
   const appt = db('appts', BID, `QA Persona Khách ${MA_NV}`);
-  check('Khách', 'Khách đặt lịch với thợ mới -> lịch hẹn lưu đúng thợ, đúng giờ', appt.count === 1 && String(appt.items[0]?.staff_id) === String(techVal) && (appt.items[0]?.book_time || '').startsWith(localIso),
+  check('Khách', 'Khách đặt lịch với thợ mới -> lịch hẹn lưu đúng thợ, đúng giờ', appt.count === 1 && String(appt.items[0]?.staff_id) === String(techVal) && (appt.items[0]?.book_time || '').startsWith(picked || localIso),
     appt.count ? `staff_id=${appt.items[0].staff_id} ${appt.items[0].book_time}` : 'không có lịch hẹn');
   await owner.goto(`${BASE}/calendar?date=${localIso.slice(0, 10)}`, { waitUntil: 'networkidle' });
   check('Chủ tiệm', 'Lịch hẹn của khách hiện trên /calendar', (await owner.content()).includes(`QA Persona Khách ${MA_NV}`));

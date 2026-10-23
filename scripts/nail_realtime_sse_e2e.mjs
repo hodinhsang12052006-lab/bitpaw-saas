@@ -14,11 +14,13 @@
  */
 
 import { chromium } from 'playwright';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { gotoSell } from './lib/nail_nav.mjs';
+import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 
@@ -97,14 +99,11 @@ async function main() {
     // Kẹp offset để KHÔNG bao giờ tràn qua nửa đêm (sang ngày mai) — ownerPage đã mở sẵn
     // /calendar?date=hôm-nay ở trên rồi, nếu giờ đặt lịch lỡ rơi qua ngày mai thì bước A2 sẽ tìm
     // dòng mới ở nhầm ngày và FAIL oan, không liên quan gì tới SSE.
-    const midnight = new Date();
-    midnight.setHours(23, 55, 0, 0);
-    const maxOffsetMin = Math.max(35, Math.min(330, Math.floor((midnight - Date.now()) / 60000)));
-    const bookingDt = new Date(Date.now() + (30 + Math.floor(Math.random() * (maxOffsetMin - 30))) * 60000);
-    bookingDateStr = todayISO(bookingDt);
-    const randomHour = String(bookingDt.getHours()).padStart(2, '0');
-    const randomMinute = String(bookingDt.getMinutes()).padStart(2, '0');
-    await guestPage.fill('#cus_datetime', `${bookingDateStr}T${randomHour}:${randomMinute}`);
+    const picked = await pickSlot(guestPage, todayISO(), { random: true });   // giờ trống thật (booking_rules)
+    if (picked && picked.slice(0, 10) !== bookingDateStr) {   // hôm nay hết giờ -> mở sẵn lịch đúng ngày đó (vẫn trước khi khách bấm đặt)
+      bookingDateStr = picked.slice(0, 10);
+      await ownerPage.goto(`${BASE}/calendar?date=${bookingDateStr}`, { waitUntil: 'networkidle' });
+    }
 
     const [bookingResp] = await Promise.all([
       guestPage.waitForResponse((r) => r.url().includes('/create_appointment') && r.request().method() === 'POST', { timeout: 15000 }).catch(() => null),
@@ -204,6 +203,11 @@ async function main() {
     const warnCount = steps.filter((s) => s.status === 'WARN').length;
     const failCount = steps.filter((s) => s.status === 'FAIL').length;
     console.log(`\nTổng kết: ${passCount} PASS · ${warnCount} WARN · ${failCount} FAIL`);
+    // dọn lịch hẹn thử (trước đây để lại "SSE Test Guest" trong tiệm demo)
+    try {
+      execFileSync('python', ['-c', "from mongo_client import db; print(db.appointments.delete_many({'customer_name': 'SSE Test Guest', 'source': 'web'}).deleted_count)"],
+                   { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+    } catch (e) { /* không làm hỏng test */ }
     await browser.close();
     process.exit(failCount > 0 ? 1 : 0);
   }

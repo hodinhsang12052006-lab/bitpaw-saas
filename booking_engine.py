@@ -38,7 +38,7 @@ class SlotAlreadyBookedError(Exception):
 
 
 def book_appointment(business_id, customer_info, staff_id, book_time, service_id=None,
-                      note=None, source='web', status='pending'):
+                      note=None, source='web', status=None, enforce_rules=None):
     """Tạo 1 lịch hẹn — DÙNG CHUNG cho mọi nơi ghi vào db.appointments trong hệ thống.
 
     Check trùng lịch CHỈ áp dụng khi có staff_id cụ thể (khách chỉ định đúng thợ) — 2 khách đặt
@@ -64,6 +64,24 @@ def book_appointment(business_id, customer_info, staff_id, book_time, service_id
         staff_id = None  # "thợ nào cũng được" — không giữ chỗ riêng thợ nào
     else:
         staff_id = str(staff_id)[:64]
+
+    # Luật đặt lịch của tiệm (booking_rules.py): giờ mở cửa, đặt trước tối thiểu/tối đa, sức chứa theo số thợ có
+    # ca, thợ có ca/đang rảnh. Áp cho khách tự đặt (form công khai + trợ lý AI); chủ tiệm tự xếp tay thì không chặn.
+    if enforce_rules is None:
+        enforce_rules = source in ('web', 'ai_bot')
+    if status is None:  # khách tự đặt: xác nhận ngay nếu tiệm bật "tự xác nhận" (mặc định), không thì chờ duyệt
+        status = 'pending'
+        if source in ('web', 'ai_bot'):
+            import booking_rules
+            status = 'confirmed' if booking_rules.get_rules(business_id).get('auto_confirm', True) else 'pending'
+    if enforce_rules:
+        import booking_rules
+        try:
+            booking_rules.check_slot(business_id, datetime.fromisoformat(book_time), service_id, staff_id)
+        except booking_rules.SlotUnavailable as e:
+            err = SlotAlreadyBookedError(' / '.join(booking_rules.REASON_TEXT.get(e.reason, (e.reason, e.reason))))
+            err.reason = e.reason
+            raise err from e
 
     if staff_id is not None:
         # $ne 'cancelled': lịch đã huỷ không còn chiếm chỗ, thợ được đặt lại đúng khung giờ đó.

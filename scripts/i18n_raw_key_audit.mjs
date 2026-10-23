@@ -5,7 +5,7 @@
 // Chạy: node scripts/i18n_raw_key_audit.mjs   (server local phải đang chạy; TENANT_EMAIL/TENANT_PASSWORD tuỳ chọn)
 import { chromium } from 'playwright';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.TENANT_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.TENANT_PASSWORD || 'DemoNails2026!';
 // 1 text node chỉ gồm khoá dạng snake_case có tiền tố quen thuộc của bộ dịch (menu_, cnl_, npos_...)

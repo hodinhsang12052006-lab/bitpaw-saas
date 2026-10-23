@@ -613,7 +613,20 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function setupRealtime() {
             if (radarStream) return;
             radarStream = new EventSource('/api/stream/hr_employees');
-            radarStream.onmessage = () => fetchWorkers();
+            // Tín hiệu kèm vị trí/trạng thái của đúng người vừa đổi -> dời đúng 1 chấm; thêm/xoá nhân viên mới tải lại cả danh sách.
+            let fullTimer = null;
+            radarStream.onmessage = (ev) => {
+                let d = {};
+                try { d = JSON.parse(ev.data || '{}'); } catch (e) { d = {}; }
+                const w = d.doc && d.op === 'update' ? currentWorkersData.find(x => x.ma_nv === d.doc.ma_nv) : null;
+                if (w) {
+                    Object.assign(w, d.doc);
+                    updateMapAndUI(w);
+                    if (typeof renderWorkerList === 'function') renderWorkerList(currentWorkersData);
+                    return;
+                }
+                clearTimeout(fullTimer); fullTimer = setTimeout(fetchWorkers, 300);
+            };
         }
 
         function updateMapAndUI(worker) {

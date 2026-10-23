@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Cài đặt đặt lịch' if default_lang == 'vi' else 'Booking settings' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Cài đặt đặt lịch (booking_rules.py). CSS tự chứa như trang Nhắn tin / Lịch ca. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #a78bfa; --ok: #34d399; --warn: #fbbf24; --err: #fb7185; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+        .bs-main { flex: 1; min-width: 0; padding: 28px 28px 90px; max-width: 1080px; }
+        h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+        .lead { color: var(--muted); margin: 0 0 20px; max-width: 72ch; line-height: 1.6; font-size: 14px; }
+        section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+        section.box h2 { font-size: 16px; font-weight: 800; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; }
+        section.box p.sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; line-height: 1.55; }
+        label.f { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin: 0 0 5px; }
+        .in { color-scheme: dark; width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 14px; }
+        .in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,.18); }
+        textarea.in { resize: vertical; min-height: 64px; line-height: 1.5; }
+        .day { display: grid; grid-template-columns: 110px 70px 1fr 1fr; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.05); }
+        .day:first-of-type { border-top: 0; }
+        .day b { font-size: 14px; } .day .closed { color: var(--muted); font-size: 13px; grid-column: 3 / 5; }
+        .sw { position: relative; width: 44px; height: 26px; }
+        .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+        .sw span { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,.15); transition: background .2s ease; }
+        .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s cubic-bezier(.22,1,.36,1); }
+        .sw input:checked + span { background: var(--accent); } .sw input:checked + span::after { transform: translateX(18px); }
+        .sw input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
+        .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .svc { display: grid; grid-template-columns: 1fr 90px 110px; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.05); font-size: 14px; }
+        .svc span { color: var(--muted); font-variant-numeric: tabular-nums; }
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .chips span { font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 9px; background: rgba(167,139,250,.14); color: #ddd6fe; font-variant-numeric: tabular-nums; }
+        .bar { display: flex; justify-content: flex-end; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; bottom: 12px; background: rgba(8,6,26,.92); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+        .note { font-size: 13px; color: var(--muted); margin-right: auto; } .note.ok { color: var(--ok); } .note.err { color: var(--err); }
+        .btn { border: 0; border-radius: 11px; padding: 11px 18px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; background: var(--accent); color: #150b2e; }
+        .btn.ghost { background: rgba(255,255,255,.07); color: var(--ink); border: 1px solid var(--line); }
+        .btn[disabled] { opacity: .6; cursor: progress; }
+        .warnbox { font-size: 13px; color: var(--warn); background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+        @media (max-width: 760px) { .grid3, .grid2 { grid-template-columns: 1fr 1fr; } .day { grid-template-columns: 70px 56px 1fr 1fr; } .svc { grid-template-columns: 1fr 70px 90px; } }
+        @media (max-width: 640px) { .bs-main { padding: 72px 14px 90px; } .grid3, .grid2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% include 'components/app_sidebar.html' %}
+<main class="bs-main">
+    <h1><i class="fas fa-calendar-check" style="color: var(--accent)"></i> {{ 'Cài đặt đặt lịch' if vi else 'Booking settings' }}</h1>
+    <p class="lead">{{ 'Giờ mở cửa, luật đặt lịch, thời lượng từng dịch vụ và thông tin tiệm. Form đặt lịch online và trợ lý AI dùng đúng những thông tin này: không nhận lịch ngoài giờ, không quá số thợ đang có ca, và AI chỉ trả lời điều bạn ghi ở đây.' if vi else 'Opening hours, booking rules, service durations and business info. The online booking form and the AI assistant use exactly this: no bookings outside hours, never more clients than technicians on shift, and the AI only states what you write here.' }}</p>
+    <div class="warnbox" id="defaultWarn" hidden><i class="fas fa-circle-info"></i> {{ 'Đang dùng giờ mở cửa mặc định — hãy chỉnh cho đúng tiệm rồi bấm Lưu.' if vi else 'Default opening hours are in use — adjust them to your business and press Save.' }}</div>
+
+    <section class="box">
+        <h2><i class="fas fa-clock" style="color: var(--accent)"></i> {{ 'Giờ mở cửa' if vi else 'Opening hours' }}</h2>
+        <div id="hours"></div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-sliders" style="color: var(--warn)"></i> {{ 'Luật đặt lịch' if vi else 'Booking rules' }}</h2>
+        <p class="sub" id="capHint"></p>
+        <div class="grid3">
+            <div><label class="f" for="slot">{{ 'Bước giờ (phút)' if vi else 'Start-time step (min)' }}</label><select class="in" id="slot"><option>10</option><option>15</option><option>20</option><option>30</option><option>60</option></select></div>
+            <div><label class="f" for="lead">{{ 'Đặt trước tối thiểu (phút)' if vi else 'Minimum notice (min)' }}</label><input class="in" id="lead" type="number" min="0" inputmode="numeric"></div>
+            <div><label class="f" for="adv">{{ 'Đặt trước tối đa (ngày)' if vi else 'Book up to (days ahead)' }}</label><input class="in" id="adv" type="number" min="1" inputmode="numeric"></div>
+            <div><label class="f" for="dur">{{ 'Thời lượng mặc định (phút)' if vi else 'Default duration (min)' }}</label><input class="in" id="dur" type="number" min="5" inputmode="numeric"></div>
+            <div><label class="f" for="cap">{{ 'Số khách cùng lúc (0 = theo số thợ có ca)' if vi else 'Clients at once (0 = technicians on shift)' }}</label><input class="in" id="cap" type="number" min="0" inputmode="numeric"></div>
+            <div><label class="f" for="autoc">{{ 'Xác nhận lịch online' if vi else 'Online bookings' }}</label>
+                <select class="in" id="autoc"><option value="1">{{ 'Tự xác nhận ngay (khuyên dùng)' if vi else 'Confirm instantly (recommended)' }}</option><option value="0">{{ 'Chờ tiệm duyệt' if vi else 'I approve each request' }}</option></select></div>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-stopwatch" style="color: var(--ok)"></i> {{ 'Thời lượng từng dịch vụ' if vi else 'Service durations' }}</h2>
+        <p class="sub">{{ 'Dùng để tính giờ trống và để dịch vụ kết thúc trước giờ đóng cửa.' if vi else 'Used to work out free times and to finish before closing.' }}</p>
+        <div id="svcs"></div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-store" style="color: #38bdf8"></i> {{ 'Thông tin tiệm cho khách và AI' if vi else 'Business info for clients and the AI' }}</h2>
+        <p class="sub">{{ 'Trợ lý AI chỉ trả lời những gì ghi ở đây; câu hỏi khác nó sẽ chuyển cho nhân viên thay vì đoán.' if vi else 'The AI assistant only answers from what is written here; anything else it passes to your team instead of guessing.' }}</p>
+        <div class="grid2" id="info"></div>
+        <div id="gapsBox" hidden style="margin-top:14px">
+            <h3 style="font-size:14px;margin:0 0 6px;color:var(--warn)"><i class="fas fa-circle-question"></i> {{ 'Khách đã hỏi mà AI chưa có câu trả lời (30 ngày)' if vi else 'Questions the AI could not answer (last 30 days)' }}</h3>
+            <p class="sub" style="margin-bottom:8px">{{ 'Ghi câu trả lời vào ô phù hợp ở trên rồi bấm Lưu — lần sau AI tự trả lời, khách không phải chờ nhân viên.' if vi else 'Add the answer to the matching box above and save — next time the AI answers on its own and the customer does not wait for staff.' }}</p>
+            <ul id="gaps" style="margin:0;padding-left:18px;font-size:13px;line-height:1.7;color:#e2e8f0"></ul>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-magnifying-glass" style="color: var(--accent)"></i> {{ 'Thử xem giờ trống' if vi else 'Preview free times' }}</h2>
+        <div class="grid2"><div><label class="f" for="pvDate">{{ 'Ngày' if vi else 'Date' }}</label><input class="in" id="pvDate" type="date"></div>
+            <div><label class="f" for="pvSvc">{{ 'Dịch vụ' if vi else 'Service' }}</label><select class="in" id="pvSvc"></select></div></div>
+        <div class="chips" id="pvOut"></div>
+    </section>
+
+    <div class="bar"><span class="note" id="note"></span><button class="btn" id="saveBtn"><i class="fas fa-floppy-disk"></i> {{ 'Lưu' if vi else 'Save' }}</button></div>
+</main>
+<script>
+(function () {
+    const VI = {{ 'true' if vi else 'false' }};
+    const BID = {{ (session.get('business_id') or session.get('user_id')) | tojson }};
+    const DAYS = VI ? { mon: 'Thứ 2', tue: 'Thứ 3', wed: 'Thứ 4', thu: 'Thứ 5', fri: 'Thứ 6', sat: 'Thứ 7', sun: 'Chủ nhật' }
+                    : { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+    const INFO = VI ? { address: 'Địa chỉ', parking: 'Chỗ gửi xe', payments: 'Cách thanh toán nhận', gift_cards: 'Thẻ quà tặng / voucher', cancellation_policy: 'Chính sách huỷ / đến trễ', other: 'Ghi chú khác (dị ứng, trẻ em, thú cưng...)' }
+                    : { address: 'Address', parking: 'Parking', payments: 'Payment methods', gift_cards: 'Gift cards / vouchers', cancellation_policy: 'Cancellation / late policy', other: 'Other notes (allergies, kids, pets...)' };
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let state = null;
+    async function api(url, method, body) {
+        const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.success === false) throw new Error(j.message || ('HTTP ' + r.status));
+        return j;
+    }
+    function render() {
+        const r = state.rules;
+        $('defaultWarn').hidden = !!r.configured;
+        $('hours').innerHTML = Object.keys(DAYS).map((d) => {
+            const v = r.hours[d];
+            return `<div class="day" data-d="${d}"><b>${DAYS[d]}</b><label class="sw" aria-label="${DAYS[d]}"><input type="checkbox" ${v ? 'checked' : ''}><span></span></label>
+                ${v ? `<input class="in" type="time" value="${v[0]}" aria-label="open"><input class="in" type="time" value="${v[1]}" aria-label="close">` : `<span class="closed">${VI ? 'Nghỉ' : 'Closed'}</span>`}</div>`;
+        }).join('');
+        $('hours').querySelectorAll('.day input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
+            const d = cb.closest('.day').dataset.d;
+            state.rules.hours[d] = cb.checked ? ['09:00', '18:00'] : null;
+            render();
+        }));
+        $('slot').value = r.slot_minutes; $('lead').value = r.min_lead_minutes; $('adv').value = r.max_advance_days;
+        $('dur').value = r.default_duration; $('cap').value = r.capacity; $('autoc').value = r.auto_confirm === false ? '0' : '1';
+        $('capHint').textContent = VI ? `Hiện có ${state.staff_count} nhân viên. Nếu tuần đó đã có Lịch ca công bố, số khách cùng lúc = số thợ có ca giờ đó.`
+                                      : `You have ${state.staff_count} team members. When the week has a published roster, clients at once = technicians on shift at that time.`;
+        $('svcs').innerHTML = state.services.map((s) => `<div class="svc" data-id="${s.id}"><b>${esc(s.name)}</b><span>${s.price}</span>
+            <input class="in" type="number" min="5" max="600" step="5" value="${s.duration}" aria-label="${esc(s.name)} ${VI ? 'phút' : 'minutes'}"></div>`).join('')
+            || `<p class="sub">${VI ? 'Chưa có dịch vụ.' : 'No services yet.'}</p>`;
+        $('info').innerHTML = Object.keys(INFO).map((k) => `<div><label class="f" for="i_${k}">${INFO[k]}</label><textarea class="in" id="i_${k}" maxlength="600">${esc(r.info[k] || '')}</textarea></div>`).join('');
+        $('pvSvc').innerHTML = state.services.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        const gaps = state.gaps || [];
+        $('gapsBox').hidden = !gaps.length;
+        $('gaps').innerHTML = gaps.map((g) => `<li>${esc(g.question)} <span style="color:var(--muted);font-size:11px">${esc(g.at)}</span></li>`).join('');
+    }
+    function collect() {
+        const hours = {};
+        document.querySelectorAll('#hours .day').forEach((row) => {
+            const t = row.querySelectorAll('input[type=time]');
+            hours[row.dataset.d] = row.querySelector('input[type=checkbox]').checked && t.length ? [t[0].value, t[1].value] : null;
+        });
+        const durations = {};
+        document.querySelectorAll('#svcs .svc').forEach((row) => { durations[row.dataset.id] = +row.querySelector('input').value; });
+        const info = {};
+        Object.keys(INFO).forEach((k) => { info[k] = $('i_' + k).value; });
+        return { hours, durations, info, slot_minutes: +$('slot').value, min_lead_minutes: +$('lead').value, max_advance_days: +$('adv').value,
+                 default_duration: +$('dur').value, capacity: +$('cap').value, auto_confirm: $('autoc').value === '1' };
+    }
+    async function preview() {
+        if (!$('pvDate').value) return;
+        try {
+            const r = await api(`/api/public/booking_slots/${encodeURIComponent(BID)}?date=${$('pvDate').value}&service_id=${$('pvSvc').value}`);
+            $('pvOut').innerHTML = !r.open ? `<em class="sub">${VI ? 'Tiệm nghỉ ngày này.' : 'Closed that day.'}</em>`
+                : (r.slots.length ? r.slots.map((t) => `<span>${t}</span>`).join('') : `<em class="sub">${VI ? 'Hết chỗ / quá sát giờ.' : 'Fully booked / too soon.'}</em>`);
+        } catch (e) { $('pvOut').textContent = e.message; }
+    }
+    $('pvDate').addEventListener('change', preview); $('pvSvc').addEventListener('change', preview);
+    $('saveBtn').addEventListener('click', async (ev) => {
+        const b = ev.currentTarget; b.disabled = true;
+        try {
+            state = await api('/api/booking/settings', 'POST', collect());
+            render(); $('note').className = 'note ok'; $('note').textContent = VI ? 'Đã lưu.' : 'Saved.'; preview();
+        } catch (e) { $('note').className = 'note err'; $('note').textContent = e.message; }
+        b.disabled = false;
+    });
+    api('/api/booking/settings').then((r) => {
+        state = r; render();
+        const d = new Date(); d.setDate(d.getDate() + 1); $('pvDate').value = d.toLocaleDateString('en-CA'); preview();
+    }).catch((e) => { $('note').className = 'note err'; $('note').textContent = e.message; });
+})();
+</script>
+</body>
+</html>

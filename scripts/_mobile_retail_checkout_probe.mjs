@@ -2,7 +2,7 @@
 // CHỈ server local. Đơn tạo ra được hoàn tiền/không — đây là tiệm demo, đơn thử in rõ mã để dọn.
 import { chromium, devices } from 'playwright';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const { defaultBrowserType, ...iphone } = devices['iPhone 13'];
 const b = await chromium.launch({ channel: 'chrome', headless: true });
 const ctx = await b.newContext({ ...iphone, deviceScaleFactor: 2 });

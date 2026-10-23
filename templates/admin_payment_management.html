@@ -872,7 +872,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             // Daily chart (7 ngày gần nhất)
             const dailyMap = {};
             transactions.forEach(tx => {
-                const date = new Date(tx.created_at).toISOString().slice(0,10);
+                const date = new Date(tx.created_at).toLocaleDateString('en-CA');
                 dailyMap[date] = (dailyMap[date] || 0) + 1;
             });
             const sortedDates = Object.keys(dailyMap).sort().slice(-7);

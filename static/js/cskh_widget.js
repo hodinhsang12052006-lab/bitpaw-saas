@@ -1000,8 +1000,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         const resData = await response.json();
                         if (resData.paused) {
-                            // Tiệm đã nhận chat (AI tắt cho khách này): báo 1 lần là nhân viên sẽ trả lời ngay tại đây
-                            aiReply = handoffNoticeShown ? "" : BT.handoff;
+                            // Tiệm đã nhận chat (AI tắt cho khách này): server trả câu hẹn giờ trả lời thật (tối đa 1 lần/10 phút);
+                            // không có thì báo 1 lần là nhân viên sẽ trả lời ngay tại đây
+                            const hold = resData.choices && resData.choices[0] && resData.choices[0].message && resData.choices[0].message.content;
+                            aiReply = hold || (handoffNoticeShown ? "" : BT.handoff);
                             handoffNoticeShown = true;
                         } else if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;
@@ -1069,8 +1071,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         const resData = await response.json();
                         if (resData.paused) {
-                            // Tiệm đã nhận chat (AI tắt cho khách này): báo 1 lần là nhân viên sẽ trả lời ngay tại đây
-                            aiReply = handoffNoticeShown ? "" : BT.handoff;
+                            // Tiệm đã nhận chat (AI tắt cho khách này): server trả câu hẹn giờ trả lời thật (tối đa 1 lần/10 phút);
+                            // không có thì báo 1 lần là nhân viên sẽ trả lời ngay tại đây
+                            const hold = resData.choices && resData.choices[0] && resData.choices[0].message && resData.choices[0].message.content;
+                            aiReply = hold || (handoffNoticeShown ? "" : BT.handoff);
                             handoffNoticeShown = true;
                         } else if (resData.choices && resData.choices[0] && resData.choices[0].message) {
                             aiReply = resData.choices[0].message.content;

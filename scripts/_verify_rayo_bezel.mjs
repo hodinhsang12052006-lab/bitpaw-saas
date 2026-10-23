@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const OUT_DIR = 'audit-results/screenshots/nail_pos_final';
 fs.mkdirSync(OUT_DIR, { recursive: true });
 

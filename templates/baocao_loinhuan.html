@@ -484,7 +484,7 @@
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoLoiNhuan');
-            XLSX.writeFile(wb, `BaoCaoLoiNhuan_${new Date().toISOString().slice(0,10)}.xlsx`);
+            XLSX.writeFile(wb, `BaoCaoLoiNhuan_${new Date().toLocaleDateString('en-CA')}.xlsx`);
             showToast(t('baocaoloinhuan_toast_export_excel_success'), "success");
         }
 
@@ -516,7 +516,7 @@
                     </table>
                 </div>
             `;
-            html2pdf().from(element).set({ margin: 0.5, filename: `BaoCaoLoiNhuan_${new Date().toISOString().slice(0,10)}.pdf` }).save();
+            html2pdf().from(element).set({ margin: 0.5, filename: `BaoCaoLoiNhuan_${new Date().toLocaleDateString('en-CA')}.pdf` }).save();
             showToast(t('baocaoloinhuan_toast_export_pdf_success'), "success");
         }
 

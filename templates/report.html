@@ -710,10 +710,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         filterPeriod.addEventListener('change', (e) => {
             if (e.target.value === 'custom') {
                 customDateRange.classList.remove('hidden');
-                const today = new Date().toISOString().slice(0,10);
+                const today = new Date().toLocaleDateString('en-CA');
                 const lastWeek = new Date();
                 lastWeek.setDate(lastWeek.getDate() - 7);
-                startDateInput.value = lastWeek.toISOString().slice(0,10);
+                startDateInput.value = lastWeek.toLocaleDateString('en-CA');
                 endDateInput.value = today;
             } else {
                 customDateRange.classList.add('hidden');

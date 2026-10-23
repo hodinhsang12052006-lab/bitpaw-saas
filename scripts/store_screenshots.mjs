@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const OUT = path.resolve('mobile_app/store_assets');
 const DEVICES = [
   { dir: 'ios_iphone_6.9', platform: 'iOS', viewport: { width: 430, height: 932 }, scale: 3 },

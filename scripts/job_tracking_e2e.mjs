@@ -5,7 +5,7 @@ import { execFileSync } from 'child_process';
 import http from 'http';
 import crypto from 'crypto';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const SID = 'AC' + 'e2e'.padEnd(32, '0'), TOKEN = 'tok_' + crypto.randomBytes(8).toString('hex');
 const steps = [];
@@ -117,6 +117,7 @@ from mongo_client import db
 bk = json.loads(${JSON.stringify(backup)})
 db.tasks.delete_many({'business_id': ${B}, 'id': ${TID}})
 db.employees.delete_many({'business_id': ${B}, 'ma_nv': '${CODE}'})
+db.staff.delete_many({'business_id': ${B}, 'ma_nv': '${CODE}'})
 db.outbound_messages.delete_many({'business_id': ${B}, 'kind': 'on_my_way'})
 if bk['s']: db.messaging_settings.replace_one({'business_id': ${B}}, bk['s'], upsert=True)
 else: db.messaging_settings.delete_many({'business_id': ${B}})

@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'child_process';
 import { ownerContextOptions, DEVICE } from './lib/device.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const T = {
   nail: ['demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!', 'Nails'],
   fnb: ['demo.fnb.343602@bitpawdemo.com', 'DemoBitPaw2026!', 'F&B'],

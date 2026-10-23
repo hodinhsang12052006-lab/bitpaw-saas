@@ -1,7 +1,7 @@
 // iPhone 13: POS bán lẻ — thêm 3 sản phẩm, mở rồi ĐÓNG giỏ, chạm ô quét mã vạch, gõ mã + Enter -> phải gọi tra mã.
 import { chromium, devices } from 'playwright';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const { defaultBrowserType, ...iphone } = devices['iPhone 13'];
 const b = await chromium.launch({ channel: 'chrome', headless: true });
 const ctx = await b.newContext({ ...iphone, deviceScaleFactor: 2 });

@@ -649,7 +649,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         function startChatRealtime() {
             const stream = new EventSource('/api/stream/chat');
-            stream.onmessage = () => { pollNewMessages(); pollPresence(); };
+            // Server gửi kèm loại thay đổi + nguyên tin mới (app.py::_sse_change_signal): tin mới hiện NGAY không cần tải
+            // thêm; ping "đang online" của người khác chỉ cập nhật danh sách online (giãn nhịp 5 s), không tải lại tin nhắn.
+            let presenceTimer = null;
+            const presenceSoon = () => { if (!presenceTimer) presenceTimer = setTimeout(() => { presenceTimer = null; pollPresence(); }, 5000); };
+            stream.onmessage = (ev) => {
+                let d = {};
+                try { d = JSON.parse(ev.data || '{}'); } catch (e) { d = {}; }
+                if (d.coll === 'chat_presence') { presenceSoon(); return; }
+                if (d.coll === 'chat_messages' && d.doc) {
+                    if (d.doc.room !== currentRoom) return;
+                    if (lastMessageTimestamp && d.doc.timestamp <= lastMessageTimestamp) return;
+                    chatBox.appendChild(createMessageElement(d.doc));
+                    lastMessageTimestamp = d.doc.timestamp;
+                    scrollToBottom(true);
+                    return;
+                }
+                pollNewMessages(); presenceSoon();
+            };
             // Heartbeat: tự ping presence mỗi 10s (< _CHAT_PRESENCE_TTL_SECONDS=20s ở server để
             // không bao giờ bị coi là offline khi tab vẫn đang mở).
             hrApi('/api/chat/presence/ping', { method: 'POST', body: JSON.stringify({ room: currentRoom }) })

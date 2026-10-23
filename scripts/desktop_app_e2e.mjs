@@ -12,7 +12,7 @@ import http from 'http';
 import os from 'os';
 import path from 'path';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const REL = path.resolve(process.env.REL_DIR || 'dist/releases');  // REL_DIR=<thư mục file tải từ web thật>
 const WORK = path.join(os.tmpdir(), 'bitpaw_exe_test');
 const OUT = path.resolve('audit-results/screenshots/desktop_app_e2e');

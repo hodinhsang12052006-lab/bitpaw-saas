@@ -713,3 +713,68 @@ Còn treo / ghi nhận: đồng bộ Shopee/TikTok Shop/Lazada và OTA khách s�
 Lỗi thật tìm thêm khi chạy lại toàn bộ (đã sửa): (1) Thanh toán Spa của tiệm Mỹ/Úc KHÔNG có nút Tiền mặt (nằm trong nhóm "Việt Nam" bị ẩn), chỉ còn cổng thẻ/ví giả lập có ô nhập số thẻ → nay tiệm đô có nhóm "Thu tại quầy": Tiền mặt / Thẻ (máy quẹt của tiệm) / Chuyển khoản. (2) Bấm phương thức thanh toán ở Spa đổi tiền tệ sang VND với cả tiệm AUD → hộp kết quả hiện "₫". (3) Khách sạn: mọi lần trả phòng ghi "tiền mặt" → lễ tân chọn tiền mặt/thẻ/chuyển khoản, báo cáo tách đúng. (4) Bài test F&B bán món thật mà không trả kho → kho demo cạn, thanh toán bị chặn "không đủ hàng" (hệ thống chặn đúng) → snapshot/khôi phục tồn kho. (5) Tiệm Nails demo bị bật sẵn chấm công khuôn mặt từ lượt test cũ → tắt lại. (6) Lúc viết lại chữ landing, 4 trang bị lỗi 500/JS do chuỗi có url_for('…') — sửa và thêm kiểm tra HTTP 200 cho cả 11 trang.
 
 Kiểm thử (server local, Chrome + iPhone 13, VI + EN): lịch ca 28/28 · geofence 11/11 · gói liệu trình 15/15 · thợ đang đến 14/14 · karaoke QR 17/17 · khuôn mặt 22/22 · nhắn tin 21/21 · AI Studio 22/22 · AI Copilot 18/18 · giá USD/AUD 20/20 · chủ + nhân viên 9 ngành 147/147 · Nails persona 38/38 · Nails master 10/10 · bot Nails 7/7 · Spa master 6/6 · KTV Spa 9/9 · đồng bộ nhân viên 45/45 · F&B 8/8 · Hotel 5/5 · Karaoke 4/4 · Bán lẻ 6/6 · Sản xuất 3/3 · Kỹ thuật 3/3 · Văn phòng 4/4 · 11 landing 66/66 · mượt 11/11 + nhớ ngôn ngữ 7/7 · màn trống iPhone 0/22 · nút Liên hệ 7/7 · khoá dịch thô 0 (31 trang × 2) · input dị dạng 0 lỗi 500, server sống.
+
+## Pha 27 — AI làm việc thật (đóng vai hàng trăm khách), lịch ca kiểu Deputy, tin nhắn/bản đồ không trễ, đăng nhập Google/Facebook (23–24/10/2026)
+
+Yêu cầu: "mấy con AI đó fix, test khách như người thật… mỗi con AI cả trăm khách dùng như thế nào, vừa test vừa đánh tâm lí… lịch chấm công bơm thêm cho phong phú… app nhân viên, bản đồ, messenger trôi chảy không delay… test đăng ký đăng nhập Google, Facebook… AI phải hoạt động dựa trên những con AI đã làm được việc".
+
+**Cách đo (không tự chấm cho mình):** bộ giả lập `scripts/ai_sim/` — DeepSeek đóng vai khách (8 kiểu tâm lý × 4 kiểu ngôn ngữ: Anh-Úc, Anh-Mỹ, Việt có dấu, Việt không dấu), gọi ĐÚNG API widget thật như trình duyệt (phiên + CSRF), 1 giám khảo AI riêng (nhiệt độ 0) chấm 7 tiêu chí + soi **cơ sở dữ liệu thật** sau mỗi cuộc chat (có lịch thật không, đúng giờ không, có trùng không). Tốc độ gọi giữ dưới giới hạn thật của server (không tắt rate-limit).
+
+**A. Trợ lý đặt lịch của tiệm (100 khách / lượt)**
+
+| | Trước | Sau |
+|---|---|---|
+| Điểm chung (0–5) | 3.70 | **4.64** |
+| Trung thực | 2.79 | **4.88** |
+| Hoàn thành việc khách cần | 2.92 | **4.45** |
+| Lịch trong DB đúng | 45/96 | **91/96** (5 ca còn lại soi tay: 3 đúng hành vi — khách đổi ý/đổi thợ, bộ kiểm quá chặt; 2 do chính bài test lịch ca chạy song song chiếm chỗ) |
+| Câu trả lời dự phòng / lỗi | — | 0 / 0 |
+| Độ trễ p50 / p90 | 2.0 / 3.2 giây (nhưng bịa giờ trống) | 3.9 / 5.9 giây (kiểm giờ thật) |
+
+| # | Mức | Lỗi thật (đo được) | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | Bot tạo 151 lịch cho 100 khách; hứa giờ không có thật; khách nói "ok đặt đi" 2 lần là 2 lịch | Luật đặt lịch dùng chung `booking_rules.py` (giờ mở cửa từng thứ, bước giờ, đặt trước tối thiểu/tối đa, thời lượng từng dịch vụ, sức chứa = số thợ có ca trong Lịch ca); công cụ `check_availability` (có kiểm ĐÚNG giờ khách hỏi + giờ gần nhất), chống trùng, khách 1 người không thể 2 dịch vụ cùng giờ, đặt nhóm |
+| 2 | 🔴 | Kiểm giờ trống mất **11,5 giây** (≈200 lượt gọi Atlas mỗi câu) → câu trả lời 10–28 giây | Đọc dữ liệu cả ngày 1 lần + cache luật/tên thợ 20 giây → 0,4 giây; p90 toàn câu 5,9 giây |
+| 3 | 🔴 | Chuyển cho nhân viên xong là **im lặng** — khách nhắn 3–5 tin không ai đáp rồi bỏ đi | Chế độ "chờ người": AI vẫn tiếp khách (trả lời giờ mở cửa, giá, đặt lịch) nhưng không quyết vấn đề đã chuyển; câu hẹn giờ trả lời THẬT theo giờ mở cửa + SĐT tiệm; email báo chủ ngay (gửi đúng 1 thư, không chờ cả hàng đợi); hộp thư AI Bot có nhãn "Needs reply/Urgent" lên đầu |
+| 4 | 🔴 | Hỏi giảm giá/voucher/bãi xe là AI tự tắt cả cuộc chat | Công cụ mới `ask_team`: ghi câu hỏi cho nhân viên, AI vẫn giúp tiếp; `handoff_to_staff` chỉ cho phàn nàn / đòi gặp quản lý |
+| 5 | 🟠 | Báo "đã đặt xong" trong khi lịch đang "chờ duyệt" | Cài đặt "Xác nhận lịch online": tự xác nhận (mặc định, như Fresha) hoặc chờ tiệm duyệt; AI nói đúng theo trạng thái thật; trang đặt lịch hết hứa "Open 24/7", màn thành công hết "Satellite Station" |
+| 6 | 🟠 | Thiếu địa chỉ/bãi xe thì AI không biết | Trang Cài đặt đặt lịch hiện "Câu khách hỏi mà AI chưa trả lời được (30 ngày)" để chủ điền (kiểu "content gaps" của Intercom Fin) |
+| 7 | 🟡 | Hội thoại mẫu ở chế độ Demo có dịch vụ tiệm không làm (nối mi) + "ưu đãi 10%" bịa | Viết lại đúng cách AI thật làm việc |
+
+Điểm theo kịch bản (trước → sau): phàn nàn 2.61→4.07 · hỏi 2 lần "đặt đi" 2.71→4.82 · đổi ý 2.89→4.89 · hỏi thông tin 2.93→3.61 (thiếu địa chỉ trong dữ liệu demo) · "lịch của tôi mấy giờ" 3.04→4.89 · dời lịch 3.11→4.25 · thợ chỉ định 3.57→4.82 · đặt nhóm 3.21→4.82.
+
+**B. Copilot của chủ tiệm (40 câu hỏi có đáp án lấy thẳng từ DB)** — trước chỉ đọc 1 bản tóm tắt nên trả lời sai số: đúng số liệu **1.58 → 4.92**, đúng 3.3 → 4.33, hữu ích 4.03 → 4.8. Nay là trợ lý có 9 công cụ đọc số thật (doanh thu theo kỳ/dịch vụ/thợ/thanh toán, lịch theo ngày, tra khách, khách lâu chưa quay lại, hoa hồng + giờ ca + trễ/vắng, lịch ca, kho, gói liệu trình, hộp thư). Đã gọn câu trả lời theo loại câu hỏi (tra cứu = trả lời + tối đa 1 gợi ý). Lượt cuối (v4): đúng số liệu 5.0, ngắn gọn 3.55 → 4.42, p50 4.05 giây; "hoàn tiền đơn 123" → nói rõ không làm được, chỉ chỗ làm trong BitPaw.
+
+**C. Bot tư vấn BitPaw (60 chủ tiệm Mỹ/Úc/Việt kiều)** — lượt cuối (v4): điểm chung 4.62, trung thực 4.57, chính xác 4.37, đồng cảm 4.95, an toàn 4.9; lưu đủ 15/15 lead khi khách đồng ý, 0 lead trùng, 0 câu dự phòng; p50 4.6 giây. (Lượt v3 bị dừng: bộ kiểm lead dò sai — khách giả lập tự bịa email/SĐT khác persona nên báo "chưa lưu" oan; đã sửa bộ kiểm + dọn 16 lead thử có email trông như thật khỏi DB.)
+- Lỗi thật: lưu 1 khách 2 lần trong 1 cuộc chat → nay cập nhật lead cũ (24 giờ). Khách Úc đôi khi được báo giá USD trước → luật tiền tệ theo nơi khách ở. "You're booked in" khi mới chỉ lưu liên hệ → cấm, nói "đội sẽ liên hệ để hẹn demo".
+- Form liên hệ `/api/cskh/request` chỉ nhận số VN (`^0\d{9,10}$`) → nhận số quốc tế (+1, +61). Gỡ `/api/cskh/lead-submit` (không ai gọi, ghi vào SQLite không tồn tại trên Vercel).
+
+**D. Các AI khác**
+- Chăm sóc khách tự động: tin 7 và 14 ngày có link đặt lịch thật của tiệm (như tin "rebook" của Fresha/Square); số ngày tính tới ngày gửi; dưới 190 ký tự (tiết kiệm SMS); cấm bịa "giữ chỗ quen".
+- AI Studio: được nạp dịch vụ + giá thật + link đặt lịch + thông tin tiệm (như Shopify Magic) — hết "[price]".
+- Copilot báo lỗi đúng ngôn ngữ chủ tiệm.
+
+**E. Lịch ca nâng cấp (so với Deputy / 7shifts / When I Work)** — `scripts/roster_plus_e2e.mjs` 38/38
+- Ca trống: chủ đăng, nhân viên bấm "Nhận ca" trên app (2 người bấm cùng lúc chỉ 1 người được); tự xếp lịch không lấp chỗ đã đăng ca trống; chép tuần giữ ca trống; tin công bố lịch báo số ca trống.
+- Đổi ca gắn ca thật: xin đổi đúng 1 ca → đồng nghiệp đồng ý → chủ duyệt → lịch tự đổi người, cả 2 được báo (SMS/email). Chặn: ca không phải của mình, ca đã qua, trùng yêu cầu, người nhận bị trùng ca/ngày bận/vượt giờ.
+- Nhân viên tự khai "ngày tôi không làm được" (tự xếp lịch né).
+- Tăng ca: quá 38 giờ (Úc) / 40 giờ (Mỹ) → cảnh báo + phụ trội 1,5×; thẻ chi phí lương có % so với doanh thu 7 ngày.
+- App nhân viên: thêm lối "Xem lịch ca & yêu cầu (không chấm công)" — trước đây màn chấm công chặn hết, ngày nghỉ không nhận ca/trả lời đổi ca được. Hết chữ lóng ("Đã ném thiệp nhờ vả. Chờ Rep!", "chốt kèo", "Sếp", "Vệ tinh Radar") — 40+ thông báo theo ngôn ngữ tiệm.
+
+**F. Tin nhắn + bản đồ không trễ (đo thật, local)**
+- Messenger: p50 437 → **225 ms**, p90 552 → 284 ms, chậm nhất 1134 → 455 ms, 0 tin lạc; tab rảnh 32 → 14 request/phút (tin mới kèm luôn nội dung, không tải lại cả danh sách).
+- Bản đồ thợ: đổi vị trí → chấm dời sau p50 **127 ms**, p90 179 ms, 0 lần tải lại cả danh sách, 0 lỗi JS (`scripts/map_latency_probe.mjs`).
+
+**G. Đăng nhập Google / Facebook** — `scripts/oauth_login_e2e.mjs` 14/14 với máy chủ OAuth giả lập: người mới → trang hoàn tất (mã kích hoạt), lần 2 vào thẳng, liên kết theo email đã xác minh, từ chối email chưa xác minh, chặn state giả + open-redirect, Facebook không email, PKCE + đổi code ở máy chủ, tài khoản chỉ-Google đăng nhập mật khẩu không lỗi. Trong app di động nút không hiện (Google chặn OAuth trong WebView). Chính sách bảo mật EN/VI thêm mục dữ liệu Google/Facebook (Limited Use) + cách ngắt kết nối/xoá. **Cần anh/chị làm:** tạo OAuth client Google + app Facebook, dán 5 biến vào Vercel — hướng dẫn từng bước: `docs/OAUTH_SETUP.md`.
+
+**H. Dọn dữ liệu thử + công cụ test**
+- Bài audit Nails/Spa để lại lịch "QA Audit Khach Hang" trong tiệm demo (Copilot còn đọc ra) → đã xoá + script tự dọn. 4 lịch thử cũ đã xoá.
+- 7 script đặt lịch cũ gõ ô datetime tự do → dùng chung `scripts/lib/booking_slot.mjs` (chọn nút giờ trống thật). 57 script nhận `BASE=` để chạy song song trên server phụ.
+- Lead giả lập có email/SĐT khách giả tự bịa → dọn theo đúng liên hệ trong transcript; thư báo chủ tiệm do giả lập tạo → xoá + giả lập tự dọn.
+
+**I. Lỗi "hôm nay" sai ngày cho tiệm Mỹ/Úc (bắt được nhờ chạy hồi quy lúc nửa đêm)** 🔴
+- Lịch sử bill POS Nails mặc định `new Date().toISOString()` = ngày **UTC**: tiệm Úc (UTC+10/11) mỗi sáng tới ~11 giờ mở ra bill **hôm qua**, tiệm Mỹ mỗi tối mở ra **ngày mai** (trống). Cùng lỗi ở 24 chỗ khác (ngày mặc định báo cáo/chi phí/khuyến mãi, ngày tối thiểu trang đặt bàn/khách sạn/karaoke/đặt lịch, tên file xuất Excel/PDF…) → đổi hết sang ngày địa phương.
+- Máy chủ (Vercel chạy UTC) tính "hôm nay" bằng giờ máy chủ ở Lịch hẹn, Đặt bàn, Karaoke, Khách sạn, doanh thu hôm nay trên Dashboard, thu nhập thợ hôm nay, lịch sử bill, Lịch ca (tuần mặc định, đối chiếu trễ/vắng, ca của tôi) → thêm `tenant_today()` / `tenant_day_bounds()` (giờ theo tiệm, đổi khoảng ngày sang giờ máy chủ cho `created_at`).
+- Bài test lịch ca + app nhân viên giờ chạy theo đúng giờ tiệm (điện thoại giả lập đặt múi giờ Sydney).
+
+**Kiểm thử Pha 27:** chạy lại toàn bộ trên server local (Chrome + iPhone 13, VI + EN), restart sạch giữa các nhóm — cài đặt đặt lịch 16/16 · lịch ca nâng cấp 38/38 · lịch ca 28/28 · chấm công khuôn mặt 22/22 · Nails persona 38/38 · Nails audit 10/10 · AI chăm sóc khách Nails 7/7 · lịch realtime 6/6 · vòng kinh doanh Nails 9/9 · Spa audit 6/6 · Spa POS thợ 9/9 · gói liệu trình 15/15 · đồng bộ nhân viên 45/45 · F&B 8/8 · Bán lẻ 6/6 · Karaoke 4/4 · gọi món QR karaoke 17/17 · Khách sạn 5/5 · Sản xuất 3/3 · Kỹ thuật 3/3 · Văn phòng 4/4 · geofence 11/11 · thợ đang đến 14/14 · nhắn tin 21/21 · AI Copilot 18/18 · AI Studio 22/22 · bảng giá/checkout 20/20 · 0 khoá dịch thô (32 trang × 2 ngôn ngữ) · 9 ngành chủ + nhân viên 147/147 · bảo mật/input dị dạng: server sống · Google/Facebook 14/14 · giả lập AI đặt lịch sau cùng 9/9 lịch đúng, trung thực 5.0, p50 3.1 giây. Dữ liệu thử đã dọn (lịch, lead, thư báo, nhân viên, ca).

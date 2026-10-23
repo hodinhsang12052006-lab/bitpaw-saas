@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const SCREEN_DIR = path.resolve('audit-results/screenshots/landing_pages_audit');
 fs.mkdirSync(SCREEN_DIR, { recursive: true });
 

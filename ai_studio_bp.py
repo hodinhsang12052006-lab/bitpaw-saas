@@ -73,12 +73,43 @@ def generate_text():
 
     business_id = session.get('business_id') or session.get('user_id')
     try:
+        facts = _business_facts(business_id)
+        if facts:
+            system_prompt += "\n\n" + facts
         content = _call_deepseek_text(system_prompt, user_prompt, temperature, max_tokens, business_id)
         return jsonify({"success": True, "choices": [{"message": {"content": content}}]})
     except requests.exceptions.Timeout:
         return jsonify({"success": False, "error": "AI Studio timeout, vui lòng thử lại."}), 504
     except RuntimeError as e:
         return jsonify({"success": False, "error": str(e)}), 502
+
+
+def _business_facts(business_id):
+    """Dữ kiện THẬT của tiệm cho bài đăng/kịch bản (tên, dịch vụ + giá đúng tiền tệ, link đặt lịch, thông tin tiệm) —
+    như Shopify Magic viết từ dữ liệu sản phẩm thật. Trước đây AI Studio không biết gì về tiệm nên chỉ ghi [price]."""
+    try:
+        from currency_utils import format_money
+        from app import _tenant_currency
+        from ai_nurturing_engine import AINurturingEngine
+        import booking_rules
+        biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'industry_code': 1}) or {}
+        cur = _tenant_currency(business_id)
+        svcs = list(db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}, 'price': {'$gt': 0}},
+                                     {'_id': 0, 'name': 1, 'price': 1}).sort('price', -1).limit(30))
+        lines = [f"BUSINESS FACTS (real — use them instead of placeholders; never invent other prices, offers or reviews): {biz.get('name') or ''}"]
+        if svcs:
+            lines.append('Services: ' + '; '.join(f"{s['name']} {format_money(s['price'], cur)}" for s in svcs))
+        link = AINurturingEngine.booking_link(business_id, biz.get('industry_code'), os.environ.get('PUBLIC_BASE_URL'))
+        if link:
+            lines.append(f"Online booking link: {link}")
+        info = (booking_rules.get_rules(business_id).get('info') or {})
+        extra = [f"{booking_rules.INFO_LABELS[k]}: {v}" for k, v in info.items() if v]
+        if extra:
+            lines.append('; '.join(extra))
+        return '\n'.join(lines)
+    except Exception as e:
+        print(f"[ai_studio] facts: {e}")
+        return ''
 
 
 def _derive_image_prompt(nurture_script, brand_name, industry, business_id):

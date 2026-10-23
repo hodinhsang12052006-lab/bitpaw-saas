@@ -21,7 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
-const BASE = 'http://127.0.0.1:5001';
+const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = process.env.KARAOKE_DEMO_EMAIL || 'demo.karaoke.071443@bitpawdemo.com';
 const PASSWORD = process.env.KARAOKE_DEMO_PASSWORD || 'DemoBitPaw2026!';
 const BUSINESS_ID = process.env.KARAOKE_DEMO_BUSINESS_ID || '0cc47d38-b306-46f3-9da1-cdf2d840d79b';
