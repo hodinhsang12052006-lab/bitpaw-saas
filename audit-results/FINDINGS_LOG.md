@@ -608,3 +608,37 @@ Kết quả cuối (sau khi sửa):
 - **Quét toàn trang**: 1.101 lượt mở trang × 9 ngành, chỉ 3 trang chặn có chủ đích/ngành (/table_order thiếu mã bàn, /super_admin), 0 link nội bộ hỏng.
 - **Phía khách & hệ thống**: tải về 44/44 · landing 66/66 · bot tư vấn 18/18 · cổng thanh toán 39/39 · màn thanh toán 16/16 · AI Copilot 18/18 · Nails (gap 8/8, chu trình 9/9, real-time 6/6, bot CSKH 7/7, persona 38/38, POS acceptance sạch) · cách ly dữ liệu giữa ngành 30/30 + 28/28 + 28/28 · khoá dịch thô 0 (28 trang × 2 ngôn ngữ) · input dị dạng: server sống, 0 lỗi 5xx.
 - Dọn: 36 bản ghi test trong 12 tiệm demo (có sao lưu), 69 phiếu bếp treo + 2 bàn "đang phục vụ" giả ở F&B demo, tin nhắn test lọt vào hộp thư khách tiềm năng, thư mục tạm của 9 app Windows.
+
+## Pha 24 — Logo chữ B mới, tải về đúng thiết bị (Windows/Android/máy POS/iPhone/iPad), làm hết các mục "cần quyết định" (18–23/10/2026)
+
+**Logo**: ảnh gốc `static/brand/bitpaw-b-source.webp` -> `scripts/make_brand_icons.py` sinh 45 file (cắt đúng ô chữ B, bỏ dấu ✦ của trình tạo ảnh): `static/logo_b.jpg` (22 template + `/favicon.ico` dùng tên này), favicon.ico 16–64px, icon PWA 192/512 + maskable, apple-touch-icon, icon file `.exe`, icon app Android/iOS (mobile_app), và PawNail (`app/icon.jpg` = favicon tab "PawNail Jobs", `app/favicon.ico`, `public/icons/*`). Server tự chèn khai báo icon + manifest vào MỌI trang HTML (94 template).
+
+**Tải về** (`/download`, `/download/<ngành>`, khu tải trên 10 landing): tự nhận diện Windows/máy POS Windows, Mac, Chromebook, điện thoại Android, máy tính bảng Android, máy POS Android (Sunmi/PAX/Clover…), iPhone, iPad (kể cả iPadOS tự xưng Mac). Windows -> `.exe` đúng tên ngành; Android/máy POS -> `.apk` ký bản chính thức (Android 7+, quyền camera + GPS chấm công); iPhone/iPad -> cài web app ra màn hình chính (Apple không cho cài file ngoài App Store) có hướng dẫn theo từng máy, nhận ra cả trình duyệt trong Zalo/Facebook. File cài nằm trên chính website (CDN Vercel, `vercel.json`) — không cần GitHub Releases; link có `?v=<sha>` để CDN không trả bản cũ. Mã QR trên landing trỏ về trang tải -> điện thoại quét là ra đúng bản.
+
+| # | Mức | Lỗi | Đã sửa | Đo lại |
+|---|---|---|---|---|
+| 1 | 🔴 | Sau commit "backup" (chứa phần đang làm dở), web thật: cả 2 nút tải Windows/Android ra "đang cập nhật" (503) — Flask kiểm tra file trên ổ đĩa nhưng trên Vercel file cài do CDN phục vụ, không nằm trong gói Flask; `.exe` còn không vào git (`*.exe` bị ignore) -> `/dl/*.exe` 404 | `downloads_manifest.json` (+ `scripts/publish_downloads.py`), commit `.exe` bằng `-f`, link có phiên bản | Web thật: 9 `.exe` + `.apk` đều 200, đúng tên file, SHA-256 trùng bản build; `.exe` tải từ web thật chạy 6/6 |
+| 2 | 🔴 | Mỗi bill có SĐT khách chờ ~4 giây ngay tại quầy: đẩy sự kiện "đơn hoàn tất" tới Redis không cấu hình (mặc định localhost) — chưa có chương trình nào đọc sự kiện này | Không cấu hình REDIS_URL -> bỏ qua; Redis chết -> ngắt mạch 60 giây | Thanh toán Spa 5,2s -> 1,1s |
+| 3 | 🔴 | POS Spa: bill tiền mặt lưu "pending" và KHÔNG có bước nào chuyển sang đã thu -> không vào sổ giao dịch, khách không được cộng điểm; có thêm 2 giây chờ giả "xác minh thanh toán" | Xác nhận tiền mặt = đã thu; bỏ chờ giả | status completed, có giao dịch, +240 điểm |
+| 4 | 🔴 | POS Spa coi mọi tiệm là VND: tiệm Úc thấy dịch vụ $135 thành "135₫" và "≈ $0.0054" (tỉ giá cứng 25.000), mặc định VNPay, hiện mục thanh toán Việt Nam, SĐT gợi ý dạng VN | Tiền tệ của tiệm ở giỏ/tóm tắt/hộp thanh toán; tiệm đô mặc định tiền mặt, ẩn VietQR/VNPAY/MoMo | Giỏ + hộp thanh toán $240.00 |
+| 5 | 🟠 | POS Spa không gán kỹ thuật viên -> hoa hồng phải nhập tay lần 2 | Chọn kỹ thuật viên cho từng dịch vụ; hoa hồng vào chấm công/lương; hoàn tiền tự thu hồi | 40% × $135 = $54, × $105 = $42 đúng từng xu; hoàn 100% -> ròng $0 |
+| 6 | 🟠 | 2 danh sách nhân viên tách rời (/staff hoa hồng POS vs nhân sự/app) | Thêm ở đâu cũng có ở chỗ kia; thêm ở /staff được mã đăng nhập app NV0001…, đúng phòng ban | 45/45 (9 ngành) |
+| 7 | 🟡 | Ô nhập Tên/Email/SĐT ở hộp thanh toán Spa là hộp trắng mặc định (class chưa từng định nghĩa) | Ô tối đồng bộ nền | — |
+| 8 | 🟡 | Dữ liệu demo Spa (AUD) có khách chi tiêu kiểu VND -> CRM hiện $5,4 triệu, khách kẹt hạng Normal | Quy đổi (có sao lưu) | Tổng $6.390, hạng Silver/Gold/Platinum |
+| 9 | 🟡 | Trang tải: hướng dẫn cài lẫn tiếng Anh trên trang tiếng Việt | 1 nguồn ngôn ngữ chung | 32/32 |
+
+Build: lỗi Gradle "Unable to establish loopback connection" trên máy này đã gỡ được (JDK 17 + đường dẫn có dấu cách) -> `flutter build apk --release` chạy ~6 phút.
+
+Còn treo / cần chủ dự án:
+- Chữ ký số `.exe` (Windows SmartScreen) cần MUA chứng chỉ ký mã — trang tải đã hướng dẫn "More info → Run anyway".
+- File `.apk` đã kiểm cấu trúc/chữ ký/quyền bằng công cụ Android SDK nhưng CHƯA chạy trên máy Android thật/giả lập (máy này không có trình giả lập; cài thêm cần tải ~1,5 GB).
+- Thẻ thanh toán của POS Spa là form nhập số thẻ GIẢ LẬP (không xử lý thẻ thật, không gửi số thẻ đi đâu) — nên thay bằng cổng thẻ thật (Square/Stripe) hoặc bỏ.
+
+**Chạy lại toàn bộ (vòng 3, 23/10, server local)** — không có lỗi chức năng mới:
+- 9 ngành × desktop + iPhone (bộ master): 18/18 lượt sạch (F&B mobile 8/8 sau khi sửa script chờ đúng trang `/payment_pending`).
+- Chủ + thợ Nails (persona) 147/147 ×2 · tuyển nhân sự 54/54 ×2 · gộp 2 danh sách nhân viên 45/45 ×2 · kỹ thuật viên Spa 9/9 ×2.
+- App Windows (.exe) 38/38 · tải đúng thiết bị 32/32 · khu tải trên landing 47/47 (thêm kiểm link APK) · 11 landing 66/66 · bot bán hàng 18/18.
+- Lỗi xuất hiện muộn (ở lại trang 20–30 lượt/ngành): 9/9 ngành, 284 lượt, 0 lỗi muộn.
+- Thanh toán 39/39 + 16/16 · AI copilot 18/18 · Nails 8+9+6+7+38 · i18n 28 trang × 2 ngôn ngữ, 0 khoá dịch thô · cách ly dữ liệu giữa tiệm 30+28+28 · input dị dạng: 0 lỗi 500, server còn sống.
+- Quét toàn trang 9 ngành (~1.140 lượt trang, 0 link nội bộ hỏng): chỉ còn `/super_admin` 403 với chủ tiệm và `/table_order` 400 khi không có mã QR bàn — đúng thiết kế. `/download/android` từng bị trình quét báo lỗi vì trình duyệt TẢI FILE thay vì mở trang (đúng) -> sửa trình quét.
+- Dọn: 20 bản ghi QA còn sót ở tiệm demo + 476 cảnh báo rate-limit giả từ 127.0.0.1 (có sao lưu).

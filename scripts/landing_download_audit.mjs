@@ -40,7 +40,9 @@ for (const [page, code] of Object.entries(PAGES)) {
       return {
         industry: s.dataset.industry,
         win: s.querySelector('a[data-bpdl-track="windows"]')?.getAttribute('href'),
-        meta: s.querySelector('.bpdl-meta')?.textContent || '',
+        apk: s.querySelector('a[data-bpdl-track="android"]')?.getAttribute('href'),
+        ios: !!s.querySelector('[data-bpdl-platform="ios"] [data-bpdl-ios-guide]'),
+        meta: s.querySelector('[data-bpdl-platform="windows"]')?.textContent || '',
         qr: !!s.querySelector('.bpdl-qr svg path'),
         authLinks: links.filter((h) => /^\/(login|register)\b/.test(h)),
         rec: r ? r.dataset.bpdlPlatform : null,
@@ -49,8 +51,10 @@ for (const [page, code] of Object.entries(PAGES)) {
     });
     if (!info) { rec(`${page} ${kind}: có khu Tải về`, false); await p.close(); continue; }
     const badAuth = info.authLinks.filter((h) => !h.includes(`industry=${code}`));
+    // iPhone -> thẻ iPhone & iPad (web app cài lên màn hình chính); máy tính -> thẻ Windows
     const ok = info.industry === code && info.win === `/download/${code}/windows` && info.meta.includes(FILES[code])
-      && info.qr && badAuth.length === 0 && info.overflow <= 1 && info.rec === (kind === 'mobile' ? 'mobile' : 'windows');
+      && info.apk === `/download/${code}/android` && info.ios
+      && info.qr && badAuth.length === 0 && info.overflow <= 1 && info.rec === (kind === 'mobile' ? 'ios' : 'windows');
     rec(`${page} ${kind}: Tải về đúng ngành ${code}`, ok,
       `win=${info.win} · ${info.authLinks.length} nút đăng ký/đăng nhập${badAuth.length ? ' SAI: ' + badAuth.join(',') : ' đúng ngành'} · gợi ý=${info.rec} · tràn=${info.overflow}`);
     await p.locator('#tai-ve').scrollIntoViewIfNeeded().catch(() => {});
@@ -81,8 +85,15 @@ for (const code of [...Object.keys(FILES), 'nails', 'hr']) {
   const loc = r.headers.get('location') || '';
   const real = { nails: 'nail', hr: 'office' }[code] || code;
   const body = r.status === 503 ? await r.text() : '';
-  const ok = (r.status === 302 && loc.endsWith('/' + FILES[real])) || (r.status === 503 && body.includes(FILES[real]));
+  // file nằm trên chính website: /dl/<file>?v=<sha8> (đổi bản là đổi link, CDN không trả bản cũ)
+  const ok = (r.status === 302 && /^\/dl\/[^?]+\?v=[0-9a-f]{8}$/.test(loc) && loc.split('?')[0].endsWith('/' + FILES[real]))
+    || (r.status === 503 && body.includes(FILES[real]));
   rec(`/download/${code}/windows`, ok, r.status === 302 ? `302 -> ${loc}` : `${r.status} trang chờ (chưa phát hành)`);
+}
+for (const code of ['android', 'nail/android', 'spa/android']) {
+  const r = await fetch(`${BASE}/download/${code}`, { redirect: 'manual' });
+  const loc = r.headers.get('location') || '';
+  rec(`/download/${code} -> BitPaw.apk`, r.status === 302 && /^\/dl\/BitPaw\.apk\?v=[0-9a-f]{8}$/.test(loc), `${r.status} -> ${loc}`);
 }
 const bad = await fetch(`${BASE}/download/khongton/windows`, { redirect: 'manual' });
 rec('/download/<ngành lạ>/windows -> về landing', bad.status === 302 && !(bad.headers.get('location') || '').includes('github'),

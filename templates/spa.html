@@ -386,6 +386,12 @@
             transition: 0.2s;
         }
 
+        /* Ô nhập của hộp thanh toán (Tên/Email/SĐT) — class này trước đây KHÔNG được định nghĩa -> trình duyệt vẽ hộp trắng
+           mặc định, lệch hẳn nền tối. */
+        .glass-input { background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.14); border-radius: 0.8rem; padding: 0.65rem 0.9rem;
+                       width: 100%; min-height: 44px; color: #fff; outline: none; font-size: 0.9rem; transition: 0.2s; }
+        .glass-input::placeholder { color: #64748b; }
+        .glass-input:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
         .glass-input-sm:focus { 
             border-color: #06b6d4; 
             box-shadow: 0 0 8px rgba(6,182,212,0.3); 
@@ -446,7 +452,7 @@
         }
 
         /* ô chọn kỹ thuật viên cho từng dịch vụ (hoa hồng vào bảng lương) */
-        .cart-tech { margin-top: 6px; width: 100%; max-width: 220px; min-height: 36px; background: rgba(0,0,0,.45); color: #e2e8f0;
+        .cart-tech { margin-top: 6px; width: 220px; max-width: 100%; min-height: 36px; background: rgba(0,0,0,.45); color: #e2e8f0;
                      border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; }
         .cart-item-qty { 
             display: flex; 
@@ -854,7 +860,7 @@
                             </div>
                         </div>
 
-                        <div>
+                        <div id="localVnPayments">
                             <div class="pay-category-title" data-i18n="spa_pay_category_local">Local Payment (Việt Nam)</div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div class="payment-method glass-card" data-method="vietqr" data-type="qr">
@@ -1223,6 +1229,9 @@
             currentCurrency = vndShop ? 'VND' : SHOP_CURRENCY;
             if (vndShop) currencySelector.value = 'VND';
             currencySelector.closest('div').classList.toggle('hidden', !vndShop);
+            // Tiệm ngoài Việt Nam: ẩn VietQR/VNPAY/MoMo, gợi ý SĐT không theo dạng VN
+            document.getElementById('localVnPayments').classList.toggle('hidden', !vndShop);
+            document.getElementById('custPhone').placeholder = vndShop ? '09xx xxx xxx' : '04xx xxx xxx';
             checkoutTotalSub.classList.toggle('hidden', !vndShop);
             selectedMethod = vndShop ? 'vnpay' : 'cash';
             paymentType = vndShop ? 'redirect' : 'cash';

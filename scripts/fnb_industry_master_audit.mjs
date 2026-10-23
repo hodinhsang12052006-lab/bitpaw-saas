@@ -219,6 +219,9 @@ async function main() {
     ]);
     const startStatus = startResp.status();
     const startBody = await startResp.json().catch(() => null);
+    // App tự chuyển sang trang chờ thanh toán sau /api/payment/start — đợi xong, không thì lệnh mở /pos của bước 5
+    // va vào lần chuyển trang này (ERR_ABORTED, lộ ra trên iPhone giả lập chậm hơn).
+    await page.waitForURL(/\/payment_pending/, { timeout: 8000 }).catch(() => {});
 
     const pass = splitActive && startStatus === 200 && startBody?.success !== false;
     record('4. Chọn Phương Thức Thanh Toán Chia Đôi (Split)', pass ? 'PASS' : 'WARN', Date.now() - t0,

@@ -108,6 +108,8 @@ async function audit(url, viewport, shot) {
       status = resp ? resp.status() : null;
       break;
     } catch (e) {
+      // link tải file (/download/android -> BitPaw.apk): trình duyệt tải file thay vì mở trang = đúng, không phải lỗi
+      if (/Download is starting/.test(e.message)) { status = 200; cur.download = true; break; }
       if (i === 2) { cur.pageErrors.push('NAV FAIL ' + e.message.split('\n')[0]); }
       cur.consoleErrors = []; cur.badResponses = [];
     }
