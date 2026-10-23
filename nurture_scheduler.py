@@ -26,7 +26,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from mongo_client import db
 from ai_context_engine import AIContextEngine
-from ai_nurturing_engine import AINurturingEngine, recompute_customer_segments
+from ai_nurturing_engine import customer_fill_values, AINurturingEngine, recompute_customer_segments
 
 LOOP_SLEEP_SECONDS = 24 * 3600
 
@@ -77,6 +77,11 @@ def _process_rule(rule):
 
     customers = list(db.customers.find({'business_id': business_id}, {'_id': 0}))
     triggered_count = 0
+    # 1 lần gọi AI cho cả rule (mẫu có chỗ trống), mỗi khách điền dữ liệu thật — trước đây gọi AI lần lượt từng khách
+    import messaging
+    lang = messaging.get_settings(business_id)['language']
+    template = None
+    default_channel = 'zalo_oa' if lang == 'vi' else 'SMS'
 
     for cust in customers:
         if not _customer_matches_rule(cust, rule):
@@ -85,19 +90,15 @@ def _process_rule(rule):
         if _already_triggered_recently(business_id, rule_id, cust_id, cooldown_days):
             continue
 
-        cust_phone = cust.get('phone')
-        purchase_history = (
-            AIContextEngine._load_purchase_history(business_id, cust_phone) if cust_phone else []
-        )
-
-        try:
-            message_body = AINurturingEngine.generate_single_nurture_message(
-                business_name, industry, rule.get('goal', 'RECALL'), rule.get('tone', 'friendly'),
-                cust.get('name'), purchase_history, trigger_reason=rule.get('name'),
-            )
-        except Exception as e:
-            print(f"[nurture_scheduler] Lỗi sinh nội dung Claude cho customer_id={cust_id}: {e}")
-            continue
+        if template is None:
+            try:
+                template = AINurturingEngine.generate_sequence_template(
+                    business_name, industry, rule.get('goal', 'RECALL'), rule.get('tone', 'friendly'), lang)['7days']
+            except Exception as e:
+                print(f"[nurture_scheduler] Lỗi sinh mẫu tin cho rule {rule_id}: {e}")
+                return
+        first, last_service, days = customer_fill_values(business_id, cust)
+        message_body = AINurturingEngine.fill_template(template, first, last_service, days, lang)
 
         approval_status = 'APPROVED' if rule.get('auto_send') else 'PENDING'
         db.campaign_messages.insert_one({
@@ -107,8 +108,9 @@ def _process_rule(rule):
             'customer_id': cust_id,
             'step_delay': 0,
             'message_body': message_body,
-            'channel': rule.get('channel', 'zalo_oa'),
+            'channel': rule.get('channel') or default_channel,
             'approval_status': approval_status,
+            'approved_at': datetime.now().isoformat() if approval_status == 'APPROVED' else None,
             'source': 'auto_rule',
             'rule_id': rule_id,
             'created_at': datetime.now().isoformat(),

@@ -502,48 +502,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     </script>
 
     <script>
-        // --- FUTURISTIC BOOT LOADER INITIALIZER ---
-        document.addEventListener("DOMContentLoaded", function() {
-            const loader = document.getElementById("ai-loading-screen");
-            const progressBar = document.getElementById("loading-progress");
-            const progressStatus = document.getElementById("loading-status");
-            if (!loader || !progressBar || !progressStatus) return;
-
-            const bootLogs = [
-                { pct: 0, msg: "🤖 [BOOT] BitPaw AI Kernel initializing..." },
-                { pct: 15, msg: "🔒 [SECURE] Probing Row-Level Security (RLS) PostgreSQL cache..." },
-                { pct: 35, msg: "🔄 [SYNC] Synchronizing Omnichannel API webhooks (FB/Zalo)..." },
-                { pct: 55, msg: "🧠 [DIAGNOSTIC] Running Churn Risk customer retain calculation..." },
-                { pct: 75, msg: "🌐 [CLOUD] Loading AWS Multi-Region cluster status... Latency: 12ms." },
-                { pct: 90, msg: "🚀 [OPTIMIZE] Hot-reloading Smart POS assets & GPS radar modules..." },
-                { pct: 100, msg: "⚡ [SYSTEM READY] AI Core Active. Boot successfully completed." }
-            ];
-
-            let index = 0;
-            function runBootLog() {
-                if (index < bootLogs.length) {
-                    const log = bootLogs[index];
-                    progressBar.style.width = log.pct + "%";
-                    progressStatus.innerHTML = `<span class="text-purple-400 animate-pulse">></span> ${__escHtml(log.msg)}`;
-                    
-                    let delay = 250;
-                    if (index === bootLogs.length - 1) delay = 400; // longer pause at 100%
-                    
-                    index++;
-                    setTimeout(runBootLog, delay);
-                } else {
-                    // Gracefully fade out loading screen
-                    loader.style.opacity = "0";
-                    loader.style.transform = "scale(1.05)";
-                    setTimeout(() => {
-                        loader.style.display = "none";
-                    }, 700);
-                }
-            }
-            
-            // start bootstrap simulation
-            setTimeout(runBootLog, 100);
-        });
+        // Trang hiện ngay (trước đây: màn "khởi động AI" giả ~2,5 giây với dòng chữ không đúng sự thật —
+        // PostgreSQL RLS, cụm AWS đa vùng, radar GPS — trong khi hệ thống chạy MongoDB + Vercel).
+        (function () { var l = document.getElementById("ai-loading-screen"); if (l) l.style.display = "none"; })();
     </script>
     
     <script src="/static/js/cskh_widget.js?v=20261023"></script>

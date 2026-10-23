@@ -12,16 +12,27 @@ ECOMMERCE_ENC_KEY/AD_TOKEN_ENC_KEY, fail-closed nếu thiếu key mã hoá.
 import os
 from datetime import datetime
 
-from cryptography.fernet import Fernet
+import base64
+import hashlib
+
+from cryptography.fernet import Fernet, MultiFernet
 
 from mongo_client import db
 
 _ENC_KEY = os.environ.get('NURTURE_CHANNEL_ENC_KEY')
+_keys = []
 try:
-    _fernet = Fernet(_ENC_KEY.encode()) if _ENC_KEY else None
+    if _ENC_KEY:
+        _keys.append(Fernet(_ENC_KEY.encode()))
 except Exception as e:
     print(f"[!] NURTURE_CHANNEL_ENC_KEY không hợp lệ (phải là 1 Fernet key base64 32 byte): {e}")
-    _fernet = None
+# Chưa cấu hình khoá riêng: dẫn xuất khoá từ FLASK_SECRET_KEY (bí mật bắt buộc của app) để vẫn lưu được token
+# MÃ HOÁ (kết nối SMS Twilio/Zalo/Messenger). MultiFernet: mã hoá bằng khoá đầu tiên, giải mã thử mọi khoá —
+# thêm NURTURE_CHANNEL_ENC_KEY sau này thì token cũ vẫn đọc được.
+_app_secret = os.environ.get('FLASK_SECRET_KEY')
+if _app_secret:
+    _keys.append(Fernet(base64.urlsafe_b64encode(hashlib.sha256(b'bitpaw-channel-tokens|' + _app_secret.encode()).digest())))
+_fernet = MultiFernet(_keys) if _keys else None
 
 
 def save_channel_token(business_id, platform, access_token, extra=None):

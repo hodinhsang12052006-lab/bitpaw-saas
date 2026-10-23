@@ -156,3 +156,27 @@ def media_history():
         db.generated_media.find(query, {'_id': 0}).sort('id', -1).limit(100)
     )
     return jsonify({"success": True, "items": items})
+
+
+# Brand DNA của tiệm (tên, điểm khác biệt, khách mục tiêu, từ cấm) — lưu ở server để AI Studio dùng trên mọi máy.
+# Trước đây chỉ nằm trong localStorage của 1 trình duyệt nhưng giao diện lại báo "đã lưu vào bộ nhớ DeepSeek".
+_BRAND_FIELDS = (('name', 120), ('usp', 400), ('audience', 300), ('blacklist', 400))
+
+
+@ai_studio_bp.route('/brand', methods=['GET', 'POST'])
+@login_required
+def brand_profile():
+    business_id = session.get('business_id') or session.get('user_id')
+    if not business_id:
+        return jsonify({"success": False, "error": "Chưa đăng nhập."}), 401
+    if request.method == 'GET':
+        doc = db.ai_brand_profiles.find_one({'business_id': business_id}, {'_id': 0, 'business_id': 0}) or {}
+        return jsonify({"success": True, "brand": doc})
+    data = request.get_json() or {}
+    doc = {}
+    for key, max_len in _BRAND_FIELDS:
+        v = data.get(key)
+        doc[key] = v.strip()[:max_len] if isinstance(v, str) else ''
+    doc['updated_at'] = datetime.now().isoformat()
+    db.ai_brand_profiles.update_one({'business_id': business_id}, {'$set': doc}, upsert=True)
+    return jsonify({"success": True, "brand": doc})

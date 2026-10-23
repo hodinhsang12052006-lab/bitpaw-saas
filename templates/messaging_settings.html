@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Nhắn tin & SMS' if default_lang == 'vi' else 'Messaging & SMS' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Trang cài đặt nhắn tin (SMS Twilio + email). CSS tự chứa, không phụ thuộc lớp tailwind chưa build. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #34d399; --warn: #fbbf24; --err: #fb7185; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+        .msg-main { flex: 1; min-width: 0; padding: 28px 28px 80px; max-width: 1100px; }
+        .msg-head h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.01em; }
+        .msg-head p { color: var(--muted); margin: 0 0 22px; max-width: 70ch; line-height: 1.6; font-size: 14px; }
+        .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+        .card small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        .card b { font-size: 20px; font-variant-numeric: tabular-nums; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+        .pill.ok { background: rgba(52,211,153,.12); color: var(--accent); } .pill.no { background: rgba(251,191,36,.12); color: var(--warn); }
+        section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 16px; }
+        section.box h2 { font-size: 16px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+        section.box > p.sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; line-height: 1.55; }
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+        .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; }
+        label.f { display: block; font-size: 12.5px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+        .in { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 11px; padding: 11px 12px; font: inherit; font-size: 14px; }
+        .in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52,211,153,.15); }
+        select.in option { background: #10131f; }
+        .auto { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line); }
+        .auto:first-of-type { border-top: 0; }
+        .auto h3 { margin: 0 0 3px; font-size: 14.5px; } .auto p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .sw { position: relative; width: 44px; height: 26px; flex-shrink: 0; margin-top: 2px; }
+        .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+        .sw span { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,.15); transition: background .2s ease; cursor: pointer; }
+        .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s cubic-bezier(.22,1,.36,1); }
+        .sw input:checked + span { background: var(--accent); } .sw input:checked + span::after { transform: translateX(18px); }
+        .sw input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
+        .hook { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+        .hook code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; background: rgba(0,0,0,.4); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; font-size: 12px; color: #a7f3d0; }
+        .btn { border: 0; border-radius: 11px; padding: 11px 18px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; background: var(--accent); color: #04140d; }
+        .btn.ghost { background: rgba(255,255,255,.08); color: var(--ink); border: 1px solid var(--line); }
+        .btn[disabled] { opacity: .6; cursor: progress; }
+        .bar { display: flex; justify-content: flex-end; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; bottom: 12px; background: rgba(8,6,26,.92); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+        .note { font-size: 13px; color: var(--muted); margin-right: auto; } .note.ok { color: var(--accent); } .note.err { color: var(--err); }
+        table.log { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.log th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 8px; border-bottom: 1px solid var(--line); }
+        table.log td { padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; }
+        .st { font-weight: 700; } .st.sent { color: var(--accent); } .st.failed { color: var(--err); } .st.queued { color: var(--warn); } .st.cancelled { color: var(--muted); }
+        .help { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 8px 0 0; }
+        .help ol { margin: 6px 0 0; padding-left: 18px; }
+        @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, minmax(0,1fr)); } .grid3 { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 640px) { .msg-main { padding: 72px 14px 90px; } .grid2, .grid3 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% include 'components/app_sidebar.html' %}
+<main class="msg-main">
+    <div class="msg-head">
+        <h1><i class="fas fa-comment-sms" style="color: var(--accent)"></i> {{ 'Nhắn tin & SMS' if vi else 'Messaging & SMS' }}</h1>
+        <p>{{ 'Tự động nhắc lịch, xin đánh giá 5 sao, nhắn lại cuộc gọi nhỡ và gửi báo cáo ngày. SMS dùng số Twilio của chính tiệm; email gửi từ BitPaw. Mọi tin đều có cách từ chối (trả lời STOP) và chỉ gửi trong khung giờ cho phép.' if vi else 'Automatic appointment reminders, 5-star review requests, missed-call text back and a daily report. SMS uses your own Twilio number; email is sent by BitPaw. Every message includes an opt-out (reply STOP) and only goes out during allowed hours.' }}</p>
+    </div>
+
+    <div class="cards">
+        <div class="card"><small>SMS</small><span id="smsPill" class="pill no">…</span></div>
+        <div class="card"><small>{{ 'Đã gửi (gần đây)' if vi else 'Sent (recent)' }}</small><b id="cSent">–</b></div>
+        <div class="card"><small>{{ 'Đang chờ gửi' if vi else 'Waiting to send' }}</small><b id="cQueued">–</b></div>
+        <div class="card"><small>{{ 'Đã từ chối nhận tin' if vi else 'Opted out' }}</small><b id="cOpt">–</b></div>
+    </div>
+
+    <form id="msgForm" novalidate>
+    <section class="box">
+        <h2><i class="fas fa-plug" style="color:#38bdf8"></i> {{ 'Kết nối SMS (Twilio)' if vi else 'Connect SMS (Twilio)' }}</h2>
+        <p class="sub">{{ 'Dùng số điện thoại riêng của tiệm để khách trả lời được. Twilio tính phí SMS theo bảng giá của họ.' if vi else 'Use your own business number so customers can reply. Twilio charges for SMS at their own rates.' }}</p>
+        <div class="grid3">
+            <div><label class="f" for="sid">Account SID</label><input class="in" id="sid" autocomplete="off" placeholder="AC…"></div>
+            <div><label class="f" for="tok">Auth Token</label><input class="in" id="tok" type="password" autocomplete="new-password" placeholder="{{ 'Để trống nếu giữ nguyên' if vi else 'Leave blank to keep the saved one' }}"></div>
+            <div><label class="f" for="from">{{ 'Số gửi (Twilio)' if vi else 'From number (Twilio)' }}</label><input class="in" id="from" placeholder="+1 555 123 4567"></div>
+        </div>
+        <div class="auto" style="border-top:0;padding-bottom:0">
+            <label class="sw"><input type="checkbox" id="smsOn"><span></span></label>
+            <div><h3>{{ 'Bật gửi SMS' if vi else 'Turn SMS on' }}</h3>
+            <div class="help">{{ 'Trong Twilio → Phone Numbers → số của bạn, dán 2 địa chỉ này:' if vi else 'In Twilio → Phone Numbers → your number, paste these two addresses:' }}
+                <div class="hook"><span style="width:84px">Messaging</span><code id="hookSms">…</code><button type="button" class="btn ghost" data-copy="hookSms">{{ 'Chép' if vi else 'Copy' }}</button></div>
+                <div class="hook"><span style="width:84px">Voice</span><code id="hookVoice">…</code><button type="button" class="btn ghost" data-copy="hookVoice">{{ 'Chép' if vi else 'Copy' }}</button></div>
+            </div></div>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-robot" style="color:var(--accent)"></i> {{ 'Tự động' if vi else 'Automations' }}</h2>
+        <p class="sub">{{ 'Có SMS thì gửi SMS; khách không có số hoặc chưa bật SMS thì gửi email (nếu có).' if vi else 'Sent by SMS when connected; otherwise by email when the customer has one.' }}</p>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="remOn"><span></span></label>
+            <div><h3>{{ 'Nhắc lịch hẹn' if vi else 'Appointment reminders' }}</h3><p>{{ 'Giảm khách quên hẹn.' if vi else 'Fewer no-shows.' }}</p>
+                <div style="max-width:220px"><label class="f" for="remHours">{{ 'Gửi trước' if vi else 'Send' }}</label>
+                <select class="in" id="remHours"><option value="2">{{ '2 giờ' if vi else '2 hours before' }}</option><option value="24">{{ '24 giờ' if vi else '24 hours before' }}</option><option value="48">{{ '48 giờ' if vi else '48 hours before' }}</option></select></div></div>
+        </div>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="revOn"><span></span></label>
+            <div><h3>{{ 'Xin đánh giá 5 sao' if vi else '5-star review requests' }}</h3><p>{{ 'Sau khi khách thanh toán, gửi link đánh giá Google của tiệm (mỗi khách tối đa 1 lần / 60 ngày).' if vi else 'After a customer pays, send your Google review link (at most once per customer every 60 days).' }}</p>
+                <div class="grid2"><div><label class="f" for="revUrl">{{ 'Link đánh giá Google' if vi else 'Google review link' }}</label><input class="in" id="revUrl" placeholder="https://g.page/r/…/review"></div>
+                <div><label class="f" for="revDelay">{{ 'Gửi sau khi thanh toán' if vi else 'Send after checkout' }}</label><select class="in" id="revDelay"><option value="60">1 {{ 'giờ' if vi else 'hour' }}</option><option value="90">90 {{ 'phút' if vi else 'minutes' }}</option><option value="180">3 {{ 'giờ' if vi else 'hours' }}</option><option value="1440">{{ 'Hôm sau' if vi else 'Next day' }}</option></select></div></div></div>
+        </div>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="mcOn"><span></span></label>
+            <div><h3>{{ 'Nhắn lại cuộc gọi nhỡ' if vi else 'Missed-call text back' }}</h3><p>{{ 'Cuộc gọi tới số Twilio được chuyển tới máy tiệm 20 giây; không ai nghe thì khách nhận ngay tin nhắn kèm link đặt lịch.' if vi else 'Calls to your Twilio number ring your shop phone for 20 seconds; if nobody answers, the caller gets a text with your booking link right away.' }}</p>
+                <div style="max-width:320px"><label class="f" for="shopPhone">{{ 'Số máy tiệm (để chuyển cuộc gọi)' if vi else 'Shop phone (calls forward here)' }}</label><input class="in" id="shopPhone" placeholder="+1 555 987 6543"></div></div>
+        </div>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="repOn"><span></span></label>
+            <div><h3>{{ 'Báo cáo ngày gửi chủ tiệm' if vi else 'Daily owner report' }}</h3><p>{{ 'Mỗi sáng: doanh thu hôm qua, tiền mặt phải có trong két, khách mới, lịch hẹn hôm nay.' if vi else 'Every morning: yesterday\'s sales, cash that should be in the drawer, new customers, today\'s appointments.' }}</p>
+                <div style="max-width:320px"><label class="f" for="repEmail">{{ 'Email nhận (để trống = email chủ tài khoản)' if vi else 'Send to (blank = account owner email)' }}</label><input class="in" id="repEmail" type="email" placeholder="owner@yourshop.com"></div></div>
+        </div>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-clock" style="color:#c4b5fd"></i> {{ 'Giờ gửi' if vi else 'Sending hours' }}</h2>
+        <p class="sub">{{ 'Tin nhắc lịch, đánh giá và chăm sóc khách chỉ gửi trong khung giờ này (giờ của tiệm). Luật Mỹ cấm nhắn tiếp thị trước 8 giờ sáng và sau 9 giờ tối.' if vi else 'Reminders, review and follow-up messages only go out in this window (your local time). US rules prohibit marketing texts before 8am or after 9pm.' }}</p>
+        <div class="grid3">
+            <div><label class="f" for="tz">{{ 'Múi giờ' if vi else 'Time zone' }}</label>
+                <select class="in" id="tz">
+                    <optgroup label="United States"><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Phoenix</option><option>America/Los_Angeles</option><option>America/Anchorage</option><option>Pacific/Honolulu</option></optgroup>
+                    <optgroup label="Australia"><option>Australia/Sydney</option><option>Australia/Melbourne</option><option>Australia/Brisbane</option><option>Australia/Adelaide</option><option>Australia/Darwin</option><option>Australia/Perth</option><option>Australia/Hobart</option></optgroup>
+                    <optgroup label="Other"><option>America/Toronto</option><option>America/Vancouver</option><option>Pacific/Auckland</option><option>Europe/London</option><option>Asia/Ho_Chi_Minh</option></optgroup>
+                </select></div>
+            <div><label class="f" for="ws">{{ 'Từ' if vi else 'From' }}</label><select class="in" id="ws"></select></div>
+            <div><label class="f" for="we">{{ 'Đến' if vi else 'Until' }}</label><select class="in" id="we"></select></div>
+        </div>
+        <div style="max-width:320px;margin-top:12px"><label class="f" for="lang">{{ 'Ngôn ngữ tin gửi khách' if vi else 'Message language' }}</label>
+            <select class="in" id="lang"><option value="en">English</option><option value="vi">Tiếng Việt</option></select></div>
+    </section>
+
+    <div class="bar">
+        <span class="note" id="saveNote"></span>
+        <button type="submit" class="btn" id="saveBtn">{{ 'Lưu cài đặt' if vi else 'Save settings' }}</button>
+    </div>
+    </form>
+
+    <section class="box" style="margin-top:16px">
+        <h2><i class="fas fa-paper-plane" style="color:#38bdf8"></i> {{ 'Gửi thử' if vi else 'Send a test' }}</h2>
+        <p class="sub">{{ 'Kiểm tra kết nối bằng cách gửi 1 tin tới số hoặc email của bạn.' if vi else 'Check the connection by sending one message to your own phone or email.' }}</p>
+        <div class="grid3" style="align-items:end">
+            <div><label class="f" for="tCh">{{ 'Kênh' if vi else 'Channel' }}</label><select class="in" id="tCh"><option value="sms">SMS</option><option value="email">Email</option></select></div>
+            <div><label class="f" for="tTo">{{ 'Gửi tới' if vi else 'Send to' }}</label><input class="in" id="tTo" placeholder="+1 555 123 4567"></div>
+            <div><button type="button" class="btn ghost" id="tBtn" style="width:100%">{{ 'Gửi thử' if vi else 'Send test' }}</button></div>
+        </div>
+        <p class="note" id="tNote" style="margin-top:10px"></p>
+    </section>
+
+    <section class="box">
+        <h2><i class="fas fa-list" style="color:var(--muted)"></i> {{ 'Tin gần đây' if vi else 'Recent messages' }}</h2>
+        <div style="overflow-x:auto"><table class="log"><thead><tr>
+            <th>{{ 'Lúc' if vi else 'When' }}</th><th>{{ 'Loại' if vi else 'Type' }}</th><th>{{ 'Kênh' if vi else 'Channel' }}</th><th>{{ 'Tới' if vi else 'To' }}</th><th>{{ 'Trạng thái' if vi else 'Status' }}</th></tr></thead>
+            <tbody id="logBody"><tr><td colspan="5" style="color:var(--muted)">…</td></tr></tbody></table></div>
+    </section>
+</main>
+<script>
+(function () {
+    var VI = {{ 'true' if vi else 'false' }};
+    var T = function (en, vi) { return VI ? vi : en; };
+    var $ = function (id) { return document.getElementById(id); };
+    var esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    for (var h = 8; h <= 21; h++) { var lbl = (h % 12 || 12) + (h < 12 ? ' am' : ' pm'); if (h <= 20) $('ws').add(new Option(lbl, h)); if (h >= 9) $('we').add(new Option(lbl, h)); }
+    var KIND = { appointment_reminder: T('Reminder', 'Nhắc lịch'), review_request: T('Review request', 'Xin đánh giá'), nurture: T('Follow-up', 'Chăm sóc'),
+                 owner_report: T('Daily report', 'Báo cáo ngày'), missed_call: T('Missed call', 'Cuộc gọi nhỡ'), test: T('Test', 'Thử') };
+    var STATUS = { sent: T('Sent', 'Đã gửi'), failed: T('Failed', 'Lỗi'), queued: T('Waiting', 'Chờ gửi'), cancelled: T('Cancelled', 'Đã huỷ'), sending: T('Sending', 'Đang gửi') };
+    function mask(to) { return /@/.test(to) ? to.replace(/^(.{2}).*(@.*)$/, '$1•••$2') : to.replace(/\d(?=\d{3})/g, '•'); }
+    function fill(s) {
+        $('sid').value = s.twilio_account_sid || ''; $('from').value = s.twilio_from || ''; $('smsOn').checked = !!s.sms_enabled;
+        $('remOn').checked = !!s.reminders_enabled; $('remHours').value = String(s.reminder_hours || 24);
+        $('revOn').checked = !!s.reviews_enabled; $('revUrl').value = s.google_review_url || ''; $('revDelay').value = String(s.review_delay_minutes || 90);
+        $('mcOn').checked = !!s.missed_call_enabled; $('shopPhone').value = s.shop_phone || '';
+        $('repOn').checked = !!s.owner_report_enabled; $('repEmail').value = s.owner_report_email || '';
+        $('tz').value = s.timezone; $('ws').value = String(s.send_window_start); $('we').value = String(s.send_window_end); $('lang').value = s.language || 'en';
+        $('hookSms').textContent = s.webhook_sms; $('hookVoice').textContent = s.webhook_voice;
+        var pill = $('smsPill'); pill.className = 'pill ' + (s.twilio_ready ? 'ok' : 'no');
+        pill.innerHTML = s.twilio_ready ? '<i class="fas fa-check"></i> ' + T('Connected', 'Đã kết nối') : '<i class="fas fa-circle-exclamation"></i> ' + T('Not connected', 'Chưa kết nối');
+    }
+    async function api(url, opt) {
+        var r = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opt || {}));
+        var d = {}; try { d = await r.json(); } catch (e) {}
+        if (!r.ok || d.success === false) throw new Error(d.message || ('HTTP ' + r.status));
+        return d;
+    }
+    async function loadLog() {
+        try {
+            var d = await api('/api/messaging/log');
+            $('cSent').textContent = d.stats.sent; $('cQueued').textContent = d.stats.queued; $('cOpt').textContent = d.optouts;
+            $('logBody').innerHTML = d.items.length ? d.items.map(function (m) {
+                var when = (m.sent_at || m.created_at || '').replace('T', ' ').slice(0, 16);
+                return '<tr><td>' + esc(when) + '</td><td>' + esc(KIND[m.kind] || m.kind) + '</td><td>' + esc(m.channel.toUpperCase()) + '</td><td>' + esc(mask(m.to || '')) +
+                    '</td><td><span class="st ' + esc(m.status) + '">' + esc(STATUS[m.status] || m.status) + '</span>' + (m.error ? '<div style="color:var(--muted);font-size:12px">' + esc(m.error) + '</div>' : '') + '</td></tr>';
+            }).join('') : '<tr><td colspan="5" style="color:var(--muted)">' + T('No messages yet.', 'Chưa có tin nào.') + '</td></tr>';
+        } catch (e) { $('logBody').innerHTML = '<tr><td colspan="5" style="color:var(--err)">' + esc(e.message) + '</td></tr>'; }
+    }
+    api('/api/messaging/settings').then(function (d) { fill(d.settings); }).catch(function (e) { $('saveNote').textContent = e.message; $('saveNote').className = 'note err'; });
+    loadLog();
+    $('msgForm').addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        var note = $('saveNote'), btn = $('saveBtn'); btn.disabled = true; note.className = 'note'; note.textContent = T('Saving…', 'Đang lưu…');
+        var body = { twilio_account_sid: $('sid').value.trim(), twilio_from: $('from').value.trim(), sms_enabled: $('smsOn').checked,
+            reminders_enabled: $('remOn').checked, reminder_hours: +$('remHours').value, reviews_enabled: $('revOn').checked, google_review_url: $('revUrl').value.trim(),
+            review_delay_minutes: +$('revDelay').value, missed_call_enabled: $('mcOn').checked, shop_phone: $('shopPhone').value.trim(),
+            owner_report_enabled: $('repOn').checked, owner_report_email: $('repEmail').value.trim(), timezone: $('tz').value,
+            send_window_start: +$('ws').value, send_window_end: +$('we').value, language: $('lang').value };
+        if ($('tok').value.trim()) body.twilio_auth_token = $('tok').value.trim();
+        if (body.reviews_enabled && !/^https:\/\//.test(body.google_review_url)) { note.className = 'note err'; note.textContent = T('Add your Google review link (starts with https://).', 'Nhập link đánh giá Google (bắt đầu bằng https://).'); btn.disabled = false; return; }
+        if (body.send_window_end <= body.send_window_start) { note.className = 'note err'; note.textContent = T('"Until" must be later than "From".', 'Giờ "Đến" phải sau giờ "Từ".'); btn.disabled = false; return; }
+        try {
+            var d = await api('/api/messaging/settings', { method: 'POST', body: JSON.stringify(body) });
+            fill(d.settings); $('tok').value = '';
+            note.className = 'note ok'; note.textContent = T('Saved.', 'Đã lưu.') + (d.settings.sms_enabled && !d.settings.twilio_ready ? ' ' + T('SMS is on but not connected yet — check the SID, token and number.', 'Đã bật SMS nhưng chưa kết nối — kiểm tra SID, token và số.') : '');
+        } catch (e) { note.className = 'note err'; note.textContent = e.message; }
+        finally { btn.disabled = false; }
+    });
+    $('tCh').addEventListener('change', function () { $('tTo').placeholder = this.value === 'sms' ? '+1 555 123 4567' : 'you@example.com'; });
+    $('tBtn').addEventListener('click', async function () {
+        var n = $('tNote'); n.className = 'note'; n.textContent = T('Sending…', 'Đang gửi…'); this.disabled = true;
+        try { var d = await api('/api/messaging/test', { method: 'POST', body: JSON.stringify({ channel: $('tCh').value, to: $('tTo').value.trim() }) }); n.className = 'note ok'; n.textContent = d.message; loadLog(); }
+        catch (e) { n.className = 'note err'; n.textContent = e.message; }
+        finally { this.disabled = false; }
+    });
+    document.querySelectorAll('[data-copy]').forEach(function (b) {
+        b.addEventListener('click', async function () {
+            var t = $(b.dataset.copy).textContent;
+            try { await navigator.clipboard.writeText(t); b.textContent = T('Copied', 'Đã chép'); } catch (e) { b.textContent = T('Select & copy', 'Bôi đen để chép'); }
+            setTimeout(function () { b.textContent = T('Copy', 'Chép'); }, 1400);
+        });
+    });
+})();
+</script>
+</body>
+</html>

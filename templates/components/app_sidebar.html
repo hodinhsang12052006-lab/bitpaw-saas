@@ -398,6 +398,10 @@
                     <span class="nav-icon-chip">{{ navico('fa-cog', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_settings">{{ menu_i18n.settings }}</span>
                 </a>
+                <a href="/settings/messaging" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <span class="nav-icon-chip">{{ navico('fa-comment-sms', ' group-hover:text-emerald-400 transition-colors') }}</span>
+                    <span>{{ 'Nhắn tin & SMS' if default_lang == 'vi' else 'Messaging & SMS' }}</span>
+                </a>
             {% else %}
                 {# Vai trò staff: chỉ giữ Chấm công cá nhân + Hoa hồng/Tip (POS/Booking đã hiện ở trên nếu ngành có) #}
                 <a href="{{ url_for('app_nhanvien') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
@@ -425,6 +429,16 @@
 </aside>
 
 <script>
+    // Bộ gửi tin: khi app đang mở, nhờ máy chủ gửi các tin đã tới giờ (nhắc lịch, xin đánh giá, chăm sóc khách, báo cáo ngày)
+    // — tối đa 1 lần / 3 phút. Không chặn trang, lỗi thì bỏ qua (cron vẫn chạy 2 lần/ngày).
+    (function () {
+        try {
+            var last = +(sessionStorage.getItem('bp_pump_at') || 0);
+            if (Date.now() - last < 180000) return;
+            sessionStorage.setItem('bp_pump_at', String(Date.now()));
+        } catch (e) { /* bị chặn */ }
+        setTimeout(function () { fetch('/api/messages/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () {}); }, 2500);
+    })();
     // Bấm hamburger -> mở/đóng sidebar trượt vào (chỉ có tác dụng dưới 768px nhờ CSS ở trên,
     // ở md+ sidebar luôn hiển thị bình thường nên hàm này không ảnh hưởng gì).
     function toggleAppSidebar(forceOpen) {

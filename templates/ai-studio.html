@@ -250,7 +250,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="glass-panel p-5 rounded-2xl relative flex-shrink-0 border-t-2 border-t-purple-500/50">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-black text-purple-400 flex items-center gap-2"><span class="step-badge bg-purple-500 text-white">STEP 1</span> Source Extraction (Extract)</h3>
-                        <span class="text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded">Whisper AI v2.0</span>
+                        <span class="text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded">Transcript · .srt · .vtt</span>
                     </div>
                     
                     <div class="flex flex-col sm:flex-row gap-2 mb-4">
@@ -258,22 +258,21 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <i class="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
                             <input type="text" id="videoLinkInput" class="w-full glass-input rounded-xl pl-10 pr-4 py-3 text-xs" placeholder="Paste a TikTok / Reels video link to extract the script...">
                         </div>
-                        <button onclick="extractScript(this)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-[0_0_15px_rgba(168,85,247,0.4)] whitespace-nowrap">
-                            <i class="fas fa-closed-captioning mr-1"></i> EXTRACT
+                        <button onclick="extractScript(this)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-5 py-3 rounded-xl text-xs transition shadow-[0_0_15px_rgba(168,85,247,0.4)] whitespace-nowrap">
+                            <i class="fas fa-paste mr-1"></i> PASTE TRANSCRIPT
                         </button>
+                        <label class="bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold px-5 py-3 rounded-xl text-xs transition whitespace-nowrap cursor-pointer text-center">
+                            <i class="fas fa-file-upload mr-1"></i> UPLOAD .SRT/.VTT
+                            <input type="file" id="subtitleFile" accept=".srt,.vtt,.txt,text/plain" class="hidden" onchange="loadSubtitleFile(this)">
+                        </label>
                     </div>
+                    <p id="step1Hint" class="text-[10px] text-gray-500 -mt-2 mb-3">TikTok and Reels do not allow automatic transcript downloads — paste the words spoken in the video, or upload its subtitle file.</p>
 
                     <!-- Khu vực hiển thị Video Embed & Text gốc -->
                     <div class="bg-black/50 border border-white/5 rounded-xl p-4 flex gap-4 h-[200px]">
                         <!-- Video Player -->
-                        <div id="videoEmbedBox" class="w-[100px] sm:w-[120px] bg-black rounded-lg border border-white/10 overflow-hidden relative hidden shrink-0 shadow-[0_0_15px_rgba(0,0,0,0.8)]">
-                            <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=300&q=80" class="w-full h-full object-cover opacity-60">
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <i class="fas fa-play-circle text-3xl text-white/80 drop-shadow-lg"></i>
-                            </div>
-                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-black to-transparent p-2">
-                                <div class="w-full bg-white/30 h-1 rounded-full"><div class="w-1/3 bg-red-500 h-full rounded-full"></div></div>
-                            </div>
+                        <div id="videoEmbedBox" class="w-[100px] sm:w-[120px] bg-black/60 rounded-lg border border-white/10 overflow-hidden relative hidden shrink-0">
+                            <a id="videoLinkChip" target="_blank" rel="noopener" class="w-full h-full flex flex-col items-center justify-center text-gray-300 hover:text-white transition"></a>
                         </div>
 
                         <!-- Lời thoại Text -->
@@ -284,7 +283,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <div class="flex-1 overflow-y-auto pr-2 text-xs text-gray-300 leading-relaxed font-mono opacity-50" id="originalScript">
                                 <div class="h-full flex flex-col items-center justify-center text-gray-600 text-center">
                                     <i class="fas fa-paste text-3xl mb-2 opacity-50"></i>
-                                    <p>Paste a video link to view & extract the text.</p>
+                                    <p>Paste the transcript of a video you like, or upload its subtitle file.</p>
                                 </div>
                             </div>
                         </div>
@@ -410,18 +409,18 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="glass-panel p-4 rounded-2xl relative border-t-2 border-t-orange-500/50 flex flex-col justify-between group hover:bg-white/5 transition h-full">
                         <div>
                             <h3 class="text-xs font-black text-orange-400 mb-2 flex items-center gap-2"><i class="fas fa-robot text-glow-orange"></i> Media & Faceless</h3>
-                            <select class="w-full bg-black border border-white/10 text-white px-2 py-1.5 rounded-lg text-[10px] outline-none cursor-pointer mb-2">
-                                <option>🎙 Female Voiceover</option>
-                                <option>🎙 Deep Male Voice</option>
-                                <option>🎙 Clone Owner's Voice</option>
+                            <p class="text-[10px] text-gray-400 mb-2 leading-relaxed">Listen to your script, then get a scene-by-scene kit: captions (.srt), voiceover and free stock footage.</p>
+                            <select id="voiceSelect" aria-label="Preview voice" class="w-full bg-black border border-white/10 text-white px-2 py-1.5 rounded-lg text-[10px] outline-none cursor-pointer mb-2">
+                                <option value="female">🎙 Female voice (this device)</option>
+                                <option value="male">🎙 Male voice (this device)</option>
                             </select>
                         </div>
                         <div class="flex gap-1 mt-auto">
-                            <button onclick="playFakeVoice(this)" class="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-1.5 rounded-lg text-[10px] transition" title="Preview Audio">
+                            <button onclick="speakScript(this)" class="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-1.5 rounded-lg text-[10px] transition" title="Read the script aloud">
                                 <i class="fas fa-play"></i> Listen
                             </button>
-                            <button onclick="generateFacelessVideo(this)" class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-bold py-1.5 rounded-lg text-[10px] transition shadow-[0_0_10px_rgba(249,115,22,0.4)]" title="Render Faceless Video">
-                                <i class="fas fa-magic"></i> Auto Video
+                            <button onclick="buildFacelessKit(this)" class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-bold py-1.5 rounded-lg text-[10px] transition shadow-[0_0_10px_rgba(249,115,22,0.4)]" title="Build a faceless video kit">
+                                <i class="fas fa-magic"></i> Video Kit
                             </button>
                         </div>
                     </div>
@@ -451,8 +450,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <textarea id="aiResultText" class="w-full h-full bg-black/50 border border-white/10 rounded-xl p-4 text-sm text-gray-300 focus:outline-none resize-none font-mono leading-relaxed" readonly></textarea>
             </div>
 
-            <div class="px-6 py-4 border-t border-white/10 bg-black/20 flex justify-end flex-shrink-0 gap-2">
-                <button type="button" onclick="closeAiModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-xl transition text-sm shadow-lg">Copy & Close</button>
+            <div class="px-6 py-4 border-t border-white/10 bg-black/20 flex justify-end items-center flex-wrap flex-shrink-0 gap-2">
+                <div id="aiModalActions" class="flex gap-2 flex-wrap mr-auto"></div>
+                <button type="button" onclick="copyAndCloseAiModal(this)" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-xl transition text-sm shadow-lg">Copy & Close</button>
             </div>
         </div>
     </div>
@@ -468,7 +468,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <div class="p-6 bg-[#050510] space-y-4">
-                <p class="text-xs text-gray-400 mb-2">The AI will memorize this data to ensure every script it generates matches your business DNA 100%.</p>
+                <p class="text-xs text-gray-400 mb-2">AI Studio adds these details to every script it writes for you. Saved to your account, so it works on every device.</p>
                 <div>
                     <label class="block text-xs font-bold text-gray-400 mb-1">Brand Name (e.g. ABC Beauty Clinic)</label>
                     <input type="text" id="brandName" class="w-full glass-input rounded-lg px-3 py-2 text-sm">
@@ -488,8 +488,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <div class="px-6 py-4 border-t border-white/10 bg-black/40 flex justify-end">
-                <button type="button" onclick="saveBrandBrain()" class="bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-xl transition text-sm shadow-[0_0_15px_rgba(234,179,8,0.4)]">
-                    <i class="fas fa-save"></i> SAVE TO AI BRAIN
+                <button type="button" id="brandSaveBtn" onclick="saveBrandBrain()" class="bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-2 px-6 rounded-xl transition text-sm shadow-[0_0_15px_rgba(234,179,8,0.4)]">
+                    <i class="fas fa-save"></i> SAVE BRAND DNA
                 </button>
             </div>
         </div>
@@ -554,7 +554,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         </div>
 
                         <div class="phone-content">
-                            <p class="text-white text-sm font-semibold mb-1">@BitPaw_Official</p>
+                            <p class="text-white text-sm font-semibold mb-1" id="previewHandle">@your_business</p>
                             <p id="previewHook" class="text-white text-sm font-bold leading-tight mb-1 drop-shadow-md break-words">No Hook Title Yet</p>
                             <div class="relative">
                                 <p id="previewCaption" class="text-gray-200 text-xs line-clamp-2 leading-relaxed opacity-90 break-words">Enter caption content to see how the platform will truncate it...</p>
@@ -567,7 +567,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <div class="px-6 py-4 border-t border-white/10 bg-black/40 flex justify-between items-center">
-                <p class="text-[10px] text-gray-400 hidden sm:block"><i class="fas fa-shield-alt text-emerald-500"></i> Posting manually from your phone keeps 100% account safety — the platform never flags it as bot activity.</p>
+                <p class="text-[10px] text-gray-400 hidden sm:block"><i class="fas fa-shield-alt text-emerald-500"></i> Posting from your own phone, in the app, is the safest way to post and keeps every platform feature available.</p>
                 <button type="button" onclick="exportMobilePackage(this)" class="bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-bold py-2.5 px-8 rounded-xl transition text-sm shadow-[0_0_15px_rgba(16,185,129,0.5)] flex items-center gap-2 w-full sm:w-auto justify-center">
                     <i class="fas fa-download"></i> EXPORT MOBILE PACKAGE
                 </button>
@@ -608,17 +608,18 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <button type="button" onclick="closeDoctorModal()" class="text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             <div class="p-6 bg-[#050510] flex flex-col gap-4 overflow-hidden flex-1">
-                <p class="text-xs text-gray-400 leading-relaxed">The system analyzes your 5 most recent channel videos to diagnose issues and prescribe fixes.</p>
+                <p class="text-xs text-gray-400 leading-relaxed">The AI cannot read your channel's private analytics. Paste the numbers for your last 5 videos (from TikTok Studio, Meta Business Suite or YouTube Studio) and it will find what is holding them back.</p>
                 <div class="flex gap-2 shrink-0">
                     <input type="text" id="channelLink" class="flex-1 glass-input rounded-xl px-4 py-3 text-sm border-rose-500/30" placeholder="Enter your TikTok Channel or Fanpage link...">
                     <button onclick="diagnoseChannel(this)" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-[0_0_15px_rgba(244,63,94,0.4)] whitespace-nowrap">
                         <i class="fas fa-heartbeat"></i> RUN DIAGNOSIS
                     </button>
                 </div>
+                <textarea id="channelStats" rows="5" class="w-full glass-input rounded-xl px-4 py-3 text-xs font-mono border-rose-500/30 shrink-0" placeholder="Video 1: 'Gel-X before/after' — 1,240 views, 38% watched to the end, 52 likes, 4 comments, posted Tue 7pm&#10;Video 2: ..."></textarea>
                 <div class="flex-1 relative border border-white/10 rounded-xl overflow-hidden bg-black/50 min-h-[200px]">
                     <div id="doctorLoading" class="absolute inset-0 bg-[#0a0f25] z-10 flex flex-col items-center justify-center text-rose-500 hidden">
                         <i class="fas fa-x-ray text-4xl mb-4 animate-pulse"></i>
-                        <p class="text-sm font-bold">Scanning channel metrics...</p>
+                        <p class="text-sm font-bold">Analysing your numbers...</p>
                     </div>
                     <textarea id="doctorResult" class="w-full h-full bg-transparent p-4 text-xs text-gray-300 focus:outline-none resize-none font-mono leading-relaxed" readonly placeholder="Diagnosis (bounce rate, weak hooks, missing call-to-action) and the recommended fix will appear here."></textarea>
                 </div>
@@ -630,21 +631,35 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // API key proxying handles requests securely on backend
 
         // --- BRAND BRAIN MANAGEMENT ---
-        function openBrandModal() {
-            document.getElementById('brandName').value = localStorage.getItem('bitpaw_brand_name') || '';
-            document.getElementById('brandUsp').value = localStorage.getItem('bitpaw_brand_usp') || '';
-            document.getElementById('brandAudience').value = localStorage.getItem('bitpaw_brand_audience') || '';
-            document.getElementById('brandBlacklist').value = localStorage.getItem('bitpaw_brand_blacklist') || '';
+        const BRAND_KEYS = { name: 'brandName', usp: 'brandUsp', audience: 'brandAudience', blacklist: 'brandBlacklist' };
+        function brandToLocal(b) {
+            Object.keys(BRAND_KEYS).forEach(k => { try { localStorage.setItem('bitpaw_brand_' + k, (b && b[k]) || ''); } catch (e) {} });
+        }
+        async function loadBrandFromServer() {
+            try {
+                const r = await fetch('/api/ai_studio/brand'); const d = await r.json();
+                if (d.success && d.brand && Object.keys(d.brand).length) brandToLocal(d.brand);
+            } catch (e) { /* giữ bản trên máy */ }
+        }
+        async function openBrandModal() {
+            await loadBrandFromServer();
+            Object.entries(BRAND_KEYS).forEach(([k, id]) => { document.getElementById(id).value = localStorage.getItem('bitpaw_brand_' + k) || ''; });
             document.getElementById('brandModal').classList.remove('hidden');
         }
         function closeBrandModal() { document.getElementById('brandModal').classList.add('hidden'); }
-        function saveBrandBrain() {
-            localStorage.setItem('bitpaw_brand_name', document.getElementById('brandName').value.trim());
-            localStorage.setItem('bitpaw_brand_usp', document.getElementById('brandUsp').value.trim());
-            localStorage.setItem('bitpaw_brand_audience', document.getElementById('brandAudience').value.trim());
-            localStorage.setItem('bitpaw_brand_blacklist', document.getElementById('brandBlacklist').value.trim());
-            closeBrandModal();
-            alert("Brand DNA has been saved into DeepSeek's memory!");
+        async function saveBrandBrain() {
+            const body = {}; Object.entries(BRAND_KEYS).forEach(([k, id]) => { body[k] = document.getElementById(id).value.trim(); });
+            const btn = document.getElementById('brandSaveBtn');
+            if (btn) btn.disabled = true;
+            try {
+                const r = await fetch('/api/ai_studio/brand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json();
+                if (!r.ok || !d.success) throw new Error(d.error || ('HTTP ' + r.status));
+                brandToLocal(d.brand);
+                closeBrandModal();
+                alert('Brand DNA saved. AI Studio will use it in every script, on any device you sign in to.');
+            } catch (e) { alert('Could not save Brand DNA: ' + e.message); }
+            finally { if (btn) btn.disabled = false; }
         }
 
         function getBrandPrompt() {
@@ -668,20 +683,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let scriptHistory = JSON.parse(localStorage.getItem('bitpaw_ai_history')) || [];
 
         function saveHistory(title, content, isScheduled = false) {
-            const statuses = [
-                { text: "Draft", bg: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
-                { text: "Pending Review", bg: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" }
-            ];
-
-            let status = isScheduled ? { text: "Ready to Post", bg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" }
-                                     : statuses[Math.floor(Math.random() * statuses.length)];
-
-            let revHtml = "";
-            if(isScheduled || Math.random() > 0.6) {
-                const fakeRev = ["12.5M", "5.2M", "$0", "850K", "24M"];
-                const rv = fakeRev[Math.floor(Math.random() * fakeRev.length)];
-                revHtml = `<span class="text-[9px] font-bold text-emerald-400">💰 ${rv}</span>`;
-            }
+            // Trạng thái thật: Nháp hoặc Sẵn sàng đăng. (Trước đây gắn trạng thái ngẫu nhiên + "doanh thu" bịa như "💰 12.5M".)
+            const status = isScheduled ? { text: "Ready to Post", bg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" }
+                                       : { text: "Draft", bg: "bg-gray-500/20 text-gray-400 border-gray-500/30" };
+            const revHtml = "";
 
             const newItem = {
                 id: Date.now(), title: title || "New Script", content: content, date: new Date().toLocaleDateString(),
@@ -742,7 +747,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function createNewProject() {
             document.getElementById('videoLinkInput').value = ''; document.getElementById('userPrompt').value = ''; document.getElementById('aiScript').value = '';
             document.getElementById('uniqueBadge').classList.add('hidden'); document.getElementById('videoEmbedBox').classList.add('hidden');
-            document.getElementById('originalScript').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-600 text-center"><i class="fas fa-paste text-3xl mb-2 opacity-50"></i><p>Paste a video link to view & extract the text.</p></div>`;
+            document.getElementById('originalScript').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-600 text-center"><i class="fas fa-paste text-3xl mb-2 opacity-50"></i><p>Paste the transcript of a video you like, or upload its subtitle file.</p></div>`;
             document.getElementById('originalScript').classList.add('opacity-50');
             alert("Workspace cleared. Ready to start a new project!");
         }
@@ -757,355 +762,331 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             if(type === 'yt') { platformContext = "YouTube Shorts"; }
         }
 
+        // ===== STEP 1 — Lời thoại gốc =====
+        // TikTok/Reels không cho tải lời thoại tự động và hệ thống không có dịch vụ chuyển giọng nói thành chữ, nên lời thoại
+        // lấy THẬT từ người dùng: dán vào ô hoặc tải file phụ đề (.srt/.vtt/.txt). Trước đây nút EXTRACT chờ 1–2 giây rồi trả
+        // về một đoạn kịch bản viết sẵn (quảng cáo BitPaw) cho MỌI video.
+        function getOriginalText() {
+            const el = document.getElementById('originalTextContent');
+            if (!el) return '';
+            return (el.tagName === 'TEXTAREA' ? el.value : el.innerText).trim();
+        }
+        function setStep1Hint(msg) { const h = document.getElementById('step1Hint'); if (h) h.textContent = msg || ''; }
+        function showTranscriptEditor(text) {
+            const box = document.getElementById('originalScript');
+            box.classList.remove('opacity-50');
+            box.innerHTML = '<textarea id="originalTextContent" aria-label="Original transcript" class="w-full h-full bg-transparent border-0 resize-none text-xs text-gray-200 font-mono leading-relaxed focus:outline-none" placeholder="Paste what is said in the video (or its captions) here..."></textarea>';
+            const ta = document.getElementById('originalTextContent');
+            ta.value = text || '';
+            ta.focus();
+        }
+        function showVideoLink(link) {
+            const box = document.getElementById('videoEmbedBox'); const a = document.getElementById('videoLinkChip');
+            if (!box || !a) return;
+            let host = '';
+            try { const u = new URL(link); if (u.protocol === 'http:' || u.protocol === 'https:') host = u.hostname.replace(/^www\./, ''); } catch (e) { host = ''; }
+            if (!host) { box.classList.add('hidden'); return; }
+            const icon = /tiktok/.test(host) ? 'fab fa-tiktok' : /instagram/.test(host) ? 'fab fa-instagram' : /facebook|fb\./.test(host) ? 'fab fa-facebook' : /youtu/.test(host) ? 'fab fa-youtube' : 'fas fa-link';
+            a.href = link;
+            a.innerHTML = `<i class="${icon} text-2xl"></i><span class="text-[10px] mt-2 break-all text-center px-1">${__escHtml(host)}</span><span class="text-[9px] text-gray-500 mt-1">Open video</span>`;
+            box.classList.remove('hidden');
+        }
         function extractScript(btn) {
             const link = document.getElementById('videoLinkInput').value.trim();
-            if(!link) { alert("You need to paste a video link before I can extract it!"); return; }
-            const originalBox = document.getElementById('originalScript'); const videoEmbed = document.getElementById('videoEmbedBox'); const originalBtnText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> LOADING...'; btn.classList.add('opacity-70', 'cursor-not-allowed');
-            originalBox.classList.add('opacity-50');
-            originalBox.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-purple-400"><i class="fas fa-cog fa-spin text-4xl mb-3"></i><p class="animate-pulse text-center text-xs px-2">Downloading media & transcribing with AI Whisper...</p></div>`;
-            setTimeout(() => {
-                btn.innerHTML = originalBtnText; btn.classList.remove('opacity-70', 'cursor-not-allowed');
-                videoEmbed.classList.remove('hidden'); originalBox.classList.remove('opacity-50');
-                originalBox.innerHTML = `
-                    <div id="originalTextContent" class="space-y-3">
-                        <p>[0:00 - 0:03]: "Hey everyone, today I'm revealing the truth behind something you all keep asking me about."</p>
-                        <p>[0:04 - 0:15]: "Honestly, I spent a lot of money testing this out. The secret is a proven 3-step process almost nobody knows about."</p>
-                        <p>[0:16 - 0:30]: "Step one is a deep clean, followed by a lifting massage. Save this video now — you won't find it again later!"</p>
-                    </div>
-                `;
-            }, 2500);
+            if (link) showVideoLink(link);
+            showTranscriptEditor(getOriginalText());
+            setStep1Hint(link ? 'Paste what is said in this video (or upload its subtitle file), then press GENERATE.' : 'Paste a transcript or upload a subtitle file (.srt / .vtt / .txt) to start.');
+        }
+        window.extractScript = extractScript;
+        function parseSubtitles(raw) {
+            // .srt / .vtt -> chỉ giữ lời thoại (bỏ số thứ tự, mốc thời gian, thẻ định dạng)
+            return String(raw || '').replace(/\r/g, '').split('\n')
+                .filter(l => !/^WEBVTT/.test(l) && !/^\d+$/.test(l.trim()) && l.indexOf('-->') === -1 && !/^(NOTE|STYLE|REGION)\b/.test(l))
+                .map(l => l.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n');
+        }
+        function loadSubtitleFile(input) {
+            const f = input.files && input.files[0];
+            if (!f) return;
+            if (f.size > 2 * 1024 * 1024) { alert('That file is too large (max 2 MB).'); input.value = ''; return; }
+            const r = new FileReader();
+            r.onload = () => {
+                const text = /\.(srt|vtt)$/i.test(f.name) ? parseSubtitles(r.result) : String(r.result || '').trim();
+                showTranscriptEditor(text);
+                setStep1Hint(`Loaded ${f.name} (${text.split(/\s+/).filter(Boolean).length} words). Edit if needed, then press GENERATE.`);
+                input.value = '';
+            };
+            r.onerror = () => { alert('Could not read that file.'); input.value = ''; };
+            r.readAsText(f);
         }
 
-        function generateLocalContent(systemPrompt, userPrompt) {
-            const brandName = localStorage.getItem('bitpaw_brand_name') || 'BitPaw Beauty';
-            const brandUsp = localStorage.getItem('bitpaw_brand_usp') || 'Superior technology, leading the trend';
-            const lowerPrompt = userPrompt.toLowerCase();
-
-            if (lowerPrompt.includes("koc") || systemPrompt.includes("KOC/KOL Booking")) {
-                return `📋 **KOC BOOKING BRIEF DOCUMENT - BRAND: ${brandName}**\n\n` +
-                       `1. **Key Message**:\n   - "${brandUsp}"\n   - Focus on celebrating natural beauty combined with modern technology.\n\n` +
-                       `2. **Shot Angle & Wardrobe Requirements**:\n   - Close-up shots of facial expression before/after using the product/service.\n   - Bright pastel-toned wardrobe (white, mint green, peach pink) for a pure, professional feel.\n\n` +
-                       `3. **Don'ts**:\n   - Avoid overclaiming "100% guaranteed", don't use "complete cure" wording to comply with TikTok/FB ad policy.\n\n` +
-                       `4. **Suggested Script Outline (First 3s Hook)**:\n   - "Don't buy this product until you know the truth after 7 days..."`;
+        // ===== Gọi AI (DeepSeek qua /api/ai_studio/generate_text) =====
+        // Lỗi thì BÁO RÕ — trước đây lỗi là lặng lẽ hiện nội dung mẫu viết sẵn ("premium local mock generator").
+        async function aiText(systemPrompt, userPrompt, maxTokens) {
+            const res = await fetch('/api/ai_studio/generate_text', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ system_prompt: systemPrompt, user_prompt: userPrompt, temperature: 0.7, max_tokens: maxTokens || 1500 })
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { /* không phải JSON */ }
+            if (!res.ok || !data.success || !data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error(data.error || ('AI service error ' + res.status));
             }
-
-            if (lowerPrompt.includes("repurpose") || systemPrompt.includes("repurpose")) {
-                return `📢 **OMNI-CHANNEL CONTENT REPURPOSING PACKAGE**\n\n` +
-                       `**Part 1: FACEBOOK FANPAGE POST (High engagement)**\n` +
-                       `🔥 HAVE YOU HEARD THIS SECRET YET? 🔥\n` +
-                       `Today ${brandName} is sharing our top-tier care routine that doubles results while saving money! ✨\n` +
-                       `👉 What makes us different: ${brandUsp}\n` +
-                       `👇 Drop a comment below to get the full guide completely free!\n\n` +
-                       `**Part 2: SEO-OPTIMIZED WEBSITE / BLOG POST**\n` +
-                       `## A step-by-step guide to optimizing your routine with ${brandName}\n` +
-                       `A standardized process is core to improving the customer experience. At ${brandName}, we apply the gold standard...\n\n` +
-                       `**Part 3: EMAIL MARKETING (Past customer appreciation)**\n` +
-                       `Subject: A surprise gift just for you from ${brandName}! 🎁\n` +
-                       `Dear valued customer, we truly appreciate having you with us...`;
-            }
-
-            if (lowerPrompt.includes("title") || lowerPrompt.includes("hook") || systemPrompt.includes("crowd psychology")) {
-                return `💡 **A/B TESTING - 5 TITLES (HOOKS) FOR A MILLION VIEWS**\n\n` +
-                       `1. **Title 1**: "The shocking truth about the care routine at ${brandName} that nobody's told you..."\n   - *Viral Score*: 9.8/10\n   - *Why*: Hits the curiosity and secret-discovery instinct.\n\n` +
-                       `2. **Title 2**: "Spending big on cosmetics but skipping this step means you wasted your money!"\n   - *Viral Score*: 9.5/10\n   - *Why*: Creates urgency and regret over wasted money.\n\n` +
-                       `3. **Title 3**: "The secret to glass skin in just 15 minutes a day?"\n   - *Viral Score*: 9.2/10\n   - *Why*: Clear benefit, optimal time investment.\n\n` +
-                       `4. **Title 4**: "Why are top influencers obsessed with the ${brandName} brand?"\n   - *Viral Score*: 8.9/10\n   - *Why*: Leverages social proof and celebrity effect.\n\n` +
-                       `5. **Title 5**: "The insider rule for leveling up your looks that your best friends keep hidden..."\n   - *Viral Score*: 8.7/10\n   - *Why*: Taps into the desire to stand out and stay ahead of trends.`;
-            }
-
-            if (lowerPrompt.includes("edit plan") || systemPrompt.includes("Master Editor")) {
-                return `🎬 **AI DIRECTOR: VIRAL EDIT BLUEPRINT**\n\n` +
-                       `- **0:00 - 0:03 (HOOK)**: Sharp jump cut, flashing large neon-colored text overlay. Heavy beat drop music. "Whoosh" sound effect.\n` +
-                       `- **0:04 - 0:15 (BODY)**: Close-up shots of the service steps at ${brandName}. 60fps slow-motion angle for a smooth, polished look.\n` +
-                       `- **0:16 - 0:30 (CTA)**: Display the special offer (${brandUsp}). Prompt customers to click the auto-booking link. Insert a cheerful "Ding" sound effect.`;
-            }
-
-            if (lowerPrompt.includes("algorithm") || systemPrompt.includes("Growth Hacker")) {
-                return `📈 **SEO STRATEGY & POSTING ALGORITHM HACK**\n\n` +
-                       `1. **Peak Posting Time Window**:\n   - Lunch slot: 11:30am - 12:30pm (customers scrolling on their lunch break).\n   - Evening slot: 7:45pm - 9:15pm (peak engagement window of the day).\n\n` +
-                       `2. **Exclusive Hashtag Set to Boost Reach**:\n   - #BitPaw #${brandName.replace(/\s+/g, '')} #Trending #BeautyTips #ViralVideo\n\n` +
-                       `3. **Channel Warm-up Actions**:\n   - 15 minutes before posting, browse and like/comment on the trending page.\n   - After posting, quickly reply to the first 5 customer comments to trigger the algorithm's reach boost.`;
-            }
-
-            if (lowerPrompt.includes("matrix") || systemPrompt.includes("Marketing Director")) {
-                return `🗓️ **30-DAY BREAKTHROUGH CONTENT MARKETING MATRIX**\n\n` +
-                       `| Day | Content Format | Detailed Title | Conversion Goal |\n` +
-                       `| :--- | :--- | :--- | :--- |\n` +
-                       `| **Day 1** | Real Review Video | "My first medical-grade treatment experience at ${brandName}..." | Claim a trial voucher |\n` +
-                       `| **Day 3** | Drama Storytelling | "The dramatic save by our lead technician and its sweet ending" | Drive likes, discussion |\n` +
-                       `| **Day 5** | Knowledge Sharing | "3 costly mistakes that make at-home care backfire" | Customer inbox inquiries |\n` +
-                       `| **Day 7** | Mini Game Giveaway | "Guess the new product name and win a $50 gift!" | Channel shares, engagement |\n` +
-                       `| **Day 10**| Real Feedback | "What customers say about our promise: ${brandUsp}?" | Build deep trust |`;
-            }
-
-            if (lowerPrompt.includes("diagnose") || systemPrompt.includes("social media analyst")) {
-                return `🩺 **CHANNEL DIAGNOSIS & AI DOCTOR'S TREATMENT PLAN**\n\n` +
-                       `1. **Clinical Symptoms (Diagnosis)**:\n   - High bounce rate in the first 3 seconds (75%).\n   - Missing a sharp hook, intro is too long-winded.\n   - Low engagement from not prompting a comment-driving question at the end.\n\n` +
-                       `2. **Prescribed Fix (Treatment)**:\n   - Cut the 2-second greeting intro entirely. Go straight into the hook.\n   - Add bold bordered text that stays fully within the mobile-safe frame.\n   - Improve audio recording quality and layer in currently-trending background music.`;
-            }
-
-            const parts = userPrompt.split('\n');
-            const firstLine = parts[0] || "A breakthrough operational secret";
-
-            return `✨ **VIRAL REWRITE SCRIPT - BITPAW AI STUDIO SYSTEM** ✨\n\n` +
-                   `📌 **Optimized platform**: ${platformContext}\n` +
-                   `📌 **Main topic**: ${firstLine}\n` +
-                   `📌 **Brand DNA**: ${brandName} - ${brandUsp}\n\n` +
-                   `--- \n\n` +
-                   `🎬 **DETAILED STORYBOARD & SHOT ANGLES**:\n` +
-                   `- **Scene 1 (0:00 - 0:03)**: Close-up shot of an extremely surprised expression. Fast zoom-in effect.\n` +
-                   `- **Scene 2 (0:04 - 0:15)**: Quick, professional sequence of steps at ${brandName} (close-up of skilled hands).\n` +
-                   `- **Scene 3 (0:16 - 0:30)**: Customer's satisfied smile and the glowing ${brandName} logo signage.\n\n` +
-                   `--- \n\n` +
-                   `🎙️ **VOICEOVER & ON-SCREEN TEXT**:\n` +
-                   `- **[0:00 - 0:03]**: "Never believe the rumors out there, unless you know this secret..."\n` +
-                   `- **[0:04 - 0:15]**: "Truth is, a lot of people have wasted millions doing it wrong. The winning formula is actually super simple and has already worked at our place."\n` +
-                   `- **[0:16 - 0:30]**: "Our standardized process is built on: ${brandUsp}. Message us now to claim your trial voucher!"\n\n` +
-                   `--- \n\n` +
-                   `🏷️ **SUGGESTED SEO HASHTAGS**:\n` +
-                   `#${brandName.replace(/\s+/g, '')} #RevenueTips #SmallBusiness #SocialSEO #${platformContext.replace(/\s+/g, '')}`;
+            return String(data.choices[0].message.content || '').trim();
         }
-
+        function aiErrorText(err) {
+            return '⚠️ The AI could not answer this time.\nReason: ' + (err && err.message ? err.message : 'unknown error') + '\n\nNothing was generated — please try again in a moment.';
+        }
+        const LANG_RULE = ' Write in the same language as the request (English unless the request is in another language). Do not invent facts, prices, results or reviews about the business; use placeholders like [price] when unknown. Format as plain text ready to paste into social apps: no Markdown symbols (no #, ##, ** or tables) except real hashtags; use line breaks, numbered lines and emoji instead. Only the content-calendar request may use a | table.';
+        function setModalActions(buttons) {
+            const box = document.getElementById('aiModalActions');
+            if (!box) return;
+            box.innerHTML = '';
+            (buttons || []).forEach(b => {
+                const el = document.createElement(b.href ? 'a' : 'button');
+                if (b.href) { el.href = b.href; el.target = '_blank'; el.rel = 'noopener'; } else { el.type = 'button'; el.addEventListener('click', b.onClick); }
+                el.className = 'bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-2 px-3 rounded-xl text-xs transition inline-flex items-center gap-1.5';
+                el.innerHTML = b.html;
+                box.appendChild(el);
+            });
+        }
         async function callDeepSeek(systemPrompt, userPrompt, modalId, resultId, loadingId, loadingText, loadingColorClass) {
             const modal = document.getElementById(modalId); const resultBox = document.getElementById(resultId); const loadingBox = document.getElementById(loadingId);
             document.getElementById(loadingId + 'Text').innerText = loadingText;
             loadingBox.className = `absolute inset-0 bg-[#0a0f25] z-10 flex flex-col items-center justify-center ${loadingColorClass}`;
-            modal.classList.remove('hidden'); resultBox.classList.add('hidden'); loadingBox.className = `absolute inset-0 bg-[#0a0f25] z-10 flex flex-col items-center justify-center ${loadingColorClass}`;
+            setModalActions([]);
             modal.classList.remove('hidden'); resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden');
-            try {
-                const response = await fetch('/api/ai_studio/generate_text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ systemPrompt, userPrompt, temperature: 0.7, max_tokens: 1500 })
-                });
-                const data = await response.json();
-                if (data.fallback || data.error) {
-                    throw new Error(data.error || "Fallback");
-                }
-                resultBox.value = data.choices[0].message.content;
-            } catch (error) {
-                console.warn("Backend API Offline/Error. Loading premium local mock generator.", error);
-                resultBox.value = generateLocalContent(systemPrompt, userPrompt);
-            } 
+            try { resultBox.value = await aiText(systemPrompt + LANG_RULE, userPrompt); }
+            catch (error) { resultBox.value = aiErrorText(error); }
             finally { loadingBox.classList.add('hidden'); resultBox.classList.remove('hidden'); }
         }
 
         async function startDeepSeekRewrite(btn) {
             const promptInput = document.getElementById('userPrompt').value.trim();
             const toneSelect = document.getElementById('toneSelect').value;
-            const originalScriptBox = document.getElementById('originalTextContent');
             const aiBox = document.getElementById('aiScript');
             const badge = document.getElementById('uniqueBadge');
-
-            let originalText = originalScriptBox ? originalScriptBox.innerText : "";
-            if (!originalText) { alert("Missing MATERIAL! You need to complete STEP 1 (Extract) first!"); return; }
+            const originalText = getOriginalText();
+            if (!originalText && !promptInput) { alert('Paste a video transcript in STEP 1, or write what you want in the instructions box (or pick a Quick Tool).'); return; }
 
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GENERATING...';
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
-            aiBox.value = 'Connecting to DeepSeek super-intelligence...\nInitializing Brand Brain...';
+            btn.disabled = true; btn.classList.add('opacity-70', 'cursor-not-allowed');
+            aiBox.value = 'Writing with DeepSeek...';
             badge.classList.add('hidden');
 
-            const systemPrompt = `You are a master content creator on the ${platformContext} platform. Restructure the original video script. Return the structure as: 1. Attention-grabbing title. 2. Shot angles (brief). 3. Voiceover script. ${getBrandPrompt()}`;
-            const userPrompt = `REQUEST: ${promptInput ? promptInput : 'Make it more viral.'}\nTONE: ${toneSelect}\nORIGINAL SCRIPT:\n"""${originalText}"""`;
-
+            const systemPrompt = originalText
+                ? `You are a short-form video scriptwriter for ${platformContext}. Rewrite the original script into a new, original script for this business (do not copy sentences). Return: 1. A hook title. 2. Shot list (brief). 3. Voiceover script with timestamps. 4. A call to action.${getBrandPrompt()}${LANG_RULE}`
+                : `You are a social media copywriter for local businesses on ${platformContext}. Follow the request exactly and return ready-to-post content.${getBrandPrompt()}${LANG_RULE}`;
+            const userPrompt = `REQUEST: ${promptInput || 'Make it more engaging for my audience.'}\nTONE: ${toneSelect}` + (originalText ? `\nORIGINAL SCRIPT:\n"""${originalText.slice(0, 6000)}"""` : '');
             try {
-                const response = await fetch('/api/ai_studio/generate_text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ systemPrompt, userPrompt, temperature: 0.7, max_tokens: 1500 })
-                });
-                const data = await response.json();
-                if (data.fallback || data.error || !data.choices) {
-                    throw new Error(data.error || "Fallback requested");
-                }
-                aiBox.value = data.choices[0].message.content;
-                badge.classList.remove('hidden');
-                saveHistory(promptInput ? promptInput.substring(0, 20) + "..." : "Re-up Script", data.choices[0].message.content, false);
+                const content = await aiText(systemPrompt, userPrompt);
+                aiBox.value = content;
+                if (localStorage.getItem('bitpaw_brand_name')) badge.classList.remove('hidden');
+                saveHistory(promptInput ? promptInput.substring(0, 24) + '…' : 'Rewritten script', content, false);
             } catch (error) {
-                console.warn("Backend API offline or rate-limited. Serving offline content rewrite.", error);
-                const mockResult = generateLocalContent(systemPrompt, userPrompt);
-                aiBox.value = mockResult;
-                badge.classList.remove('hidden');
-                saveHistory(promptInput ? promptInput.substring(0, 20) + "..." : "Re-up Script", mockResult, false);
+                aiBox.value = aiErrorText(error);
+            } finally {
+                btn.innerHTML = '<i class="fas fa-fire"></i> GENERATE'; btn.disabled = false; btn.classList.remove('opacity-70', 'cursor-not-allowed');
             }
-            finally { btn.innerHTML = '<i class="fas fa-fire"></i> GENERATE'; btn.classList.remove('opacity-70', 'cursor-not-allowed'); }
         }
 
         // --- EXTENDED FEATURES ---
-
+        function currentScript() {
+            const v = document.getElementById('aiScript').value.trim();
+            return (!v || v.startsWith('Writing with DeepSeek') || v.startsWith('⚠️ The AI could not')) ? '' : v;
+        }
         function repurposeContent() {
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            if (!aiScriptContent || aiScriptContent.includes('Connecting to')) { alert("Cook up a video script first before repurposing it!"); return; }
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
             document.getElementById('modalTitle').innerHTML = `<i class="fas fa-clone text-indigo-400"></i> Omni-Channel Repurposer`;
-            callDeepSeek(
-                `You are an expert Copywriter. Repurpose the following short video script into 3 different formats for cross-platform posting. ${getBrandPrompt()}`,
-                `ORIGINAL VIDEO SCRIPT:\n${aiScriptContent}\n\nPlease create:\n1. FACEBOOK FANPAGE POST (with emoji, a strong call-to-action for comments).\n2. SEO-OPTIMIZED BLOG/WEBSITE POST (longer, split into Heading 2/3).\n3. EMAIL MARKETING (to remind past customers about the service).`,
-                'aiModal', 'aiResultText', 'aiLoading', 'DeepSeek is repurposing content into Facebook, Blog, Email...', 'text-indigo-500'
-            );
+            callDeepSeek(`You are an expert copywriter for local businesses. Repurpose the short video script into 3 formats.${getBrandPrompt()}`,
+                `VIDEO SCRIPT:\n${s}\n\nCreate:\n1. FACEBOOK / INSTAGRAM POST (with emoji and a clear call to action).\n2. BLOG / WEBSITE POST (with H2/H3 headings).\n3. EMAIL to past customers (subject line + body + unsubscribe line).`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Repurposing for Facebook, blog and email...', 'text-indigo-500');
         }
-
         function generateKOCBrief() {
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            if (!aiScriptContent || aiScriptContent.includes('Connecting to')) { alert("You need a script before generating a KOC booking brief!"); return; }
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-user-check text-pink-400"></i> KOC Booking Command Center`;
-            callDeepSeek(
-                `You are a KOC/KOL Booking Director. Your mission is to prepare an Agency-standard Briefing document to send to a TikToker/reviewer. ${getBrandPrompt()}`,
-                `Based on the AI script already written: \n"${aiScriptContent}"\n\nPlease output a standard Brief document including:\n1. KEY MESSAGE.\n2. REQUIRED SHOT ANGLES & WARDROBE.\n3. FORBIDDEN WORDS/ACTIONS (Don'ts).\n4. MAIN SCRIPT OUTLINE (for the KOC to perform).`,
-                'aiModal', 'aiResultText', 'aiLoading', 'Drafting the contract & standard KOC booking script...', 'text-pink-500'
-            );
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-user-check text-pink-400"></i> Creator Brief`;
+            callDeepSeek(`You are an influencer marketing manager. Write a professional brief for a creator/reviewer. Include FTC/ACCC disclosure guidance (#ad / paid partnership).${getBrandPrompt()}`,
+                `SCRIPT:\n"${s}"\n\nOutput: 1. KEY MESSAGE. 2. SHOTS & WARDROBE. 3. DON'TS (claims to avoid). 4. SCRIPT OUTLINE. 5. DISCLOSURE REQUIREMENTS.`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Drafting the creator brief...', 'text-pink-500');
         }
-
         function testHooks(btn) {
-            const originalScriptBox = document.getElementById('originalTextContent');
-            if (!originalScriptBox) { alert("You need an original script before analyzing titles!"); return; }
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-vial text-yellow-400"></i> A/B Testing 5 Titles (Hooks)`;
-            callDeepSeek(
-                `You are an expert in crowd psychology analysis on ${platformContext}. ${getBrandPrompt()}`,
-                `ORIGINAL SCRIPT:\n${originalScriptBox.innerText}\n\nCreate 5 extremely gripping, curiosity-driven titles (3-second hook) that hit the customer's pain point for this script. Score each title's Viral Score (1-10) and briefly explain why it will drive views.`,
-                'aiModal', 'aiResultText', 'aiLoading', 'Analyzing psychology to craft 5 explosive hooks...', 'text-yellow-500'
-            );
+            const base = getOriginalText() || currentScript();
+            if (!base) { alert('Add a transcript (STEP 1) or generate a script first.'); return; }
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-vial text-yellow-400"></i> A/B Test 5 Hooks`;
+            callDeepSeek(`You are a short-form video strategist for ${platformContext}.${getBrandPrompt()}`,
+                `SCRIPT:\n${base.slice(0, 5000)}\n\nWrite 5 different 3-second opening hooks for this video. For each: the hook, a 1–10 score for curiosity, and one sentence on why it works. Avoid clickbait that the video does not deliver.`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Writing 5 hooks...', 'text-yellow-500');
         }
-
         function analyzeVideoEdit(btn) {
-            const originalScriptBox = document.getElementById('originalTextContent');
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            if (!originalScriptBox || !aiScriptContent) { alert("You need both STEP 1 and STEP 2 material ready first!"); return; }
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-cut text-rose-400"></i> AI Director: Video Edit Plan`;
-            callDeepSeek(
-                `You are a Master Editor skilled in Capcut/Premiere, specializing in viral videos on ${platformContext}.`,
-                `Original script: "${originalScriptBox.innerText}"\nNew voiceover: "${aiScriptContent.substring(0,300)}..."\nOutput an "Edit Plan": 1. HOOK (what text/effects to insert). 2. PACING & B-ROLL. 3. BACKGROUND MUSIC.`,
-                'aiModal', 'aiResultText', 'aiLoading', 'DeepSeek is dissecting the cut pacing...', 'text-rose-500'
-            );
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            const orig = getOriginalText();
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-cut text-rose-400"></i> Edit Plan`;
+            callDeepSeek(`You are a video editor (CapCut/Premiere) specialising in ${platformContext}.`,
+                (orig ? `Original video: "${orig.slice(0, 2000)}"\n` : '') + `New script: "${s.slice(0, 3000)}"\nOutput an edit plan: 1. HOOK (on-screen text/effects for the first 3 seconds). 2. PACING & B-ROLL per section. 3. MUSIC & SOUND (royalty-free style).`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Planning the edit...', 'text-rose-500');
         }
-
         function analyzeAlgorithm(btn) {
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            const originalScriptBox = document.getElementById('originalTextContent');
-            if (!aiScriptContent || !originalScriptBox) { alert("You need to complete STEP 1 and 2 first!"); return; }
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-chart-pie text-[#10b981]"></i> SEO Algorithm Hack (${platformContext})`;
-            callDeepSeek(
-                `You are a Growth Hacker expert specializing in the ${platformContext} algorithm.`,
-                `New script: "${aiScriptContent.substring(0,300)}..."\nProvide a POSTING strategy: 1. PEAK TIME WINDOW. 2. EXCLUSIVE HASHTAG SET. 3. WARM-UP ACTIONS BEFORE POSTING.`,
-                'aiModal', 'aiResultText', 'aiLoading', 'DeepSeek is linking old & new scripts to build a strategy...', 'text-[#10b981]'
-            );
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-chart-pie text-[#10b981]"></i> Posting Plan (${platformContext})`;
+            callDeepSeek(`You are a social media growth strategist for local businesses on ${platformContext}. Base timing advice on general platform best practice and say it should be checked against the account's own analytics.`,
+                `Script: "${s.slice(0, 3000)}"\nGive: 1. BEST TIME WINDOWS to test (with the reason). 2. 8–12 HASHTAGS (mix of broad and local). 3. WHAT TO DO IN THE FIRST HOUR after posting.`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Building a posting plan...', 'text-[#10b981]');
         }
 
-        function generateFacelessVideo(btn) {
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            if (!aiScriptContent || aiScriptContent.includes('Connecting to')) { alert("Cook up a script first so the AI has text to create a Faceless Video from!"); return; }
-
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-magic text-orange-400"></i> AI Faceless Studio`;
-            const modal = document.getElementById('aiModal'); const resultBox = document.getElementById('aiResultText'); const loadingBox = document.getElementById('aiLoading');
-
-            document.getElementById('aiLoadingText').innerText = 'Cloud GPU is compiling stock footage, syncing voice and subtitles... (about 15-30 seconds)';
-            loadingBox.className = `absolute inset-0 bg-[#0a0f25] z-10 flex flex-col items-center justify-center text-orange-500`;
+        // ===== Bộ dựng video Faceless (thật): kịch bản từng cảnh + phụ đề .srt + nghe thử + tìm cảnh quay miễn phí =====
+        // Trước đây: chờ 3,5 giây rồi báo "RENDER COMPLETE" kèm link MP4 giả.
+        let lastKit = null;
+        function srtTime(sec) {
+            const s = Math.max(0, Number(sec) || 0), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = Math.floor(s % 60), ms = Math.round((s % 1) * 1000);
+            const p = (n, w) => String(n).padStart(w || 2, '0');
+            return `${p(h)}:${p(m)}:${p(ss)},${p(ms, 3)}`;
+        }
+        function kitToSrt(kit) {
+            return kit.scenes.map((sc, i) => `${i + 1}\n${srtTime(sc.start)} --> ${srtTime(sc.end)}\n${(sc.on_screen_text || sc.voiceover || '').trim()}\n`).join('\n');
+        }
+        function downloadText(filename, text, type) {
+            const blob = new Blob([text], { type: type || 'text/plain;charset=utf-8' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        }
+        function parseKit(raw) {
+            const t = String(raw || '').replace(/```(?:json)?/gi, '');
+            const a = t.indexOf('{'), b = t.lastIndexOf('}');
+            if (a < 0 || b <= a) throw new Error('The AI did not return a scene plan. Please try again.');
+            const kit = JSON.parse(t.slice(a, b + 1));
+            if (!kit || !Array.isArray(kit.scenes) || !kit.scenes.length) throw new Error('The scene plan was empty. Please try again.');
+            let clock = 0;
+            kit.scenes = kit.scenes.slice(0, 12).map(sc => {
+                const start = Number.isFinite(+sc.start) ? +sc.start : clock;
+                const end = Number.isFinite(+sc.end) && +sc.end > start ? +sc.end : start + 4;
+                clock = end;
+                return { start, end, voiceover: String(sc.voiceover || ''), on_screen_text: String(sc.on_screen_text || ''), stock_keywords: String(sc.stock_keywords || '') };
+            });
+            return kit;
+        }
+        async function buildFacelessKit(btn) {
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            const modal = document.getElementById('aiModal'), resultBox = document.getElementById('aiResultText'), loadingBox = document.getElementById('aiLoading');
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-magic text-orange-400"></i> Faceless Video Kit`;
+            document.getElementById('aiLoadingText').innerText = 'Planning scenes, captions and stock footage...';
+            loadingBox.className = 'absolute inset-0 bg-[#0a0f25] z-10 flex flex-col items-center justify-center text-orange-500';
+            setModalActions([]);
             modal.classList.remove('hidden'); resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden');
-
-            setTimeout(() => {
-                loadingBox.classList.add('hidden'); resultBox.classList.remove('hidden');
-                resultBox.value = "✅ RENDER COMPLETE!\n\nThe AI took your script, voiced it in the 'Female Voiceover' style, matched it with 15 crisp 4K stock clips, and automatically added clear, bold subtitles.\n\n🔗 Here's your MP4 download link: https://bitpaw.io/download/video-faceless-19042.mp4\n\n(Just download it and upload straight to TikTok!)";
-            }, 3500);
+            try {
+                const raw = await aiText(
+                    `You are a short-form video producer. Turn the script into a faceless video plan (stock footage + voiceover + captions). Reply ONLY with JSON, no prose: {"title": "...", "scenes": [{"start": 0, "end": 3, "voiceover": "...", "on_screen_text": "...", "stock_keywords": "..."}]}. 4 to 8 scenes, 20 to 45 seconds total, on_screen_text under 8 words, stock_keywords in English (2-4 words) for searching free stock video.${getBrandPrompt()}${LANG_RULE}`,
+                    `SCRIPT:\n${s.slice(0, 5000)}`, 1800);
+                const kit = parseKit(raw);
+                lastKit = kit;
+                const mm = (x) => { x = Math.round(x); return Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'); };
+                resultBox.value = `🎬 ${kit.title || 'Faceless video'}  ·  ${kit.scenes.length} scenes  ·  ${mm(kit.scenes[kit.scenes.length - 1].end)}\n\n` + kit.scenes.map((sc, i) =>
+                    `SCENE ${i + 1}  [${mm(sc.start)} – ${mm(sc.end)}]\n  Voiceover: ${sc.voiceover}\n  On-screen text: ${sc.on_screen_text}\n  Footage to find: ${sc.stock_keywords}`).join('\n\n') +
+                    `\n\nHow to finish: download the captions (.srt), find each scene's footage (free on Pexels), record or play the voiceover, then drop everything into CapCut/Canva.`;
+                const actions = [
+                    { html: '<i class="fas fa-closed-captioning"></i> Download captions (.srt)', onClick: () => downloadText('captions.srt', kitToSrt(kit), 'application/x-subrip;charset=utf-8') },
+                    { html: '<i class="fas fa-volume-up"></i> Play voiceover', onClick: (e) => speakText(kit.scenes.map(x => x.voiceover).join(' '), e.currentTarget) },
+                ];
+                kit.scenes.slice(0, 4).forEach((sc, i) => { if (sc.stock_keywords) actions.push({ html: `<i class="fas fa-film"></i> Scene ${i + 1} footage`, href: 'https://www.pexels.com/search/videos/' + encodeURIComponent(sc.stock_keywords) + '/' }); });
+                setModalActions(actions);
+                saveHistory('Faceless kit: ' + (kit.title || '').slice(0, 20), resultBox.value, false);
+            } catch (error) {
+                resultBox.value = aiErrorText(error);
+            } finally { loadingBox.classList.add('hidden'); resultBox.classList.remove('hidden'); }
         }
+        window.generateFacelessVideo = buildFacelessKit;
+
+        // ===== Nghe thử giọng đọc (thật): giọng đọc có sẵn của máy (Web Speech API) =====
+        function speakText(text, btn) {
+            if (!('speechSynthesis' in window)) { alert('This browser cannot read text aloud. Try Chrome, Edge or Safari.'); return; }
+            if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn && btn.dataset.label) btn.innerHTML = btn.dataset.label; return; }
+            const clean = String(text || '').replace(/\[[^\]]*\]/g, ' ').replace(/[#*_>|`]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000);
+            if (!clean) return;
+            const u = new SpeechSynthesisUtterance(clean);
+            u.lang = /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(clean) ? 'vi-VN' : 'en-US';
+            const want = (document.getElementById('voiceSelect') || {}).value || 'female';
+            const voices = speechSynthesis.getVoices().filter(v => (v.lang || '').toLowerCase().startsWith(u.lang.slice(0, 2)));
+            const isFemale = (v) => /female|zira|samantha|aria|jenny|susan|karen|hazel|linh|hoaimy|google us english|google uk english female/i.test(v.name);
+            u.voice = (want === 'male' ? voices.find(v => !isFemale(v)) : voices.find(isFemale)) || voices[0] || null;
+            if (btn) {
+                btn.dataset.label = btn.dataset.label || btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-stop"></i> Stop';
+                u.onend = u.onerror = () => { btn.innerHTML = btn.dataset.label; };
+            }
+            speechSynthesis.speak(u);
+        }
+        function speakScript(btn) {
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            speakText(s, btn);
+        }
+        window.playFakeVoice = speakScript;
 
         // --- MOBILE-READY POST OPTIMIZER ---
         function openMobileOptimizerModal() {
-            const aiScriptContent = document.getElementById('aiScript').value.trim();
-            if (!aiScriptContent || aiScriptContent.includes('Connecting to') || aiScriptContent.includes('An error occurred')) {
-                alert("Generate a script first before using the Mobile Optimizer!"); return;
-            }
-
-            // Extract a simple Hook and Caption from AI Script just to pre-fill
-            const parts = aiScriptContent.split('\n');
-            document.getElementById('mobileHook').value = parts[0] || "A great tip for beginners...";
-            document.getElementById('mobileCaption').value = aiScriptContent;
-            document.getElementById('mobileHashtags').value = "#Trending #Viral #BitPaw";
-
+            const s = currentScript();
+            if (!s) { alert('Generate or write a script first.'); return; }
+            const parts = s.split('\n').map(x => x.replace(/^[#*\d.\s-]+/, '').trim()).filter(Boolean);
+            document.getElementById('mobileHook').value = parts[0] || '';
+            document.getElementById('mobileCaption').value = s;
+            const tags = (s.match(/#[\p{L}\p{N}_]+/gu) || []).slice(0, 8);
+            document.getElementById('mobileHashtags').value = tags.join(' ');
+            const handle = (localStorage.getItem('bitpaw_brand_name') || 'your_business').replace(/\s+/g, '').toLowerCase();
+            const h = document.getElementById('previewHandle'); if (h) h.textContent = '@' + handle;
             updateMobilePreview();
             document.getElementById('mobileOptimizerModal').classList.remove('hidden');
         }
-
-        function closeMobileOptimizerModal() {
-            document.getElementById('mobileOptimizerModal').classList.add('hidden');
-        }
-
+        function closeMobileOptimizerModal() { document.getElementById('mobileOptimizerModal').classList.add('hidden'); }
         function updateMobilePreview() {
-            const hook = document.getElementById('mobileHook').value || "No Hook Title Yet";
-            const caption = document.getElementById('mobileCaption').value || "Enter caption content to see how the platform will truncate it...";
-            const hashtags = document.getElementById('mobileHashtags').value || "#Hashtag";
-
-            document.getElementById('previewHook').innerText = hook;
-            document.getElementById('previewCaption').innerText = caption;
-            document.getElementById('previewHashtags').innerText = hashtags;
+            document.getElementById('previewHook').innerText = document.getElementById('mobileHook').value || 'Your hook title';
+            document.getElementById('previewCaption').innerText = document.getElementById('mobileCaption').value || 'Your caption — see where the platform cuts it off...';
+            document.getElementById('previewHashtags').innerText = document.getElementById('mobileHashtags').value || '#hashtag';
         }
-
         function diagnoseMobileContent(btn) {
-            const hook = document.getElementById('mobileHook').value;
-            const caption = document.getElementById('mobileCaption').value;
-            const hashtags = document.getElementById('mobileHashtags').value;
-
-            if(!hook || !caption) { alert("Please fill in both the Hook and Caption for the AI to diagnose!"); return; }
-
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-microscope text-emerald-400"></i> AI Viral Diagnosis`;
-            callDeepSeek(
-                `You are a data analyst specializing in the TikTok/Facebook Reels algorithm.`,
-                `Evaluate the following caption before posting to mobile:\n- Hook: ${hook}\n- Content: ${caption}\n- Hashtags: ${hashtags}\n\nScore the first-3-second hook (1-10). Analyze whether the text length gets excessively truncated. Are the hashtags spammy? Give brief editing advice.`,
-                'aiModal', 'aiResultText', 'aiLoading', 'DeepSeek is calculating the 3-second retention rate...', 'text-emerald-500'
-            );
+            const hook = document.getElementById('mobileHook').value, caption = document.getElementById('mobileCaption').value, hashtags = document.getElementById('mobileHashtags').value;
+            const platform = document.getElementById('mobilePlatform').value;
+            if (!hook || !caption) { alert('Fill in both the hook and the caption first.'); return; }
+            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-microscope text-emerald-400"></i> Caption Check (${__escHtml(platform)})`;
+            callDeepSeek(`You review captions for ${platform} before a local business posts them.`,
+                `Hook: ${hook}\nCaption (${caption.length} characters): ${caption}\nHashtags: ${hashtags}\n\nScore the hook 1–10, say where ${platform} will cut the caption on a phone and whether that is a problem, flag spammy or banned-looking hashtags, and give a corrected version.`,
+                'aiModal', 'aiResultText', 'aiLoading', 'Checking the caption...', 'text-emerald-500');
+        }
+        // Xuất gói đăng (thật): điện thoại -> mở bảng Chia sẻ của máy; máy tính -> chép vào clipboard + tải file .txt
+        async function exportMobilePackage(btn) {
+            const platform = document.getElementById('mobilePlatform').value;
+            const hook = document.getElementById('mobileHook').value.trim(), caption = document.getElementById('mobileCaption').value.trim(), tags = document.getElementById('mobileHashtags').value.trim();
+            if (!caption) { alert('Add a caption first.'); return; }
+            const text = [hook, '', caption, '', tags].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+            let shared = false, copied = false;
+            if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                try { await navigator.share({ title: hook || platform, text }); shared = true; } catch (e) { /* người dùng huỷ */ }
+            }
+            if (!shared) {
+                try { await navigator.clipboard.writeText(text); copied = true; } catch (e) { copied = false; }
+                downloadText(`post-${platform.replace(/\s+/g, '-').toLowerCase()}.txt`, text);
+            }
+            saveHistory('Ready to post · ' + platform, text, true);
+            closeMobileOptimizerModal();
+            alert(shared ? `Sent to the share sheet — choose ${platform} and post.`
+                : (copied ? `Copied to the clipboard and saved as a .txt file. Open ${platform}, paste the caption and post.`
+                          : `Saved as a .txt file. Open it on your phone, copy the caption and post on ${platform}.`));
         }
 
-        function exportMobilePackage(btn) {
-            const originalBtnText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> BUILDING PACKAGE...';
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
-
-            setTimeout(() => {
-                btn.innerHTML = originalBtnText; btn.classList.remove('opacity-70', 'cursor-not-allowed');
-                closeMobileOptimizerModal();
-
-                const aiScriptContent = document.getElementById('aiScript').value.trim();
-                saveHistory("Ready to Post (Mobile)", aiScriptContent, true);
-
-                alert("✅ Mobile package exported successfully!\nOpen your phone, copy the text and paste it into the platform, scroll by hand for 15 minutes, then tap Post to maximize reach!");
-            }, 1500);
+        function closeAiModal() {
+            if ('speechSynthesis' in window && speechSynthesis.speaking) speechSynthesis.cancel();
+            document.getElementById('aiModal').classList.add('hidden');
         }
-
-        function closeAiModal() { document.getElementById('aiModal').classList.add('hidden'); }
-        
-        window.extractScript = function(btn) {
-            const link = document.getElementById('videoLinkInput').value.trim();
-            if (!link) { alert("Please paste a TikTok / Reels video link into the field so I can extract the script! 🚀"); return; }
-
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> EXTRACTING...';
-            btn.disabled = true;
-
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-
-                const embedBox = document.getElementById('videoEmbedBox');
-                if (embedBox) embedBox.classList.remove('hidden');
-
-                const originalScript = document.getElementById('originalScript');
-                if (originalScript) {
-                    originalScript.innerHTML = `
-                        <strong>[0:00 - 0:03] (HOOK):</strong> Hey everyone! Today I'm revealing the secret that finally ended shift-splitting arguments at your nail salon and automated 100% of technician commissions.<br>
-                        <strong>[0:04 - 0:15] (BODY):</strong> All you need is the BitPaw Software app. Each technician checks in with FaceID. As services are performed, the POS calculates the bill, deducts stock, and splits commissions fairly in real time.<br>
-                        <strong>[0:16 - 0:30] (CTA):</strong> Message me or sign up for BitPaw Software's free 14-day trial to get the full operations optimization solution!
-                    `;
-                }
-
-                // Set hidden box for step 3 usage as input material
-                let hiddenBox = document.getElementById('originalTextContent');
-                if (!hiddenBox) {
-                    hiddenBox = document.createElement('div');
-                    hiddenBox.id = 'originalTextContent';
-                    hiddenBox.style.display = 'none';
-                    document.body.appendChild(hiddenBox);
-                }
-                hiddenBox.innerText = `Hey everyone! Today I'm revealing the secret that finally ended shift-splitting arguments at your nail salon and automated 100% of technician commissions. All you need is the BitPaw Software app. Each technician checks in with FaceID. As services are performed, the POS calculates the bill, deducts stock, and splits commissions fairly in real time. Message me or sign up for BitPaw Software's free 14-day trial to get the full operations optimization solution!`;
-            }, 1200);
+        async function copyAndCloseAiModal(btn) {
+            const t = document.getElementById('aiResultText').value;
+            let ok = false;
+            try { if (t) { await navigator.clipboard.writeText(t); ok = true; } } catch (e) { ok = false; }
+            if (!ok && t) { const ta = document.getElementById('aiResultText'); ta.removeAttribute('readonly'); ta.select(); try { ok = document.execCommand('copy'); } catch (e) {} ta.setAttribute('readonly', ''); }
+            if (btn) { btn.textContent = ok ? 'Copied ✓' : 'Copy failed — select and copy'; setTimeout(() => { btn.textContent = 'Copy & Close'; }, 1200); }
+            if (ok) setTimeout(closeAiModal, 450);
         }
 
         // 30-DAY CONTENT MATRIX
@@ -1113,71 +1094,33 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function closeMatrixModal() { document.getElementById('matrixModal').classList.add('hidden'); }
         async function generateMatrix(btn) {
             const goal = document.getElementById('matrixGoal').value.trim();
-            if(!goal) { alert("Enter your goal for this month!"); return; }
+            if (!goal) { alert("Enter this month's goal first."); return; }
             const resultBox = document.getElementById('matrixResult'); const loadingBox = document.getElementById('matrixLoading');
-            resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden');
-
-            const systemPrompt = `You are a Marketing Director. Build a detailed 30-day content matrix in table form. ${getBrandPrompt()}`;
-            const userPrompt = `My goal this month: ${goal}`;
-
+            resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden'); btn.disabled = true;
             try {
-                const response = await fetch('/api/ai_studio/generate_text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ systemPrompt, userPrompt })
-                });
-                const data = await response.json();
-                if (data.fallback || data.error || !data.choices || !data.choices[0]) {
-                    throw new Error(data.error || "Fallback requested");
-                }
-                resultBox.value = data.choices[0].message.content;
-            } catch (error) {
-                console.warn("Backend API Offline/Error. Loading premium local mock generator.", error);
-                resultBox.value = generateLocalContent(systemPrompt, userPrompt);
-            } finally {
-                loadingBox.classList.add('hidden');
-                resultBox.classList.remove('hidden');
-            }
+                resultBox.value = await aiText(`You are a marketing director for a local business. Build a practical 30-day content calendar as a table (Day | Format | Title | Goal | Call to action), 3–4 posts per week, realistic for a small team.${getBrandPrompt()}${LANG_RULE}`,
+                    `Goal this month: ${goal}`, 2500);
+            } catch (error) { resultBox.value = aiErrorText(error); }
+            finally { loadingBox.classList.add('hidden'); resultBox.classList.remove('hidden'); btn.disabled = false; }
         }
 
-        // CHANNEL DOCTOR
-        function openDoctorModal() { document.getElementById('channelLink').value = ''; document.getElementById('doctorResult').value = ''; document.getElementById('doctorModal').classList.remove('hidden'); }
+        // CHANNEL DOCTOR — chẩn đoán dựa trên SỐ LIỆU THẬT người dùng dán vào (AI không tự đọc được analytics riêng của kênh).
+        // Trước đây chỉ gửi link kênh rồi bảo AI "chẩn đoán" -> AI buộc phải bịa số liệu.
+        function openDoctorModal() { document.getElementById('channelLink').value = ''; const st = document.getElementById('channelStats'); if (st) st.value = ''; document.getElementById('doctorResult').value = ''; document.getElementById('doctorModal').classList.remove('hidden'); }
         function closeDoctorModal() { document.getElementById('doctorModal').classList.add('hidden'); }
         async function diagnoseChannel(btn) {
             const link = document.getElementById('channelLink').value.trim();
-            if(!link) { alert("Paste your channel link so the system can run a diagnosis!"); return; }
+            const stats = (document.getElementById('channelStats') || { value: '' }).value.trim();
+            if (!stats) { alert('Paste the numbers for your recent videos (views, average watch time or % watched, likes, comments, shares). You can copy them from TikTok Studio, Meta Business Suite or YouTube Studio.'); return; }
             const resultBox = document.getElementById('doctorResult'); const loadingBox = document.getElementById('doctorLoading');
-            resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden');
-
-            const systemPrompt = 'You are a social media analyst. Based on a description of the 5 most recent underperforming videos, identify the causes and prescribe a fix.';
-            const userPrompt = `My channel: ${link}. Content has mostly been underperforming. Please diagnose and analyze.`;
-
-            setTimeout(async () => {
-                try {
-                    const response = await fetch('/api/ai_studio/generate_text', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ systemPrompt, userPrompt })
-                    });
-                    const data = await response.json();
-                    if (data.fallback || data.error || !data.choices || !data.choices[0]) {
-                        throw new Error(data.error || "Fallback requested");
-                    }
-                    resultBox.value = data.choices[0].message.content;
-                } catch (error) {
-                    console.warn("Backend API Offline/Error. Loading premium local mock generator.", error);
-                    resultBox.value = generateLocalContent(systemPrompt, userPrompt);
-                } finally {
-                    loadingBox.classList.add('hidden');
-                    resultBox.classList.remove('hidden');
-                }
-            }, 1200);
+            resultBox.classList.add('hidden'); loadingBox.classList.remove('hidden'); btn.disabled = true;
+            try {
+                resultBox.value = await aiText('You are a social media analyst for local businesses. Diagnose ONLY from the numbers provided — never invent metrics. Compare the videos, find patterns (hook retention, length, topic, posting time), name the 3 biggest problems and a concrete fix for each, and say what to measure next week.' + LANG_RULE,
+                    `Channel: ${link || '(not given)'}\nRecent videos and their numbers:\n${stats.slice(0, 5000)}`, 2000);
+            } catch (error) { resultBox.value = aiErrorText(error); }
+            finally { loadingBox.classList.add('hidden'); resultBox.classList.remove('hidden'); btn.disabled = false; }
         }
 
-        function playFakeVoice(btn) {
-            const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-volume-up"></i> Playing...'; btn.classList.replace('bg-white/10', 'bg-orange-500/50');
-            setTimeout(() => { btn.innerHTML = original; btn.classList.replace('bg-orange-500/50', 'bg-white/10'); }, 3000);
-        }
 
         window.populatePrompt = function(toolKey) {
             const industry = "{{ active_industry_code | default('retail') }}";
@@ -1210,7 +1153,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             setTimeout(() => txt.classList.remove('border-cyan-400', 'shadow-[0_0_15px_rgba(6,182,212,0.4)]'), 1000);
         }
 
-        window.addEventListener('DOMContentLoaded', renderHistory);
+        window.addEventListener('DOMContentLoaded', () => { renderHistory(); loadBrandFromServer(); });
     </script>
 </body>
 </html>

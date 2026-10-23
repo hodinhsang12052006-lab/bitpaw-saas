@@ -504,6 +504,11 @@ _CSRF_EXEMPT_ENDPOINTS = [
     # email/password tường minh trong body, và response (JWT) trả về JSON mà 1 request CSRF giả
     # mạo (cross-site form POST) không đọc lại được do same-origin policy của trình duyệt.
     'api_auth_token',
+    # Webhook Twilio (xác thực bằng chữ ký X-Twilio-Signature) + cron gửi tin (Bearer CRON_SECRET)
+    'messaging.twilio_sms',
+    'messaging.twilio_voice',
+    'messaging.twilio_voice_after',
+    'messaging.cron_messages',
 ]
 
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
@@ -9339,6 +9344,13 @@ def cron_daily_tasks():
 
     business_ids = _get_all_active_business_ids()
 
+    # Luật chăm sóc tự động (vd "30 ngày chưa quay lại") — trước đây nurture_scheduler.py không được gọi ở đâu
+    try:
+        import nurture_scheduler
+        nurture_scheduler.run_once()
+    except Exception as e:
+        results["errors"].append(f"nurture_scheduler: {str(e)[:150]}")
+
     for business_id in business_ids:
         results["businesses_scanned"] += 1
         try:
@@ -9354,9 +9366,15 @@ def cron_daily_tasks():
         except Exception as e:
             results["errors"].append(f"reconciliation[{business_id}]: {str(e)}")
         try:
-            results["appointment_reminders_queued"] += _run_appointment_reminder_check_for_business(business_id, now)
+            import messaging
+            msg_stats = messaging.pump(business_id, base_url=os.environ.get('PUBLIC_BASE_URL', request.host_url))
+            results["appointment_reminders_queued"] += msg_stats.get('produced', 0)
+            results.setdefault("messages_sent", 0)
+            results["messages_sent"] += msg_stats.get('sent', 0)
+            if messaging.get_settings(business_id)['country'] == 'VN':
+                results["appointment_reminders_queued"] += _run_appointment_reminder_check_for_business(business_id, now)
         except Exception as e:
-            results["errors"].append(f"appointment_reminder[{business_id}]: {str(e)}")
+            results["errors"].append(f"messaging[{business_id}]: {str(e)}")
 
     try:
         demo_business_ids = [
@@ -12493,7 +12511,6 @@ def nurture_generate_campaign():
     data = request.json or {}
     segment = data.get('segment')  # 'ALL', 'VIP', 'CHURN'
     goal = data.get('goal', 'RECALL')
-    channel = data.get('channel', 'ZALO')
     tone = data.get('tone', 'friendly')
 
     business_id = session.get('business_id') or session['user_id']
@@ -12502,58 +12519,64 @@ def nurture_generate_campaign():
     if db is None:
         return jsonify({"success": False, "message": "MongoDB chưa kết nối."}), 503
 
+    import messaging
+    from ai_nurturing_engine import customer_fill_values
+    msg_settings = messaging.get_settings(business_id)
+    lang = msg_settings['language']
+    # Mỹ/Úc: SMS (Twilio) hoặc Email; Việt Nam: Zalo/Messenger như trước
+    channel = (data.get('channel') or ('SMS' if lang == 'en' else 'ZALO')).upper()
+    if channel not in ('SMS', 'EMAIL', 'ZALO', 'FACEBOOK'):
+        channel = 'SMS'
+
     campaign_id = f"camp-{next_mongo_id('nurturing_campaigns')}"
-    campaign_name = f"Chiến dịch {goal} qua kênh {channel} ({tone.upper()})"
+    goal_name = {'RECALL': 'Win-back', 'UPSELL': 'Upsell'}.get(str(goal).upper(), str(goal)) if lang == 'en' else goal
+    campaign_name = f"{goal_name} via {channel} ({tone})" if lang == 'en' else f"Chiến dịch {goal} qua kênh {channel} ({tone.upper()})"
 
     try:
-        biz = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0})
-        business_name = (biz or {}).get('name') or 'BitPaw'
+        biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'currency': 1, '_id': 0}) or {}
+        business_name = biz.get('name') or 'BitPaw'
 
         query = {'business_id': business_id}
         if segment == 'VIP':
-            query['total_spent'] = {'$gt': 5000000}
+            # ngưỡng VIP theo đúng tiền tệ của tiệm (trước: 5.000.000 cố định -> tiệm USD/AUD không có ai là VIP)
+            query['total_spent'] = {'$gte': 5000000 if (biz.get('currency') or 'VND').upper() == 'VND' else 400}
         elif segment == 'CHURN':
             query['nurturing_status'] = 'CHURN_RISK'
-        # 'ALL' (hoặc bất kỳ giá trị khác) -> không lọc thêm
 
-        customers = list(db.customers.find(query, {'id': 1, 'name': 1, 'phone': 1, '_id': 0}))
+        customers = list(db.customers.find(query, {'id': 1, 'name': 1, 'phone': 1, 'email': 1, 'last_purchase_at': 1, '_id': 0}).limit(5000))
+
+        # 1 lần gọi AI cho cả chiến dịch (mẫu có chỗ trống) — trước đây gọi AI lần lượt từng khách trong 1 request
+        template = AINurturingEngine.generate_sequence_template(business_name, industry, goal, tone, lang)
 
         db.nurturing_campaigns.insert_one({
             'id': campaign_id, 'business_id': business_id, 'name': campaign_name,
             'target_segment_id': segment, 'campaign_goal': goal, 'channel': channel,
-            'tone': tone, 'is_active': True, 'created_at': datetime.now().isoformat(),
+            'tone': tone, 'language': lang, 'template': template, 'is_active': True, 'created_at': datetime.now().isoformat(),
         })
 
-        generated_count = 0
+        docs = []
         for cust in customers:
-            cust_id, cust_name, cust_phone = cust.get('id'), cust.get('name'), cust.get('phone')
-            purchase_history = (
-                AIContextEngine._load_purchase_history(business_id, cust_phone) if cust_phone else []
-            )
-            copy_seq = AINurturingEngine.generate_nurturing_copy(
-                business_name, industry, goal, tone, cust_name, purchase_history
-            )
-
-            for step_key, days in (('3days', 3), ('7days', 7), ('14days', 14)):
-                # message id giữ dạng string ghép (giống hệt quy ước cũ) — KHÔNG dùng
-                # next_mongo_id() ở đây: frontend so khớp id bằng "===" sau khi đã đi qua
-                # thuộc tính onclick (luôn thành string), nên id phải luôn là string để
-                # tránh lệch kiểu int-vs-string.
-                db.campaign_messages.insert_one({
-                    'id': f"{campaign_id}-{cust_id}-{days}d",
+            first, last_service, days = customer_fill_values(business_id, cust)
+            for step_key, delay in (('3days', 3), ('7days', 7), ('14days', 14)):
+                docs.append({
+                    'id': f"{campaign_id}-{cust.get('id')}-{delay}d",
                     'business_id': business_id, 'campaign_id': campaign_id,
-                    'customer_id': cust_id,  # int, khớp kiểu với db.customers.id để $lookup hoạt động
-                    'step_delay': days, 'message_body': copy_seq[step_key],
+                    'customer_id': cust.get('id'),  # int, khớp kiểu với db.customers.id để $lookup hoạt động
+                    'step_delay': delay, 'channel': channel,
+                    'message_body': AINurturingEngine.fill_template(template[step_key], first, last_service, days, lang),
                     'approval_status': 'PENDING', 'created_at': datetime.now().isoformat(),
                 })
-                generated_count += 1
+        if docs:
+            db.campaign_messages.insert_many(docs, ordered=False)
 
         return jsonify({
             "success": True,
             "campaign_id": campaign_id,
             "campaign_name": campaign_name,
+            "channel": channel,
             "target_count": len(customers),
-            "messages_count": generated_count
+            "messages_count": len(docs),
+            "template": template,
         })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -12602,13 +12625,35 @@ def nurture_approve_message():
         return jsonify({"success": False, "message": "Missing message_id or action parameters"}), 400
 
     business_id = session.get('business_id') or session['user_id']
+    if action not in ('APPROVED', 'REJECTED'):
+        return jsonify({"success": False, "message": "action must be APPROVED or REJECTED"}), 400
     try:
+        import messaging
+        msg = db.campaign_messages.find_one({'id': message_id, 'business_id': business_id}, {'_id': 0}) or {}
+        if not msg:
+            return jsonify({"success": False, "message": "Message not found"}), 404
+        now = datetime.now(timezone.utc)
         db.campaign_messages.update_one(
             {'id': message_id, 'business_id': business_id},
-            {'$set': {'approval_status': action}}
+            {'$set': {'approval_status': action, 'approved_at': now.isoformat() if action == 'APPROVED' else None}}
         )
-        extra_note = " Tin nhắn sẽ được gửi thật trong ít phút tới." if action == 'APPROVED' else ""
-        return jsonify({"success": True, "message": f"Tin nhắn đã được Sếp phê duyệt sang trạng thái: {action}!{extra_note}"})
+        st = messaging.get_settings(business_id)
+        en = st['language'] == 'en'
+        if action != 'APPROVED':
+            return jsonify({"success": True, "message": "Message rejected." if en else "Đã từ chối tin nhắn."})
+        due = now + timedelta(days=int(msg.get('step_delay') or 0))
+        due_local = due.astimezone(messaging.ZoneInfo(st['timezone']))
+        ch = (msg.get('channel') or 'SMS').upper()
+        sms_ok = st['twilio_ready']
+        if ch == 'SMS' and not sms_ok:
+            note = (" SMS is not connected yet — it will go by email if the customer has one. Connect SMS in Settings → Messaging." if en else
+                    " Chưa kết nối SMS — tin sẽ gửi qua email nếu khách có email. Kết nối SMS ở Cài đặt → Nhắn tin.")
+        else:
+            note = ""
+        when = due_local.strftime('%a %b %d') if en else due_local.strftime('%d/%m')
+        window = f"{st['send_window_start']}:00–{st['send_window_end']}:00"
+        return jsonify({"success": True, "message": (f"Approved. It will be sent on {when} between {window} (shop time) by {ch.lower()}.{note}" if en else
+                                                     f"Đã duyệt. Tin sẽ gửi ngày {when} trong khung {window} (giờ tiệm) qua {ch}.{note}")})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -12675,7 +12720,11 @@ def nurture_recommendations():
     industry = session.get('business_mode', 'retail')
     try:
         from ai_nurturing_engine import AINurturingEngine
-        recs = AINurturingEngine.get_industry_recommendations(industry)
+        import messaging
+        business_id = session.get('business_id') or session['user_id']
+        st = messaging.get_settings(business_id)
+        cur = (db.businesses.find_one({'id': business_id}, {'currency': 1, '_id': 0}) or {}).get('currency') or 'USD'
+        recs = AINurturingEngine.real_recommendations(business_id, industry, st['language'], cur)
         return jsonify({"success": True, "data": recs})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -13063,6 +13112,20 @@ try:
     app.register_blueprint(ai_studio_bp)
 except Exception as bp_err:
     print(f"Error registering ai_studio_bp: {str(bp_err)}")
+
+try:
+    # Chấm công khuôn mặt (chống chấm công hộ) — face_checkin.py
+    from face_checkin import face_bp
+    app.register_blueprint(face_bp)
+except Exception as bp_err:
+    print(f"Error registering face_bp: {str(bp_err)}")
+
+try:
+    # Xương sống nhắn tin (SMS Twilio + email, từ chối STOP, khung giờ, cuộc gọi nhỡ) — messaging.py
+    from messaging_routes import messaging_bp
+    app.register_blueprint(messaging_bp)
+except Exception as bp_err:
+    print(f"Error registering messaging_bp: {str(bp_err)}")
 
 try:
     from ad_suggest_api import ad_suggest_bp
@@ -13485,7 +13548,7 @@ def api_hr_employees_list():
     business_id = session.get('business_id') or session['user_id']
     sort = _EMPLOYEE_SORT_FIELDS.get(request.args.get('sort'), [('id', 1)])
     try:
-        employees = list(db.employees.find({'business_id': business_id}, {'_id': 0}).sort(sort))
+        employees = list(db.employees.find({'business_id': business_id}, {'_id': 0, 'face_template': 0}).sort(sort))  # mẫu khuôn mặt không bao giờ rời máy chủ
         return jsonify({"success": True, "data": employees})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -13499,7 +13562,7 @@ def api_hr_employees_get(ma_nv):
     trùng giữa 2 doanh nghiệp khác nhau)."""
     business_id = session.get('business_id') or session['user_id']
     try:
-        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'_id': 0})
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'_id': 0, 'face_template': 0})
         if not emp:
             return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})
@@ -13798,6 +13861,17 @@ def api_hr_chamcong_create():
     data = request.json or {}
     if not (data.get('ma_nv') or '').strip():
         return jsonify({"success": False, "error": "Missing employee ID (ma_nv)."}), 400
+    # Chấm công khuôn mặt (face_checkin.py): check-in có ảnh từ app nhân viên phải có vé xác minh khi tiệm bật tính năng
+    try:
+        import face_checkin
+        face_ok, face_err, face_extra = face_checkin.guard_checkin(business_id, data)
+    except Exception as e:
+        face_ok, face_err, face_extra = True, None, {}
+        print(f"[chamcong] face guard: {e}")
+    if not face_ok:
+        return jsonify({"success": False, "error": face_err, "face_required": True}), 403
+    data = {k: v for k, v in data.items() if k not in ('face_token', 'offline_sync')}
+    data.update(face_extra)
     try:
         doc = _clamp_chamcong_money_fields(dict(data))
         # /bangluong tính mỗi bản ghi "Có mặt" KHÔNG có so_gio là 8 giờ công. 2 lỗi cộng dư giờ:
@@ -13974,6 +14048,48 @@ def api_tasks_list():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+_NOMINATIM_BASE = os.environ.get('NOMINATIM_BASE', 'https://nominatim.openstreetmap.org').rstrip('/')
+
+
+def _geocode_address(business_id, address):
+    """Địa chỉ -> (lat, lng) qua OpenStreetMap Nominatim, ưu tiên đúng quốc gia của tiệm, CÓ CACHE (chính sách Nominatim:
+    tối đa 1 yêu cầu/giây, phải có User-Agent). Trả None nếu không tìm thấy / lỗi mạng — không chặn việc tạo job."""
+    q = (address or '').strip()
+    if len(q) < 4:
+        return None
+    country = (TenantEngine.get_region_config(business_id) or {}).get('country', 'US').lower()
+    key = f"{country}|{q.lower()}"
+    hit = db.geocode_cache.find_one({'key': key}, {'_id': 0, 'lat': 1, 'lng': 1})
+    if hit:
+        return (hit['lat'], hit['lng']) if hit.get('lat') is not None else None
+    try:
+        r = requests.get(f"{_NOMINATIM_BASE}/search", params={'q': q, 'format': 'json', 'limit': 1, 'countrycodes': country},
+                         headers={'User-Agent': 'BitPawSoftware/1.0 (bitpawsoftware@gmail.com)'}, timeout=6)
+        rows = r.json() if r.ok else []
+    except Exception as e:
+        print(f"[geocode] {e}")
+        return None
+    lat = lng = None
+    if rows:
+        try:
+            lat, lng = float(rows[0]['lat']), float(rows[0]['lon'])
+        except (KeyError, TypeError, ValueError):
+            lat = lng = None
+    db.geocode_cache.update_one({'key': key}, {'$set': {'key': key, 'lat': lat, 'lng': lng, 'at': datetime.now().isoformat()}}, upsert=True)
+    return (lat, lng) if lat is not None else None
+
+
+@app.route('/api/geocode', methods=['GET'])
+@login_required
+@limiter.limit("60 per hour")
+def api_geocode():
+    business_id = session.get('business_id') or session['user_id']
+    pt = _geocode_address(business_id, request.args.get('q', ''))
+    if not pt:
+        return jsonify({'success': False, 'message': 'Address not found on the map. Add the suburb/city, or drop a pin on the map.'}), 404
+    return jsonify({'success': True, 'lat': pt[0], 'lng': pt[1]})
+
+
 @app.route('/api/tasks', methods=['POST'])
 @login_required
 def api_tasks_create():
@@ -13984,6 +14100,11 @@ def api_tasks_create():
         doc['id'] = next_mongo_id('tasks')
         doc['business_id'] = business_id
         doc.setdefault('trang_thai', 'Chờ Nhận')
+        # Toạ độ khách để điều phối thợ gần nhất (AI Dispatch): lấy từ địa chỉ nếu chưa ghim trên bản đồ
+        if doc.get('lat') is None and doc.get('dia_chi'):
+            pt = _geocode_address(business_id, doc['dia_chi'])
+            if pt:
+                doc['lat'], doc['lng'] = pt
         db.tasks.insert_one(doc)
         doc.pop('_id', None)
         return jsonify({"success": True, "data": doc})

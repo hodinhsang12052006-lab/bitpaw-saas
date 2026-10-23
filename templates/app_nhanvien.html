@@ -160,6 +160,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         
                         <video id="cameraFeed" class="w-full h-[240px] object-cover relative z-0" autoplay playsinline muted></video>
                         
+                        <div id="faceStatus" class="hidden absolute top-2 left-2 right-2 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 text-[11px] text-cyan-300 text-center font-bold z-20 border border-cyan-400/30" role="status" aria-live="polite"></div>
                         <div id="gpsStatus" class="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-md rounded-lg px-3 py-2 text-[10px] text-yellow-400 flex items-center justify-center gap-2 border border-yellow-400/30 z-20 font-bold uppercase tracking-widest">
                             <i class="fas fa-satellite fa-spin"></i> Locating...
                         </div>
@@ -168,6 +169,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <button id="captureBtn" onclick="captureAndSubmit()" disabled class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black py-4 rounded-xl shadow-[0_10px_20px_rgba(16,185,129,0.3)] transition-all opacity-50 cursor-not-allowed flex justify-center items-center gap-2 tracking-widest">
                         <i class="fas fa-camera text-xl"></i> CAPTURE & SAVE PROOF
                     </button>
+                    <button id="faceRetryBtn" type="button" onclick="startFaceStep()" class="hidden mt-3 w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl text-xs tracking-widest"><i class="fas fa-redo mr-1"></i> TRY FACE CHECK AGAIN</button>
                     <button onclick="cancelCheckin()" class="mt-4 text-xs text-gray-500 hover:text-rose-400 font-bold uppercase tracking-widest transition-colors"><i class="fas fa-times mr-1"></i> Cancel</button>
                 </div>
             </div>
@@ -662,6 +664,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         function vaoAppNgay() {
+            loadFaceStatus();  // tiệm có bật chấm công khuôn mặt không, nhân viên đã đăng ký mặt chưa
             document.getElementById('ui_name').innerText = currentUser.name; document.getElementById('ui_code').innerText = currentUser.code; document.getElementById('ui_linhvuc').innerText = currentUser.linhVuc || "Unassigned";
             document.getElementById('profile_name').innerText = currentUser.name; document.getElementById('profile_code').innerText = currentUser.code; document.getElementById('profile_linhvuc').innerText = currentUser.linhVuc || "Unknown";
 
@@ -802,9 +805,111 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         // ========================================================
+        // 🙂 CHẤM CÔNG KHUÔN MẶT (chỉ khi chủ tiệm bật) — face_checkin.py
+        //   Máy tính mẫu khuôn mặt + bắt chớp mắt (chống ảnh in); máy chủ so khớp và cấp vé 3 phút cho lượt chấm công.
+        // ========================================================
+        const FACE_LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js';
+        const FACE_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model/';
+        let faceCfg = { enabled: false, enrolled: false }, faceToken = null, faceTimer = null, faceApiReady = null, faceRunning = false;
+        async function loadFaceStatus() {
+            try {
+                const r = await fetch('/api/hr/face/status?ma_nv=' + encodeURIComponent(currentUser.code));
+                const d = await r.json(); faceCfg = { enabled: !!d.enabled, enrolled: !!d.enrolled };
+            } catch (e) { faceCfg = { enabled: false, enrolled: false }; }
+            return faceCfg;
+        }
+        function loadFaceApi() {
+            if (window.__faceApiOverride) return Promise.resolve();  // dùng cho kiểm thử tự động
+            if (faceApiReady) return faceApiReady;
+            faceApiReady = new Promise((resolve, reject) => {
+                const sc = document.createElement('script'); sc.src = FACE_LIB;
+                sc.onload = async () => {
+                    try {
+                        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS);
+                        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS);
+                        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS);
+                        resolve();
+                    } catch (e) { faceApiReady = null; reject(new Error('Could not load face check. Check the internet connection.')); }
+                };
+                sc.onerror = () => { faceApiReady = null; reject(new Error('Could not load face check. Check the internet connection.')); };
+                document.head.appendChild(sc);
+            });
+            return faceApiReady;
+        }
+        function setFaceUI(msg, tone) {
+            const el = document.getElementById('faceStatus'); if (!el) return;
+            el.textContent = msg; el.classList.remove('hidden');
+            el.style.color = tone === 'err' ? '#fb7185' : tone === 'ok' ? '#6ee7b7' : '#67e8f9';
+        }
+        function eyeRatio(eye) { const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y); return (d(eye[1], eye[5]) + d(eye[2], eye[4])) / (2 * d(eye[0], eye[3])); }
+        function readFace() {
+            // trả { descriptor: number[128], ear } hoặc null
+            if (window.__faceApiOverride) return window.__faceApiOverride();
+            const video = document.getElementById('cameraFeed');
+            return faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+                .withFaceLandmarks().withFaceDescriptor()
+                .then(r => r ? { descriptor: Array.from(r.descriptor), ear: (eyeRatio(r.landmarks.getLeftEye()) + eyeRatio(r.landmarks.getRightEye())) / 2 } : null);
+        }
+        function captureFaceWithBlink() {
+            return new Promise((resolve, reject) => {
+                let opened = false, blinked = false; const descs = []; const t0 = Date.now();
+                const tick = async () => {
+                    if (!faceRunning) return;
+                    if (Date.now() - t0 > 25000) { reject(new Error("We didn't see a blink. Face the light and try again.")); return; }
+                    try {
+                        const r = await readFace();
+                        if (r) {
+                            if (r.ear > 0.26) { opened = true; if (descs.length < 8) descs.push(r.descriptor); }
+                            if (opened && r.ear < 0.2) blinked = true;
+                            if (blinked && r.ear > 0.24 && descs.length >= 3) {
+                                resolve(descs[0].map((_, i) => descs.reduce((sum, d) => sum + d[i], 0) / descs.length)); return;
+                            }
+                            setFaceUI(blinked ? 'Got it — hold still…' : 'Now blink once 👀', 'ok');
+                        } else { setFaceUI('Move your face into the frame', ''); }
+                    } catch (e) { /* khung hình lỗi -> thử khung sau */ }
+                    faceTimer = setTimeout(tick, 140);
+                };
+                tick();
+            });
+        }
+        async function startFaceStep() {
+            document.getElementById('faceRetryBtn').classList.add('hidden');
+            faceToken = null; faceRunning = true;
+            try {
+                setFaceUI('Starting face check…', '');
+                await loadFaceApi();
+                setFaceUI('Look at the camera', '');
+                const descriptor = await captureFaceWithBlink();
+                faceRunning = false;
+                if (!faceCfg.enrolled) {
+                    const shop = document.title.replace(/\s*[-|].*$/, '') || 'this business';
+                    const ok = await showConfirm(`Save a face template for ${currentUser.name}? It is only used to confirm it is you when you clock in. No face photo is kept for this, and the owner can delete it at any time. If you do not agree, tap Cancel and ask the owner for another way to clock in.`);
+                    if (!ok) { setFaceUI('Face check skipped — ask the owner to clock you in.', 'err'); return; }
+                    const r = await fetch('/api/hr/face/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ma_nv: currentUser.code, descriptor, consent: true }) });
+                    const d = await r.json().catch(() => ({}));
+                    if (!r.ok || !d.success) throw new Error(d.message || 'Could not save the face template.');
+                    faceCfg.enrolled = true; faceToken = d.token;
+                    setFaceUI('Face registered ✓ — you can clock in now', 'ok');
+                } else {
+                    const r = await fetch('/api/hr/face/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ma_nv: currentUser.code, descriptor }) });
+                    const d = await r.json().catch(() => ({}));
+                    if (!r.ok || !d.success) throw new Error(d.message || "Face doesn't match this employee code.");
+                    faceToken = d.token;
+                    setFaceUI('Face confirmed ✓', 'ok');
+                }
+                enableCaptureIfReady();
+            } catch (e) {
+                faceRunning = false;
+                setFaceUI(e.message, 'err');
+                document.getElementById('faceRetryBtn').classList.remove('hidden');
+            }
+        }
+
+        // ========================================================
         // 🚀 CAMERA & GPS CHECKIN
         // ========================================================
         async function startCameraAndGPS() {
+            await loadFaceStatus();
             document.getElementById('step1_Start').classList.add('hidden');
             document.getElementById('step2_Camera').classList.remove('hidden'); document.getElementById('step2_Camera').classList.add('flex');
 
@@ -815,7 +920,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                 const feed = document.getElementById('cameraFeed');
-                const markCam = () => { if (feed.videoWidth > 0) { camReady = true; enableCaptureIfReady(); } };
+                const markCam = () => { if (feed.videoWidth > 0 && !camReady) { camReady = true; enableCaptureIfReady(); if (faceCfg.enabled) startFaceStep(); } };
                 feed.addEventListener('loadeddata', markCam, { once: true });
                 feed.addEventListener('playing', markCam, { once: true });
                 feed.srcObject = videoStream;
@@ -841,6 +946,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let gpsReady = false, camReady = false;
         function enableCaptureIfReady() {
             if (!(gpsReady && camReady)) return;
+            if (faceCfg.enabled && !faceToken) return;  // tiệm bật khuôn mặt: chỉ mở nút chụp khi khuôn mặt đã khớp
             const capBtn = document.getElementById('captureBtn');
             capBtn.disabled = false; capBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
@@ -878,7 +984,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                     await hrApi('/api/hr/chamcong', {
                         method: 'POST',
-                        body: JSON.stringify({ ma_nv: currentUser.code, ngay_cham: todayStr, gio_den: timeStr, trang_thai: 'Có mặt', nganh_nghe: currentUser.linhVuc, toa_do: toa_do, anh_checkin: anh_checkin }),
+                        body: JSON.stringify({ face_token: faceToken, ma_nv: currentUser.code, ngay_cham: todayStr, gio_den: timeStr, trang_thai: 'Có mặt', nganh_nghe: currentUser.linhVuc, toa_do: toa_do, anh_checkin: anh_checkin }),
                     });
 
                     window.parent.postMessage({ type: 'CHECKIN_SUCCESS', message: 'Đã chấm công thành công' }, '*');
@@ -901,6 +1007,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         function cancelCheckin() {
+            faceRunning = false; clearTimeout(faceTimer); faceToken = null;
+            const fs = document.getElementById('faceStatus'); if (fs) fs.classList.add('hidden');
+            const fr = document.getElementById('faceRetryBtn'); if (fr) fr.classList.add('hidden');
             if(videoStream) videoStream.getTracks().forEach(track => track.stop());
             document.getElementById('step2_Camera').classList.add('hidden'); document.getElementById('step2_Camera').classList.remove('flex');
             document.getElementById('step1_Start').classList.remove('hidden'); document.getElementById('step1_Start').classList.add('flex');
@@ -1044,11 +1153,25 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const d = document.createElement('div'); d.innerText = str == null ? '' : String(str); return d.innerHTML;
         }
 
+        // Vị trí GPS tại thời điểm nhận / xong việc (lưu vào job làm bằng chứng cho chủ tiệm). Lấy vị trí đang theo dõi nếu có,
+        // không thì hỏi máy 1 lần (tối đa 6 giây); khách từ chối quyền vị trí thì vẫn nhận/xong việc bình thường.
+        function jobPosition() {
+            return new Promise((resolve) => {
+                if (currentLat && currentLng) return resolve({ lat: currentLat, lng: currentLng });
+                if (!('geolocation' in navigator)) return resolve(null);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { currentLat = pos.coords.latitude; currentLng = pos.coords.longitude; resolve({ lat: currentLat, lng: currentLng, acc: Math.round(pos.coords.accuracy || 0) }); },
+                    () => resolve(null), { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 });
+            });
+        }
+
         async function nhanViec(id) {
             if(await showConfirm("Bạn chắc chắn muốn chốt nhận Job này?")) {
+                const pos = await jobPosition();
                 await hrApi(`/api/tasks/${id}`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ trang_thai: 'Đã Nhận', nguoi_nhan: currentUser.name }),
+                    body: JSON.stringify(Object.assign({ trang_thai: 'Đã Nhận', nguoi_nhan: currentUser.name, accepted_at: new Date().toISOString() },
+                        pos ? { accepted_lat: pos.lat, accepted_lng: pos.lng } : {})),
                 });
                 showToast("Đã chốt Job! Bắt đầu phi hành thôi.", "success"); loadJobMarket(); setWorkStatus('Bận', `Xử lý Job #${id}`);
             }
@@ -1056,7 +1179,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         async function hoanThanhViec(id, dia_chi, noi_dung) {
             if(await showConfirm("Xác nhận hoàn thành? Hệ thống sẽ chuyển sang Phiếu Nghiệm Thu.")) {
-                await hrApi(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ trang_thai: 'Hoàn Thành' }) });
+                const pos = await jobPosition();
+                await hrApi(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(Object.assign({ trang_thai: 'Hoàn Thành', completed_at: new Date().toISOString() },
+                    pos ? { completed_lat: pos.lat, completed_lng: pos.lng } : {})) });
                 loadJobMarket(); document.getElementById('work_address').value = dia_chi; document.getElementById('work_content').value = `Hoàn thành Job #${id}: ` + noi_dung; switchAppTab('home');
             }
         }
@@ -1322,7 +1447,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         let record = images[i];
                         const publicUrl = await hrUpload(record.blob, record.type, record.fileName);
                         let payload = record.metadata;
-                        if(record.type === 'checkin') payload.anh_checkin = publicUrl;
+                        if(record.type === 'checkin') { payload.anh_checkin = publicUrl; payload.offline_sync = true; }
                         else if(record.type === 'evidence') payload.ghi_chu += ` \n[📸 KQ Offline]: ${publicUrl}`;
                         else if(record.type === 'signature') payload.ghi_chu += ` \n[✍️ Ký Offline]: ${publicUrl}`;
                         await hrApi('/api/hr/chamcong', { method: 'POST', body: JSON.stringify(payload) }); await deleteFromIndexedDB('images', record.id); syncedCount++;

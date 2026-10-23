@@ -91,7 +91,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 </h2>
                 <p class="text-gray-400 mt-2 text-xs font-bold tracking-widest uppercase" data-i18n="nhanvien_subtitle">Quản lý hồ sơ và thiết lập cấu trúc lương thưởng.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap justify-end">
+                <!-- Chấm công khuôn mặt (face_checkin.py): bật cho cả tiệm; tắt = xoá mọi mẫu khuôn mặt -->
+                <button type="button" id="faceToggleBtn" onclick="toggleFaceCheckin()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2" aria-pressed="false">
+                    <i class="fas fa-face-smile text-cyan-400"></i><span id="faceToggleLabel">Face check-in</span>
+                </button>
                 <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-bold transition">EN</button>
                 <div class="hidden md:flex bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl items-center gap-2">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></div>
@@ -486,6 +490,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <div class="flex justify-center gap-2">
                                 <button onclick="viewHistory('${emp.ma_nv}', '${__escJsAttr(emp.ho_ten)}')" data-tooltip="${t('nhanvien_tooltip_history')}" class="p-2 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-gray-400 hover:text-emerald-400 transition"><i class="fas fa-calendar-alt"></i></button>
                                 <button onclick="openSalaryModal('${emp.ma_nv}', '${__escJsAttr(emp.ho_ten)}', ${safeData})" data-tooltip="${t('nhanvien_tooltip_salary')}" class="p-2 rounded-xl bg-white/5 hover:bg-yellow-500/20 text-gray-400 hover:text-yellow-400 transition"><i class="fas fa-file-invoice-dollar"></i></button>
+                                ${emp.face_enrolled_at ? `<button onclick="resetFace('${emp.ma_nv}', '${__escJsAttr(emp.ho_ten)}')" title="Face registered — reset" class="p-2 rounded-xl bg-cyan-500/10 hover:bg-amber-500/20 text-cyan-300 hover:text-amber-400 transition"><i class="fas fa-face-smile"></i></button>` : ''}
                                 <button onclick="deleteEmployee('${emp.ma_nv}')" data-tooltip="${t('nhanvien_tooltip_delete')}" class="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-gray-400 hover:text-rose-500 transition"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </td>
@@ -543,6 +548,36 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 loadEmployees();
             } catch (err) { showToast(t('nhanvien_toast_add_error_prefix') + err.message, "error"); }
         }
+
+        // ===== Chấm công khuôn mặt =====
+        const FACE_VI = (document.documentElement.lang || 'vi').startsWith('vi');
+        async function loadFaceSettings() {
+            try {
+                const r = await fetch('/api/hr/face/settings'); const d = await r.json();
+                const btn = document.getElementById('faceToggleBtn'); if (!btn || !d.success) return;
+                btn.setAttribute('aria-pressed', d.enabled ? 'true' : 'false');
+                btn.style.borderColor = d.enabled ? 'rgba(52,211,153,.6)' : '';
+                document.getElementById('faceToggleLabel').textContent = d.enabled
+                    ? (FACE_VI ? `Chấm công khuôn mặt: BẬT (${d.enrolled}/${d.total} đã đăng ký)` : `Face check-in: ON (${d.enrolled}/${d.total} registered)`)
+                    : (FACE_VI ? 'Chấm công khuôn mặt: TẮT' : 'Face check-in: OFF');
+            } catch (e) { /* bỏ qua */ }
+        }
+        async function toggleFaceCheckin() {
+            const on = document.getElementById('faceToggleBtn').getAttribute('aria-pressed') !== 'true';
+            const msg = on
+                ? (FACE_VI ? 'Bật chấm công khuôn mặt? Lần chấm công tới, mỗi nhân viên đăng ký khuôn mặt 1 lần (có xin đồng ý), sau đó phải đúng khuôn mặt mới chấm được — hết chấm công hộ.'
+                           : 'Turn on face check-in? At their next clock-in each employee registers their face once (with consent); after that only their own face can clock in — no more buddy punching.')
+                : (FACE_VI ? 'Tắt chấm công khuôn mặt? Mọi mẫu khuôn mặt đã lưu sẽ bị xoá.' : 'Turn off face check-in? All saved face templates will be deleted.');
+            if (!confirm(msg)) return;
+            const r = await fetch('/api/hr/face/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: on }) });
+            if (r.ok) { await loadFaceSettings(); if (typeof loadEmployees === 'function') loadEmployees(); else location.reload(); }
+        }
+        async function resetFace(ma_nv, name) {
+            if (!confirm(FACE_VI ? `Xoá mẫu khuôn mặt của ${name}? Lần chấm công tới họ sẽ đăng ký lại.` : `Delete ${name}'s face template? They will register again at their next clock-in.`)) return;
+            const r = await fetch('/api/hr/face/' + encodeURIComponent(ma_nv), { method: 'DELETE' });
+            if (r.ok) { await loadFaceSettings(); if (typeof loadEmployees === 'function') loadEmployees(); else location.reload(); }
+        }
+        document.addEventListener('DOMContentLoaded', loadFaceSettings);
 
         async function deleteEmployee(ma_nv) {
             if (!confirm(tf('nhanvien_confirm_delete', { ma_nv }))) return;

@@ -86,11 +86,18 @@ class AINurturingEngine:
         return "\n".join(lines) if lines else None
 
     @staticmethod
-    def _fallback_copy(customer_name):
+    def _fallback_copy(customer_name, lang='vi'):
         """Dự phòng an toàn khi DeepSeek không khả dụng — NGẮN, TRUNG TÍNH, không bịa
         chi tiết mua hàng cụ thể nào (khác với bản cũ vốn có sẵn chi tiết sản phẩm giả
         định theo ngành mà khách có thể chưa từng mua)."""
-        name = customer_name or "Sếp"
+        if lang == 'en':
+            name = customer_name or "there"
+            return {
+                "3days": f"Hi {name}, thanks for visiting us recently! If there's anything we can help with, just reply here.",
+                "7days": f"Hi {name}, we'd love to see you again — book your next visit whenever suits you.",
+                "14days": f"Hi {name}, it's been a little while! Reply to this message and we'll find you a time that works.",
+            }
+        name = customer_name or "bạn"
         return {
             "3days": f"Chào {name}! Cảm ơn {name} đã ghé ủng hộ gần đây. Có gì cần hỗ trợ thêm, nhắn em ngay nhé!",
             "7days": f"{name} ơi, lâu rồi chưa thấy ghé lại. Bên em vẫn luôn sẵn sàng phục vụ {name} bất cứ khi nào ạ.",
@@ -128,7 +135,7 @@ class AINurturingEngine:
         return result['choices'][0]['message']['content']
 
     @staticmethod
-    def generate_nurturing_copy(business_name, industry, goal, tone, customer_name, purchase_history=None):
+    def generate_nurturing_copy(business_name, industry, goal, tone, customer_name, purchase_history=None, lang='vi'):
         """
         Real LLM-generated (DeepSeek — Mã "Hợp nhất AI bằng DeepSeek" audit), personalized
         3/7/14-day nurturing message sequence — grounded in this customer's ACTUAL purchase
@@ -136,11 +143,11 @@ class AINurturingEngine:
 
         Returns: {"3days": str, "7days": str, "14days": str}
         """
-        name = customer_name or "Sếp"
+        name = customer_name or ("there" if lang == 'en' else "bạn")
         history_snippet = AINurturingEngine._format_purchase_history(purchase_history)
 
         if not os.environ.get('DEEPSEEK_API_KEY'):
-            return AINurturingEngine._fallback_copy(name)
+            return AINurturingEngine._fallback_copy(name, lang)
 
         history_block = (
             f"Their real recent purchase history:\n{history_snippet}"
@@ -149,11 +156,12 @@ class AINurturingEngine:
         )
 
         system_prompt = (
-            "You write short customer-retention messages for local Vietnamese businesses. "
+            "You write short customer-retention messages for local businesses. "
             "Reference the customer's ACTUAL past purchases naturally where relevant instead of "
             "generic language — but never invent a purchase that wasn't listed. Keep each message "
-            "warm, human, and under 300 characters — not a corporate blast. Write in Vietnamese, "
-            "natural and conversational. Return STRICT JSON only, exactly this shape: "
+            "warm, human, and under 300 characters — not a corporate blast. "
+            + ("Write in natural US/Australian English. " if lang == 'en' else "Write in natural, conversational Vietnamese. ")
+            + "Return STRICT JSON only, exactly this shape: "
             '{"3days": "...", "7days": "...", "14days": "..."}'
         )
         user_prompt = (
@@ -170,29 +178,30 @@ class AINurturingEngine:
             parsed = json.loads(raw)
             if all(k in parsed and parsed[k] for k in ("3days", "7days", "14days")):
                 return {"3days": parsed["3days"], "7days": parsed["7days"], "14days": parsed["14days"]}
-            return AINurturingEngine._fallback_copy(name)
+            return AINurturingEngine._fallback_copy(name, lang)
         except Exception:
-            return AINurturingEngine._fallback_copy(name)
+            return AINurturingEngine._fallback_copy(name, lang)
 
     @staticmethod
     def generate_single_nurture_message(business_name, industry, goal, tone, customer_name,
-                                         purchase_history=None, trigger_reason=None):
+                                         purchase_history=None, trigger_reason=None, lang='vi'):
         """1 tin nhắn DUY NHẤT (không phải chuỗi 3/7/14 ngày) — dùng bởi nurture_scheduler.py
         khi 1 rule tự động vừa khớp điều kiện (vd 'không ghé 30 ngày'), cần 1 tin gửi NGAY,
         không phải lên lịch trước 3 mốc thời gian."""
-        name = customer_name or "Sếp"
+        name = customer_name or ("there" if lang == 'en' else "bạn")
         history_snippet = AINurturingEngine._format_purchase_history(purchase_history)
 
         if not os.environ.get('DEEPSEEK_API_KEY'):
-            return AINurturingEngine._fallback_copy(name)['7days']
+            return AINurturingEngine._fallback_copy(name, lang)['7days']
 
         history_block = (
             f"Their real recent purchase history:\n{history_snippet}" if history_snippet else
             "No purchase history on file yet — do NOT invent one; keep the message general and welcoming."
         )
         system_prompt = (
-            "You write short, warm, human customer-retention messages in Vietnamese for local "
-            "businesses. Never invent purchase history. Output ONLY the message text itself, "
+            "You write short, warm, human customer-retention messages "
+            + ("in natural US/Australian English " if lang == 'en' else "in Vietnamese ")
+            + "for local businesses. Never invent purchase history. Output ONLY the message text itself, "
             "nothing else — no quotes, no labels, no explanation, under 300 characters."
         )
         user_prompt = (
@@ -205,7 +214,100 @@ class AINurturingEngine:
             text = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=300, temperature=0.8)
             return text.strip().strip('"')
         except Exception:
-            return AINurturingEngine._fallback_copy(name)['7days']
+            return AINurturingEngine._fallback_copy(name, lang)['7days']
+
+    @staticmethod
+    def generate_sequence_template(business_name, industry, goal, tone, lang='en'):
+        """1 lần gọi AI cho CẢ chiến dịch: chuỗi 3 tin (3/7/14 ngày) có chỗ trống {first_name}, {last_service},
+        {days_since_visit} — mỗi khách được điền DỮ LIỆU THẬT của chính họ. Chiến dịch 1.000 khách vẫn xong trong
+        vài giây (trước đây gọi AI lần lượt từng khách trong 1 request — vượt thời gian chạy của máy chủ)."""
+        en = lang == 'en'
+        fallback = {
+            "3days": ("Hi {first_name}, thanks again for choosing " + (business_name or "us") + "! How did your {last_service} turn out? Reply anytime.") if en else
+                     ("Chào {first_name}, cảm ơn bạn đã chọn " + (business_name or "tiệm") + "! {last_service} của bạn thế nào? Cần gì cứ nhắn tiệm nhé."),
+            "7days": "Hi {first_name}, ready for your next {last_service}? Book a time that suits you — we'd love to see you." if en else
+                     "Chào {first_name}, bạn có muốn đặt lịch {last_service} lần tới không? Tiệm luôn sẵn sàng.",
+            "14days": "Hi {first_name}, it's been {days_since_visit} days — reply to this message and we'll save you a spot." if en else
+                      "Chào {first_name}, đã {days_since_visit} ngày rồi — trả lời tin này để tiệm giữ chỗ cho bạn nhé.",
+        }
+        if not os.environ.get('DEEPSEEK_API_KEY'):
+            return fallback
+        system_prompt = (
+            "You write short, warm customer-retention text messages for a local business. "
+            + ("Write in natural US/Australian English. " if en else "Write in natural Vietnamese. ")
+            + "Use these placeholders exactly where they fit: {first_name}, {last_service}, {days_since_visit}. "
+            "Each message under 280 characters, no prices or offers that were not given, no emoji spam (max 1). "
+            'Return STRICT JSON only: {"3days": "...", "7days": "...", "14days": "..."}'
+        )
+        user_prompt = (f"Business: {business_name or 'this business'} ({industry or 'local'} business). Tone: {tone or 'friendly'}. "
+                       f"Goal: {AINurturingEngine._goal_meaning(goal)}. Messages are sent 3, 7 and 14 days after the campaign starts, "
+                       "only if the customer has not come back.")
+        try:
+            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=600, temperature=0.8, json_mode=True)
+            raw = re.sub(r'^```(?:json)?|```$', '', raw.strip(), flags=re.MULTILINE).strip()
+            parsed = json.loads(raw)
+            if all(isinstance(parsed.get(k), str) and parsed[k].strip() for k in ("3days", "7days", "14days")):
+                return {k: parsed[k].strip() for k in ("3days", "7days", "14days")}
+        except Exception:
+            pass
+        return fallback
+
+    @staticmethod
+    def fill_template(text, first_name, last_service, days_since_visit, lang='en'):
+        en = lang == 'en'
+        out = (text.replace('{first_name}', first_name or ('there' if en else 'bạn'))
+                   .replace('{last_service}', last_service or ('visit' if en else 'dịch vụ'))
+                   .replace('{days_since_visit}', str(days_since_visit) if days_since_visit else ('a few' if en else 'vài')))
+        return re.sub(r'\s{2,}', ' ', out).strip()
+
+    @staticmethod
+    def real_recommendations(business_id, industry, lang='en', currency='USD'):
+        """Đề xuất từ SỐ LIỆU THẬT của tiệm (khách lâu chưa quay lại, khách chi tiêu cao đang nguội, giờ trống tuần tới,
+        dịch vụ có tỷ lệ quay lại thấp). Thay cho câu viết sẵn có số bịa ("Có 12 khách VIP...") giống hệt nhau mọi tiệm."""
+        from mongo_client import db
+        en = lang == 'en'
+        now = datetime.datetime.now()
+        recs = []
+        vip_threshold = 5000000 if (currency or '').upper() == 'VND' else 400
+        churn = db.customers.count_documents({'business_id': business_id, 'nurturing_status': 'CHURN_RISK'})
+        cold_vip = db.customers.count_documents({'business_id': business_id, 'total_spent': {'$gte': vip_threshold},
+                                                 'last_purchase_at': {'$lt': (now - datetime.timedelta(days=30)).isoformat()}})
+        if cold_vip:
+            recs.append({"type": "CHURN_ALERT", "text": (f"{cold_vip} high-spending customers have not been back in over 30 days. Send them a personal 'we miss you' message." if en else
+                                                         f"{cold_vip} khách chi tiêu cao đã hơn 30 ngày chưa quay lại. Nên gửi tin hỏi thăm riêng cho nhóm này.")})
+        if churn:
+            recs.append({"type": "CHURN_ALERT", "text": (f"{churn} customers are at risk of not coming back. Start a 3-step win-back campaign for this group." if en else
+                                                         f"{churn} khách có nguy cơ không quay lại. Nên chạy chuỗi 3 tin chăm sóc cho nhóm này.")})
+        week = [(now + datetime.timedelta(days=i)).date().isoformat() for i in range(1, 8)]
+        booked = {}
+        for a in db.appointments.find({'business_id': business_id, 'status': {'$in': ['pending', 'confirmed']},
+                                       'book_time': {'$gte': week[0], '$lt': (now + datetime.timedelta(days=8)).date().isoformat()}}, {'book_time': 1, '_id': 0}):
+            d = str(a.get('book_time', ''))[:10]
+            booked[d] = booked.get(d, 0) + 1
+        if industry in ('nail', 'spa') and booked is not None:
+            quiet = min(week, key=lambda d: booked.get(d, 0))
+            qd = datetime.date.fromisoformat(quiet)
+            recs.append({"type": "CAMPAIGN_SUGGESTION", "text": (f"Your quietest day next week is {qd.strftime('%A %b %d')} ({booked.get(quiet, 0)} bookings). Offer a time-limited slot that day to past customers." if en else
+                                                                 f"Ngày vắng nhất tuần tới là {qd.strftime('%d/%m')} ({booked.get(quiet, 0)} lịch). Nên mời khách cũ đặt khung giờ ngày đó.")})
+        # dịch vụ bán nhiều nhưng khách ít quay lại (90 ngày)
+        since = (now - datetime.timedelta(days=90)).isoformat()
+        rows = list(db.order_items.aggregate([
+            {'$match': {'business_id': business_id, 'created_at': {'$gte': since}, 'product_id': {'$ne': None}, 'customer_phone': {'$nin': [None, '']}}},
+            {'$group': {'_id': {'p': '$product_id', 'c': '$customer_phone'}, 'n': {'$sum': 1}}},
+            {'$group': {'_id': '$_id.p', 'customers': {'$sum': 1}, 'repeat': {'$sum': {'$cond': [{'$gt': ['$n', 1]}, 1, 0]}}}},
+            {'$match': {'customers': {'$gte': 5}}},
+        ]))
+        if rows:
+            worst = min(rows, key=lambda r: r['repeat'] / r['customers'])
+            prod = db.products.find_one({'id': worst['_id']}, {'name': 1, '_id': 0}) or {}
+            rate = round(100 * worst['repeat'] / worst['customers'])
+            if prod.get('name') and rate < 40:
+                recs.append({"type": "REVENUE_OPTIMIZE", "text": (f"Only {rate}% of {worst['customers']} customers who had '{prod['name']}' came back for it in 90 days. Send an aftercare tip 3 days after this service." if en else
+                                                                  f"Chỉ {rate}% trong {worst['customers']} khách làm '{prod['name']}' quay lại trong 90 ngày. Nên gửi tin hướng dẫn chăm sóc sau 3 ngày.")})
+        if not recs:
+            recs.append({"type": "CAMPAIGN_SUGGESTION", "text": ("Not enough history yet for data-based suggestions. Add customers and record sales in POS — suggestions appear automatically." if en else
+                                                                 "Chưa đủ dữ liệu để đề xuất. Thêm khách hàng và ghi bán hàng qua POS — đề xuất sẽ tự xuất hiện.")})
+        return recs
 
     @staticmethod
     def get_industry_recommendations(industry):
@@ -291,3 +393,25 @@ def recompute_customer_segments(business_id):
         recomputed += 1
 
     return recomputed
+
+
+def customer_fill_values(business_id, customer):
+    """(first_name, last_service, days_since_visit) THẬT của 1 khách — để điền vào mẫu tin của chiến dịch."""
+    from ai_context_engine import AIContextEngine
+    first = (customer.get('name') or '').strip().split(' ')[0]
+    last_service = ''
+    phone = customer.get('phone')
+    if phone:
+        for h in AIContextEngine._load_purchase_history(business_id, phone, limit=5):
+            name = ((h.get('products') or {}) if isinstance(h, dict) else {}).get('name')
+            if name:
+                last_service = name
+                break
+    days = None
+    lp = customer.get('last_purchase_at')
+    if lp:
+        try:
+            days = max(0, (datetime.datetime.now() - datetime.datetime.fromisoformat(str(lp)[:19])).days)
+        except ValueError:
+            days = None
+    return first, last_service, days

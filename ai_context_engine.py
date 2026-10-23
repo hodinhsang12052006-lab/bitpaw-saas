@@ -43,7 +43,7 @@ class AIContextEngine:
                 {'$limit': limit},
                 {'$lookup': {'from': 'products', 'localField': 'product_id', 'foreignField': 'id', 'as': '_product'}},
                 {'$addFields': {'products': {'$arrayElemAt': [{'$map': {
-                    'input': '_product', 'as': 'p', 'in': {'name': '$$p.name', 'category': '$$p.category'}
+                    'input': '$_product', 'as': 'p', 'in': {'name': '$$p.name', 'category': '$$p.category'}
                 }}, 0]}}},
                 {'$project': {'quantity': 1, 'total_price': 1, 'created_at': 1, 'products': 1, '_id': 0}}
             ]

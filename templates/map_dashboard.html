@@ -337,6 +337,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_no_jobs: 'Hiện tại không có Công việc (Job) nào đang bị ế trên Chợ Điều Phối.',
                 map_dashboard_ai_title_perfect: 'Hoàn Hảo',
                 map_dashboard_ai_all_busy: 'Tất cả thợ đều đang BẬN hoặc Offline. Không có ai để rải việc lúc này.',
+                map_dashboard_ai_need_location: 'Việc #{jobid} chưa có vị trí trên bản đồ (địa chỉ: {addr}). Hãy ghi thêm quận/thành phố vào địa chỉ để hệ thống tìm thợ gần nhất.',
                 map_dashboard_ai_title_alert: 'Báo Động',
                 map_dashboard_ai_found_tech: 'Đã quét thấy KTV <b>{name}</b> cách khách {dist}km.<br><br>👉 Hệ thống đã ép gán Job #{jobid} cho thợ này.',
                 map_dashboard_ai_title_success: 'Chốt Đơn Thành Công',
@@ -406,6 +407,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_no_jobs: 'There are currently no unclaimed jobs on the Dispatch Market.',
                 map_dashboard_ai_title_perfect: 'Perfect',
                 map_dashboard_ai_all_busy: 'All technicians are BUSY or offline. No one available to dispatch right now.',
+                map_dashboard_ai_need_location: 'Job #{jobid} has no map location yet (address: {addr}). Add the suburb/city to the address so the nearest technician can be found.',
                 map_dashboard_ai_title_alert: 'Alert',
                 map_dashboard_ai_found_tech: 'Found technician <b>{name}</b> {dist}km from the customer.<br><br>👉 The system has assigned Job #{jobid} to this technician.',
                 map_dashboard_ai_title_success: 'Job Confirmed',
@@ -726,7 +728,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
                 }
                 const targetTask = tasks[0];
-                const jobLatLng = [targetTask.lat || 12.2450, targetTask.lng || 109.1950];
+                // Toạ độ THẬT của khách: đã ghim / đã tra từ địa chỉ lúc tạo việc; chưa có thì tra lại từ địa chỉ.
+                // (Trước đây việc không có toạ độ bị gán mặc định toạ độ Nha Trang -> chọn thợ theo khoảng cách tới Việt Nam.)
+                if (targetTask.lat == null || targetTask.lng == null) {
+                    try {
+                        const g = await hrApi('/api/geocode?q=' + encodeURIComponent(targetTask.dia_chi || ''));
+                        targetTask.lat = g.lat; targetTask.lng = g.lng;
+                        await hrApi(`/api/tasks/${targetTask.id}`, { method: 'PATCH', body: JSON.stringify({ lat: g.lat, lng: g.lng }) });
+                    } catch (e) {
+                        showAIAlert(tf('map_dashboard_ai_need_location', { jobid: targetTask.id, addr: targetTask.dia_chi || '—' }), t('map_dashboard_ai_title_alert'));
+                        btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
+                    }
+                }
+                const jobLatLng = [targetTask.lat, targetTask.lng];
 
                 let bestWorker = null;
                 let shortestDistance = Infinity;
