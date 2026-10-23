@@ -835,7 +835,21 @@
                     <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-credit-card mr-2"></i> <span data-i18n="spa_choose_payment_title">Chọn cổng thanh toán</span></h3>
 
                     <div class="space-y-6">
-                        <div>
+                        <!-- Tiệm ở Mỹ/Úc: thu tại quầy (tiền mặt / quẹt thẻ trên máy của tiệm / chuyển khoản). Ô "Tiền mặt" được chuyển vào đây bằng JS. -->
+                        <div id="counterPayments" class="hidden">
+                            <div class="pay-category-title" data-i18n="spa_pay_category_counter">Thu tại quầy</div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="counterPayGrid">
+                                <div class="payment-method glass-card" data-method="card" data-type="counter">
+                                    <i class="fas fa-credit-card text-3xl text-sky-400"></i>
+                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_card_terminal">Thẻ (máy quẹt của tiệm)</p>
+                                </div>
+                                <div class="payment-method glass-card" data-method="bank" data-type="counter">
+                                    <i class="fas fa-building-columns text-3xl text-emerald-400"></i>
+                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_bank">Chuyển khoản</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="intlPayments">
                             <div class="pay-category-title" data-i18n="spa_pay_category_intl">Cards & Digital Wallets (Quốc tế)</div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div class="payment-method glass-card active" data-method="stripe" data-type="card">
@@ -900,6 +914,8 @@
                                 <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_phone_optional">Số điện thoại khách hàng (Tùy chọn)</label>
                                 <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
                             </div>
+                            <!-- Gói liệu trình của khách (service_packages.py): tick để dùng 1 buổi cho dịch vụ trong giỏ -->
+                            <div id="pkgBox" class="hidden bg-pink-500/10 border border-pink-400/30 rounded-xl p-3 space-y-2" aria-live="polite"></div>
 
                             <div id="cardDetailsBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4">
                                 <h3 class="text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-credit-card"></i> <span data-i18n="spa_label_card_info">Thông tin thẻ tín dụng</span></h3>
@@ -1002,7 +1018,7 @@
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `Lỗi máy chủ (${res.status})`);
+                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
             }
             return body;
         }
@@ -1231,6 +1247,13 @@
             currencySelector.closest('div').classList.toggle('hidden', !vndShop);
             // Tiệm ngoài Việt Nam: ẩn VietQR/VNPAY/MoMo, gợi ý SĐT không theo dạng VN
             document.getElementById('localVnPayments').classList.toggle('hidden', !vndShop);
+            document.getElementById('intlPayments').classList.toggle('hidden', !vndShop);
+            document.getElementById('counterPayments').classList.toggle('hidden', vndShop);
+            if (!vndShop) {  // ô Tiền mặt nằm trong nhóm Việt Nam -> đưa lên nhóm "thu tại quầy" để tiệm Mỹ/Úc thấy được
+                const cashOpt = document.querySelector('.payment-method[data-method="cash"]');
+                const grid = document.getElementById('counterPayGrid');
+                if (cashOpt && cashOpt.parentElement !== grid) grid.insertBefore(cashOpt, grid.firstChild);
+            }
             document.getElementById('custPhone').placeholder = vndShop ? '09xx xxx xxx' : '04xx xxx xxx';
             checkoutTotalSub.classList.toggle('hidden', !vndShop);
             selectedMethod = vndShop ? 'vnpay' : 'cash';
@@ -1246,6 +1269,9 @@
             updateCheckoutPriceDisplay();
             updatePaymentFormVisibility();
             
+            cart.forEach(it => { it.package_id = null; });
+            custPackages = []; renderPackageBox();
+            if (document.getElementById('custPhone').value.trim()) lookupPackages();
             // Hide Cart, Show Modal
             cartSidebar.classList.remove('open');
             globalCheckoutModal.classList.remove('hidden');
@@ -1260,6 +1286,43 @@
             currentCurrency = e.target.value;
             updateCheckoutPriceDisplay();
         });
+
+        // ===== Gói liệu trình: tra theo SĐT, dòng dùng gói = 0 trên bill (máy chủ kiểm tra lại + trừ buổi) =====
+        let custPackages = [];
+        function recalcCheckoutTotal() {
+            baseVND = cart.reduce((sum, it) => sum + (it.package_id ? 0 : it.price * it.qty), 0);
+            baseUSD = baseVND / exchangeRate;
+            updateCheckoutPriceDisplay();
+        }
+        function renderPackageBox() {
+            const box = document.getElementById('pkgBox');
+            if (!custPackages.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+            const rows = [];
+            cart.forEach((it, idx) => {
+                const pk = custPackages.find(p => p.sessions_left >= it.qty && (!p.service_ids.length || p.service_ids.includes(it.id)));
+                if (!pk) return;
+                rows.push(`<label class="flex items-start gap-2 text-sm cursor-pointer"><input type="checkbox" class="pkg-use mt-1" data-idx="${idx}" data-pkg="${pk.id}" ${it.package_id === pk.id ? 'checked' : ''}>
+                    <span><b>${escapeHtml(it.name)}</b><br><span class="text-pink-200/80 text-xs">${escapeHtml(tf('spa_pkg_use', { name: pk.name, left: pk.sessions_left }))}</span></span></label>`);
+            });
+            box.innerHTML = `<p class="text-xs font-bold text-pink-300 uppercase tracking-wider"><i class="fas fa-ticket mr-1"></i> ${t('spa_pkg_title')}</p>` +
+                (rows.join('') || `<p class="text-xs text-gray-400">${t('spa_pkg_none')}</p>`);
+            box.classList.remove('hidden');
+            box.querySelectorAll('.pkg-use').forEach(cb => cb.addEventListener('change', () => {
+                cart[cb.dataset.idx].package_id = cb.checked ? Number(cb.dataset.pkg) : null;
+                recalcCheckoutTotal();
+            }));
+        }
+        let pkgLookupTimer = null;
+        async function lookupPackages() {
+            const phone = document.getElementById('custPhone').value.trim();
+            cart.forEach(it => { it.package_id = null; });
+            custPackages = [];
+            if (phone.replace(/\D/g, '').length >= 6) {
+                try { custPackages = (await hrApi('/api/packages/customer?phone=' + encodeURIComponent(phone))).data || []; } catch (e) { custPackages = []; }
+            }
+            renderPackageBox(); recalcCheckoutTotal();
+        }
+        document.getElementById('custPhone').addEventListener('input', () => { clearTimeout(pkgLookupTimer); pkgLookupTimer = setTimeout(lookupPackages, 450); });
 
         function updateCheckoutPriceDisplay() {
             if (SHOP_CURRENCY !== 'VND') {
@@ -1297,13 +1360,12 @@
                 selectedMethod = method.dataset.method;
                 paymentType = method.dataset.type;
                 
-                if(['stripe', 'paypal', 'applepay', 'crypto'].includes(selectedMethod)) {
-                    currencySelector.value = 'USD';
+                if (SHOP_CURRENCY === 'VND') {
+                    currencySelector.value = ['stripe', 'paypal', 'applepay', 'crypto'].includes(selectedMethod) ? 'USD' : 'VND';
+                    currentCurrency = currencySelector.value;
                 } else {
-                    currencySelector.value = 'VND';
+                    currentCurrency = SHOP_CURRENCY;  // tiệm đô (AUD/USD) không quy đổi
                 }
-                
-                currentCurrency = currencySelector.value;
                 updateCheckoutPriceDisplay();
                 updatePaymentFormVisibility();
             });
@@ -1326,6 +1388,11 @@
                 if (selectedMethod === 'crypto') {
                     document.getElementById('cryptoAddressBox').classList.remove('hidden');
                 }
+            }
+            else if (paymentType === 'counter') {
+                redirectBlock.classList.remove('hidden');
+                document.getElementById('redirectIcon').className = selectedMethod === 'card' ? 'fas fa-credit-card text-4xl text-sky-400 mb-2' : 'fas fa-building-columns text-4xl text-emerald-400 mb-2';
+                document.getElementById('redirectText').innerText = t(selectedMethod === 'card' ? 'spa_redirect_card_terminal_text' : 'spa_redirect_bank_text');
             }
             else if (paymentType === 'redirect' || paymentType === 'wallet' || paymentType === 'cash') {
                 redirectBlock.classList.remove('hidden');
@@ -1363,7 +1430,7 @@
                     method: 'POST',
                     body: JSON.stringify({
                         // ma_nv: kỹ thuật viên của từng dịch vụ -> hoa hồng vào chấm công/bảng lương
-                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty, ma_nv: item.ma_nv || null })),
+                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty, ma_nv: item.ma_nv || null, package_id: item.package_id || null })),
                         payment_method: selectedMethod,
                         // Thu ngân bấm xác nhận tiền mặt = đã nhận tiền. Trước đây ghi 'pending' và KHÔNG có bước nào chuyển
                         // sang đã thu -> bill tiền mặt Spa không vào sổ giao dịch, khách không được cộng điểm.
@@ -1379,9 +1446,9 @@
                 // resultModal cần dùng lại sau khi cart đã bị xoá.
                 window.lastReceiptData = {
                     businessName: {{ brand_name|tojson }},
-                    items: cart.map(item => ({ name: item.name, qty: item.qty, price: item.price, total: item.price * item.qty })),
-                    subtotal: cart.reduce((s, item) => s + item.price * item.qty, 0),
-                    total: cart.reduce((s, item) => s + item.price * item.qty, 0),
+                    items: cart.map(item => ({ name: item.name + (item.package_id ? ' (package)' : ''), qty: item.qty, price: item.package_id ? 0 : item.price, total: item.package_id ? 0 : item.price * item.qty })),
+                    subtotal: cart.reduce((s, item) => s + (item.package_id ? 0 : item.price * item.qty), 0),
+                    total: cart.reduce((s, item) => s + (item.package_id ? 0 : item.price * item.qty), 0),
                     paymentMethod: selectedMethod.toUpperCase(),
                 };
 
@@ -1391,7 +1458,7 @@
                 globalCheckoutModal.classList.add('hidden');
                 
                 // Show Result Modal
-                const finalAmountStr = currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD');
+                const finalAmountStr = SHOP_CURRENCY !== 'VND' ? formatShop(baseVND) : (currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD'));
                 document.getElementById('resTxn').innerText = '#' + orderId;
                 document.getElementById('resMethod').innerText = selectedMethod.toUpperCase();
                 document.getElementById('resAmount').innerText = finalAmountStr;
@@ -1405,7 +1472,7 @@
 
             } catch (err) {
                 console.error(err);
-                showToast(t('spa_toast_transaction_error'), true);
+                showToast(err && err.message && !/^Lỗi máy chủ/.test(err.message) ? err.message : t('spa_toast_transaction_error'), true);
             } finally {
                 showLoading(false);
             }
@@ -1471,6 +1538,9 @@
                 spa_label_fullname: 'Họ và tên',
                 spa_label_email: 'Email nhận biên lai',
                 spa_label_phone_optional: 'Số điện thoại khách hàng (Tùy chọn)',
+                spa_pkg_title: 'Gói liệu trình của khách',
+                spa_pkg_use: 'Dùng 1 buổi từ "{name}" (còn {left})',
+                spa_pkg_none: 'Khách có gói nhưng không áp dụng cho dịch vụ trong giỏ.',
                 spa_label_card_info: 'Thông tin thẻ tín dụng',
                 spa_label_card_number: 'Số thẻ',
                 spa_label_expiry: 'Hết hạn (MM/YY)',
@@ -1498,6 +1568,9 @@
                 spa_crypto_address_label: 'Địa chỉ ví USDT (TRC20)',
                 spa_qr_title_scan: 'Quét mã {method}',
                 spa_redirect_cash_text: 'Thanh toán trực tiếp tại quầy khi đến sử dụng dịch vụ.',
+                spa_pay_category_counter: 'Thu tại quầy', spa_pay_card_terminal: 'Thẻ (máy quẹt của tiệm)', spa_pay_bank: 'Chuyển khoản',
+                spa_redirect_card_terminal_text: 'Quẹt thẻ trên máy của tiệm (Square/EFTPOS), xong bấm xác nhận để ghi bill.',
+                spa_redirect_bank_text: 'Khách chuyển khoản vào tài khoản của tiệm; kiểm tra tiền đã vào rồi bấm xác nhận.',
                 spa_redirect_online_text: 'Chuyển hướng an toàn để hoàn tất thanh toán.',
                 spa_toast_invalid_card: 'Số thẻ không hợp lệ',
                 spa_loading_connecting_gateway: 'Kết nối cổng {method}...',
@@ -1543,6 +1616,9 @@
                 spa_label_fullname: 'Full Name',
                 spa_label_email: 'Receipt Email',
                 spa_label_phone_optional: 'Customer Phone Number (Optional)',
+                spa_pkg_title: 'Customer packages',
+                spa_pkg_use: 'Use 1 session from "{name}" ({left} left)',
+                spa_pkg_none: 'This customer has packages, but none cover the services in the cart.',
                 spa_label_card_info: 'Credit Card Information',
                 spa_label_card_number: 'Card Number',
                 spa_label_expiry: 'Expiry (MM/YY)',
@@ -1570,6 +1646,9 @@
                 spa_crypto_address_label: 'USDT Wallet Address (TRC20)',
                 spa_qr_title_scan: 'Scan {method} Code',
                 spa_redirect_cash_text: 'Pay directly at the counter when you arrive for your service.',
+                spa_pay_category_counter: 'Take payment at the counter', spa_pay_card_terminal: 'Card (your terminal)', spa_pay_bank: 'Bank transfer',
+                spa_redirect_card_terminal_text: 'Charge the card on your own terminal (Square/EFTPOS), then confirm to record the bill.',
+                spa_redirect_bank_text: 'The client transfers to your business account; check it has arrived, then confirm.',
                 spa_redirect_online_text: 'Securely redirecting to complete payment.',
                 spa_toast_invalid_card: 'Invalid card number',
                 spa_loading_connecting_gateway: 'Connecting to {method} gateway...',

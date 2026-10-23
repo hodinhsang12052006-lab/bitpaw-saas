@@ -8,7 +8,7 @@
 
     <!-- SEO Meta + Entity JSON-LD dùng chung — xem templates/components/seo_meta.html -->
     {% set title = "BitPaw Production | Quản Lý Năng Suất Công Nhân & Cảnh Báo Hao Hụt Vật Tư" %}
-    {% set description = "BitPaw Production - Giải pháp quản trị nhà xưởng và xí nghiệp 4.0: Chấm công sản lượng công nhân di động, tự động cảnh báo tồn kho vật tư tối thiểu, kiểm soát tỷ lệ phế phẩm hao hụt và chốt lương khoán công bằng." %}
+    {% set description = "BitPaw Production - Quản lý xưởng: ghi sản lượng theo ca, trừ nguyên liệu theo định mức, cảnh báo tồn kho tối thiểu và lương khoán theo sản lượng." %}
     {% set keywords = "factory management software, production tracking software, worker productivity tracking, manufacturing SaaS, inventory shortage alerts, piece-rate payroll software, factory workforce management, production output tracking, warehouse inventory management, manufacturing ERP" %}
     {% set canonical_path = "solutions/production" %}
     {% set og_locale = "vi_VN" %}
@@ -17,7 +17,7 @@
     {% set faq_items = [
         {'q': 'BitPaw Production có chấm công sản lượng công nhân qua điện thoại di động không?', 'a': 'Có. Công nhân tự chấm công sản lượng ngay trên điện thoại tại xưởng, hệ thống tự tổng hợp để tính lương khoán, không cần ghi chép tay.'},
         {'q': 'Hệ thống có cảnh báo khi vật tư sắp hết không?', 'a': 'Có. BitPaw Production tự động cảnh báo khi tồn kho vật tư chạm ngưỡng tối thiểu, giúp xưởng chủ động đặt hàng trước khi thiếu hụt gây gián đoạn sản xuất.'},
-        {'q': 'Phần mềm có kiểm soát tỷ lệ phế phẩm hao hụt không?', 'a': 'Có. Hệ thống ghi nhận và kiểm soát tỷ lệ phế phẩm/hao hụt theo từng lô sản xuất, giúp quản lý xưởng phát hiện sớm bất thường và chốt lương khoán công bằng dựa trên sản lượng thực tế.'}
+        {'q': 'Phần mềm có kiểm soát tỷ lệ phế phẩm hao hụt không?', 'a': 'Có. Mỗi lần nhập sản lượng có ô ghi số phế phẩm; tỉ lệ vượt 5% được cảnh báo ngay để quản đốc kiểm tra, và lương khoán tính theo sản lượng đạt.'}
     ] %}
     {% include 'components/seo_meta.html' %}
 
@@ -245,7 +245,7 @@
             <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
                 <a href="#promise" class="hover:text-teal-400 transition-colors whitespace-nowrap" data-i18n="nav_solution">Giải Pháp</a>
                 <a href="#features" class="hover:text-teal-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
-                <a href="#ai-cskh" class="hover:text-teal-400 transition-colors whitespace-nowrap" data-i18n="nav_aicskh">AI CSKH</a>
+                <a href="#ai-cskh" class="hover:text-teal-400 transition-colors whitespace-nowrap" data-i18n="nav_aicskh">Trợ lý AI</a>
                 <a href="#calculator" class="hover:text-teal-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
@@ -277,7 +277,7 @@
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-teal-400 transition-colors" data-i18n="nav_solution">Giải Pháp</a>
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-teal-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
-            <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-teal-400 transition-colors" data-i18n="nav_aicskh">AI CSKH</a>
+            <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-teal-400 transition-colors" data-i18n="nav_aicskh">Trợ lý AI</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-teal-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
                 <span class="text-sm text-gray-400" data-i18n="mobile_lang_label">Ngôn ngữ:</span>
@@ -314,14 +314,11 @@
                 <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_title">
                     Chấm công sản lượng, <br class="hidden sm:inline">
                     <span class="text-gradient-teal drop-shadow-[0_4px_25px_rgba(13, 148, 136, 0.65)]">không lo hụt vật tư sản xuất.</span> <br class="hidden sm:inline">
-                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight">AI tự động cảnh báo tồn kho tối thiểu.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
-                    Hệ thống tự động ghi nhận số lượng sản phẩm công nhân làm ra theo tổ đội và ca gãy kíp, kiểm soát tỷ lệ phế phẩm hao hụt nghiêm ngặt và chốt lương khoán công bằng.
-                </p>
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">Ghi sản lượng từng công nhân theo ca, tự trừ nguyên vật liệu theo định mức khi nhập thành phẩm, báo nguyên liệu sắp hết và tính lương khoán theo sản lượng.</p>
                 <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register', industry='production') }}" class="bp-cta-pulse btn-neon-teal bg-teal-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(13, 148, 136, 0.4)]">
-                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Số hóa nhà xưởng 4.0</span>
+                        <i class="fas fa-magic"></i> <span data-i18n="hero_cta1">Số hoá nhà xưởng</span>
                     </a>
                     <a href="https://zalo.me/0794678904" target="_blank" class="glass text-white text-lg font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition border border-white/10 shadow-lg">
                         <i class="fas fa-comments text-cyan-400 animate-pulse"></i> <span data-i18n="hero_cta2">Nhận demo quản lý xưởng</span>
@@ -329,9 +326,9 @@
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
                     <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-industry text-teal-400"></i> <span data-i18n="hero_tag1">Chấm công sản lượng di động</span></span>
-                    <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-exclamation-triangle text-teal-400"></i> <span data-i18n="hero_tag2">Cảnh báo cạn kiệt vật tư</span></span>
+                    <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-exclamation-triangle text-teal-400"></i> <span data-i18n="hero_tag2">Báo nguyên liệu sắp hết</span></span>
                     <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-cubes text-teal-400"></i> <span data-i18n="hero_tag3">Quản lý đa kho bãi cloud</span></span>
-                    <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-robot text-teal-400"></i> <span data-i18n="hero_tag4">AI Financial báo cáo ròng</span></span>
+                    <span class="flex items-center gap-2 bg-teal-500/15 px-3 py-2 rounded-full border border-teal-500/30 shadow-[0_0_10px_rgba(13, 148, 136, 0.1)]"><i class="fas fa-robot text-teal-400"></i> <span data-i18n="hero_tag4">Báo cáo lãi lỗ xuất PDF/Excel</span></span>
                 </div>
             </div>
             
@@ -404,9 +401,7 @@
                                 <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_tag">Ngưng Trệ</span>
                             </div>
                             <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain1_title">Vật tư cạn kiệt bất ngờ, ngưng trệ dây chuyền</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">
-                                Không có radar cảnh báo tồn kho tối thiểu, dẫn đến việc nguyên vật liệu thô bị thiếu hụt bất ngờ buộc nhà máy phải ngưng trệ máy móc gây thiệt hại nặng nề.
-                            </p>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">Không ai để ý nguyên liệu sắp hết cho tới khi máy phải dừng chờ hàng.</p>
                         </div>
                     </div>
                 </div>
@@ -479,10 +474,8 @@
                                 </div>
                                 <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_tag">Hỏng Hóc Máy</span>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain5_title">Thiết bị máy móc hư hỏng đột ngột làm trễ hàng</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">
-                                Không lập lịch trình bảo trì máy móc định kỳ khoa học. Thiết bị đột ngột lăn ra hỏng hóc giữa ca kíp làm ngưng trệ và trễ hạn bàn giao dự án.
-                            </p>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug break-words" data-i18n="pain5_title">Hao hụt nguyên liệu không biết nằm ở đâu</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">Nguyên liệu xuất ra nhiều hơn thành phẩm làm ra, nhưng không có số liệu để biết hụt ở khâu nào, ca nào.</p>
                         </div>
                     </div>
                 </div>
@@ -515,35 +508,30 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div data-aos="zoom-in">
                 <span class="text-sm font-black tracking-widest text-cyan-400 uppercase" data-i18n="promise_label">SỰ KHÁC BIỆT CỦA BITPAW SOFTWARE</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="promise_title">
-                    Đồng bộ vận hành nhà xưởng 4.0 đám mây <br>
-                    <span class="text-gradient-teal">chống hao hụt vật tư, tối ưu hóa năng suất công nhân.</span>
-                </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed break-words" data-i18n="promise_desc">
-                    BitPaw số hóa triệt để khâu ghi nhận sản lượng, tự động cảnh báo tồn kho tối thiểu và kiểm soát định mức hao phí trên từng chi tiết sản phẩm.
-                </p>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="promise_title">Quản lý xưởng trên đám mây <br> <span class="text-gradient-teal">ít hao hụt vật tư, lương khoán rõ ràng.</span></h2>
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed break-words" data-i18n="promise_desc">BitPaw ghi sản lượng, trừ kho theo định mức và báo nguyên liệu sắp hết — có số liệu để biết hao hụt nằm ở đâu.</p>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-teal-500/20 transition-all duration-300">
                     <div class="text-teal-500 text-5xl mb-5"><i class="fas fa-satellite-dish"></i></div>
-                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card1_title">Chấm Sản Lượng Realtime</h3>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card1_desc">Công nhân tự chấm công sản lượng làm ra qua mobile, quản đốc phê duyệt tức thì chớp mắt.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card1_title">Ghi Sản Lượng Theo Ca</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card1_desc">Quản đốc hoặc công nhân nhập sản lượng theo ca ngay trên điện thoại, cộng thẳng vào bảng lương khoán.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-bell"></i></div>
-                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card2_title">Cảnh Báo Kho Tự Động</h3>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card2_desc">Radar tự động cảnh báo cạn kiệt nguyên liệu thô trước khi chạm ngưỡng tối thiểu.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card2_title">Báo Nguyên Liệu Sắp Hết</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card2_desc">Đặt ngưỡng cảnh báo; nguyên liệu dưới ngưỡng hiện đỏ trên trang tồn kho và có trong email báo cáo ngày.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-teal-500/20 transition-all duration-300">
                     <div class="text-teal-400 text-5xl mb-5"><i class="fas fa-recycle"></i></div>
                     <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card3_title">Kiểm Soát Định Mức</h3>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card3_desc">Thiết lập tỷ lệ hao phí nguyên liệu thô trên mỗi chi tiết gia công để triệt tiêu lãng phí.</p>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card3_desc">Khai định mức nguyên liệu cho mỗi thành phẩm; nhập thành phẩm là kho nguyên liệu tự trừ theo định mức.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-tools"></i></div>
-                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card4_title">Bảo Trì Thiết Bị Chủ Động</h3>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card4_desc">AI tự động thiết lập và lên lịch trình bảo dưỡng máy móc định kỳ tránh đột ngột hỏng hóc.</p>
+                    <h3 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight break-words" data-i18n="promise_card4_title">Đề Xuất Nhập Hàng</h3>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_card4_desc">Mỗi ngày hệ thống xem tốc độ dùng/bán và đề xuất số lượng nên nhập thêm; bạn duyệt hoặc bỏ qua.</p>
                 </div>
             </div>
         </div>
@@ -554,10 +542,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
                 <span class="text-sm font-black tracking-widest text-teal-500 uppercase" data-i18n="workflow_label">LUỒNG VẬN HÀNH THỰC TẾ</span>
-                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="workflow_title">
-                    Quy trình quản lý năng suất nhà xưởng <br>
-                    <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">số hóa đồng bộ, trừ kho tự động khép kín.</span>
-                </h2>
+                <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="workflow_title">Quy trình quản lý xưởng <br> <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">từ sản lượng tới kho và lương.</span></h2>
                 <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="workflow_desc">
                     Bản đồ quy trình từ lúc nhập kho nguyên liệu thô đến khi xuất xưởng thành phẩm:
                 </p>
@@ -654,9 +639,7 @@
                                 <div class="text-teal-400 text-2xl"><i class="fas fa-sync"></i></div>
                             </div>
                             <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="workflow_step5_title">Khấu trừ kho vật tư</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="workflow_step5_desc">
-                                Hệ thống tự động trừ kho số lượng sợi cotton thô, kim may tương ứng theo định lượng chớp nhoáng.
-                            </p>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="workflow_step5_desc">Nhập thành phẩm — kho nguyên liệu (vải, chỉ, phụ liệu…) tự trừ theo định mức.</p>
                         </div>
                     </div>
                     <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-teal-500/10 border border-teal-500/30 items-center justify-center text-teal-400 text-xs shadow-[0_0_10px_rgba(13, 148, 136, 0.3)]">
@@ -673,10 +656,8 @@
                                 <div class="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-500/40 text-teal-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(13, 148, 136, 0.3)]">06</div>
                                 <div class="text-teal-400 text-2xl"><i class="fas fa-exclamation-triangle"></i></div>
                             </div>
-                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="workflow_step6_title">Kích hoạt cảnh báo kho</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="workflow_step6_desc">
-                                AI phát hiện vật tư xuống ngưỡng an toàn tối thiểu, tự động phát tín hiệu đặt hàng nhà cung cấp.
-                            </p>
+                            <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="workflow_step6_title">Báo sắp hết hàng</h3>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="workflow_step6_desc">Nguyên liệu xuống dưới ngưỡng: hiện đỏ trên trang tồn kho, vào email báo cáo ngày và danh sách đề xuất nhập.</p>
                         </div>
                     </div>
                     <div class="hidden lg:flex absolute top-1/2 -right-4 translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-teal-500/10 border border-teal-500/30 items-center justify-center text-teal-400 text-xs shadow-[0_0_10px_rgba(13, 148, 136, 0.3)]">
@@ -733,9 +714,7 @@
                 <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words" data-i18n="features_title">
                     Tính Năng Lõi Số Hóa <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">Quản Trị Nhà Xưởng Chuyên Sâu</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="features_desc">
-                    Tất cả module vận hành được thiết kế chuyên biệt để triệt tiêu 100% rủi ro hao hụt lãng phí vật tư.
-                </p>
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="features_desc">Các module bám sát việc thật trong xưởng: sản lượng, định mức, tồn kho và lương khoán.</p>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
@@ -746,9 +725,7 @@
                             <i class="fas fa-hard-hat"></i>
                         </div>
                         <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature1_title">Chấm Công Sản Lượng Di Động</h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature1_desc">
-                            Công nhân tự check ngày công sản phẩm làm ra ngay tại máy trên mobile chớp mắt, quản đốc QC phê duyệt tại <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">chamcong_congnhan.html</a>.
-                        </p>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature1_desc">Quản đốc hoặc công nhân nhập sản lượng và phế phẩm theo ca trên điện thoại; mỗi lần nhập lưu người nhập và thời điểm. <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a></p>
                     </div>
                 </div>
 
@@ -759,9 +736,7 @@
                             <i class="fas fa-bell"></i>
                         </div>
                         <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature2_title">Cảnh Báo Tồn Kho Tối Thiểu</h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature2_desc">
-                            Radar cloud tự động phát tín hiệu đặt hàng khi nguyên vật liệu thô xuống dưới hạn mức an toàn tại <a href="{{ url_for('inventory_alert') }}" class="text-teal-400 underline hover:text-teal-300">inventory_alert.html</a>.
-                        </p>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature2_desc">Đặt ngưỡng cảnh báo cho nguyên liệu; dưới ngưỡng là hiện đỏ, vào email báo cáo ngày và đề xuất nhập hàng. <a href="/inventory_alert" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a></p>
                     </div>
                 </div>
 
@@ -771,10 +746,8 @@
                         <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 text-xl mb-6 border border-teal-500/20 group-hover:scale-110 transition-transform">
                             <i class="fas fa-calculator"></i>
                         </div>
-                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature3_title">Tính Lương Khoán 1-Click</h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature3_desc">
-                            Tự động kết chuyển ngày công sản phẩm, khấu trừ phế phẩm, bảo hiểm và xuất bảng lương chớp mắt tại <a href="{{ url_for('bangluong') }}" class="text-teal-400 underline hover:text-teal-300">bangluong.html</a>.
-                        </p>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature3_title">Lương Khoán Theo Sản Lượng</h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature3_desc">Sản lượng theo ca nhân đơn giá khoán, cộng phụ cấp và tăng ca vào bảng lương cuối kỳ. <a href="/bangluong" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a></p>
                     </div>
                 </div>
 
@@ -786,7 +759,7 @@
                         </div>
                         <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature4_title">Quản Lý Đa Kho Vật Tư</h3>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature4_desc">
-                            Theo dõi tồn kho nguyên liệu thô, bán thành phẩm và thành phẩm đóng gói chi tiết tại <a href="{{ url_for('quanly_kho') }}" class="text-teal-400 underline hover:text-teal-300">quanly_kho.html</a>.
+                            Theo dõi tồn kho nguyên liệu thô, bán thành phẩm và thành phẩm đóng gói chi tiết tại <a href="{{ url_for('quanly_kho') }}" class="text-teal-400 underline hover:text-teal-300"><span class="bf-vi">Dùng thử</span><span class="bf-en">Try it</span> →</a>
                         </p>
                     </div>
                 </div>
@@ -810,10 +783,8 @@
                         <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 text-xl mb-6 border border-teal-500/20 group-hover:scale-110 transition-transform">
                             <i class="fas fa-tools"></i>
                         </div>
-                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature6_title">Bảo Trì Máy Móc Chủ Động</h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature6_desc">
-                            AI tự thiết lập lịch trình bảo dưỡng định kỳ các thiết bị lò nung, máy dệt, tránh đột ngột hư hỏng gây gián đoạn tiến độ giao hàng.
-                        </p>
+                        <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature6_title">Báo Cáo Lãi Lỗ</h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature6_desc">Đối chiếu doanh thu đơn hàng với chi phí nguyên liệu và chi phí khác; xuất PDF hoặc Excel gửi kế toán.</p>
                     </div>
                 </div>
 
@@ -838,7 +809,7 @@
                         </div>
                         <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight break-words" data-i18n="feature8_title">Báo Cáo Hao Hụt Sản Xuất</h3>
                         <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="feature8_desc">
-                            Thống kê chi tiết tỷ lệ phế phẩm, doanh số xuất xưởng thành phẩm và lợi nhuận ròng P&L tại <a href="{{ url_for('report') }}" class="text-teal-400 underline hover:text-teal-300">report.html</a>.
+                            Thống kê chi tiết tỷ lệ phế phẩm, doanh số xuất xưởng thành phẩm và lợi nhuận ròng P&L tại <a href="{{ url_for('report') }}" class="text-teal-400 underline hover:text-teal-300"><span class="bf-vi">Dùng thử</span><span class="bf-en">Try it</span> →</a>
                         </p>
                     </div>
                 </div>
@@ -977,35 +948,27 @@
     <section id="ai-cskh" class="py-10 md:py-20 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-teal-500 uppercase">AI ANALYTICS ENGINE</span>
+                <span class="text-sm font-black tracking-widest text-teal-500 uppercase"><span class="bf-vi">TRỢ LÝ AI CHO XƯỞNG</span><span class="bf-en">AI ASSISTANT FOR THE WORKSHOP</span></span>
                 <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-8 tracking-tight break-words">
-                    AI Manufacturing Predictive Analytics
+                    <span class="bf-vi">Hỏi AI về kho, sản lượng và lãi lỗ</span><span class="bf-en">Ask AI about stock, output and profit</span>
                 </h2>
-                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="aicskh_desc">
-                    Hệ thống tích hợp trí tuệ nhân tạo dự đoán xu hướng cạn kiệt vật tư, tự động tối ưu hóa lịch trình xoay ca gãy tổ đội.
-                </p>
+                <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words" data-i18n="aicskh_desc">Hỏi AI Copilot về tồn kho, sản lượng và lãi lỗ bằng lời thường — AI trả lời từ dữ liệu thật của xưởng.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <!-- Left Content -->
                 <div data-aos="fade-right" class="space-y-6">
                     <div class="glass p-6 rounded-2xl border border-white/10">
-                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-satellite text-teal-400"></i> <span data-i18n="aicskh_card1_title">Cảnh báo đứt gãy vật tư thô</span></h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card1_desc">
-                            AI tự bóc tách tốc độ tiêu thụ nguyên liệu và tồn kho thực tế để đưa ra cảnh báo sớm nguy cơ đứt gãy nguồn cung trước khi chạm ngưỡng báo động tối thiểu.
-                        </p>
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-satellite text-teal-400"></i> <span data-i18n="aicskh_card1_title">Nguyên liệu sắp hết</span></h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card1_desc">AI liệt kê nguyên liệu dưới ngưỡng và gợi ý số lượng nên nhập dựa trên tốc độ dùng gần đây.</p>
                     </div>
                     <div class="glass p-6 rounded-2xl border border-white/10">
-                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-chart-line text-emerald-400"></i> <span data-i18n="aicskh_card2_title">Tối ưu hóa ca kíp sản xuất</span></h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card2_desc">
-                            AI tự động phân tích dữ liệu hiệu suất lò luyện, năng suất tổ đội theo từng khung giờ trong ngày để đề xuất lịch xoay ca kíp tối ưu hóa công suất xưởng.
-                        </p>
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-chart-line text-emerald-400"></i> <span data-i18n="aicskh_card2_title">Sản lượng theo tổ, theo ca</span></h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card2_desc">Tổng hợp sản lượng theo ca và theo người để bạn tự quyết xếp ca; không tự động đổi lịch thay bạn.</p>
                     </div>
                     <div class="glass p-6 rounded-2xl border border-white/10">
-                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-file-pdf text-amber-400"></i> <span data-i18n="aicskh_card3_title">Xuất báo cáo lợi nhuận PDF 1 chạm</span></h3>
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card3_desc">
-                            Báo cáo lợi nhuận P&L đối chiếu chi phí nguyên vật liệu và doanh thu đơn hàng có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với đối tác mà không cần tổng hợp thủ công lại trên Excel.
-                        </p>
+                        <h3 class="text-white font-extrabold text-[22px] mb-2 tracking-tight flex items-center gap-2 break-words"><i class="fas fa-file-pdf text-amber-400"></i> <span data-i18n="aicskh_card3_title">Xuất báo cáo lợi nhuận PDF</span></h3>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="aicskh_card3_desc">Báo cáo lãi lỗ đối chiếu chi phí nguyên vật liệu và doanh thu, xuất PDF/Excel một chạm để gửi kế toán.</p>
                     </div>
                 </div>
 
@@ -1026,22 +989,15 @@
                     <div class="space-y-4 text-xs font-medium">
                         <div class="flex gap-2">
                             <div class="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-teal-400"></i></div>
-                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300" data-i18n="aicskh_chat1">
-                                Phát hiện tốc độ dệt vải thô tăng vọt 35% trong 3 ngày qua. Tồn kho "Sợi cotton thô" thực tế còn: 150kg. Dự báo sẽ cạn kiệt trong 2 ngày tới.
-                            </div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300" data-i18n="aicskh_chat1">Tồn kho "Sợi cotton thô" còn 150 kg, dưới ngưỡng cảnh báo 200 kg. 7 ngày qua xưởng dùng trung bình 70 kg/ngày.</div>
                         </div>
                         <div class="flex gap-2 justify-end">
-                            <div class="bg-teal-500/20 border border-teal-500/30 p-3 rounded-2xl max-w-[80%] text-white text-right font-bold" data-i18n="aicskh_chat2">
-                                Lập đơn đặt hàng tự động gửi nhà cung cấp sợi cotton?
-                            </div>
+                            <div class="bg-teal-500/20 border border-teal-500/30 p-3 rounded-2xl max-w-[80%] text-white text-right font-bold" data-i18n="aicskh_chat2">Nên nhập thêm bao nhiêu?</div>
                             <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0"><i class="fas fa-user-tie text-cyan-400"></i></div>
                         </div>
                         <div class="flex gap-2">
                             <div class="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0"><i class="fas fa-robot text-teal-400"></i></div>
-                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300" data-i18n="aicskh_chat3">
-                                <p class="font-black text-white mb-1.5"><i class="fas fa-truck text-emerald-400"></i> Đã gửi email đặt hàng:</p>
-                                "Đã gửi phiếu đặt hàng tự động nhập thêm 500kg sợi cotton thô sang đối tác cung ứng. Lịch dự kiến bàn giao kho: Sáng mai (9:00)."
-                            </div>
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-2xl max-w-[80%] text-slate-300" data-i18n="aicskh_chat3">Gợi ý nhập khoảng 500 kg để đủ dùng ~1 tuần. Đề xuất đã có trong mục "Đề xuất nhập hàng" — bạn duyệt rồi gửi nhà cung cấp.</div>
                         </div>
                     </div>
                 </div>
@@ -1070,9 +1026,7 @@
                         <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
                     </div>
                     <div class="faq-content">
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq1_a">
-                            Mỗi khi hoàn tất chi tiết sản phẩm, công nhân nhập sản lượng trực tiếp trên mobile. Hệ thống bắt buộc quản đốc QC đi kiểm duyệt chéo và bấm phê duyệt thực tế, triệt tiêu hoàn toàn cơ hội nâng khống hay ghi nhận khống sản lượng.
-                        </p>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq1_a">Quản đốc hoặc công nhân nhập sản lượng theo ca trên điện thoại; mỗi lần nhập ghi rõ ai nhập, lúc nào, để đối chiếu khi cần.</p>
                     </div>
                 </div>
 
@@ -1083,22 +1037,18 @@
                         <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
                     </div>
                     <div class="faq-content">
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq2_a">
-                            Có. Bạn có thể cấu hình chi tiết định mức nguyên vật liệu phụ trợ tiêu thụ trên mỗi đơn vị thành phẩm (ví dụ: 1 cái áo cần 1.2m vải thô, 3 cái cúc). Khi xuất xưởng thành phẩm, hệ thống tự động tính toán trừ kho nguyên vật liệu tương ứng chính xác.
-                        </p>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq2_a">Có. Bạn khai định mức nguyên liệu cho mỗi đơn vị thành phẩm (ví dụ 1 áo = 1,2 m vải + 3 cúc). Khi nhập thành phẩm, kho nguyên liệu tự trừ đúng theo định mức.</p>
                     </div>
                 </div>
 
                 <!-- FAQ 3 -->
                 <div class="faq-item glass rounded-2xl border border-white/10 p-6 transition">
                     <div class="faq-header">
-                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq3_q">Hệ thống cảnh báo tồn kho tối thiểu có gửi tin nhắn SMS không?</h3>
+                        <h3 class="text-white font-extrabold text-[22px] tracking-tight break-words" data-i18n="faq3_q">Cảnh báo tồn kho tối thiểu được gửi thế nào?</h3>
                         <span class="faq-icon text-gray-400 text-lg transition-transform duration-300"><i class="fas fa-chevron-down"></i></span>
                     </div>
                     <div class="faq-content">
-                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq3_a">
-                            Có. Khi một nguyên liệu thô chạm ngưỡng báo động tối thiểu trong kho, hệ thống lập tức phát cảnh báo trực quan trên dashboard, đồng thời gửi thông báo đẩy qua Zalo/Email cho quản đốc kho và chủ doanh nghiệp để kịp thời nhập thêm hàng.
-                        </p>
+                        <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="faq3_a">Nguyên liệu dưới ngưỡng hiện đỏ trên trang Cảnh báo tồn kho và được liệt kê trong email báo cáo mỗi sáng gửi chủ doanh nghiệp.</p>
                     </div>
                 </div>
 
@@ -1149,7 +1099,7 @@
         <div class="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 opacity-30 rounded-full blur-[100px] pointer-events-none"></div>
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
             <h2 class="text-3xl md:text-4xl font-bold mb-8 tracking-tight break-words" data-i18n="cta_title">Bắt Đầu Số Hóa Vận Hành Nhà Xưởng Ngay Hôm Nay!</h2>
-            <p class="text-base md:text-lg text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed break-words" data-i18n="cta_desc">Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công sản lượng, cảnh báo tồn kho tối thiểu tự động và quản lý định lượng hao phí nguyên liệu thô.</p>
+            <p class="text-base md:text-lg text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed break-words" data-i18n="cta_desc">Đăng ký trong vài phút: ghi sản lượng, trừ kho theo định mức, cảnh báo tồn kho và lương khoán.</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('register', industry='production') }}" class="btn-neon-teal bg-teal-500 text-black text-lg font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(13, 148, 136, 0.4)]">
                     <i class="fas fa-rocket"></i> <span data-i18n="cta_btn1">Trải nghiệm dùng thử miễn phí</span>
@@ -1174,7 +1124,7 @@
                     </div>
                     <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-teal-400">Paw</span></h2>
                 </div>
-                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_about">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_about">Phần mềm tất cả trong một cho tiệm dịch vụ, bán lẻ và đội ngũ hiện trường — POS, lịch hẹn, nhân sự, nhắn tin khách hàng và AI làm việc trên dữ liệu thật.</p>
 
                 <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-teal-500 w-4"></i> <strong data-i18n="footer_company_name">Bitpaw Technology LLC</strong></p>
@@ -1461,13 +1411,13 @@
             vi: {
                 hero_badge: '🏭 BitPaw Software: Số Hóa Vận Hành Nhà Xưởng & Tính Lương Khoán Sản Lượng',
                 hero_title: 'Chấm công sản lượng, <br class="hidden sm:inline"> <span class="text-gradient-teal drop-shadow-[0_4px_25px_rgba(13, 148, 136, 0.65)]">không lo hụt vật tư sản xuất.</span> <br class="hidden sm:inline">',
-                hero_desc: 'Hệ thống tự động ghi nhận số lượng sản phẩm công nhân làm ra theo tổ đội và ca gãy kíp, kiểm soát tỷ lệ phế phẩm hao hụt nghiêm ngặt và chốt lương khoán công bằng.',
-                hero_cta1: 'Số hóa nhà xưởng 4.0',
+                hero_desc: 'Ghi sản lượng từng công nhân theo ca, tự trừ nguyên vật liệu theo định mức khi nhập thành phẩm, báo nguyên liệu sắp hết và tính lương khoán theo sản lượng.',
+                hero_cta1: 'Số hoá nhà xưởng',
                 hero_cta2: 'Nhận demo quản lý xưởng',
                 hero_tag1: 'Chấm công sản lượng di động',
-                hero_tag2: 'Cảnh báo cạn kiệt vật tư',
+                hero_tag2: 'Báo nguyên liệu sắp hết',
                 hero_tag3: 'Quản lý đa kho bãi cloud',
-                hero_tag4: 'AI Financial báo cáo ròng',
+                hero_tag4: 'Báo cáo lãi lỗ xuất PDF/Excel',
                 hero_card1_label: 'Năng suất tổ 02',
                 hero_card1_text: 'Đã dệt: 1,200 sản phẩm',
                 hero_card1_sub: 'Đồng bộ: Ca sáng • Tỷ lệ lỗi: 0.2%',
@@ -1479,13 +1429,13 @@
                 problems_desc: 'Vận hành nhà xưởng đòi hỏi tính liên tục cao. Bất kỳ sự thiếu hụt nguyên liệu hay sai sót tính sản phẩm công nhân nào cũng làm chậm tiến độ giao hàng dự án.',
                 pain1_tag: 'Ngưng Trệ',
                 pain1_title: 'Vật tư cạn kiệt bất ngờ, ngưng trệ dây chuyền',
-                pain1_desc: 'Không có radar cảnh báo tồn kho tối thiểu, dẫn đến việc nguyên vật liệu thô bị thiếu hụt bất ngờ buộc nhà máy phải ngưng trệ máy móc gây thiệt hại nặng nề.',
+                pain1_desc: 'Không ai để ý nguyên liệu sắp hết cho tới khi máy phải dừng chờ hàng.',
                 pain2_tag: 'Lệch Sản Lượng',
                 pain2_title: 'Tính sai sản lượng công nhân gây tị nạnh nội bộ',
                 pain2_desc: 'Nhân viên ghi chép tay số lượng thành phẩm công nhân làm ra cuối ngày. Thợ làm nhiều tị nạnh thợ làm ít vì chốt ngày công thiếu minh bạch.',
                 nav_solution: 'Giải Pháp',
                 nav_features: 'Tính Năng',
-                nav_aicskh: 'AI CSKH',
+                nav_aicskh: 'Trợ lý AI',
                 nav_pricing: 'Bảng Giá',
                 mobile_lang_label: 'Ngôn ngữ:',
                 header_login: 'Đăng Nhập',
@@ -1497,24 +1447,24 @@
                 pain4_title: 'Quản lý kho bán thành phẩm lộn xộn',
                 pain4_desc: 'Nguyên liệu thô, bán thành phẩm qua các tổ đội gia công và thành phẩm đóng gói bị xếp lộn xộn, làm chậm tiến độ giao hàng và rối loạn kho.',
                 pain5_tag: 'Hỏng Hóc Máy',
-                pain5_title: 'Thiết bị máy móc hư hỏng đột ngột làm trễ hàng',
-                pain5_desc: 'Không lập lịch trình bảo trì máy móc định kỳ khoa học. Thiết bị đột ngột lăn ra hỏng hóc giữa ca kíp làm ngưng trệ và trễ hạn bàn giao dự án.',
+                pain5_title: 'Hao hụt nguyên liệu không biết nằm ở đâu',
+                pain5_desc: 'Nguyên liệu xuất ra nhiều hơn thành phẩm làm ra, nhưng không có số liệu để biết hụt ở khâu nào, ca nào.',
                 pain6_tag: 'Mệt Đối Soát',
                 pain6_title: 'Mất nhiều ngày đối soát doanh số, hao hụt xưởng',
                 pain6_desc: 'Gom phiếu kiểm kho giấy, tính tiền công nhật và tiền khoán sản lượng cuối tháng là cực hình đối với quản đốc và kế toán xí nghiệp.',
                 promise_label: 'SỰ KHÁC BIỆT CỦA BITPAW SOFTWARE',
-                promise_title: 'Đồng bộ vận hành nhà xưởng 4.0 đám mây <br> <span class="text-gradient-teal">chống hao hụt vật tư, tối ưu hóa năng suất công nhân.</span>',
-                promise_desc: 'BitPaw số hóa triệt để khâu ghi nhận sản lượng, tự động cảnh báo tồn kho tối thiểu và kiểm soát định mức hao phí trên từng chi tiết sản phẩm.',
-                promise_card1_title: 'Chấm Sản Lượng Realtime',
-                promise_card1_desc: 'Công nhân tự chấm công sản lượng làm ra qua mobile, quản đốc phê duyệt tức thì chớp mắt.',
-                promise_card2_title: 'Cảnh Báo Kho Tự Động',
-                promise_card2_desc: 'Radar tự động cảnh báo cạn kiệt nguyên liệu thô trước khi chạm ngưỡng tối thiểu.',
+                promise_title: 'Quản lý xưởng trên đám mây <br> <span class="text-gradient-teal">ít hao hụt vật tư, lương khoán rõ ràng.</span>',
+                promise_desc: 'BitPaw ghi sản lượng, trừ kho theo định mức và báo nguyên liệu sắp hết — có số liệu để biết hao hụt nằm ở đâu.',
+                promise_card1_title: 'Ghi Sản Lượng Theo Ca',
+                promise_card1_desc: 'Quản đốc hoặc công nhân nhập sản lượng theo ca ngay trên điện thoại, cộng thẳng vào bảng lương khoán.',
+                promise_card2_title: 'Báo Nguyên Liệu Sắp Hết',
+                promise_card2_desc: 'Đặt ngưỡng cảnh báo; nguyên liệu dưới ngưỡng hiện đỏ trên trang tồn kho và có trong email báo cáo ngày.',
                 promise_card3_title: 'Kiểm Soát Định Mức',
-                promise_card3_desc: 'Thiết lập tỷ lệ hao phí nguyên liệu thô trên mỗi chi tiết gia công để triệt tiêu lãng phí.',
-                promise_card4_title: 'Bảo Trì Thiết Bị Chủ Động',
-                promise_card4_desc: 'AI tự động thiết lập và lên lịch trình bảo dưỡng máy móc định kỳ tránh đột ngột hỏng hóc.',
+                promise_card3_desc: 'Khai định mức nguyên liệu cho mỗi thành phẩm; nhập thành phẩm là kho nguyên liệu tự trừ theo định mức.',
+                promise_card4_title: 'Đề Xuất Nhập Hàng',
+                promise_card4_desc: 'Mỗi ngày hệ thống xem tốc độ dùng/bán và đề xuất số lượng nên nhập thêm; bạn duyệt hoặc bỏ qua.',
                 workflow_label: 'LUỒNG VẬN HÀNH THỰC TẾ',
-                workflow_title: 'Quy trình quản lý năng suất nhà xưởng <br> <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">số hóa đồng bộ, trừ kho tự động khép kín.</span>',
+                workflow_title: 'Quy trình quản lý xưởng <br> <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">từ sản lượng tới kho và lương.</span>',
                 workflow_desc: 'Bản đồ quy trình từ lúc nhập kho nguyên liệu thô đến khi xuất xưởng thành phẩm:',
                 workflow_step1_title: 'Nhập kho vật tư thô',
                 workflow_step1_desc: 'Nguyên liệu thô (vải cuộn, hạt nhựa) được cân đo nhập kho, dán nhãn định mức ban đầu.',
@@ -1525,28 +1475,28 @@
                 workflow_step4_title: 'Duyệt phế phẩm QC',
                 workflow_step4_desc: 'Bộ phận kiểm soát chất lượng QC phê duyệt sản phẩm lỗi phế phẩm để trừ tiền phạt công bằng.',
                 workflow_step5_title: 'Khấu trừ kho vật tư',
-                workflow_step5_desc: 'Hệ thống tự động trừ kho số lượng sợi cotton thô, kim may tương ứng theo định lượng chớp nhoáng.',
-                workflow_step6_title: 'Kích hoạt cảnh báo kho',
-                workflow_step6_desc: 'AI phát hiện vật tư xuống ngưỡng an toàn tối thiểu, tự động phát tín hiệu đặt hàng nhà cung cấp.',
+                workflow_step5_desc: 'Nhập thành phẩm — kho nguyên liệu (vải, chỉ, phụ liệu…) tự trừ theo định mức.',
+                workflow_step6_title: 'Báo sắp hết hàng',
+                workflow_step6_desc: 'Nguyên liệu xuống dưới ngưỡng: hiện đỏ trên trang tồn kho, vào email báo cáo ngày và danh sách đề xuất nhập.',
                 workflow_step7_title: 'Xuất xưởng thành phẩm',
                 workflow_step7_desc: 'In phiếu xuất kho thành phẩm, chốt vận chuyển giao hàng loạt cho đối tác và đại lý phân phối.',
                 workflow_step8_title: 'Doanh số, hao hụt cloud',
                 workflow_step8_desc: 'Doanh thu chi phí hao phí thực tế đồng bộ lên cloud chớp nhoáng báo cáo ròng cho ban giám đốc.',
                 features_label: 'HỆ THỐNG THỰC TẾ',
                 features_title: 'Tính Năng Lõi Số Hóa <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">Quản Trị Nhà Xưởng Chuyên Sâu</span>',
-                features_desc: 'Tất cả module vận hành được thiết kế chuyên biệt để triệt tiêu 100% rủi ro hao hụt lãng phí vật tư.',
+                features_desc: 'Các module bám sát việc thật trong xưởng: sản lượng, định mức, tồn kho và lương khoán.',
                 feature1_title: 'Chấm Công Sản Lượng Di Động',
-                feature1_desc: 'Công nhân tự check ngày công sản phẩm làm ra ngay tại máy trên mobile chớp mắt, quản đốc QC phê duyệt tại <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">chamcong_congnhan.html</a>.',
+                feature1_desc: 'Quản đốc hoặc công nhân nhập sản lượng và phế phẩm theo ca trên điện thoại; mỗi lần nhập lưu người nhập và thời điểm. <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a>',
                 feature2_title: 'Cảnh Báo Tồn Kho Tối Thiểu',
-                feature2_desc: 'Radar cloud tự động phát tín hiệu đặt hàng khi nguyên vật liệu thô xuống dưới hạn mức an toàn tại <a href="{{ url_for('inventory_alert') }}" class="text-teal-400 underline hover:text-teal-300">inventory_alert.html</a>.',
-                feature3_title: 'Tính Lương Khoán 1-Click',
-                feature3_desc: 'Tự động kết chuyển ngày công sản phẩm, khấu trừ phế phẩm, bảo hiểm và xuất bảng lương chớp mắt tại <a href="{{ url_for('bangluong') }}" class="text-teal-400 underline hover:text-teal-300">bangluong.html</a>.',
+                feature2_desc: 'Đặt ngưỡng cảnh báo cho nguyên liệu; dưới ngưỡng là hiện đỏ, vào email báo cáo ngày và đề xuất nhập hàng. <a href="/inventory_alert" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a>',
+                feature3_title: 'Lương Khoán Theo Sản Lượng',
+                feature3_desc: 'Sản lượng theo ca nhân đơn giá khoán, cộng phụ cấp và tăng ca vào bảng lương cuối kỳ. <a href="/bangluong" class="text-teal-400 underline hover:text-teal-300">Dùng thử →</a>',
                 feature4_title: 'Quản Lý Đa Kho Vật Tư',
                 feature4_desc: 'Theo dõi tồn kho nguyên liệu thô, bán thành phẩm và thành phẩm đóng gói chi tiết tại <a href="{{ url_for('quanly_kho') }}" class="text-teal-400 underline hover:text-teal-300">quanly_kho.html</a>.',
                 feature5_title: 'Định Lượng Định Mức Hao Phí',
                 feature5_desc: 'Bóc tách chi tiết lượng nguyên vật liệu tiêu thụ trên từng chi tiết sản phẩm gia công để giảm thiểu lãng phí phế phẩm nhà xưởng.',
-                feature6_title: 'Bảo Trì Máy Móc Chủ Động',
-                feature6_desc: 'AI tự thiết lập lịch trình bảo dưỡng định kỳ các thiết bị lò nung, máy dệt, tránh đột ngột hư hỏng gây gián đoạn tiến độ giao hàng.',
+                feature6_title: 'Báo Cáo Lãi Lỗ',
+                feature6_desc: 'Đối chiếu doanh thu đơn hàng với chi phí nguyên liệu và chi phí khác; xuất PDF hoặc Excel gửi kế toán.',
                 feature7_title: 'Phân Ca Trực Ca Kíp Tổ Đội',
                 feature7_desc: 'Xếp ca gãy, ca kíp xoay tua và phân bổ lịch trực cho thợ/công nhân chi tiết khoa học tránh chồng chéo giờ làm.',
                 feature8_title: 'Báo Cáo Hao Hụt Sản Xuất',
@@ -1576,25 +1526,25 @@
                 calc_bill_label7: 'THỰC LĨNH:',
                 calc_note_title: 'Kiểm soát phế phẩm QC chặt chẽ',
                 calc_note_desc: 'BitPaw Software tích hợp module kiểm duyệt chất lượng QC chặt chẽ, giảm tỷ lệ phế phẩm xưởng từ 8% xuống dưới <span class="text-teal-300 font-bold">1.5%</span> thực tế.',
-                aicskh_desc: 'Hệ thống tích hợp trí tuệ nhân tạo dự đoán xu hướng cạn kiệt vật tư, tự động tối ưu hóa lịch trình xoay ca gãy tổ đội.',
-                aicskh_card1_title: 'Cảnh báo đứt gãy vật tư thô',
-                aicskh_card1_desc: 'AI tự bóc tách tốc độ tiêu thụ nguyên liệu và tồn kho thực tế để đưa ra cảnh báo sớm nguy cơ đứt gãy nguồn cung trước khi chạm ngưỡng báo động tối thiểu.',
-                aicskh_card2_title: 'Tối ưu hóa ca kíp sản xuất',
-                aicskh_card2_desc: 'AI tự động phân tích dữ liệu hiệu suất lò luyện, năng suất tổ đội theo từng khung giờ trong ngày để đề xuất lịch xoay ca kíp tối ưu hóa công suất xưởng.',
-                aicskh_card3_title: 'Xuất báo cáo lợi nhuận PDF 1 chạm',
-                aicskh_card3_desc: 'Báo cáo lợi nhuận P&L đối chiếu chi phí nguyên vật liệu và doanh thu đơn hàng có thể xuất ngay ra file PDF chỉn chu chỉ với 1 chạm, sẵn sàng gửi kế toán hoặc trình bày với đối tác mà không cần tổng hợp thủ công lại trên Excel.',
-                aicskh_chat1: 'Phát hiện tốc độ dệt vải thô tăng vọt 35% trong 3 ngày qua. Tồn kho "Sợi cotton thô" thực tế còn: 150kg. Dự báo sẽ cạn kiệt trong 2 ngày tới.',
-                aicskh_chat2: 'Lập đơn đặt hàng tự động gửi nhà cung cấp sợi cotton?',
-                aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fas fa-truck text-emerald-400"></i> Đã gửi email đặt hàng:</p> "Đã gửi phiếu đặt hàng tự động nhập thêm 500kg sợi cotton thô sang đối tác cung ứng. Lịch dự kiến bàn giao kho: Sáng mai (9:00)."',
+                aicskh_desc: 'Hỏi AI Copilot về tồn kho, sản lượng và lãi lỗ bằng lời thường — AI trả lời từ dữ liệu thật của xưởng.',
+                aicskh_card1_title: 'Nguyên liệu sắp hết',
+                aicskh_card1_desc: 'AI liệt kê nguyên liệu dưới ngưỡng và gợi ý số lượng nên nhập dựa trên tốc độ dùng gần đây.',
+                aicskh_card2_title: 'Sản lượng theo tổ, theo ca',
+                aicskh_card2_desc: 'Tổng hợp sản lượng theo ca và theo người để bạn tự quyết xếp ca; không tự động đổi lịch thay bạn.',
+                aicskh_card3_title: 'Xuất báo cáo lợi nhuận PDF',
+                aicskh_card3_desc: 'Báo cáo lãi lỗ đối chiếu chi phí nguyên vật liệu và doanh thu, xuất PDF/Excel một chạm để gửi kế toán.',
+                aicskh_chat1: 'Tồn kho "Sợi cotton thô" còn 150 kg, dưới ngưỡng cảnh báo 200 kg. 7 ngày qua xưởng dùng trung bình 70 kg/ngày.',
+                aicskh_chat2: 'Nên nhập thêm bao nhiêu?',
+                aicskh_chat3: 'Gợi ý nhập khoảng 500 kg để đủ dùng ~1 tuần. Đề xuất đã có trong mục "Đề xuất nhập hàng" — bạn duyệt rồi gửi nhà cung cấp.',
                 faq_label: 'GIẢI ĐÁP THẮC MẮC',
                 faq_title: 'Hỏi Đáp <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">Về Phần Mềm BitPaw Production</span>',
                 faq_desc: 'Những thắc mắc thường gặp của các chủ xí nghiệp, quản đốc nhà xưởng khi số hóa sản xuất:',
                 faq1_q: 'Làm thế nào để công nhân chấm công sản lượng chính xác không gian lận?',
-                faq1_a: 'Mỗi khi hoàn tất chi tiết sản phẩm, công nhân nhập sản lượng trực tiếp trên mobile. Hệ thống bắt buộc quản đốc QC đi kiểm duyệt chéo và bấm phê duyệt thực tế, triệt tiêu hoàn toàn cơ hội nâng khống hay ghi nhận khống sản lượng.',
+                faq1_a: 'Quản đốc hoặc công nhân nhập sản lượng theo ca trên điện thoại; mỗi lần nhập ghi rõ ai nhập, lúc nào, để đối chiếu khi cần.',
                 faq2_q: 'Hệ thống có tự động trừ kho nguyên liệu thô theo định mức không?',
-                faq2_a: 'Có. Bạn có thể cấu hình chi tiết định mức nguyên vật liệu phụ trợ tiêu thụ trên mỗi đơn vị thành phẩm (ví dụ: 1 cái áo cần 1.2m vải thô, 3 cái cúc). Khi xuất xưởng thành phẩm, hệ thống tự động tính toán trừ kho nguyên vật liệu tương ứng chính xác.',
-                faq3_q: 'Hệ thống cảnh báo tồn kho tối thiểu có gửi tin nhắn SMS không?',
-                faq3_a: 'Có. Khi một nguyên liệu thô chạm ngưỡng báo động tối thiểu trong kho, hệ thống lập tức phát cảnh báo trực quan trên dashboard, đồng thời gửi thông báo đẩy qua Zalo/Email cho quản đốc kho và chủ doanh nghiệp để kịp thời nhập thêm hàng.',
+                faq2_a: 'Có. Bạn khai định mức nguyên liệu cho mỗi đơn vị thành phẩm (ví dụ 1 áo = 1,2 m vải + 3 cúc). Khi nhập thành phẩm, kho nguyên liệu tự trừ đúng theo định mức.',
+                faq3_q: 'Cảnh báo tồn kho tối thiểu được gửi thế nào?',
+                faq3_a: 'Nguyên liệu dưới ngưỡng hiện đỏ trên trang Cảnh báo tồn kho và được liệt kê trong email báo cáo mỗi sáng gửi chủ doanh nghiệp.',
                 faq4_q: 'Công nhân làm khoán theo sản lượng, lương có tự động tính không?',
                 faq4_a: 'Có. Bạn cấu hình đơn giá khoán theo từng công đoạn/sản phẩm, hệ thống tự cộng dồn sản lượng đã được quản đốc duyệt của từng công nhân theo ngày và tự tính ra lương khoán chính xác đến từng đơn vị sản phẩm, không cần kế toán tổng hợp tay cuối tháng.',
                 faq5_q: 'Xưởng có nhiều chuyền/công đoạn sản xuất khác nhau, theo dõi riêng từng chuyền được không?',
@@ -1602,10 +1552,10 @@
                 faq6_q: 'Cuối tháng có xuất được báo cáo sản lượng, tồn kho cho kế toán không?',
                 faq6_a: 'Có. Báo cáo sản lượng theo công nhân/chuyền và tồn kho nguyên vật liệu đều xuất được trực tiếp từ hệ thống bất cứ lúc nào, kế toán không cần cộng sổ tay từ nhiều bảng Excel rời rạc mỗi kỳ chốt lương.',
                 cta_title: 'Bắt Đầu Số Hóa Vận Hành Nhà Xưởng Ngay Hôm Nay!',
-                cta_desc: 'Đăng ký dùng thử miễn phí 14 ngày trọn vẹn mọi tính năng chấm công sản lượng, cảnh báo tồn kho tối thiểu tự động và quản lý định lượng hao phí nguyên liệu thô.',
+                cta_desc: 'Đăng ký trong vài phút: ghi sản lượng, trừ kho theo định mức, cảnh báo tồn kho và lương khoán.',
                 cta_btn1: 'Trải nghiệm dùng thử miễn phí',
                 cta_btn2: 'Nhận tư vấn qua Zalo',
-                footer_about: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_about: 'Phần mềm tất cả trong một cho tiệm dịch vụ, bán lẻ và đội ngũ hiện trường — POS, lịch hẹn, nhân sự, nhắn tin khách hàng và AI làm việc trên dữ liệu thật.',
                 footer_company_name: 'Bitpaw Technology LLC',
                 footer_address: '1390 Market Street, Suite 200, San Francisco, CA 94102, United States',
                 footer_products_heading: 'Sản Phẩm',
@@ -1641,13 +1591,13 @@
             en: {
                 hero_badge: '🏭 BitPaw Software: Digitize Factory Operations & Piece-Rate Payroll',
                 hero_title: 'Output-based attendance, <br class="hidden sm:inline"> <span class="text-gradient-teal drop-shadow-[0_4px_25px_rgba(13, 148, 136, 0.65)]">no more worrying about material shortages.</span> <br class="hidden sm:inline">',
-                hero_desc: 'A system that automatically records worker output by team and split shift, strictly controls defect/waste rates, and closes fair piece-rate payroll.',
-                hero_cta1: 'Digitize Your Factory 4.0',
+                hero_desc: 'Record each worker\'s output per shift, deduct raw materials by recipe when finished goods are booked in, flag materials running low and pay piece rates from real output.',
+                hero_cta1: 'Digitise your workshop',
                 hero_cta2: 'Get A Factory Management Demo',
                 hero_tag1: 'Mobile Output Tracking',
-                hero_tag2: 'Material Shortage Alerts',
+                hero_tag2: 'Low-material alerts',
                 hero_tag3: 'Cloud Multi-Warehouse Management',
-                hero_tag4: 'AI Net Financial Reporting',
+                hero_tag4: 'Profit report to PDF/Excel',
                 hero_card1_label: 'Team 02 Productivity',
                 hero_card1_text: 'Woven: 1,200 units',
                 hero_card1_sub: 'Sync: Morning shift • Defect rate: 0.2%',
@@ -1659,13 +1609,13 @@
                 problems_desc: 'Running a factory demands high continuity. Any material shortage or worker output miscalculation delays project delivery timelines.',
                 pain1_tag: 'Line Stoppage',
                 pain1_title: 'Sudden material shortages halt the production line',
-                pain1_desc: 'Without a minimum-stock alert radar, raw materials run out unexpectedly, forcing the factory to halt machinery, causing severe losses.',
+                pain1_desc: 'Nobody notices a material running out until the line stops and waits for stock.',
                 pain2_tag: 'Output Mismatch',
                 pain2_title: 'Miscalculated worker output causes internal resentment',
                 pain2_desc: 'Staff hand-record worker output quantities at day\'s end. High-output workers resent low-output ones due to a lack of transparency in daily attendance closing.',
                 nav_solution: 'Solutions',
                 nav_features: 'Features',
-                nav_aicskh: 'AI Support',
+                nav_aicskh: 'AI assistant',
                 nav_pricing: 'Pricing',
                 mobile_lang_label: 'Language:',
                 header_login: 'Log In',
@@ -1677,24 +1627,24 @@
                 pain4_title: 'Disorganized work-in-progress warehouse management',
                 pain4_desc: 'Raw materials, semi-finished goods moving through processing teams, and packaged finished goods get stacked haphazardly, slowing delivery and creating warehouse chaos.',
                 pain5_tag: 'Equipment Breakdown',
-                pain5_title: 'Sudden equipment failures delay shipments',
-                pain5_desc: 'Without a scientific, scheduled maintenance plan, machinery breaks down unexpectedly mid-shift, halting production and delaying project handover.',
+                pain5_title: 'Material waste you cannot trace',
+                pain5_desc: 'More material goes out than finished goods come back, but there are no numbers to show which step or shift it is lost in.',
                 pain6_tag: 'Reconciliation Fatigue',
                 pain6_title: 'Days lost reconciling revenue and factory losses',
                 pain6_desc: 'Collecting paper stock-count slips and calculating daily wages plus month-end piece-rate pay is a grueling task for supervisors and accountants.',
                 promise_label: 'THE BITPAW SOFTWARE DIFFERENCE',
-                promise_title: 'Synchronize cloud-based factory 4.0 operations <br> <span class="text-gradient-teal">to prevent material waste and optimize worker productivity.</span>',
-                promise_desc: 'BitPaw fully digitizes output recording, automatically alerts on minimum stock levels, and controls waste ratios down to every individual product detail.',
-                promise_card1_title: 'Real-Time Output Tracking',
-                promise_card1_desc: 'Workers self-report their output via mobile, and supervisors approve it instantly in a blink.',
-                promise_card2_title: 'Automatic Stock Alerts',
-                promise_card2_desc: 'A radar automatically warns of raw material shortages before they hit the minimum threshold.',
+                promise_title: 'Run the workshop from the cloud <br> <span class="text-gradient-teal">less material waste, clear piece-rate pay.</span>',
+                promise_desc: 'BitPaw records output, deducts stock by recipe and flags materials running low — so you can see where waste happens.',
+                promise_card1_title: 'Output Per Shift',
+                promise_card1_desc: 'The supervisor or worker records output per shift on the phone and it adds straight into piece-rate pay.',
+                promise_card2_title: 'Low-Material Alerts',
+                promise_card2_desc: 'Set alert levels; anything below shows red on the stock page and in the daily email report.',
                 promise_card3_title: 'Waste Ratio Control',
-                promise_card3_desc: 'Set raw material waste ratios for each processed product detail to eliminate waste.',
-                promise_card4_title: 'Proactive Equipment Maintenance',
-                promise_card4_desc: 'AI automatically sets up and schedules periodic machine maintenance to prevent sudden breakdowns.',
+                promise_card3_desc: 'Set the materials each finished product uses; booking in finished goods deducts materials by that recipe.',
+                promise_card4_title: 'Restock Suggestions',
+                promise_card4_desc: 'Every day usage/sales speed is checked and a reorder quantity suggested; you approve or dismiss it.',
                 workflow_label: 'REAL-WORLD OPERATING FLOW',
-                workflow_title: 'A factory productivity management process <br> <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">fully digitized, with closed-loop automatic stock deduction.</span>',
+                workflow_title: 'The workshop flow <br> <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">from output to stock and pay.</span>',
                 workflow_desc: 'The process map from raw material intake to finished goods shipment:',
                 workflow_step1_title: 'Receive Raw Materials',
                 workflow_step1_desc: 'Raw materials (fabric rolls, plastic pellets) are weighed, received into stock, and labeled with initial usage norms.',
@@ -1705,28 +1655,28 @@
                 workflow_step4_title: 'QC Defect Approval',
                 workflow_step4_desc: 'The quality control department approves defective units to deduct penalties fairly.',
                 workflow_step5_title: 'Deduct Material Stock',
-                workflow_step5_desc: 'The system automatically deducts stock of raw cotton yarn, needles, etc. according to instant usage norms.',
-                workflow_step6_title: 'Trigger Stock Alerts',
-                workflow_step6_desc: 'AI detects materials falling below the minimum safety threshold and automatically signals a reorder to the supplier.',
+                workflow_step5_desc: 'Book in finished goods — materials (fabric, thread, trims…) come off stock by recipe.',
+                workflow_step6_title: 'Low-stock alert',
+                workflow_step6_desc: 'A material drops below its level: it shows red on the stock page, in the daily email and in restock suggestions.',
                 workflow_step7_title: 'Ship Finished Goods',
                 workflow_step7_desc: 'Print finished-goods shipping slips and finalize bulk delivery to partners and distributors.',
                 workflow_step8_title: 'Cloud Revenue & Waste Reporting',
                 workflow_step8_desc: 'Actual revenue and waste costs sync to the cloud instantly for net reporting to the board of directors.',
                 features_label: 'REAL-WORLD SYSTEM',
                 features_title: 'Core Digital Features for <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">In-Depth Factory Management</span>',
-                features_desc: 'Every operating module is purpose-built to eliminate 100% of material waste risk.',
+                features_desc: 'Modules built around real workshop work: output, recipes, stock and piece-rate pay.',
                 feature1_title: 'Mobile Output Tracking',
-                feature1_desc: 'Workers self-check their daily product output right on the shop floor via mobile in a blink, and supervisors give QC approval at <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">chamcong_congnhan.html</a>.',
+                feature1_desc: 'The supervisor or worker records output and defects per shift on the phone; each entry stores who entered it and when. <a href="{{ url_for('chamcong_congnhan') }}" class="text-teal-400 underline hover:text-teal-300">Try it →</a>',
                 feature2_title: 'Minimum Stock Alerts',
-                feature2_desc: 'A cloud radar automatically signals a reorder when raw materials fall below the safety threshold at <a href="{{ url_for('inventory_alert') }}" class="text-teal-400 underline hover:text-teal-300">inventory_alert.html</a>.',
-                feature3_title: '1-Click Piece-Rate Payroll',
-                feature3_desc: 'Automatically carry over daily output, deduct for defects and insurance, and generate payroll instantly at <a href="{{ url_for('bangluong') }}" class="text-teal-400 underline hover:text-teal-300">bangluong.html</a>.',
+                feature2_desc: 'Set alert levels for materials; anything below shows red, appears in the daily email and in restock suggestions. <a href="/inventory_alert" class="text-teal-400 underline hover:text-teal-300">Try it →</a>',
+                feature3_title: 'Piece-Rate Payroll',
+                feature3_desc: 'Output per shift times the piece rate, plus allowances and overtime, flows into payroll. <a href="/bangluong" class="text-teal-400 underline hover:text-teal-300">Try it →</a>',
                 feature4_title: 'Multi-Warehouse Material Management',
                 feature4_desc: 'Track raw materials, work-in-progress, and packaged finished goods in detail at <a href="{{ url_for('quanly_kho') }}" class="text-teal-400 underline hover:text-teal-300">quanly_kho.html</a>.',
                 feature5_title: 'Material Usage Norm Tracking',
                 feature5_desc: 'Break down the exact amount of raw material consumed per processed product detail to minimize factory waste.',
-                feature6_title: 'Proactive Equipment Maintenance',
-                feature6_desc: 'AI automatically schedules periodic maintenance for furnaces, looms, and other equipment, preventing sudden breakdowns that disrupt delivery timelines.',
+                feature6_title: 'Profit & Loss Report',
+                feature6_desc: 'Compare order revenue with material and other costs; export to PDF or Excel for your accountant.',
                 feature7_title: 'Team Shift Scheduling',
                 feature7_desc: 'Arrange split shifts, rotating shifts, and schedule assignments for workers scientifically to avoid overlapping work hours.',
                 feature8_title: 'Production Waste Reporting',
@@ -1756,25 +1706,25 @@
                 calc_bill_label7: 'NET PAY:',
                 calc_note_title: 'Strict QC Defect Control',
                 calc_note_desc: 'BitPaw Software integrates a strict QC review module, reducing the factory defect rate from 8% to under <span class="text-teal-300 font-bold">1.5%</span> in practice.',
-                aicskh_desc: 'An AI-powered system predicts material shortage trends and automatically optimizes team shift rotation schedules.',
-                aicskh_card1_title: 'Raw Material Supply-Chain Break Alerts',
-                aicskh_card1_desc: 'AI breaks down material consumption speed versus actual stock to issue early warnings of supply-chain disruption before hitting the minimum alert threshold.',
-                aicskh_card2_title: 'Production Shift Optimization',
-                aicskh_card2_desc: 'AI automatically analyzes furnace performance and team productivity data by time of day to suggest an optimal shift rotation that maximizes factory capacity.',
-                aicskh_card3_title: 'One-Tap PDF Profit Report Export',
-                aicskh_card3_desc: 'The P&L report comparing raw-material cost against order revenue can be exported instantly as a polished PDF file with a single tap, ready to send to your accountant or present to partners without re-compiling anything manually in Excel.',
-                aicskh_chat1: 'Detected a 35% surge in raw fabric weaving speed over the past 3 days. "Raw cotton yarn" stock actually remaining: 150kg. Forecast to run out within 2 days.',
-                aicskh_chat2: 'Automatically create a purchase order to the cotton yarn supplier?',
-                aicskh_chat3: '<p class="font-black text-white mb-1.5"><i class="fas fa-truck text-emerald-400"></i> Order email sent:</p> "Automatically sent a purchase order for an additional 500kg of raw cotton yarn to the supply partner. Expected warehouse delivery: Tomorrow morning (9:00 AM)."',
+                aicskh_desc: 'Ask the AI Copilot about stock, output and profit in plain words — it answers from your real workshop data.',
+                aicskh_card1_title: 'Materials running low',
+                aicskh_card1_desc: 'The AI lists materials below their level and suggests reorder quantities from recent usage.',
+                aicskh_card2_title: 'Output by team and shift',
+                aicskh_card2_desc: 'Summarises output by shift and by person so you can decide the roster; it does not change schedules for you.',
+                aicskh_card3_title: 'Profit report to PDF',
+                aicskh_card3_desc: 'The profit report compares material costs with revenue and exports to PDF/Excel in one tap for your accountant.',
+                aicskh_chat1: '"Raw cotton yarn" is at 150 kg, below its 200 kg alert level. Over the last 7 days the workshop used about 70 kg a day.',
+                aicskh_chat2: 'How much should I reorder?',
+                aicskh_chat3: 'About 500 kg would cover roughly a week. It is in "Restock suggestions" — approve it and send it to your supplier.',
                 faq_label: 'FREQUENTLY ASKED QUESTIONS',
                 faq_title: 'Questions & Answers <span class="text-gradient-teal drop-shadow-[0_2px_10px_rgba(13, 148, 136, 0.3)]">About BitPaw Production Software</span>',
                 faq_desc: 'Common questions from factory owners and supervisors digitizing their production:',
                 faq1_q: 'How does the system ensure workers track output accurately without fraud?',
-                faq1_a: 'Every time a product is completed, the worker enters the output directly on mobile. The system requires a QC supervisor to cross-check and approve it in person, completely eliminating the chance of inflated or falsified output records.',
+                faq1_a: 'The supervisor or worker records output per shift on the phone; each entry records who entered it and when, so it can be checked.',
                 faq2_q: 'Does the system automatically deduct raw material stock based on usage norms?',
-                faq2_a: 'Yes. You can configure detailed usage norms for auxiliary materials consumed per finished unit (e.g., one shirt requires 1.2m of raw fabric, 3 buttons). When finished goods ship out, the system automatically calculates and deducts the corresponding material stock.',
-                faq3_q: 'Does the minimum stock alert system send SMS notifications?',
-                faq3_a: 'Yes. When a raw material hits the minimum alert threshold in the warehouse, the system immediately displays a visual alert on the dashboard and also sends a push notification via Zalo/Email to the warehouse supervisor and business owner so they can restock in time.',
+                faq2_a: 'Yes. You set the materials per finished unit (e.g. 1 shirt = 1.2 m fabric + 3 buttons). When finished goods are booked in, materials are deducted by that recipe.',
+                faq3_q: 'How are low-stock alerts sent?',
+                faq3_a: 'Materials below their level show red on the stock alert page and are listed in the owner\'s daily morning email.',
                 faq4_q: 'Workers are paid piecework by output — is their pay calculated automatically?',
                 faq4_a: 'Yes. You configure a piece rate per production stage/product, and the system automatically totals each worker\'s supervisor-approved daily output and calculates exact piecework pay down to the unit — no manual month-end reconciliation by accounting.',
                 faq5_q: 'Our factory has multiple production lines/stages — can each line be tracked separately?',
@@ -1782,10 +1732,10 @@
                 faq6_q: 'Can we export monthly output and inventory reports for accounting?',
                 faq6_a: 'Yes. Output-by-worker/line reports and raw-material inventory can both be exported directly from the system at any time — accounting no longer needs to manually reconcile scattered Excel sheets every payroll cycle.',
                 cta_title: 'Start Digitizing Your Factory Operations Today!',
-                cta_desc: 'Sign up for a full-featured 14-day free trial including output tracking, automatic minimum stock alerts, and raw material usage norm management.',
+                cta_desc: 'Sign up in minutes: output records, recipe-based stock deduction, low-stock alerts and piece-rate pay.',
                 cta_btn1: 'Try It Free',
                 cta_btn2: 'Get Advice via Zalo',
-                footer_about: 'A pioneering ALL-IN-ONE SaaS software empire applying AI Radar, multi-industry Smart POS, Omni-channel sales management, and Marketing Agency services in Vietnam.',
+                footer_about: 'All-in-one software for service businesses, retail and field teams — POS, bookings, staff, customer messaging and AI that works on your real data.',
                 footer_company_name: 'Bitpaw Technology LLC',
                 footer_address: '1390 Market Street, Suite 200, San Francisco, CA 94102, United States',
                 footer_products_heading: 'Products',

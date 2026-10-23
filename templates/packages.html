@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Gói liệu trình' if default_lang == 'vi' else 'Packages' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Gói liệu trình (service_packages.py). CSS tự chứa như trang Lịch ca. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #f472b6; --ok: #34d399; --warn: #fbbf24; --err: #fb7185; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+        .pk-main { flex: 1; min-width: 0; padding: 28px 28px 80px; max-width: 1180px; }
+        h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.01em; }
+        .lead { color: var(--muted); margin: 0 0 20px; max-width: 72ch; line-height: 1.6; font-size: 14px; }
+        .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+        section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 16px; min-width: 0; }
+        section.box h2 { font-size: 16px; font-weight: 800; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; }
+        section.box p.sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; line-height: 1.55; }
+        label.f { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin: 0 0 5px; }
+        .in { color-scheme: dark; width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; padding: 10px 11px; font: inherit; font-size: 14px; }
+        .in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(244,114,182,.15); }
+        select.in option { background: #10131f; }
+        .row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+        .row > div { min-width: 0; }
+        .btn { border: 0; border-radius: 11px; padding: 11px 16px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; background: var(--accent); color: #2a0617; display: inline-flex; gap: 8px; align-items: center; }
+        .btn.ghost { background: rgba(255,255,255,.07); color: var(--ink); border: 1px solid var(--line); }
+        .btn[disabled] { opacity: .55; cursor: progress; }
+        .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .svc { max-height: 150px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: rgba(0,0,0,.25); }
+        .svc label { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 4px 2px; cursor: pointer; }
+        .pkg { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 11px 0; border-top: 1px solid rgba(255,255,255,.06); }
+        .pkg:first-child { border-top: 0; }
+        .pkg b { display: block; } .pkg span { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+        .msg { font-size: 13px; padding: 10px 12px; border-radius: 12px; margin-top: 10px; line-height: 1.5; }
+        .msg.ok { color: var(--ok); background: rgba(52,211,153,.08); } .msg.err { color: var(--err); background: rgba(251,113,133,.08); }
+        table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.t th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 8px; border-bottom: 1px solid var(--line); }
+        table.t td { padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,.05); font-variant-numeric: tabular-nums; }
+        .bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; min-width: 70px; }
+        .bar i { display: block; height: 100%; background: var(--accent); }
+        .scroll { overflow-x: auto; }
+        .empty { color: var(--muted); font-size: 13px; }
+        @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { .pk-main { padding: 72px 14px 90px; } .row { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% include 'components/app_sidebar.html' %}
+<main class="pk-main">
+    <h1><i class="fas fa-ticket" style="color: var(--accent)"></i> {{ 'Gói liệu trình' if vi else 'Session packages' }}</h1>
+    <p class="lead">{{ 'Bán gói nhiều buổi (vd 10 buổi massage). Tiền ghi doanh thu lúc bán; mỗi lần khách tới, ở màn thanh toán chọn "Dùng buổi trong gói" — bill 0 đồng cho dịch vụ đó, gói tự trừ 1 buổi và KTV vẫn được hoa hồng theo giá trị 1 buổi.' if vi else 'Sell multi-visit packages (e.g. 10 massages). Revenue is recorded when you sell; on each visit choose "Use a package session" at checkout — that service is free on the bill, one session comes off the package, and the therapist still earns commission on the per-session value.' }}</p>
+
+    <div class="grid2">
+        <section class="box">
+            <h2><i class="fas fa-plus" style="color: var(--accent)"></i> {{ 'Tạo gói' if vi else 'Create a package' }}</h2>
+            <p class="sub">{{ 'Không chọn dịch vụ = dùng được cho mọi dịch vụ.' if vi else 'Leave services unticked to allow any service.' }}</p>
+            <div style="margin-bottom:10px"><label class="f" for="pName">{{ 'Tên gói' if vi else 'Package name' }}</label><input class="in" id="pName" maxlength="80" placeholder="{{ '10 buổi massage đá nóng' if vi else '10 x Hot stone massage' }}"></div>
+            <div class="row">
+                <div><label class="f" for="pSessions">{{ 'Số buổi' if vi else 'Sessions' }}</label><input class="in" id="pSessions" type="number" min="1" max="200" value="10" inputmode="numeric"></div>
+                <div><label class="f" for="pPrice">{{ 'Giá gói' if vi else 'Price' }}</label><input class="in" id="pPrice" type="number" min="0" step="0.01" inputmode="decimal"></div>
+                <div><label class="f" for="pDays">{{ 'Hạn dùng (ngày, 0 = không hạn)' if vi else 'Valid for (days, 0 = no expiry)' }}</label><input class="in" id="pDays" type="number" min="0" max="3650" value="365" inputmode="numeric"></div>
+            </div>
+            <label class="f">{{ 'Dịch vụ áp dụng' if vi else 'Services covered' }}</label>
+            <div class="svc" id="svcBox"></div>
+            <div style="margin-top:12px"><button class="btn" id="createBtn"><i class="fas fa-floppy-disk"></i> {{ 'Lưu gói' if vi else 'Save package' }}</button></div>
+            <div class="msg" id="createMsg" hidden></div>
+        </section>
+
+        <section class="box">
+            <h2><i class="fas fa-cash-register" style="color: var(--ok)"></i> {{ 'Bán gói cho khách' if vi else 'Sell a package' }}</h2>
+            <p class="sub">{{ 'Gói gắn theo số điện thoại khách; tiền vào sổ doanh thu ngay.' if vi else 'Packages are linked to the customer\'s phone number; payment goes into revenue straight away.' }}</p>
+            <div style="margin-bottom:10px"><label class="f" for="sPkg">{{ 'Gói' if vi else 'Package' }}</label><select class="in" id="sPkg"></select></div>
+            <div class="row">
+                <div><label class="f" for="sPhone">{{ 'SĐT khách' if vi else 'Customer phone' }}</label><input class="in" id="sPhone" inputmode="tel" autocomplete="off"></div>
+                <div><label class="f" for="sName">{{ 'Tên khách' if vi else 'Customer name' }}</label><input class="in" id="sName" autocomplete="off"></div>
+                <div><label class="f" for="sMethod">{{ 'Thanh toán' if vi else 'Payment' }}</label>
+                    <select class="in" id="sMethod"><option value="cash">{{ 'Tiền mặt' if vi else 'Cash' }}</option><option value="card">{{ 'Thẻ' if vi else 'Card' }}</option><option value="bank">{{ 'Chuyển khoản' if vi else 'Bank transfer' }}</option></select></div>
+            </div>
+            <button class="btn" id="sellBtn" style="background: var(--ok); color:#04140d"><i class="fas fa-check"></i> {{ 'Thu tiền & kích hoạt gói' if vi else 'Take payment & activate' }}</button>
+            <div class="msg" id="sellMsg" hidden></div>
+            <h2 style="margin-top:20px; font-size:14px">{{ 'Gói đang bán' if vi else 'Packages on sale' }}</h2>
+            <div id="pkgList"></div>
+        </section>
+    </div>
+
+    <section class="box">
+        <h2><i class="fas fa-users" style="color: var(--warn)"></i> {{ 'Gói khách đã mua' if vi else 'Customer packages' }}</h2>
+        <div class="scroll"><table class="t" id="soldTable"></table></div>
+    </section>
+</main>
+<script>
+(function () {
+    const VI = {{ 'true' if vi else 'false' }};
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let state = null;
+    const money = (v) => { try { return new Intl.NumberFormat(VI ? 'vi-VN' : 'en-US', { style: 'currency', currency: state.currency, maximumFractionDigits: state.currency === 'VND' ? 0 : 2 }).format(v); } catch (e) { return v; } };
+    async function api(url, method, body) {
+        const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.success === false) throw new Error(j.message || ('HTTP ' + r.status));
+        return j;
+    }
+    function note(id, text, ok) { const m = $(id); m.className = 'msg ' + (ok ? 'ok' : 'err'); m.textContent = text; m.hidden = false; }
+    async function load() {
+        state = await api('/api/packages');
+        $('svcBox').innerHTML = state.services.map((s) => `<label><input type="checkbox" value="${s.id}"> ${esc(s.name)} <span style="color:var(--muted);margin-left:auto">${money(s.price)}</span></label>`).join('') || `<span class="empty">${VI ? 'Chưa có dịch vụ.' : 'No services yet.'}</span>`;
+        $('sPkg').innerHTML = state.packages.map((p) => `<option value="${p.id}">${esc(p.name)} — ${p.sessions} × · ${money(p.price)}</option>`).join('');
+        $('sellBtn').disabled = !state.packages.length;
+        $('pkgList').innerHTML = state.packages.map((p) => `<div class="pkg"><div><b>${esc(p.name)}</b><span>${p.sessions} ${VI ? 'buổi' : 'sessions'} · ${money(p.price)} · ${money(p.price / p.sessions)}/${VI ? 'buổi' : 'session'} · ${p.valid_days ? p.valid_days + (VI ? ' ngày' : ' days') : (VI ? 'không hạn' : 'no expiry')}${p.service_ids.length ? ' · ' + p.service_ids.length + (VI ? ' dịch vụ' : ' services') : ''}</span></div>
+            <button class="btn ghost" data-retire="${p.id}" aria-label="${VI ? 'Ngừng bán' : 'Stop selling'} ${esc(p.name)}"><i class="fas fa-box-archive"></i></button></div>`).join('') || `<p class="empty">${VI ? 'Chưa có gói nào.' : 'No packages yet.'}</p>`;
+        const cols = VI ? ['Khách', 'Gói', 'Còn lại', 'Hạn dùng', 'Ngày mua'] : ['Customer', 'Package', 'Left', 'Expires', 'Bought'];
+        $('soldTable').innerHTML = state.sold.length ? `<thead><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>` + state.sold.map((c) => {
+            const pct = Math.round(100 * c.sessions_left / c.sessions_total);
+            const exp = c.expires_at ? c.expires_at.slice(0, 10) : '—';
+            return `<tr><td>${esc(c.customer_name || '')}<br><span style="color:var(--muted)">${esc(c.customer_phone)}</span></td><td>${esc(c.name)}</td>
+                <td><b>${c.sessions_left}</b> / ${c.sessions_total}<div class="bar"><i style="width:${pct}%"></i></div></td><td>${exp}</td><td>${c.purchased_at.slice(0, 10)}</td></tr>`;
+        }).join('') + '</tbody>' : `<tr><td class="empty">${VI ? 'Chưa bán gói nào.' : 'No packages sold yet.'}</td></tr>`;
+    }
+    $('createBtn').onclick = async (ev) => {
+        const b = ev.currentTarget; b.disabled = true;
+        try {
+            await api('/api/packages', 'POST', { name: $('pName').value, sessions: +$('pSessions').value, price: +$('pPrice').value, valid_days: +$('pDays').value,
+                service_ids: [...$('svcBox').querySelectorAll('input:checked')].map((x) => +x.value) });
+            note('createMsg', VI ? 'Đã lưu gói.' : 'Package saved.', true); $('pName').value = ''; $('pPrice').value = '';
+            await load();
+        } catch (e) { note('createMsg', e.message); }
+        b.disabled = false;
+    };
+    $('sellBtn').onclick = async (ev) => {
+        const b = ev.currentTarget; b.disabled = true;
+        try {
+            const r = await api('/api/packages/sell', 'POST', { package_id: +$('sPkg').value, customer_phone: $('sPhone').value, customer_name: $('sName').value, payment_method: $('sMethod').value });
+            note('sellMsg', (VI ? `Đã bán "${r.data.name}" cho ${r.data.customer_phone} — đơn #${r.order_id}, ${r.data.sessions_left} buổi.` : `Sold "${r.data.name}" to ${r.data.customer_phone} — order #${r.order_id}, ${r.data.sessions_left} sessions.`), true);
+            $('sPhone').value = ''; $('sName').value = '';
+            await load();
+        } catch (e) { note('sellMsg', e.message); }
+        b.disabled = false;
+    };
+    $('pkgList').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('[data-retire]'); if (!b) return;
+        if (!confirm(VI ? 'Ngừng bán gói này? Khách đã mua vẫn dùng bình thường.' : 'Stop selling this package? Customers who bought it can still use it.')) return;
+        await api('/api/packages/' + b.dataset.retire, 'DELETE'); await load();
+    });
+    load().catch((e) => note('createMsg', e.message));
+})();
+</script>
+</body>
+</html>

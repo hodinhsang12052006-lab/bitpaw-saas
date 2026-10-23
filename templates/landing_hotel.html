@@ -16,7 +16,7 @@
     {% set schema_subcategory = "Hotel & Homestay Property Management System (PMS)" %}
     {% set faq_items = [
         {'q': 'Does BitPaw Hotel show room availability in real time?', 'a': 'Yes. The system displays a live map of vacant, dirty, and occupied rooms, so front-desk staff can check in guests instantly without manually verifying room status.'},
-        {'q': 'Can guests book rooms online through BitPaw Hotel?', 'a': 'Yes. BitPaw Hotel includes a smart online booking system that lets guests reserve rooms directly, syncing automatically with the real-time room map to prevent double-booking.'},
+        {'q': 'Can guests book rooms online through BitPaw Hotel?', 'a': 'Not yet. Front-desk staff check guests in on the live room map, which prevents double-booking at the desk. Online room booking and OTA channel sync are on our roadmap.'},
         {'q': 'Does BitPaw Hotel handle hourly stays and mini-bar charges automatically?', 'a': "Yes. The Smart POS module automatically calculates hourly billing and mini-bar consumption per room, and can trigger AI-driven offers to guests during low-season periods."}
     ] %}
     {% include 'components/seo_meta.html' %}
@@ -256,7 +256,7 @@
             <nav class="hidden lg:flex items-center gap-8 text-sm font-bold text-gray-300 whitespace-nowrap">
                 <a href="#promise" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
                 <a href="#features" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
-                <a href="#ai-cskh" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_ai_cskh">AI CSKH</a>
+                <a href="#ai-cskh" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_ai_cskh">Trợ lý AI</a>
                 <a href="#calculator" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
             </nav>
 
@@ -288,7 +288,7 @@
         <nav class="flex flex-col gap-5 text-base font-bold text-gray-300">
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
-            <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_ai_cskh">AI CSKH</a>
+            <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_ai_cskh">Trợ lý AI</a>
             <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
                 <span class="text-sm text-gray-400" data-i18n="nav_language_label">Ngôn ngữ:</span>
@@ -325,11 +325,9 @@
                 <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 tracking-tight break-words" data-i18n="hero_h1">
                     Quản lý khách sạn <br class="hidden sm:inline">
                     <span class="text-gradient-blue drop-shadow-[0_4px_25px_rgba(59,130,246,0.65)]" data-i18n="hero_sub1">không còn lệch ca, trùng phòng.</span> <br class="hidden sm:inline">
-                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight" data-i18n="hero_sub2">AI tự nhắc ưu đãi mùa thấp điểm.</span>
+                    <span class="text-[26px] lg:text-[40px] font-extrabold text-gray-200 mt-4 block tracking-tight" data-i18n="hero_sub2">AI soạn tin mời khách quay lại.</span>
                 </h1>
-                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">
-                    Một màn hình gom lịch đặt phòng, sơ đồ buồng phòng realtime, check-in di động nhanh gọn, POS chốt bill mini bar/tiền giờ chuẩn xác và AI tự động kéo khách quen.
-                </p>
+                <p class="text-base md:text-lg text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed break-words" data-i18n="hero_desc">Sơ đồ phòng trống/đang ở/đang dọn, nhận phòng – trả phòng nhanh, ghi phụ thu minibar, giặt ủi vào phòng và gộp vào hoá đơn khi trả phòng.</p>
                 <div class="bp-hero-actions flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{{ url_for('register', industry='hotel') }}" class="bp-cta-pulse btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
                         <i class="fas fa-magic"></i> <span data-i18n="hero_btn1">Dùng thử cho khách sạn</span>
@@ -339,10 +337,10 @@
                     </a>
                 </div>
                 <div class="mt-6 flex flex-wrap justify-center lg:justify-start items-center gap-2.5 text-xs text-gray-200 font-bold uppercase tracking-wider">
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-bed text-blue-400"></i> <span data-i18n="hero_tag1">Sơ đồ phòng realtime</span></span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-bed text-blue-400"></i> <span data-i18n="hero_tag1">Sơ đồ phòng trực tiếp</span></span>
                     <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-calculator text-blue-400"></i> <span data-i18n="hero_tag2">POS tính tiền giờ/mini bar</span></span>
                     <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-users text-blue-400"></i> <span data-i18n="hero_tag3">CRM quản lý khách lưu trú</span></span>
-                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-robot text-blue-400"></i> <span data-i18n="hero_tag4">AI kéo khách mùa thấp điểm</span></span>
+                    <span class="flex items-center gap-2 bg-blue-500/15 px-3 py-2 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]"><i class="fas fa-robot text-blue-400"></i> <span data-i18n="hero_tag4">AI soạn tin mời khách cũ</span></span>
                 </div>
             </div>
             
@@ -415,9 +413,7 @@
                                 <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain1_badge">Trùng phòng</span>
                             </div>
                             <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain1_title">Lịch đặt phòng dễ trùng lặp chéo kênh</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">
-                                Khách đặt phòng từ các kênh OTA, Fanpage, Zalo chồng chéo. Lễ tân ghi sổ tay dễ bị sót hoặc trùng phòng làm khách đến không có phòng nhận gây ức chế cực lớn.
-                            </p>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain1_desc">Đặt phòng qua điện thoại, Fanpage, Zalo, ghi sổ tay — dễ trùng phòng, khách đến không có phòng.</p>
                         </div>
                     </div>
                 </div>
@@ -491,9 +487,7 @@
                                 <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain5_badge">Mất khách</span>
                             </div>
                             <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain5_title">Khách đi du lịch một lần rồi không quay lại</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">
-                                Khách check-out xong ra về là khách sạn mất kết nối. Không ai gửi ưu đãi đặc biệt hay nhắc nhở voucher giảm giá để kích thích họ quay lại vào mùa thấp điểm.
-                            </p>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain5_desc">Khách trả phòng là mất liên lạc; không ai mời khách quay lại vào mùa thấp điểm.</p>
                         </div>
                     </div>
                 </div>
@@ -510,9 +504,7 @@
                                 <span class="text-xs font-black text-red-400 bg-red-500/10 px-3 py-1 rounded-md uppercase tracking-wider border border-red-500/20 shadow-sm" data-i18n="pain6_badge">Mất kiểm soát</span>
                             </div>
                             <h3 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight group-hover:text-red-300 transition-colors leading-snug" data-i18n="pain6_title">Chủ ở xa mù mờ công suất phòng thực tế</h3>
-                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain6_desc">
-                                Không có radar giám sát hoạt động buồng phòng realtime. Sếp ở xa luôn trong tình trạng bất an vì không biết hôm nay thu về bao nhiêu tiền mặt, bao nhiêu chuyển khoản.
-                            </p>
+                            <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="pain6_desc">Ở xa không biết hôm nay bao nhiêu phòng có khách, thu được bao nhiêu.</p>
                         </div>
                     </div>
                 </div>
@@ -531,30 +523,30 @@
                     <span class="text-gradient-blue" data-i18n="promise_title2">siêu tốc, lấp đầy phòng trống mùa thấp điểm.</span>
                 </h2>
                 <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-16 leading-relaxed break-words">
-                    <span data-i18n="promise_desc">BitPaw số hóa và đồng bộ chặt chẽ buồng phòng, lễ tân và kho bãi, tạo ra trải nghiệm lưu trú cao cấp tuyệt đối cho khách hàng.</span>
+                    <span data-i18n="promise_desc">BitPaw nối lễ tân, buồng phòng và thu ngân: trạng thái phòng, phụ thu và hoá đơn trên cùng một hệ thống.</span>
                 </p>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-blue-500/20 transition-all duration-300">
                     <div class="text-blue-500 text-5xl mb-5"><i class="far fa-calendar-alt"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat1_title">Đặt phòng tự động</h4>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat1_title">Nhận / trả phòng nhanh</h4>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat1_desc">Khách đặt phòng trực tuyến tiện lợi, tự xác nhận khóa buồng phòng trống thông minh.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-bed"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat2_title">Sơ đồ phòng realtime</h4>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat2_title">Sơ đồ phòng trực tiếp</h4>
                     <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat2_desc">Trực quan hóa trạng thái dọn dẹp buồng phòng Trống/Dơ/Bận tức thời trên di động.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-blue-500/20 transition-all duration-300">
                     <div class="text-blue-400 text-5xl mb-5"><i class="fas fa-calculator"></i></div>
                     <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat3_title">POS chốt bill chuẩn</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat3_desc">Tự cộng tiền phòng lẻ giờ, phụ thu mini bar và tự tạo mã QR Code ngân hàng động.</p>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat3_desc">Tính tiền phòng theo số đêm, cộng phụ thu minibar, giặt ủi vào cùng hoá đơn.</p>
                 </div>
                 <div class="glass p-6 rounded-2xl border border-white/10 text-center hover:border-cyan-500/20 transition-all duration-300">
                     <div class="text-cyan-400 text-5xl mb-5"><i class="fas fa-robot"></i></div>
-                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat4_title">AI kéo khách cũ</h4>
-                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat4_desc">AI dựa trên thói quen, tự động gửi ưu đãi thu hút khách quay lại vào mùa thấp điểm.</p>
+                    <h4 class="font-extrabold text-white text-[22px] lg:text-[28px] mb-3 tracking-tight" data-i18n="promise_feat4_title">Mời khách cũ quay lại</h4>
+                    <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words" data-i18n="promise_feat4_desc">AI soạn tin ưu đãi mùa thấp điểm từ lịch sử lưu trú; bạn duyệt rồi gửi.</p>
                 </div>
             </div>
         </div>
@@ -569,7 +561,7 @@
                     <span data-i18n="workflow_title">Hành trình vận hành khách sạn</span> <span class="text-gradient-blue drop-shadow-[0_2px_10px_rgba(59,130,246,0.3)]" data-i18n="workflow_title2">số hóa trơn tru khép kín</span>
                 </h2>
                 <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed break-words">
-                    <span data-i18n="workflow_desc">Bản đồ quy trình số hóa từ lúc đặt phòng đến buồng phòng dọn dẹp và AI chăm sóc:</span>
+                    <span data-i18n="workflow_desc">Quy trình từ lúc khách nhận phòng tới dọn phòng và chăm sóc sau lưu trú:</span>
                 </p>
             </div>
             
@@ -645,7 +637,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf4_title">Dọn dẹp buồng phòng</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="wf4_desc">Bộ phận buồng phòng cập nhật buồng đã sạch lên sơ đồ di động realtime.</span>
+                                <span data-i18n="wf4_desc">Buồng phòng dọn xong bấm "sạch" — phòng về trạng thái trống trên sơ đồ.</span>
                             </p>
                         </div>
                     </div>
@@ -705,7 +697,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf7_title">QR thanh toán động</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="wf7_desc">POS tự tạo mã QR Code ngân hàng động giúp khách chuyển khoản an toàn.</span>
+                                <span data-i18n="wf7_desc">Chốt hoá đơn, thu tiền mặt, thẻ hoặc chuyển khoản (quán ở Việt Nam có VietQR đúng số tiền).</span>
                             </p>
                         </div>
                     </div>
@@ -723,9 +715,9 @@
                                 <div class="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 flex items-center justify-center font-bold text-sm shadow-[0_0_8px_rgba(59,130,246,0.3)]">08</div>
                                 <div class="text-blue-400 text-2xl"><i class="fas fa-magic"></i></div>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf8_title">AI nhắc ưu đãi</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 tracking-tight" data-i18n="wf8_title">Mời khách quay lại</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="wf8_desc">AI tự động gửi kịch bản ưu đãi ngày vắng, kéo khách cũ ghé thăm lại.</span>
+                                <span data-i18n="wf8_desc">AI soạn tin ưu đãi ngày vắng cho khách cũ; bạn duyệt rồi gửi qua SMS/email.</span>
                             </p>
                         </div>
                     </div>
@@ -747,7 +739,7 @@
                 </p>
                 <div class="mt-5 inline-flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-4 py-2 rounded-full">
                     <i class="fas fa-circle-check"></i>
-                    <span data-i18n="features_trust_badge">100% tính năng thật — bấm vào từng mục để dùng ngay, không phải ảnh minh hoạ</span>
+                    <span data-i18n="features_trust_badge">Tính năng đang chạy thật — bấm vào từng mục để dùng thử, không phải ảnh minh hoạ</span>
                 </div>
             </div>
 
@@ -787,7 +779,7 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm" data-i18n="feat2_tag">Sơ đồ phòng</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat2_title">Sơ Đồ Phòng Realtime</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat2_title">Sơ Đồ Phòng Trực Tiếp</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
                                 <span data-i18n="feat2_desc">Hiển thị trực quan sơ đồ buồng phòng trống/dơ/bận giúp sếp linh hoạt xếp lịch nhận phòng, dọn phòng cho khách ở</span> <a href="{{ url_for('quanly_dichvu') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat2_link">QR Menu dịch vụ</a>.
                             </p>
@@ -812,7 +804,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-blue-400 transition-colors tracking-tight" data-i18n="feat3_title">Quy Trình Nhận Phòng</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat3_desc">Điều phối ca trực lễ tân, kiểm tra thông tin khách lưu trú, khai báo tạm trú trơn tru tại</span> <a href="{{ url_for('nhanvien') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat3_link">Bảng điều phối nhân viên</a>.
+                                <span data-i18n="feat3_desc">Điều phối ca trực lễ tân, kiểm tra thông tin khách lưu trú, khai báo tạm trú trơn tru.</span> <a href="{{ url_for('nhanvien') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat3_link">Bảng điều phối nhân viên</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -835,7 +827,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat4_title">Phụ Thu Dịch Vụ Đi Kèm</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat4_desc">Ghi phụ thu minibar, giặt ủi, ăn tại phòng ngay trong lúc khách đang ở, tự động gộp vào hoá đơn khi trả phòng — không bỏ sót khoản thu nào tại</span> <a href="{{ url_for('hotel_rooms_page') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat4_link">Quản Lý Phòng</a>.
+                                <span data-i18n="feat4_desc">Ghi phụ thu minibar, giặt ủi, ăn tại phòng ngay trong lúc khách đang ở, tự động gộp vào hoá đơn khi trả phòng — không bỏ sót khoản thu nào.</span> <a href="{{ url_for('hotel_rooms_page') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat4_link">Quản Lý Phòng</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -858,7 +850,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-blue-400 transition-colors tracking-tight" data-i18n="feat5_title">Smart POS Tính Tiền</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat5_desc">Tính tiền phòng theo ngày thường, giờ lẻ, ngày lễ, tự cộng tiền đồ uống mini bar và tạo QR động thanh toán chuyển khoản tức thì ở</span> <a href="{{ url_for('pos') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat5_link">POS tính tiền</a>.
+                                <span data-i18n="feat5_desc">Tính tiền phòng theo số đêm, cộng phụ thu minibar và dịch vụ, in hoá đơn gộp khi trả phòng.</span> <a href="{{ url_for('pos') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat5_link">POS tính tiền</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -881,7 +873,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat6_title">Hồ Sơ Khách Lưu Trú</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat6_desc">Hồ sơ khách lưu trú đầy đủ số CMT/căn cước, lịch sử nhận trả phòng, thói quen đi du lịch chuyên nghiệp tại</span> <a href="{{ url_for('customers') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat6_link">Hồ sơ khách hàng CRM</a>.
+                                <span data-i18n="feat6_desc">Hồ sơ khách lưu trú đầy đủ số CMT/căn cước, lịch sử nhận trả phòng, thói quen đi du lịch chuyên nghiệp.</span> <a href="{{ url_for('customers') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat6_link">Hồ sơ khách hàng CRM</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -904,7 +896,7 @@
                             </div>
                             <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-blue-400 transition-colors tracking-tight" data-i18n="feat7_title">Báo Cáo Công Suất Phòng</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat7_desc">Báo cáo tỷ lệ lấp đầy phòng nghỉ, doanh thu thực tế từ tiền phòng và tiền nước uống mini bar chi tiết tại</span> <a href="{{ url_for('baocao_loinhuan') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat7_link">Báo cáo doanh thu realtime</a>.
+                                <span data-i18n="feat7_desc">Báo cáo tỷ lệ lấp đầy phòng nghỉ, doanh thu thực tế từ tiền phòng và tiền nước uống mini bar chi tiết.</span> <a href="{{ url_for('baocao_loinhuan') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat7_link">Báo cáo doanh thu</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -925,9 +917,9 @@
                                 </div>
                                 <span class="text-xs font-black text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-md uppercase tracking-wider border border-cyan-500/20 shadow-sm">AI marketing</span>
                             </div>
-                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat8_title">AI Gợi Ý Ưu Đãi Ngày Vắng</h4>
+                            <h4 class="text-[22px] lg:text-[28px] font-extrabold text-white mb-3 group-hover:text-cyan-400 transition-colors tracking-tight" data-i18n="feat8_title">AI Soạn Ưu Đãi Ngày Vắng</h4>
                             <p class="text-base md:text-lg text-slate-300 leading-relaxed break-words">
-                                <span data-i18n="feat8_desc">AI tự động lập kịch bản email/Zalo giới thiệu ưu đãi mùa thấp điểm cá nhân hóa dựa trên lịch sử lưu trú của khách tại</span> <a href="{{ url_for('campaign_builder') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat6_link">Hồ sơ khách hàng CRM</a>.
+                                <span data-i18n="feat8_desc">AI soạn tin ưu đãi mùa thấp điểm cá nhân hoá từ lịch sử lưu trú; bạn duyệt rồi gửi qua SMS/email.</span> <a href="{{ url_for('campaign_builder') }}" class="text-blue-400 hover:underline font-bold" data-i18n="feat6_link">Hồ sơ khách hàng CRM</a>.
                             </p>
                         </div>
                         <div class="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 mt-6 group-hover:gap-2.5 transition-all">
@@ -1006,7 +998,7 @@
                     </div>
                     
                     <div class="mt-8 pt-4 border-t border-white/5 flex gap-2">
-                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-blue-500 text-base animate-pulse"></i> <span data-i18n="calc_note">POS tự tạo mã QR Code ngân hàng động đã trừ cọc của khách, sếp đối soát từ xa cực kỳ nhàn nhã.</span></span>
+                        <span class="text-sm text-slate-300 font-bold flex items-center gap-1.5"><i class="fas fa-info-circle text-blue-500 text-base animate-pulse"></i> <span data-i18n="calc_note">Hoá đơn gộp tiền phòng và phụ thu; cuối ngày email báo cáo cho biết đã thu bao nhiêu.</span></span>
                     </div>
                 </div>
                 
@@ -1049,12 +1041,12 @@
     <section id="ai-cskh" class="py-10 md:py-20 relative overflow-hidden z-10 bg-transparent scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
-                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase" data-i18n="cskh_label">CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG</span>
+                <span class="text-sm font-black tracking-widest text-cyan-400 uppercase" data-i18n="cskh_label">TRỢ LÝ CHĂM SÓC KHÁCH</span>
                 <h2 class="mt-3 tracking-tight text-3xl md:text-4xl font-bold mb-8 break-words">
                     <span data-i18n="cskh_title">Khách đi du lịch luôn có chu kỳ.</span> <br><span data-i18n="cskh_title2">Vấn đề là</span> <span class="text-gradient-blue" data-i18n="cskh_title3">khách sạn có nhớ để nhắc hay không?</span>
                 </h2>
                 <p class="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed break-words">
-                    <span data-i18n="cskh_desc">AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng lưu trú theo chu kỳ nghỉ dưỡng, tăng tối đa cơ hội lấp đầy phòng trống:</span>
+                    <span data-i18n="cskh_desc">AI soạn sẵn tin chăm sóc sau lưu trú từ lịch sử thật của khách; bạn duyệt rồi tin gửi đúng khung giờ, có cách từ chối nhận:</span>
                 </p>
             </div>
             
@@ -1064,7 +1056,7 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh1_time">AI gợi ý • Sau 1 ngày</span>
+                            <span class="text-xs font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh1_time">Bản nháp AI • Sau 1 ngày</span>
                             <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
                         <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-comment-medical text-blue-500"></i> <span data-i18n="cskh1_title">Hỏi thăm chất lượng phòng</span></h4>
@@ -1084,14 +1076,14 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh2_time">AI gợi ý • Sau 14 ngày</span>
+                            <span class="text-xs font-black text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh2_time">Bản nháp AI • Sau 14 ngày</span>
                             <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
                         <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-gift text-cyan-500"></i> <span data-i18n="cskh2_title">Ưu đãi mùa thấp điểm</span></h4>
                         
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
-                            <span data-i18n="cskh2_msg">"Kính gửi chị Hương! 🏨 AI BitPaw gửi tặng riêng chị voucher ưu đãi giảm 25% giá phòng Deluxe hướng biển cho kỳ công tác/du lịch tiếp theo của chị tại thành phố. Đặt lịch phòng giữ chỗ ngay hôm nay nha chị! 🌊"</span>
+                            <span data-i18n="cskh2_msg">"Chào chị Hương! Cảm ơn chị đã lưu trú. Lần tới chị ghé thành phố, khách sạn tặng chị ưu đãi 25% phòng Deluxe — trả lời tin này để đặt phòng nhé."</span>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-white/5 text-xs lg:text-sm text-slate-400 font-bold uppercase flex items-center gap-1">
@@ -1104,7 +1096,7 @@
                     <div class="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-bl-full pointer-events-none"></div>
                     <div>
                         <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-                            <span class="text-xs font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh3_time">AI gợi ý • Sau 45 ngày</span>
+                            <span class="text-xs font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="cskh3_time">Bản nháp AI • Sau 45 ngày</span>
                             <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="cskh_approved">Đã duyệt</span></span>
                         </div>
                         <h4 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-redo-alt text-blue-500"></i> <span data-i18n="cskh3_title">Chăm sóc lại khách cũ</span></h4>
@@ -1130,11 +1122,11 @@
                 <div class="lg:col-span-6" data-aos="fade-right">
                     <span class="text-sm font-black tracking-widest text-blue-500 uppercase">AI Marketing Assistant</span>
                     <h2 class="mt-3 tracking-tight text-3xl md:text-4xl font-bold mb-8 break-words">
-                        <span data-i18n="mkt_title">Trợ lý AI đề xuất kịch bản</span> <br>
+                        <span data-i18n="mkt_title">Trợ lý AI gợi ý nội dung</span> <br>
                         <span class="text-gradient-blue" data-i18n="mkt_title2">chạy Ads & Reels thu hút khách du lịch.</span>
                     </h2>
                     <p class="text-base md:text-lg text-gray-300 mb-6 leading-relaxed break-words">
-                        <span data-i18n="mkt_desc">Không còn lo lắng lên nội dung giới thiệu phòng ốc hay kịch bản quay phòng Deluxe lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất nội dung theo mùa:</span>
+                        <span data-i18n="mkt_desc">Trợ lý AI gợi ý bài giới thiệu phòng, kịch bản quay và caption theo mùa — bạn chỉnh rồi tự đăng:</span>
                     </p>
                     
                     <div class="space-y-4">
@@ -1142,14 +1134,14 @@
                             <i class="fas fa-magic text-blue-400 text-xl mt-1 shrink-0"></i>
                             <div>
                                 <h5 class="text-white font-extrabold text-[17px] mb-1" data-i18n="mkt_item1_title">Tự tạo kịch bản quay video buồng phòng</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="mkt_item1_desc">AI gợi ý kịch bản quay cận cảnh ban công view biển lộng gió, giường nệm cao cấp trắng muốt tạo sự tin tưởng tuyệt đối.</p>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="mkt_item1_desc">AI gợi ý kịch bản quay ban công, phòng ngủ và tiện nghi kèm lời thoại.</p>
                             </div>
                         </div>
                         <div class="flex gap-4 items-start bg-white/[0.02] border border-white/5 p-4 rounded-xl">
                             <i class="fas fa-bullhorn text-cyan-400 text-xl mt-1 shrink-0"></i>
                             <div>
                                 <h5 class="text-white font-extrabold text-[17px] mb-1" data-i18n="mkt_item2_title">Gợi ý tệp khách hàng tiềm năng du lịch</h5>
-                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="mkt_item2_desc">AI tư vấn cách thiết lập bán kính và target sở thích khách đi du lịch, đi phượt để tối ưu hóa ngân sách quảng cáo.</p>
+                                <p class="text-sm text-slate-300 leading-relaxed font-medium" data-i18n="mkt_item2_desc">AI gợi ý nhóm khách và ngân sách quảng cáo tham khảo; chạy quảng cáo do bạn quyết định.</p>
                             </div>
                         </div>
                     </div>
@@ -1168,7 +1160,7 @@
                         </div>
                         
                         <div class="p-6 font-mono text-xs sm:text-sm text-slate-300 space-y-4 max-h-[380px] overflow-y-auto">
-                            <p class="text-gray-500" data-i18n="mkt_term_1">[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Khách Sạn...</p>
+                            <p class="text-gray-500" data-i18n="mkt_term_1">[SYSTEM] Mở trợ lý nội dung AI cho khách sạn...</p>
                             <p class="text-gray-500" data-i18n="mkt_term_2">[DATA] Phát hiện hạng phòng bán chạy nhất: "Deluxe Ocean View Double Room"</p>
                             <p class="text-blue-400 font-bold" data-i18n="mkt_term_3">&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu kỳ nghỉ cuối tuần</p>
                             
@@ -1192,7 +1184,7 @@
     <!-- 9. Trust & Report Section -->
     <section class="py-10 md:py-20 bg-transparent border-t border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-5xl mx-auto px-6 text-center">
-            <span class="text-sm font-black tracking-widest text-blue-500 uppercase" data-aos="fade-up" data-i18n="trust_label">ĐỘ TIN CẬY TUYỆT ĐỐI</span>
+            <span class="text-sm font-black tracking-widest text-blue-500 uppercase" data-aos="fade-up" data-i18n="trust_label">VẬN HÀNH RÕ RÀNG</span>
             <h2 class="mt-3 text-3xl md:text-4xl font-bold mb-8 break-words" data-aos="fade-up"><span data-i18n="trust_title">Giải pháp vận hành khách sạn tinh gọn,</span> <br><span data-i18n="trust_title2">giảm thiểu tối đa lãng phí phòng trống</span></h2>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
@@ -1206,7 +1198,7 @@
                 </div>
                 <div class="p-6" data-aos="zoom-in" data-aos-delay="300">
                     <h3 class="text-5xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 mb-3 font-mono drop-shadow-md" data-i18n="trust_stat3_num">0 Giấy</h3>
-                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="trust_stat3">Số hóa 100% hồ sơ buồng phòng</p>
+                    <p class="text-sm lg:text-base text-gray-400 uppercase tracking-wider font-extrabold" data-i18n="trust_stat3">Trạng thái từng phòng trên một màn hình</p>
                 </div>
             </div>
             
@@ -1244,7 +1236,7 @@
                 <!-- FAQ 2 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq2_q">2. Sơ đồ trạng thái phòng realtime hoạt động ra sao?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq2_q">2. Sơ đồ trạng thái phòng hoạt động ra sao?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
                     <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
@@ -1255,11 +1247,11 @@
                 <!-- FAQ 3 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq3_q">3. Phần mềm có tự động tính phụ thu check-out trễ không?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq3_q">3. Có tính phụ thu trả phòng trễ không?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
                     <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
-                        <span data-i18n="faq3_a">Có. Đây là tính năng chốt bill chuyên sâu cho khách sạn. Sếp thiết lập đơn giá phụ thu theo giờ trễ (ví dụ trễ 1-2h phụ thu 10%, trễ quá 6h tính 100% giá ngày). Khi chốt hóa đơn, POS tự động tính toán chuẩn xác và minh bạch.</span>
+                        <span data-i18n="faq3_a">Chưa tự động. Tiền phòng tính theo số đêm; nếu khách trả trễ, lễ tân thêm một khoản phụ thu vào phòng trước khi trả phòng và khoản đó vào hoá đơn.</span>
                     </div>
                 </div>
  
@@ -1270,18 +1262,18 @@
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
                     <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
-                        <span data-i18n="faq4_a">Hoàn toàn được. Hệ thống liên kết kho vật tư tự động. Khi lễ tân chốt bill mini bar trên hóa đơn phòng, số lượng lon bia/nước ngọt trong kho buồng phòng tự động khấu trừ, giúp phát hiện hao hụt kho nhanh chóng.</span>
+                        <span data-i18n="faq4_a">Phụ thu minibar, giặt ủi, ăn tại phòng được ghi vào phòng trong lúc khách ở và tự gộp vào hoá đơn khi trả phòng. Trừ kho minibar theo từng lon đang trong lộ trình.</span>
                     </div>
                 </div>
  
                 <!-- FAQ 5 -->
                 <div class="faq-item glass border border-white/5 rounded-2xl p-5 transition-all duration-300">
                     <div class="faq-header">
-                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq5_q">5. Mã QR Code động chuyển khoản ngân hàng hoạt động ra sao?</h4>
+                        <h4 class="text-base sm:text-[20px] font-extrabold text-white" data-i18n="faq5_q">5. Khách thanh toán bằng thẻ hoặc chuyển khoản thì sao?</h4>
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
                     <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
-                        <span data-i18n="faq5_a">POS chốt bill xong tự động sinh mã QR Code hiển thị to rõ trên quầy hoặc phiếu in bill. Khách quét mã, ngân hàng tự động điền đúng số tài khoản chủ khách sạn, đúng số tiền cần trả và đúng nội dung phòng, không sợ nhầm lẫn tiền bạc.</span>
+                        <span data-i18n="faq5_a">Tiền vào thẳng tài khoản của khách sạn: thẻ qua máy/tài khoản của bạn, chuyển khoản/VietQR theo số tài khoản bạn khai (khách sạn ở Việt Nam). BitPaw không giữ tiền của khách.</span>
                     </div>
                 </div>
  
@@ -1292,7 +1284,7 @@
                         <i class="fas fa-chevron-down faq-icon text-gray-400 transition-transform duration-300"></i>
                     </div>
                     <div class="faq-content text-sm sm:text-[17px] text-slate-300 leading-relaxed font-medium">
-                        <span data-i18n="faq6_a">Có. BitPaw Hotel OS tương thích tốt với các dòng máy in hóa đơn nhiệt LAN/Wifi và các loại thẻ từ buồng phòng phổ biến hiện nay. Chuyên viên của BitPaw hỗ trợ cấu hình và cài đặt từ xa hoàn toàn miễn phí trọn gói ban đầu cho sếp.</span>
+                        <span data-i18n="faq6_a">BitPaw chạy trên trình duyệt và in hoá đơn qua máy in nhiệt kết nối với thiết bị lễ tân. Hệ thống chưa kết nối khoá thẻ từ phòng.</span>
                     </div>
                 </div>
             </div>
@@ -1304,7 +1296,7 @@
         <div class="max-w-4xl mx-auto px-6" data-aos="zoom-in">
             <h2 class="text-3xl md:text-4xl font-bold mb-8 break-words" data-i18n="cta_title">Đừng để khách sạn tiếp tục mất doanh thu vì trùng lịch phòng và thất thoát mini bar!</h2>
             <p class="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed break-words">
-                <span data-i18n="cta_desc">Hãy để BitPaw Hotel OS quản lý toàn diện: đặt phòng online tự động, sơ đồ phòng buồng realtime, chốt bill tiền giờ lẻ và AI kéo khách mùa du lịch thấp điểm.</span>
+                <span data-i18n="cta_desc">BitPaw Hotel: sơ đồ phòng trực tiếp, nhận/trả phòng nhanh, phụ thu gộp hoá đơn và AI soạn tin mời khách quay lại.</span>
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('register', industry='hotel') }}" class="btn-neon-blue bg-blue-500 text-black text-lg font-black px-8 py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
@@ -1333,7 +1325,7 @@
                     </div>
                     <h2 class="text-3xl font-black text-white tracking-widest">Bit<span class="text-blue-400">Paw</span></h2>
                 </div>
-                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_tagline">Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.</p>
+                <p class="text-sm lg:text-[15px] text-slate-300 font-medium leading-relaxed mb-6 pr-4" data-i18n="footer_tagline">Phần mềm tất cả trong một cho tiệm dịch vụ, bán lẻ và đội ngũ hiện trường — POS, lịch hẹn, nhân sự, nhắn tin khách hàng và AI làm việc trên dữ liệu thật.</p>
  
                 <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-blue-500 w-4"></i> <strong data-i18n="footer_company_name">Bitpaw Technology LLC</strong></p>
@@ -1692,13 +1684,13 @@
             vi: {
                 hero_badge: '🏨 BitPaw Software: Quản Trị Vận Hành Khách Sạn & Homestay Chuyên Nghiệp',
                 hero_h1: 'Quản lý khách sạn <br class="hidden sm:inline"> <span class="text-gradient-blue drop-shadow-[0_4px_25px_rgba(59,130,246,0.65)]" data-i18n="hero_sub1">không còn lệch ca, trùng phòng.</span> <br class="hidden sm:inline">',
-                hero_desc: 'Một màn hình gom lịch đặt phòng, sơ đồ buồng phòng realtime, check-in di động nhanh gọn, POS chốt bill mini bar/tiền giờ chuẩn xác và AI tự động kéo khách quen.',
+                hero_desc: 'Sơ đồ phòng trống/đang ở/đang dọn, nhận phòng – trả phòng nhanh, ghi phụ thu minibar, giặt ủi vào phòng và gộp vào hoá đơn khi trả phòng.',
                 hero_btn1: 'Dùng thử cho khách sạn',
                 hero_btn2: 'Nhận demo quản lý phòng',
-                hero_tag1: 'Sơ đồ phòng realtime',
+                hero_tag1: 'Sơ đồ phòng trực tiếp',
                 hero_tag2: 'POS tính tiền giờ/mini bar',
                 hero_tag3: 'CRM quản lý khách lưu trú',
-                hero_tag4: 'AI kéo khách mùa thấp điểm',
+                hero_tag4: 'AI soạn tin mời khách cũ',
                 hero_card1_label: 'Đặt Phòng Hôm Nay',
                 hero_card1_line1: 'Phòng VIP 302 - Khách hàng',
                 hero_card1_sub: 'Lễ tân check-in • 14:00 • Đã nhận',
@@ -1710,7 +1702,7 @@
                 pain_desc: 'Vận hành khách sạn đòi hỏi sự phối hợp mượt mà giữa lễ tân, buồng phòng và bộ phận tài chính. Dưới đây là những nỗi lo canh cánh mỗi ngày:',
                 pain1_badge: 'Trùng phòng',
                 pain1_title: 'Lịch đặt phòng dễ trùng lặp chéo kênh',
-                pain1_desc: 'Khách đặt phòng từ các kênh OTA, Fanpage, Zalo chồng chéo. Lễ tân ghi sổ tay dễ bị sót hoặc trùng phòng làm khách đến không có phòng nhận gây ức chế cực lớn.',
+                pain1_desc: 'Đặt phòng qua điện thoại, Fanpage, Zalo, ghi sổ tay — dễ trùng phòng, khách đến không có phòng.',
                 pain2_badge: 'Hao hụt',
                 pain2_title: 'Thất thoát chi phí dịch vụ phụ và mini bar',
                 pain2_desc: 'Nước ngọt, bia, đồ ăn nhẹ mini bar khách dùng hoặc các chi phí giặt ủi, thuê xe bị lễ tân quên ghi nhận vào bill, gây thất thoát doanh thu đáng tiếc.',
@@ -1722,38 +1714,38 @@
                 pain4_desc: 'Lễ tân cho khách thuê phòng giờ lẻ hoặc phụ thu check-out trễ bằng tiền mặt nhưng không khai báo hệ thống để đút túi riêng, làm chủ thất thoát nặng.',
                 pain5_badge: 'Mất khách',
                 pain5_title: 'Khách đi du lịch một lần rồi không quay lại',
-                pain5_desc: 'Khách check-out xong ra về là khách sạn mất kết nối. Không ai gửi ưu đãi đặc biệt hay nhắc nhở voucher giảm giá để kích thích họ quay lại vào mùa thấp điểm.',
+                pain5_desc: 'Khách trả phòng là mất liên lạc; không ai mời khách quay lại vào mùa thấp điểm.',
                 pain6_badge: 'Mất kiểm soát',
                 pain6_title: 'Chủ ở xa mù mờ công suất phòng thực tế',
-                pain6_desc: 'Không có radar giám sát hoạt động buồng phòng realtime. Sếp ở xa luôn trong tình trạng bất an vì không biết hôm nay thu về bao nhiêu tiền mặt, bao nhiêu chuyển khoản.'
+                pain6_desc: 'Ở xa không biết hôm nay bao nhiêu phòng có khách, thu được bao nhiêu.'
             ,
                 nav_solutions: 'Giải Pháp',
                 nav_features: 'Tính Năng',
                 nav_pricing: 'Bảng Giá',
-                nav_ai_cskh: 'AI CSKH',
+                nav_ai_cskh: 'Trợ lý AI',
                 nav_lang_vi: 'Tiếng Việt',
                 nav_login: 'Đăng Nhập',
                 nav_trial: 'Dùng Thử Miễn Phí',
                 nav_language_label: 'Ngôn ngữ:',
                 hero_sub1: 'không còn lệch ca, trùng phòng.',
-                hero_sub2: 'AI tự nhắc ưu đãi mùa thấp điểm.',
+                hero_sub2: 'AI soạn tin mời khách quay lại.',
                 hook_title2: 'đau đầu vì nỗi lo nào?',
                 promise_label: 'SỰ KHÁC BIỆT CỦA BITPAW SOFTWARE',
                 promise_title: 'Biến khách sạn & homestay thành cỗ máy vận hành',
                 promise_title2: 'siêu tốc, lấp đầy phòng trống mùa thấp điểm.',
-                promise_desc: 'BitPaw số hóa và đồng bộ chặt chẽ buồng phòng, lễ tân và kho bãi, tạo ra trải nghiệm lưu trú cao cấp tuyệt đối cho khách hàng.',
-                promise_feat1_title: 'Đặt phòng tự động',
+                promise_desc: 'BitPaw nối lễ tân, buồng phòng và thu ngân: trạng thái phòng, phụ thu và hoá đơn trên cùng một hệ thống.',
+                promise_feat1_title: 'Nhận / trả phòng nhanh',
                 promise_feat1_desc: 'Khách đặt phòng trực tuyến tiện lợi, tự xác nhận khóa buồng phòng trống thông minh.',
-                promise_feat2_title: 'Sơ đồ phòng realtime',
+                promise_feat2_title: 'Sơ đồ phòng trực tiếp',
                 promise_feat2_desc: 'Trực quan hóa trạng thái dọn dẹp buồng phòng Trống/Dơ/Bận tức thời trên di động.',
                 promise_feat3_title: 'POS chốt bill chuẩn',
-                promise_feat3_desc: 'Tự cộng tiền phòng lẻ giờ, phụ thu mini bar và tự tạo mã QR Code ngân hàng động.',
-                promise_feat4_title: 'AI kéo khách cũ',
-                promise_feat4_desc: 'AI dựa trên thói quen, tự động gửi ưu đãi thu hút khách quay lại vào mùa thấp điểm.',
+                promise_feat3_desc: 'Tính tiền phòng theo số đêm, cộng phụ thu minibar, giặt ủi vào cùng hoá đơn.',
+                promise_feat4_title: 'Mời khách cũ quay lại',
+                promise_feat4_desc: 'AI soạn tin ưu đãi mùa thấp điểm từ lịch sử lưu trú; bạn duyệt rồi gửi.',
                 workflow_label: 'LUỒNG VẬN HÀNH THỰC TẾ',
                 workflow_title: 'Hành trình vận hành khách sạn',
                 workflow_title2: 'số hóa trơn tru khép kín',
-                workflow_desc: 'Bản đồ quy trình số hóa từ lúc đặt phòng đến buồng phòng dọn dẹp và AI chăm sóc:',
+                workflow_desc: 'Quy trình từ lúc khách nhận phòng tới dọn phòng và chăm sóc sau lưu trú:',
                 wf1_title: 'Đặt phòng online',
                 wf1_desc: 'Khách tự xem phòng trống, chọn ngày check-in và đặt phòng từ xa.',
                 wf2_title: 'Lễ tân xác nhận',
@@ -1761,15 +1753,15 @@
                 wf3_title: 'Check-in di động',
                 wf3_desc: 'Khách check-in nhanh, lễ tân kích hoạt thẻ từ buồng phòng tức thời.',
                 wf4_title: 'Dọn dẹp buồng phòng',
-                wf4_desc: 'Bộ phận buồng phòng cập nhật buồng đã sạch lên sơ đồ di động realtime.',
+                wf4_desc: 'Buồng phòng dọn xong bấm "sạch" — phòng về trạng thái trống trên sơ đồ.',
                 wf5_title: 'Ghi nhận mini bar',
                 wf5_desc: 'Nước uống mini bar, giặt ủi được đồng bộ vào bill khách trực quan.',
                 wf6_title: 'Check-out siêu tốc',
                 wf6_desc: 'Lễ tân in bill nhiệt chớp nhoáng, tự cộng tiền giờ lẻ và chi phí dịch vụ.',
                 wf7_title: 'QR thanh toán động',
-                wf7_desc: 'POS tự tạo mã QR Code ngân hàng động giúp khách chuyển khoản an toàn.',
-                wf8_title: 'AI nhắc ưu đãi',
-                wf8_desc: 'AI tự động gửi kịch bản ưu đãi ngày vắng, kéo khách cũ ghé thăm lại.',
+                wf7_desc: 'Chốt hoá đơn, thu tiền mặt, thẻ hoặc chuyển khoản (quán ở Việt Nam có VietQR đúng số tiền).',
+                wf8_title: 'Mời khách quay lại',
+                wf8_desc: 'AI soạn tin ưu đãi ngày vắng cho khách cũ; bạn duyệt rồi gửi qua SMS/email.',
                 features_label: 'HỆ THỐNG THỰC TẾ',
                 features_title: 'Các tính năng lõi',
                 features_title2: 'chuyên sâu Khách sạn & Homestay',
@@ -1779,34 +1771,34 @@
                 feat1_link: 'Cổng đặt lịch online',
                 feat1_cta: 'Dùng đặt phòng online',
                 feat2_tag: 'Sơ đồ phòng',
-                feat2_title: 'Sơ Đồ Phòng Realtime',
+                feat2_title: 'Sơ Đồ Phòng Trực Tiếp',
                 feat2_desc: 'Hiển thị trực quan sơ đồ buồng phòng trống/dơ/bận giúp sếp linh hoạt xếp lịch nhận phòng, dọn phòng cho khách ở',
                 feat2_link: 'QR Menu dịch vụ',
                 feat2_cta: 'Dùng quản lý buồng phòng',
                 feat3_title: 'Quy Trình Nhận Phòng',
-                feat3_desc: 'Điều phối ca trực lễ tân, kiểm tra thông tin khách lưu trú, khai báo tạm trú trơn tru tại',
+                feat3_desc: 'Điều phối ca trực lễ tân, kiểm tra thông tin khách lưu trú, khai báo tạm trú trơn tru.',
                 feat3_link: 'Bảng điều phối nhân viên',
                 feat3_cta: 'Dùng cho lễ tân',
                 feat4_title: 'Phụ Thu Dịch Vụ Đi Kèm',
-                feat4_desc: 'Ghi phụ thu minibar, giặt ủi, ăn tại phòng ngay trong lúc khách đang ở, tự động gộp vào hoá đơn khi trả phòng — không bỏ sót khoản thu nào tại',
+                feat4_desc: 'Ghi phụ thu minibar, giặt ủi, ăn tại phòng ngay trong lúc khách đang ở, tự động gộp vào hoá đơn khi trả phòng — không bỏ sót khoản thu nào.',
                 feat4_link: 'Quản Lý Phòng',
                 feat4_cta: 'Tự động gộp lúc trả phòng',
-                features_trust_badge: '100% tính năng thật — bấm vào từng mục để dùng ngay, không phải ảnh minh hoạ',
+                features_trust_badge: 'Tính năng đang chạy thật — bấm vào từng mục để dùng thử, không phải ảnh minh hoạ',
                 feat5_title: 'Smart POS Tính Tiền',
-                feat5_desc: 'Tính tiền phòng theo ngày thường, giờ lẻ, ngày lễ, tự cộng tiền đồ uống mini bar và tạo QR động thanh toán chuyển khoản tức thì ở',
+                feat5_desc: 'Tính tiền phòng theo số đêm, cộng phụ thu minibar và dịch vụ, in hoá đơn gộp khi trả phòng.',
                 feat5_link: 'POS tính tiền',
                 feat5_cta: 'Dùng thanh toán quầy',
                 feat6_title: 'Hồ Sơ Khách Lưu Trú',
-                feat6_desc: 'Hồ sơ khách lưu trú đầy đủ số CMT/căn cước, lịch sử nhận trả phòng, thói quen đi du lịch chuyên nghiệp tại',
+                feat6_desc: 'Hồ sơ khách lưu trú đầy đủ số CMT/căn cước, lịch sử nhận trả phòng, thói quen đi du lịch chuyên nghiệp.',
                 feat6_link: 'Hồ sơ khách hàng CRM',
                 feat6_cta: 'Dùng lưu lịch sử khách',
                 feat7_tag: 'Báo cáo',
                 feat7_title: 'Báo Cáo Công Suất Phòng',
-                feat7_desc: 'Báo cáo tỷ lệ lấp đầy phòng nghỉ, doanh thu thực tế từ tiền phòng và tiền nước uống mini bar chi tiết tại',
-                feat7_link: 'Báo cáo doanh thu realtime',
+                feat7_desc: 'Báo cáo tỷ lệ lấp đầy phòng nghỉ, doanh thu thực tế từ tiền phòng và tiền nước uống mini bar chi tiết.',
+                feat7_link: 'Báo cáo doanh thu',
                 feat7_cta: 'Dùng quản lý tài chính',
-                feat8_title: 'AI Gợi Ý Ưu Đãi Ngày Vắng',
-                feat8_desc: 'AI tự động lập kịch bản email/Zalo giới thiệu ưu đãi mùa thấp điểm cá nhân hóa dựa trên lịch sử lưu trú của khách tại',
+                feat8_title: 'AI Soạn Ưu Đãi Ngày Vắng',
+                feat8_desc: 'AI soạn tin ưu đãi mùa thấp điểm cá nhân hoá từ lịch sử lưu trú; bạn duyệt rồi gửi qua SMS/email.',
                 feat8_cta: 'Dùng thu hút khách du lịch',
                 calc_title: 'Tính toán bill phòng khách sạn',
                 calc_title2: 'chính xác trong 3 giây',
@@ -1823,7 +1815,7 @@
                 calc_label_lateout: '4. Phụ Thu Check-out Trễ ($)',
                 calc_label_deposit: '5. Khách Đặt Cọc Trước ($)',
                 calc_label_discount: '6. Chiết Khấu Thành Viên (%)',
-                calc_note: 'POS tự tạo mã QR Code ngân hàng động đã trừ cọc của khách, sếp đối soát từ xa cực kỳ nhàn nhã.',
+                calc_note: 'Hoá đơn gộp tiền phòng và phụ thu; cuối ngày email báo cáo cho biết đã thu bao nhiêu.',
                 calc_receipt_title: 'Hóa đơn nhận trả buồng phòng',
                 calc_r_price_label: 'Tiền Phòng Cơ Bản:',
                 calc_r_discount_label: '- Giảm Giá Hạng Phòng (',
@@ -1832,32 +1824,32 @@
                 calc_r_deposit_label: '- Đã Khấu Trừ Đặt Cọc:',
                 calc_r_final_label: 'Khách Cần Thanh Toán',
                 calc_cta: 'Đăng ký dùng ngay Hotel OS',
-                cskh_label: 'CỖ MÁY GIỮ KHÁCH TỰ ĐỘNG',
+                cskh_label: 'TRỢ LÝ CHĂM SÓC KHÁCH',
                 cskh_title: 'Khách đi du lịch luôn có chu kỳ.',
                 cskh_title2: 'Vấn đề là',
                 cskh_title3: 'khách sạn có nhớ để nhắc hay không?',
-                cskh_desc: 'AI tự động lập lịch và soạn tin nhắn chăm sóc khách hàng lưu trú theo chu kỳ nghỉ dưỡng, tăng tối đa cơ hội lấp đầy phòng trống:',
-                cskh1_time: 'AI gợi ý • Sau 1 ngày',
+                cskh_desc: 'AI soạn sẵn tin chăm sóc sau lưu trú từ lịch sử thật của khách; bạn duyệt rồi tin gửi đúng khung giờ, có cách từ chối nhận:',
+                cskh1_time: 'Bản nháp AI • Sau 1 ngày',
                 cskh_approved: 'Đã duyệt',
                 cskh1_title: 'Hỏi thăm chất lượng phòng',
                 cskh1_msg: '"Chào anh Hùng! 🐾 Cảm ơn anh đã lựa chọn lưu trú tại BitPaw Hotel ngày hôm qua. Phòng VIP 302 có mang lại sự thoải mái tối đa cho anh không ạ? Nếu cần dọn phòng hoặc thêm nước uống, sếp liên hệ quầy lễ tân nhé! 🏨"',
                 cskh1_goal: 'Mục tiêu: Đo lường chất lượng buồng phòng & lễ tân phục vụ',
-                cskh2_time: 'AI gợi ý • Sau 14 ngày',
+                cskh2_time: 'Bản nháp AI • Sau 14 ngày',
                 cskh2_title: 'Ưu đãi mùa thấp điểm',
-                cskh2_msg: '"Kính gửi chị Hương! 🏨 AI BitPaw gửi tặng riêng chị voucher ưu đãi giảm 25% giá phòng Deluxe hướng biển cho kỳ công tác/du lịch tiếp theo của chị tại thành phố. Đặt lịch phòng giữ chỗ ngay hôm nay nha chị! 🌊"',
+                cskh2_msg: '"Chào chị Hương! Cảm ơn chị đã lưu trú. Lần tới chị ghé thành phố, khách sạn tặng chị ưu đãi 25% phòng Deluxe — trả lời tin này để đặt phòng nhé."',
                 cskh2_goal: 'Mục tiêu: Kích hoạt chi tiêu lưu trú của khách VIP ngày vắng khách',
-                cskh3_time: 'AI gợi ý • Sau 45 ngày',
+                cskh3_time: 'Bản nháp AI • Sau 45 ngày',
                 cskh3_title: 'Chăm sóc lại khách cũ',
                 cskh3_msg: '"Chào anh Nam! 🐾 Đã 45 ngày kể từ kỳ nghỉ thư giãn của anh tại BitPaw Hotel. Chúng em vừa nâng cấp bể bơi vô cực và có ưu đãi đặt phòng cuối tuần tặng buffet sáng miễn phí cho 2 người. Đặt phòng nghỉ dưỡng thôi sếp ơi! 🍷"',
                 cskh3_goal: 'Mục tiêu: Duy trì kết nối thương hiệu bền vững, hiểu thói quen khách hàng',
-                mkt_title: 'Trợ lý AI đề xuất kịch bản',
+                mkt_title: 'Trợ lý AI gợi ý nội dung',
                 mkt_title2: 'chạy Ads & Reels thu hút khách du lịch.',
-                mkt_desc: 'Không còn lo lắng lên nội dung giới thiệu phòng ốc hay kịch bản quay phòng Deluxe lên mạng xã hội. Trợ lý AI của BitPaw tự động đề xuất nội dung theo mùa:',
+                mkt_desc: 'Trợ lý AI gợi ý bài giới thiệu phòng, kịch bản quay và caption theo mùa — bạn chỉnh rồi tự đăng:',
                 mkt_item1_title: 'Tự tạo kịch bản quay video buồng phòng',
-                mkt_item1_desc: 'AI gợi ý kịch bản quay cận cảnh ban công view biển lộng gió, giường nệm cao cấp trắng muốt tạo sự tin tưởng tuyệt đối.',
+                mkt_item1_desc: 'AI gợi ý kịch bản quay ban công, phòng ngủ và tiện nghi kèm lời thoại.',
                 mkt_item2_title: 'Gợi ý tệp khách hàng tiềm năng du lịch',
-                mkt_item2_desc: 'AI tư vấn cách thiết lập bán kính và target sở thích khách đi du lịch, đi phượt để tối ưu hóa ngân sách quảng cáo.',
-                mkt_term_1: '[SYSTEM] Kích hoạt phân hệ AI Marketing chuyên sâu Khách Sạn...',
+                mkt_item2_desc: 'AI gợi ý nhóm khách và ngân sách quảng cáo tham khảo; chạy quảng cáo do bạn quyết định.',
+                mkt_term_1: '[SYSTEM] Mở trợ lý nội dung AI cho khách sạn...',
                 mkt_term_2: '[DATA] Phát hiện hạng phòng bán chạy nhất: "Deluxe Ocean View Double Room"',
                 mkt_term_3: '&gt; AI-PROMPT: Đề xuất kịch bản TikTok Reels giới thiệu kỳ nghỉ cuối tuần',
                 mkt_term_4: '🎬 PHÁT THẢO KỊCH BẢN VIDEO:',
@@ -1870,35 +1862,35 @@
                 mkt_term_11: '📝 CAPTION ĐỀ XUẤT:',
                 mkt_term_12: '"Sáng thức dậy ở một nơi xa, kéo rèm ra là đại dương bao la lộng gió! 🌊 Thư giãn kỳ nghỉ cuối tuần trọn vẹn tại BitPaw Hotel với không gian phòng Deluxe Ocean View sang trọng và bể bơi vô cực ngắm hoàng hôn cực chill. Đăng ký đặt phòng hôm nay để nhận ngay voucher giảm 20% sếp nhé! 🛎️✨ #KhachSanViewBien #DuLichCuoiTuan #NghiDuongSpa #BitPawHotel"',
                 mkt_term_13: '[SUCCESS] Đã đề xuất 3 kịch bản thành công. Tệp khách hàng mục tiêu: 22-45 tuổi, thích nghỉ dưỡng/du lịch, khu vực lân cận bán kính 100km.',
-                trust_label: 'ĐỘ TIN CẬY TUYỆT ĐỐI',
+                trust_label: 'VẬN HÀNH RÕ RÀNG',
                 trust_title: 'Giải pháp vận hành khách sạn tinh gọn,',
                 trust_title2: 'giảm thiểu tối đa lãng phí phòng trống',
                 trust_stat1: 'Không còn trễ hay trùng lịch phòng',
                 trust_stat2: 'Tăng trưởng công suất phòng ngày vắng',
                 trust_stat3_num: '0 Giấy',
-                trust_stat3: 'Số hóa 100% hồ sơ buồng phòng',
+                trust_stat3: 'Trạng thái từng phòng trên một màn hình',
                 trust_cta_text: 'Cần chuyên viên hỗ trợ thiết lập sơ đồ phòng và menu dịch vụ phụ?',
                 trust_cta_btn: 'Chat Zalo Chuyên Viên BitPaw',
                 faq_label: 'GIẢI ĐÁP THẮC MẮC',
                 faq_title: 'Hỏi đáp về',
                 faq1_q: '1. Homestay nhỏ hay chuỗi nhiều biệt thự nghỉ dưỡng có dùng được không?',
                 faq1_a: 'Cực kỳ thích hợp. BitPaw Hotel OS hỗ trợ quản lý đa điểm, phân tách chi nhánh biệt thự nghỉ dưỡng chuyên nghiệp, đồng thời có giao diện tối giản dễ sử dụng phù hợp cho cả các căn hộ Homestay nhỏ lẻ tự vận hành.',
-                faq2_q: '2. Sơ đồ trạng thái phòng realtime hoạt động ra sao?',
+                faq2_q: '2. Sơ đồ trạng thái phòng hoạt động ra sao?',
                 faq2_a: 'Khi buồng phòng dọn dẹp xong, họ cập nhật trạng thái "Đã dọn dẹp" trực tiếp từ điện thoại di động. Lập tức sơ đồ phòng trên quầy lễ tân chuyển sang màu xanh "Sẵn sàng nhận khách" giúp điều phối check-in siêu tốc.',
-                faq3_q: '3. Phần mềm có tự động tính phụ thu check-out trễ không?',
-                faq3_a: 'Có. Đây là tính năng chốt bill chuyên sâu cho khách sạn. Sếp thiết lập đơn giá phụ thu theo giờ trễ (ví dụ trễ 1-2h phụ thu 10%, trễ quá 6h tính 100% giá ngày). Khi chốt hóa đơn, POS tự động tính toán chuẩn xác và minh bạch.',
+                faq3_q: '3. Có tính phụ thu trả phòng trễ không?',
+                faq3_a: 'Chưa tự động. Tiền phòng tính theo số đêm; nếu khách trả trễ, lễ tân thêm một khoản phụ thu vào phòng trước khi trả phòng và khoản đó vào hoá đơn.',
                 faq4_q: '4. Có quản lý được lượng tồn kho bia, nước ngọt mini bar không?',
-                faq4_a: 'Hoàn toàn được. Hệ thống liên kết kho vật tư tự động. Khi lễ tân chốt bill mini bar trên hóa đơn phòng, số lượng lon bia/nước ngọt trong kho buồng phòng tự động khấu trừ, giúp phát hiện hao hụt kho nhanh chóng.',
-                faq5_q: '5. Mã QR Code động chuyển khoản ngân hàng hoạt động ra sao?',
-                faq5_a: 'POS chốt bill xong tự động sinh mã QR Code hiển thị to rõ trên quầy hoặc phiếu in bill. Khách quét mã, ngân hàng tự động điền đúng số tài khoản chủ khách sạn, đúng số tiền cần trả và đúng nội dung phòng, không sợ nhầm lẫn tiền bạc.',
+                faq4_a: 'Phụ thu minibar, giặt ủi, ăn tại phòng được ghi vào phòng trong lúc khách ở và tự gộp vào hoá đơn khi trả phòng. Trừ kho minibar theo từng lon đang trong lộ trình.',
+                faq5_q: '5. Khách thanh toán bằng thẻ hoặc chuyển khoản thì sao?',
+                faq5_a: 'Tiền vào thẳng tài khoản của khách sạn: thẻ qua máy/tài khoản của bạn, chuyển khoản/VietQR theo số tài khoản bạn khai (khách sạn ở Việt Nam). BitPaw không giữ tiền của khách.',
                 faq6_q: '6. Khi mua gói phần mềm tôi có được hỗ trợ phần cứng in bill và thẻ từ không?',
-                faq6_a: 'Có. BitPaw Hotel OS tương thích tốt với các dòng máy in hóa đơn nhiệt LAN/Wifi và các loại thẻ từ buồng phòng phổ biến hiện nay. Chuyên viên của BitPaw hỗ trợ cấu hình và cài đặt từ xa hoàn toàn miễn phí trọn gói ban đầu cho sếp.',
+                faq6_a: 'BitPaw chạy trên trình duyệt và in hoá đơn qua máy in nhiệt kết nối với thiết bị lễ tân. Hệ thống chưa kết nối khoá thẻ từ phòng.',
                 cta_title: 'Đừng để khách sạn tiếp tục mất doanh thu vì trùng lịch phòng và thất thoát mini bar!',
-                cta_desc: 'Hãy để BitPaw Hotel OS quản lý toàn diện: đặt phòng online tự động, sơ đồ phòng buồng realtime, chốt bill tiền giờ lẻ và AI kéo khách mùa du lịch thấp điểm.',
+                cta_desc: 'BitPaw Hotel: sơ đồ phòng trực tiếp, nhận/trả phòng nhanh, phụ thu gộp hoá đơn và AI soạn tin mời khách quay lại.',
                 cta_btn1: 'Dùng thử hệ thống Khách Sạn',
                 cta_btn2: 'Nhận tư vấn qua Zalo 24/7',
                 cta_footnote: 'Phù hợp cho khách sạn nhỏ, khu nghỉ dưỡng, biệt thự biển, homestay ngoại ô, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.',
-                footer_tagline: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
+                footer_tagline: 'Phần mềm tất cả trong một cho tiệm dịch vụ, bán lẻ và đội ngũ hiện trường — POS, lịch hẹn, nhân sự, nhắn tin khách hàng và AI làm việc trên dữ liệu thật.',
                 footer_products_title: 'Sản Phẩm',
                 footer_link_pos: 'Smart POS Đa ngành',
                 footer_link_agency: 'Dịch vụ AI Agency',
@@ -1935,13 +1927,13 @@
             en: {
                 hero_badge: '🏨 BitPaw Software: Professional Hotel & Homestay Operations Management',
                 hero_h1: 'Manage your hotel <br class="hidden sm:inline"> <span class="text-gradient-blue drop-shadow-[0_4px_25px_rgba(59,130,246,0.65)]">no more shift mix-ups, no more room double-bookings.</span> <br class="hidden sm:inline">',
-                hero_desc: 'One screen that gathers bookings, a realtime room floor plan, fast mobile check-in, a POS that accurately closes mini-bar/hourly bills, and AI that automatically brings back regulars.',
+                hero_desc: 'A room board showing vacant, occupied and cleaning rooms, quick check-in and check-out, and minibar or laundry charges added to the room and rolled into the final bill.',
                 hero_btn1: 'Try It For Your Hotel',
                 hero_btn2: 'Get A Room Management Demo',
-                hero_tag1: 'Realtime Room Floor Plan',
+                hero_tag1: 'Live room board',
                 hero_tag2: 'Hourly/Mini-Bar POS Billing',
                 hero_tag3: 'CRM Guest Management',
-                hero_tag4: 'AI Low-Season Guest Recovery',
+                hero_tag4: 'AI-drafted guest follow-ups',
                 hero_card1_label: 'Today\'s Bookings',
                 hero_card1_line1: 'VIP Room 302 - Guest',
                 hero_card1_sub: 'Reception check-in • 2:00 PM • Received',
@@ -1953,7 +1945,7 @@
                 pain_desc: 'Running a hotel requires smooth coordination between reception, housekeeping, and finance. Here are the daily worries that keep owners up at night:',
                 pain1_badge: 'Double-Booking',
                 pain1_title: 'Cross-channel booking clashes',
-                pain1_desc: 'Guests book from overlapping OTA, Fanpage, and Zalo channels. Handwritten notes easily miss or double-book a room, leaving arriving guests without a room and causing major frustration.',
+                pain1_desc: 'Bookings by phone, Facebook and chat written in a notebook — rooms get double-booked and guests arrive to no room.',
                 pain2_badge: 'Revenue Leaks',
                 pain2_title: 'Losses on add-on services and mini-bar',
                 pain2_desc: 'Sodas, beer, mini-bar snacks used by guests, or laundry/car rental costs, get forgotten by reception and never billed, causing real revenue loss.',
@@ -1965,38 +1957,38 @@
                 pain4_desc: 'Reception rents rooms by the hour or charges late-checkout fees in cash without recording it in the system, pocketing the money, causing serious losses for owners.',
                 pain5_badge: 'Lost Guests',
                 pain5_title: 'Guests travel once and never return',
-                pain5_desc: 'Once guests check out, the hotel loses connection with them. No one sends special offers or discount reminders to bring them back during the low season.',
+                pain5_desc: 'Guests check out and you lose touch; nobody invites them back in the quiet season.',
                 pain6_badge: 'Lost Oversight',
                 pain6_title: 'Remote owners unclear on real room occupancy',
-                pain6_desc: 'No realtime radar monitoring room activity. Owners working remotely are always anxious, not knowing how much cash or bank transfer revenue came in today.'
+                pain6_desc: 'When you are away you cannot see how many rooms are occupied or what came in today.'
             ,
                 nav_solutions: 'Solutions',
                 nav_features: 'Features',
                 nav_pricing: 'Pricing',
-                nav_ai_cskh: 'AI Guest Care',
+                nav_ai_cskh: 'AI assistant',
                 nav_lang_vi: 'Vietnamese',
                 nav_login: 'Login',
                 nav_trial: 'Free Trial',
                 nav_language_label: 'Language:',
                 hero_sub1: 'no more shift conflicts or room double-bookings.',
-                hero_sub2: 'AI automatically chases low-season promotions.',
+                hero_sub2: 'AI drafts invitations back.',
                 hook_title2: 'struggling with which of these problems?',
                 promise_label: 'THE BITPAW SOFTWARE DIFFERENCE',
                 promise_title: 'Turn Your Hotel & Homestay Into an Operating Machine',
                 promise_title2: 'running at full speed, filling vacant rooms in the low season.',
-                promise_desc: 'BitPaw digitizes and tightly syncs rooms, front desk, and inventory, creating a premium guest experience.',
-                promise_feat1_title: 'Automated Booking',
+                promise_desc: 'BitPaw connects front desk, housekeeping and cashier: room status, extras and bills in one system.',
+                promise_feat1_title: 'Fast check-in / check-out',
                 promise_feat1_desc: 'Guests conveniently book online, with smart auto-confirmation locking in available rooms.',
-                promise_feat2_title: 'Real-Time Room Map',
+                promise_feat2_title: 'Live room board',
                 promise_feat2_desc: 'Visualizes room status (Vacant/Dirty/Occupied) instantly on mobile.',
                 promise_feat3_title: 'Accurate POS Billing',
-                promise_feat3_desc: 'Automatically adds hourly room charges and mini bar fees, and generates a dynamic bank QR code.',
-                promise_feat4_title: 'AI Guest Win-Back',
-                promise_feat4_desc: 'AI tracks guest behavior and automatically sends offers to bring guests back during the low season.',
+                promise_feat3_desc: 'Room charges by the night, with minibar and laundry added to the same bill.',
+                promise_feat4_title: 'Invite past guests back',
+                promise_feat4_desc: 'The AI drafts quiet-season offers from stay history; you approve and send them.',
                 workflow_label: 'REAL-WORLD OPERATING FLOW',
                 workflow_title: 'The Hotel Operations Journey',
                 workflow_title2: 'fully digitized and seamless',
-                workflow_desc: 'A digitized process map from booking to housekeeping and AI guest care:',
+                workflow_desc: 'The flow from check-in to housekeeping and follow-up after the stay:',
                 wf1_title: 'Online Booking',
                 wf1_desc: 'Guests browse available rooms, pick check-in dates, and book remotely.',
                 wf2_title: 'Front Desk Confirms',
@@ -2004,15 +1996,15 @@
                 wf3_title: 'Mobile Check-In',
                 wf3_desc: 'Guests check in quickly while the front desk instantly activates the room key card.',
                 wf4_title: 'Housekeeping',
-                wf4_desc: 'Housekeeping updates cleaned rooms on the real-time mobile room map.',
+                wf4_desc: 'Housekeeping taps "clean" when done and the room shows as vacant on the board.',
                 wf5_title: 'Mini Bar Recording',
                 wf5_desc: 'Mini bar drinks and laundry charges sync directly into the guest\'s bill.',
                 wf6_title: 'Rapid Check-Out',
                 wf6_desc: 'The front desk prints a thermal receipt instantly, adding hourly charges and service fees.',
                 wf7_title: 'Dynamic QR Payment',
-                wf7_desc: 'The POS generates a dynamic bank QR code for guests to pay securely by transfer.',
-                wf8_title: 'AI Offer Retargeting',
-                wf8_desc: 'AI automatically sends low-occupancy promotions to bring past guests back.',
+                wf7_desc: 'Close the bill and take cash, card or transfer (venues in Vietnam get a VietQR code for the exact amount).',
+                wf8_title: 'Invite guests back',
+                wf8_desc: 'The AI drafts quiet-day offers for past guests; you approve and send by SMS/email.',
                 features_label: 'REAL-WORLD SYSTEM',
                 features_title: 'Core Features',
                 features_title2: 'Specialized for Hotels & Homestays',
@@ -2022,34 +2014,34 @@
                 feat1_link: 'Online Booking Portal',
                 feat1_cta: 'Used for Online Booking',
                 feat2_tag: 'Room Map',
-                feat2_title: 'Real-Time Room Map',
-                feat2_desc: 'Visually displays vacant/dirty/occupied room status, letting you flexibly schedule check-ins and housekeeping on the',
+                feat2_title: 'Live Room Board',
+                feat2_desc: 'Visually displays vacant/dirty/occupied room status, letting you flexibly schedule check-ins and housekeeping.',
                 feat2_link: 'Service QR Menu',
                 feat2_cta: 'Used for Room Management',
                 feat3_title: 'Check-In Workflow',
-                feat3_desc: 'Coordinate front desk shifts, verify guest information, and handle residency declarations smoothly on the',
+                feat3_desc: 'Coordinate front desk shifts, verify guest information, and handle residency declarations smoothly.',
                 feat3_link: 'Staff Dispatch Board',
                 feat3_cta: 'Used by Front Desk',
                 feat4_title: 'Extra Charges During Stay',
                 feat4_desc: 'Log minibar, laundry, and room-service charges while the guest is still checked in — automatically rolled into the final bill at checkout on',
                 feat4_link: 'Room Management',
                 feat4_cta: 'Auto-merged at checkout',
-                features_trust_badge: '100% real, working features — click any card to try it now, not a mockup screenshot',
+                features_trust_badge: 'Working features — click any card to try it, not a mockup screenshot',
                 feat5_title: 'Smart POS Billing',
-                feat5_desc: 'Calculates room charges for regular days, hourly stays, and holidays, adds mini bar charges, and generates instant dynamic QR payment on the',
+                feat5_desc: 'Room charges by the night plus minibar and service extras, printed on one bill at check-out.',
                 feat5_link: 'POS Billing',
                 feat5_cta: 'Used at the Front Desk',
                 feat6_title: 'Guest Stay Records',
-                feat6_desc: 'Complete guest profiles with ID numbers, check-in/out history, and travel preferences on the',
+                feat6_desc: 'Complete guest profiles with ID numbers, check-in/out history, and travel preferences.',
                 feat6_link: 'CRM Guest Profiles',
                 feat6_cta: 'Used to Store Guest History',
                 feat7_tag: 'Reports',
                 feat7_title: 'Occupancy Reports',
-                feat7_desc: 'Detailed occupancy rate and revenue reports from room charges and mini bar sales on the',
-                feat7_link: 'Real-Time Revenue Reports',
+                feat7_desc: 'Detailed occupancy rate and revenue reports from room charges and mini bar sales.',
+                feat7_link: 'Revenue reports',
                 feat7_cta: 'Used for Financial Management',
-                feat8_title: 'AI Low-Occupancy Offer Suggestions',
-                feat8_desc: 'AI automatically drafts personalized email/Zalo campaigns for low-season offers based on each guest\'s stay history on the',
+                feat8_title: 'AI Quiet-Day Offers',
+                feat8_desc: 'The AI drafts personalised quiet-season offers from stay history; you approve and send them by SMS/email.',
                 feat8_cta: 'Used to Attract Travelers',
                 calc_title: 'Hotel Room Bill Calculator',
                 calc_title2: 'accurate in 3 seconds',
@@ -2066,7 +2058,7 @@
                 calc_label_lateout: '4. Late Check-Out Surcharge ($)',
                 calc_label_deposit: '5. Guest Deposit Paid ($)',
                 calc_label_discount: '6. Membership Discount (%)',
-                calc_note: 'The POS auto-generates a dynamic bank QR code with the deposit already deducted, making remote reconciliation effortless.',
+                calc_note: 'One bill for room and extras; the end-of-day email shows what came in.',
                 calc_receipt_title: 'Room Check-In/Out Invoice',
                 calc_r_price_label: 'Base Room Charge:',
                 calc_r_discount_label: '- Room Discount (',
@@ -2075,32 +2067,32 @@
                 calc_r_deposit_label: '- Deposit Deducted:',
                 calc_r_final_label: 'Guest Balance Due',
                 calc_cta: 'Sign Up for Hotel OS Now',
-                cskh_label: 'AUTOMATED GUEST RETENTION ENGINE',
+                cskh_label: 'GUEST FOLLOW-UP ASSISTANT',
                 cskh_title: 'Travelers always follow a cycle.',
                 cskh_title2: 'The question is,',
                 cskh_title3: 'does your hotel remember to follow up?',
-                cskh_desc: 'AI automatically schedules and drafts guest care messages based on travel cycles, maximizing your chances of filling vacant rooms:',
-                cskh1_time: 'AI Suggested • 1 day later',
+                cskh_desc: 'The AI drafts post-stay follow-ups from each guest\'s real history; you approve them and they go out within allowed hours, with an opt-out:',
+                cskh1_time: 'AI draft • After 1 day',
                 cskh_approved: 'Approved',
                 cskh1_title: 'Room Quality Follow-Up',
                 cskh1_msg: '"Hi! 🐾 Thank you for staying at BitPaw Hotel yesterday. Did your VIP room provide maximum comfort? If you need housekeeping or more drinks, just contact the front desk! 🏨"',
                 cskh1_goal: 'Goal: Measure room quality and front desk service satisfaction',
-                cskh2_time: 'AI Suggested • 14 days later',
+                cskh2_time: 'AI draft • After 14 days',
                 cskh2_title: 'Low-Season Offer',
-                cskh2_msg: '"Hello! 🏨 BitPaw\'s AI has a special 25% off voucher for our Deluxe Ocean View room for your next trip. Reserve your room today! 🌊"',
+                cskh2_msg: '"Hi Huong! Thanks for staying with us. Next time you are in town, enjoy 25% off a Deluxe room — reply to this text to book."',
                 cskh2_goal: 'Goal: Drive VIP guest bookings during low-occupancy periods',
-                cskh3_time: 'AI Suggested • 45 days later',
+                cskh3_time: 'AI draft • After 45 days',
                 cskh3_title: 'Past Guest Retargeting',
                 cskh3_msg: '"Hi! 🐾 It\'s been 45 days since your relaxing stay at BitPaw Hotel. We just upgraded our infinity pool and have a weekend offer with free breakfast for 2. Book your getaway now! 🍷"',
                 cskh3_goal: 'Goal: Maintain long-term brand connection through guest behavior retargeting',
-                mkt_title: 'AI Assistant Suggests Scripts',
+                mkt_title: 'An AI assistant for your content',
                 mkt_title2: 'for Ads & Reels that attract travelers.',
-                mkt_desc: 'No more worrying about creating room showcase content or Deluxe room video scripts for social media. BitPaw\'s AI assistant automatically suggests seasonal content:',
+                mkt_desc: 'The AI assistant suggests room write-ups, filming scripts and seasonal captions — you edit and post them yourself:',
                 mkt_item1_title: 'Auto-Generate Room Video Scripts',
-                mkt_item1_desc: 'AI suggests close-up shot scripts of the breezy ocean-view balcony and premium white bedding that build absolute trust.',
+                mkt_item1_desc: 'The AI suggests a filming script for the balcony, bedroom and amenities, with voice-over.',
                 mkt_item2_title: 'Suggest Traveler Audience Targeting',
-                mkt_item2_desc: 'AI advises on setting radius and interest targeting for travelers and backpackers to optimize your ad budget.',
-                mkt_term_1: '[SYSTEM] Activating specialized Hotel AI Marketing module...',
+                mkt_item2_desc: 'The AI suggests audiences and a reference ad budget; running ads is always your decision.',
+                mkt_term_1: '[SYSTEM] Opening the AI content assistant for hotels...',
                 mkt_term_2: '[DATA] Best-selling room type detected: "Deluxe Ocean View Double Room"',
                 mkt_term_3: '&gt; AI-PROMPT: Suggest a TikTok Reels script showcasing a weekend getaway',
                 mkt_term_4: '🎬 VIDEO SCRIPT DRAFT:',
@@ -2113,35 +2105,35 @@
                 mkt_term_11: '📝 SUGGESTED CAPTION:',
                 mkt_term_12: '"Wake up somewhere far away — open the curtains to an endless breezy ocean! 🌊 Enjoy a full weekend escape at BitPaw Hotel with a luxurious Deluxe Ocean View room and a chill infinity pool sunset. Book today for a 20% off voucher! 🛎️✨ #OceanViewHotel #WeekendGetaway #SpaRetreat #BitPawHotel"',
                 mkt_term_13: '[SUCCESS] 3 scripts successfully generated. Target audience: 22-45 years old, interested in travel/relaxation, within a 100km radius.',
-                trust_label: 'ABSOLUTE RELIABILITY',
+                trust_label: 'CLEAR OPERATIONS',
                 trust_title: 'A Lean Hotel Operations Solution,',
                 trust_title2: 'minimizing vacant room waste',
                 trust_stat1: 'No more late or double-booked rooms',
                 trust_stat2: 'Growth in low-occupancy-day bookings',
                 trust_stat3_num: '0 Paper',
-                trust_stat3: '100% digitized room records',
+                trust_stat3: 'Every room\'s status on one screen',
                 trust_cta_text: 'Need a specialist to help set up your room map and add-on service menu?',
                 trust_cta_btn: 'Chat with a BitPaw Specialist on Zalo',
                 faq_label: 'FREQUENTLY ASKED QUESTIONS',
                 faq_title: 'Questions About',
                 faq1_q: '1. Does it work for a small homestay as well as a chain of resort villas?',
                 faq1_a: 'Absolutely. BitPaw Hotel OS supports professional multi-location management for resort villa chains, while its simple interface is just as easy to use for small, self-run homestays.',
-                faq2_q: '2. How does the real-time room status map work?',
+                faq2_q: '2. How does the room board work?',
                 faq2_a: 'Once housekeeping finishes cleaning, they mark the room "Cleaned" directly from their phone. The front desk\'s room map instantly turns green "Ready for Guests," enabling rapid check-in.',
-                faq3_q: '3. Does the software automatically calculate late check-out fees?',
-                faq3_a: 'Yes. This is a specialized hotel billing feature. You set surcharge rates by hours late (e.g., 1-2 hours late = 10% surcharge, over 6 hours late = full day rate). At checkout, the POS calculates it accurately and transparently.',
+                faq3_q: '3. Does it charge for late check-out?',
+                faq3_a: 'Not automatically. Rooms are charged by the night; for a late check-out the front desk adds a surcharge to the room before check-out and it goes on the bill.',
                 faq4_q: '4. Can it manage mini bar beer and soft drink inventory?',
-                faq4_a: 'Absolutely. The system automatically links to your supply inventory. When the front desk bills mini bar items to the room invoice, the stock count is automatically deducted, quickly flagging any shrinkage.',
-                faq5_q: '5. How does the dynamic bank transfer QR code work?',
-                faq5_a: 'Once the bill is closed, the POS automatically generates a large, clear QR code on the counter or printed receipt. Guests scan it and their banking app auto-fills the hotel\'s account number, exact amount, and room reference — no risk of payment errors.',
+                faq4_a: 'Minibar, laundry and room-service charges are added to the room during the stay and rolled into the bill at check-out. Per-item minibar stock deduction is on our roadmap.',
+                faq5_q: '5. What about card or bank-transfer payments?',
+                faq5_a: 'Money goes straight to your business: cards through your own terminal/account, transfers/VietQR to the account you set up (hotels in Vietnam). BitPaw never holds guest money.',
                 faq6_q: '6. Does the software package include support for receipt printers and key card hardware?',
-                faq6_a: 'Yes. BitPaw Hotel OS is fully compatible with common LAN/Wifi thermal receipt printers and room key card systems. BitPaw specialists provide free remote setup and configuration to get you started.',
+                faq6_a: 'BitPaw runs in the browser and prints bills on a thermal printer connected to the front-desk device. It does not connect to keycard door locks.',
                 cta_title: 'Don\'t let your hotel keep losing revenue to room booking conflicts and mini bar shrinkage!',
-                cta_desc: 'Let BitPaw Hotel OS handle it all: automated online booking, real-time room maps, hourly billing, and AI-driven low-season guest retargeting.',
+                cta_desc: 'BitPaw Hotel: a live room board, fast check-in/out, extras rolled into the bill and AI-drafted invitations back.',
                 cta_btn1: 'Try the Hotel System',
                 cta_btn2: 'Get 24/7 Zalo Consultation',
                 cta_footnote: 'Ideal for small hotels, resorts, beach villas, suburban homestays, and multi-branch chains in Vietnam and abroad.',
-                footer_tagline: 'A pioneering ALL-IN-ONE SaaS platform in Vietnam, applying AI Radar, multi-industry Smart POS, omnichannel sales management, and marketing agency services.',
+                footer_tagline: 'All-in-one software for service businesses, retail and field teams — POS, bookings, staff, customer messaging and AI that works on your real data.',
                 footer_products_title: 'Products',
                 footer_link_pos: 'Multi-Industry Smart POS',
                 footer_link_agency: 'AI Agency Services',

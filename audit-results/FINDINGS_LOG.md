@@ -666,3 +666,50 @@ Tham khảo video "3 skill thiết kế cho Claude" (Emil Kowalski = chuyển đ
 Kiểm thử (server local, Chrome 1440 + iPhone 13, VI + EN): landing_polish 11/11 + nhớ ngôn ngữ 7/7 · landing_fab 7/7 · landing_mobile_blank 22/22 (0 màn trống) · landing_pages 66/66 · landing_download 47/47 · landing_sales_bot 18/18 (script cuộn qua màn đầu như khách thật) · download_device 32/32 · i18n 28 trang × 2, 0 khoá thô · quét toàn trang Nails 126 lượt, 0 link hỏng (3 cảnh báo cũ đúng thiết kế: /super_admin 403, /table_order 400) · trang trong app có nút Liên hệ mới: 0 lỗi JS.
 
 Còn treo / cần chủ dự án: bảng giá USD + phí cài $999–4.999 trên trang tiếng Việt; pháp nhân + địa chỉ SF/Sydney ở chân trang (xác nhận thật hay thay); HRM ~40 chỗ FaceID, Kỹ thuật (GPS realtime, ký số, trừ kho phụ tùng), Karaoke (gọi món tại phòng) — xây thật hoặc viết lại; Điều khoản/Chính sách vẫn placeholder.
+
+
+## Pha 26 — Khách Mỹ + Úc: giá USD/AUD, pháp lý thật, AI chạy thật, xây những gì landing đã hứa (23/10/2026)
+
+Yêu cầu: "chủ yếu tiếp khách Mỹ và Úc, USD + AUD… AI bắt buộc làm được hết… thiếu chức năng nào cứ bơm… trang nào hứa quá thì xây hoặc viết lại… điều khoản và chính sách làm luôn". Pháp nhân BitPaw Technology LLC (SF + Sydney) là thật.
+
+**A. Giá + pháp lý (commit 3a1b46e)**
+
+| # | Mức | Vấn đề | Đã làm |
+|---|---|---|---|
+| 1 | 🔴 | Bảng giá VND/USD lẫn lộn, không có AUD; nút đăng ký không lưu gói | 3 gói Essential / Pro / Empire bằng USD + AUD (phí cài + tháng, ghi chú thuế GST/sales tax), tự chọn AUD cho khách Úc; trang /checkout viết lại, giá tính ở máy chủ, đơn đăng ký vào Super Admin |
+| 2 | 🔴 | Điều khoản / Chính sách bảo mật / Thanh toán vẫn "đang cập nhật" | Viết đầy đủ EN + VI theo luật Mỹ + Úc: ACL, Privacy Act/APPs, CCPA, TCPA/Spam Act, xử lý AI ở nước ngoài, đồng ý chấm công khuôn mặt, GST, Square/PCI |
+
+**B. AI + nhắn tin chạy thật (commit 61d79d0)**
+
+| # | Mức | Vấn đề | Đã làm |
+|---|---|---|---|
+| 3 | 🔴 | AI Studio: 7 công cụ trả nội dung soạn sẵn khi AI lỗi, nút "xuất gói" giả, lịch sử ghi doanh thu giả | Báo lỗi thật; bộ video không mặt (cảnh + phụ đề .srt + đọc thử); lưu Brand DNA |
+| 4 | 🔴 | Chăm sóc khách tự động: chuỗi tin được duyệt nhưng **không bao giờ gửi**; gợi ý là chữ cố định | messaging.py: SMS Twilio + email, STOP/START/HELP, khung giờ theo giờ tiệm, hàng đợi chống trùng; nhắc lịch, xin đánh giá Google, nhắn lại cuộc gọi nhỡ, báo cáo ngày cho chủ; gợi ý từ dữ liệu thật |
+| 5 | 🔴 | Lịch sử mua của khách trong AI luôn rỗng (`'$_product'`) | Sửa truy vấn |
+| 6 | 🔴 | HRM quảng cáo FaceID nhưng chỉ cần gõ mã nhân viên | Chấm công khuôn mặt thật: mẫu số hoá trên máy, bắt chớp mắt, so khớp ở máy chủ, vé 3 phút, có xin đồng ý, tắt = xoá hết |
+| 7 | 🟠 | Điều phối thợ dùng toạ độ Nha Trang khi việc thiếu vị trí | Tra toạ độ từ địa chỉ (Nominatim, có cache) |
+
+**C+D. Xây những gì landing hứa + chức năng ngành (commit 6c7f37c + commit này)**
+
+| # | Ngành | Trước | Bây giờ (đã kiểm) |
+|---|---|---|---|
+| 8 | Karaoke | "Gọi đồ uống tại phòng" — không có | Mỗi phòng 1 mã QR có chữ ký; khách gọi món trên điện thoại, nhân viên thêm món ở quầy; bill = giờ + món; kho trừ khi tính tiền — 17/17 |
+| 9 | HRM/Office/F&B/Spa | "AI tự xếp ca" — không có lịch ca nào | /roster: khai nhu cầu người theo khung giờ → tự xếp né nghỉ phép, ngày bận, giờ tối đa (38 h Úc / 40 h Mỹ); chép tuần; công bố → app nhân viên + SMS/email; đi trễ/vắng so với check-in thật; ước tính lương — 28/28 |
+| 10 | HRM/Office | "Chống fake GPS / chấm công Wifi" — chưa chặn gì | "Chỉ chấm công tại tiệm": chủ đặt vị trí + bán kính; ngoài bán kính bị từ chối (trừ sai số GPS máy báo), bản offline chỉ đánh dấu — 11/11 |
+| 11 | Office/HRM | "Gửi phiếu lương bảo mật" — không có | Nút "Gửi bảng lương": email cho từng người số của riêng họ (ghi rõ không thay phiếu lương theo luật) |
+| 12 | Kỹ thuật | Khách không biết thợ tới lúc nào | Thợ bấm "ON MY WAY" → khách nhận SMS + link theo dõi (chỉ tên gọi, phút dự kiến, bản đồ; tới nơi/vị trí cũ/xong việc thì ẩn vị trí); chưa có Twilio thì mở app nhắn tin của máy — 14/14 |
+| 13 | Spa/Nails | "Thẻ liệu trình số" — không có | Gói nhiều buổi: tạo, bán tại quầy (doanh thu + sổ cái), dùng buổi ở POS Spa (bill 0, trừ buổi nguyên tử, hoa hồng KTV theo giá trị 1 buổi), chặn sai khách/sai dịch vụ/hết hạn, 2 máy dùng buổi cuối chỉ 1 thành công, hoàn tiền trả buổi — 15/15 |
+| 14 | Sản xuất/Bán lẻ/F&B | Cảnh báo tồn kho chỉ trên màn hình | Hàng dưới ngưỡng "nguy cấp" vào email báo cáo mỗi sáng của chủ |
+
+**E. Viết lại nội dung hứa quá (11 landing + JSON trang chính + FAQ SEO)**
+- Bỏ: FaceID/sinh trắc, "chống fake 100%", vệ tinh, "AI dự báo nghỉ việc / lãi lỗ / bảo trì máy", "AI Radar ép nhận lệnh", Wifi MAC, AES-256, "API mở sang CRM/ERP", kho trên từng xe thợ, định lượng nguyên liệu F&B, đồng bộ OTA/Shopee/TikTok (ghi rõ "đang trong lộ trình"), giường/phòng spa, thẻ khoá phòng, phụ thu trả phòng trễ tự động, "Đế chế… Radar AI… tại Việt Nam".
+- Thay bằng đúng những gì đang chạy (và đã có test): GPS + ảnh + khuôn mặt, giới hạn bán kính, lịch ca, gói liệu trình, thợ đang đến, gọi món QR phòng, AI soạn tin **để chủ duyệt** rồi gửi qua SMS/email có STOP.
+- 38 link hiện tên file (`bangluong.html`…) → "Dùng thử →". Chữ cảnh báo KCS ở màn công nhân không còn hứa "tự gửi báo cáo".
+- landing_spa có 2 bộ từ điển (1 bộ nằm nhầm trong `titles` của popup chính sách) — sửa đúng bộ đang dùng.
+- App nhân viên (giao diện tiếng Anh) còn chữ Việt "Sếp", "NHẬN JOB NÀY"… → tiếng Anh.
+
+Còn treo / ghi nhận: đồng bộ Shopee/TikTok Shop/Lazada và OTA khách sạn cần duyệt đối tác (đã ghi "lộ trình" trên trang); trừ kho theo định lượng cho F&B; in nhãn mã vạch; kho theo xe thợ; trang Nails vẫn chào "tặng phần mềm khi làm website" — khác với bảng giá USD/AUD ở trang chính (chủ dự án quyết giữ hay bỏ ưu đãi này).
+
+Lỗi thật tìm thêm khi chạy lại toàn bộ (đã sửa): (1) Thanh toán Spa của tiệm Mỹ/Úc KHÔNG có nút Tiền mặt (nằm trong nhóm "Việt Nam" bị ẩn), chỉ còn cổng thẻ/ví giả lập có ô nhập số thẻ → nay tiệm đô có nhóm "Thu tại quầy": Tiền mặt / Thẻ (máy quẹt của tiệm) / Chuyển khoản. (2) Bấm phương thức thanh toán ở Spa đổi tiền tệ sang VND với cả tiệm AUD → hộp kết quả hiện "₫". (3) Khách sạn: mọi lần trả phòng ghi "tiền mặt" → lễ tân chọn tiền mặt/thẻ/chuyển khoản, báo cáo tách đúng. (4) Bài test F&B bán món thật mà không trả kho → kho demo cạn, thanh toán bị chặn "không đủ hàng" (hệ thống chặn đúng) → snapshot/khôi phục tồn kho. (5) Tiệm Nails demo bị bật sẵn chấm công khuôn mặt từ lượt test cũ → tắt lại. (6) Lúc viết lại chữ landing, 4 trang bị lỗi 500/JS do chuỗi có url_for('…') — sửa và thêm kiểm tra HTTP 200 cho cả 11 trang.
+
+Kiểm thử (server local, Chrome + iPhone 13, VI + EN): lịch ca 28/28 · geofence 11/11 · gói liệu trình 15/15 · thợ đang đến 14/14 · karaoke QR 17/17 · khuôn mặt 22/22 · nhắn tin 21/21 · AI Studio 22/22 · AI Copilot 18/18 · giá USD/AUD 20/20 · chủ + nhân viên 9 ngành 147/147 · Nails persona 38/38 · Nails master 10/10 · bot Nails 7/7 · Spa master 6/6 · KTV Spa 9/9 · đồng bộ nhân viên 45/45 · F&B 8/8 · Hotel 5/5 · Karaoke 4/4 · Bán lẻ 6/6 · Sản xuất 3/3 · Kỹ thuật 3/3 · Văn phòng 4/4 · 11 landing 66/66 · mượt 11/11 + nhớ ngôn ngữ 7/7 · màn trống iPhone 0/22 · nút Liên hệ 7/7 · khoá dịch thô 0 (31 trang × 2) · input dị dạng 0 lỗi 500, server sống.

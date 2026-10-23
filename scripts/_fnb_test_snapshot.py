@@ -23,7 +23,9 @@ def max_id(coll):
 
 if cmd == 'snapshot':
     print(json.dumps({'ko': max_id('kitchen_orders'), 'to': max_id('table_orders'),
-                      'tables': {str(t['id']): t.get('status') for t in db.dining_tables.find({'business_id': bid}, {'id': 1, 'status': 1})}}))
+                      'tables': {str(t['id']): t.get('status') for t in db.dining_tables.find({'business_id': bid}, {'id': 1, 'status': 1})},
+                      # tồn kho món: mỗi lượt test bán món thật -> trước đây kho demo cạn dần tới khi thanh toán bị chặn "không đủ hàng"
+                      'stock': {str(p['id']): p['stock'] for p in db.products.find({'business_id': bid, 'stock': {'$exists': True}}, {'id': 1, 'stock': 1})}}))
 else:
     snap = json.loads(sys.argv[3])
     ko = db.kitchen_orders.delete_many({'business_id': bid, 'id': {'$gt': snap['ko']}}).deleted_count
@@ -31,4 +33,7 @@ else:
     reset = 0
     for tid, st in snap['tables'].items():
         reset += db.dining_tables.update_one({'business_id': bid, 'id': int(tid), 'status': {'$ne': st}}, {'$set': {'status': st}}).modified_count
-    print(json.dumps({'xoa_phieu_bep': ko, 'xoa_don_ban': to, 'tra_trang_thai_ban': reset}))
+    stock = 0
+    for pid, st in (snap.get('stock') or {}).items():
+        stock += db.products.update_one({'business_id': bid, 'id': int(pid), 'stock': {'$ne': st}}, {'$set': {'stock': st}}).modified_count
+    print(json.dumps({'xoa_phieu_bep': ko, 'xoa_don_ban': to, 'tra_trang_thai_ban': reset, 'tra_ton_kho': stock}))

@@ -3382,7 +3382,7 @@ def _record_pos_transaction(business_id, order_id, amount, payment_method, creat
     }, session=db_session)
 
 
-def _compute_cart_order(business_id, data):
+def _compute_cart_order(business_id, data, allow_packages=False):
     """Tính subtotal/tip/total/payment_bucket/hoa hồng từ payload giỏ hàng — DÙNG CHUNG cho
     cả api_sales_checkout (cash/mock) LẪN api_square_checkout (Square Terminal thật), đảm bảo
     2 luồng luôn tính tiền giống hệt nhau (sửa 1 chỗ, áp dụng cả 2). Raise ValueError(message)
@@ -3410,6 +3410,7 @@ def _compute_cart_order(business_id, data):
     subtotal = 0
     order_items_docs = []
     stock_items = []
+    priced_pairs = []  # (dòng client, dòng order_items) — để định giá dòng dùng gói liệu trình
     for it in items:
         prod = products_map.get(it['product_id'])
         if not prod:
@@ -3431,10 +3432,18 @@ def _compute_cart_order(business_id, data):
                 raise ValueError("Kỹ thuật viên không hợp lệ.")
             oi_doc['ma_nv'] = ma_nv.strip().upper()
         order_items_docs.append(oi_doc)
+        priced_pairs.append((it, oi_doc))
         if 'stock' in prod:
             stock_items.append((prod['id'], qty, prod.get('name')))
     if not order_items_docs:
         raise ValueError("Không có sản phẩm hợp lệ trong giỏ hàng.")
+    if any(it.get('package_id') not in (None, '') for it, _ in priced_pairs):
+        # Dùng buổi trong gói liệu trình (service_packages.py): dòng đó giá 0, trừ buổi lúc ghi đơn
+        if not allow_packages:
+            raise ValueError("Package sessions can only be redeemed at the counter checkout.")
+        import service_packages
+        subtotal = round(subtotal - service_packages.price_items(business_id, [a for a, _ in priced_pairs], [b for _, b in priced_pairs],
+                                                                  products_map, data.get('customer_phone')), 2)
     techs = {oi['ma_nv'] for oi in order_items_docs if oi.get('ma_nv')}
     if techs and db.employees.count_documents({'business_id': business_id, 'ma_nv': {'$in': list(techs)}}) != len(techs):
         raise ValueError("Kỹ thuật viên không tồn tại trong cửa hàng này.")
@@ -3560,11 +3569,19 @@ def api_sales_checkout():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     try:
-        order_fields, metadata_fields, order_items_docs, stock_items = _compute_cart_order(business_id, data)
+        order_fields, metadata_fields, order_items_docs, stock_items = _compute_cart_order(business_id, data, allow_packages=True)
     except ValueError as e:
         msg = str(e)
         status_code = 404 if 'không tồn tại' in msg else 400
         return jsonify({"success": False, "message": msg}), status_code
+    redeemed = []
+    if any(oi.get('package_id') for oi in order_items_docs):
+        import service_packages
+        try:
+            redeemed = service_packages.redeem(business_id, order_items_docs)
+        except ValueError as e:
+            return jsonify({"success": False, "message": str(e)}), 409
+        metadata_fields['package_redeems'] = [[pid, qty] for pid, qty in redeemed]
 
     order_id = next_mongo_id('orders')
     # Chỉ nhận 2 trạng thái: 'completed' (đã thu) hoặc 'pending' (spa.html: khách trả tiền mặt tại
@@ -3620,6 +3637,9 @@ def api_sales_checkout():
                         order_fields['payment_method'], db_session=s,
                     )
             db_session.with_transaction(_do_checkout_txn)
+        if redeemed:
+            import service_packages
+            service_packages.log_use(business_id, redeemed, order_id)
 
         # Cộng điểm loyalty + tạo/cập nhật hồ sơ CRM khách hàng theo SĐT — trước đây chỉ luồng
         # thanh toán theo bàn (api_payment_confirm) gọi hàm này, khiến khách mua qua giỏ hàng
@@ -3631,8 +3651,14 @@ def api_sales_checkout():
         # chỉ tài liệu LƯU TRONG DB đổi shape, hợp đồng API không đổi.
         return jsonify({"success": True, "order_id": order_id, "techs_paid": techs_paid, **order_fields, **metadata_fields})
     except InsufficientStockError as e:
+        if redeemed:
+            import service_packages
+            service_packages.restore(business_id, redeemed)
         return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
+        if redeemed:
+            import service_packages
+            service_packages.restore(business_id, redeemed)
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -3643,7 +3669,7 @@ def _build_cart_commission_docs(order_id, business_id, order_items_docs, data):
     per_tech = {}
     for oi in order_items_docs:
         if oi.get('ma_nv'):
-            per_tech[oi['ma_nv']] = per_tech.get(oi['ma_nv'], 0) + float(oi.get('total_price') or 0)
+            per_tech[oi['ma_nv']] = per_tech.get(oi['ma_nv'], 0) + float(oi.get('commission_value', oi.get('total_price')) or 0)
     if not per_tech:
         return [], []
     rate = float(_get_business_commission_rate(business_id))
@@ -3740,6 +3766,9 @@ def api_order_refund(order_id):
                 restock_items = [(oi['product_id'], oi['quantity'], None) for oi in original_items if oi.get('product_id')]
                 if restock_items:
                     _restock_atomic(business_id, restock_items)
+                if original_metadata.get('package_redeems'):  # trả lại buổi gói liệu trình đã dùng trong đơn
+                    import service_packages
+                    service_packages.restore(business_id, [tuple(x) for x in original_metadata['package_redeems']], order_id, 'refund')
             except Exception as e:
                 print(f"[api_order_refund] Loi hoan ton kho (khong chan luong hoan tien): {e}")
 
@@ -6541,6 +6570,9 @@ def api_hotel_room_charges_delete(charge_id):
 @login_required
 def api_hotel_room_checkout(room_id):
     business_id = session.get('business_id') or session['user_id']
+    pay_method = str((request.get_json(silent=True) or {}).get('payment_method') or 'cash').strip().lower()
+    if pay_method not in ('cash', 'card', 'bank'):
+        pay_method = 'cash'
     room = None
     order_id = None
     try:
@@ -6568,16 +6600,16 @@ def api_hotel_room_checkout(room_id):
         order_code = f"HTL-{uuid.uuid4().hex[:8].upper()}"
         db.orders.insert_one({
             'id': order_id, 'business_id': business_id, 'created_at': now.isoformat(),
-            'status': 'completed', 'total_amount': total_price, 'payment_method': 'cash',
+            'status': 'completed', 'total_amount': total_price, 'payment_method': pay_method,
             'metadata': {
-                'order_code': order_code, 'channel': 'hotel', 'room_id': room_id,
+                'order_code': order_code, 'channel': 'hotel', 'room_id': room_id, 'payment_bucket': 'cash' if pay_method == 'cash' else 'card',
                 'room_number': room.get('room_number'), 'guest_name': room.get('guest_name'),
                 'nights': nights, 'room_total': room_total,
                 'extra_charges': [{'description': c['description'], 'amount': c['amount']} for c in pending_charges],
                 'extra_charges_total': charges_total,
             },
         })
-        _record_pos_transaction(business_id, order_id, total_price, 'cash')
+        _record_pos_transaction(business_id, order_id, total_price, pay_method)
 
         if pending_charges:
             db.hotel_room_charges.update_many(
@@ -13263,6 +13295,13 @@ try:
     app.register_blueprint(tracking_bp)
 except Exception as bp_err:
     print(f"Error registering tracking_bp: {str(bp_err)}")
+
+try:
+    # Gói liệu trình nhiều buổi (bán tại quầy, dùng buổi ở POS Spa) — service_packages.py
+    from service_packages import packages_bp
+    app.register_blueprint(packages_bp)
+except Exception as bp_err:
+    print(f"Error registering packages_bp: {str(bp_err)}")
 
 try:
     # Xếp lịch ca theo tuần (tự xếp theo nhu cầu người, nghỉ phép, giờ tối đa; công bố + báo nhân viên) — shift_roster.py

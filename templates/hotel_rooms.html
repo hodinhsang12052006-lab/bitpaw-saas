@@ -104,6 +104,10 @@
                     <span class="text-xs uppercase font-bold text-gray-400" data-i18n="hr_total_label">Tổng tiền</span>
                     <span id="checkoutTotal" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400"></span>
                 </div>
+                <label class="block pt-2"><span class="text-xs uppercase font-bold text-gray-400" data-i18n="hr_pay_method_label">Thanh toán</span>
+                    <select id="checkoutPayMethod" class="mt-1 w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm">
+                        <option value="cash" data-i18n="hr_pay_cash">Tiền mặt</option><option value="card" data-i18n="hr_pay_card">Thẻ</option><option value="bank" data-i18n="hr_pay_bank">Chuyển khoản</option>
+                    </select></label>
             </div>
             <div class="flex gap-3">
                 <button onclick="closeModal('checkoutModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
@@ -209,6 +213,7 @@
                 hr_add_room_btn: 'Thêm phòng', hr_no_rooms: 'Chưa có phòng nào. Bấm "Thêm phòng" để bắt đầu.',
                 hr_checkin_title: 'Nhận Phòng', hr_guest_name_label: 'Tên khách', hr_guest_phone_label: 'Số điện thoại',
                 hr_cancel: 'Huỷ', hr_confirm_checkin: 'Nhận phòng',
+                hr_pay_method_label: 'Thanh toán', hr_pay_cash: 'Tiền mặt', hr_pay_card: 'Thẻ', hr_pay_bank: 'Chuyển khoản',
                 hr_checkout_title: 'Trả Phòng', hr_guest_label: 'Khách', hr_nights_label: 'Số đêm', hr_total_label: 'Tổng tiền',
                 hr_confirm_checkout: 'Xác nhận trả phòng',
                 hr_add_room_title: 'Thêm Phòng Mới', hr_room_number_label: 'Số phòng', hr_room_type_label: 'Loại phòng',
@@ -235,6 +240,7 @@
                 hr_add_room_btn: 'Add Room', hr_no_rooms: 'No rooms yet. Tap "Add Room" to get started.',
                 hr_checkin_title: 'Check In', hr_guest_name_label: 'Guest Name', hr_guest_phone_label: 'Phone Number',
                 hr_cancel: 'Cancel', hr_confirm_checkin: 'Check In',
+                hr_pay_method_label: 'Payment', hr_pay_cash: 'Cash', hr_pay_card: 'Card', hr_pay_bank: 'Bank transfer',
                 hr_checkout_title: 'Check Out', hr_guest_label: 'Guest', hr_nights_label: 'Nights', hr_total_label: 'Total',
                 hr_confirm_checkout: 'Confirm Check Out',
                 hr_add_room_title: 'Add New Room', hr_room_number_label: 'Room Number', hr_room_type_label: 'Room Type',
@@ -411,7 +417,7 @@
             const orig = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             try {
-                const body = await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({}) });
+                const body = await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({ payment_method: document.getElementById('checkoutPayMethod').value }) });
                 closeModal('checkoutModal');
                 showToast(t('hr_toast_checkout_ok'));
                 if (pendingCheckoutInfo) {

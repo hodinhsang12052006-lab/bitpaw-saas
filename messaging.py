@@ -14,6 +14,7 @@ import base64
 import hashlib
 import hmac
 import os
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -387,6 +388,18 @@ def produce_nurture(business_id, settings, now_utc):
     return n
 
 
+def low_stock(business_id):
+    """Sản phẩm đang bán có tồn <= ngưỡng "nguy cấp" của tiệm (trang Cảnh báo tồn kho, mặc định 5), ít nhất trước."""
+    doc = db.system_settings.find_one({'key': 'inventory_thresholds', 'business_id': business_id}, {'value': 1, '_id': 0})
+    try:
+        critical = float(json.loads(doc['value']).get('critical', 5)) if doc else 5.0
+    except (ValueError, TypeError, AttributeError):
+        critical = 5.0
+    rows = db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}, 'stock': {'$lte': critical}},
+                            {'_id': 0, 'name': 1, 'stock': 1}).sort('stock', 1).limit(30)
+    return [{'name': r.get('name') or '?', 'stock': float(r.get('stock') or 0)} for r in rows]
+
+
 def produce_owner_report(business_id, settings, now_utc):
     """Sau 7 giờ sáng (giờ tiệm): gửi email tóm tắt NGÀY HÔM QUA cho chủ tiệm (1 lần/ngày)."""
     if not settings['owner_report_enabled']:
@@ -415,12 +428,14 @@ def produce_owner_report(business_id, settings, now_utc):
                                                       'book_time': {'$gte': today.isoformat(), '$lt': (today + timedelta(days=1)).isoformat()}})
     new_customers = db.customers.count_documents({'business_id': business_id, 'created_at': rng})
     biz = _business(business_id)
+    low = low_stock(business_id)
+    low_txt = ', '.join(f"{x['name']} ({x['stock']:g})" for x in low[:6]) + (f" +{len(low) - 6}" if len(low) > 6 else '')
     cur = (biz.get('currency') or 'USD').upper()
     sym = {'USD': '$', 'AUD': 'A$', 'CAD': 'C$', 'NZD': 'NZ$', 'GBP': '£'}.get(cur, '')
     money = (lambda v: f"{sym}{v:,.2f}") if sym else (lambda v: f"{int(v):,}đ".replace(',', '.'))
     body = _t(settings,
-              f"{settings['business_name']} — {day.strftime('%A, %B %d')}\n\nSales: {money(revenue)} from {len(orders)} bills\nCash to have in the drawer: {money(cash)}\nNew customers: {new_customers}\nAppointments today: {appts_tomorrow}\n\nOpen BitPaw for the full report.",
-              f"{settings['business_name']} — ngày {day.strftime('%d/%m/%Y')}\n\nDoanh thu: {money(revenue)} từ {len(orders)} bill\nTiền mặt phải có trong két: {money(cash)}\nKhách mới: {new_customers}\nLịch hẹn hôm nay: {appts_tomorrow}\n\nMở BitPaw để xem báo cáo đầy đủ.")
+              f"{settings['business_name']} — {day.strftime('%A, %B %d')}\n\nSales: {money(revenue)} from {len(orders)} bills\nCash to have in the drawer: {money(cash)}\nNew customers: {new_customers}\nAppointments today: {appts_tomorrow}" + (f"\nLow stock: {low_txt}" if low else '') + "\n\nOpen BitPaw for the full report.",
+              f"{settings['business_name']} — ngày {day.strftime('%d/%m/%Y')}\n\nDoanh thu: {money(revenue)} từ {len(orders)} bill\nTiền mặt phải có trong két: {money(cash)}\nKhách mới: {new_customers}\nLịch hẹn hôm nay: {appts_tomorrow}" + (f"\nSắp hết hàng: {low_txt}" if low else '') + "\n\nMở BitPaw để xem báo cáo đầy đủ.")
     return 1 if queue(business_id, 'email', to, body, 'owner_report', subject=_t(settings, f"Daily report — {settings['business_name']}", f"Báo cáo ngày — {settings['business_name']}"),
                       dedupe_key=f"rep:{business_id}:{day.isoformat()}") else 0
 
