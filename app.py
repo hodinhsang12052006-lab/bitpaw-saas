@@ -3355,13 +3355,20 @@ def _compute_cart_order(business_id, data):
         price = prod.get('price', 0)
         line_total = qty * price
         subtotal += line_total
-        order_items_docs.append({
-            'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total,
-        })
+        oi_doc = {'product_id': prod['id'], 'quantity': qty, 'price': price, 'total_price': line_total}
+        ma_nv = it.get('ma_nv')
+        if ma_nv not in (None, ''):  # POS Spa: kỹ thuật viên làm dịch vụ này (hoa hồng ghi vào chấm công)
+            if not isinstance(ma_nv, str) or len(ma_nv) > 64:
+                raise ValueError("Kỹ thuật viên không hợp lệ.")
+            oi_doc['ma_nv'] = ma_nv.strip().upper()
+        order_items_docs.append(oi_doc)
         if 'stock' in prod:
             stock_items.append((prod['id'], qty, prod.get('name')))
     if not order_items_docs:
         raise ValueError("Không có sản phẩm hợp lệ trong giỏ hàng.")
+    techs = {oi['ma_nv'] for oi in order_items_docs if oi.get('ma_nv')}
+    if techs and db.employees.count_documents({'business_id': business_id, 'ma_nv': {'$in': list(techs)}}) != len(techs):
+        raise ValueError("Kỹ thuật viên không tồn tại trong cửa hàng này.")
 
     # Tip: số tiền cố định (tip_amount) hoặc theo % subtotal (tip_percent) — client gửi 1
     # trong 2, không gửi thì mặc định 0. total_amount = subtotal + tip (số tiền thực thu),
@@ -3528,12 +3535,16 @@ def api_sales_checkout():
         # chỉ 8/100 thành công, 92 lượt còn lại bị lỗi 500 "Write conflict" dù tồn kho đủ cho tới
         # tận lượt thứ 50. `with_transaction()` là API pymongo CHÍNH THỨC cho đúng vấn đề này —
         # tự động thử lại (kèm backoff) cho MỌI lỗi transient, giữ nguyên toàn bộ logic bên trong.
+        commission_docs, techs_paid = _build_cart_commission_docs(order_id, business_id, order_items_docs, data) \
+            if status == 'completed' else ([], [])
         with mongo_client_instance.start_session() as db_session:
             def _do_checkout_txn(s):
                 _decrement_stock_atomic(business_id, stock_items, db_session=s)
                 db.orders.insert_one(order_doc, session=s)
                 if order_items_docs:
                     db.order_items.insert_many(order_items_docs, session=s)
+                if commission_docs:
+                    db.chamcong.insert_many(commission_docs, session=s)
                 if status == 'completed':
                     _record_pos_transaction(
                         business_id, order_id, order_fields['total_amount'],
@@ -3549,11 +3560,37 @@ def api_sales_checkout():
 
         # Response giữ NGUYÊN hình dạng cũ cho frontend (hoá đơn hiển thị subtotal/tip/...) —
         # chỉ tài liệu LƯU TRONG DB đổi shape, hợp đồng API không đổi.
-        return jsonify({"success": True, "order_id": order_id, **order_fields, **metadata_fields})
+        return jsonify({"success": True, "order_id": order_id, "techs_paid": techs_paid, **order_fields, **metadata_fields})
     except InsufficientStockError as e:
         return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+def _build_cart_commission_docs(order_id, business_id, order_items_docs, data):
+    """POS Spa (spa.html): mỗi dòng dịch vụ có kỹ thuật viên -> 1 dòng chấm công/thợ "Đã chốt" với hoa hồng = % mặc định
+    của tiệm × doanh thu các dịch vụ thợ đó làm. Ghi_chu "[SPA POS] Order #N" để hoàn tiền tự thu hồi đúng phần (xem
+    api_order_refund). Trước đây POS Spa không gán thợ -> hoa hồng phải nhập tay lần 2 ở màn Chấm công Spa."""
+    per_tech = {}
+    for oi in order_items_docs:
+        if oi.get('ma_nv'):
+            per_tech[oi['ma_nv']] = per_tech.get(oi['ma_nv'], 0) + float(oi.get('total_price') or 0)
+    if not per_tech:
+        return [], []
+    rate = float(_get_business_commission_rate(business_id))
+    local_date = data.get('client_local_date')
+    if not (isinstance(local_date, str) and re.fullmatch(r'\d{2}/\d{2}/\d{4}', local_date)):
+        local_date = datetime.now().strftime('%d/%m/%Y')
+    ids = iter(next_mongo_id_batch('chamcong', len(per_tech)))
+    docs, paid = [], []
+    for ma_nv, revenue in per_tech.items():
+        tua = round(revenue * rate / 100, 2)
+        docs.append({'id': next(ids), 'business_id': business_id, 'ma_nv': ma_nv, 'ngay_cham': local_date,
+                     'nganh_nghe': 'Spa', 'trang_thai': 'Đã chốt',
+                     'ghi_chu': f"[SPA POS] Order #{order_id} — {rate:g}% hoa hồng",
+                     'tien_tua': tua, 'tien_tips': 0, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
+        paid.append({'ma_nv': ma_nv, 'commission': tua, 'revenue': round(revenue, 2)})
+    return docs, paid
 
 
 @app.route('/api/orders/<int:order_id>/refund', methods=['POST'])
@@ -3651,7 +3688,21 @@ def api_order_refund(order_id):
                 'refund_reason': refund_reason,
             },
         })
-        return jsonify({"success": True, "refund_id": refund_id, "order_status": new_status})
+        # Thu hồi hoa hồng kỹ thuật viên (POS Spa) theo đúng tỉ lệ số tiền hoàn
+        ratio = amount / order_total if order_total else 0
+        claw = []
+        for rec in db.chamcong.find({'business_id': business_id, 'ghi_chu': {'$regex': rf'^\[SPA POS\] Order #{order_id}(?!\d)'}}, {'_id': 0}):
+            back = round(float(rec.get('tien_tua') or 0) * ratio, 2)
+            if back > 0:
+                claw.append({'business_id': business_id, 'ma_nv': rec['ma_nv'], 'ngay_cham': datetime.now().strftime('%d/%m/%Y'),
+                             'nganh_nghe': rec.get('nganh_nghe', 'Spa'), 'trang_thai': 'Đã chốt',
+                             'ghi_chu': f"[REFUND] Deduction for Order #{order_id} — linked to original chamcong #{rec.get('id')}",
+                             'tien_tua': -back, 'tien_tips': 0, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
+        if claw:
+            for doc, cid in zip(claw, next_mongo_id_batch('chamcong', len(claw))):
+                doc['id'] = cid
+            db.chamcong.insert_many(claw)
+        return jsonify({"success": True, "refund_id": refund_id, "order_status": new_status, "commission_clawback": len(claw)})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -5068,6 +5119,22 @@ def api_staff_list():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+_INDUSTRY_DEPARTMENT = {'nail': 'Nails', 'spa': 'Spa & Beauty', 'fnb': 'F&B', 'retail': 'Retail', 'karaoke': 'Karaoke',
+                        'hotel': 'Khách Sạn', 'production': 'Sản Xuất', 'technical': 'Kỹ Thuật', 'office': 'Văn Phòng'}
+
+
+def _next_employee_code(business_id):
+    """Mã đăng nhập app nhân viên kế tiếp dạng NV0001 (theo mã NV lớn nhất đang có của tiệm)."""
+    n = 0
+    for e in db.employees.find({'business_id': business_id, 'ma_nv': {'$regex': r'^NV\d+$'}}, {'ma_nv': 1, '_id': 0}):
+        n = max(n, int(e['ma_nv'][2:]))
+    while True:
+        n += 1
+        code = f"NV{n:04d}"
+        if not db.employees.find_one({'business_id': business_id, 'ma_nv': code}, {'_id': 1}):
+            return code
+
+
 @app.route('/add_staff', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
@@ -5075,8 +5142,19 @@ def add_staff():
     business_id = session.get('business_id') or session['user_id']
     data = request.json
     try:
+        staff_id = next_mongo_id('staff')
+        # Kèm hồ sơ nhân sự (db.employees) + MÃ ĐĂNG NHẬP app nhân viên: thêm ở đây là nhân viên dùng được app chấm công,
+        # có trong bảng lương. Trước đây danh sách này tách rời hẳn với nhân sự -> người thêm ở đây không đăng nhập được app.
+        ma_nv = _next_employee_code(business_id)
+        db.employees.insert_one({
+            'id': next_mongo_id('employees'), 'business_id': business_id, 'ma_nv': ma_nv, 'ho_ten': data['name'],
+            'linh_vuc': _INDUSTRY_DEPARTMENT.get((session.get('business_mode') or '').lower(), 'Chưa phân bổ'),
+            'chuc_vu': data.get('role') or 'Staff', 'luong_cb': 0, 'luong_gio': 0, 'phu_cap': 0, 'diem_kudo': 0,
+            'staff_id': staff_id,
+        })
         db.staff.insert_one({
-            'id': next_mongo_id('staff'),
+            'id': staff_id,
+            'ma_nv': ma_nv,
             'name': data['name'],
             'phone': data['phone'],
             'role': data['role'],
@@ -5087,7 +5165,7 @@ def add_staff():
             'is_active': data.get('is_active', True),
             'business_id': business_id
         })
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'ma_nv': ma_nv})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi thêm nhân viên: {str(e)}'}), 500
 
@@ -13413,6 +13491,16 @@ def api_hr_employees_create():
             'diem_kudo': 0,
             'staff_id': None,
         }
+        # 1 người = 1 hồ sơ ở CẢ 2 nơi: kèm luôn dòng ở danh sách hoa hồng POS (/staff, db.staff) và liên kết 2 chiều.
+        # Trước đây 2 danh sách tách rời: thêm ở 1 nơi thì nơi kia không có.
+        try:
+            staff_id = next_mongo_id('staff')
+            db.staff.insert_one({'id': staff_id, 'business_id': business_id, 'name': doc['ho_ten'] or ma_nv,
+                                 'phone': str(data.get('phone') or '')[:20], 'role': 'Staff', 'commission_rate': None,
+                                 'is_active': True, 'ma_nv': ma_nv})
+            doc['staff_id'] = staff_id
+        except Exception as e:
+            print(f"[api_hr_employees_create] Không tạo được dòng /staff liên kết: {e}")
         db.employees.insert_one(doc)
         doc.pop('_id', None)
         return jsonify({"success": True, "data": doc})

@@ -9,6 +9,7 @@ subscriber offline lúc bắn message là mất vĩnh viễn -> không dùng đ�
 (ảnh hưởng lương thợ).
 """
 import os
+import time
 
 import redis
 
@@ -24,6 +25,26 @@ ATTENDANCE_GROUP = 'attendance_writers'
 ORDER_EVENTS_STREAM = 'bitpaw:order:events'
 
 _redis_client = None
+# Ngắt mạch: Redis không kết nối được thì 60 giây tới KHÔNG thử lại. Trước đây mỗi lần gọi đều chờ hết thời gian kết nối
+# (~4 giây: connect 2s + thử lại) -> mỗi bill có SĐT khách chậm thêm 4 giây ngay tại quầy (đo thật: thanh toán Spa 5,2s).
+_DOWN_UNTIL = 0.0
+_DOWN_SECONDS = 60
+
+
+def redis_configured():
+    return bool(os.environ.get('REDIS_URL'))
+
+
+def _guarded(fn):
+    """Gọi Redis với ngắt mạch: đang trong 60s sau lần hỏng -> ném lỗi NGAY, không chờ timeout."""
+    global _DOWN_UNTIL
+    if time.time() < _DOWN_UNTIL:
+        raise ConnectionError('Redis tạm ngắt (lỗi kết nối gần đây)')
+    try:
+        return fn()
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+        _DOWN_UNTIL = time.time() + _DOWN_SECONDS
+        raise
 
 
 def get_redis_client():
@@ -51,9 +72,11 @@ def push_attendance_event(event):
     - Field value của Redis Stream chỉ nhận str/bytes/int/float, không nhận None -> ép None
       thành chuỗi rỗng trước khi XADD, consumer.py sẽ tự diễn giải lại chuỗi rỗng = thiếu dữ liệu.
     """
+    if not redis_configured():
+        raise ConnectionError('Chưa cấu hình REDIS_URL')  # báo lỗi ngay (caller trả 503 cho app/kiosk thử lại)
     r = get_redis_client()
     safe_event = {k: ('' if v is None else v) for k, v in event.items()}
-    return r.xadd(ATTENDANCE_STREAM, safe_event, maxlen=100000, approximate=True)
+    return _guarded(lambda: r.xadd(ATTENDANCE_STREAM, safe_event, maxlen=100000, approximate=True))
 
 
 def push_order_completed_event(event):
@@ -64,6 +87,8 @@ def push_order_completed_event(event):
     biệt khỏi luồng checkout, tương tự consumer.py cho ATTENDANCE_STREAM) sẽ tự đọc và xử lý sau.
     maxlen=100000/approximate=True: cùng lý do an toàn vận hành như push_attendance_event() —
     chặn Redis phình vô hạn nếu chưa có worker nào tiêu thụ stream này."""
+    if not redis_configured():
+        return None  # chưa có Redis (và chưa có worker đọc stream này) -> bỏ qua, KHÔNG chờ timeout giữa lúc thanh toán
     r = get_redis_client()
     safe_event = {k: ('' if v is None else v) for k, v in event.items()}
-    return r.xadd(ORDER_EVENTS_STREAM, safe_event, maxlen=100000, approximate=True)
+    return _guarded(lambda: r.xadd(ORDER_EVENTS_STREAM, safe_event, maxlen=100000, approximate=True))

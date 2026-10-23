@@ -445,6 +445,9 @@
             font-size: 0.85rem; 
         }
 
+        /* ô chọn kỹ thuật viên cho từng dịch vụ (hoa hồng vào bảng lương) */
+        .cart-tech { margin-top: 6px; width: 100%; max-width: 220px; min-height: 36px; background: rgba(0,0,0,.45); color: #e2e8f0;
+                     border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; }
         .cart-item-qty { 
             display: flex; 
             align-items: center; 
@@ -1073,6 +1076,13 @@
             return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
         }
 
+        // Tiền tệ THẬT của tiệm (tiệm Úc/Mỹ: $) — trước đây giỏ hàng/hộp thanh toán luôn ghi "₫" và quy đổi USD theo tỉ giá
+        // cứng 25.000: tiệm Spa ở Úc thấy dịch vụ $135 thành "135₫" ≈ "$0.0054".
+        const SHOP_CURRENCY = {{ (tenant_currency or 'VND') | tojson }};
+        const THERAPISTS = {{ (therapists or []) | tojson }};
+        function formatShop(amount) {
+            return SHOP_CURRENCY === 'VND' ? Math.round(amount).toLocaleString('vi-VN') + '₫' : '$' + Number(amount).toFixed(2);
+        }
         function formatCurrency(amount, cur) {
             if(cur === 'VND') {
                 return amount.toLocaleString('vi-VN') + '₫';
@@ -1101,7 +1111,11 @@
                     <div class="cart-item" data-index="${idx}">
                         <div class="cart-item-info">
                             <h4>${escapeHtml(item.name)}</h4>
-                            <div class="cart-item-price">${item.price.toLocaleString('vi-VN')}₫</div>
+                            <div class="cart-item-price">${formatShop(item.price)}</div>
+                            ${THERAPISTS.length ? `<select class="cart-tech" data-idx="${idx}" aria-label="${t('spa_assign_therapist')}">
+                                <option value="">${t('spa_assign_therapist')}</option>
+                                ${THERAPISTS.map(tp => `<option value="${escapeHtml(tp.ma_nv)}" ${item.ma_nv === tp.ma_nv ? 'selected' : ''}>${escapeHtml(tp.ho_ten)}</option>`).join('')}
+                            </select>` : ''}
                         </div>
                         <div class="cart-item-qty">
                             <button class="cart-qty-btn decr-cart" data-idx="${idx}">-</button>
@@ -1114,12 +1128,15 @@
             });
             
             cartItemsList.innerHTML = html;
-            cartTotalSpan.innerText = baseVND.toLocaleString('vi-VN') + '₫';
+            cartTotalSpan.innerText = formatShop(baseVND);
             cartCountBadge.innerText = totalQty;
             cartCountBadge.style.display = totalQty > 0 ? 'flex' : 'none';
             baseUSD = baseVND / exchangeRate;
             
             // Gắn lại sự kiện cho các nút trong giỏ
+            document.querySelectorAll('.cart-tech').forEach(sel => {
+                sel.addEventListener('change', () => { cart[sel.dataset.idx].ma_nv = sel.value || null; });
+            });
             document.querySelectorAll('.decr-cart').forEach(btn => {
                 btn.addEventListener('click', () => adjustCart(btn.dataset.idx, -1));
             });
@@ -1196,20 +1213,23 @@
                 summaryHtml += `
                     <div class="flex justify-between text-sm text-gray-200">
                         <span>${escapeHtml(item.name)} <span class="text-cyan-400">x${item.qty}</span></span>
-                        <span class="font-mono">${(item.price * item.qty).toLocaleString('vi-VN')}₫</span>
+                        <span class="font-mono">${formatShop(item.price * item.qty)}</span>
                     </div>`;
             });
             checkoutSummaryItems.innerHTML = summaryHtml;
             
-            // Init Default Payment View
-            currentCurrency = 'VND';
-            currencySelector.value = 'VND';
-            selectedMethod = 'vnpay'; // Mặc định VN
-            paymentType = 'redirect';
-            
+            // Init Default Payment View — tiệm VND: VNPay + đổi VND/USD như cũ; tiệm đô (AUD/USD): tiền tệ của tiệm, mặc định tiền mặt
+            const vndShop = SHOP_CURRENCY === 'VND';
+            currentCurrency = vndShop ? 'VND' : SHOP_CURRENCY;
+            if (vndShop) currencySelector.value = 'VND';
+            currencySelector.closest('div').classList.toggle('hidden', !vndShop);
+            checkoutTotalSub.classList.toggle('hidden', !vndShop);
+            selectedMethod = vndShop ? 'vnpay' : 'cash';
+            paymentType = vndShop ? 'redirect' : 'cash';
+
             paymentMethods.forEach(m => {
                 m.classList.remove('active');
-                if(m.dataset.method === 'vnpay') {
+                if(m.dataset.method === selectedMethod) {
                     m.classList.add('active');
                 }
             });
@@ -1233,7 +1253,10 @@
         });
 
         function updateCheckoutPriceDisplay() {
-            if(currentCurrency === 'VND') {
+            if (SHOP_CURRENCY !== 'VND') {
+                checkoutTotalMain.innerText = formatShop(baseVND);
+                checkoutTotalSub.innerText = '';
+            } else if(currentCurrency === 'VND') {
                 checkoutTotalMain.innerText = formatCurrency(baseVND, 'VND');
                 checkoutTotalSub.innerText = '~ ' + formatCurrency(baseUSD, 'USD');
             } else {
@@ -1242,7 +1265,8 @@
             }
             
             // Update button text
-            const displayStr = currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD');
+            const displayStr = SHOP_CURRENCY !== 'VND' ? formatShop(baseVND)
+                : (currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD'));
             
             if (paymentType === 'card') {
                 finalPayBtn.innerHTML = `<i class="fas fa-lock"></i> ${tf('spa_btn_pay_amount', {amount: displayStr})}`;
@@ -1323,19 +1347,20 @@
             showLoading(true, tf('spa_loading_connecting_gateway', {method: selectedMethod.toUpperCase()}));
 
             try {
-                // Giả lập thời gian verify payment quốc tế (Stripe, Paypal)
-                await new Promise(res => setTimeout(res, 2000));
-
                 // Lưu vào cơ sở dữ liệu qua Flask API
                 showLoading(true, t('spa_loading_saving_order'));
 
                 const checkoutBody = await hrApi('/api/sales/checkout', {
                     method: 'POST',
                     body: JSON.stringify({
-                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty })),
+                        // ma_nv: kỹ thuật viên của từng dịch vụ -> hoa hồng vào chấm công/bảng lương
+                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty, ma_nv: item.ma_nv || null })),
                         payment_method: selectedMethod,
-                        status: paymentType === 'cash' ? 'pending' : 'completed',
+                        // Thu ngân bấm xác nhận tiền mặt = đã nhận tiền. Trước đây ghi 'pending' và KHÔNG có bước nào chuyển
+                        // sang đã thu -> bill tiền mặt Spa không vào sổ giao dịch, khách không được cộng điểm.
+                        status: 'completed',
                         customer_phone: custPhone,
+                        client_local_date: new Date().toLocaleDateString('en-GB'),
                     }),
                 });
 
@@ -1454,6 +1479,7 @@
                 spa_loading_subtitle: 'Xin vui lòng không đóng trang',
                 spa_loading_processing: 'Đang xử lý...',
                 spa_toast_added_to_cart: 'Đã thêm vào giỏ',
+                spa_assign_therapist: 'Chọn kỹ thuật viên',
                 spa_toast_cart_empty: 'Giỏ hàng trống!',
                 spa_btn_pay_amount: 'Thanh toán {amount}',
                 spa_btn_get_qr: 'Lấy mã QR ({amount})',
@@ -1525,6 +1551,7 @@
                 spa_loading_subtitle: 'Please do not close this page',
                 spa_loading_processing: 'Processing...',
                 spa_toast_added_to_cart: 'Added to cart',
+                spa_assign_therapist: 'Assign therapist',
                 spa_toast_cart_empty: 'Cart is empty!',
                 spa_btn_pay_amount: 'Pay {amount}',
                 spa_btn_get_qr: 'Get QR Code ({amount})',

@@ -59,6 +59,7 @@ def cleanup(bid, ma_nv, ho_ten):
     out['bot_customers'] = db.bot_customers.delete_many({'business_id': bid, 'name': {'$regex': f'^QA Persona Khách.*{ma_nv}$'}}).deleted_count
     out['tasks'] = db.tasks.delete_many({'business_id': bid, 'ten_khach': {'$regex': f'^QA Persona.*{ma_nv}$'}}).deleted_count
     out['employee'] = db.employees.delete_many({'business_id': bid, 'ma_nv': ma_nv}).deleted_count
+    out['staff'] = db.staff.delete_many({'business_id': bid, 'ma_nv': ma_nv}).deleted_count  # dòng /staff liên kết (tự tạo)
     # Ảnh check-in / báo cáo công việc (GridFS 'media', tên file chứa mã NV)
     files = list(db['media.files'].find({'business_id': bid, 'filename': {'$regex': f'_{ma_nv}_'}}, {'_id': 1}))
     ids = [f['_id'] for f in files]

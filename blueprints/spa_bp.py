@@ -62,7 +62,17 @@ def spa():
     except Exception as db_err:
         print(f"MongoDB services select failed: {str(db_err)}")
         services_data = []
-    return render_template('spa.html', services=services_data, brand_name=brand_name, brand_color=brand_color)
+    # Kỹ thuật viên (db.employees — cùng danh sách app nhân viên/chấm công/lương) để gán cho TỪNG dịch vụ trong giỏ:
+    # hoa hồng ghi thẳng vào chấm công -> Bảng lương tự có, không phải nhập tay lần 2 ở màn Chấm công Spa.
+    try:
+        therapists = [{'ma_nv': e['ma_nv'], 'ho_ten': e.get('ho_ten') or e['ma_nv']} for e in db.employees.find(
+            {'business_id': business_id, 'linh_vuc': {'$regex': 'spa|nail', '$options': 'i'}}, {'ma_nv': 1, 'ho_ten': 1, '_id': 0}
+        ).sort('ho_ten', 1) if e.get('ma_nv')]
+    except Exception as db_err:
+        print(f"MongoDB therapists select failed: {str(db_err)}")
+        therapists = []
+    return render_template('spa.html', services=services_data, brand_name=brand_name, brand_color=brand_color,
+                           therapists=therapists)
 
 
 @app.route('/add_spa', methods=['GET', 'POST'])
