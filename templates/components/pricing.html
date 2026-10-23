@@ -1,0 +1,125 @@
+{# Bảng giá 3 gói — USD / AUD (thị trường Mỹ + Úc). Giá lấy từ SAAS_PLANS (app.py, context processor inject_saas_plans),
+   cùng nguồn với /checkout và super admin. Khách ở Úc (múi giờ Australia/* hoặc ngôn ngữ en-AU) tự thấy AUD; nút chuyển lưu
+   lựa chọn (localStorage bitpaw_cur). Song ngữ bằng bf-vi / bf-en (components/landing_polish.html). #}
+{% set _tiers = [
+  ('essential', 'Tier 1', 'Essential', '#22d3ee', False,
+   'Cho tiệm mới bắt đầu số hoá', 'For businesses getting started',
+   [('fa-globe', 'Website chuyên nghiệp cho tiệm', 'Professional website for your business'),
+    ('fa-calendar-check', 'Đặt lịch online + nhắc lịch qua email', 'Online booking + email reminders'),
+    ('fa-cash-register', 'POS, lương thợ, tip &amp; hoa hồng tự tính', 'POS, staff payroll, tips &amp; commission'),
+    ('fa-download', 'App Windows, Android, iPhone/iPad', 'Apps for Windows, Android, iPhone/iPad')],
+   [('SMS &amp; AI tự động', 'SMS &amp; AI automation')], ''),
+  ('pro', 'Phổ biến nhất', 'Pro Partner', '#f472b6', True,
+   'Cho tiệm muốn tăng khách quay lại', 'For businesses growing repeat customers',
+   [('fa-layer-group', 'Mọi thứ trong Essential', 'Everything in Essential'),
+    ('fa-wand-magic-sparkles', 'Website thiết kế riêng cao cấp', 'Premium custom-designed website'),
+    ('fa-comment-sms', 'SMS nhắc lịch, nhắn lại cuộc gọi nhỡ, xin đánh giá 5 sao', 'SMS reminders, missed-call text back, 5-star review requests'),
+    ('fa-heart-circle-check', 'CRM + AI nhắc khách cũ quay lại', 'CRM + AI win-back for past customers'),
+    ('fa-envelope-open-text', 'Báo cáo cuối ngày gửi chủ tiệm', 'Daily owner report by email')],
+   [], ('Tặng 1 máy Square Terminal cài sẵn', 'Includes 1 pre-configured Square Terminal')),
+  ('empire', 'Empire', 'Empire Scale', '#c4b5fd', False,
+   'Cho chuỗi và tiệm lớn', 'For multi-location &amp; high-volume businesses',
+   [('fa-layer-group', 'Mọi thứ trong Pro Partner', 'Everything in Pro Partner'),
+    ('fa-mobile-screen-button', 'App mang thương hiệu riêng của tiệm', 'Branded app for your business'),
+    ('fa-robot', 'AI Copilot hỏi số liệu + AI Studio viết nội dung', 'AI Copilot for your numbers + AI Studio for content'),
+    ('fa-building', 'Nhiều chi nhánh, báo cáo gộp', 'Multiple locations, consolidated reports'),
+    ('fa-user-tie', 'Quản lý kỹ thuật riêng cho tiệm', 'Dedicated technology manager')],
+   [], ('Tặng iPad + Square Terminal', 'Includes iPad + Square Terminal')),
+] %}
+<section id="bang-gia" class="bppr" aria-labelledby="bppr-title">
+  <style>
+    .bppr { position: relative; z-index: 10; padding: 88px 20px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .bppr-in { max-width: 1180px; margin: 0 auto; }
+    .bppr-head { text-align: center; max-width: 680px; margin: 0 auto 28px; }
+    .bppr-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #67e8f9; }
+    .bppr h2 { margin: 10px 0 10px; font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
+    .bppr-sub { color: #a8b3c4; font-size: 16px; margin: 0; }
+    .bppr-cur { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); margin-top: 20px; }
+    .bppr-cur button { border: 0; background: transparent; color: #cbd5e1; font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1; padding: 9px 16px; border-radius: 999px; cursor: pointer; transition: background .2s ease, color .2s ease; }
+    .bppr-cur button[aria-pressed="true"] { background: #22d3ee; color: #04131a; }
+    .bppr-cur button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .bppr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 30px; align-items: stretch; }
+    .bppr-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 26px 22px; border-radius: 22px;
+                 background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.09); min-width: 0; }
+    .bppr-card.hot { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 24px 60px -30px var(--c); background: rgba(244,114,182,.06); }
+    .bppr-badge { position: absolute; top: -12px; left: 22px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+                  padding: 5px 10px; border-radius: 999px; background: var(--c); color: #12051a; }
+    .bppr-card h3 { margin: 4px 0 0; font-size: 20px; font-weight: 800; color: #fff; }
+    .bppr-for { margin: 0; font-size: 13px; color: #94a3b8; }
+    .bppr-price { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+    .bppr-price b { font-size: 46px; font-weight: 800; letter-spacing: -.03em; color: var(--c); line-height: 1; }
+    .bppr-price span { color: #cbd5e1; font-weight: 600; font-size: 14px; }
+    .bppr-setup { font-size: 13px; color: #a8b3c4; margin-top: -6px; font-variant-numeric: tabular-nums; }
+    .bppr-setup strong { color: #e2e8f0; }
+    .bppr-list { list-style: none; margin: 4px 0 0; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .bppr-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #dbe3ee; line-height: 1.45; }
+    .bppr-list i { color: var(--c); width: 16px; text-align: center; margin-top: 3px; flex-shrink: 0; }
+    .bppr-list li.no { color: #64748b; } .bppr-list li.no i { color: #64748b; }
+    .bppr-bonus { font-size: 13px; font-weight: 700; color: #fcd34d; background: rgba(252,211,77,.08); border: 1px solid rgba(252,211,77,.25); border-radius: 12px; padding: 9px 12px; display: flex; gap: 8px; align-items: center; }
+    .bppr-cta { display: block; text-align: center; text-decoration: none; font-weight: 800; font-size: 15px; padding: 14px; border-radius: 14px;
+                background: var(--c); color: #0b0716; transition: transform .2s cubic-bezier(.22,1,.36,1), filter .2s ease; }
+    .bppr-cta:hover { transform: translateY(-2px); filter: brightness(1.08); }
+    .bppr-cta:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .bppr-ask { background: none; border: 0; color: #94a3b8; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0; align-self: center; }
+    .bppr-note { text-align: center; color: #8391a7; font-size: 13px; margin: 22px auto 0; max-width: 720px; line-height: 1.6; }
+    @media (max-width: 960px) { .bppr-grid { grid-template-columns: 1fr; max-width: 460px; margin-left: auto; margin-right: auto; } .bppr-card.hot { order: -1; } }
+    @media (max-width: 640px) { .bppr { padding: 56px 16px; } }
+  </style>
+  <div class="bppr-in">
+    <div class="bppr-head">
+      <div class="bppr-eyebrow"><span class="bf-vi">Bảng giá</span><span class="bf-en">Pricing</span></div>
+      <h2 id="bppr-title"><span class="bf-vi">Phần mềm miễn phí. Bạn trả cho đội ngũ vận hành giúp bạn.</span><span class="bf-en">The software is free. You pay for a team that runs it for you.</span></h2>
+      <p class="bppr-sub"><span class="bf-vi">Mọi gói đều có đủ phần mềm cho đúng ngành của bạn. Hủy bất cứ lúc nào, dữ liệu là của bạn.</span><span class="bf-en">Every plan includes the full software for your industry. Cancel anytime — your data stays yours.</span></p>
+      <div class="bppr-cur" role="group" aria-label="Currency">
+        {% for code, c in saas_currencies.items() %}<button type="button" data-cur="{{ code }}" aria-pressed="false">{{ c.label }}</button>{% endfor %}
+      </div>
+    </div>
+    <div class="bppr-grid">
+      {% for key, badge, name, color, hot, for_vi, for_en, items, no_items, bonus in _tiers %}{% set p = saas_plans[key] %}
+      <article class="bppr-card{{ ' hot' if hot }}" style="--c: {{ color }};">
+        {% if hot %}<span class="bppr-badge"><span class="bf-vi">Phổ biến nhất</span><span class="bf-en">Most popular</span></span>{% endif %}
+        <div><h3>{{ name }}</h3><p class="bppr-for"><span class="bf-vi">{{ for_vi | safe }}</span><span class="bf-en">{{ for_en | safe }}</span></p></div>
+        <div class="bppr-price"><b data-amt="{% for code in saas_currencies %}{{ code }}:{{ p.monthly[code] }};{% endfor %}">${{ p.monthly['USD'] }}</b><span><span class="bf-vi">/ tháng</span><span class="bf-en">/ month</span></span></div>
+        <div class="bppr-setup"><span class="bf-vi">Phí cài đặt một lần</span><span class="bf-en">One-time setup</span> <strong data-amt="{% for code in saas_currencies %}{{ code }}:{{ p.setup[code] }};{% endfor %}">${{ '{:,}'.format(p.setup['USD']) }}</strong></div>
+        <ul class="bppr-list">
+          {% for ico, vi, en in items %}<li><i class="fas {{ ico }}"></i><span><span class="bf-vi">{{ vi | safe }}</span><span class="bf-en">{{ en | safe }}</span></span></li>{% endfor %}
+          {% for vi, en in no_items %}<li class="no"><i class="fas fa-xmark"></i><span><span class="bf-vi">{{ vi | safe }} — chưa gồm</span><span class="bf-en">{{ en | safe }} — not included</span></span></li>{% endfor %}
+        </ul>
+        {% if bonus %}<div class="bppr-bonus"><i class="fas fa-gift"></i><span><span class="bf-vi">{{ bonus[0] }}</span><span class="bf-en">{{ bonus[1] }}</span></span></div>{% endif %}
+        <a class="bppr-cta" href="/checkout?plan={{ key }}&currency=USD" data-plan="{{ key }}"><span class="bf-vi">Đăng ký gói {{ name }}</span><span class="bf-en">Get {{ name }}</span></a>
+        <button type="button" class="bppr-ask" onclick="if (window.bpOpenMascotChat) bpOpenMascotChat(); else if (window.toggleChat) toggleChat();"><span class="bf-vi">Hỏi trước khi đăng ký</span><span class="bf-en">Ask a question first</span></button>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="bppr-note" data-tax-note><span class="bf-vi">Đăng ký chưa bị trừ tiền: BitPaw liên hệ xác nhận rồi gửi hoá đơn thanh toán bằng thẻ qua email. </span><span class="bf-en">Signing up charges nothing yet: BitPaw confirms with you, then emails a secure card invoice. </span><span data-tax></span></p>
+  </div>
+  <script>
+  (function () {
+    var root = document.getElementById('bang-gia'); if (!root) return;
+    var CUR = {{ saas_currencies | tojson }};
+    var pick = function () {
+      try { var s = localStorage.getItem('bitpaw_cur'); if (s && CUR[s]) return s; } catch (e) { /* bị chặn */ }
+      var tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* cũ */ }
+      var langs = (navigator.languages || [navigator.language || '']).join(',');
+      return (tz.indexOf('Australia/') === 0 || /en-AU/i.test(langs)) ? 'AUD' : 'USD';
+    };
+    var apply = function (code) {
+      var sym = CUR[code].symbol;
+      root.querySelectorAll('[data-amt]').forEach(function (el) {
+        var m = el.getAttribute('data-amt').match(new RegExp(code + ':(\\d+)'));
+        if (m) el.textContent = sym + Number(m[1]).toLocaleString('en-US');
+      });
+      root.querySelectorAll('[data-cur]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-cur') === code ? 'true' : 'false'); });
+      root.querySelectorAll('a[data-plan]').forEach(function (a) { a.href = '/checkout?plan=' + a.getAttribute('data-plan') + '&currency=' + code; });
+      var en = (document.documentElement.getAttribute('data-bp-lang') || document.documentElement.lang) === 'en';
+      root.querySelector('[data-tax]').textContent = (en ? CUR[code].tax_en : CUR[code].tax_vi) + '.';
+      root.setAttribute('data-currency', code);
+    };
+    root.querySelectorAll('[data-cur]').forEach(function (b) {
+      b.addEventListener('click', function () { var c = b.getAttribute('data-cur'); try { localStorage.setItem('bitpaw_cur', c); } catch (e) {} apply(c); });
+    });
+    apply(pick());
+    window.bpPricingRefresh = function () { apply(root.getAttribute('data-currency') || pick()); };
+  })();
+  </script>
+</section>

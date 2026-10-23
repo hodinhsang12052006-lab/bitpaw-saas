@@ -22,7 +22,10 @@
         .langs a.active { color: #22d3ee; border-color: rgba(34,211,238,.5); }
         h1 { color: #fff; font-size: 28px; line-height: 1.25; margin: 0 0 20px; }
         .card { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 24px 22px; }
-        .card h3, .card h4 { color: #fff; margin: 22px 0 6px; font-size: 17px; }
+        .card h3, .card h4 { color: #fff; margin: 26px 0 8px; font-size: 18px; }
+        .card h3:first-of-type { margin-top: 18px; }
+        .card ul, .card ol { padding-left: 22px; margin: 8px 0; }
+        .card .meta { color: #94a3b8; font-size: 13px; margin: 0 0 14px; }
         .card p, .card li { margin: 6px 0; }
         .card a { color: #22d3ee; }
         nav.legal { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
@@ -43,7 +46,7 @@
         <div class="card">{{ content | safe }}</div>
         <nav class="legal">
             <a href="{{ url_for('privacy_policy_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'privacy' else '' }}">{{ 'Chính sách bảo mật' if page_lang == 'vi' else 'Privacy Policy' }}</a>
-            <a href="{{ url_for('terms_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'terms' else '' }}">{{ 'Điều khoản sử dụng' if page_lang == 'vi' else 'Terms of Use' }}</a>
+            <a href="{{ url_for('terms_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'terms' else '' }}">{{ 'Điều khoản sử dụng' if page_lang == 'vi' else 'Terms of Service' }}</a>
             <a href="{{ url_for('payment_policy_page') }}?lang={{ page_lang }}" class="{{ 'current' if kind == 'payment' else '' }}">{{ 'Chính sách thanh toán' if page_lang == 'vi' else 'Payment Policy' }}</a>
             <a href="{{ url_for('account_delete_page') }}?lang={{ page_lang }}">{{ 'Xoá tài khoản' if page_lang == 'vi' else 'Delete Account' }}</a>
         </nav>

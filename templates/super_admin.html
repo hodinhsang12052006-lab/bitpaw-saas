@@ -650,6 +650,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <!-- TAB 5: LEADS TỪ WIDGET AI TƯ VẤN (LANDING PAGE) -->
         <!-- ========================================== -->
         <div id="tabContent-leads" class="hidden glass-panel p-5">
+            <!-- Yêu cầu đăng ký gói từ /checkout (USD/AUD) -->
+            <div class="flex justify-between items-center mb-3 pb-3 border-b border-white/5">
+                <h3 class="text-xs font-black text-pink-400 uppercase tracking-widest"><i class="fas fa-file-signature mr-1"></i> Đăng ký gói (USD / AUD)</h3>
+                <button type="button" onclick="loadSaasSignups()" class="text-xs font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg hover:bg-pink-500/10 hover:text-pink-400 transition"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div class="overflow-x-auto mb-8"><table class="w-full text-xs" id="saasSignupsTable">
+                <thead><tr class="text-gray-500 uppercase tracking-wider text-[10px] text-left">
+                    <th class="py-2 pr-3">#</th><th class="py-2 pr-3">Tiệm / Chủ</th><th class="py-2 pr-3">Liên hệ</th><th class="py-2 pr-3">Gói</th>
+                    <th class="py-2 pr-3 text-right">Cài đặt</th><th class="py-2 pr-3 text-right">Tháng</th><th class="py-2 pr-3">Ngày</th><th class="py-2">Trạng thái</th></tr></thead>
+                <tbody id="saasSignupsBody"><tr><td colspan="8" class="py-6 text-center text-gray-500">Đang tải...</td></tr></tbody>
+            </table></div>
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
                 <h3 class="text-xs font-black text-cyan-400 uppercase tracking-widest">
                     <i class="fas fa-funnel-dollar mr-1"></i> Lead Từ Widget AI Tư Vấn (Landing Page)
@@ -770,7 +781,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('tabBtn-' + tabId).classList.add('active');
 
             if (tabId === 'chat') loadChatConversations();
-            if (tabId === 'leads') loadCskhLeads();
+            if (tabId === 'leads') { loadCskhLeads(); loadSaasSignups(); }
         }
 
         // Custom Toast Alert
@@ -1105,6 +1116,36 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         // ========== LEADS TỪ WIDGET AI TƯ VẤN (LANDING PAGE) — db.cskh_requests ==========
+        // Yêu cầu đăng ký gói (db.saas_signups) — giá đã tính ở server theo SAAS_PLANS
+        async function loadSaasSignups() {
+            const body = document.getElementById('saasSignupsBody');
+            const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            try {
+                const res = await hrApi('/api/superadmin/saas_signups');
+                const rows = res.data || [];
+                if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">Chưa có yêu cầu đăng ký nào.</td></tr>'; return; }
+                const sym = { USD: '$', AUD: 'A$' };
+                body.innerHTML = rows.map(r => {
+                    const cur = r.currency || '';
+                    const money = (n) => (n == null ? '—' : (sym[cur] || '') + Number(n).toLocaleString('en-US'));
+                    const st = ['pending', 'invoiced', 'active', 'cancelled'].map(v => `<option value="${v}"${r.status === v ? ' selected' : ''}>${v}</option>`).join('');
+                    return `<tr class="border-t border-white/5 align-top">
+                        <td class="py-2 pr-3 text-gray-500">${esc(r.id)}</td>
+                        <td class="py-2 pr-3"><b class="text-white">${esc(r.shop_name)}</b><br><span class="text-gray-400">${esc(r.customer_name)}</span>${r.note ? `<br><span class="text-gray-500">${esc(r.note)}</span>` : ''}</td>
+                        <td class="py-2 pr-3 text-gray-300">${esc(r.email)}<br>${esc(r.phone)} · ${esc(r.country || '')}</td>
+                        <td class="py-2 pr-3 text-gray-300">${esc(r.plan_name || r.module_plan || '')}<br><span class="text-gray-500">${esc(r.industry || '')} · ${esc(cur)}</span></td>
+                        <td class="py-2 pr-3 text-right font-mono">${money(r.setup_fee)}</td>
+                        <td class="py-2 pr-3 text-right font-mono">${money(r.monthly_fee)}</td>
+                        <td class="py-2 pr-3 text-gray-400">${esc((r.created_at || '').slice(0, 10))}</td>
+                        <td class="py-2"><select class="bg-black/40 border border-white/10 rounded px-2 py-1" onchange="setSignupStatus(${Number(r.id)}, this.value)">${st}</select></td></tr>`;
+                }).join('');
+            } catch (e) { body.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-rose-400">${esc(e.message)}</td></tr>`; }
+        }
+        async function setSignupStatus(id, status) {
+            try { await hrApi('/api/superadmin/saas_signups/' + id + '/status', { method: 'POST', body: JSON.stringify({ status }) }); showToast('Đã cập nhật #' + id + ' → ' + status); }
+            catch (e) { showToast('Lỗi: ' + e.message); }
+        }
+
         async function loadCskhLeads() {
             const listEl = document.getElementById('leadsList');
             try {

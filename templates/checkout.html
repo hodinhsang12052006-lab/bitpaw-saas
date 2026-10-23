@@ -3,397 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout & Account Provisioning | BitPaw Software</title>
-    
-    <!-- Libraries -->
-    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <title>Get Started | BitPaw Software</title>
+    <meta name="description" content="Choose a BitPaw Software plan in USD or AUD. No charge at signup — we confirm with you and email a secure card invoice.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: #08061a; color: white; overflow-x: hidden; }
-
-        .glass { background: rgba(10, 15, 37, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        
-        .input-glass { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s; }
-        .input-glass:focus { border-color: var(--theme-color); box-shadow: 0 0 15px var(--theme-shadow); outline: none; background: rgba(0,0,0,0.6); }
-        
-        /* Dynamic Theme Variables */
-        :root { --theme-color: #06b6d4; --theme-shadow: rgba(6,182,212,0.3); --theme-gradient: linear-gradient(135deg, #06b6d4, #3b82f6); }
-        .theme-hrm { --theme-color: #06b6d4; --theme-shadow: rgba(6,182,212,0.3); --theme-gradient: linear-gradient(135deg, #06b6d4, #0284c7); }
-        .theme-pos { --theme-color: #ec4899; --theme-shadow: rgba(236,72,153,0.3); --theme-gradient: linear-gradient(135deg, #ec4899, #e11d48); }
-        .theme-ecom { --theme-color: #f97316; --theme-shadow: rgba(249,115,22,0.3); --theme-gradient: linear-gradient(135deg, #f97316, #ea580c); }
-        .theme-agency { --theme-color: #3b82f6; --theme-shadow: rgba(59,130,246,0.3); --theme-gradient: linear-gradient(135deg, #3b82f6, #4f46e5); }
-
-        /* Payment Tab Styles */
-        .pay-tab { border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease; opacity: 0.6; filter: grayscale(100%); }
-        .pay-tab.active { opacity: 1; filter: grayscale(0%); border-color: var(--theme-color); box-shadow: 0 0 15px var(--theme-shadow); background: rgba(255,255,255,0.05); }
-        
-        .qr-container { display: none; animation: fadeIn 0.4s ease-out forwards; }
-        .qr-container.active { display: flex; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-        ::-webkit-scrollbar-thumb { background: var(--theme-color); border-radius: 10px; }
-
-        /* Dynamic Hologram CSS tied to Theme Variables */
-        .hologram-mini { display: flex; justify-content: center; align-items: center; }
-        @keyframes float-mini {
-            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px var(--theme-shadow)); }
-            50% { transform: translateY(-8px); filter: drop-shadow(0 15px 15px var(--theme-shadow)); }
-            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px var(--theme-shadow)); }
-        }
-        .animated-mini-3d { animation: float-mini 4s ease-in-out infinite; position: relative; z-index: 10; }
-        @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-        .scanner-line { position: absolute; width: 120%; height: 2px; background: var(--theme-color); box-shadow: 0 0 10px var(--theme-color); left: -10%; animation: scan-laser 2.5s linear infinite; z-index: 20; border-radius: 50%; pointer-events: none; }
+        /* Trang đăng ký gói (USD/AUD). Giá tính ở server (SAAS_PLANS trong app.py), trang chỉ hiển thị. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.04); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #22d3ee; --ok: #34d399; --err: #fb7185; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.12), transparent 60%), var(--bg); color: var(--ink); min-height: 100vh; }
+        html[lang="en"] .vi, html:not([lang="en"]) .en { display: none; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 16px 64px; }
+        .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 26px; }
+        .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 800; font-size: 20px; letter-spacing: .02em; }
+        .brand img { width: 36px; height: 36px; border-radius: 10px; }
+        .brand b { color: var(--accent); }
+        .lang { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+        .lang button { border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+        .lang button[aria-pressed="true"] { background: rgba(255,255,255,.1); color: var(--ink); }
+        h1 { font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 6px; letter-spacing: -.02em; }
+        .lede { color: var(--muted); margin: 0 0 24px; max-width: 62ch; line-height: 1.6; }
+        .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .85fr); gap: 20px; align-items: start; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+        .step { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; }
+        .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .plan { position: relative; border: 1px solid var(--line); border-radius: 14px; padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s ease, background .2s ease; }
+        .plan input { position: absolute; opacity: 0; pointer-events: none; }
+        .plan:has(input:checked) { border-color: var(--accent); background: rgba(34,211,238,.08); box-shadow: 0 0 0 1px var(--accent); }
+        .plan:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: 2px; }
+        .plan strong { font-size: 15px; } .plan span { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+        .cur { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; margin: 16px 0 4px; }
+        .cur button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+        .cur button[aria-pressed="true"] { background: var(--accent); color: #04131a; }
+        .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+        .fields .full { grid-column: 1 / -1; }
+        label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+        input[type=text], input[type=email], input[type=tel], select, textarea {
+            width: 100%; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 15px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.18); }
+        select option { background: #0f1424; }
+        .agree { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
+        .agree input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex-shrink: 0; }
+        .agree a { color: var(--accent); }
+        .btn { width: 100%; margin-top: 18px; border: 0; border-radius: 14px; padding: 15px; font: inherit; font-weight: 800; font-size: 16px; background: var(--accent); color: #04131a; cursor: pointer; transition: transform .2s cubic-bezier(.22,1,.36,1), filter .2s ease; }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+        .btn[disabled] { opacity: .6; cursor: progress; transform: none; }
+        .err { color: var(--err); font-size: 14px; margin-top: 10px; min-height: 20px; }
+        .sum h2 { font-size: 20px; margin: 0 0 4px; } .sum .for { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+        .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; font-variant-numeric: tabular-nums; }
+        .row span:first-child { color: var(--muted); }
+        .row.total { border-bottom: 0; font-weight: 800; font-size: 18px; } .row.total span:first-child { color: var(--ink); }
+        .tax { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+        .how { margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .how li { display: flex; gap: 10px; font-size: 14px; color: #cbd5e1; line-height: 1.5; }
+        .how b { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(34,211,238,.15); color: var(--accent); font-size: 12px; display: grid; place-items: center; }
+        .done { text-align: center; padding: 34px 18px; }
+        .done i { font-size: 44px; color: var(--ok); }
+        .done h2 { margin: 14px 0 8px; } .done p { color: var(--muted); line-height: 1.6; max-width: 46ch; margin: 0 auto 18px; }
+        .done a { color: var(--accent); font-weight: 700; }
+        [hidden] { display: none !important; }
+        @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } .sum { order: -1; } }
+        @media (max-width: 560px) { .plans, .fields { grid-template-columns: 1fr; } }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
 </head>
-<body id="bodyTheme" class="antialiased min-h-screen flex items-center justify-center py-10 relative">
-    
-    <div class="max-w-6xl w-full px-4 relative z-10" id="scroll-container">
-        <a href="/landing" class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-6 font-bold bg-black/40 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-md hover:border-[var(--theme-color)]">
-            <i class="fas fa-arrow-left"></i> Back to homepage
-        </a>
-
-        <div class="glass rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col lg:flex-row relative">
-            
-            <div class="absolute -top-32 -left-32 w-64 h-64 rounded-full blur-[120px] opacity-30 pointer-events-none" style="background-color: var(--theme-color);"></div>
-
-            <div class="w-full lg:w-5/12 bg-black/60 p-8 lg:p-10 border-r border-white/10 flex flex-col relative z-10">
-                <div class="mb-10">
-                    <div class="flex items-center gap-4 mb-6">
-                        <!-- Hologram Động thay thế cho Icon tĩnh -->
-                        <div class="hologram-mini w-16 h-16 shrink-0">
-                            <div class="relative w-full h-full rounded-full border-2 flex items-center justify-center shadow-[0_0_15px_var(--theme-shadow)]" style="border-color: var(--theme-shadow);">
-                                <div class="absolute w-full h-full border-t-2 rounded-full animate-spin" style="border-color: var(--theme-color); animation-duration: 3s;"></div>
-                                <div class="absolute w-[110%] h-[110%] border-b-2 rounded-full animate-spin" style="border-color: var(--theme-color); animation-duration: 4s; animation-direction: reverse;"></div>
-                                <div class="relative animated-mini-3d w-10 h-10 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
-                                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover" alt="Logo">
-                                    <div class="scanner-line"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Your Cart</h2>
-                            <span class="bg-white/10 px-2 py-0.5 rounded text-[10px] text-gray-300 font-mono"><i class="fas fa-lock mr-1 text-green-400"></i>AES-256</span>
-                        </div>
-                    </div>
-                    
-                    <h1 class="text-3xl font-black mb-2 leading-tight" style="color: var(--theme-color);" id="moduleName">BitPaw Software Module</h1>
-                    <p class="text-sm text-gray-400 mb-8 border-b border-white/10 pb-6" id="moduleDesc">Comprehensive digital transformation solution.</p>
-
-                    <div class="space-y-4 text-sm font-medium mb-6">
-                        <div class="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5 shadow-inner">
-                            <span class="text-gray-400">Billing cycle</span>
-                            <span class="bg-[var(--theme-color)] text-black px-3 py-1 rounded-lg text-xs font-bold shadow-[0_0_10px_var(--theme-shadow)]" id="billingCycle">Monthly</span>
-                        </div>
-                        <div class="flex justify-between items-center p-2 px-4">
-                            <span class="text-gray-400">Setup fee</span>
-                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Free</span>
-                        </div>
-                        <div class="flex justify-between items-center p-2 px-4">
-                            <span class="text-gray-400">System maintenance</span>
-                            <span class="text-green-400 font-bold"><i class="fas fa-check-circle mr-1"></i> Lifetime</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-black/50 p-6 rounded-2xl border shadow-[0_0_20px_var(--theme-shadow)] mt-6 text-center transition-all" style="border-color: var(--theme-color);">
-                        <p class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Total Amount Due</p>
-                        <div class="flex items-baseline justify-center gap-1">
-                            <span class="text-5xl font-black text-white" id="totalPriceDisplay">0</span><span class="text-xl font-bold" style="color: var(--theme-color);" id="currencySpan">VND</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-auto pt-6 border-t border-white/10">
-                    <div class="flex items-center gap-3 text-xs text-gray-500">
-                        <i class="fas fa-shield-alt text-green-500 text-2xl"></i>
-                        <p>100% secure payment protected by encryption standards. After BitPaw confirms your transfer, your License Key is sent to you to activate the account.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="w-full lg:w-7/12 p-8 lg:p-12 relative overflow-hidden z-10 flex flex-col justify-center">
-                
-                <form id="checkoutForm" class="space-y-6" onsubmit="processOrder(event)">
-                    
-                    <div class="mb-8">
-                        <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-user-circle" style="color: var(--theme-color);"></i> 1. Register Admin Account</h3>
-                        <p class="text-xs text-gray-400">This information will be used to set up the Master Admin for the system.</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Representative Name (Owner) <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <i class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="text" id="custName" required placeholder="Enter name..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Login phone number <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <i class="fas fa-phone-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="tel" id="custPhone" required placeholder="09xxxx..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Brand Name (Store) <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <i class="fas fa-store absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="text" id="custShop" required placeholder="e.g. BitPaw Store..." class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 mb-2">Notification email</label>
-                            <div class="relative">
-                                <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                                <input type="email" id="custEmail" placeholder="email@company.com" class="w-full input-glass rounded-xl pl-10 pr-4 py-3 text-sm">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="pt-6 border-t border-white/10 mt-8" id="paymentSection">
-                        <div class="flex justify-between items-end mb-6">
-                            <div>
-                                <h3 class="text-2xl font-black mb-1 flex items-center gap-2"><i class="fas fa-qrcode" style="color: var(--theme-color);"></i> 2. Scan QR to Pay</h3>
-                                <p class="text-xs text-gray-400">Open your banking app or e-wallet to scan the code. Transactions processed 24/7.</p>
-                            </div>
-                            <div class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-[10px] text-gray-300 font-mono shadow-inner" id="memoDisplay">Code: Generating...</div>
-                        </div>
-
-                        <div class="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6" id="bankTabsContainer">
-                            <div class="col-span-full text-center text-xs text-gray-500 py-4"><i class="fas fa-circle-notch fa-spin mr-2"></i>Loading payment gateway...</div>
-                        </div>
-
-                        <div class="bg-black/60 rounded-2xl border border-white/10 p-6 flex flex-col items-center justify-center min-h-[300px] relative shadow-inner" id="qrContainerWrapper">
-                            <div class="text-center text-gray-500 text-sm py-10" id="qrPlaceholder">
-                                Please select a payment gateway above.
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="w-full py-4 rounded-xl font-black text-white text-lg transition-transform hover:scale-[1.02] active:scale-95 mt-6 shadow-[0_10px_30px_var(--theme-shadow)] flex justify-center items-center gap-2" style="background: var(--theme-gradient);" id="btnSubmit">
-                        <i class="fas fa-check-circle"></i> I HAVE MADE THE TRANSFER
-                    </button>
-                    <p class="text-center text-[10px] text-gray-500 mt-2" id="submitNote">The system will automatically verify within 3-5 seconds.</p>
-                </form>
-
-                <div id="successScreen" class="absolute inset-0 bg-[#08061a]/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center px-8 hidden">
-                    <div class="w-24 h-24 rounded-full flex items-center justify-center text-4xl mb-6 relative" style="color: var(--theme-color);">
-                        <div class="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin" style="border-color: var(--theme-color); border-top-color: transparent;" id="spinLoading"></div>
-                        <i class="fas fa-shield-check opacity-0 transform scale-50 transition-all duration-500" id="checkDone"></i>
-                    </div>
-                    <h2 class="text-3xl font-black mb-3 text-white" id="successTitle">Checking Transaction...</h2>
-                    <p class="text-gray-400 mb-8 max-w-sm text-sm" id="successDesc">Please do not close your browser. The API system is reconciling the payment with the bank.</p>
-
-                    <a href="/login" id="btnLoginGo" class="hidden bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/20 transition items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                        Log In to Admin Now <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-
-            </div>
-        </div>
+<body>
+<div class="wrap">
+    <div class="top">
+        <a class="brand" href="/landing"><img src="{{ url_for('static', filename='logo_b.jpg') }}" alt="">Bit<b>Paw</b></a>
+        <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="vi">VI</button></div>
     </div>
+    <h1><span class="en">Get started with BitPaw</span><span class="vi">Đăng ký dùng BitPaw</span></h1>
+    <p class="lede"><span class="en">Pick a plan and tell us about your business. Nothing is charged today — we confirm the details with you, then email a secure card invoice. Your account is ready within 1 business day after payment.</span><span class="vi">Chọn gói và cho chúng tôi biết về tiệm của bạn. Hôm nay chưa trừ tiền — BitPaw xác nhận với bạn rồi gửi hoá đơn thanh toán bằng thẻ qua email. Tài khoản sẵn sàng trong 1 ngày làm việc sau khi thanh toán.</span></p>
 
-    <script>
-        function fireConfetti() {
-            var duration = 3000;
-            var end = Date.now() + duration;
-            var colors = ['#06b6d4', '#ec4899', '#f97316', '#ffffff'];
+    <div class="grid">
+        <form class="card" id="signupForm" novalidate>
+            <p class="step"><span class="en">1 · Plan</span><span class="vi">1 · Chọn gói</span></p>
+            <div class="plans">
+                {% for key, p in saas_plans.items() %}
+                <label class="plan"><input type="radio" name="plan" id="plan-{{ key }}" value="{{ key }}"{{ ' checked' if key == 'pro' }}>
+                    <strong>{{ p.name }}</strong><span data-monthly="{{ key }}"></span></label>
+                {% endfor %}
+            </div>
+            <div class="cur" role="group" aria-label="Currency">{% for code, c in saas_currencies.items() %}<button type="button" data-cur="{{ code }}">{{ c.label }}</button>{% endfor %}</div>
 
-            (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
-                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
-                if (Date.now() < end) { requestAnimationFrame(frame); }
-            }());
+            <p class="step" style="margin-top:22px"><span class="en">2 · Your business</span><span class="vi">2 · Thông tin tiệm</span></p>
+            <div class="fields">
+                <div><label for="custName"><span class="en">Owner name</span><span class="vi">Tên chủ tiệm</span> *</label><input type="text" id="custName" autocomplete="name" required maxlength="120"></div>
+                <div><label for="custShop"><span class="en">Business name</span><span class="vi">Tên tiệm</span> *</label><input type="text" id="custShop" autocomplete="organization" required maxlength="160"></div>
+                <div><label for="custEmail">Email *</label><input type="email" id="custEmail" autocomplete="email" required maxlength="160"></div>
+                <div><label for="custPhone"><span class="en">Phone</span><span class="vi">Số điện thoại</span> *</label><input type="tel" id="custPhone" autocomplete="tel" required placeholder="+1 555 123 4567"></div>
+                <div><label for="custCountry"><span class="en">Country</span><span class="vi">Quốc gia</span></label>
+                    <select id="custCountry"><option value="US">United States</option><option value="AU">Australia</option><option value="CA">Canada</option><option value="NZ">New Zealand</option><option value="GB">United Kingdom</option><option value="OTHER">Other</option></select></div>
+                <div><label for="custIndustry"><span class="en">Industry</span><span class="vi">Ngành</span></label>
+                    <select id="custIndustry">
+                        <option value="nail">Nails &amp; Salon</option><option value="spa">Spa &amp; Beauty</option><option value="fnb">Restaurant &amp; Cafe</option>
+                        <option value="karaoke">Karaoke &amp; Billiards</option><option value="hotel">Hotel &amp; Homestay</option><option value="retail">Retail</option>
+                        <option value="production">Production</option><option value="technical">Field service</option><option value="office">Office &amp; HR</option>
+                    </select></div>
+                <div class="full"><label for="custNote"><span class="en">Anything we should know? (optional)</span><span class="vi">Ghi chú thêm (không bắt buộc)</span></label><textarea id="custNote" rows="3" maxlength="1000"></textarea></div>
+            </div>
+            <label class="agree"><input type="checkbox" id="agree" required><span><span class="en">I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span><span class="vi">Tôi đồng ý với <a href="/terms" target="_blank">Điều khoản sử dụng</a> và <a href="/privacy" target="_blank">Chính sách bảo mật</a>.</span></span></label>
+            <button class="btn" type="submit" id="btnSubmit"><span class="en">Send my signup request</span><span class="vi">Gửi yêu cầu đăng ký</span></button>
+            <div class="err" id="err" role="alert"></div>
+        </form>
+
+        <aside class="card sum" aria-live="polite">
+            <div id="sumBox">
+                <h2 id="sumName">Pro Partner</h2>
+                <p class="for"><span class="en">Software included free · cancel anytime</span><span class="vi">Phần mềm miễn phí · hủy bất cứ lúc nào</span></p>
+                <div class="row"><span><span class="en">One-time setup</span><span class="vi">Phí cài đặt một lần</span></span><span id="sumSetup"></span></div>
+                <div class="row"><span><span class="en">Monthly</span><span class="vi">Hằng tháng</span></span><span id="sumMonthly"></span></div>
+                <div class="row total"><span><span class="en">First invoice</span><span class="vi">Hoá đơn đầu tiên</span></span><span id="sumTotal"></span></div>
+                <p class="tax" id="sumTax"></p>
+                <ul class="how">
+                    <li><b>1</b><span><span class="en">We reply within 1 business day to confirm your setup.</span><span class="vi">Trong 1 ngày làm việc BitPaw liên hệ xác nhận.</span></span></li>
+                    <li><b>2</b><span><span class="en">You pay a secure card invoice (Square) by email.</span><span class="vi">Bạn thanh toán hoá đơn thẻ an toàn (Square) gửi qua email.</span></span></li>
+                    <li><b>3</b><span><span class="en">We set up your menu, staff and devices, then hand over the account.</span><span class="vi">BitPaw cài dịch vụ, nhân viên, máy móc rồi bàn giao tài khoản.</span></span></li>
+                </ul>
+            </div>
+            <div class="done" id="doneBox" hidden>
+                <i class="fas fa-circle-check"></i>
+                <h2><span class="en">Request received</span><span class="vi">Đã nhận yêu cầu</span></h2>
+                <p id="doneText"></p>
+                <a href="/landing"><span class="en">Back to BitPaw</span><span class="vi">Về trang BitPaw</span></a>
+            </div>
+        </aside>
+    </div>
+</div>
+<script>
+(function () {
+    var PLANS = {{ saas_plans | tojson }}, CUR = {{ saas_currencies | tojson }};
+    var q = new URLSearchParams(location.search);
+    var ALIAS = { hrm: 'essential', pos: 'essential', ecom: 'pro', agency: 'pro' };
+    var lang = 'en';
+    try { lang = localStorage.getItem('bitpaw_lang') || (document.cookie.match(/bitpaw_lang=(vi|en)/) || [])[1] || 'en'; } catch (e) { /* bị chặn */ }
+    var setLang = function (l) {
+        lang = l === 'vi' ? 'vi' : 'en'; document.documentElement.lang = lang;
+        document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false'); });
+        try { localStorage.setItem('bitpaw_lang', lang); } catch (e) {}
+        document.cookie = 'bitpaw_lang=' + lang + ';path=/;max-age=31536000;SameSite=Lax';
+        render();
+    };
+    var cur = (q.get('currency') || '').toUpperCase();
+    if (!CUR[cur]) {
+        try { cur = localStorage.getItem('bitpaw_cur') || ''; } catch (e) { cur = ''; }
+        if (!CUR[cur]) {
+            var tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+            cur = (tz.indexOf('Australia/') === 0 || /en-AU/i.test((navigator.languages || []).join(','))) ? 'AUD' : 'USD';
         }
+    }
+    var plan = ALIAS[q.get('plan')] || q.get('plan');
+    if (PLANS[plan]) document.getElementById('plan-' + plan).checked = true;
+    var country = document.getElementById('custCountry');
+    if (cur === 'AUD') country.value = 'AU';
+    var ind = q.get('industry'); if (ind) document.getElementById('custIndustry').value = ind;
+    var money = function (n) { return CUR[cur].symbol + Number(n).toLocaleString('en-US'); };
+    function selected() { var r = document.querySelector('input[name=plan]:checked'); return r ? r.value : 'pro'; }
+    function render() {
+        var p = PLANS[selected()];
+        document.querySelectorAll('[data-cur]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.cur === cur ? 'true' : 'false'); });
+        document.querySelectorAll('[data-monthly]').forEach(function (el) { el.textContent = money(PLANS[el.dataset.monthly].monthly[cur]) + (lang === 'en' ? ' / month' : ' / tháng'); });
+        document.getElementById('sumName').textContent = p.name;
+        document.getElementById('sumSetup').textContent = money(p.setup[cur]);
+        document.getElementById('sumMonthly').textContent = money(p.monthly[cur]);
+        document.getElementById('sumTotal').textContent = money(p.setup[cur] + p.monthly[cur]) + ' ' + cur;
+        document.getElementById('sumTax').textContent = (lang === 'en' ? CUR[cur].tax_en : CUR[cur].tax_vi) + '.';
+        document.getElementById('custPhone').placeholder = cur === 'AUD' ? '+61 4xx xxx xxx' : '+1 555 123 4567';
+    }
+    document.querySelectorAll('input[name=plan]').forEach(function (r) { r.addEventListener('change', render); });
+    document.querySelectorAll('[data-cur]').forEach(function (b) { b.addEventListener('click', function () { cur = b.dataset.cur; try { localStorage.setItem('bitpaw_cur', cur); } catch (e) {} if (cur === 'AUD' && country.value === 'US') country.value = 'AU'; if (cur === 'USD' && country.value === 'AU') country.value = 'US'; render(); }); });
+    document.querySelectorAll('[data-lang]').forEach(function (b) { b.addEventListener('click', function () { setLang(b.dataset.lang); }); });
 
-        // ========================================================
-        // LOGIC CHÍNH — Flask API nội bộ (db.payment_methods/db.saas_signups).
-        // Đây là form đăng ký mua gói phần mềm (public, không cần đăng nhập), KHÔNG phải
-        // checkout đơn hàng POS — không được gọi tới API đơn hàng POS.
-        // ========================================================
-        async function hrApi(path, options) {
-            const res = await fetch(path, {
-                ...options,
-                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok || body.success === false) {
-                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
-            }
-            return body;
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const moduleType = urlParams.get('plan') || 'pos';
-        
-        const moduleData = {
-            'hrm': { name: 'BitPaw HRM & Radar', desc: 'Workforce management software for 50+ field staff, GPS time tracking & automatic AI dispatch.', price: 1500000, theme: 'theme-hrm', colorHex: 0x06b6d4 },
-            'pos': { name: 'BitPaw Smart POS', desc: 'Multi-industry point-of-sale engine for F&B, Spa, Salon. KDS screen and turn-rotation algorithm.', price: 1200000, theme: 'theme-pos', colorHex: 0xec4899 },
-            'ecom': { name: 'BitPaw E-Com Omni', desc: 'Multi-channel inventory sync system for Shopee, TikTok Shop, and real net-profit reporting.', price: 1800000, theme: 'theme-ecom', colorHex: 0xf97316 },
-            'agency': { name: 'Core Growth Package', desc: 'Media agency service, SEO-optimized landing page design, and lead-generating ad campaigns.', price: 0, theme: 'theme-agency', colorHex: 0x3b82f6 }
-        };
-
-        const currentModule = moduleData[moduleType] || moduleData['pos'];
-
-        const randomMemo = 'BP-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-        document.getElementById('memoDisplay').innerText = 'Order Code: ' + randomMemo;
-
-        document.getElementById('bodyTheme').classList.add(currentModule.theme);
-        document.getElementById('moduleName').innerText = currentModule.name;
-        document.getElementById('moduleDesc').innerText = currentModule.desc;
-
-        if(moduleType === 'agency') {
-            document.getElementById('totalPriceDisplay').innerText = 'Contact for Pricing';
-            document.getElementById('currencySpan').style.display = 'none';
-            document.getElementById('billingCycle').innerText = 'Per Project';
-            document.getElementById('paymentSection').style.display = 'none';
-            document.getElementById('btnSubmit').innerHTML = '<i class="fas fa-headset"></i> SEND CONSULTATION REQUEST';
-            document.getElementById('submitNote').innerText = 'Our expert will contact you with a custom quote.';
-        } else {
-            document.getElementById('totalPriceDisplay').innerText = currentModule.price.toLocaleString('vi-VN');
-        }
-
-        let activeBanks = [];
-
-        async function fetchPaymentMethods() {
-            if(moduleType === 'agency') return;
-
-            const tabsContainer = document.getElementById('bankTabsContainer');
-            try {
-                const body = await hrApi('/api/checkout/payment_methods');
-                activeBanks = body.data || [];
-
-                if (activeBanks.length > 0) {
-                    tabsContainer.innerHTML = ''; 
-                    activeBanks.forEach((bank, index) => {
-                        const isActiveClass = index === 0 ? 'active' : '';
-                        tabsContainer.innerHTML += `
-                            <button type="button" class="pay-tab ${isActiveClass} flex flex-col items-center justify-center p-3 rounded-xl gap-2 h-full" onclick="generateQR(${index}, this)">
-                                <div class="w-8 h-8 rounded bg-white p-1 flex items-center justify-center">
-                                    ${bank.logo_url ? `<img src="${esc(bank.logo_url)}" class="w-full h-full object-contain" alt="">` : '<i class="fas fa-university text-gray-700"></i>'}
-                                </div>
-                                <span class="text-[10px] font-bold line-clamp-1 truncate w-full px-1">${esc(bank.provider_name)}</span>
-                            </button>
-                        `;
-                    });
-                    generateQR(0, tabsContainer.firstElementChild);
-                } else {
-                    tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4"><i class="fas fa-exclamation-triangle mr-2"></i>Payment system under maintenance.</div>';
-                    document.getElementById('qrPlaceholder').innerText = 'No payment method available.';
-                    document.getElementById('btnSubmit').disabled = true;
-                    document.getElementById('btnSubmit').style.opacity = '0.5';
-                }
-            } catch (error) {
-                tabsContainer.innerHTML = '<div class="col-span-full text-center text-rose-400 text-sm py-4">Server connection error.</div>';
-            }
-        }
-
-        function generateQR(bankIndex, tabElement) {
-            const tabs = document.querySelectorAll('.pay-tab');
-            tabs.forEach(t => t.classList.remove('active'));
-            if(tabElement) tabElement.classList.add('active');
-
-            const bank = activeBanks[bankIndex];
-            const qrWrapper = document.getElementById('qrContainerWrapper');
-            
-            qrWrapper.innerHTML = `<div class="text-gray-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>Generating QR code...</div>`;
-
-            const amount = currentModule.price;
-            const addInfo = encodeURIComponent(randomMemo);
-            const accountName = encodeURIComponent(bank.account_name);
-            const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(bank.bin_code)}-${encodeURIComponent(bank.account_number)}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
-
-            setTimeout(() => {
-                qrWrapper.innerHTML = `
-                    <div class="qr-container active flex-col items-center w-full">
-                        <div class="bg-white p-2 rounded-xl shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-4 w-48 h-48 sm:w-56 sm:h-56">
-                            <img src="${qrUrl}" alt="QR Code" class="w-full h-full object-contain rounded-lg">
-                        </div>
-                        <p class="text-sm font-bold text-white mb-1 uppercase">${esc(bank.account_name)}</p>
-                        <p class="text-xs text-gray-400 font-mono tracking-widest bg-gray-800 px-3 py-1 rounded-md mb-3">${esc(bank.account_number)}</p>
-                        <div class="text-[10px] text-gray-500 bg-white/5 border border-white/10 px-4 py-2 rounded-lg text-center">
-                            <p>Amount: <strong class="text-white">${amount.toLocaleString('vi-VN')} VND</strong></p>
-                            <p>Memo: <strong style="color: var(--theme-color);">${randomMemo}</strong></p>
-                        </div>
-                    </div>
-                `;
-            }, 300); 
-        }
-
-        async function processOrder(e) {
-            e.preventDefault();
-            
-            const form = document.getElementById('checkoutForm');
-            if(!form.checkValidity()) {
-                form.reportValidity(); return;
-            }
-
-            const btn = document.getElementById('btnSubmit');
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> SENDING DATA...';
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
-
-            const orderData = {
-                customer_name: document.getElementById('custName').value.trim(),
-                phone: document.getElementById('custPhone').value.trim(),
-                shop_name: document.getElementById('custShop').value.trim(),
-                email: document.getElementById('custEmail').value.trim(),
-                module_plan: moduleType,
-                total_price: currentModule.price,
-                memo_code: randomMemo
-            };
-
-            try {
-                await hrApi('/api/checkout/signup', {
-                    method: 'POST',
-                    body: JSON.stringify(orderData)
-                });
-
-                document.getElementById('successScreen').classList.remove('hidden');
-
-                setTimeout(() => {
-                    document.getElementById('spinLoading').classList.add('hidden');
-                    
-                    const checkDone = document.getElementById('checkDone');
-                    checkDone.classList.remove('opacity-0', 'scale-50');
-                    checkDone.classList.add('opacity-100', 'scale-100');
-                    checkDone.classList.add('text-green-400');
-                    
-                    document.getElementById('successTitle').innerText = 'Request Sent Successfully!';
-                    document.getElementById('successTitle').classList.add('text-green-400');
-
-                    if(moduleType === 'agency') {
-                        document.getElementById('successDesc').innerText = 'A BitPaw marketing specialist will contact you via your registered phone number within the next 15 minutes.';
-                    } else {
-                        // Kích hoạt là THỦ CÔNG (superadmin đối soát chuyển khoản rồi cấp License Key) — trước đây câu này hứa
-                        // "hệ thống tự kích hoạt khi tiền về", sai với cách vận hành thật.
-                        document.getElementById('successDesc').innerHTML = `Order code <strong class="text-white">${esc(randomMemo)}</strong> has been recorded. Once BitPaw confirms your transfer (usually within business hours), your License Key will be sent to your email/phone to activate your account.`;
-                    }
-                    
-                    document.getElementById('btnLoginGo').classList.remove('hidden');
-                    document.getElementById('btnLoginGo').classList.add('inline-flex');
-                    
-                    fireConfetti(); // Bắn pháo hoa ăn mừng chốt đơn
-                }, 2500);
-
-            } catch (error) {
-                alert("Error creating order: " + error.message);
-                btn.innerHTML = '<i class="fas fa-check-circle"></i> TRY AGAIN';
-                btn.classList.remove('opacity-70', 'cursor-not-allowed');
-            }
-        }
-
-        // Thông tin tài khoản nhận tiền do superadmin nhập -> escape trước khi chèn vào HTML.
-        function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-        window.addEventListener('DOMContentLoaded', fetchPaymentMethods);
-    </script>
+    var form = document.getElementById('signupForm'), err = document.getElementById('err'), btn = document.getElementById('btnSubmit');
+    var T = function (en, vi) { return lang === 'en' ? en : vi; };
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault(); err.textContent = '';
+        var v = function (id) { return document.getElementById(id).value.trim(); };
+        if (!v('custName') || !v('custShop') || !v('custEmail') || !v('custPhone')) { err.textContent = T('Please fill in all required fields.', 'Vui lòng điền đủ các ô có dấu *.'); return; }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v('custEmail'))) { err.textContent = T('Please enter a valid email address.', 'Email chưa đúng định dạng.'); return; }
+        if (!document.getElementById('agree').checked) { err.textContent = T('Please agree to the Terms and Privacy Policy.', 'Vui lòng đồng ý Điều khoản và Chính sách bảo mật.'); return; }
+        btn.disabled = true;
+        try {
+            var res = await fetch('/api/checkout/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customer_name: v('custName'), shop_name: v('custShop'), email: v('custEmail'), phone: v('custPhone'),
+                    country: country.value, industry: v('custIndustry'), note: v('custNote'), plan: selected(), currency: cur }) });
+            var body = await res.json().catch(function () { return {}; });
+            if (!res.ok || !body.success) throw new Error(body.message || T('Could not send. Please try again.', 'Gửi chưa được, vui lòng thử lại.'));
+            var d = body.data;
+            document.getElementById('doneText').textContent = T(
+                'Request #' + d.id + ' for ' + PLANS[d.plan].name + ' (' + money(d.setup_fee) + ' setup + ' + money(d.monthly_fee) + '/month, ' + d.currency + '). We will email ' + v('custEmail') + ' within 1 business day. Nothing has been charged.',
+                'Yêu cầu #' + d.id + ' gói ' + PLANS[d.plan].name + ' (cài đặt ' + money(d.setup_fee) + ' + ' + money(d.monthly_fee) + '/tháng, ' + d.currency + '). BitPaw sẽ email tới ' + v('custEmail') + ' trong 1 ngày làm việc. Chưa có khoản nào bị trừ.');
+            document.getElementById('sumBox').hidden = true; document.getElementById('doneBox').hidden = false;
+            form.querySelectorAll('input, select, textarea, button').forEach(function (el) { el.disabled = true; });
+            document.querySelector('.sum').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    });
+    setLang(lang);
+})();
+</script>
 </body>
 </html>

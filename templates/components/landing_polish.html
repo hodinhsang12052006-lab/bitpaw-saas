@@ -203,6 +203,7 @@
             document.documentElement.lang = lang;
             document.documentElement.setAttribute('data-bp-lang', lang);
             if (window.bpdlRender) window.bpdlRender();
+            if (window.bpPricingRefresh) window.bpPricingRefresh();
             return r;
         };
         var saved = null;
@@ -213,5 +214,6 @@
     document.documentElement.lang = shown() || document.documentElement.lang || 'vi';
     document.documentElement.setAttribute('data-bp-lang', document.documentElement.lang);
     if (window.bpdlRender) window.bpdlRender();
+    if (window.bpPricingRefresh) window.bpPricingRefresh();
 })();
 </script>

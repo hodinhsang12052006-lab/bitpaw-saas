@@ -127,9 +127,11 @@
     box-shadow: 0 -20px 60px rgba(0,0,0,0.55);
     padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
     transform: translateY(100%);
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    /* đóng = ẩn hẳn (không còn lọt vào phím Tab / trình đọc màn hình / ảnh chụp toàn trang), sau khi trượt xuống xong */
+    visibility: hidden;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.32s;
 }
-.bp-sheet.bp-open { transform: translateY(0); }
+.bp-sheet.bp-open { transform: translateY(0); visibility: visible; transition-delay: 0s; }
 .bp-sheet-handle {
     width: 40px; height: 4px; border-radius: 4px;
     background: rgba(255,255,255,0.2);

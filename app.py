@@ -2567,10 +2567,12 @@ _LEGAL_PAGES = {
 
 def _render_legal_page(kind):
     lang = request.args.get('lang') if request.args.get('lang') in ('vi', 'en') else resolve_lang(request)
-    t = get_translations(lang).get('landing', {})
-    title_key, content_key = _LEGAL_PAGES[kind]
+    # Nội dung đầy đủ (Mỹ + Úc) ở templates/legal/<kind>_<lang>.html — bản tiếng Anh là bản chính thức
+    titles = {'privacy': ('Privacy Policy', 'Chính sách bảo mật'), 'terms': ('Terms of Service', 'Điều khoản sử dụng'),
+              'payment': ('Payment Policy', 'Chính sách thanh toán')}
+    content = render_template(f'legal/{kind}_{lang}.html')
     return render_template('legal_page.html', page_lang=lang, kind=kind,
-                           title=t.get(title_key) or kind.title(), content=t.get(content_key, ''))
+                           title=titles[kind][0 if lang == 'en' else 1], content=content)
 
 
 @app.route('/privacy-policy')
@@ -2664,43 +2666,102 @@ def api_checkout_payment_methods():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# Giá gói lấy ở SERVER (khớp bảng giá trong templates/checkout.html). Trước đây total_price do trình duyệt tự gửi
-# -> sửa thành 1đ thì superadmin vẫn thấy "khách đã đăng ký gói 1đ".
-SAAS_PLAN_PRICES = {'hrm': 1500000, 'pos': 1200000, 'ecom': 1800000, 'agency': 0}
+# Bảng giá gói phần mềm — NGUỒN DUY NHẤT cho landing (components/pricing.html), /checkout và super admin.
+# Thị trường chính: Mỹ + Úc -> USD và AUD. Giá luôn tính ở SERVER (trình duyệt gửi giá nào cũng bị bỏ qua).
+SAAS_CURRENCIES = {'USD': {'symbol': '$', 'label': 'USD', 'tax_vi': 'Chưa gồm thuế bán hàng (sales tax) nếu có',
+                           'tax_en': 'Sales tax may apply'},
+                   'AUD': {'symbol': 'A$', 'label': 'AUD', 'tax_vi': 'Chưa gồm GST nếu có',
+                           'tax_en': 'Excludes GST where applicable'}}
+SAAS_PLANS = {
+    'essential': {'name': 'Essential', 'setup': {'USD': 999, 'AUD': 1499}, 'monthly': {'USD': 99, 'AUD': 149}},
+    'pro': {'name': 'Pro Partner', 'setup': {'USD': 2999, 'AUD': 4499}, 'monthly': {'USD': 299, 'AUD': 449}},
+    'empire': {'name': 'Empire Scale', 'setup': {'USD': 4999, 'AUD': 7499}, 'monthly': {'USD': 599, 'AUD': 899}},
+}
+# Link cũ /checkout?plan=hrm|pos|ecom|agency (trang cũ bán theo module bằng VND) -> gói tương ứng
+SAAS_PLAN_ALIASES = {'hrm': 'essential', 'pos': 'essential', 'ecom': 'pro', 'agency': 'pro'}
+
+
+@app.context_processor
+def inject_saas_plans():
+    return {'saas_plans': SAAS_PLANS, 'saas_currencies': SAAS_CURRENCIES}
 
 
 @app.route('/api/checkout/signup', methods=['POST'])
 @limiter.limit("10 per hour")
 def api_checkout_signup():
-    """PUBLIC — ghi nhận lead đăng ký mua gói (chưa có business_id vì doanh nghiệp chưa được
-    tạo). Lưu vào db.saas_signups, KHÔNG đụng tới db.orders của POS."""
+    """PUBLIC — yêu cầu đăng ký gói phần mềm (chưa có business_id). Lưu db.saas_signups, KHÔNG đụng db.orders của POS.
+    Không thu tiền ở bước này: BitPaw xác nhận rồi gửi hoá đơn thẻ (Square) qua email. Giá tính ở server theo gói + tiền tệ."""
     data = request.json or {}
     fields = {}
-    for f, max_len in (('customer_name', 120), ('phone', 32), ('shop_name', 160), ('email', 160), ('module_plan', 20)):
+    for f, max_len in (('customer_name', 120), ('phone', 32), ('shop_name', 160), ('email', 160)):
         v = data.get(f)
         if not isinstance(v, str) or not v.strip():
-            return jsonify({"success": False, "message": "Thiếu thông tin bắt buộc."}), 400
+            return jsonify({"success": False, "message": "Please fill in all required fields."}), 400
         fields[f] = v.strip()[:max_len]
-    if fields['module_plan'] not in SAAS_PLAN_PRICES:
-        return jsonify({"success": False, "message": "Gói không hợp lệ."}), 400
     if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', fields['email']):
-        return jsonify({"success": False, "message": "Email không hợp lệ."}), 400
-    memo = data.get('memo_code')
-    memo = memo.strip()[:32] if isinstance(memo, str) and re.fullmatch(r'[A-Za-z0-9 _-]{0,32}', memo.strip()) else ''
+        return jsonify({"success": False, "message": "Please enter a valid email address."}), 400
+    if not re.fullmatch(r'[+0-9 ()\-.]{6,32}', fields['phone']):
+        return jsonify({"success": False, "message": "Please enter a valid phone number."}), 400
+    plan = data.get('plan') if isinstance(data.get('plan'), str) else ''
+    plan = SAAS_PLAN_ALIASES.get(plan, plan)
+    currency = data.get('currency') if isinstance(data.get('currency'), str) else ''
+    if plan not in SAAS_PLANS or currency not in SAAS_CURRENCIES:
+        return jsonify({"success": False, "message": "Please choose a plan and currency."}), 400
+    country = data.get('country') if data.get('country') in ('US', 'AU', 'CA', 'NZ', 'GB', 'VN', 'OTHER') else 'OTHER'
+    industry = data.get('industry') if isinstance(data.get('industry'), str) and data.get('industry') in INDUSTRY_CONFIG else ''
+    note = data.get('note') if isinstance(data.get('note'), str) else ''
+    p = SAAS_PLANS[plan]
     try:
         doc = {
             'id': next_mongo_id('saas_signups'),
             **fields,
-            'total_price': SAAS_PLAN_PRICES[fields['module_plan']],
-            'memo_code': memo,
+            'plan': plan, 'plan_name': p['name'], 'currency': currency, 'country': country, 'industry': industry,
+            'setup_fee': p['setup'][currency], 'monthly_fee': p['monthly'][currency],
+            'total_price': p['setup'][currency] + p['monthly'][currency],  # phải thu kỳ đầu = phí cài + tháng đầu
+            'note': note.strip()[:1000],
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
         }
         db.saas_signups.insert_one(doc)
         doc.pop('_id', None)
-        return jsonify({"success": True, "data": doc})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": "Could not save your request. Please try again."}), 500
+    from markupsafe import escape as html_escape
+    # Báo admin ngay (không chặn khách nếu email lỗi)
+    try:
+        sym = SAAS_CURRENCIES[currency]['symbol']
+        admin_to = [SUPERADMIN_ROOT_EMAIL] + [e.strip() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()]
+        body = (f"<h3>New BitPaw signup request #{doc['id']}</h3><p><b>{html_escape(doc['shop_name'])}</b> — {html_escape(doc['customer_name'])}"
+                f"<br>{html_escape(doc['email'])} · {html_escape(doc['phone'])} · {country} · {industry or '-'}</p>"
+                f"<p>Plan: <b>{p['name']}</b> · {currency} · setup {sym}{doc['setup_fee']:,} + {sym}{doc['monthly_fee']:,}/month</p>"
+                f"<p>{html_escape(doc['note'])}</p><p>Send a Square invoice, then activate the account in Super Admin.</p>")
+        EmailService.send_email(admin_to[0], f"[BitPaw] New signup: {doc['shop_name']} ({p['name']}, {currency})", body)
+    except Exception as e:
+        print(f"[api_checkout_signup] admin email failed: {e}")
+    return jsonify({"success": True, "data": {'id': doc['id'], 'plan': plan, 'currency': currency,
+                                              'setup_fee': doc['setup_fee'], 'monthly_fee': doc['monthly_fee']}})
+
+
+@app.route('/api/superadmin/saas_signups', methods=['GET'])
+@login_required
+def api_superadmin_saas_signups():
+    """Super admin: danh sách yêu cầu đăng ký gói (mới nhất trước)."""
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Forbidden"}), 403
+    rows = list(db.saas_signups.find({}, {'_id': 0}).sort('id', -1).limit(200))
+    return jsonify({"success": True, "data": rows})
+
+
+@app.route('/api/superadmin/saas_signups/<int:signup_id>/status', methods=['POST'])
+@login_required
+def api_superadmin_saas_signup_status(signup_id):
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Forbidden"}), 403
+    status = (request.json or {}).get('status')
+    if status not in ('pending', 'invoiced', 'active', 'cancelled'):
+        return jsonify({"success": False, "message": "Invalid status"}), 400
+    r = db.saas_signups.update_one({'id': signup_id}, {'$set': {'status': status, 'updated_at': datetime.now().isoformat()}})
+    return jsonify({"success": r.matched_count == 1})
 
 
 @app.route('/landing_nail')
