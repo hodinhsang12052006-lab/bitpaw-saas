@@ -36,8 +36,12 @@ for (const [ind, [lang, q, topic]] of Object.entries(CASES)) {
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(`${BASE}/solutions/${ind}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  // Điện thoại: mascot ẩn, khách mở chat qua nút nổi .bp-fab -> "Chat với Trợ Lý AI" (đúng đường người thật bấm)
-  await p.waitForSelector('.bp-fab', { state: 'visible', timeout: 15000 });
+  // Điện thoại: mascot ẩn, khách mở chat qua nút nổi .bp-fab -> "Chat với Trợ Lý AI" (đúng đường người thật bấm).
+  // Nút nổi cố ý ẩn ở màn hình đầu (không che nút "Dùng thử") và khi đang cuộn xuống -> cuộn qua màn đầu, dừng lại rồi bấm.
+  await p.waitForLoadState('load').catch(() => {});
+  await p.evaluate(() => scrollTo(0, innerHeight * 1.2));
+  await p.waitForSelector('.bp-fab:not(.bpx-hide)', { state: 'visible', timeout: 15000 });
+  await p.waitForTimeout(400);
   await p.click('.bp-fab');
   await p.locator('#bpFabSheet .bp-sheet-item').first().click();
   await p.waitForSelector('#chatWidget:not(.hidden-chat)', { timeout: 5000 }).catch(() => {});

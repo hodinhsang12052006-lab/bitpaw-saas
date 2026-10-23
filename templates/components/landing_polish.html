@@ -1,0 +1,217 @@
+{# Lớp "mượt + chuyên nghiệp" dùng chung cho 11 landing — include NGAY TRƯỚC </body>, sau mọi script của trang:
+     {% with bp_accent='#ec4899' %}{% include 'components/landing_polish.html' %}{% endwith %}
+   1. Nền sao 2D nhẹ thay three.js (~600KB, WebGL 60 khung/giây không nghỉ, hạt gần camera thành Ô VUÔNG to).
+   2. Hiện khối khi cuộn nhanh + quãng ngắn (trước: chờ tới 0,8s rồi chạy 0,8–1s, trượt 100px -> cuộn nhanh thấy mảng trống).
+   3. Hiệu ứng nghiêng thẻ: nhẹ hơn, tắt hẳn trên màn hình cảm ứng.
+   4. Ngôn ngữ: nhớ lựa chọn VN/EN của khách giữa các trang (9 trang ngành trước không lưu + không áp dụng lựa chọn đã lưu).
+   5. Tôn trọng "giảm chuyển động" của hệ điều hành. #}
+<style>
+    html [data-aos] { transition-duration: .5s !important; transition-timing-function: cubic-bezier(.22, 1, .36, 1) !important; }
+    html [data-aos="fade-up"] { transform: translate3d(0, 18px, 0); }
+    html [data-aos="fade-down"] { transform: translate3d(0, -18px, 0); }
+    html [data-aos="fade-right"] { transform: translate3d(-18px, 0, 0); }
+    html [data-aos="fade-left"] { transform: translate3d(18px, 0, 0); }
+    html [data-aos="zoom-in"] { transform: scale(.96); }
+    #bg-canvas { opacity: 1 !important; }
+    /* nút tròn/ thẻ: phản hồi khi bấm, không "đứng im khô khan" */
+    a, button { -webkit-tap-highlight-color: transparent; }
+    @media (hover: hover) and (pointer: fine) {
+        .bp-eco-card, .glass-card, .feature-card { will-change: transform; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html [data-aos] { opacity: 1 !important; transform: none !important; transition: none !important; }
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    }
+    /* nút "Liên hệ" nổi trên điện thoại: tròn chỉ icon (trước: viên thuốc che nút "Dùng thử miễn phí" ở màn hình đầu),
+       ẩn ở màn hình đầu + khi đang cuộn xuống, hiện lại khi dừng */
+    @media (max-width: 1024px) {
+        .bp-fab { width: 52px; height: 52px; padding: 0 !important; justify-content: center; border-radius: 50% !important;
+                  transition: transform .3s cubic-bezier(.22, 1, .36, 1), opacity .2s ease !important; }
+        .bp-fab [data-i18n="fab_label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        .bp-fab .bp-fab-dot { display: none; }
+        .bp-fab::before { content: "\f590"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 20px; color: #67e8f9; }
+        .bp-fab.bpx-hide { transform: translateY(140%); opacity: 0; pointer-events: none; }
+    }
+    /* lưới 9 ngành trang chính: bấm cả thẻ; điện thoại 2 cột gọn (trước: 9 thẻ, mỗi thẻ gần 1 màn hình) */
+    .bpx-ind-grid > div { position: relative; }
+    .bpx-ind-grid > div a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+    @media (max-width: 640px) {
+        .bpx-ind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+        .bpx-ind-grid > div { padding: 14px !important; }
+        .bpx-ind-grid > div > div > div:first-child { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+        .bpx-ind-grid .w-12 { width: 38px; height: 38px; font-size: 16px; }
+        .bpx-ind-grid h3 { font-size: 15px !important; line-height: 1.25; }
+        .bpx-ind-grid p { font-size: 11.5px !important; margin-bottom: 10px !important; }
+        .bpx-ind-grid a { font-size: 12px !important; }
+    }
+    /* điện thoại: khối mascot ở đầu trang cao 400–550px = trọn 1 màn hình không có chữ -> thu còn ~300px */
+    @media (max-width: 640px) {
+        .hologram-container { height: 300px !important; }
+        div:has(> .hologram-container) { min-height: 300px !important; }
+        .hologram-container > .relative.rounded-full { transform: scale(.82); }
+    }
+    /* điện thoại: bớt khoảng trống dọc giữa các khối (py-20/24 = 80–96px trên + dưới mỗi khối) */
+    @media (max-width: 640px) {
+        section.py-20, section.py-24, section.py-28, section.py-32 { padding-top: 3.5rem !important; padding-bottom: 3.5rem !important; }
+        section .mb-20, section .mb-16 { margin-bottom: 2.25rem !important; }
+    }
+    .bpx-swipe { display: flex !important; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px !important;
+                 margin-left: -1.5rem; margin-right: -1.5rem; padding: 4px 1.5rem 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .bpx-swipe::-webkit-scrollbar { display: none; }
+    .bpx-swipe > * { flex: 0 0 82%; scroll-snap-align: center; min-width: 0; }
+    .bpx-swipe > *[data-aos] { opacity: 1 !important; transform: none !important; }
+    .bpx-swipe-hint { display: flex; justify-content: flex-end; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #64748b; margin-top: 2px; }
+    .bpx-swipe-hint i { font-size: 10px; }
+    /* khối "trước / sau" trang chính: 3 cột (trước đây không có CSS -> xếp dọc, kéo dài hết bề ngang) */
+    .testi-scroll { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .testi-scroll .testi-item b { color: #e2e8f0; }
+    @media (max-width: 900px) { .testi-scroll { grid-template-columns: 1fr; gap: 14px; } }
+    /* chân trang "gia đình thương hiệu": đúng ngôn ngữ đang chọn */
+    html[lang="en"] .bf-vi { display: none; }
+    html:not([lang="en"]) .bf-en { display: none; }
+</style>
+<script>
+(function () {
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ---- 2. Hiện khối khi cuộn: trễ tối đa 120ms, chạy tối đa 500ms (AOS.init chạy ở DOMContentLoaded, sau đoạn này)
+    document.querySelectorAll('[data-aos-delay]').forEach(function (el) {
+        var d = parseInt(el.getAttribute('data-aos-delay'), 10) || 0;
+        el.setAttribute('data-aos-delay', String(Math.min(150, Math.round(d * 0.3 / 50) * 50)));
+    });
+    document.querySelectorAll('[data-aos-duration]').forEach(function (el) { el.setAttribute('data-aos-duration', '500'); });
+
+    // ---- 2b. Lưới an toàn: khối đã vào màn hình mà AOS chưa cho hiện (vị trí tính sai khi bố cục đổi) -> tự hiện,
+    //          không bao giờ để khách thấy màn hình trống
+    if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+                if (!en.isIntersecting) return;
+                var el = en.target;
+                setTimeout(function () { if (!el.classList.contains('aos-animate')) el.classList.add('aos-animate'); }, 120);
+                io.unobserve(el);
+            });
+        }, { rootMargin: '0px 0px -8% 0px' });
+        var watch = function () { document.querySelectorAll('[data-aos]').forEach(function (el) { io.observe(el); }); };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
+    }
+
+    // ---- 1. Nền sao 2D: chấm tròn mờ, trôi rất chậm, lệch nhẹ theo cuộn; dừng khi tab ẩn; 30 khung/giây
+    var c = document.getElementById('bg-canvas');
+    if (c && c.getContext) {
+        var ctx = c.getContext('2d');
+        var hex = '{{ bp_accent | default("#22d3ee") }}'.replace('#', '');
+        var A = [parseInt(hex.substr(0, 2), 16), parseInt(hex.substr(2, 2), 16), parseInt(hex.substr(4, 2), 16)];
+        var dpr = Math.min(window.devicePixelRatio || 1, 1.5), W = 0, H = 0, stars = [], running = false, last = 0;
+        var draw = function (t) {
+            ctx.clearRect(0, 0, W, H);
+            var sy = window.scrollY || 0;
+            for (var i = 0; i < stars.length; i++) {
+                var s = stars[i];
+                var y = ((s.y - sy * s.p - t * s.v) % H + H) % H;
+                var a = s.a * (0.6 + 0.4 * Math.sin(t * 0.0011 + s.tw));
+                ctx.beginPath();
+                ctx.arc(s.x, y, s.r, 0, 6.2832);
+                ctx.fillStyle = s.tint ? 'rgba(' + A[0] + ',' + A[1] + ',' + A[2] + ',' + a.toFixed(3) + ')' : 'rgba(226,232,255,' + (a * 0.75).toFixed(3) + ')';
+                ctx.fill();
+            }
+        };
+        var resize = function () {
+            W = window.innerWidth; H = window.innerHeight;
+            c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+            c.style.width = W + 'px'; c.style.height = H + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            var n = Math.round(Math.min(150, (W * H) / 9500));
+            stars = [];
+            for (var i = 0; i < n; i++) {
+                var r = Math.random() * 1.25 + 0.35;
+                stars.push({ x: Math.random() * W, y: Math.random() * H, r: r, a: Math.random() * 0.5 + 0.25,
+                    tw: Math.random() * 6.28, v: 0.0015 + Math.random() * 0.002, p: 0.02 + r * 0.03, tint: Math.random() < 0.4 });
+            }
+            draw(performance.now());
+        };
+        var loop = function (t) {
+            if (document.hidden) { running = false; return; }
+            if (t - last > 33) { draw(t); last = t; }
+            requestAnimationFrame(loop);
+        };
+        var start = function () { if (!reduce && !running) { running = true; requestAnimationFrame(loop); } };
+        var rt;
+        resize();
+        window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 150); });
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+        if (reduce) window.addEventListener('scroll', function () { draw(0); }, { passive: true }); else start();
+    }
+
+    // ---- 3. Nghiêng thẻ: chỉ chuột thật, biên độ nhỏ, chậm rãi
+    //    (thẻ đánh dấu data-bp-tilt, KHÔNG dùng data-tilt: thư viện tự khởi tạo data-tilt với biên độ 15°, và destroy() của nó lỗi "null.style")
+    var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (fine && !reduce && window.VanillaTilt) {
+        VanillaTilt.init(document.querySelectorAll('[data-bp-tilt]'), { max: 6, speed: 900, glare: false, scale: 1, easing: 'cubic-bezier(.22,1,.36,1)' });
+    }
+
+    // ---- 3b. Nút "Liên hệ" nổi (điện thoại): không che nút chính ở màn hình đầu, lánh đi khi đang cuộn xuống
+    var fab = document.querySelector('.bp-fab');
+    if (fab) {
+        var lastY = window.scrollY || 0, idle;
+        var setFab = function () {
+            var y = window.scrollY || 0;
+            var hide = y < window.innerHeight * 0.6 || y > lastY + 2;
+            fab.classList.toggle('bpx-hide', hide);
+            lastY = y;
+            clearTimeout(idle);
+            idle = setTimeout(function () { fab.classList.toggle('bpx-hide', (window.scrollY || 0) < window.innerHeight * 0.6); }, 650);
+        };
+        window.addEventListener('scroll', setFab, { passive: true });
+        fab.classList.add('bpx-hide');
+        setFab();
+    }
+
+    // ---- 3c. Điện thoại: lưới ≥4 thẻ cao xếp 1 cột -> hàng vuốt ngang (trang ngắn đi nhiều màn hình)
+    if (window.matchMedia && matchMedia('(max-width: 640px)').matches) {
+        var swipe = function () {
+            document.querySelectorAll('section .grid').forEach(function (g) {
+                if (g.closest('footer, form, .faq-item, .bpdl, .bpwn, [id*="calc"], [class*="calc"], .bpx-ind-grid, .bpx-swipe')) return;
+                var kids = Array.prototype.filter.call(g.children, function (c) { return c.offsetHeight > 0; });
+                if (kids.length < 4) return;
+                if (getComputedStyle(g).gridTemplateColumns.trim().split(/\s+/).length !== 1) return;
+                var tall = kids.filter(function (c) { return c.offsetHeight > 150; }).length;
+                if (tall < kids.length * 0.75 || kids.some(function (c) { return c.querySelector('input, select, textarea'); })) return;
+                g.classList.add('bpx-swipe');
+                var hint = document.createElement('div');
+                hint.className = 'bpx-swipe-hint';
+                hint.innerHTML = '<span class="bf-vi">Vuốt để xem thêm</span><span class="bf-en">Swipe for more</span> <i class="fas fa-arrow-right"></i>';
+                g.parentNode.insertBefore(hint, g.nextSibling);
+            });
+            // trang ngắn lại -> AOS phải tính lại vị trí, nếu không các khối phía dưới không bao giờ hiện (thành màn hình trống)
+            var refresh = function () { if (window.AOS && AOS.refreshHard) AOS.refreshHard(); };
+            [0, 400, 1500].forEach(function (t) { setTimeout(refresh, t); });
+            window.addEventListener('load', function () { setTimeout(refresh, 50); });
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', swipe); else swipe();
+    }
+
+    // ---- 4. Ngôn ngữ: lưu lựa chọn + áp dụng lựa chọn đã lưu
+    var label = function () { var t = document.getElementById('current-lang-text'); return t ? (t.innerText || '').trim().toUpperCase() : ''; };
+    var shown = function () { var l = label(); return l === 'EN' ? 'en' : (l === 'VN' || l === 'VI' ? 'vi' : (document.documentElement.lang || '')); };
+    if (typeof window.changeLanguage === 'function') {
+        var orig = window.changeLanguage;
+        window.changeLanguage = function (lang) {
+            var r = orig.apply(this, arguments);
+            try { localStorage.setItem('bitpaw_lang', lang); } catch (e) { /* bị chặn */ }
+            document.cookie = 'bitpaw_lang=' + lang + ';path=/;max-age=31536000;SameSite=Lax';
+            document.documentElement.lang = lang;
+            document.documentElement.setAttribute('data-bp-lang', lang);
+            if (window.bpdlRender) window.bpdlRender();
+            return r;
+        };
+        var saved = null;
+        try { saved = localStorage.getItem('bitpaw_lang'); } catch (e) { /* bị chặn */ }
+        if (!saved) { var m = document.cookie.match(/(?:^|;\s*)bitpaw_lang=(vi|en)/); if (m) saved = m[1]; }
+        if ((saved === 'vi' || saved === 'en') && shown() !== saved) orig(saved);
+    }
+    document.documentElement.lang = shown() || document.documentElement.lang || 'vi';
+    document.documentElement.setAttribute('data-bp-lang', document.documentElement.lang);
+    if (window.bpdlRender) window.bpdlRender();
+})();
+</script>

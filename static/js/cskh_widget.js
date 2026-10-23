@@ -74,7 +74,22 @@ document.addEventListener("DOMContentLoaded", () => {
             
             .btn-whatsapp { background: #25D366; }
             .btn-mess { background: linear-gradient(45deg, #00B2FF, #006AFF); }
-            .btn-call { background: #10b981; animation: ring-widget 2s infinite, pulse-call 1.5s infinite alternate; }
+            .btn-call { background: #10b981; }
+            .contact-dial-wrap { position: relative; display: flex; }
+            .btn-dial { background: rgba(8, 6, 26, 0.92); border: 1px solid rgba(34, 211, 238, 0.55) !important; color: #67e8f9; }
+            .btn-dial i { transition: transform .25s cubic-bezier(.22,1,.36,1); }
+            .contact-dial-wrap.open .btn-dial i { transform: rotate(-12deg) scale(1.05); }
+            .contact-dial { position: absolute; right: 60px; top: 0; display: flex; flex-direction: row-reverse; gap: 10px; pointer-events: none; }
+            .contact-dial .contact-btn { opacity: 0; transform: translateX(14px) scale(.85); transition: opacity .18s ease, transform .28s cubic-bezier(.22,1,.36,1); }
+            .contact-dial-wrap.open .contact-dial { pointer-events: auto; }
+            .contact-dial-wrap.open .contact-dial .contact-btn { opacity: 1; transform: none; }
+            .contact-dial-wrap.open .contact-dial .contact-btn:nth-child(2) { transition-delay: .03s; }
+            .contact-dial-wrap.open .contact-dial .contact-btn:nth-child(3) { transition-delay: .06s; }
+            .contact-dial-wrap.open .contact-dial .contact-btn:nth-child(4) { transition-delay: .09s; }
+            .contact-dial .contact-btn::after { right: auto; left: 50%; top: -34px; transform: translateX(-50%) scale(.85); }
+            .contact-dial .contact-btn:hover::after { transform: translateX(-50%) scale(1); }
+            .contact-dial-wrap.open .btn-dial::after { opacity: 0 !important; }
+            @media (prefers-reduced-motion: reduce) { .contact-dial .contact-btn { transition: none; } }
             .btn-mail { background: #ea4335; }
             
             @keyframes ring-widget { 
@@ -287,6 +302,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <button id="backToTop" class="contact-btn bg-gray-800 border border-gray-600 text-xs" data-tooltip="Lên đầu">
             <i class="fas fa-chevron-up"></i>
         </button>
+        <div class="contact-dial-wrap" id="contactDialWrap">
+        <div class="contact-dial" id="contactDial" role="menu">
         <a href="mailto:bitpawsoftware@gmail.com" class="contact-btn btn-mail" data-tooltip="Email">
             <i class="fas fa-envelope"></i>
         </a>
@@ -299,9 +316,30 @@ document.addEventListener("DOMContentLoaded", () => {
         <a href="tel:+61385937410" class="contact-btn btn-call" data-tooltip="Hotline 24/7">
             <i class="fas fa-phone-alt"></i>
         </a>
+        </div>
+        <button type="button" class="contact-btn btn-dial" id="contactDialToggle" aria-expanded="false" aria-controls="contactDial" data-tooltip="Liên hệ / Contact">
+            <i class="fas fa-headset"></i>
+        </button>
+        </div>
         `}
     `;
     document.body.appendChild(contactWidget);
+
+    // Nút "Liên hệ": rê chuột (máy tính) hoặc bấm (cảm ứng) để bung 4 kênh; bấm ra ngoài / Esc để đóng
+    const dialWrap = document.getElementById("contactDialWrap");
+    const dialBtn = document.getElementById("contactDialToggle");
+    if (dialWrap && dialBtn) {
+        const setDial = (open) => { dialWrap.classList.toggle("open", open); dialBtn.setAttribute("aria-expanded", open ? "true" : "false"); };
+        const canHover = window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches;
+        let closeTimer;
+        if (canHover) {
+            dialWrap.addEventListener("mouseenter", () => { clearTimeout(closeTimer); setDial(true); });
+            dialWrap.addEventListener("mouseleave", () => { closeTimer = setTimeout(() => setDial(false), 220); });
+        }
+        dialBtn.addEventListener("click", (e) => { e.stopPropagation(); setDial(!dialWrap.classList.contains("open")); });
+        document.addEventListener("click", (e) => { if (!dialWrap.contains(e.target)) setDial(false); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") setDial(false); });
+    }
 
     // BUG THẬT đã phát hiện (Playwright elementFromPoint tại đúng góc nút bấm ra ảnh mascot, không
     // phải nút): widget position:fixed bottom-phải luôn đứng CỐ ĐỊNH theo viewport bất kể trang

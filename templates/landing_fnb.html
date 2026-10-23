@@ -353,7 +353,7 @@
                     
                     <!-- 3D Mascot Orb Center -->
                     <div class="relative w-64 h-64 lg:w-72 lg:h-72 rounded-full border-4 border-orange-500/30 flex items-center justify-center glass shadow-[0_0_50px_rgba(249,115,22,0.4)] z-10 cursor-pointer"
-                        data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="false">
+                        data-bp-tilt>
                         <div class="absolute w-full h-full border-t-4 border-amber-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
                         <div class="absolute w-[110%] h-[110%] border-b-4 border-orange-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
      
@@ -1133,7 +1133,7 @@
                             <span class="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider" data-i18n="msg3_badge">AI gợi ý • Sau 30 ngày</span>
                             <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> <span data-i18n="msg_status_approved">Đã duyệt</span></span>
                         </div>
-                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-redo-alt text-orange-500"></i> <span data-i18n="msg3_title">Bám đuổi khách sắp rời bỏ</span></h3>
+                        <h3 class="font-extrabold text-white text-[18px] lg:text-[22px] mb-3 flex items-center gap-1.5"><i class="fas fa-redo-alt text-orange-500"></i> <span data-i18n="msg3_title">Chăm sóc lại khách sắp rời bỏ</span></h3>
 
                         <div class="relative bg-[#0d0a1b] p-4 rounded-2xl border border-white/10 text-sm lg:text-base text-slate-200 leading-relaxed shadow-inner my-4">
                             <div class="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-[#0d0a1b] border-l-8 border-l-transparent"></div>
@@ -1350,7 +1350,7 @@
     </main>
  
     <!-- Footer -->
-    {% set dl_code = 'fnb' %}{% include 'components/download_section.html' %}
+    {% set dl_code = 'fnb' %}{% include 'components/whats_new.html' %}{% include 'components/download_section.html' %}
 
     <footer id="lien-he" class="relative z-10 bg-[#04030a] border-t border-white/10 pt-12 md:pt-20 pb-8">
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 border-b border-white/10 pb-12">
@@ -1365,7 +1365,6 @@
  
                 <div class="text-sm lg:text-[15px] text-slate-300 font-medium space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <p class="flex items-start gap-3"><i class="fas fa-building mt-1 text-orange-500 w-4"></i> <strong data-i18n="footer_company_name">Bitpaw Technology LLC</strong></p>
-                    <p class="flex items-center gap-3"><i class="fas fa-id-card text-orange-500 w-4"></i> <span data-i18n="footer_tax_info">Business Registration: 888999777</span></p>
                     <p class="flex items-start gap-3"><i class="fas fa-map-marker-alt mt-1 text-orange-500 w-4"></i> <span data-i18n="footer_address_au">🇦🇺 Level 2, 11 York Street, Sydney, NSW 2000, Australia</span></p>
                 </div>
             </div>
@@ -1395,8 +1394,8 @@
                         <div><strong class="block text-white text-sm">SSL Secured</strong><span class="text-[10px] block text-gray-500">256-bit Encryption</span></div>
                     </div>
                     <div class="bg-[#0a192f] px-4 py-3 rounded-xl text-xs text-gray-300 border border-orange-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(249,115,22,0.15)] group hover:border-orange-400 transition">
-                        <i class="fab fa-aws text-orange-400 text-3xl group-hover:scale-110 transition"></i>
-                        <div><strong class="block text-white text-sm">AWS Cloud</strong><span class="text-[10px] block text-gray-500">99.99% Uptime SLA</span></div>
+                        <i class="fas fa-cloud text-cyan-300 text-2xl group-hover:scale-110 transition"></i>
+                        <div><strong class="block text-white text-sm">Vercel · MongoDB Atlas</strong><span class="text-[10px] block text-gray-500"><span class="bf-vi">Dữ liệu tách riêng từng tiệm</span><span class="bf-en">Data isolated per business</span></span></div>
                     </div>
                 </div>
             </div>
@@ -1481,7 +1480,6 @@
 
     <!-- Script imports -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
 
     <!-- Background Animation & Interactive JS -->
@@ -1879,7 +1877,7 @@
                 msg2_quote: '"Chào chị Vy! 🍲 Cuối tuần này BitPaw Restaurant ra mắt Combo lẩu thái cua tuyết đặc sắc cực kỳ phù hợp cho nhóm gia đình. AI BitPaw gửi tặng riêng chị voucher giảm 15% khi quét mã đặt bàn trước. Hẹn gặp chị nhé! 🐾"',
                 msg2_goal: 'Mục tiêu: Kéo khách quen quay lại chi tiêu cuối tuần',
                 msg3_badge: 'AI gợi ý • Sau 30 ngày',
-                msg3_title: 'Bám đuổi khách sắp rời bỏ',
+                msg3_title: 'Chăm sóc lại khách sắp rời bỏ',
                 msg3_quote: '"Chào anh Hoàng! 🐾 Đã 30 ngày sếp chưa ghé dùng bữa cùng gia đình tại BitPaw. AI BitPaw gửi tặng sếp voucher đặc biệt giảm ngay 100K kèm ly vang đỏ miễn phí cho bữa tối tuần này. Nhấn đặt lịch ngay sếp nha! 🍷"',
                 msg3_goal: 'Mục tiêu: Kích hoạt tệp khách hàng sắp mất kết nối',
                 msg_status_approved: 'Đã duyệt',
@@ -1929,7 +1927,6 @@
                 cta_note: 'Phù hợp cho quán cafe nhỏ, quán trà sữa, nhà hàng hải sản, lẩu nướng BBQ, chuỗi nhiều chi nhánh tại Việt Nam và hải ngoại.',
                 footer_company_desc: 'Đế chế phần mềm SaaS ALL-IN-ONE tiên phong ứng dụng Radar AI, Smart POS đa ngành, Quản trị bán hàng Omni-channel và Dịch vụ Agency Marketing tại Việt Nam.',
                 footer_company_name: 'Bitpaw Technology LLC',
-                footer_tax_info: 'Business Registration: 888999777',
                 footer_address_au: '🇦🇺 Level 2, 11 York Street, Sydney, NSW 2000, Australia',
                 footer_products_header: 'Sản Phẩm',
                 footer_link_pos: 'Smart POS Đa ngành',
@@ -2159,7 +2156,6 @@
                 cta_note: 'Suited for small cafes, bubble tea shops, seafood restaurants, hotpot & BBQ venues, and multi-branch chains in Vietnam and abroad.',
                 footer_company_desc: 'A pioneering ALL-IN-ONE SaaS software empire applying Radar AI, multi-industry Smart POS, Omni-channel sales management, and Marketing Agency services in Vietnam.',
                 footer_company_name: 'Bitpaw Technology LLC',
-                footer_tax_info: 'Business Registration: 888999777',
                 footer_address_au: '🇦🇺 Level 2, 11 York Street, Sydney, NSW 2000, Australia',
                 footer_products_header: 'Products',
                 footer_link_pos: 'Multi-Industry Smart POS',
@@ -2234,5 +2230,6 @@
                 console.log(`[BitPaw i18n] Phát hiện khách Việt Nam (navigator.language = "${browserLang}") — giữ nguyên Tiếng Việt.`);
             }
         })();
-    </script></body>
+    </script>{% with bp_accent='#f97316' %}{% include 'components/landing_polish.html' %}{% endwith %}
+</body>
 </html>

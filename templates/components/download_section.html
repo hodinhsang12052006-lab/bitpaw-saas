@@ -198,6 +198,10 @@
             if (!root) return;
             var code = root.getAttribute('data-industry');
             function lang() {
+                // ngôn ngữ trang ĐANG HIỆN (components/landing_polish.html ghi vào data-bp-lang) đi trước lựa chọn đã lưu:
+                // trang Nails mặc định tiếng Anh mà không lưu -> trước đây khu này rơi về tiếng Việt giữa trang tiếng Anh
+                var shown = document.documentElement.getAttribute('data-bp-lang');
+                if (shown === 'vi' || shown === 'en') return shown;
                 var l = '';
                 try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
                 if (!l) { var m = document.cookie.match(/bitpaw_lang=(vi|en)/); l = m ? m[1] : ''; }
@@ -306,6 +310,7 @@
             });
 
             render();
+            window.bpdlRender = render;
             document.addEventListener('click', function () { setTimeout(function () { if ((lang() === 'en') !== EN) render(); }, 60); }, true);
             if (/[?&]install=1/.test(location.search) && dev.rec === 'ios') openSheet();
         })();

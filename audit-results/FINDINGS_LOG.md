@@ -642,3 +642,27 @@ Còn treo / cần chủ dự án:
 - Thanh toán 39/39 + 16/16 · AI copilot 18/18 · Nails 8+9+6+7+38 · i18n 28 trang × 2 ngôn ngữ, 0 khoá dịch thô · cách ly dữ liệu giữa tiệm 30+28+28 · input dị dạng: 0 lỗi 500, server còn sống.
 - Quét toàn trang 9 ngành (~1.140 lượt trang, 0 link nội bộ hỏng): chỉ còn `/super_admin` 403 với chủ tiệm và `/table_order` 400 khi không có mã QR bàn — đúng thiết kế. `/download/android` từng bị trình quét báo lỗi vì trình duyệt TẢI FILE thay vì mở trang (đúng) -> sửa trình quét.
 - Dọn: 20 bản ghi QA còn sót ở tiệm demo + 476 cảnh báo rate-limit giả từ 127.0.0.1 (có sao lưu).
+
+## Pha 25 — Landing mượt + chuyên nghiệp + đóng vai khách, nội dung trung thực (23/10/2026)
+
+Tham khảo video "3 skill thiết kế cho Claude" (Emil Kowalski = chuyển động có chủ đích, Impeccable = bố cục/khoảng cách/chữ, Taste = tránh web đại trà) — áp dụng nguyên tắc, không cài gì thêm. Lớp dùng chung mới `templates/components/landing_polish.html` (gắn cuối 11 landing) + `components/whats_new.html`.
+
+| # | Mức | Vấn đề (khách thấy) | Đã sửa |
+|---|---|---|---|
+| 1 | 🔴 | 9 trang ngành: khách chọn EN (vd ở trang Nails) rồi sang trang khác vẫn **toàn tiếng Việt** (150–200 đoạn); chọn VN/EN không được lưu | Lưu + áp dụng lựa chọn ở mọi trang; khu tải về + chân trang theo đúng ngôn ngữ trang (trước đó Nails tiếng Anh mà khu tải tiếng Việt) |
+| 2 | 🔴 | Trang chính: "10M+ đơn/tháng, 99.9% uptime, 5.000+ tài khoản thợ, 30% giảm thất thoát" + 3 lời khen 5 sao có tên (1 gắn "The Coffee House Q7") — không kiểm chứng được | Số thật (9 ngành · 4 nền tảng · 1000+ bill/lịch đã thử tải · 0 phí tải app); khối "Một ngày ở tiệm, trước/sau" ghi rõ "Ví dụ minh hoạ — không phải lời chứng thực" |
+| 3 | 🔴 | 11 trang: "Business Registration: 888999777" (số giả), huy hiệu "AWS Cloud 99.99% SLA" (web chạy Vercel + MongoDB Atlas) | Gỡ số giả; huy hiệu đúng hạ tầng |
+| 4 | 🔴 | HRM: "FaceID chống fake 100%", "sinh trắc học", "AI tự xếp ca" — chưa có trong sản phẩm (app chỉ có GPS + ảnh tải lên) | Sửa tiêu đề tab, mô tả Google, hero, FAQ SEO cho đúng; thân trang còn ~40 chỗ -> chờ quyết định (xây FaceID thật hoặc viết lại) |
+| 5 | 🟠 | three.js (~600 KB, WebGL 60 khung/giây không nghỉ) chỉ để vẽ nền sao; hạt gần camera thành **ô vuông hồng to**; xoay theo chuột giật (hệ số 0,5) | Nền sao 2D tròn nhẹ (~150 chấm, 30 khung/giây, dừng khi tab ẩn, tắt khi "giảm chuyển động"); xoá three.js khỏi 11 trang (6 trang gọi THREE không kiểm tra -> sẽ chết AOS/FAQ/bảng tính nếu chỉ gỡ thư viện) |
+| 6 | 🟠 | Khối hiện khi cuộn trễ tới 0,8 s rồi chạy 0,8–1 s, trượt 100 px -> cuộn nhanh thấy mảng trống | Trễ ≤150 ms, chạy 0,5 s, trượt 18 px; lưới an toàn: khối vào màn hình mà AOS chưa bật thì tự hiện |
+| 7 | 🟠 | iPhone: nút "Liên hệ" dạng viên thuốc **che nút "Dùng thử miễn phí"** ở màn đầu | Nút tròn chỉ icon; ẩn ở màn đầu + khi đang cuộn xuống, hiện khi dừng |
+| 8 | 🟠 | Máy tính: 6 nút tròn màu đứng dọc, nút gọi rung liên tục | Mascot + lên đầu + 1 nút "Liên hệ" bung ngang 4 kênh (cả trang trong app dùng cskh_widget.js) |
+| 9 | 🟡 | iPhone: trang dài 24–38 màn hình; khối mascot chiếm trọn 1 màn không chữ; 9 thẻ ngành mỗi thẻ ~1 màn | Lưới ≥4 thẻ thành hàng vuốt ngang, 9 ngành 2 cột, mascot 300 px -> ngắn đi 25–30% (trang chính 37→27 màn, Nails 31→23) |
+| 10 | 🟡 | Hiệu ứng nghiêng thẻ 15° (cả trên cảm ứng); thư viện destroy() lỗi "null.style" | 6°, chỉ khi có chuột; tự khởi tạo (data-bp-tilt) |
+| 11 | 🟡 | Hero trang chính: "Tự Động Hóa Vận Hành Đa Ngành… B2B SaaS Empire V3.0" — khách không biết bán gì cho ai | "Một phần mềm cho cả tiệm · Bán hàng · lịch hẹn · lương thợ · chăm khách — bản riêng cho 9 ngành" + nút "Dùng thử miễn phí"/"Xem bản cho ngành của tôi" |
+| 12 | 🟡 | "bám đuổi" (27 chỗ, nghe như rình rập khách), "BitPaw Software Software" (7 chỗ), chân trang tiếng Việt khi đang tiếng Anh | Sửa giọng văn; chân trang song ngữ |
+| 13 | 🟡 | Khách không biết những gì vừa làm xong | Khối "Mới cập nhật · 10/2026" mỗi trang — CHỈ điều đã chạy + đã kiểm (từ Pha 12–24) |
+
+Kiểm thử (server local, Chrome 1440 + iPhone 13, VI + EN): landing_polish 11/11 + nhớ ngôn ngữ 7/7 · landing_fab 7/7 · landing_mobile_blank 22/22 (0 màn trống) · landing_pages 66/66 · landing_download 47/47 · landing_sales_bot 18/18 (script cuộn qua màn đầu như khách thật) · download_device 32/32 · i18n 28 trang × 2, 0 khoá thô · quét toàn trang Nails 126 lượt, 0 link hỏng (3 cảnh báo cũ đúng thiết kế: /super_admin 403, /table_order 400) · trang trong app có nút Liên hệ mới: 0 lỗi JS.
+
+Còn treo / cần chủ dự án: bảng giá USD + phí cài $999–4.999 trên trang tiếng Việt; pháp nhân + địa chỉ SF/Sydney ở chân trang (xác nhận thật hay thay); HRM ~40 chỗ FaceID, Kỹ thuật (GPS realtime, ký số, trừ kho phụ tùng), Karaoke (gọi món tại phòng) — xây thật hoặc viết lại; Điều khoản/Chính sách vẫn placeholder.

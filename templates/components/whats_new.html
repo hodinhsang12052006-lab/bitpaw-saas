@@ -1,0 +1,130 @@
+{# Khối "Mới cập nhật" trên landing — CHỈ ghi điều đã làm xong + đã kiểm chứng (audit-results/FINDINGS_LOG.md, Pha 12–24).
+   Dùng: {% set dl_code = 'nail' %}{% include 'components/whats_new.html' %}  (dl_code rỗng = trang chính, chỉ mục chung)
+   Song ngữ bằng class bf-vi / bf-en (CSS ở components/landing_polish.html, theo <html lang>).
+   Điện thoại: thẻ xếp hàng ngang vuốt được (không kéo dài trang). #}
+{% set _wn_common = [
+    ('fa-download', 'Tải về đúng máy', 'Right download for every device',
+     'Windows (.exe), Android &amp; máy POS Sunmi/PAX (.apk), iPhone/iPad cài lên màn hình chính. Không cần CH Play hay App Store.',
+     'Windows (.exe), Android &amp; Sunmi/PAX POS terminals (.apk), iPhone/iPad via Add to Home Screen. No app store needed.'),
+    ('fa-id-badge', 'Thêm nhân viên 1 lần là đủ', 'Add staff once',
+     'Thêm ở đâu cũng có luôn hồ sơ, mã đăng nhập app nhân viên (NV0001…) và tên trong bảng lương.',
+     'Added anywhere, they get a profile, a staff-app login code (NV0001…) and a payroll line.'),
+    ('fa-shield-halved', 'Kiểm tra trước mỗi lần cập nhật', 'Tested before every release',
+     'Hơn 1.000 lượt kiểm tra tự động: 9 ngành, chủ &amp; nhân viên, máy tính &amp; iPhone, cả lỗi "đợi vài giây mới hiện".',
+     '1,000+ automated checks: 9 industries, owner &amp; staff, desktop &amp; iPhone, including errors that appear seconds later.'),
+] %}
+{% set _wn_by = {
+  '': [
+    ('fa-feather', 'Trang nhẹ và mượt hơn', 'Lighter, smoother pages',
+     'Bỏ hiệu ứng 3D nặng, chữ hiện ngay khi cuộn — mở nhanh hơn trên điện thoại đời cũ.',
+     'Heavy 3D effects removed and content appears as you scroll — faster on older phones.'),
+  ],
+  'nail': [
+    ('fa-users', 'Chạy ổn với tiệm 60 thợ', 'Proven at 60 technicians',
+     'Đã thử 1.000 lịch hẹn + 1.000 bill cùng lúc: không đặt trùng thợ, hoa hồng và tip khớp từng xu.',
+     'Tested with 1,000 bookings + 1,000 bills at once: no double-booked technician, commission and tips match to the cent.'),
+    ('fa-plug', 'Bán tiếp khi rớt mạng', 'Keeps selling offline',
+     'Bản Windows lưu bill ngay trên máy khi mất mạng, có mạng lại tự đồng bộ lên hệ thống.',
+     'The Windows app saves bills on the device when the internet drops and syncs when it is back.'),
+    ('fa-hand-pointer', 'Bấm thanh toán 2 lần vẫn 1 bill', 'Double-tap safe checkout',
+     'Mạng chập chờn, thu ngân bấm lại cũng chỉ ra 1 đơn — không thu tiền 2 lần, không trả hoa hồng 2 lần.',
+     'On a shaky connection a second tap still makes one order — no double charge, no double commission.'),
+  ],
+  'spa': [
+    ('fa-user-nurse', 'Chọn kỹ thuật viên cho từng dịch vụ', 'Therapist per service',
+     'Hoa hồng tự vào chấm công và lương; hoàn tiền thì hoa hồng tự trừ lại.',
+     'Commission goes straight to timesheets and payroll; refunds claw it back automatically.'),
+    ('fa-coins', 'Đúng tiền tệ của tiệm', 'Your shop\'s currency',
+     'Tiệm ở Úc/Mỹ thấy giá $ và cách thanh toán phù hợp; tiệm Việt Nam có VietQR, VNPAY, MoMo.',
+     'Shops in Australia/US see $ prices and the right payment options; Vietnam shops get VietQR, VNPAY, MoMo.'),
+    ('fa-bolt', 'Thanh toán khoảng 1 giây', 'Checkout in about 1 second',
+     'Bỏ 4 giây chờ thừa mỗi bill; tiền mặt ghi nhận đã thu ngay, khách được cộng điểm.',
+     'A 4-second wait per bill is gone; cash is recorded as paid at once and points are added.'),
+  ],
+  'fnb': [
+    ('fa-qrcode', 'Gọi món bằng QR tại bàn', 'QR ordering at the table',
+     'Khách quét QR gọi món, món vào đúng bàn và hiện ngay trên màn hình bếp.',
+     'Guests scan to order, items land on the right table and show up on the kitchen screen.'),
+    ('fa-receipt', 'Thanh toán &amp; chia đôi ngay trên sơ đồ bàn', 'Pay &amp; split from the table map',
+     'Bấm bàn → Thanh toán hoặc Chia đôi, bill và sổ quỹ cập nhật cùng lúc.',
+     'Tap a table → Pay or Split; the bill and cash book update together.'),
+    ('fa-mobile-screen', 'Đủ chức năng trên điện thoại', 'Full features on a phone',
+     'Order, bếp, thanh toán chạy được trên điện thoại và máy tính bảng — đã kiểm tra từng bước trên iPhone.',
+     'Ordering, kitchen and checkout work on phones and tablets — checked step by step on iPhone.'),
+  ],
+  'karaoke': [
+    ('fa-door-open', 'Mở phòng → tính tiền trọn vẹn', 'Open room → checkout, end to end',
+     'Đã kiểm tra trọn luồng mở phòng, gọi dịch vụ, tính tiền và lịch sử trên máy tính lẫn iPhone.',
+     'Room opening, add-ons, checkout and history checked end to end on desktop and iPhone.'),
+  ],
+  'hotel': [
+    ('fa-bed', 'Bill phòng cộng đúng từng đồng', 'Room bills add up exactly',
+     'Tiền phòng + dịch vụ đã được đối chiếu (vd 650.000đ + 150.000đ = 800.000đ).',
+     'Room + services reconciled exactly (e.g. 650,000 + 150,000 = 800,000 VND).'),
+    ('fa-mobile-screen', 'Nhận / trả phòng trên điện thoại', 'Check-in / out on a phone',
+     'Lễ tân thao tác được trên điện thoại — đã kiểm tra từng bước trên iPhone.',
+     'Front desk works from a phone — checked step by step on iPhone.'),
+  ],
+  'retail': [
+    ('fa-barcode', 'Quét mã vạch bán hàng', 'Barcode checkout',
+     'Quét mã là sản phẩm vào giỏ; đã kiểm tra cả máy tính và iPhone.',
+     'Scan and the item is in the cart; checked on desktop and iPhone.'),
+  ],
+  'production': [
+    ('fa-boxes-stacked', 'Tự trừ nguyên vật liệu theo công thức', 'Materials deducted by recipe',
+     'Nhập sản lượng là kho nguyên vật liệu tự trừ đúng công thức — đã đối chiếu 100%.',
+     'Log output and raw materials are deducted by the recipe — reconciled 100%.'),
+  ],
+  'technical': [
+    ('fa-screwdriver-wrench', 'Đi thẳng tới kho &amp; dịch vụ', 'Straight to stock &amp; services',
+     'Từ màn hình kỹ thuật vào thẳng quản lý kho linh kiện và bảng dịch vụ.',
+     'Jump from the field screen straight to parts stock and the service list.'),
+  ],
+  'office': [
+    ('fa-file-invoice-dollar', 'Bảng lương mở nhanh dù đông người', 'Fast payroll at any size',
+     'Lương cộng sẵn trên máy chủ — đã thử 60 nhân viên, hơn 16.000 dòng chấm công.',
+     'Pay is totalled on the server — tested with 60 staff and 16,000+ timesheet rows.'),
+  ],
+} %}
+{% set _wn_items = (_wn_by.get(dl_code or '', []) + _wn_common)[:6] %}
+<section class="bpwn" aria-labelledby="bpwn-title">
+    <style>
+        .bpwn { position: relative; z-index: 10; padding: 72px 20px 24px; }
+        .bpwn-in { max-width: 1180px; margin: 0 auto; }
+        .bpwn-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #6ee7b7; }
+        .bpwn-eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .15); }
+        .bpwn h2 { margin: 10px 0 6px; font-size: clamp(26px, 3.2vw, 36px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
+        .bpwn-sub { margin: 0 0 28px; color: #94a3b8; font-size: 15px; max-width: 640px; }
+        .bpwn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+        .bpwn-card { background: rgba(255, 255, 255, .035); border: 1px solid rgba(255, 255, 255, .08); border-radius: 18px; padding: 20px; transition: border-color .2s ease, transform .25s cubic-bezier(.22, 1, .36, 1), background .2s ease; }
+        .bpwn-card:hover { border-color: rgba(110, 231, 183, .35); background: rgba(255, 255, 255, .05); transform: translateY(-3px); }
+        .bpwn-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(52, 211, 153, .12); color: #6ee7b7; font-size: 17px; margin-bottom: 14px; }
+        .bpwn-card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 750; color: #f1f5f9; line-height: 1.3; }
+        .bpwn-card p { margin: 0; font-size: 13.5px; line-height: 1.6; color: #a8b3c4; }
+        @media (max-width: 1023px) { .bpwn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 640px) {
+            .bpwn { padding: 52px 0 12px; }
+            .bpwn-in > header { padding: 0 16px; }
+            .bpwn-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding: 0 16px 8px; scrollbar-width: none; }
+            .bpwn-grid::-webkit-scrollbar { display: none; }
+            .bpwn-card { flex: 0 0 78%; scroll-snap-align: start; }
+            .bpwn-card:hover { transform: none; }
+        }
+    </style>
+    <div class="bpwn-in">
+        <header>
+            <span class="bpwn-eyebrow"><i></i><span class="bf-vi">Mới cập nhật · 10/2026</span><span class="bf-en">What's new · Oct 2026</span></span>
+            <h2 id="bpwn-title"><span class="bf-vi">Những gì vừa làm xong cho tiệm của bạn</span><span class="bf-en">Just shipped for your business</span></h2>
+            <p class="bpwn-sub"><span class="bf-vi">Chỉ liệt kê điều đã chạy thật và đã được kiểm tra.</span><span class="bf-en">Only things that are live and tested.</span></p>
+        </header>
+        <div class="bpwn-grid">
+            {% for ico, tvi, ten, dvi, den in _wn_items %}
+            <article class="bpwn-card">
+                <div class="bpwn-ico"><i class="fas {{ ico }}"></i></div>
+                <h3><span class="bf-vi">{{ tvi | safe }}</span><span class="bf-en">{{ ten | safe }}</span></h3>
+                <p><span class="bf-vi">{{ dvi | safe }}</span><span class="bf-en">{{ den | safe }}</span></p>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
