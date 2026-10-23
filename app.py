@@ -2743,6 +2743,17 @@ WINDOWS_BINARY = 'BitPaw-Windows.exe'
 ANDROID_BINARY = 'BitPaw.apk'
 
 
+def _published_downloads():
+    """Bản cài nào ĐÃ phát hành — đọc downloads_manifest.json (scripts/publish_downloads.py), KHÔNG kiểm tra ổ đĩa: trên Vercel
+    file cài do CDN phục vụ và bị loại khỏi gói Flask, kiểm tra os.path.exists luôn ra False (lần đầu web thật vì vậy báo
+    "đang cập nhật" cho cả Windows lẫn Android dù file đã có trên CDN)."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads_manifest.json'), encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def _download_code(industry):
     code = _DOWNLOAD_ALIASES.get((industry or '').lower(), (industry or '').lower())
     return code if code in DESKTOP_RELEASE_FILES else None
@@ -2775,7 +2786,7 @@ def download_windows(industry):
     code = _download_code(industry)
     if not code:
         return redirect(url_for('landingpage'))
-    available = os.path.exists(os.path.join(DOWNLOAD_DIR, WINDOWS_BINARY))
+    available = 'windows' in _published_downloads()
     _log_download(code, 'windows', available)
     if available:
         return redirect(f"/dl/{DESKTOP_RELEASE_FILES[code]}")
@@ -2788,7 +2799,7 @@ def download_windows(industry):
 @app.route('/download/<industry>/android')
 def download_android(industry='nail'):
     code = _download_code(industry) or 'nail'
-    available = os.path.exists(os.path.join(DOWNLOAD_DIR, ANDROID_BINARY))
+    available = 'android' in _published_downloads()
     _log_download(code, 'android', available)
     if available:
         return redirect(f"/dl/{ANDROID_BINARY}")
