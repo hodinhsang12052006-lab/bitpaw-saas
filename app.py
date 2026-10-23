@@ -2786,10 +2786,12 @@ def download_windows(industry):
     code = _download_code(industry)
     if not code:
         return redirect(url_for('landingpage'))
-    available = 'windows' in _published_downloads()
+    published = _published_downloads()
+    available = 'windows' in published
     _log_download(code, 'windows', available)
     if available:
-        return redirect(f"/dl/{DESKTOP_RELEASE_FILES[code]}")
+        # ?v=<sha> đổi theo từng bản build: CDN không trả bản cũ/404 đã cache (gặp thật: 404 cache 1 giờ trước khi deploy)
+        return redirect(f"/dl/{DESKTOP_RELEASE_FILES[code]}?v={published['windows']['sha256'][:8]}")
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
                            industry_icon=cfg.get('icon', ''), filename=DESKTOP_RELEASE_FILES[code]), 503
@@ -2799,10 +2801,11 @@ def download_windows(industry):
 @app.route('/download/<industry>/android')
 def download_android(industry='nail'):
     code = _download_code(industry) or 'nail'
-    available = 'android' in _published_downloads()
+    published = _published_downloads()
+    available = 'android' in published
     _log_download(code, 'android', available)
     if available:
-        return redirect(f"/dl/{ANDROID_BINARY}")
+        return redirect(f"/dl/{ANDROID_BINARY}?v={published['android']['sha256'][:8]}")
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
                            industry_icon=cfg.get('icon', ''), filename=ANDROID_BINARY), 503
