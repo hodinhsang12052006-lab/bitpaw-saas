@@ -65,7 +65,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <div id="ai-loading-screen" class="fixed inset-0 bg-[#04020a] z-[999999] flex flex-col items-center justify-center transition-all duration-700">
         <div class="relative mb-6" style="perspective: 1000px;">
             <div class="w-24 h-24 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin flex items-center justify-center mascot-glow shadow-[0_0_30px_rgba(6,182,212,0.4)]">
-                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-16 h-16 rounded-full object-cover">
+                <img src="/static/brand/mark.svg?v=1" class="w-16 h-16 rounded-full object-cover">
             </div>
             <div class="absolute -inset-2 border border-purple-500/30 rounded-full animate-ping pointer-events-none"></div>
             <div class="scanner-line" style="height: 2px; width: 100%; top: 50%;"></div>
@@ -106,7 +106,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-cyan-500 shadow-md">
                 <div>
                     <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_health">Customer Base Health</span>
-                    <strong class="text-base font-black text-white mt-1 block">Good (84/100)</strong>
+                    <strong class="text-base font-black text-white mt-1 block" id="ncHealth">—</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-sm"><i class="fas fa-heartbeat animate-pulse"></i></div>
             </div>
@@ -114,7 +114,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-purple-500 shadow-md">
                 <div>
                     <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_needs_care">Needs Care Now</span>
-                    <strong class="text-base font-black text-white mt-1 block">42 Customers</strong>
+                    <strong class="text-base font-black text-white mt-1 block" id="ncNeedsCare">—</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-sm"><i class="fas fa-user-clock"></i></div>
             </div>
@@ -122,15 +122,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500 shadow-md">
                 <div>
                     <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_churn_risk">High Churn Risk</span>
-                    <strong class="text-base font-black text-white mt-1 block">8.4% Rate</strong>
+                    <strong class="text-base font-black text-white mt-1 block" id="ncChurn">—</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center text-sm"><i class="fas fa-user-minus"></i></div>
             </div>
 
             <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-l-4 border-l-emerald-500 shadow-md">
                 <div>
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_recovery">Projected Recovery</span>
-                    <strong class="text-base font-black text-white mt-1 block">+32 Customers/Month</strong>
+                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="customer_nurturing_stat_total">Total customers</span>
+                    <strong class="text-base font-black text-white mt-1 block" id="ncTotal">—</strong>
                 </div>
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm"><i class="fas fa-chart-line"></i></div>
             </div>
@@ -187,8 +187,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div id="detailPanelContent" class="flex flex-col h-full hidden">
                     <!-- Profile Card -->
                     <div class="flex items-center gap-4 border-b border-white/10 pb-5 shrink-0">
-                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-black text-xl shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                            <span id="detailAvatar">👤</span>
+                        <div class="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white font-semibold text-xl">
+                            <span id="detailAvatar"><i class="fas fa-user text-lg"></i></span>
                         </div>
                         <div>
                             <h3 id="detailName" class="text-lg font-black text-white">—</h3>
@@ -319,8 +319,22 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     if (res.success) {
                         allCustomers = res.data;
                         renderCustomers(allCustomers);
+                        updateNurtureStats(allCustomers);
                     }
                 });
+        }
+
+        // 4 thẻ đầu trang tính từ khách THẬT của tiệm (trước: "Good (84/100) · 42 · 8.4% · +32/tháng" viết cứng)
+        function updateNurtureStats(list) {
+            const n = (list || []).length, vi = (document.documentElement.lang || '').startsWith('vi');
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            if (!n) { ['ncHealth', 'ncNeedsCare', 'ncChurn', 'ncTotal'].forEach(id => set(id, '—')); return; }
+            const avg = Math.round(list.reduce((a, c) => a + (Number(c.potential_score) || 0), 0) / n);
+            const grade = avg >= 70 ? (vi ? 'Tốt' : 'Good') : avg >= 45 ? (vi ? 'Khá' : 'Fair') : (vi ? 'Yếu' : 'Weak');
+            set('ncHealth', `${grade} (${avg}/100)`);
+            set('ncNeedsCare', `${list.filter(c => c.status === 'NEEDS_CARE').length} ${vi ? 'khách' : 'customers'}`);
+            set('ncChurn', `${Math.round(list.filter(c => c.status === 'CHURN_RISK').length * 1000 / n) / 10}%`);
+            set('ncTotal', n.toLocaleString());
         }
 
         function renderCustomers(list) {
@@ -407,13 +421,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             // Dynamic Recommended Action Alert
             const recEl = document.getElementById("detailRecommendation");
             if (c.status === 'CHURN_RISK') {
-                recEl.innerText = `👉 Khách hàng này có nguy cơ rời bỏ lên tới ${churnProb}%. AI đề xuất gửi ngay voucher tặng quà giảm giá 35% trong vòng 3 ngày tới để giữ chân.`;
+                recEl.innerText = `Khách hàng này có nguy cơ rời bỏ lên tới ${churnProb}%. AI đề xuất gửi ngay voucher tặng quà giảm giá 35% trong vòng 3 ngày tới để giữ chân.`;
             } else if (c.status === 'HIBERNATING') {
-                recEl.innerText = `👉 Khách hàng ngủ đông im lặng đã lâu. AI khuyên dùng kịch bản tri ân, tặng ưu đãi dịch vụ ${c.service_interest} đặc biệt để kích hoạt lại.`;
+                recEl.innerText = `Khách hàng ngủ đông im lặng đã lâu. AI khuyên dùng kịch bản tri ân, tặng ưu đãi dịch vụ ${c.service_interest} đặc biệt để kích hoạt lại.`;
             } else if (c.status === 'NEEDS_CARE') {
-                recEl.innerText = `👉 Khách hàng quen cần tương tác định kỳ. AI đề xuất gửi lời hỏi thăm tư vấn nâng cấp combo ${c.service_interest} vào cuối tuần này.`;
+                recEl.innerText = `Khách hàng quen cần tương tác định kỳ. AI đề xuất gửi lời hỏi thăm tư vấn nâng cấp combo ${c.service_interest} vào cuối tuần này.`;
             } else {
-                recEl.innerText = `👉 Khách VIP hoạt động tốt. AI đề xuất kích hoạt chuỗi tin nhắn cảm ơn VIP và ưu tiên xếp tua phục vụ VIP 5 sao tự động.`;
+                recEl.innerText = `Khách VIP hoạt động tốt. AI đề xuất kích hoạt chuỗi tin nhắn cảm ơn VIP và ưu tiên xếp tua phục vụ VIP 5 sao tự động.`;
             }
 
             // Badges
@@ -450,7 +464,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             .then(res => {
                 if (res.success) {
                     // Let's get mock templates for display
-                    const mock_text = `Chào ${name} thương mến! 🌸 Lâu quá rồi mình chưa ghé tiệm để chăm sóc cơ thể thư giãn. Cuối tuần này bên em có chương trình ưu đãi giảm ngay 30% liệu trình Chăm Sóc Da Căng Bóng và dọn da, massage thảo dược dành riêng cho ${name}. Nhắn tin đặt lịch hẹn với em ngay hôm nay để giữ khung giờ VIP nhất nhé ạ! 🐾`;
+                    const mock_text = `Chào ${name} thương mến! 🌸 Lâu quá rồi mình chưa ghé tiệm để chăm sóc cơ thể thư giãn. Cuối tuần này bên em có chương trình ưu đãi giảm ngay 30% liệu trình Chăm Sóc Da Căng Bóng và dọn da, massage thảo dược dành riêng cho ${name}. Nhắn tin đặt lịch hẹn với em ngay hôm nay để giữ khung giờ VIP nhất nhé ạ!`;
                     bodyEl.innerText = mock_text;
                 } else {
                     bodyEl.innerText = "Lỗi khi sinh tin nhắn gợi ý.";

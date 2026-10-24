@@ -131,15 +131,15 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-emerald-500">
                 <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_total_revenue">Tổng doanh thu</p>
-                <p class="text-3xl font-black text-emerald-400" id="totalRevenue">0 ₫</p>
+                <p class="text-3xl font-black text-emerald-400" id="totalRevenue">{{ 0 | money(tenant_currency) }}</p>
             </div>
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-rose-500">
                 <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_total_cost">Tổng chi phí</p>
-                <p class="text-3xl font-black text-rose-400" id="totalCost">0 ₫</p>
+                <p class="text-3xl font-black text-rose-400" id="totalCost">{{ 0 | money(tenant_currency) }}</p>
             </div>
             <div class="glass-panel p-5 rounded-2xl border-l-4 border-cyan-500">
                 <p class="text-gray-400 text-xs uppercase tracking-wider mb-1" data-i18n="baocaoloinhuan_net_profit">Lợi nhuận ròng</p>
-                <p class="text-3xl font-black text-cyan-400" id="netProfit">0 ₫</p>
+                <p class="text-3xl font-black text-cyan-400" id="netProfit">{{ 0 | money(tenant_currency) }}</p>
             </div>
         </div>
 
@@ -173,6 +173,11 @@
     <div id="toast-container" class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
     <script>
+        // tiền theo tiền tệ của TIỆM (trước: luôn "100.838,44 ₫" kể cả tiệm Úc/Mỹ)
+        const BP_TENANT_CUR = {{ tenant_currency | tojson }};
+        const fmtM = (v) => ['USD', 'AUD'].includes(BP_TENANT_CUR)
+            ? ((Number(v) < 0 ? '-' : '') + '$' + Math.abs(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+            : (Math.round(Number(v) || 0).toLocaleString('vi-VN') + ' ₫');
         // ========================================================
         // I18N (VI/EN)
         // ========================================================
@@ -404,9 +409,9 @@
             const totalRevenue = report.reduce((sum, r) => sum + r.revenue, 0);
             const totalCost = report.reduce((sum, r) => sum + r.cost, 0);
             const netProfit = totalRevenue - totalCost;
-            document.getElementById('totalRevenue').innerHTML = totalRevenue.toLocaleString('vi-VN') + ' ₫';
-            document.getElementById('totalCost').innerHTML = totalCost.toLocaleString('vi-VN') + ' ₫';
-            document.getElementById('netProfit').innerHTML = netProfit.toLocaleString('vi-VN') + ' ₫';
+            document.getElementById('totalRevenue').innerHTML = fmtM(totalRevenue);
+            document.getElementById('totalCost').innerHTML = fmtM(totalCost);
+            document.getElementById('netProfit').innerHTML = fmtM(netProfit);
 
             // Vẽ biểu đồ
             const labels = report.map(r => r.period);
@@ -425,9 +430,9 @@
                 html += `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition">
                         <td class="px-6 py-4 font-bold">${r.period}</td>
-                        <td class="px-6 py-4 text-right">${r.revenue.toLocaleString('vi-VN')} ₫</td>
-                        <td class="px-6 py-4 text-right">${r.cost.toLocaleString('vi-VN')} ₫</td>
-                        <td class="px-6 py-4 text-right font-bold ${profitClass}">${r.profit.toLocaleString('vi-VN')} ₫</td>
+                        <td class="px-6 py-4 text-right">${fmtM(r.revenue)}</td>
+                        <td class="px-6 py-4 text-right">${fmtM(r.cost)}</td>
+                        <td class="px-6 py-4 text-right font-bold ${profitClass}">${fmtM(r.profit)}</td>
                         <td class="px-6 py-4 text-right">${r.margin}%</td>
                     </tr>
                 `;
@@ -462,10 +467,10 @@
                     responsive: true, maintainAspectRatio: true,
                     plugins: {
                         legend: { labels: { color: '#fff' } },
-                        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString('vi-VN')} ₫` } }
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtM(ctx.raw)}` } }
                     },
                     scales: {
-                        y: { ticks: { color: '#fff', callback: (val) => val.toLocaleString('vi-VN') + '₫' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#fff', callback: (val) => fmtM(val) }, grid: { color: 'rgba(255,255,255,0.1)' } },
                         x: { ticks: { color: '#fff' } }
                     }
                 }
@@ -506,9 +511,9 @@
                             ${currentData.map(r => `
                                 <tr>
                                     <td>${r.period}</td>
-                                    <td>${r.revenue.toLocaleString('vi-VN')}</td>
-                                    <td>${r.cost.toLocaleString('vi-VN')}</td>
-                                    <td style="color:${r.profit>=0?'green':'red'}">${r.profit.toLocaleString('vi-VN')}</td>
+                                    <td>${fmtM(r.revenue)}</td>
+                                    <td>${fmtM(r.cost)}</td>
+                                    <td style="color:${r.profit>=0?'green':'red'}">${fmtM(r.profit)}</td>
                                     <td>${r.margin}%</td>
                                 </tr>
                             `).join('')}

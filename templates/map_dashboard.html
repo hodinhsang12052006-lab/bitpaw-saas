@@ -339,7 +339,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_all_busy: 'Tất cả thợ đều đang BẬN hoặc Offline. Không có ai để rải việc lúc này.',
                 map_dashboard_ai_need_location: 'Việc #{jobid} chưa có vị trí trên bản đồ (địa chỉ: {addr}). Hãy ghi thêm quận/thành phố vào địa chỉ để hệ thống tìm thợ gần nhất.',
                 map_dashboard_ai_title_alert: 'Báo Động',
-                map_dashboard_ai_found_tech: 'Đã quét thấy KTV <b>{name}</b> cách khách {dist}km.<br><br>👉 Hệ thống đã ép gán Job #{jobid} cho thợ này.',
+                map_dashboard_ai_found_tech: 'Đã quét thấy KTV <b>{name}</b> cách khách {dist}km.<br><br>Hệ thống đã ép gán Job #{jobid} cho thợ này.',
                 map_dashboard_ai_title_success: 'Chốt Đơn Thành Công',
                 map_dashboard_toast_ai_error: 'Lỗi thuật toán AI: {msg}',
                 map_dashboard_toast_need_customer_address: 'Vui lòng nhập Khách và Địa chỉ!',
@@ -353,7 +353,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_scanning: 'ĐANG QUÉT...',
                 map_dashboard_ai_all_working: 'Tuyệt vời! Toàn bộ đội ngũ đều đang bận rộn cày cuốc.',
                 map_dashboard_ai_title_positive: 'Báo cáo Tích cực',
-                map_dashboard_slacking_alert: '🚨 BITPAW AI PHÁT HIỆN LƯỜI BIẾNG! 🚨\n\nNhân viên: {name}\nTrạng thái: Báo Rảnh nhưng không tự lên Chợ để nhận việc!\n\nĐã ghi nhận vào lịch sử trừ thi đua!',
+                map_dashboard_slacking_alert: 'BITPAW AI PHÁT HIỆN LƯỜI BIẾNG! 🚨\n\nNhân viên: {name}\nTrạng thái: Báo Rảnh nhưng không tự lên Chợ để nhận việc!\n\nĐã ghi nhận vào lịch sử trừ thi đua!',
                 map_dashboard_toast_scan_error: 'Lỗi quét vi phạm',
                 map_dashboard_ai_title_alert_generic: 'AI Cảnh Báo'
             },
@@ -409,7 +409,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_all_busy: 'All technicians are BUSY or offline. No one available to dispatch right now.',
                 map_dashboard_ai_need_location: 'Job #{jobid} has no map location yet (address: {addr}). Add the suburb/city to the address so the nearest technician can be found.',
                 map_dashboard_ai_title_alert: 'Alert',
-                map_dashboard_ai_found_tech: 'Found technician <b>{name}</b> {dist}km from the customer.<br><br>👉 The system has assigned Job #{jobid} to this technician.',
+                map_dashboard_ai_found_tech: 'Found technician <b>{name}</b> {dist}km from the customer.<br><br>The system has assigned Job #{jobid} to this technician.',
                 map_dashboard_ai_title_success: 'Job Confirmed',
                 map_dashboard_toast_ai_error: 'AI algorithm error: {msg}',
                 map_dashboard_toast_need_customer_address: 'Please enter Customer and Address!',
@@ -423,7 +423,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_scanning: 'SCANNING...',
                 map_dashboard_ai_all_working: 'Great! The whole team is busy working hard.',
                 map_dashboard_ai_title_positive: 'Positive Report',
-                map_dashboard_slacking_alert: '🚨 BITPAW AI DETECTED SLACKING! 🚨\n\nEmployee: {name}\nStatus: Marked as Available but hasn\'t picked up any job from the Market!\n\nRecorded in the performance deduction history!',
+                map_dashboard_slacking_alert: 'BITPAW AI DETECTED SLACKING! 🚨\n\nEmployee: {name}\nStatus: Marked as Available but hasn\'t picked up any job from the Market!\n\nRecorded in the performance deduction history!',
                 map_dashboard_toast_scan_error: 'Error scanning violations',
                 map_dashboard_ai_title_alert_generic: 'AI Alert'
             }
@@ -675,7 +675,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     card.classList.add('border-emerald-500/50'); card.classList.remove('border-rose-500/50');
                     btn.classList.remove('hidden'); btn.classList.add('flex');
                 } else if(trang_thai_gps === 'Bận') {
-                    statusText.innerHTML = `<span class="text-rose-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full mr-1 animate-pulse"></div> ${t('map_dashboard_status_busy_short')}</span><br><span class="text-[10px] font-bold truncate block w-full text-white mt-1" title="${__escHtml(nhiem_vu_hien_tai || '')}">📍 ${__escHtml(nhiem_vu_hien_tai || t('map_dashboard_working_default'))}</span>`;
+                    statusText.innerHTML = `<span class="text-rose-400 font-bold tracking-widest uppercase text-[10px]"><div class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full mr-1 animate-pulse"></div> ${t('map_dashboard_status_busy_short')}</span><br><span class="text-[10px] font-bold truncate block w-full text-white mt-1" title="${__escHtml(nhiem_vu_hien_tai || '')}">${__escHtml(nhiem_vu_hien_tai || t('map_dashboard_working_default'))}</span>`;
                     dot.className = "absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-[#08061a] rounded-full z-10 shadow-[0_0_10px_#f43f5e]";
                     card.classList.add('border-rose-500/50'); card.classList.remove('border-emerald-500/50');
                     btn.classList.add('hidden'); btn.classList.remove('flex');

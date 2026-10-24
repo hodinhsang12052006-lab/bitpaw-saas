@@ -87,7 +87,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <div class="flex flex-col h-full overflow-hidden">
             <a href="{{ url_for('index') }}" class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-white/5 cursor-pointer hover:bg-white/5 transition flex-shrink-0">
                 <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.5)]">
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover rounded-lg">
+                    <img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover rounded-lg">
                 </div>
                 <h1 class="hidden lg:block ml-3 text-lg font-black tracking-widest text-white">Bit<span class="text-cyan-400">Paw</span></h1>
             </a>
@@ -209,7 +209,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <div class="p-4 border-t border-white/5 flex items-center justify-center lg:justify-start gap-3 flex-shrink-0">
             <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold">S</div>
             <div class="hidden lg:block">
-                <p class="text-xs font-bold text-white" data-i18n="ai_studio_user_name">Boss</p>
+                <p class="text-xs font-bold text-white" data-i18n="ai_studio_user_name">You</p>
                 <p class="text-[9px] text-green-400"><i class="fas fa-circle text-[6px]"></i> <span data-i18n="ai_studio_ecosystem_connected">Ecosystem Connected</span></p>
             </div>
         </div>
@@ -411,8 +411,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <h3 class="text-xs font-black text-orange-400 mb-2 flex items-center gap-2"><i class="fas fa-robot text-glow-orange"></i> Media & Faceless</h3>
                             <p class="text-[10px] text-gray-400 mb-2 leading-relaxed">Listen to your script, then get a scene-by-scene kit: captions (.srt), voiceover and free stock footage.</p>
                             <select id="voiceSelect" aria-label="Preview voice" class="w-full bg-black border border-white/10 text-white px-2 py-1.5 rounded-lg text-[10px] outline-none cursor-pointer mb-2">
-                                <option value="female">🎙 Female voice (this device)</option>
-                                <option value="male">🎙 Male voice (this device)</option>
+                                <option value="female">Female voice (this device)</option>
+                                <option value="male">Male voice (this device)</option>
                             </select>
                         </div>
                         <div class="flex gap-1 mt-auto">
@@ -683,7 +683,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let scriptHistory = JSON.parse(localStorage.getItem('bitpaw_ai_history')) || [];
 
         function saveHistory(title, content, isScheduled = false) {
-            // Trạng thái thật: Nháp hoặc Sẵn sàng đăng. (Trước đây gắn trạng thái ngẫu nhiên + "doanh thu" bịa như "💰 12.5M".)
+            // Trạng thái thật: Nháp hoặc Sẵn sàng đăng. (Trước đây gắn trạng thái ngẫu nhiên + "doanh thu" bịa như "12.5M".)
             const status = isScheduled ? { text: "Ready to Post", bg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" }
                                        : { text: "Draft", bg: "bg-gray-500/20 text-gray-400 border-gray-500/30" };
             const revHtml = "";
@@ -834,7 +834,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             return String(data.choices[0].message.content || '').trim();
         }
         function aiErrorText(err) {
-            return '⚠️ The AI could not answer this time.\nReason: ' + (err && err.message ? err.message : 'unknown error') + '\n\nNothing was generated — please try again in a moment.';
+            return 'The AI could not answer this time.\nReason: ' + (err && err.message ? err.message : 'unknown error') + '\n\nNothing was generated — please try again in a moment.';
         }
         const LANG_RULE = ' Write in the same language as the request (English unless the request is in another language). Use the real prices, services and booking link from BUSINESS FACTS; never invent other facts, prices, discounts, results or reviews — use a placeholder like [offer] only for something not listed. Format as plain text ready to paste into social apps: no Markdown symbols (no #, ##, ** or tables) except real hashtags; use line breaks, numbered lines and emoji instead. Only the content-calendar request may use a | table.';
         function setModalActions(buttons) {
@@ -892,7 +892,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // --- EXTENDED FEATURES ---
         function currentScript() {
             const v = document.getElementById('aiScript').value.trim();
-            return (!v || v.startsWith('Writing with DeepSeek') || v.startsWith('⚠️ The AI could not')) ? '' : v;
+            return (!v || v.startsWith('Writing with DeepSeek') || v.startsWith('The AI could not')) ? '' : v;
         }
         function repurposeContent() {
             const s = currentScript();
@@ -984,7 +984,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const kit = parseKit(raw);
                 lastKit = kit;
                 const mm = (x) => { x = Math.round(x); return Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'); };
-                resultBox.value = `🎬 ${kit.title || 'Faceless video'}  ·  ${kit.scenes.length} scenes  ·  ${mm(kit.scenes[kit.scenes.length - 1].end)}\n\n` + kit.scenes.map((sc, i) =>
+                resultBox.value = `${kit.title || 'Faceless video'}  ·  ${kit.scenes.length} scenes  ·  ${mm(kit.scenes[kit.scenes.length - 1].end)}\n\n` + kit.scenes.map((sc, i) =>
                     `SCENE ${i + 1}  [${mm(sc.start)} – ${mm(sc.end)}]\n  Voiceover: ${sc.voiceover}\n  On-screen text: ${sc.on_screen_text}\n  Footage to find: ${sc.stock_keywords}`).join('\n\n') +
                     `\n\nHow to finish: download the captions (.srt), find each scene's footage (free on Pexels), record or play the voiceover, then drop everything into CapCut/Canva.`;
                 const actions = [

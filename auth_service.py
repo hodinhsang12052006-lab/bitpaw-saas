@@ -9,7 +9,7 @@ class AuthService:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
-                flash('Vui lòng đăng nhập để tiếp tục', 'danger')
+                flash('Please sign in to continue.', 'danger')
                 return redirect(url_for('login'))
             return f(*args, **kwargs)
         return decorated_function

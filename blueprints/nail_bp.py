@@ -33,13 +33,14 @@ def public_booking_nail(business_id=None, service_id=None):
     services_data = []
     technicians = []
     business_name = None
+    biz_doc = None
     if business_id:
         try:
             # Tên tiệm để hiển thị ngay trên trang booking công khai (thay vì luôn ghi cứng
             # "BitPaw Services") — để link/QR mỗi chủ tiệm thực sự cảm giác là "website riêng"
             # của họ. db.businesses là nguồn tên chuẩn app đang dùng cho AI CSKH (xem app.py
             # register()/AIContextEngine.build_context_prompt), không phải bịa field mới.
-            biz_doc = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0})
+            biz_doc = db.businesses.find_one({'id': business_id}, {'name': 1, 'phone': 1, 'address': 1, '_id': 0})
             business_name = (biz_doc or {}).get('name')
         except Exception as e:
             print(f"MongoDB public_booking_nail business lookup failed: {str(e)}")
@@ -70,6 +71,8 @@ def public_booking_nail(business_id=None, service_id=None):
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=business_id,
         business_name=business_name,
+        shop_phone=((biz_doc or {}).get('phone') or ''),
+        shop_address=((biz_doc or {}).get('address') or ''),
         booking_auto_confirm=_auto_confirm(business_id),
         # Logo tiệm (Cài đặt thương hiệu) cho phần đầu trang đặt lịch — khách quét QR thấy đúng thương hiệu tiệm
         shop_logo_url=((db.system_settings.find_one({'key': 'brand_logo_url', 'business_id': business_id}, {'value': 1, '_id': 0}) or {}).get('value')

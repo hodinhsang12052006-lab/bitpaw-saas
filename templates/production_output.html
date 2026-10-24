@@ -238,7 +238,7 @@
                 // material_warnings: NVL đã âm tồn kho sau khi trừ theo công thức khớp cong_doan
                 // (xem _consume_recipe_materials ở app.py) — không chặn lưu sản lượng, chỉ cảnh báo.
                 const warnings = body.material_warnings || [];
-                showToast(warnings.length ? (t('po_toast_saved') + ' ⚠️ ' + warnings.join(' ')) : t('po_toast_saved'));
+                showToast(warnings.length ? (t('po_toast_saved') + ' — ' + warnings.join(' ')) : t('po_toast_saved'));
                 loadSummary();
             } catch (e) { showToast(t('po_toast_error') + e.message); }
         }

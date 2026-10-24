@@ -234,7 +234,7 @@
         <div class="flex justify-center mb-6">
             <div class="relative w-14 h-14 logo-float">
                 <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                <img src="/static/brand/mark.svg?v=1" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
             </div>
         </div>
         
@@ -243,19 +243,19 @@
                 <button type="button" id="langToggleBtn" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold transition" title="Switch language / Đổi ngôn ngữ">EN</button>
             </div>
             <h2 class="text-2xl md:text-3xl font-black text-center mb-6">
-                <span class="text-cyan-400" data-i18n="sell_header_title">🛒 Chốt đơn</span> <span class="text-gray-300 text-xl" data-i18n="sell_header_subtitle">| Bán hàng nhanh</span>
+                <span class="text-cyan-400" data-i18n="sell_header_title">Chốt đơn</span> <span class="text-gray-300 text-xl" data-i18n="sell_header_subtitle">| Bán hàng nhanh</span>
             </h2>
 
             <div class="product-preview mb-6">
                 <!-- Ảnh sản phẩm -->
                 <div class="product-img flex items-center justify-center text-3xl bg-black/50" id="productImgContainer">
-                    🍽️
+                    <i class="fas fa-box text-slate-500 text-4xl"></i>
                 </div>
                 <div class="flex-1">
                     <h3 class="text-lg font-bold text-white" id="productName">Loading...</h3>
                     <div class="flex justify-between items-center mt-1">
                         <span class="text-2xl font-black text-cyan-400" id="productPrice">0₫</span>
-                        <span class="text-xs text-gray-400 bg-black/30 px-2 py-1 rounded-full">📦 <span data-i18n="sell_stock_label">Tồn:</span> <span id="productStock">0</span></span>
+                        <span class="text-xs text-gray-400 bg-black/30 px-2 py-1 rounded-full"><i class="fas fa-box mr-1"></i><span data-i18n="sell_stock_label">Tồn:</span> <span id="productStock">0</span></span>
                     </div>
                 </div>
             </div>
@@ -278,10 +278,10 @@
                 <div>
                     <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="sell_payment_method_label">Phương thức thanh toán</label>
                     <select name="payment_method" id="paymentMethod" class="glass-select">
-                        <option value="cash" data-i18n="sell_pm_cash">💵 Tiền mặt</option>
-                        <option value="bank" data-i18n="sell_pm_bank">🏦 Chuyển khoản</option>
-                        <option value="momo" data-i18n="sell_pm_momo">📱 Momo</option>
-                        <option value="card" data-i18n="sell_pm_card">💳 Thẻ ngân hàng</option>
+                        <option value="cash" data-i18n="sell_pm_cash">Tiền mặt</option>
+                        <option value="bank" data-i18n="sell_pm_bank">Chuyển khoản</option>
+                        <option value="momo" data-i18n="sell_pm_momo">Momo</option>
+                        <option value="card" data-i18n="sell_pm_card">Thẻ ngân hàng</option>
                     </select>
                 </div>
 
@@ -356,16 +356,16 @@
 
         const translations = {
             vi: {
-                sell_header_title: '🛒 Chốt đơn',
+                sell_header_title: 'Chốt đơn',
                 sell_header_subtitle: '| Bán hàng nhanh',
                 sell_stock_label: 'Tồn:',
                 sell_quantity_label: 'Số lượng',
                 sell_total_label: 'Tổng thanh toán',
                 sell_payment_method_label: 'Phương thức thanh toán',
-                sell_pm_cash: '💵 Tiền mặt',
-                sell_pm_bank: '🏦 Chuyển khoản',
-                sell_pm_momo: '📱 Momo',
-                sell_pm_card: '💳 Thẻ ngân hàng',
+                sell_pm_cash: 'Tiền mặt',
+                sell_pm_bank: 'Chuyển khoản',
+                sell_pm_momo: 'Momo',
+                sell_pm_card: 'Thẻ ngân hàng',
                 sell_note_label: 'Ghi chú (tuỳ chọn)',
                 sell_note_placeholder: 'VD: Giao hàng, quà tặng, ...',
                 sell_submit_btn: 'Xác nhận bán hàng',
@@ -378,23 +378,23 @@
                 sell_toast_load_error: 'Lỗi tải sản phẩm: ',
                 sell_toast_invalid_qty: 'Số lượng không hợp lệ!',
                 sell_toast_qty_exceeds_stock: 'Số lượng vượt quá tồn kho ({stock})',
-                sell_toast_sale_success: '✅ Bán hàng thành công! Đơn hàng đã được ghi nhận.',
-                sell_toast_error: '❌ Lỗi: ',
+                sell_toast_sale_success: 'Bán hàng thành công! Đơn hàng đã được ghi nhận.',
+                sell_toast_error: 'Lỗi: ',
                 sell_toast_fill_all_fields: 'Vui lòng nhập đầy đủ thông tin',
-                sell_toast_support_sent: '✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                sell_toast_support_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
                 sell_toast_generic_error: 'Lỗi: '
             },
             en: {
-                sell_header_title: '🛒 Checkout',
+                sell_header_title: 'Checkout',
                 sell_header_subtitle: '| Quick Sale',
                 sell_stock_label: 'Stock:',
                 sell_quantity_label: 'Quantity',
                 sell_total_label: 'Total',
                 sell_payment_method_label: 'Payment Method',
-                sell_pm_cash: '💵 Cash',
-                sell_pm_bank: '🏦 Bank Transfer',
-                sell_pm_momo: '📱 Momo',
-                sell_pm_card: '💳 Card',
+                sell_pm_cash: 'Cash',
+                sell_pm_bank: 'Bank Transfer',
+                sell_pm_momo: 'Momo',
+                sell_pm_card: 'Card',
                 sell_note_label: 'Note (optional)',
                 sell_note_placeholder: 'E.g.: Delivery, gift, ...',
                 sell_submit_btn: 'Confirm Sale',
@@ -407,10 +407,10 @@
                 sell_toast_load_error: 'Error loading product: ',
                 sell_toast_invalid_qty: 'Invalid quantity!',
                 sell_toast_qty_exceeds_stock: 'Quantity exceeds stock ({stock})',
-                sell_toast_sale_success: '✅ Sale successful! Order has been recorded.',
-                sell_toast_error: '❌ Error: ',
+                sell_toast_sale_success: 'Sale successful! Order has been recorded.',
+                sell_toast_error: 'Error: ',
                 sell_toast_fill_all_fields: 'Please fill in all fields',
-                sell_toast_support_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                sell_toast_support_sent: 'Request sent! We will contact you back within 15 minutes.',
                 sell_toast_generic_error: 'Error: '
             }
         };
@@ -497,7 +497,7 @@
                 if (data.image) {
                     productImgContainer.innerHTML = `<img src="${data.image}" class="product-img object-cover">`;
                 } else {
-                    productImgContainer.innerHTML = '🍽️';
+                    productImgContainer.innerHTML = '<i class="fas fa-box text-slate-500 text-4xl"></i>';
                 }
                 quantityInput.max = maxStock;
                 updateTotalPreview();
@@ -647,18 +647,18 @@
 
                     // Đơn đã được TẠO (status='pending') và lệnh đã đẩy xuống máy — giờ chờ
                     // khách quẹt thẻ tại quầy, KHÔNG rời trang cho tới khi có kết quả thật.
-                    setLoadingText('⏳ Waiting for the customer to tap/insert their card...');
-                    showToastMessage('💳 Amount sent to the card reader — please tap or insert your card.');
+                    setLoadingText('Waiting for the customer to tap/insert their card...');
+                    showToastMessage('Amount sent to the card reader — please tap or insert your card.');
 
                     const paidData = await pollSquarePaymentStatus(startResult.order_id);
-                    setLoadingText('✅ Payment confirmed!');
-                    showToastMessage(`✅ Payment successful! Order #${paidData.order_id} — $${Number(paidData.total_amount).toFixed(2)}`);
+                    setLoadingText('Payment confirmed!');
+                    showToastMessage(`Payment successful! Order #${paidData.order_id} — $${Number(paidData.total_amount).toFixed(2)}`);
                     setTimeout(() => {
                         window.location.href = "{{ url_for('index') }}";
                     }, 1500);
                 } catch (err) {
                     console.error(err);
-                    showToastMessage('❌ ' + err.message, true);
+                    showToastMessage(err.message, true);
                 } finally {
                     squareSellBtn.disabled = false;
                     submitBtn.disabled = false;

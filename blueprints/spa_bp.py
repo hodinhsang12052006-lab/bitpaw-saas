@@ -169,6 +169,7 @@ def public_booking(spa_id=None, service_id=None):
     # áp dụng: thiếu spa_id -> KHÔNG query gì cả, trả về rỗng thay vì trộn dữ liệu.
     services_data = []
     business_name = None
+    biz_doc = None
     if spa_id:
         try:
             services_data = list(db.products.find(
@@ -181,7 +182,7 @@ def public_booking(spa_id=None, service_id=None):
         try:
             # Tên tiệm để hiển thị ngay trên trang booking công khai thay vì luôn ghi cứng
             # "BitPaw Services" — khớp mẫu đã áp dụng ở nail_bp.py::public_booking_nail().
-            biz_doc = db.businesses.find_one({'id': spa_id}, {'name': 1, '_id': 0})
+            biz_doc = db.businesses.find_one({'id': spa_id}, {'name': 1, 'phone': 1, 'address': 1, '_id': 0})
             business_name = (biz_doc or {}).get('name')
         except Exception as e:
             print(f"MongoDB public_booking business lookup failed: {str(e)}")
@@ -204,6 +205,8 @@ def public_booking(spa_id=None, service_id=None):
         'booking.html', services=services_data, technicians=technicians,
         pre_selected_service_id=service_id, spa_id=spa_id,
         business_name=business_name,
+        shop_phone=((biz_doc or {}).get('phone') or ''),
+        shop_address=((biz_doc or {}).get('address') or ''),
         booking_auto_confirm=_auto_confirm(spa_id),
         # Logo tiệm (Cài đặt thương hiệu) cho phần đầu trang đặt lịch — khách quét QR thấy đúng thương hiệu tiệm
         shop_logo_url=((db.system_settings.find_one({'key': 'brand_logo_url', 'business_id': spa_id}, {'value': 1, '_id': 0}) or {}).get('value')
@@ -221,6 +224,11 @@ PUBLIC_BOOKINGS_PER_PHONE = 3
 @limiter.limit("30 per hour")
 def create_appointment():
     data = request.json or {}
+    import security_shield
+    if security_shield.honeypot_tripped(data):  # bot điền ô ẩn -> "thành công" giả, không tạo lịch
+        security_shield.strike(security_shield.client_ip(request), 'honeypot: booking form', 1, request.path,
+                               request.headers.get('User-Agent', ''))
+        return jsonify({'success': True, 'id': 0, 'status': 'pending'})
     try:
         # BUG THẬT đã vá (phát hiện khi live-test QR booking Nails): booking.html gửi
         # service_id qua JS `<select>.value`, LUÔN LUÔN là string — nhưng db.products.id lưu

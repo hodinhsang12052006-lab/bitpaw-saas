@@ -12,7 +12,7 @@
     <meta property="og:title" content="BitPaw Menu | QR Order">
     <meta property="og:description" content="Xem menu và đặt món trực tiếp qua mã QR trên bàn.">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ url_for('static', filename='cho1.jpg', _external=True) }}">
+    <meta property="og:image" content="{{ url_for('static', filename='brand/og-card.png', _external=True) }}">
     <meta name="twitter:card" content="summary_large_image">
 
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
@@ -245,13 +245,12 @@
     <div class="relative z-10 max-w-6xl mx-auto px-4 pt-5">
         <div class="glass-panel p-4 flex flex-col md:flex-row justify-between items-center gap-3">
             <div class="flex items-center gap-3">
-                <div class="relative w-12 h-12 logo-float">
-                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                <div class="w-12 h-12 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-white text-lg font-semibold shrink-0">
+                    {% if shop_name %}{{ shop_name[:1] | upper }}{% else %}<i class="fas fa-utensils text-base"></i>{% endif %}
                 </div>
                 <div>
-                    {% if shop_name %}<h1 class="text-xl font-black tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>{% endif %}
-                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="tableLabelPrefix">Bàn</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
+                    {% if shop_name %}<h1 class="text-xl font-bold tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-xl font-bold tracking-tight">Menu</h1>{% endif %}
+                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="tableLabelPrefix">Bàn</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-token="{{ table.qr_token or '' }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -340,12 +339,14 @@
         const tableDisplayEl = document.getElementById('tableNameDisplay');
         if (tableDisplayEl) {
             const attrId = tableDisplayEl.getAttribute('data-table-id');
-            tableId = attrId ? parseInt(attrId) : null;
+            // gửi mã QR ngẫu nhiên của bàn cho API công khai (id số tăng dần đoán được -> server không nhận từ khách)
+            tableId = tableDisplayEl.getAttribute('data-table-token') || (attrId ? parseInt(attrId) : null);
             tableName = tableDisplayEl.getAttribute('data-table-name');
         }
         let products = [];
         let cart = []; // { id, name, price, quantity }
-        let currentLang = 'vi';
+        // ngôn ngữ mặc định theo trình duyệt/cookie của KHÁCH (trước: luôn tiếng Việt, kể cả khách ở Mỹ/Úc)
+        let currentLang = {{ (default_lang if default_lang in ['vi', 'en'] else 'en') | tojson }};
         let currentIndustry = 'fnb';
 
         // Translation dictionary
@@ -547,7 +548,7 @@
             container.innerHTML = productsArray.map(p => `
                 <div class="glass-card p-3 cursor-pointer transition" data-product-id="${p.id}" data-product-name="${escapeHtml(p.name)}" data-product-price="${p.price}" data-product-img="${p.image || ''}">
                     <div class="flex gap-3">
-                        ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-3xl">🍽️</div>`}
+                        ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-2xl text-slate-500"><i class="fas fa-utensils"></i></div>`}
                         <div class="flex-1">
                             <h3 class="font-bold text-white text-base">${escapeHtml(p.name)}</h3>
                             <p class="text-xs text-gray-400">${escapeHtml(p.category) || t('default_category')}</p>
@@ -788,6 +789,8 @@
                 langDropdown.classList.add('hidden');
                 updateUIAfterLang();
             };
+            document.getElementById('currentLangFlag').innerText = currentLang === 'vi' ? '🇻🇳' : '🇬🇧';
+            document.getElementById('currentLangName').innerText = currentLang === 'vi' ? 'VN' : 'EN';
         }
         
         function escapeHtml(str) {

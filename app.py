@@ -56,6 +56,7 @@ import json
 import random
 import re
 import base64
+import secrets
 import hashlib
 import hmac
 from werkzeug.utils import secure_filename
@@ -367,6 +368,7 @@ def _load_session_from_jwt(token):
     if not payload.get('user_id'):
         return False
     session['user_id'] = payload['user_id']
+    session['sv'] = payload.get('sv', 0)
     session['business_id'] = payload.get('business_id') or payload['user_id']
     session['user_email'] = payload.get('user_email')
     session['role'] = payload.get('role', 'admin')
@@ -412,6 +414,61 @@ def _hybrid_auth_and_csrf():
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Token không hợp lệ hoặc đã hết hạn.'}), 401
     csrf.protect()
+
+
+# ---------------------------------------------------------------- Pha 28: thu hồi phiên
+# Trước đây phiên cookie (ký sẵn) và JWT 30 ngày sống tới khi hết hạn: đổi mật khẩu, bị xoá tài khoản hay bị đổi
+# vai trò thì máy/điện thoại đã đăng nhập (kể cả của kẻ lấy được mật khẩu) vẫn dùng tiếp. Mỗi user có session_ver;
+# phiên mang số cũ -> đăng xuất. Đọc DB tối đa 1 lần / 30 giây / user / instance.
+_SESSION_STATE_CACHE = {}
+_SESSION_STATE_TTL = 30
+
+
+def _user_session_state(user_id):
+    now = time.time()
+    hit = _SESSION_STATE_CACHE.get(user_id)
+    if hit and now - hit[1] < _SESSION_STATE_TTL:
+        return hit[0]
+    state = None
+    try:
+        u = db.users.find_one({'id': user_id}, {'_id': 0, 'session_ver': 1, 'role': 1, 'is_active': 1})
+        if u is not None:
+            state = {'sv': int(u.get('session_ver') or 0), 'role': u.get('role') or 'admin', 'active': u.get('is_active', True) is not False}
+        else:
+            state = {'missing': True}
+    except Exception as e:
+        print(f"[session guard] {e}")
+        return None
+    _SESSION_STATE_CACHE[user_id] = (state, now)
+    return state
+
+
+def bump_session_version(user_id):
+    """Đăng xuất user này ở MỌI thiết bị (web, app di động, app Windows)."""
+    db.users.update_one({'id': user_id}, {'$inc': {'session_ver': 1}})
+    _SESSION_STATE_CACHE.pop(user_id, None)
+
+
+@app.before_request
+def _session_guard():
+    uid = session.get('user_id')
+    if not uid or uid == 'superadmin-fallback' or db is None or request.path.startswith('/static/'):
+        return None
+    st = _user_session_state(uid)
+    if st is None:
+        return None  # DB lỗi tạm thời: không đá người dùng ra
+    revoked = st.get('missing') or not st.get('active', True) or int(session.get('sv') or 0) != st.get('sv', 0)
+    if revoked:
+        security_shield.log_event('session_revoked', _get_real_client_ip(), 'old session after password change / account change',
+                                  request.path, request.headers.get('User-Agent', ''), session.get('user_email'))
+        session.clear()
+        if _wants_json():
+            return jsonify({'success': False, 'message': 'Your session has ended. Please sign in again.'}), 401
+        flash(_vi_en('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.', 'Your session has ended. Please sign in again.'), 'warning')
+        return redirect('/login')
+    if st.get('role') and session.get('role') not in (None, st['role']) and session.get('role') != 'super_admin':
+        session['role'] = st['role']  # bị đổi vai trò -> quyền mới có hiệu lực ngay
+    return None
 
 
 def _wants_json():
@@ -591,13 +648,10 @@ def _get_real_client_ip():
     ai gọi thẳng *.vercel.app (thay vì domain qua Cloudflare) vẫn tự khai được header này. Xem
     khuyến nghị chặn truy cập trực tiếp Vercel trong báo cáo SRE đi kèm — PHẢI làm cùng lúc với
     patch này để có hiệu lực đầy đủ."""
-    cf_ip = request.headers.get('CF-Connecting-IP')
-    if cf_ip:
-        return cf_ip.strip()
-    xff = request.headers.get('X-Forwarded-For')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.remote_addr or '127.0.0.1'
+    # Pha 28: logic nằm ở security_shield.client_ip — trên Vercel chỉ tin CF-Connecting-IP khi IP đang kết nối thuộc
+    # dải Cloudflare (trước đây gọi thẳng *.vercel.app kèm header giả là đổi được IP, né mọi giới hạn).
+    import security_shield
+    return security_shield.client_ip(request)
 
 
 def _is_sse_reconnect():
@@ -637,6 +691,14 @@ limiter = Limiter(
 )
 
 
+import security_shield  # noqa: E402
+security_shield.init(app, db, _get_real_client_ip, lambda: _wants_json())
+# chặn IP bị cấm / công cụ tấn công TRƯỚC cả bước xác thực + CSRF
+_bf = app.before_request_funcs.setdefault(None, [])
+if _bf and _bf[-1].__name__ == '_shield':
+    _bf.insert(0, _bf.pop())
+
+
 @app.errorhandler(429)
 def _rate_limit_exceeded(e):
     """429 (Too Many Requests) — API routes get a clean JSON error; HTML routes (login/register)
@@ -665,7 +727,7 @@ def _rate_limit_exceeded(e):
 
     if request.path.startswith('/api/'):
         return jsonify({"success": False, "message": "Quá nhiều yêu cầu. Vui lòng thử lại sau ít phút."}), 429
-    flash('Quá nhiều lần thử. Vui lòng đợi vài phút rồi thử lại.', 'danger')
+    flash(_vi_en('Quá nhiều lần thử. Vui lòng đợi vài phút rồi thử lại.', 'Too many attempts. Please wait a few minutes and try again.'), 'danger')
     return render_template('index.html', active_tab='login'), 429
 
 
@@ -745,7 +807,9 @@ def _scan_nail_3d_icons():
         return {}
 
 
-app.jinja_env.globals['NAIL_3D_ICONS'] = _scan_nail_3d_icons()
+# Pha 28: tắt bộ icon 3D (hình đồ chơi — khách phản hồi "như con nít"); dùng icon nét SVG gọn của components/nail_icons.html.
+# Ảnh vẫn giữ trong static/icons/3d nếu muốn bật lại: = _scan_nail_3d_icons()
+app.jinja_env.globals['NAIL_3D_ICONS'] = {}
 
 
 @app.after_request
@@ -759,6 +823,25 @@ def _disable_html_caching(response):
     return response
 
 
+_CDN = 'https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com'
+_CSP_HEADER = '; '.join([
+    "default-src 'self'",
+    f"script-src 'self' 'unsafe-inline' {_CDN} https://cdn.tailwindcss.com https://cdn.sheetjs.com",
+    f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com {_CDN}",
+    f"font-src 'self' data: https://fonts.gstatic.com {_CDN}",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob: https:",
+    f"connect-src 'self' {_CDN}",
+    "worker-src 'self' blob:",
+    "frame-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://accounts.google.com https://www.facebook.com https://*.squareup.com",
+    "frame-ancestors 'self'",
+    "manifest-src 'self'",
+])
+
+
 @app.after_request
 def _security_headers(response):
     """Phòng thủ theo chiều sâu (audit bảo mật) — chặn trình duyệt tự "đoán" content-type
@@ -769,12 +852,49 @@ def _security_headers(response):
     # Chống clickjacking: trang khác không được nhúng app (POS, đăng nhập, xoá tài khoản...) vào
     # iframe ẩn để lừa người dùng bấm. App không tự dùng iframe nào nên SAMEORIGIN không ảnh hưởng.
     response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
-    response.headers.setdefault('Content-Security-Policy', "frame-ancestors 'self'")
+    # Pha 28: CSP đầy đủ — script chỉ từ chính BitPaw + vài CDN đã dùng; trang không được gửi dữ liệu ra domain lạ
+    # (connect-src), không plugin (object-src), không đổi <base>, form chỉ gửi về BitPaw/đăng nhập Google-Facebook.
+    # 'unsafe-inline' còn cần vì 90+ template viết script/style trực tiếp trong trang.
+    response.headers.setdefault('Content-Security-Policy', _CSP_HEADER + (
+        '; upgrade-insecure-requests' if (request.is_secure or os.environ.get('VERCEL')) else ''))
+    response.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+    response.headers.setdefault('X-Permitted-Cross-Domain-Policies', 'none')
+    if request.is_secure or os.environ.get('VERCEL'):
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=63072000')
     # Không gửi nguyên URL (kèm query string) sang site ngoài khi người dùng bấm link ra ngoài.
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     # Camera/vị trí chỉ cho chính BitPaw dùng (chấm công); micro không cần.
     response.headers.setdefault('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=()')
     return response
+
+
+@app.after_request
+def _hide_internal_errors(response):
+    """Pha 28: hàng trăm route trả {"message": str(e)} khi lỗi 500 — lộ tên collection, chuỗi kết nối, lỗi thư viện cho kẻ dò
+    (giúp chúng biết hệ thống dùng gì để tấn công tiếp). Trên production: giữ mã lỗi, thay nội dung bằng câu chung,
+    ghi lỗi thật vào log máy chủ. Máy dev/test giữ nguyên để còn sửa lỗi."""
+    # chỉ lỗi 500 (exception chưa lường); 502/503 thường là câu báo có chủ đích (thẻ bị từ chối, AI đang bận…)
+    if response.status_code != 500 or not os.environ.get('VERCEL') or response.mimetype != 'application/json':
+        return response
+    try:
+        data = response.get_json(silent=True)
+    except Exception:
+        return response
+    if not isinstance(data, dict):
+        return response
+    changed = False
+    for key in ('message', 'error', 'detail'):
+        v = data.get(key)
+        if isinstance(v, str) and v and v != _GENERIC_ERROR_MSG:
+            print(f"[500 hidden] {request.method} {request.path}: {key}={v[:300]}")
+            data[key] = _GENERIC_ERROR_MSG
+            changed = True
+    if changed:
+        response.set_data(json.dumps(data, ensure_ascii=False))
+    return response
+
+
+_GENERIC_ERROR_MSG = 'Something went wrong on our side. Please try again in a moment.'
 
 
 # Icon chữ B (static/brand/, sinh bằng scripts/make_brand_icons.py) + khai báo cài web app ra màn hình chính
@@ -793,6 +913,11 @@ _PWA_HEAD = (
 ).encode('utf-8')
 
 
+PRO_CSS_VERSION = 'p3'
+# Pha 28: lớp giao diện chuyên nghiệp chung (static/css/bitpaw-pro.css) — trang landing/giới thiệu có thiết kế riêng chỉ dùng bản "lite"
+_LANDING_PATH = re.compile(r'^/(|index|landing[a-z_]*|solutions/[a-z_]+|about|founder|ho-dinh-sang)$')
+
+
 @app.after_request
 def _inject_pwa_head(response):
     if (response.mimetype != 'text/html' or response.direct_passthrough or response.is_streamed
@@ -802,7 +927,12 @@ def _inject_pwa_head(response):
     i = body.find(b'</head>')
     if i == -1 or b'data-bp-pwa' in body[:i]:
         return response
-    response.set_data(body[:i] + _PWA_HEAD + body[i:])
+    css = 'bitpaw-pro-lite.css' if _LANDING_PATH.match(request.path) else 'bitpaw-pro.css'
+    pro = f'<link rel="stylesheet" href="/static/css/{css}?v={PRO_CSS_VERSION}" data-bp-pro>'
+    cur = str(g.get('bp_currency') or '').upper()
+    if cur and cur != 'VND' and css == 'bitpaw-pro.css' and re.fullmatch(r'[A-Z]{3}', cur):
+        pro += f'<script>window.BP_CURRENCY="{cur}"</script><script src="/static/js/bp-currency.js?v={PRO_CSS_VERSION}" defer></script>'
+    response.set_data(body[:i] + _PWA_HEAD + pro.encode('utf-8') + body[i:])
     return response
 
 
@@ -846,7 +976,10 @@ INDUSTRY_CONFIG = {
     'retail': {
         'code': 'retail',
         'name': 'Cửa hàng Bán lẻ (Retail)',
+        'name_en': 'Retail store',
+        'desc_en': 'Fashion, cosmetics, convenience and electronics stores. Stock, barcodes and sales reports.',
         'icon': '🛍️',
+        'fa_icon': 'fa-bag-shopping',
         'desc': 'Thời trang, Mỹ phẩm, Tạp hóa, Điện tử. Quản lý tồn kho, mã vạch, báo cáo doanh thu.',
         'redirect_after_login': '/retail_pos',
         'dashboard_route': '/retail_pos',
@@ -864,7 +997,10 @@ INDUSTRY_CONFIG = {
     'fnb': {
         'code': 'fnb',
         'name': 'Nhà hàng & Cafe (F&B)',
+        'name_en': 'Restaurant & cafe',
+        'desc_en': 'Restaurants, cafes and bars. Table map, ordering, open tabs and kitchen display.',
         'icon': '🍻',
+        'fa_icon': 'fa-utensils',
         'desc': 'Quán nhậu, Cafe, Ăn uống. Sơ đồ bàn, gọi món, treo bill, tính giờ.',
         'redirect_after_login': '/pos',
         'dashboard_route': '/pos',
@@ -875,7 +1011,10 @@ INDUSTRY_CONFIG = {
     'spa': {
         'code': 'spa',
         'name': 'Spa & Beauty (Nails / Massage)',
+        'name_en': 'Spa & beauty',
+        'desc_en': 'Day spas, massage and beauty clinics. Treatment packages, therapists, bookings and commission.',
         'icon': '🌸',
+        'fa_icon': 'fa-spa',
         'desc': 'Spa, Nail, Clinic thẩm mỹ. Quản lý liệu trình, KTV, đặt lịch, hoa hồng.',
         'redirect_after_login': '/spa',
         'dashboard_route': '/spa',
@@ -886,7 +1025,10 @@ INDUSTRY_CONFIG = {
     'nail': {
         'code': 'nail',
         'name': 'Nails & Salon',
+        'name_en': 'Nail salon',
+        'desc_en': 'Nail salons. Walk-ins and bookings, technician turns, commission, tips and payroll.',
         'icon': '💅',
+        'fa_icon': 'fa-hand-sparkles',
         'desc': 'Dịch vụ làm móng, Nails & Salon chăm sóc sắc đẹp, đắp bột vẽ móng nghệ thuật.',
         'redirect_after_login': '/chamcong/nail',
         'dashboard_route': '/chamcong/nail',
@@ -897,7 +1039,10 @@ INDUSTRY_CONFIG = {
     'karaoke': {
         'code': 'karaoke',
         'name': 'Karaoke & Bida',
+        'name_en': 'Karaoke & billiards',
+        'desc_en': 'Karaoke, billiards and entertainment venues. Hourly rooms, auto timing and drink orders.',
         'icon': '🎤',
+        'fa_icon': 'fa-microphone',
         'desc': 'Karaoke, Bida, Game, Giải trí. Tính giờ tự động, quản lý phòng, order đồ uống.',
         'redirect_after_login': '/karaoke',
         'dashboard_route': '/karaoke',
@@ -911,7 +1056,10 @@ INDUSTRY_CONFIG = {
     'hotel': {
         'code': 'hotel',
         'name': 'Khách Sạn',
+        'name_en': 'Hotel & homestay',
+        'desc_en': 'Hotels, motels and homestays. Room availability, reservations and extra services.',
         'icon': '🏨',
+        'fa_icon': 'fa-hotel',
         'desc': 'Khách sạn, Nhà nghỉ, Homestay. Quản lý phòng trống, đặt phòng, dịch vụ đi kèm.',
         # BUG THẬT đã vá (audit): 'room_management' trước đây chỉ là tên gọi trong modules,
         # không có route/tính năng nào đứng sau — trang chủ đăng nhập của Hotel vẫn phải là
@@ -928,7 +1076,10 @@ INDUSTRY_CONFIG = {
     'production': {
         'code': 'production',
         'name': 'Sản Xuất',
+        'name_en': 'Production',
+        'desc_en': 'Workshops and small factories. Worker output, shift clock-in and materials.',
         'icon': '🏭',
+        'fa_icon': 'fa-industry',
         'desc': 'Nhà xưởng, Cơ sở sản xuất. Quản lý năng suất công nhân, chấm công xưởng.',
         # BUG THẬT đã vá (audit): 'factory_output' trước đây chỉ là tên gọi, không có route
         # thật đứng sau — xem cùng lý do đã sửa cho Hotel ở trên. Giờ có /production_output
@@ -942,7 +1093,10 @@ INDUSTRY_CONFIG = {
     'technical': {
         'code': 'technical',
         'name': 'Kỹ Thuật',
+        'name_en': 'Field service',
+        'desc_en': 'Repair, installation and maintenance teams. Job dispatch, on-site clock-in and GPS.',
         'icon': '🛠️',
+        'fa_icon': 'fa-screwdriver-wrench',
         'desc': 'Bảo trì, Lắp đặt kỹ thuật. Chấm công kỹ thuật viên ngoài hiện trường, GPS.',
         'redirect_after_login': '/chamcong/kythuat',
         'dashboard_route': '/chamcong/kythuat',
@@ -953,7 +1107,10 @@ INDUSTRY_CONFIG = {
     'office': {
         'code': 'office',
         'name': 'Văn Phòng',
+        'name_en': 'Office & HR',
+        'desc_en': 'Offices and admin teams. Attendance, leave and payroll.',
         'icon': '🏢',
+        'fa_icon': 'fa-building',
         'desc': 'Văn phòng doanh nghiệp, Khối hành chính. Chấm công, tính lương văn phòng.',
         'redirect_after_login': '/chamcong/vanphong',
         'dashboard_route': '/chamcong/vanphong',
@@ -984,6 +1141,7 @@ def inject_industry_config():
         region = {"country": "VN", "currency": "VND"}
     tenant_country = region['country']
     tenant_currency = region['currency']
+    g.bp_currency = tenant_currency  # _inject_pwa_head: tiệm USD/AUD -> nạp bp-currency.js sửa nhãn "(VND)" còn sót
 
     # Phase 4 - Bước 2: mặc định toàn hệ thống là Tiếng Anh (thị trường Âu/Mỹ/Úc là chủ
     # lực), trừ khi người dùng đã tự chọn ngôn ngữ trước đó (lưu trong cookie bitpaw_lang).
@@ -1140,6 +1298,14 @@ def parse_datetime(dt_str):
 
 
 # ========== DECORATOR KIỂM TRA ĐĂNG NHẬP ==========
+def _vi_en(vi, en):
+    """Chọn câu theo ngôn ngữ người dùng (cookie / trình duyệt) — cho flash/JSON ở luồng đăng nhập, phiên, quyền."""
+    try:
+        return vi if resolve_lang(request) == 'vi' else en
+    except Exception:
+        return en
+
+
 def login_required(f):
     """Hybrid Web/Mobile (Giai đoạn 5 audit): nếu request mang Bearer JWT hợp lệ,
     _hybrid_auth_and_csrf() (before_request, chạy TRƯỚC decorator này) đã tự nạp session['user_id']
@@ -1150,8 +1316,8 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             if _wants_json():
-                return jsonify({'success': False, 'message': 'Vui lòng đăng nhập để tiếp tục.'}), 401
-            flash('Vui lòng đăng nhập để tiếp tục', 'danger')
+                return jsonify({'success': False, 'message': _vi_en('Vui lòng đăng nhập để tiếp tục.', 'Please sign in to continue.')}), 401
+            flash(_vi_en('Vui lòng đăng nhập để tiếp tục', 'Please sign in to continue.'), 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -1162,7 +1328,8 @@ def _shop_display_name(business_id):
     if not business_id or db is None:
         return None
     try:
-        return (db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0}) or {}).get('name')
+        name = (db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0}) or {}).get('name')
+        return None if (not name or '@' in name) else name  # tài khoản chưa đặt tên quán: name = email -> không hiện cho khách
     except Exception:
         return None
 
@@ -1237,7 +1404,7 @@ def role_required(*allowed_roles):
             if user_role not in allowed_roles:
                 if _wants_json():
                     return jsonify({'success': False, 'message': 'Tài khoản của bạn không có quyền thực hiện thao tác này.'}), 403
-                flash('Tài khoản của bạn không có quyền truy cập trang này.', 'danger')
+                flash(_vi_en('Tài khoản của bạn không có quyền truy cập trang này.', "Your account doesn't have access to this page."), 'danger')
                 return redirect(url_for('index'))
             return f(*args, **kwargs)
         return decorated_function
@@ -1415,9 +1582,14 @@ def register():
             flash('Error verifying activation code: MongoDB is not connected.', 'danger')
             return render_template('index.html', active_tab='register')
 
+        _ip = _get_real_client_ip()
+        if security_shield.code_attempts_blocked(_ip):
+            flash('Too many incorrect activation codes. Please try again in an hour or contact BitPaw.', 'danger')
+            return render_template('index.html', active_tab='register'), 429
         try:
             key_valid = db.license_codes.find_one({'license_key': license_key, 'trang_thai': 'Sẵn sàng'})
             if not key_valid:
+                security_shield.record_code_failure(_ip, license_key)
                 flash('Invalid activation code, or it has already been used.', 'danger')
                 return render_template('index.html', active_tab='register')
 
@@ -1563,6 +1735,7 @@ def _superadmin_emergency_login(email):
     source vì bất kỳ ai đọc được code (leak repo, log lỗi, contractor cũ...) sẽ có quyền
     Superadmin vĩnh viễn không thể thu hồi — hash thì rotate được bất kỳ lúc nào chỉ bằng cách
     đổi biến môi trường, không cần sửa code."""
+    session.clear()
     session['user_id'] = 'superadmin-fallback'
     session['business_id'] = 'superadmin-fallback'
     session['user_email'] = email.strip().lower()
@@ -1629,7 +1802,7 @@ def login():
 
             if not decoded_hash:
                 current_app.logger.error("[GOD MODE] LOI CAU HINH: ca SUPERADMIN_FALLBACK_HASH_B64 va SUPERADMIN_FALLBACK_HASH deu rong/chua duoc set")
-                flash('Hệ thống thiếu cấu hình Key bảo mật', 'danger')
+                flash(_vi_en('Hệ thống thiếu cấu hình khoá bảo mật', 'Sign-in is temporarily unavailable (security key missing).'), 'danger')
                 return render_template('index.html', active_tab='login')
 
             try:
@@ -1661,7 +1834,10 @@ def login():
                 raise Exception("Sai email hoặc mật khẩu")
 
             user_id = user['id']
+            # Pha 28: phiên mới hoàn toàn (không giữ gì của phiên trước) + số phiên bản để thu hồi được
+            session.clear()
             session['user_id'] = user_id
+            session['sv'] = int(user.get('session_ver') or 0)
             # Mỗi chủ tiệm chính là 1 tenant — dùng user_id làm business_id để kích hoạt toàn bộ
             # các bộ lọc theo business_id đã có sẵn trong code/template.
             session['business_id'] = user.get('business_id') or user_id
@@ -1783,6 +1959,7 @@ def api_auth_token():
         'user_email': email,
         'role': role,
         'business_mode': mode,
+        'sv': int(user.get('session_ver') or 0),
         'iat': now,
         'exp': now + timedelta(hours=JWT_EXPIRY_HOURS),
     }
@@ -1904,9 +2081,13 @@ def get_cskh_config():
 
 
 @app.route('/api/cskh/request', methods=['POST'])
+@limiter.limit("10 per hour")
 def create_cskh_request():
     import time
     data = request.get_json() or {}
+    if security_shield.honeypot_tripped(data):  # bot điền ô ẩn -> trả "thành công" giả, không ghi gì
+        security_shield.strike(_get_real_client_ip(), 'honeypot: contact form', 1, request.path, request.headers.get('User-Agent', ''))
+        return jsonify({'success': True, 'id': 0})
     name = (data.get('name') or '').strip()[:100]
     phone = (data.get('phone') or '').strip()
     email = (data.get('email') or '').strip()
@@ -1979,6 +2160,7 @@ def create_cskh_request():
 
 
 @app.route('/api/cskh/click', methods=['POST'])
+@limiter.limit("300 per hour")
 def track_cskh_click():
     data = request.get_json(silent=True) or {}
     channel = data.get('channel')
@@ -1996,6 +2178,7 @@ def track_cskh_click():
 
 
 @app.route('/api/cskh/feedback', methods=['POST'])
+@limiter.limit("20 per hour")
 def submit_feedback():
     data = request.get_json() or {}
     order_id = data.get('order_id')
@@ -2901,7 +3084,7 @@ def download_windows(industry):
         return redirect(f"/dl/{DESKTOP_RELEASE_FILES[code]}?v={published['windows']['sha256'][:8]}")
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
-                           industry_icon=cfg.get('icon', ''), filename=DESKTOP_RELEASE_FILES[code]), 503
+                           industry_icon=cfg.get('fa_icon', ''), filename=DESKTOP_RELEASE_FILES[code]), 503
 
 
 @app.route('/download/android')
@@ -2915,7 +3098,7 @@ def download_android(industry='nail'):
         return redirect(f"/dl/{ANDROID_BINARY}?v={published['android']['sha256'][:8]}")
     cfg = INDUSTRY_CONFIG.get(code, {})
     return render_template('download_pending.html', industry_code=code, industry_name=cfg.get('name', code),
-                           industry_icon=cfg.get('icon', ''), filename=ANDROID_BINARY), 503
+                           industry_icon=cfg.get('fa_icon', ''), filename=ANDROID_BINARY), 503
 
 
 @app.route('/dl/<name>')
@@ -3145,19 +3328,91 @@ def add_table():
 # công khai không cần đăng nhập để khách tự đặt (/reserve/<business_id>), 1 trang quản trị cho chủ
 # quán duyệt/xếp bàn (/reservations, cùng khuôn với /calendar).
 
+# ===== Pha 28: trang đặt chỗ công khai dùng chung (bàn / phòng karaoke / phòng khách sạn) =====
+# Khách của quán thấy TÊN + logo + địa chỉ/SĐT của QUÁN (trước: chữ "BitPaw", chỉ tiếng Việt), và 3 API công khai
+# có cùng 1 lớp chặn phá: giới hạn 20 lượt/giờ/IP, ô bẫy bot, quán phải tồn tại thật (trước: ghi được đơn vào business_id
+# bịa bất kỳ), cắt độ dài trường, số khách 1-200, ngày giờ đúng định dạng và không ở quá khứ / quá 1 năm.
+_PUBLIC_RESERVE_LIMIT = "20 per hour"
+_ISO_DT_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$')
+_ISO_D_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _public_shop_context(business_id):
+    """Thông tin QUÁN cho trang khách; None nếu không có quán nào mang id này."""
+    if not business_id or not isinstance(business_id, str) or len(business_id) > 64:
+        return None
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'phone': 1, 'address': 1})
+    if not biz and not db.users.find_one({'id': business_id}, {'_id': 0, 'id': 1}):
+        return None
+    biz = biz or {}
+    brand = (_brand_setting_get(business_id, 'brand_name', '') or '').strip()
+    name = brand if brand and brand != 'BitPaw' else (biz.get('name') or '').strip()
+    if '@' in name:  # tài khoản đăng ký không nhập tên quán -> name là email, không hiện cho khách
+        name = ''
+    return {'shop_name': name, 'shop_phone': biz.get('phone') or '', 'shop_address': biz.get('address') or '',
+            'shop_logo_url': _brand_setting_get(business_id, 'brand_logo_url', '') or ''}
+
+
+def _render_public_reservation(kind, business_id):
+    try:
+        ctx = _public_shop_context(business_id)
+    except Exception as db_err:
+        print(f"MongoDB public shop lookup failed: {str(db_err)}")
+        ctx = {'shop_name': '', 'shop_phone': '', 'shop_address': '', 'shop_logo_url': ''}
+    if ctx is None:
+        return render_message_page(404, 'fa-store', 'Không tìm thấy cửa hàng', 'Business not found',
+                                   'Đường dẫn đặt chỗ này không đúng hoặc đã ngừng hoạt động.',
+                                   'This booking link is not valid or is no longer active.')
+    return render_template('public_reservation.html', kind=kind, business_id=business_id, **ctx)
+
+
+def _public_reservation_check(business_id, data):
+    """Lớp chặn chung cho 3 API đặt chỗ công khai. Trả (response_lỗi, None) hoặc (None, dữ_liệu_sạch)."""
+    vi = (data.get('lang') if data.get('lang') in ('vi', 'en') else resolve_lang(request)) == 'vi'
+    if security_shield.honeypot_tripped(data):  # bot điền ô ẩn -> "thành công" giả, không ghi gì
+        security_shield.strike(_get_real_client_ip(), 'honeypot: public reservation', 1, request.path,
+                               request.headers.get('User-Agent', ''))
+        return (jsonify({'success': True, 'id': 0}), 200), None
+    if _public_shop_context(business_id) is None:
+        return (jsonify({'success': False, 'message': 'Không tìm thấy cửa hàng.' if vi else 'This business was not found.'}), 404), None
+    name = str(data.get('name') or '').strip()[:80]
+    phone = re.sub(r'[^0-9+() .-]', '', str(data.get('phone') or ''))[:24].strip()
+    if not name or len(re.sub(r'\D', '', phone)) < 6:
+        return (jsonify({'success': False, 'message': 'Vui lòng nhập họ tên và số điện thoại hợp lệ.' if vi
+                         else 'Please enter your name and a valid phone number.'}), 400), None
+    try:
+        party_size = max(1, min(200, int(data.get('party_size') or 1)))
+    except (TypeError, ValueError):
+        party_size = 1
+    today = datetime.now().date()
+    for key, rx in (('reserved_time', _ISO_DT_RE), ('checkin_date', _ISO_D_RE), ('checkout_date', _ISO_D_RE)):
+        val = data.get(key)
+        if val in (None, ''):
+            continue
+        if not isinstance(val, str) or not rx.match(val):
+            return (jsonify({'success': False, 'message': 'Ngày giờ không hợp lệ.' if vi else 'Invalid date or time.'}), 400), None
+        try:
+            d = datetime.strptime(val[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return (jsonify({'success': False, 'message': 'Ngày giờ không hợp lệ.' if vi else 'Invalid date or time.'}), 400), None
+        if (today - d).days > 1 or (d - today).days > 366:
+            return (jsonify({'success': False, 'message': 'Vui lòng chọn ngày trong vòng 1 năm tới.' if vi
+                             else 'Please choose a date within the next year.'}), 400), None
+    note = str(data.get('note') or '').strip()[:500]
+    clean = dict(data, name=name, phone=phone, party_size=party_size, note=note,
+                 room_type=str(data.get('room_type') or '').strip()[:40])
+    return None, (clean, vi)
+
+
 @app.route('/reserve/<business_id>')
 def public_table_reservation(business_id):
     """Trang đặt bàn công khai — KHÔNG cần đăng nhập, giống /booking/qr/<spa_id> của Spa.
     business_id nằm trong URL (từ QR dán tại quán hoặc link chủ quán chia sẻ)."""
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
-    return render_template('table_reservation_public.html', business_id=business_id, brand_name=brand_name)
+    return _render_public_reservation('table', business_id)
 
 
 @app.route('/api/public/reservations/<business_id>', methods=['POST'])
+@limiter.limit(_PUBLIC_RESERVE_LIMIT)
 def api_public_reservation_create(business_id):
     """Tạo yêu cầu đặt bàn — route công khai (không session). business_id lấy từ CHÍNH URL
     (khớp /reserve/<business_id> khách vừa đứng), KHÔNG còn tin field business_id trong JSON
@@ -3168,6 +3423,10 @@ def api_public_reservation_create(business_id):
     bàn cùng sức chứa, chủ quán tự nhìn danh sách trên /reservations để xếp bàn phù hợp, không
     thể đoán bằng máy)."""
     data = request.json or {}
+    _err, _ok = _public_reservation_check(business_id, data)
+    if _err:
+        return _err
+    data, _vi = _ok
     name = (data.get('name') or '').strip()
     phone = (data.get('phone') or '').strip()
     reserved_time = data.get('reserved_time')
@@ -3176,7 +3435,7 @@ def api_public_reservation_create(business_id):
     except (TypeError, ValueError):
         party_size = 1
     if not business_id or not name or not phone or not reserved_time:
-        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt bàn.'}), 400
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt bàn.' if _vi else 'Please enter your name, phone number and time.'}), 400
     if party_size < 1:
         party_size = 1
     try:
@@ -6250,15 +6509,11 @@ def api_karaoke_room_checkout(room_id):
 def public_karaoke_reservation(business_id):
     """Trang đặt phòng Karaoke công khai — KHÔNG cần đăng nhập, cùng mẫu /reserve (F&B) /
     /booking/qr/<spa_id> (Spa)."""
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
-    return render_template('karaoke_reservation_public.html', business_id=business_id, brand_name=brand_name)
+    return _render_public_reservation('karaoke', business_id)
 
 
 @app.route('/api/public/karaoke_reservations/<business_id>', methods=['POST'])
+@limiter.limit(_PUBLIC_RESERVE_LIMIT)
 def api_public_karaoke_reservation_create(business_id):
     """Tạo yêu cầu đặt phòng Karaoke — route công khai (không session), cùng mẫu
     api_public_reservation_create() (F&B) — business_id lấy từ URL, KHÔNG tin field trong JSON
@@ -6266,6 +6521,10 @@ def api_public_karaoke_reservation_create(business_id):
     trùng giờ (nhiều phòng, chủ quán tự xếp phòng phù hợp trên /karaoke/reservations, giống hệt
     lý do F&B không tự chặn)."""
     data = request.json or {}
+    _err, _ok = _public_reservation_check(business_id, data)
+    if _err:
+        return _err
+    data, _vi = _ok
     name = (data.get('name') or '').strip()
     phone = (data.get('phone') or '').strip()
     reserved_time = data.get('reserved_time')
@@ -6274,7 +6533,7 @@ def api_public_karaoke_reservation_create(business_id):
     except (TypeError, ValueError):
         party_size = 1
     if not business_id or not name or not phone or not reserved_time:
-        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt phòng.'}), 400
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và giờ đặt phòng.' if _vi else 'Please enter your name, phone number and time.'}), 400
     if party_size < 1:
         party_size = 1
     try:
@@ -6716,15 +6975,11 @@ def _hotel_reservation_overlaps(business_id, room_id, checkin_date, checkout_dat
 @app.route('/hotel/reserve/<business_id>')
 def public_hotel_reservation(business_id):
     """Trang đặt phòng khách sạn công khai — KHÔNG cần đăng nhập, cùng mẫu /reserve (F&B)."""
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
-    return render_template('hotel_reservation_public.html', business_id=business_id, brand_name=brand_name)
+    return _render_public_reservation('hotel', business_id)
 
 
 @app.route('/api/public/hotel_reservations/<business_id>', methods=['POST'])
+@limiter.limit(_PUBLIC_RESERVE_LIMIT)
 def api_public_hotel_reservation_create(business_id):
     """Tạo yêu cầu đặt phòng khách sạn — route công khai (không session). business_id lấy từ
     URL, KHÔNG tin field trong JSON body (chặn spam đơn giả sang tiệm khác — xem giải thích đầy
@@ -6732,6 +6987,10 @@ def api_public_hotel_reservation_create(business_id):
     không biết phòng nào đang trống ngày đó) — admin xếp phòng cụ thể trên /hotel/reservations,
     lúc đó mới chặn trùng lịch."""
     data = request.json or {}
+    _err, _ok = _public_reservation_check(business_id, data)
+    if _err:
+        return _err
+    data, _vi = _ok
     name = (data.get('name') or '').strip()
     phone = (data.get('phone') or '').strip()
     checkin_date = (data.get('checkin_date') or '').strip()
@@ -6741,11 +7000,13 @@ def api_public_hotel_reservation_create(business_id):
     except (TypeError, ValueError):
         party_size = 1
     if not business_id or not name or not phone or not checkin_date or not checkout_date:
-        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và ngày nhận/trả phòng.'}), 400
+        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và ngày nhận/trả phòng.' if _vi else 'Please enter your name, phone number and dates.'}), 400
     if checkout_date <= checkin_date:
-        return jsonify({'success': False, 'message': 'Ngày trả phòng phải sau ngày nhận phòng.'}), 400
+        return jsonify({'success': False, 'message': 'Ngày trả phòng phải sau ngày nhận phòng.' if _vi else 'Check-out must be after check-in.'}), 400
     if party_size < 1:
         party_size = 1
+    if (datetime.strptime(checkout_date, '%Y-%m-%d') - datetime.strptime(checkin_date, '%Y-%m-%d')).days > 60:
+        return jsonify({'success': False, 'message': 'Tối đa 60 đêm cho 1 yêu cầu.' if _vi else 'Up to 60 nights per request.'}), 400
     try:
         reservation_doc = {
             'id': next_mongo_id('hotel_reservations'),
@@ -6755,7 +7016,7 @@ def api_public_hotel_reservation_create(business_id):
             'party_size': party_size,
             'checkin_date': checkin_date,
             'checkout_date': checkout_date,
-            'room_type': (data.get('room_type') or '').strip() or None,
+            'room_type': data.get('room_type') or None,
             'room_id': None,
             'note': (data.get('note') or '').strip() or None,
             'status': 'pending',
@@ -7366,6 +7627,40 @@ def profit_report():
 
 
 # ========== NHẬT KÝ HỆ THỐNG ==========
+@app.route('/api/my_recent_activity')
+@login_required
+def api_my_recent_activity():
+    """6 dòng nhật ký gần nhất của CHÍNH tiệm đang đăng nhập (bảng "Nhật ký vận hành" ở màn launcher) — thay cho
+    danh sách đăng ký/nâng cấp gói GIẢ trước đây."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        rows = list(db.user_logs.find({'business_id': business_id}, {'_id': 0, 'action': 1, 'description': 1, 'created_at': 1, 'user_email': 1})
+                    .sort('created_at', -1).limit(6))
+    except Exception as e:
+        print(f"MongoDB recent activity select failed: {str(e)}")
+        rows = []
+    chats_today = leads_today = 0
+    try:  # hội thoại có tin hôm nay (giờ tiệm) / trong đó hội thoại MỚI (chưa từng nhắn trước hôm nay)
+        start, end = tenant_day_bounds(business_id)
+        today_ids = set(db.bot_messages.distinct('customer_id', {'business_id': business_id, 'created_at': {'$gte': start, '$lt': end}}))
+        chats_today = len(today_ids)
+        if today_ids:
+            older = set(db.bot_messages.distinct('customer_id', {'business_id': business_id, 'created_at': {'$lt': start},
+                                                                  'customer_id': {'$in': list(today_ids)}}))
+            leads_today = len(today_ids - older)
+    except Exception as e:
+        print(f"MongoDB chat stats failed: {str(e)}")
+    # nhật ký lưu câu tiếng Việt -> chủ tiệm dùng tiếng Anh thấy câu tiếng Anh cho các thao tác hay gặp
+    en_text = {'login': 'Signed in', 'logout': 'Signed out', 'login_mobile_token': 'Signed in on the mobile app',
+               'call_staff': 'A table called for staff', 'request_bill': 'A table asked for the bill',
+               'submit_qr_order': 'New QR order from a table'}
+    use_en = resolve_lang(request) != 'vi'
+    return jsonify({'success': True, 'chats_today': chats_today, 'leads_today': leads_today,
+                    'data': [{'text': (en_text.get(r.get('action')) if use_en and r.get('action') in en_text else
+                                       str(r.get('description') or r.get('action') or ''))[:140],
+                              'who': str(r.get('user_email') or '')[:60], 'at': str(r.get('created_at') or '')} for r in rows]})
+
+
 @app.route('/user_logs')
 @login_required
 def user_logs():
@@ -7824,6 +8119,21 @@ def api_qr_table(table_id):
 _DEMO_QR_MENU_OWNER_EMAIL = os.environ.get('DEMO_QR_MENU_OWNER_EMAIL', 'demo.fnb.343602@bitpawdemo.com')
 
 
+def _public_table_lookup(ref):
+    """Bàn cho trang/API gọi món CÔNG KHAI. Khách chỉ dùng qr_token (ngẫu nhiên, in trên QR). id số tăng dần đoán được
+    nên chỉ chấp nhận khi người đang đăng nhập là CHÍNH tiệm sở hữu bàn (nhân viên mở thử menu từ POS)."""
+    if ref is None or isinstance(ref, bool) or not isinstance(ref, (str, int)):
+        return None
+    ref = str(ref).strip()
+    if not ref or len(ref) > 64:
+        return None
+    if ref.isdigit():
+        doc = db.dining_tables.find_one({'id': int(ref)}, {'_id': 0})
+        own = session.get('business_id') or session.get('user_id')
+        return doc if (doc and own and doc.get('business_id') == own) else None
+    return db.dining_tables.find_one({'qr_token': ref}, {'_id': 0})
+
+
 def _first_table_token(business_id):
     if not business_id or db is None:
         return None
@@ -7859,10 +8169,7 @@ def qr_menu_base():
 def qr_menu(identifier):
     table_data = None
     try:
-        if identifier.isdigit():
-            table_data = db.dining_tables.find_one({'id': int(identifier)}, {'_id': 0})
-        else:
-            table_data = db.dining_tables.find_one({'qr_token': identifier}, {'_id': 0})
+        table_data = _public_table_lookup(identifier)
     except Exception:
         return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
 
@@ -7902,6 +8209,7 @@ def qr_menu(identifier):
 
 
 @app.route('/api/submit_qr_order', methods=['POST'])
+@limiter.limit("300 per hour;40 per minute")  # cả quán dùng chung 1 Wi-Fi (1 IP) nên không đặt quá thấp
 def submit_qr_order():
     try:
         # Check if content is JSON
@@ -7923,10 +8231,7 @@ def submit_qr_order():
 
         # Xác thực bàn tồn tại thật trong DB trước khi ghi nhận đơn — không còn fallback bàn demo giả
         try:
-            if str(table_id).isdigit():
-                table_check = db.dining_tables.find_one({'id': int(table_id)}, {'id': 1, 'name': 1, 'business_id': 1, '_id': 0})
-            else:
-                table_check = db.dining_tables.find_one({'qr_token': table_id}, {'id': 1, 'name': 1, 'business_id': 1, '_id': 0})
+            table_check = _public_table_lookup(table_id)
             if not table_check:
                 return jsonify({"success": False, "message": "Table not found or QR code is invalid."}), 404
             # Luôn dùng id số thật của bàn cho các bảng liên quan, tránh lưu nhầm qr_token dạng chuỗi
@@ -8055,26 +8360,27 @@ def submit_qr_order():
 
 # ========== GỌI NHÂN VIÊN / YÊU CẦU TÍNH TIỀN (thay Supabase JS ở table_order.html) ==========
 @app.route('/api/table/notify', methods=['POST'])
+@limiter.limit("120 per hour;10 per minute")
 def api_table_notify():
     """Route PUBLIC (khách quét QR tại bàn, không có session) — resolve business_id qua
     table_id/qr_token giống hệt submit_qr_order() ở trên, không tin business_id client gửi."""
     data = request.json or {}
-    table_id = _coerce_table_id(data.get('table_id'))
     notify_type = data.get('type')
-    table_name = data.get('table_name', f'Table {table_id}')
     if notify_type not in ('staff', 'bill'):
         return jsonify({"success": False, "message": "Invalid type."}), 400
     try:
-        table_doc = db.dining_tables.find_one({'id': table_id}, {'business_id': 1, '_id': 0})
+        table_doc = _public_table_lookup(data.get('table_id'))
         if not table_doc:
             return jsonify({"success": False, "message": "Table not found."}), 404
         business_id = table_doc.get('business_id')
+        table_id = table_doc.get('id')
+        table_name = str(table_doc.get('name') or f'Table {table_id}')[:60]  # tên bàn từ DB, không tin chữ khách gửi
         db.user_logs.insert_one({
             'id': next_mongo_id('user_logs'),
             'business_id': business_id,
             'user_email': f"table_{table_id}",
             'action': 'call_staff' if notify_type == 'staff' else 'request_bill',
-            'description': f"Bàn {table_name} yêu cầu {'gọi nhân viên' if notify_type == 'staff' else 'tính tiền'}",
+            'description': f"{table_name if not table_name[:1].isdigit() else 'Bàn ' + table_name} yêu cầu {'gọi nhân viên' if notify_type == 'staff' else 'tính tiền'}",
             'created_at': datetime.now().isoformat(),
         })
         return jsonify({"success": True})
@@ -8091,10 +8397,10 @@ def api_public_pos_products():
     liệu cần cho việc hiển thị menu công khai."""
     table_id = request.args.get('table_id')
     channel_type = request.args.get('channel_type', 'fnb')
-    if not table_id or not str(table_id).isdigit():
+    if not table_id:
         return jsonify({"success": False, "message": "Missing or invalid table_id."}), 400
     try:
-        table_doc = db.dining_tables.find_one({'id': int(table_id)}, {'business_id': 1, '_id': 0})
+        table_doc = _public_table_lookup(table_id)
         if not table_doc:
             return jsonify({"success": False, "message": "Table not found."}), 404
         business_id = table_doc.get('business_id')
@@ -8672,7 +8978,7 @@ def api_ecommerce_products_list():
 def payment_gateway():
     business_id = session.get('business_id')
     if not business_id:
-        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        flash(_vi_en('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'Your session is no longer valid. Please sign in again.'), 'danger')
         return redirect(url_for('login'))
     config = None
     try:
@@ -8740,7 +9046,7 @@ def payment_pending():
     table_id = request.args.get('table_id')
     business_id = session.get('business_id')
     if not business_id:
-        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        flash(_vi_en('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'Your session is no longer valid. Please sign in again.'), 'danger')
         return redirect(url_for('login'))
     
     # BUG BẢO MẬT đã vá: trước đây table_id trên URL GHI ĐÈ business_id -> người của tiệm A truyền table_id của tiệm
@@ -10672,11 +10978,7 @@ def table_order():
 
     table_data = None
     try:
-        # support alphanumeric token or numeric table_id
-        if str(table_id).isdigit():
-            table_data = db.dining_tables.find_one({'id': int(table_id)}, {'_id': 0})
-        else:
-            table_data = db.dining_tables.find_one({'qr_token': table_id}, {'_id': 0})
+        table_data = _public_table_lookup(table_id)
     except Exception as e:
         print(f"Error querying table from MongoDB: {e}")
         return "Không thể kết nối tới hệ thống để xác thực bàn. Vui lòng thử lại.", 500
@@ -10848,12 +11150,16 @@ def api_portal_messages_list():
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
     try:
         messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
-        return jsonify({"success": True, "data": messages})
+        # tên QUÁN cho tiêu đề khung chat (khách của quán thấy quán, không phải "Trợ lý BitPaw")
+        biz_id = customer.get('business_id')
+        shop_name = ((_public_shop_context(biz_id) or {}).get('shop_name') or '') if biz_id else ''
+        return jsonify({"success": True, "data": messages, "shop_name": shop_name})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route('/api/portal/messages', methods=['POST'])
+@limiter.limit("200 per hour;20 per minute")
 def api_portal_messages_create():
     """Khách hàng (ẩn danh, không session) gửi tin nhắn HOẶC client tự ghi lại phản hồi AI giả
     lập (sender_type='ai', giống hành vi getAIResponse() cũ ở portal.html). KHÔNG cho phép
@@ -10886,6 +11192,7 @@ def api_portal_messages_create():
 
 
 @app.route('/api/portal/upload', methods=['POST'])
+@limiter.limit("30 per hour")
 def api_portal_upload():
     """Upload ảnh/GIF khách gửi trong chat CSKH — public, business_id lấy từ customer_id (KHÔNG
     có session để lấy từ đó). File lưu vào cùng GridFS bucket 'media' như /api/storage/upload
@@ -10978,7 +11285,7 @@ def super_admin():
 def ai_bot():
     business_id = session.get('business_id')
     if not business_id:
-        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        flash(_vi_en('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'Your session is no longer valid. Please sign in again.'), 'danger')
         return redirect(url_for('login'))
     user_email = session.get('user_email', 'Not set')
     industry = session.get('business_mode', 'retail')
@@ -11082,7 +11389,7 @@ def calendar_view():
     ghi vào DB thật nhưng KHÔNG có màn hình nào đọc lại — đây là điểm hoàn thiện luồng đó."""
     business_id = session.get('business_id')
     if not business_id:
-        flash('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'danger')
+        flash(_vi_en('Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.', 'Your session is no longer valid. Please sign in again.'), 'danger')
         return redirect(url_for('login'))
 
     date_str = request.args.get('date') or tenant_today(business_id).isoformat()
@@ -11332,6 +11639,7 @@ BITPAW_LEADS_BUSINESS_ID = "bitpaw_leads"
 
 
 @app.route('/api/cskh/chat/send', methods=['POST'])
+@limiter.limit("120 per hour;15 per minute")
 def api_cskh_chat_send():
     """Public — khách bấm 'Talk to Human Agent' rồi gửi tin nhắn. Không có session (khách vãng
     lai), khoá hội thoại theo SĐT khách nhập. Tái dùng _persist_chat_turn() best-effort y hệt
@@ -11352,6 +11660,7 @@ def api_cskh_chat_send():
 
 
 @app.route('/api/cskh/chat/messages', methods=['GET'])
+@limiter.limit("600 per hour")  # khoá theo SĐT (đoán được) -> làm chậm việc dò SĐT đọc hội thoại
 def api_cskh_chat_messages():
     """Public — widget poll lại route này (sau khi nhận tín hiệu từ /api/stream/cskh_chat) để
     lấy toàn bộ lịch sử, bao gồm cả reply mới của Admin (sender_type='staff'). Khoá theo SĐT
@@ -11960,16 +12269,28 @@ def map_dashboard():
 def app_nhanvien():
     return render_template('app_nhanvien.html')
 
+_LICENSE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # bỏ 0/O/1/I dễ nhầm
+_LICENSE_RE = re.compile(r'^BP(-[A-HJ-NP-Z2-9]{5}){4}$')
+
+
+def generate_license_code():
+    """BP-XXXXX-XXXXX-XXXXX-XXXXX: 20 ký tự ngẫu nhiên an toàn (≈100 bit) — không thể dò."""
+    return 'BP-' + '-'.join(''.join(secrets.choice(_LICENSE_ALPHABET) for _ in range(5)) for _ in range(4))
+
+
 @app.route('/api/superadmin/duc_ma', methods=['POST'])
 @login_required
 def duc_ma():
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
-    data = request.json
-    ma_key = (data.get('license_key') or '').strip()
+    data = request.json or {}
+    ma_key = (data.get('license_key') or '').strip().upper()
     nganh = data.get('nganh_nghe')
-    if not ma_key:
-        return jsonify({"success": False, "message": "Missing license code."}), 400
+    if not ma_key or ma_key == 'AUTO':
+        ma_key = generate_license_code()
+    # Pha 28: mã kiểu "TEN123456" đoán được bằng công cụ dò (≈1 triệu khả năng/tên) -> bắt buộc mã ngẫu nhiên dài
+    if not _LICENSE_RE.match(ma_key):
+        return jsonify({"success": False, "message": "Activation codes must be random (press Generate): format BP-XXXXX-XXXXX-XXXXX-XXXXX."}), 400
     try:
         # license_codes là collection license dùng chung toàn hệ thống trên MongoDB (không thuộc
         # riêng tenant nào). update_one(..., upsert=True) trên license_key giữ đúng hành vi
@@ -11984,6 +12305,36 @@ def duc_ma():
     except Exception as e:
         print(f"[duc_ma] Lỗi ghi license_codes lên MongoDB: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/superadmin/security_events', methods=['GET'])
+@login_required
+def superadmin_security_events():
+    """Sự kiện bảo mật 7 ngày gần nhất (dò quét, cấm IP, đoán mã, phiên bị thu hồi, đặt lại mật khẩu)."""
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied."}), 403
+    since = datetime.utcnow() - timedelta(days=7)
+    rows = list(db.security_events.find({'at': {'$gte': since}}, {'_id': 0}).sort('at', -1).limit(300))
+    for r in rows:
+        r['at'] = r['at'].isoformat() + 'Z'
+    bans = list(db.security_bans.find({'until': {'$gt': datetime.utcnow()}}, {'_id': 0}))
+    for b in bans:
+        b['until'] = b['until'].isoformat() + 'Z'
+    from collections import Counter
+    return jsonify({"success": True, "events": rows, "active_bans": bans,
+                    "counts": dict(Counter(r['kind'] for r in rows))})
+
+
+@app.route('/api/superadmin/security_unban', methods=['POST'])
+@login_required
+def superadmin_security_unban():
+    if not _is_superadmin():
+        return jsonify({"success": False, "message": "Access denied."}), 403
+    ip = str((request.json or {}).get('ip') or '')[:64]
+    db.security_bans.delete_many({'ip': ip})
+    security_shield._ban_cache.pop(ip, None)
+    security_shield.log_event('unban', ip, f"by {session.get('user_email')}")
+    return jsonify({"success": True})
+
 
 @app.route('/api/superadmin/get_keys', methods=['GET'])
 @login_required
@@ -13446,6 +13797,13 @@ try:
     app.register_blueprint(oauth_bp)
 except Exception as bp_err:
     print(f"Error registering oauth_bp: {str(bp_err)}")
+
+try:
+    # Quên mật khẩu (link email 1 lần) + đăng xuất mọi thiết bị — password_reset.py (Pha 28)
+    from password_reset import reset_bp
+    app.register_blueprint(reset_bp)
+except Exception as bp_err:
+    print(f"Error registering reset_bp: {str(bp_err)}")
 
 try:
     # Cài đặt đặt lịch (giờ mở cửa, luật, thời lượng dịch vụ, thông tin tiệm cho AI) + giờ trống công khai — booking_rules.py

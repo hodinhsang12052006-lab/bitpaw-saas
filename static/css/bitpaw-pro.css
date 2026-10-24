@@ -1,0 +1,93 @@
+/* BitPaw "Pro" layer (Pha 28) — chèn vào MỌI trang ứng dụng (app.py::_inject_pro_css), để 90+ template cùng một vẻ chuyên nghiệp
+   mà không phải viết lại từng trang. Khách phản hồi giao diện "như con nít": linh vật hoạt hình, icon 3D đồ chơi, viền neon phát sáng,
+   chữ siêu đậm IN HOA giãn rộng, nền tia laser/hạt bay/vết mờ khổng lồ. Lớp này:
+     1. Nền thống nhất: xanh than đậm, một quầng sáng rất nhẹ — không ảnh nền, không họa tiết.
+     2. Tắt trang trí: scan-line, laser, light-ray, hạt bay, đốm mờ khổng lồ, vòng xoay "hologram".
+     3. Viền neon phát sáng -> bóng đổ nhẹ; chữ phát sáng -> bỏ.
+     4. Chữ: Inter, đậm vừa phải (900 -> 700), giãn chữ IN HOA vừa phải.
+     5. Không nảy/nhấp nháy trang trí (vẫn giữ icon quay khi đang tải).
+   Trang landing chỉ dùng phần "logo" (bitpaw-pro-lite.css). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bp-bg: #0b1120;
+  --bp-panel: #111827;
+  --bp-line: rgba(148, 163, 184, .16);
+  --bp-ink: #e5e7eb;
+  --bp-muted: #94a3b8;
+  --bp-accent: #22d3ee;
+}
+
+/* 1. Nền */
+html body {
+  background-color: var(--bp-bg) !important;
+  background-image: radial-gradient(1100px 520px at -5% -12%, rgba(34, 211, 238, .055), transparent 62%) !important;
+  background-attachment: fixed !important;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+input, select, textarea, button { font-family: inherit; }
+
+/* 2. Trang trí "khoa học viễn tưởng" */
+.scan-line, .scanline, .scan-lines, .laser-vertical, .laser, .light-ray, .absolute-blur, .particle, .particles, #particles, #particles-js,
+.cyber-grid, .grid-overlay, .noise-overlay, .stars, .star-field, .orb, .blob, .bg-blob, .aurora, .bg-orbs, .floating-shapes, .glow-orb,
+.hologram-container .animate-spin, .bg-grid-pattern, .matrix-rain {
+  display: none !important;
+}
+/* đốm màu mờ khổng lồ chỉ để trang trí (absolute/fixed, không nhận chuột, blur lớn) */
+.pointer-events-none[class*="blur-[1"], .pointer-events-none[class*="blur-[2"], .pointer-events-none[class*="blur-3xl"],
+.pointer-events-none[class*="blur-[8"], .pointer-events-none[class*="blur-[9"] {
+  display: none !important;
+}
+[style*="transparenttextures"], [class*="transparenttextures"] { background-image: none !important; }
+
+/* 3. Neon -> bóng nhẹ */
+[class*="shadow-[0_0_"] { box-shadow: 0 1px 2px rgba(0, 0, 0, .28) !important; }
+[class*="drop-shadow-[0_0"], [class*="drop-shadow-["] { filter: none !important; }
+[class*="text-shadow"], .neon-text, .glow-text, .text-glow { text-shadow: none !important; }
+
+/* 3b. Tiêu đề chữ gradient (cầu vồng neon) -> chữ trắng; số tiền chữ gradient -> 1 màu */
+:is(h1, h2, h3).bg-clip-text.text-transparent, :is(h1, h2, h3) .bg-clip-text.text-transparent {
+  background-image: none !important; color: #f1f5f9 !important; -webkit-text-fill-color: #f1f5f9 !important;
+}
+.bg-clip-text.text-transparent[class*="from-emerald"] { background-image: none !important; color: #34d399 !important; -webkit-text-fill-color: #34d399 !important; }
+
+/* 4. Chữ */
+.font-black { font-weight: 700 !important; }
+.tracking-widest { letter-spacing: .08em !important; }
+[class*="tracking-[0.2"], [class*="tracking-[0.3"], [class*="tracking-[.2"], [class*="tracking-[.3"] { letter-spacing: .1em !important; }
+
+/* 5. Chuyển động trang trí */
+.animate-bounce, .animate-ping { animation: none !important; }
+.animate-ping { opacity: 0 !important; }
+
+/* Logo thương hiệu (thay linh vật): luôn là ô bo góc, không cắt tròn */
+img[src*="/static/brand/icon-"], img[src*="/static/brand/mark"] { border-radius: 22% !important; object-fit: contain !important; background: transparent !important; animation: none !important; transform: none !important; }
+/* khung tròn/viền neon từng bọc linh vật -> bỏ khung, để logo vuông bo góc nguyên vẹn */
+:is(div, span, a):has(> img[src*="/static/brand/mark"]) { border-radius: 22% !important; border-color: transparent !important; box-shadow: none !important; background: transparent !important; overflow: visible !important; animation: none !important; }
+
+/* Điện thoại: tiêu đề trang vừa màn hình (trước 40-48px, xuống 2-3 dòng), chữ IN HOA nhỏ không giãn quá */
+@media (max-width: 640px) {
+  h1 { font-size: clamp(21px, 6.2vw, 26px) !important; line-height: 1.25 !important; letter-spacing: -.01em !important; }
+  h2.text-3xl, h2.text-4xl, h2.text-5xl { font-size: 22px !important; line-height: 1.3 !important; }
+  .text-4xl, .text-5xl, .text-6xl { font-size: 28px !important; line-height: 1.2 !important; }
+  .tracking-widest { letter-spacing: .05em !important; }
+  h2.text-2xl { font-size: 21px !important; line-height: 1.3 !important; }
+  /* tiêu đề dạng flex (icon + 2-3 cụm chữ) bị bóp thành nhiều cột ("AI Campaigns &" | "Message Approval") -> chảy như chữ thường */
+  :is(h1, h2).flex.items-center { display: block !important; }
+  :is(h1, h2).flex.items-center > :is(i, svg, img, span:first-child:has(> svg)) { display: inline-block; margin-right: 8px; vertical-align: -2px; }
+  /* khung tiêu đề trang: tiêu đề + nút/nhãn bên phải -> cho xuống dòng thay vì bóp tiêu đề; bớt lề ngang 32px */
+  .glass-panel.flex.justify-between { flex-wrap: wrap; row-gap: 12px; }
+  .glass-panel.px-8 { padding-left: 20px !important; padding-right: 20px !important; }
+}
+
+/* Thanh cuộn gọn */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .28); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::selection { background: rgba(34, 211, 238, .28); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}

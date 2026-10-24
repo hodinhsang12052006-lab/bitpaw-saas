@@ -179,7 +179,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="absolute inset-0 rounded-full border border-cyan-500/40 animate-ping opacity-20"></div>
                     <div class="absolute inset-0 rounded-full border-t border-purple-500/60 animate-spin"
                         style="animation-duration: 4s;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}"
+                    <img src="/static/brand/mark.svg?v=1"
                         class="relative w-full h-full rounded-full border border-cyan-400/40 object-cover p-0.5 bg-[#05030f]"
                         alt="BitPaw Mascot">
                 </div>
@@ -235,6 +235,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     Chat</span>
                 <span id="chatUnreadBadge"
                     class="hidden absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center"></span>
+            </button>
+            <button onclick="switchTab('security')" id="tabBtn-security"
+                class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-transparent relative">
+                <i class="fas fa-shield-halved mr-1.5"></i> <span>Security</span>
+                <span id="secBanBadge" class="hidden absolute -top-1.5 -right-1.5 bg-amber-500 text-black text-[9px] font-black rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center"></span>
             </button>
             <button onclick="switchTab('leads')" id="tabBtn-leads"
                 class="tab-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-transparent relative">
@@ -376,11 +381,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                     AI Scenarios</span>
                                 <div class="grid grid-cols-2 gap-2 text-xs">
                                     <div class="bg-black/30 p-2.5 rounded-xl"
-                                        data-i18n="super_admin_scenario_auto_quote">📢 Báo giá tự động</div>
+                                        data-i18n="super_admin_scenario_auto_quote">Báo giá tự động</div>
                                     <div class="bg-black/30 p-2.5 rounded-xl"
-                                        data-i18n="super_admin_scenario_appointment_reminder">⏰ Nhắc nhở lịch hẹn</div>
+                                        data-i18n="super_admin_scenario_appointment_reminder">Nhắc nhở lịch hẹn</div>
                                     <div class="bg-black/30 p-2.5 rounded-xl"
-                                        data-i18n="super_admin_scenario_post_purchase_care">🔄 Chăm sóc sau mua</div>
+                                        data-i18n="super_admin_scenario_post_purchase_care">Chăm sóc sau mua</div>
                                     <div class="bg-black/30 p-2.5 rounded-xl" data-i18n="super_admin_scenario_upsell">💰
                                         Upsell dịch vụ</div>
                                 </div>
@@ -649,6 +654,20 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <!-- ========================================== -->
         <!-- TAB 5: LEADS TỪ WIDGET AI TƯ VẤN (LANDING PAGE) -->
         <!-- ========================================== -->
+        <!-- TAB: SECURITY (Pha 28) — sự kiện bảo mật 7 ngày + IP đang bị chặn -->
+        <div id="tabContent-security" class="hidden glass-panel p-5">
+            <div class="flex justify-between items-center mb-3 pb-3 border-b border-white/5">
+                <h3 class="text-xs font-black text-amber-300 uppercase tracking-widest"><i class="fas fa-shield-halved mr-1"></i> Security — last 7 days</h3>
+                <button type="button" onclick="loadSecurity()" class="text-xs font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg hover:bg-amber-500/10"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <p class="text-xs text-gray-400 mb-4 leading-relaxed">Scanners and attack tools are blocked on sight; probing hidden paths (/.env, /wp-admin…) 3 times bans the IP for 1 hour (24 hours if it comes back). Wrong activation codes are limited to 8 per hour per IP. Password resets and "sign out everywhere" end every old session.</p>
+            <div id="secCounts" class="flex flex-wrap gap-2 mb-5"></div>
+            <h4 class="text-[11px] font-black text-gray-300 uppercase tracking-widest mb-2">Blocked IPs</h4>
+            <div class="overflow-x-auto mb-6"><table class="w-full text-xs"><thead><tr class="text-gray-500 uppercase tracking-wider text-[10px] text-left"><th class="py-2 pr-3">IP</th><th class="py-2 pr-3">Reason</th><th class="py-2 pr-3">Until (UTC)</th><th></th></tr></thead><tbody id="secBans"></tbody></table></div>
+            <h4 class="text-[11px] font-black text-gray-300 uppercase tracking-widest mb-2">Events</h4>
+            <div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-gray-500 uppercase tracking-wider text-[10px] text-left"><th class="py-2 pr-3">Time (UTC)</th><th class="py-2 pr-3">Event</th><th class="py-2 pr-3">IP</th><th class="py-2 pr-3">Detail</th><th class="py-2 pr-3">Path / account</th></tr></thead><tbody id="secEvents"></tbody></table></div>
+        </div>
+
         <div id="tabContent-leads" class="hidden glass-panel p-5">
             <!-- Yêu cầu đăng ký gói từ /checkout (USD/AUD) -->
             <div class="flex justify-between items-center mb-3 pb-3 border-b border-white/5">
@@ -770,6 +789,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById('tabContent-payment').classList.add('hidden');
             document.getElementById('tabContent-chat').classList.add('hidden');
             document.getElementById('tabContent-leads').classList.add('hidden');
+            document.getElementById('tabContent-security').classList.add('hidden');
+            document.getElementById('tabBtn-security').classList.remove('active');
 
             document.getElementById('tabBtn-ops').classList.remove('active');
             document.getElementById('tabBtn-license').classList.remove('active');
@@ -782,6 +803,32 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
             if (tabId === 'chat') loadChatConversations();
             if (tabId === 'leads') { loadCskhLeads(); loadSaasSignups(); }
+            if (tabId === 'security') loadSecurity();
+        }
+
+        const SEC_LABEL = { ban: 'IP banned', strike: 'Probe / attack', bad_activation_code: 'Wrong activation code', session_revoked: 'Old session ended',
+                            password_reset_requested: 'Reset link sent', password_reset_done: 'Password reset', password_reset_throttled: 'Reset throttled',
+                            logout_all: 'Signed out everywhere', unban: 'Unbanned' };
+        async function loadSecurity() {
+            const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            try {
+                const r = await fetch('/api/superadmin/security_events'); const j = await r.json();
+                if (!j.success) throw new Error(j.message || 'Failed');
+                document.getElementById('secCounts').innerHTML = Object.entries(j.counts || {}).map(([k, v]) =>
+                    `<span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] text-gray-200"><b class="text-white">${v}</b> ${esc(SEC_LABEL[k] || k)}</span>`).join('') || '<span class="text-xs text-gray-500">No events.</span>';
+                document.getElementById('secBans').innerHTML = (j.active_bans || []).map((b) =>
+                    `<tr class="border-t border-white/5"><td class="py-2 pr-3 font-mono">${esc(b.ip)}</td><td class="py-2 pr-3 text-gray-300">${esc(b.reason)}</td><td class="py-2 pr-3 text-gray-400">${esc((b.until || '').slice(0, 16).replace('T', ' '))}</td>
+                     <td class="py-2"><button class="px-2 py-1 rounded bg-white/10 hover:bg-white/20" onclick="unbanIp('${esc(b.ip)}')">Unblock</button></td></tr>`).join('') || '<tr><td class="py-2 text-gray-500" colspan="4">None</td></tr>';
+                document.getElementById('secEvents').innerHTML = (j.events || []).slice(0, 150).map((e) =>
+                    `<tr class="border-t border-white/5"><td class="py-1.5 pr-3 text-gray-400 whitespace-nowrap">${esc((e.at || '').slice(0, 16).replace('T', ' '))}</td><td class="py-1.5 pr-3">${esc(SEC_LABEL[e.kind] || e.kind)}</td>
+                     <td class="py-1.5 pr-3 font-mono text-gray-300">${esc(e.ip)}</td><td class="py-1.5 pr-3 text-gray-300">${esc(e.detail)}</td><td class="py-1.5 pr-3 text-gray-400">${esc(e.user || e.path)}</td></tr>`).join('') || '<tr><td class="py-2 text-gray-500" colspan="5">No events.</td></tr>';
+                const badge = document.getElementById('secBanBadge'); const n = (j.active_bans || []).length;
+                badge.textContent = n; badge.classList.toggle('hidden', !n);
+            } catch (e) { showToast(e.message); }
+        }
+        async function unbanIp(ip) {
+            await fetch('/api/superadmin/security_unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+            loadSecurity();
         }
 
         // Custom Toast Alert
@@ -814,10 +861,13 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // MODULE 1: LICENSE KEY LOGIC (ORIGINAL)
         // ==========================================
         function randomKey() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = 'BITPAW-';
-            for (let i = 0; i < 8; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
-            document.getElementById('keyCodeInput').value = key;
+            // Mã kích hoạt ngẫu nhiên an toàn (crypto, ~100 bit) — trước đây Math.random + 8 ký tự, dò được.
+            // Bỏ 0/O/1/I dễ nhầm khi đọc qua điện thoại. Máy chủ chỉ nhận đúng dạng này (hoặc tự sinh nếu để trống).
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const buf = new Uint32Array(20); crypto.getRandomValues(buf);
+            const groups = [];
+            for (let g = 0; g < 4; g++) { let part = ''; for (let i = 0; i < 5; i++) part += chars[buf[g * 5 + i] % chars.length]; groups.push(part); }
+            document.getElementById('keyCodeInput').value = 'BP-' + groups.join('-');
         }
 
         async function luuMaLenCloud(event) {
@@ -835,7 +885,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 });
                 const resJson = await res.json();
                 if (!resJson.success) {
-                    showToast("❌ " + resJson.message);
+                    showToast(resJson.message);
                     return;
                 }
                 document.getElementById('keyCodeInput').value = '';
@@ -1327,10 +1377,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_unit_sessions: 'cuộc',
                 super_admin_ai_auto_close_desc: 'AI tự động đàm thoại chốt đơn',
                 super_admin_leads_pipeline_desc: 'pipeline chốt khách',
-                super_admin_scenario_auto_quote: '📢 Báo giá tự động',
-                super_admin_scenario_appointment_reminder: '⏰ Nhắc nhở lịch hẹn',
-                super_admin_scenario_post_purchase_care: '🔄 Chăm sóc sau mua',
-                super_admin_scenario_upsell: '💰 Upsell dịch vụ',
+                super_admin_scenario_auto_quote: 'Báo giá tự động',
+                super_admin_scenario_appointment_reminder: 'Nhắc nhở lịch hẹn',
+                super_admin_scenario_post_purchase_care: 'Chăm sóc sau mua',
+                super_admin_scenario_upsell: 'Upsell dịch vụ',
                 super_admin_label_pos_conversion: 'Tỉ lệ chốt đơn POS:',
                 super_admin_label_returning_customer: 'Khách cũ quay lại:',
                 super_admin_btn_activate_ai_bot: 'Kích hoạt AI Bot Center',
@@ -1372,9 +1422,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_label_logo_url: 'Đường dẫn logo ngân hàng / Cổng',
                 super_admin_btn_cancel: 'Hủy',
                 super_admin_btn_save_settings: 'Lưu Cài Đặt',
-                super_admin_toast_no_key_code: 'Sếp chưa tạo mã khách hàng kìa!',
+                super_admin_toast_no_key_code: 'Chưa có mã khách hàng — hãy tạo mã trước.',
                 super_admin_err_prefix: 'Lỗi: ',
-                super_admin_msg_license_saved: '✅ Đã đúc & lưu license lên Cloud thành công!',
+                super_admin_msg_license_saved: 'Đã đúc & lưu license lên Cloud thành công!',
                 super_admin_loading_cloud_data: 'Đang tải dữ liệu từ Cloud...',
                 super_admin_status_ready: 'Sẵn sàng',
                 super_admin_status_activated: 'Đã kích hoạt',
@@ -1383,11 +1433,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_tooltip_revoke: 'Thu hồi / Xóa',
                 super_admin_tooltip_edit_config: 'Sửa cấu hình',
                 super_admin_msg_copied_prefix: 'Đã Copy: ',
-                super_admin_empty_license_pool: 'Kho đang trống. Sếp hãy đúc mã mới đi!',
+                super_admin_empty_license_pool: 'Kho mã đang trống. Hãy tạo mã mới.',
                 super_admin_err_load_data_prefix: 'Lỗi lấy dữ liệu: ',
-                super_admin_confirm_delete_license: 'Sếp có chắc chắn muốn xóa mã này không?',
+                super_admin_confirm_delete_license: 'Bạn có chắc chắn muốn xóa mã này không?',
                 super_admin_err_delete_prefix: 'Lỗi khi xóa: ',
-                super_admin_msg_license_deleted: '✅ Đã xóa license thành công!',
+                super_admin_msg_license_deleted: 'Đã xóa license thành công!',
                 super_admin_status_active: 'Hoạt động',
                 super_admin_status_maintenance: 'Bảo trì',
                 super_admin_label_acc_number_short: 'Số TK:',
@@ -1397,9 +1447,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_no_payment_methods: 'Chưa cấu hình ngân hàng nhận tiền nào. Checkout sẽ không hoạt động.',
                 super_admin_edit_gateway_title: 'Sửa Cổng: {name}',
                 super_admin_saving: 'Đang lưu...',
-                super_admin_msg_gateway_saved: '✅ Đã lưu cấu hình cổng thanh toán thành công!',
+                super_admin_msg_gateway_saved: 'Đã lưu cấu hình cổng thanh toán thành công!',
                 super_admin_err_save_config_prefix: 'Lỗi lưu cấu hình: ',
-                super_admin_msg_status_updated: '✅ Đã cập nhật trạng thái cổng thanh toán!',
+                super_admin_msg_status_updated: 'Đã cập nhật trạng thái cổng thanh toán!',
                 super_admin_err_cannot_update_prefix: 'Không thể cập nhật: ',
                 super_admin_tab_chat: 'Quản Lý Khách Hàng & Chat',
                 super_admin_chat_conversations_title: 'Tất Cả Hội Thoại',
@@ -1426,10 +1476,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_unit_sessions: 'sessions',
                 super_admin_ai_auto_close_desc: 'AI auto-converses to close deals',
                 super_admin_leads_pipeline_desc: 'pipeline closing customers',
-                super_admin_scenario_auto_quote: '📢 Auto Quotes',
-                super_admin_scenario_appointment_reminder: '⏰ Appointment Reminders',
-                super_admin_scenario_post_purchase_care: '🔄 Post-Purchase Care',
-                super_admin_scenario_upsell: '💰 Service Upsell',
+                super_admin_scenario_auto_quote: 'Auto Quotes',
+                super_admin_scenario_appointment_reminder: 'Appointment Reminders',
+                super_admin_scenario_post_purchase_care: 'Post-Purchase Care',
+                super_admin_scenario_upsell: 'Service Upsell',
                 super_admin_label_pos_conversion: 'POS conversion rate:',
                 super_admin_label_returning_customer: 'Returning customers:',
                 super_admin_btn_activate_ai_bot: 'Activate AI Bot Center',
@@ -1473,7 +1523,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_btn_save_settings: 'Save Settings',
                 super_admin_toast_no_key_code: "You haven't generated a customer code yet!",
                 super_admin_err_prefix: 'Error: ',
-                super_admin_msg_license_saved: '✅ License minted & saved to Cloud successfully!',
+                super_admin_msg_license_saved: 'License minted & saved to Cloud successfully!',
                 super_admin_loading_cloud_data: 'Loading data from Cloud...',
                 super_admin_status_ready: 'Ready',
                 super_admin_status_activated: 'Activated',
@@ -1486,7 +1536,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_err_load_data_prefix: 'Error fetching data: ',
                 super_admin_confirm_delete_license: 'Are you sure you want to delete this code?',
                 super_admin_err_delete_prefix: 'Error deleting: ',
-                super_admin_msg_license_deleted: '✅ License deleted successfully!',
+                super_admin_msg_license_deleted: 'License deleted successfully!',
                 super_admin_status_active: 'Active',
                 super_admin_status_maintenance: 'Maintenance',
                 super_admin_label_acc_number_short: 'Acct No:',
@@ -1496,9 +1546,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 super_admin_no_payment_methods: 'No receiving bank configured yet. Checkout will not work.',
                 super_admin_edit_gateway_title: 'Edit Gateway: {name}',
                 super_admin_saving: 'Saving...',
-                super_admin_msg_gateway_saved: '✅ Payment gateway configuration saved successfully!',
+                super_admin_msg_gateway_saved: 'Payment gateway configuration saved successfully!',
                 super_admin_err_save_config_prefix: 'Error saving configuration: ',
-                super_admin_msg_status_updated: '✅ Payment gateway status updated!',
+                super_admin_msg_status_updated: 'Payment gateway status updated!',
                 super_admin_err_cannot_update_prefix: 'Could not update: ',
                 super_admin_tab_chat: 'Customer & Chat Center',
                 super_admin_chat_conversations_title: 'All Conversations',

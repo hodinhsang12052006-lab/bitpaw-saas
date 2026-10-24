@@ -69,7 +69,8 @@ jobs:
         run: |
           set -o pipefail
           # Lỗi Gradle in thành annotation (xem được ở trang tổng quan run, không cần quyền đọc log)
-          flutter build appbundle --release 2>&1 | tee build.log || {
+          # --obfuscate: tên lớp/hàm Dart bị xáo (dịch ngược APK khó hơn nhiều); bản đồ giải mã giữ riêng trong build/symbols
+          flutter build appbundle --release --obfuscate --split-debug-info=build/symbols 2>&1 | tee build.log || {
             grep -E "What went wrong|error:|Error:|^e: |requires|Could not|failed" -A4 build.log | head -40 |
               while IFS= read -r line; do echo "::error::$line"; done
             exit 1
@@ -97,7 +98,7 @@ jobs:
       - name: Build iOS (no codesign)
         run: |
           set -o pipefail
-          flutter build ios --release --no-codesign 2>&1 | tee build.log || {
+          flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/symbols 2>&1 | tee build.log || {
             grep -E "error:|Error |failed" -A3 build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           }

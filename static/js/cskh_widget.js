@@ -288,14 +288,27 @@ document.addEventListener("DOMContentLoaded", () => {
     // hàng cuối bấm "Hotline 24/7" tưởng gọi cho tiệm lại vô tình gọi cho BitPaw. Ẩn hẳn nhóm này
     // ở ngữ cảnh customer_booking, chỉ giữ lại avatar mở chat (đã đổi đúng vai trợ lý đặt lịch).
     const isBookingContext = window.BITPAW_CHAT_CONTEXT === 'customer_booking';
-    const mascotTooltip = isBookingContext ? 'Cần giúp đặt lịch?<br>Nhắn em ngay!' : 'Cần tư vấn?<br>Chat với BitPaw!';
+    // Pha 28: khách của tiệm thấy TÊN TIỆM + "trợ lý đặt lịch" đúng ngôn ngữ trang (trước: "BitPaw AI Tư Vấn" tiếng Việt cho cả
+    // khách Úc/Mỹ — khách tưởng đang nói chuyện với hãng phần mềm, không phải tiệm).
+    const _pageVi = (document.documentElement.lang || '').toLowerCase().startsWith('vi');
+    const _shopName = (window.BITPAW_BUSINESS_NAME || '').trim();
+    const chatTitle = isBookingContext ? (_shopName || (_pageVi ? 'Đặt lịch' : 'Booking')) : (_pageVi ? 'BitPaw tư vấn' : 'BitPaw Sales');
+    const chatSubtitle = isBookingContext ? (_pageVi ? 'Trợ lý đặt lịch · trả lời ngay' : 'Booking assistant · replies instantly')
+                                          : (_pageVi ? 'Trợ lý AI · trả lời ngay' : 'AI assistant · replies instantly');
+    const _initial = (_shopName || 'B').trim().charAt(0).toUpperCase();
+    const chatAvatar = isBookingContext
+        ? (window.BITPAW_SHOP_LOGO
+            ? `<img src="${String(window.BITPAW_SHOP_LOGO).replace(/"/g, '')}" alt="" class="w-10 h-10 rounded-full object-cover border border-white/30">`
+            : `<span class="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center font-bold">${_initial.replace(/[<>&]/g, '')}</span>`)
+        : `<img src="/static/brand/mark.svg?v=1" alt="" class="w-10 h-10">`;
+    const mascotTooltip = isBookingContext ? (_pageVi ? 'Cần giúp đặt lịch?' : 'Need help booking?') : (_pageVi ? 'Cần tư vấn?' : 'Questions? Chat with us');
     contactWidget.innerHTML = `
         <div class="relative group cursor-pointer mb-1" id="mascot-toggle-btn">
             <div class="absolute right-14 top-2 bg-[#08061a] border border-cyan-500/40 text-[#22d3ee] text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
                 ${mascotTooltip}
             </div>
-            <div class="w-14 h-14 bg-[#08061a] border-2 border-cyan-400 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.5)] group-hover:scale-110 transition-transform overflow-hidden mascot-glow">
-                <img src="/static/cho1.jpg" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/6182/6182181.png';" class="w-full h-full object-cover">
+            <div class="w-14 h-14 rounded-full flex items-center justify-center bg-cyan-500 text-white text-2xl shadow-lg hover:bg-cyan-400 transition-colors" aria-label="Chat">
+                <i class="fas fa-comment-dots"></i>
             </div>
         </div>
         ${isBookingContext ? '' : `
@@ -365,12 +378,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="bg-gradient-to-r from-cyan-600 to-blue-700 p-4 flex justify-between items-center text-white border-b border-white/15">
             <div class="flex items-center gap-3">
                 <div class="relative">
-                    <img src="/static/cho1.jpg" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/6182/6182181.png';" class="w-10 h-10 rounded-full border border-white/40 object-cover">
-                    <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border border-blue-700 rounded-full animate-pulse"></div>
+                    ${chatAvatar}
+                    <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border border-blue-700 rounded-full"></div>
                 </div>
                 <div>
-                    <h4 class="font-bold text-sm">BitPaw AI Tư Vấn</h4>
-                    <p class="text-[10px] text-cyan-200 flex items-center gap-1"><i class="fas fa-bolt"></i> Trực tuyến 24/7</p>
+                    <h4 class="font-bold text-sm">${chatTitle.replace(/[<>&]/g, '')}</h4>
+                    <p class="text-[11px] text-cyan-100/90">${chatSubtitle}</p>
                 </div>
             </div>
             <button id="close-chat-btn" class="text-white/60 hover:text-white transition text-lg"><i class="fas fa-times"></i></button>
@@ -506,20 +519,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const BOOKING_VI = (document.documentElement.lang || '').toLowerCase().startsWith('vi');
     const BT = BOOKING_VI ? {
         title: "Trợ Lý Đặt Lịch",
-        greeting: "Chào bạn! Mình là trợ lý đặt lịch của tiệm 💅 Bạn muốn đặt dịch vụ gì và vào lúc nào ạ? Mình sẽ xếp lịch giúp bạn ngay.",
+        greeting: "Chào bạn! Mình là trợ lý đặt lịch của tiệm. Bạn muốn đặt dịch vụ gì và vào lúc nào ạ? Mình sẽ xếp lịch giúp bạn ngay.",
         phone: "Số điện thoại của bạn", phoneLabel: "SĐT", request: "Yêu cầu",
         typeMsg: "Nhập tin nhắn...", needPhone: "Nhập số điện thoại để bắt đầu chat...",
         shop: "Nhân viên tiệm", typing: "Đang trả lời...",
-        handoff: "Nhân viên tiệm đã nhận tin của bạn và sẽ trả lời ngay trong khung chat này 💅",
+        handoff: "Nhân viên tiệm đã nhận tin của bạn và sẽ trả lời ngay trong khung chat này",
         slow: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!",
         slow2: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!",
     } : {
         title: "Booking Assistant",
-        greeting: "Hi! I'm the salon's booking assistant 💅 Which service would you like, and when? I'll book it for you right away.",
+        greeting: "Hi! I'm the salon's booking assistant. Which service would you like, and when? I'll book it for you right away.",
         phone: "Your phone number", phoneLabel: "Phone", request: "Request",
         typeMsg: "Type your message...", needPhone: "Enter your phone number to start chatting...",
         shop: "Salon staff", typing: "Typing...",
-        handoff: "A staff member has your message and will reply right here in this chat 💅",
+        handoff: "A staff member has your message and will reply right here in this chat",
         slow: "Sorry, we're a little slow right now — please send the service and time you'd like again!",
         slow2: "Sorry, we're a little slow right now — please send that again!",
     };
@@ -823,7 +836,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const shopDiv = document.createElement("div");
             shopDiv.className = "flex gap-2.5 items-start mt-2";
             shopDiv.innerHTML = `
-        <div class="w-6 h-6 rounded-full bg-pink-500/20 border border-pink-400/60 flex items-center justify-center shrink-0 text-[11px]">💅</div>
+        <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 text-cyan-200 text-[11px]"><i class="fas fa-comment-dots"></i></div>
         <div class="chat-shop text-pink-100 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm bg-pink-500/15 border border-pink-400/40">
             <div class="text-[10px] font-black uppercase tracking-wider text-pink-300 mb-1">${escapeHtml(BT.shop)}</div>
             ${safeText}
@@ -839,13 +852,13 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="chat-user text-white p-3 rounded-2xl rounded-tr-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm">
             ${safeText}
         </div>
-        <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 text-[10px] font-bold border border-cyan-500/30">👤</div>
+        <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 text-[10px] font-bold border border-cyan-500/30"><i class="fas fa-user"></i></div>
     `;
         } else {
             msgDiv.className = "flex gap-2.5 items-start mt-2";
             msgDiv.innerHTML = `
-        <div class="w-6 h-6 rounded-full bg-[#08061a] border border-cyan-500/50 flex items-center justify-center shrink-0 mascot-glow overflow-hidden">
-                    <img src="/static/cho1.jpg" class="w-full h-full object-cover">
+        <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 overflow-hidden text-cyan-200 text-[11px]">
+                    <i class="fas fa-comment-dots"></i>
                 </div>
                 <div class="chat-ai text-cyan-200 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm">
                     ${safeText}
@@ -864,7 +877,7 @@ document.addEventListener("DOMContentLoaded", () => {
         indicator.innerHTML = `
         <span class="text-[9px] text-cyan-400 font-black ml-8 flex items-center gap-1"> <i class="fas fa-spinner fa-spin"></i> ${CHAT_CONTEXT === 'customer_booking' ? escapeHtml(BT.typing) : 'AI đang phân tích dữ liệu...'}</span>
 <div class="flex gap-2.5 items-start">
-    <div class="w-6 h-6 rounded-full bg-[#08061a] border border-cyan-500/50 flex items-center justify-center shrink-0 overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
+    <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 overflow-hidden text-cyan-200 text-[11px]"><i class="fas fa-comment-dots"></i></div>
     <div class="typing-bubble bg-cyan-500/10 border border-cyan-500/20">
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>

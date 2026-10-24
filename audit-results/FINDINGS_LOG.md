@@ -778,3 +778,65 @@ Yêu cầu: "mấy con AI đó fix, test khách như người thật… mỗi co
 - Bài test lịch ca + app nhân viên giờ chạy theo đúng giờ tiệm (điện thoại giả lập đặt múi giờ Sydney).
 
 **Kiểm thử Pha 27:** chạy lại toàn bộ trên server local (Chrome + iPhone 13, VI + EN), restart sạch giữa các nhóm — cài đặt đặt lịch 16/16 · lịch ca nâng cấp 38/38 · lịch ca 28/28 · chấm công khuôn mặt 22/22 · Nails persona 38/38 · Nails audit 10/10 · AI chăm sóc khách Nails 7/7 · lịch realtime 6/6 · vòng kinh doanh Nails 9/9 · Spa audit 6/6 · Spa POS thợ 9/9 · gói liệu trình 15/15 · đồng bộ nhân viên 45/45 · F&B 8/8 · Bán lẻ 6/6 · Karaoke 4/4 · gọi món QR karaoke 17/17 · Khách sạn 5/5 · Sản xuất 3/3 · Kỹ thuật 3/3 · Văn phòng 4/4 · geofence 11/11 · thợ đang đến 14/14 · nhắn tin 21/21 · AI Copilot 18/18 · AI Studio 22/22 · bảng giá/checkout 20/20 · 0 khoá dịch thô (32 trang × 2 ngôn ngữ) · 9 ngành chủ + nhân viên 147/147 · bảo mật/input dị dạng: server sống · Google/Facebook 14/14 · giả lập AI đặt lịch sau cùng 9/9 lịch đúng, trung thực 5.0, p50 3.1 giây. Dữ liệu thử đã dọn (lịch, lead, thư báo, nhân viên, ca).
+
+
+## Pha 28 — Bảo mật chống hacker + chống crack, giao diện chuyên nghiệp (mobile + PC), trải nghiệm KHÁCH của tiệm (24/10/2026)
+
+Yêu cầu: "nâng cấp hệ thống bảo mật lên, chống hacker… crack tool là cái thứ 1… để ý chi tiết kỹ mobile… fix giao diện cho chuyên nghiệp… background cho mobile kể cả PC… nhiều icon nhìn như con nít… tâm lý khách hàng trải nghiệm nền tảng ngoài thợ với chủ tiệm nữa".
+
+**A. Chống hacker** (`security_shield.py`, `password_reset.py`, app.py)
+| Mục | Trước | Sau |
+|---|---|---|
+| Công cụ tấn công (sqlmap, nikto, nuclei…) / dò `.env`, `wp-login`, `.git` | trả trang bình thường, không ai biết | 403/404; 3 lần dò trong 10 phút → cấm IP 1 giờ (tái phạm 24 giờ); nhật ký + tab "Bảo mật" trong Super Admin có nút gỡ cấm |
+| IP thật của khách | tin header (giả được) | chỉ tin `CF-Connecting-IP` khi request đi qua Cloudflare thật |
+| CSP | không có | bắt buộc: script/kết nối chỉ từ domain mình + CDN đã duyệt; chặn iframe nhúng, đổi `<base>`, plugin — quét 219 lượt trang: 0 vi phạm, 0 lỗi JS |
+| Đổi/đặt lại mật khẩu | cookie + JWT cũ sống tiếp 30 ngày | mọi phiên + app đăng xuất trong ≤30 giây; nút "Đăng xuất mọi thiết bị"; tài khoản bị khoá/đổi quyền có hiệu lực ngay |
+| Quên mật khẩu | không có | link 1 lần, 30 phút, chỉ lưu mã băm, trả lời giống nhau dù email có hay không, giới hạn 5/giờ/IP + 3/giờ/email |
+| Mã kích hoạt | kiểu "TEN123456" đoán được | `BP-XXXXX-XXXXX-XXXXX-XXXXX` ~100 bit; đoán sai 8 lần/giờ → khoá |
+| Form công khai | bot gửi tự do | ô bẫy bot (liên hệ, đặt lịch, đặt bàn/phòng) → "thành công" giả, không ghi, IP bị trừ điểm |
+| Lỗi 500 trên production | lộ nội dung lỗi Python | thông báo chung, lỗi thật chỉ vào log |
+| 🔴 **Menu QR / gọi món / gọi nhân viên** | nhận id bàn SỐ TĂNG DẦN — 1 script chạy id 1..N gửi được đơn giả + chuông "gọi nhân viên" vào bếp của MỌI nhà hàng, và đọc được mã QR thật từng bàn | chỉ nhận mã QR ngẫu nhiên in trên bàn; id số chỉ mở được khi người đang đăng nhập là chính tiệm đó; tên bàn trong thông báo lấy từ hệ thống (không lấy chữ khách gửi) |
+| 🔴 **Đặt bàn / phòng karaoke / phòng khách sạn công khai** | ghi được đơn vào mã tiệm bịa bất kỳ; tên/ghi chú dài vô hạn; số khách 999999; ngày giờ bất kỳ; chỉ giới hạn chung 1200/giờ | tiệm phải có thật; tên ≤80, ghi chú ≤500, số khách 1–200, ngày giờ đúng định dạng trong vòng 1 năm; 20 lượt/giờ/IP; khách sạn ≤60 đêm |
+| Giới hạn tần suất | 9 API công khai chỉ có giới hạn chung | thêm riêng: liên hệ 10/giờ, góp ý 20/giờ, chat khách 120/giờ, đọc chat theo SĐT 600/giờ, khung chat của tiệm 200/giờ, gửi ảnh 30/giờ, gửi đơn QR 300/giờ (cả quán chung 1 Wi-Fi), gọi nhân viên 120/giờ |
+
+**B. Chống crack**
+- App Windows là vỏ WebView mỏng (`desktop_app/shell.py`): không chứa khoá, mật khẩu, logic bản quyền — bẻ khoá file .exe không mở thêm được gì; mọi kiểm tra quyền/gói nằm trên máy chủ. `launcher.py`/`license_manager.py` cũ không còn được đóng gói.
+- Android: tắt sao lưu dữ liệu app (`allowBackup=false`, `dataExtractionRules` loại trừ hết) — không rút được phiên đăng nhập qua `adb backup`/chuyển máy. Bản build CI: `--obfuscate --split-debug-info` (khó dịch ngược).
+- Mã kích hoạt ngẫu nhiên 100 bit + khoá khi đoán (mục A).
+
+**C. Giao diện chuyên nghiệp (mobile + PC)**
+- Lớp "Pro" chèn vào mọi trang ứng dụng: 1 nền xanh than thống nhất, bỏ tia laser/vạch quét/hạt bay/đốm mờ khổng lồ/vòng xoay hologram, viền neon → bóng nhẹ, chữ quá đậm/giãn rộng → vừa phải, tiêu đề chữ cầu vồng → chữ trắng, tiêu đề trên điện thoại vừa màn hình.
+- Linh vật chó hoạt hình → logo phẳng (`static/brand/mark.svg`); bộ icon 3D đồ chơi tắt (giữ icon nét); **592 dòng emoji làm icon** (trong nhãn, nút, menu chọn, toast, 2 ngôn ngữ) bỏ; **40 emoji đứng riêng** (thẻ ngành, ảnh món trống, avatar 👤, ✨ "Thêm dịch vụ", 🍻 F&B) → icon nét; 12 ô trống do lần bỏ emoji cũ để sót ký tự ẩn (U+FE0F) → sửa.
+- Trang đăng nhập viết lại (đơn giản, có "Quên mật khẩu" thật); app nhân viên ("Employee code", "Continue" thay "START SHIFT"); trang chọn ngành có tên tiếng Anh; trang lỗi/QR hỏng chỉ 1 ngôn ngữ + icon nét; tiêu đề Spa bỏ chữ có chân; nút "Calculate Pay" hồng gradient → nút viền nhẹ; Cài đặt đặt lịch + Hồ sơ nhân viên không còn tràn màn hình điện thoại; nút ngôn ngữ không đè khung đăng nhập; menu Hotel/Karaoke/Sản xuất có bản dịch tiếng Anh.
+- Giọng văn trong app: bỏ "Sếp/Boss", "Chờ xíu nha", nhân vật "kỹ sư Hậu" bịa; hoá đơn in cho khách không còn "Hẹn gặp lại sếp".
+- Ảnh xem trước khi chia sẻ link (Facebook/Zalo/iMessage): thẻ 1200×630 gọn (`static/brand/og-card.png`, `scripts/make_og_card.mjs`) thay ảnh linh vật.
+- Build lại `tailwind.output.css` (các lớp mới có thật trong CSS).
+
+**D. Trải nghiệm KHÁCH của tiệm (người quét QR / bấm link đặt lịch)**
+- Đặt lịch Nails/Spa: tên + logo TIỆM, địa chỉ + bấm gọi được, nhãn chữ thường, giờ trống dạng nút gọn, "Any available technician", dòng cam kết "SĐT chỉ dùng để xác nhận lịch". Sửa lỗi nhãn "Full name" luôn nổi lên dù ô trống (ô bẫy bot đặt nhầm chỗ).
+- Đặt bàn / phòng karaoke / phòng khách sạn: viết lại thành 1 trang dùng chung — trước chỉ tiếng Việt, tiêu đề "BitPaw", số mẫu "09xxxxxxxx", ô giờ tràn ngoài màn hình; giờ tên + chữ cái/logo QUÁN, tự theo ngôn ngữ trình duyệt (Anh/Việt), báo lỗi đúng ngôn ngữ, sau khi gửi có tóm tắt.
+- Menu QR / gọi món tại bàn: chữ cái/logo quán thay logo BitPaw nhấp nháy; ngôn ngữ theo trình duyệt khách (trước luôn tiếng Việt).
+- Khung chat của tiệm với khách (`/portal`): tiêu đề là tên tiệm; bỏ khối "Liên hệ với Sếp" + bong bóng chat của BitPaw (khách của tiệm thấy hotline của hãng phần mềm); sửa tràn ngang trên điện thoại.
+- Trợ lý chat trên trang đặt lịch: tên tiệm + "Booking assistant", đúng ngôn ngữ trang (trước "BitPaw AI Tư Vấn" tiếng Việt cho khách Úc/Mỹ).
+
+**D2. Số liệu thật + đúng tiền tệ (soát tay 64 trang chủ tiệm × điện thoại + máy tính, `scripts/ui_survey_all.mjs`)**
+- Số liệu BỊA hiện cho chủ tiệm thật: Kết nối đa kênh "10,480 khách đồng bộ +12% tuần này · AI CSKH 342 · quay lại 45.2% +14.6%" (khi 0/6 kênh); Chăm sóc khách "Good (84/100) · 42 khách cần chăm · 8.4% · +32 khách/tháng"; launcher "142 chats · +28 leads" + bảng hoạt động "David ở tiệm Nails Georgia vừa nâng cấp gói Pro" (danh sách tên/tiệm bịa, ghi rõ trong code là SIMULATED để tạo FOMO). → số thật của tiệm (tổng lead các kênh, tính từ khách thật, hội thoại hôm nay theo giờ tiệm, `/api/my_recent_activity`) hoặc "—".
+- Tiệm Úc/Mỹ thấy tiền Việt ở 8 trang ("100.838,44 ₫" báo cáo lợi nhuận, "Amount (VND)", "VND/Month", "Budget (VNĐ)", "Selling price (VND)"...) → `static/js/bp-currency.js` (chỉ nạp cho tiệm khác VND) sửa nhãn đơn vị; báo cáo lợi nhuận + giỏ Spa định dạng theo tiền tệ của tiệm. Quét lại: 0 trang hiện ₫ cho tiệm AUD (trừ trang quản trị thanh toán của BitPaw có cả 2 cột VND/USD).
+- Thông báo "Vui lòng đăng nhập để tiếp tục", "phiên không hợp lệ", "không có quyền", "quá nhiều lần thử" → theo ngôn ngữ người dùng.
+- Trang Kết nối sàn TMĐT: ô API Key/Secret trắng trơn (lớp CSS chưa định nghĩa) → đúng kiểu; tiêu đề trang trên điện thoại không còn bị bóp thành nhiều cột.
+
+**E. Công cụ test mới / sửa**
+- `scripts/security_hardening_e2e.mjs` (35 bước), `scripts/public_endpoints_hardening_e2e.mjs` (17 bước), `scripts/csp_crawl_audit.mjs`, `scripts/ui_survey_shots.mjs` (thêm trang khách), `scripts/ui_survey_all.mjs`.
+- 10 bài audit ngành kiểm "bị giới hạn" bằng cả mã HTML (trang đăng nhập mới có chữ 429 trong JS → báo nhầm) → kiểm chữ hiện trên trang.
+- Bài audit F&B/Karaoke/Khách sạn để lại 33 đơn đặt chỗ "QA Audit…" trong tiệm demo → đã xoá + script tự dọn (`scripts/_cleanup_audit_reservations.py`).
+- Bài đo trễ chat để lại 12 tin "latency-probe…" trong kênh chung của tiệm demo (bước dọn trống) → đã xoá + bước dọn thật.
+- `shared_modules_pha6_audit` phần Checkout đã cũ (trang checkout làm lại ở Pha 26) — thay bằng `pricing_checkout_e2e` 20/20.
+
+**F. Cần anh/chị quyết định**
+- Gói/quyền theo gói: hiện mọi tiệm dùng được mọi tính năng (chưa có giới hạn theo gói Essential/Pro/Empire).
+- Icon app/PWA/favicon vẫn là chữ B neon cam (đã duyệt ở Pha 24) — trong app đã dùng logo phẳng xanh; có thể đổi icon app sang logo phẳng cho đồng bộ.
+- 11 trang landing giữ thiết kế riêng (chữ gradient marketing) — có thể làm gọn theo cùng phong cách nếu muốn.
+- `static/js/ai_sales_widget.js` không trang nào dùng (code chết) — có thể xoá.
+- Chat khách vãng lai trên landing vẫn khoá theo SĐT (đánh đổi có chủ đích từ trước) — đã giới hạn tần suất; muốn chặt hơn cần thêm mã bí mật cho từng hội thoại.
+
+**Kiểm thử Pha 28:** chạy lại trên server local (Chrome + iPhone 13, VI + EN), restart sạch giữa các nhóm — chống tấn công 35/35 · trang/API công khai 17/17 (mới) · quét CSP 219 lượt: 0 vi phạm, 0 lỗi JS · khoá dịch thô 0 (32 trang × 2 ngôn ngữ) · chủ + nhân viên 9 ngành 147/147 · Nails persona 38/38 · Nails audit 10/10 · Spa 6/6 · F&B 8/8 · Bán lẻ 6/6 · Karaoke 4/4 · Khách sạn 5/5 · Kỹ thuật 3/3 · cài đặt đặt lịch 16/16 · lịch ca 28/28 · lịch ca nâng cấp 38/38 · đăng nhập Google/Facebook 14/14 · tin nhắn SMS/email 21/21 · checkout gói 20/20 · chịu input dị dạng: server còn sống. Soát tay 64 trang chủ tiệm trên điện thoại + máy tính: 0 trang tràn ngang, 0 trang hiện ₫ cho tiệm AUD. Lần chạy đầu: lịch ca nâng cấp 36/38 (chạy song song với bài soát giao diện, chạy riêng 38/38); OAuth/tin nhắn cần server có cấu hình giả lập (chạy đúng cách: đạt).

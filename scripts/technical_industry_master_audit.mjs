@@ -72,7 +72,7 @@ async function main() {
   let t0 = Date.now();
   try {
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-    const rateLimited = (await page.content()).match(/429|Too Many Requests|quá nhiều yêu cầu/i);
+    const rateLimited = (await page.innerText('body')).match(/Too Many Requests|quá nhiều yêu cầu/i); // chữ HIỆN trên trang (mã JS của trang có chứa chữ 429)
     if (rateLimited) throw new Error('Server đang rate-limit /login (5 lần/15 phút) — đợi hết cửa sổ giới hạn rồi chạy lại.');
 
     await page.fill('#loginEmail', EMAIL);

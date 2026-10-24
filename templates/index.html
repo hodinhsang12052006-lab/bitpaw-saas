@@ -320,6 +320,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             transform: translateY(-2px);
         }
 
+        /* Pha 28: giao diện đăng nhập tối giản */
+        .cyber-login-card { background: #0f172a; backdrop-filter: none; border: 1px solid rgba(148,163,184,.16); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+        .cyber-login-card:hover { border-color: rgba(148,163,184,.22); box-shadow: 0 10px 30px rgba(0,0,0,.35); transform: none; }
+        .auth-shell { display: block; }
+        .auth-aside { background: linear-gradient(160deg, rgba(34,211,238,.06), rgba(37,99,235,.04)); border: 1px solid rgba(148,163,184,.14); }
+        .aside-ico { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: #67e8f9;
+                     background: rgba(34,211,238,.08); border: 1px solid rgba(34,211,238,.18); font-size: 14px; }
+        .lang-switch button:focus-visible { outline: 2px solid #22d3ee; outline-offset: 1px; }
+        /* điện thoại: chừa chỗ cho nút ngôn ngữ (cố định góc phải) để không đè lên khung đăng nhập */
+        @media (max-width: 1023px) { body.index-page { padding-top: 64px !important; } .lang-switch { top: 14px !important; right: 14px !important; } }
         .cyber-input {
             background: rgba(4, 3, 12, 0.6) !important;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -829,7 +839,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="absolute inset-0 rounded-full border border-cyan-500/50 animate-ping opacity-25"></div>
                     <div class="absolute inset-0 rounded-full border-t border-purple-500/80 animate-spin"
                         style="animation-duration: 3s;"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="BitPaw Logo"
+                    <img src="/static/brand/mark.svg?v=1" alt="BitPaw Logo"
                         class="h-10 w-10 rounded-full object-cover inline-block mr-2 shadow-lg">
                 </div>
                 <div>
@@ -928,11 +938,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             </div>
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-400" data-i18n="index_chats_today_label">Chats hôm nay:</span>
-                                <span class="text-white font-mono font-bold">142 chats</span>
+                                <span class="text-white font-mono font-bold" id="launcherChatsToday">—</span>
                             </div>
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-400" data-i18n="index_leads_captured_label">Lead thu về:</span>
-                                <span class="text-cyan-400 font-mono font-bold">+28 leads</span>
+                                <span class="text-cyan-400 font-mono font-bold" id="launcherLeadsToday">—</span>
                             </div>
                         </div>
                     </div>
@@ -1163,13 +1173,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <!-- ============================================================ -->
     <!-- STATE 2: GIAO DIỆN AUTH / ĐĂNG NHẬP SAAS OPERATING OS       -->
     <!-- ============================================================ -->
-    <div
-        class="cyber-hud-frame w-full max-w-[1200px] p-1.5 relative rounded-[2rem] overflow-hidden animate-cyber-frame z-10">
-        <!-- Corner brackets -->
-        <div class="hud-corner hud-tl"></div>
-        <div class="hud-corner hud-tr"></div>
-        <div class="hud-corner hud-bl"></div>
-        <div class="hud-corner hud-br"></div>
+    <div class="auth-shell w-full max-w-[1120px] relative z-10">
 
         <div class="w-full grid grid-cols-1 lg:grid-cols-10 gap-6 z-10 items-stretch py-4 md:py-6 my-auto">
 
@@ -1183,32 +1187,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     class="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-600/20 rounded-full blur-[80px] pointer-events-none z-0">
                 </div>
 
-                <div class="text-center mb-6 relative z-10">
-                    <div class="relative w-28 h-28 mx-auto flex items-center justify-center logo-float">
-                        <!-- Conentric soft background glow -->
-                        <div
-                            class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/10 to-purple-500/10 blur-sm pointer-events-none">
-                        </div>
-                        <div class="absolute w-full h-full border-t-2 border-purple-500/40 border-dashed rounded-full animate-spin mascot-ring-inner"
-                            style="animation-duration: 6s;"></div>
-                        <div class="absolute w-[112%] h-[112%] border-r-2 border-cyan-400/40 border-double rounded-full animate-spin mascot-ring-outer"
-                            style="animation-duration: 8s; animation-direction: reverse;"></div>
-                        <img src="{{ url_for('static', filename='cho1.jpg') }}" alt="Hero Logo"
-                            class="w-full h-full rounded-full object-cover animate-spin-slow">
+                <div class="mb-8 relative z-10">
+                    <div class="flex items-center justify-center lg:justify-start gap-3">
+                        <img src="/static/brand/mark.svg?v=1" alt="BitPaw" class="w-11 h-11">
+                        <span class="text-2xl font-bold text-white tracking-tight">BitPaw</span>
                     </div>
-                    <h1 class="text-3xl font-black text-white tracking-widest mt-4">Bit<span
-                            class="text-cyan-400">Paw</span> <span
-                            class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">Software</span>
-                    </h1>
                 </div>
 
                 <h2 id="txt_welcome" data-i18n="index_auth_welcome_title"
-                    class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300 uppercase mb-1.5 text-center lg:text-left relative z-10 tracking-wide">
-                    Cổng
-                    Kích Hoạt Hệ Thống</h2>
+                    class="text-2xl font-bold text-white mb-1.5 text-center lg:text-left relative z-10">Đăng nhập</h2>
                 <p id="txt_subwelcome" data-i18n="index_auth_welcome_subtitle"
-                    class="text-slate-400 text-xs mb-8 text-center lg:text-left relative z-10 font-medium">Đăng
-                    nhập tài khoản quản trị để vận hành Doanh nghiệp.</p>
+                    class="text-slate-400 text-sm mb-7 text-center lg:text-left relative z-10">Chào mừng trở lại. Đăng nhập để quản lý cửa hàng của bạn.</p>
 
                 <!-- Flash Messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -1258,18 +1247,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                         <div class="flex flex-col gap-3">
                             <button type="submit" id="btnLogin" data-i18n="index_login_submit_btn"
-                                class="cyber-btn-primary w-full text-white text-xs font-black tracking-widest py-4 rounded-xl">
-                                ĐĂNG NHẬP VẬN HÀNH
+                                class="cyber-btn-primary w-full text-white text-sm font-semibold py-3.5 rounded-xl">
+                                Đăng nhập
                             </button>
                             {% include 'components/oauth_buttons.html' %}
                             <div class="text-center mt-1">
                                 <button type="button" onclick="setActiveTab('register')"
                                     class="text-gray-400 text-xs hover:text-white transition-all duration-300 flex items-center justify-center gap-1 mx-auto mt-2">
-                                    <span id="txt_newbiz" data-i18n="index_no_license_text" class="opacity-80">Chưa có
-                                        bản quyền?</span>
+                                    <span id="txt_newbiz" data-i18n="index_no_license_text" class="opacity-80">Chưa có tài khoản?</span>
                                     <span id="txt_createnow" data-i18n="index_initialize_now_btn"
-                                        class="text-cyan-400 hover:text-cyan-300 font-bold border-b border-cyan-500/30 hover:border-cyan-400 transition-colors pb-0.5">Khởi
-                                        tạo ngay</span>
+                                        class="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors">Tạo tài khoản</span>
                                 </button>
                             </div>
                         </div>
@@ -1280,7 +1267,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div id="registerForm" class="form-panel relative z-10">
                     <form id="registerFormElement" action="{{ url_for('register') }}" method="POST" class="space-y-3.5">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên Sếp (Tên đăng nhập)"
+                        <input type="text" id="regFullname" name="fullname" placeholder="Họ và tên"
                             data-i18n-placeholder="index_reg_fullname_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
                         <input type="text" id="regBusinessName" name="business_name"
@@ -1296,7 +1283,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <select name="business_type" id="reg_business_type" required
                                 class="cyber-input w-full px-4 py-3 rounded-xl text-xs cursor-pointer">
                                 {% for code, cfg in industry_config.items() %}
-                                <option value="{{ code }}" class="bg-[#08061a] text-white">{{ cfg.icon }} {{ cfg.name }}
+                                <option value="{{ code }}" class="bg-[#08061a] text-white" data-vi="{{ cfg.name }}" data-en="{{ cfg.name_en or cfg.name }}">{{ cfg.name if default_lang == 'vi' else (cfg.name_en or cfg.name) }}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -1345,214 +1332,27 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </form>
                 </div>
 
-                <!-- Mini telemetry system status row (NEW!) -->
-                <div
-                    class="border-t border-white/5 pt-4 mt-6 flex justify-between items-center text-[10px] font-mono text-slate-500 relative z-10">
-                    <span class="flex items-center gap-1.5 hover:text-cyan-400 transition-colors">
-                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
-                        <span data-i18n="index_telemetry_secure_session">Secure Session</span>
-                    </span>
-                    <span class="flex items-center gap-1.5 hover:text-purple-400 transition-colors">
-                        <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-                        <span data-i18n="index_telemetry_multitenant">Multi-tenant Platform</span>
-                    </span>
-                    <span class="flex items-center gap-1.5 hover:text-emerald-400 transition-colors">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span data-i18n="index_telemetry_cloud_sync">Cloud Sync Ready</span>
-                    </span>
-                </div>
+                <!-- Pha 28: bỏ dải "telemetry" trang trí — chỉ ghi điều có thật -->
+                <p class="border-t border-white/5 pt-4 mt-6 text-[11px] text-slate-500 flex items-center justify-center lg:justify-start gap-2 relative z-10">
+                    <i class="fas fa-lock text-[10px]"></i><span data-i18n="index_secure_note">Kết nối mã hoá HTTPS · Dữ liệu của bạn chỉ bạn xem được</span>
+                </p>
             </div>
 
-            <!-- Right preview panel: Immersive SaaS OS operating showcase featuring the 3D Hologram Core -->
-            <div
-                class="hidden lg:flex lg:col-span-6 bg-white/[0.01] backdrop-blur-md border border-white/10 rounded-[2rem] p-6 shadow-2xl relative flex-col overflow-hidden hover:border-cyan-500/30 transition-all duration-500 animate-cyber-right">
-
-                <div class="absolute -right-20 -bottom-20 text-[12rem] opacity-5 text-cyan-400 pointer-events-none">
-                    <i class="fas fa-paw transform -rotate-12"></i>
+            <!-- Pha 28: panel giới thiệu sản phẩm (thay "hologram 3D", đồng hồ, log hệ thống giả) -->
+            <div class="hidden lg:flex lg:col-span-6 auth-aside rounded-3xl p-10 flex-col justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-cyan-300/90 mb-3" data-i18n="index_aside_kicker">Phần mềm quản lý cho tiệm dịch vụ & bán lẻ</p>
+                    <h3 class="text-3xl font-bold text-white leading-tight mb-8" data-i18n="index_aside_title">Đặt lịch, bán hàng, lương thợ và chăm sóc khách — trong một ứng dụng.</h3>
+                    <ul class="space-y-5">
+                        <li class="flex gap-4"><span class="aside-ico"><i class="far fa-calendar-check"></i></span><div><b class="text-white text-sm" data-i18n="index_aside_f1_t">Đặt lịch online 24/7</b><p class="text-slate-400 text-sm" data-i18n="index_aside_f1_d">Khách tự chọn giờ trống thật; trợ lý AI trả lời và đặt lịch thay bạn.</p></div></li>
+                        <li class="flex gap-4"><span class="aside-ico"><i class="fas fa-cash-register"></i></span><div><b class="text-white text-sm" data-i18n="index_aside_f2_t">POS & thanh toán</b><p class="text-slate-400 text-sm" data-i18n="index_aside_f2_d">Thu tiền mặt, thẻ, chia bill; hoa hồng và tip của thợ tự tính.</p></div></li>
+                        <li class="flex gap-4"><span class="aside-ico"><i class="far fa-clock"></i></span><div><b class="text-white text-sm" data-i18n="index_aside_f3_t">Lịch ca & chấm công</b><p class="text-slate-400 text-sm" data-i18n="index_aside_f3_d">Xếp ca, đổi ca, chấm công tại tiệm, bảng lương cuối kỳ.</p></div></li>
+                        <li class="flex gap-4"><span class="aside-ico"><i class="far fa-comments"></i></span><div><b class="text-white text-sm" data-i18n="index_aside_f4_t">Tin nhắn & báo cáo</b><p class="text-slate-400 text-sm" data-i18n="index_aside_f4_d">Nhắc lịch qua SMS/email, xin đánh giá, báo cáo doanh thu mỗi sáng.</p></div></li>
+                    </ul>
                 </div>
-
-                <!-- Header với trạng thái Server -->
-                <div
-                    class="flex justify-between items-center mb-6 bg-black/30 p-4 rounded-2xl border border-white/5 z-10">
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/35 relative group overflow-hidden">
-                            <div
-                                class="absolute inset-0 bg-gradient-to-tr from-cyan-500/30 to-purple-500/30 animate-pulse">
-                            </div>
-                            <img src="{{ url_for('static', filename='cho1.jpg') }}"
-                                class="w-full h-full rounded-lg object-cover relative z-10 p-0.5 bg-[#08061a]">
-                        </div>
-                        <div>
-                            <h2 class="text-sm font-black text-white tracking-wide uppercase flex items-center gap-2">
-                                BitPaw AI Core
-                                <span
-                                    class="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[7px] text-emerald-400 uppercase font-mono font-bold tracking-wider"><span
-                                        class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> <span
-                                        data-i18n="index_secure_online_badge">Secure /
-                                        Online</span></span>
-                            </h2>
-                            <span
-                                class="text-[9px] text-gray-500 uppercase tracking-widest font-mono flex items-center gap-1">
-                                <i class="fas fa-project-diagram text-[8px] text-cyan-400"></i> <span
-                                    data-i18n="index_live_ecosystem_map">Live Ecosystem Map</span>
-                            </span>
-                        </div>
-                    </div>
-                    <div id="realtimeClock"
-                        class="font-mono text-lg font-black text-cyan-400 bg-black/40 px-3.5 py-1.5 rounded-xl border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center gap-2">
-                        <i class="far fa-clock text-xs text-cyan-400/80 animate-pulse"></i>
-                        <span>00:00:00</span>
-                    </div>
-                </div>
-
-                <!-- central 3D wireframe hologram canvas container -->
-                <div
-                    class="relative flex-1 min-h-[300px] bg-black/45 border border-white/5 rounded-3xl p-5 flex flex-col items-center justify-center overflow-hidden mb-6 z-10">
-                    <div class="absolute inset-0 bg-gradient-to-t from-cyan-500/5 to-transparent pointer-events-none">
-                    </div>
-
-                    <!-- CSS Hologram Visual Core Dashboard -->
-                    <div class="core-visualization my-auto">
-                        <!-- Concentric Orbit rings -->
-                        <div class="holo-ring holo-ring-outer"></div>
-                        <div class="holo-ring holo-ring-inner"></div>
-                        <div class="core-scanner"></div>
-
-                        <!-- Central Pulsing Orb -->
-                        <div class="central-orb"></div>
-
-                        <!-- Rotating AI core hologram ThreeJS canvas overlay -->
-                        <canvas id="hologram-canvas"
-                            class="absolute w-full h-full object-cover z-3 opacity-75 mix-blend-screen pointer-events-none"></canvas>
-
-                        <!-- Float Module Chips -->
-                        <div class="module-floating-chip chip-pos">
-                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                            <i class="fas fa-cash-register text-[9px]"></i> POS ENGINE
-                        </div>
-                        <div class="module-floating-chip chip-crm">
-                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-                            <i class="fas fa-users text-[9px]"></i> CRM MATRIX
-                        </div>
-                        <div class="module-floating-chip chip-hrm">
-                            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-                            <i class="fas fa-fingerprint text-[9px]"></i> HRM SYSTEM
-                        </div>
-                        <div class="module-floating-chip chip-ai">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <i class="fas fa-comments text-[9px]"></i> AI CO-PILOT
-                        </div>
-
-                        <!-- Ecosystem Map Nodes & Coordinates -->
-                        <div class="cyber-node" style="top: 36%; left: 32%;"></div>
-                        <div class="cyber-node cyber-node-purple" style="top: 48%; right: 28%;"></div>
-                        <div class="cyber-node" style="bottom: 32%; left: 38%;"></div>
-                        <div class="cyber-node cyber-node-purple" style="top: 58%; left: 24%;"></div>
-                        <div class="cyber-node" style="bottom: 38%; right: 22%;"></div>
-
-                        <!-- Concentric faint orbits links -->
-                        <div
-                            class="absolute w-[130px] h-[130px] border border-cyan-500/10 border-dashed rounded-full pointer-events-none">
-                        </div>
-                        <div class="absolute w-[210px] h-[210px] border border-purple-500/10 border-dashed rounded-full pointer-events-none animate-spin"
-                            style="animation-duration: 36s;"></div>
-                    </div>
-
-                    <div class="relative text-center z-10 pointer-events-none mt-2">
-                        <span
-                            class="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 px-3 py-1 rounded-full font-black uppercase tracking-widest animate-pulse inline-flex items-center gap-1.5 justify-center"><span
-                                class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> Core Engine
-                            Scanning</span>
-                        <h3
-                            class="text-base font-black text-white mt-2 tracking-wide flex items-center justify-center gap-1.5">
-                            <i class="fas fa-globe text-cyan-400 text-sm"></i> 3D HOLOGRAPHIC ECOSYSTEM
-                        </h3>
-                        <p class="text-[10px] text-gray-400 mt-1 max-w-sm leading-relaxed">A multi-tenant platform for
-                            operating POS, connecting Zalo/Facebook, and automatically closing deals with AI Copilot Assistant.</p>
-                    </div>
-                </div>
-
-                <!-- Real-time AI chat chốt đơn typewriter simulation widget -->
-                <div class="bg-black/45 border border-white/5 p-4 rounded-2xl mb-6 z-10 relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-300 flex flex-col justify-between"
-                    style="min-height: 240px;">
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="flex items-center gap-1.5">
-                            <i class="fas fa-comments-alt text-purple-400 text-xs animate-pulse"></i>
-                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">AI Sales Bot Live
-                                Simulation</h4>
-                        </div>
-                        <span
-                            class="text-[8px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded font-mono uppercase tracking-widest flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live Feedback
-                        </span>
-                    </div>
-
-                    <!-- Typewriter Chat Simulation Area -->
-                    <div id="simulationChatBox" class="space-y-2 my-2 overflow-y-auto max-h-[85px] scrollbar-thin">
-                    </div>
-
-                    <!-- Two-Column Telemetry Logs & Stats -->
-                    <div class="border-t border-white/5 pt-2.5 mt-1 grid grid-cols-12 gap-3 z-10 relative">
-                        <!-- Left: Live Logs -->
-                        <div
-                            class="col-span-7 flex flex-col gap-1.5 text-[9px] font-mono text-slate-400 border-r border-white/5 pr-2">
-                            <div class="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
-                                <span>SYSTEM LIVE LOGS</span>
-                                <span class="flex items-center gap-1">
-                                    <span
-                                        class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"
-                                        style="animation-delay: 0.2s;"></span>
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-1 text-slate-300">
-                                <span class="text-cyan-400 font-bold">&gt;</span>
-                                <span class="truncate">Syncing POS orders...</span>
-                            </div>
-                            <div class="flex items-center gap-1 text-slate-300">
-                                <span class="text-cyan-400 font-bold">&gt;</span>
-                                <span class="truncate">Detecting customer intent...</span>
-                            </div>
-                            <div class="flex items-center gap-1 text-slate-300">
-                                <span class="text-cyan-400 font-bold">&gt;</span>
-                                <span class="truncate">Preparing CRM follow-up...</span>
-                            </div>
-                            <div class="flex items-center gap-1 text-slate-300">
-                                <span class="text-cyan-400 font-bold">&gt;</span>
-                                <span class="truncate">Auto-tagging lead source...</span>
-                            </div>
-                        </div>
-
-                        <!-- Right: Mini telemetry indicators -->
-                        <div
-                            class="col-span-5 flex flex-col justify-between gap-1 text-[9px] font-mono text-slate-400 pl-1">
-                            <div class="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
-                                <span>STATUS DIAGS</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span>Lead Cap:</span>
-                                <span class="text-cyan-400 font-bold">142 <span
-                                        class="text-[7px] text-emerald-400 font-normal">(+28)</span></span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span>Bot Resp:</span>
-                                <span class="text-emerald-400 font-bold">100%</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span>CRM Queue:</span>
-                                <span class="text-purple-400 animate-pulse font-bold">Syncing</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Micro progress scanner -->
-                    <div class="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-2.5">
-                        <div class="bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 h-full rounded-full animate-pulse"
-                            style="width: 82%;"></div>
-                    </div>
-                </div>
+                <p class="text-xs text-slate-500 mt-10" data-i18n="index_aside_foot">Chạy trên Windows, Android, iPhone, iPad và trình duyệt — một tài khoản, cùng dữ liệu.</p>
             </div>
+        </div>
         </div>
         {% endif %}
 
@@ -1591,15 +1391,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         <div id="toast" class="toast"></div>
 
-        <!-- Language Switcher -->
-        <div
-            class="fixed top-6 right-6 z-[9999] bg-black/50 backdrop-blur-xl rounded-full border border-white/10 p-1 flex gap-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.6)] hover:border-cyan-500/30 transition-all duration-500">
-            <button onclick="setLang('vi')"
-                class="w-8 h-8 rounded-full hover:bg-white/10 transition-all duration-300 flex items-center justify-center text-lg hover:scale-110 active:scale-95 transform">🇻🇳</button>
-            <button onclick="setLang('en')"
-                class="w-8 h-8 rounded-full hover:bg-white/10 transition-all duration-300 flex items-center justify-center text-lg hover:scale-110 active:scale-95 transform">🇺🇸</button>
-            <button onclick="setLang('zh')"
-                class="w-8 h-8 rounded-full hover:bg-white/10 transition-all duration-300 flex items-center justify-center text-lg hover:scale-110 active:scale-95 transform">🇨🇳</button>
+        <!-- Language Switcher (Pha 28: chữ thay cờ emoji) -->
+        <div class="lang-switch fixed top-5 right-5 z-[9999] flex rounded-lg border border-white/10 bg-slate-900/80 p-0.5 text-xs font-semibold">
+            <button onclick="setLang('vi')" class="px-2.5 py-1.5 rounded-md text-slate-300 hover:text-white">VI</button>
+            <button onclick="setLang('en')" class="px-2.5 py-1.5 rounded-md text-slate-300 hover:text-white">EN</button>
+            <button onclick="setLang('zh')" class="px-2.5 py-1.5 rounded-md text-slate-300 hover:text-white">中文</button>
         </div>
 
         <!-- Forgot Password Modal -->
@@ -1608,8 +1404,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             <div
                 class="bg-[#0f1115] border border-cyan-500/30 rounded-3xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.2)]">
                 <h2 id="txt_reset_title" class="text-lg font-black text-cyan-400 mb-2">Khôi Phục Mật Khẩu</h2>
-                <p id="txt_reset_desc" class="text-xs text-gray-400 mb-6">Nhập Email quản trị của Sếp, hệ thống sẽ gửi
+                <p id="txt_reset_desc" class="text-xs text-gray-400 mb-6">Nhập email đăng nhập của bạn, hệ thống sẽ gửi
                     liên kết đổi mật khẩu mới.</p>
+                <input type="text" id="resetHp" name="company_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
                 <input type="email" id="resetEmail" placeholder="Nhập Email của bạn"
                     data-i18n-placeholder="index_reset_email_placeholder"
                     class="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 text-white focus:border-cyan-400 outline-none mb-4 text-sm">
@@ -1634,7 +1431,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     { sender: 'Customer', text: 'Hello shop, need consultation on the Nails package & acne skin care this afternoon.' },
                     { sender: 'BitPaw AI', text: 'Hi there! BitPaw AI Assistant suggests a detox skin care package along with a French rose gel-polish nail combo. Would you like to book it for 3:30 PM this afternoon?' },
                     { sender: 'Customer', text: 'Ok please book it for me, my phone number is 090xxxxxxx' },
-                    { sender: 'BitPaw AI', text: 'Great! BitPaw AI has automatically registered your information into the CRM system. The appointment notification has been sent directly to your Zalo. See you this afternoon! ✨' }
+                    { sender: 'BitPaw AI', text: 'Great! BitPaw AI has automatically registered your information into the CRM system. The appointment notification has been sent directly to your Zalo. See you this afternoon!' }
                 ];
 
                 let dialogIndex = 0;
@@ -1698,71 +1495,27 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 return body;
             }
 
-            // ========== FOMO SOCIAL-PROOF TICKER ("Recent Activities" panel) ==========
-            // Product decision: no backend endpoint exposes real cross-tenant signup
-            // activity (there is no such thing as "other tenants' signups" data this
-            // tenant should ever see), so this slot is used as a marketing social-proof
-            // widget instead of a real operations log. Content is SIMULATED for
-            // conversion psychology on the launch demo — not real customer data.
-            const FOMO_EVENTS = [
-                { name: 'Kevin', context: 'Nail Salon in Texas', action: 'just subscribed to the Pro Plan' },
-                { name: 'Linda', context: 'Restaurant in California', action: 'upgraded to Enterprise' },
-                { name: 'Michael', context: 'Nail Salon in Florida', action: 'started a free trial' },
-                { name: 'Jennifer', context: 'Restaurant in New York', action: 'just subscribed to the Pro Plan' },
-                { name: 'David', context: 'Nail Salon in Georgia', action: 'upgraded to the Pro Plan' },
-                { name: 'Amy', context: 'Restaurant in Washington', action: 'started a free trial' },
-                { name: 'Chris', context: 'Nail Salon in Arizona', action: 'just subscribed to the Pro Plan' },
-                { name: 'Sarah', context: 'Restaurant in Nevada', action: 'upgraded to Enterprise' },
-                { name: 'Brian', context: 'Nail Salon in North Carolina', action: 'just signed up for a free trial' },
-                { name: 'Emily', context: 'Restaurant in Illinois', action: 'just subscribed to the Pro Plan' },
-                { name: 'Tommy', context: 'Nail Salon in Virginia', action: 'upgraded to Enterprise' },
-                { name: 'Michelle', context: 'Restaurant in Oregon', action: 'started a free trial' }
-            ];
-            let fomoTickerItems = [];
-            let fomoRecentIdx = [];
-
-            function fomoPickEvent() {
-                // Bỏ qua 3 sự kiện vừa hiện để tránh lặp liên tiếp, giữ cảm giác "luôn mới".
-                let idx;
-                do { idx = Math.floor(Math.random() * FOMO_EVENTS.length); } while (fomoRecentIdx.includes(idx) && FOMO_EVENTS.length > 3);
-                fomoRecentIdx.push(idx);
-                if (fomoRecentIdx.length > 3) fomoRecentIdx.shift();
-                return FOMO_EVENTS[idx];
-            }
-
-            function fomoRelativeTime(seconds) {
-                if (seconds < 60) return 'Just now';
-                const mins = Math.floor(seconds / 60);
-                if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`;
-                const hrs = Math.floor(mins / 60);
-                return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
-            }
-
-            function fomoRenderList() {
+            // Nhật ký THẬT của tiệm (trước: danh sách "khách vừa đăng ký/nâng cấp gói" bịa ra để tạo FOMO)
+            async function fetchDashboardData() {
                 const el = document.getElementById('launcherActivityList');
                 if (!el) return;
-                el.innerHTML = fomoTickerItems.map(item => `
-                    <div class="fomo-item flex items-start gap-2.5 py-1.5">
-                        <div class="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-[10px] font-bold shrink-0 mt-0.5">${item.initial}</div>
-                        <div class="min-w-0">
-                            <p class="text-gray-300 leading-snug"><span class="font-bold text-white">${__escHtml(item.name)}</span> from a <span class="text-cyan-400">${item.context}</span> ${item.action}</p>
-                            <p class="text-[10px] text-gray-600 mt-0.5">${fomoRelativeTime(item.seconds)}</p>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            function fomoTick() {
-                fomoTickerItems.forEach(i => i.seconds += 9);
-                const evt = fomoPickEvent();
-                fomoTickerItems.unshift({ name: evt.name, initial: evt.name.charAt(0), context: evt.context, action: evt.action, seconds: 0 });
-                if (fomoTickerItems.length > 5) fomoTickerItems.pop();
-                fomoRenderList();
-            }
-
-            async function fetchDashboardData() {
-                fomoTick();
-                setInterval(fomoTick, 9000);
+                const vi = (document.documentElement.lang || '').startsWith('vi');
+                try {
+                    const res = await fetch('/api/my_recent_activity', { headers: { Accept: 'application/json' } });
+                    const body = await res.json();
+                    const rows = (body && body.data) || [];
+                    const cEl = document.getElementById('launcherChatsToday'), lEl = document.getElementById('launcherLeadsToday');
+                    if (cEl && body) cEl.textContent = String(body.chats_today ?? '—');
+                    if (lEl && body) lEl.textContent = body.leads_today ? '+' + body.leads_today : '0';
+                    if (!rows.length) { el.innerHTML = `<div class="text-center text-gray-500 py-4">${vi ? 'Chưa có hoạt động nào.' : 'No activity yet.'}</div>`; return; }
+                    el.innerHTML = rows.map(r => {
+                        const d = r.at ? new Date(r.at) : null;
+                        const when = d && !isNaN(d) ? d.toLocaleString(vi ? 'vi-VN' : undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                        return `<div class="fomo-item py-1.5"><p class="text-gray-300 leading-snug">${__escHtml(r.text)}</p><p class="text-[10px] text-gray-500 mt-0.5">${__escHtml(when)}</p></div>`;
+                    }).join('');
+                } catch (e) {
+                    el.innerHTML = `<div class="text-center text-gray-500 py-4">${vi ? 'Không tải được nhật ký.' : 'Could not load activity.'}</div>`;
+                }
             }
 
             function updateClock() {
@@ -1823,33 +1576,33 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
             const i18n = {
                 vi: {
-                    welcome: "Cổng Kích Hoạt Hệ Thống", subwelcome: "Đăng nhập tài khoản quản trị để vận hành Doanh nghiệp.",
-                    login_email: "Email đăng nhập", login_pass: "Mật khẩu", forgot: "Quên mật khẩu?", btn_login: "ĐĂNG NHẬP VẬN HÀNH",
-                    newbiz: "Chưa có bản quyền?", createnow: "Khởi tạo ngay",
-                    reg_name: "Họ và tên Sếp (Tên đăng nhập)", reg_email: "Email quản trị",
-                    license_label: "<i class='fas fa-key mr-1'></i> Nhập License Key Bản Quyền",
-                    reg_pass: "Mật khẩu (tối thiểu 8 ký tự)", reg_confirm: "Xác nhận mật khẩu",
-                    btn_reg: "KHỞI TẠO BITPAW SOFTWARE", have_account: "Đã có tài khoản?", login_now: "Đăng nhập",
+                    welcome: "Đăng nhập", subwelcome: "Chào mừng trở lại. Đăng nhập để quản lý cửa hàng của bạn.",
+                    login_email: "Email", login_pass: "Mật khẩu", forgot: "Quên mật khẩu?", btn_login: "Đăng nhập",
+                    newbiz: "Chưa có tài khoản?", createnow: "Tạo tài khoản",
+                    reg_name: "Họ và tên", reg_email: "Email",
+                    license_label: "<i class='fas fa-key mr-1'></i> Mã kích hoạt",
+                    reg_pass: "Mật khẩu (tối thiểu 8 ký tự)", reg_confirm: "Nhập lại mật khẩu",
+                    btn_reg: "Tạo tài khoản", have_account: "Đã có tài khoản?", login_now: "Đăng nhập",
                     reset_title: "Khôi Phục Mật Khẩu", reset_desc: "Nhập Email, hệ thống sẽ gửi liên kết đổi mật khẩu."
                 },
                 en: {
-                    welcome: "System Activation Hub", subwelcome: "Log in with your administrator account to run your enterprise.",
-                    login_email: "Login Email", login_pass: "Password", forgot: "Forgot password?", btn_login: "LOG IN TO OPERATE",
-                    newbiz: "No active license?", createnow: "Initialize Now",
-                    reg_name: "Full Name (Username)", reg_email: "Admin Email",
-                    license_label: "<i class='fas fa-key mr-1'></i> Enter Software License Key",
-                    reg_pass: "Password (min 8 characters)", reg_confirm: "Confirm Password",
-                    btn_reg: "INITIALIZE BITPAW SOFTWARE", have_account: "Already have an account?", login_now: "Login",
+                    welcome: "Sign in", subwelcome: "Welcome back. Sign in to manage your business.",
+                    login_email: "Email", login_pass: "Password", forgot: "Forgot password?", btn_login: "Sign in",
+                    newbiz: "New to BitPaw?", createnow: "Create an account",
+                    reg_name: "Full name", reg_email: "Email",
+                    license_label: "<i class='fas fa-key mr-1'></i> Activation code",
+                    reg_pass: "Password (at least 8 characters)", reg_confirm: "Confirm password",
+                    btn_reg: "Create account", have_account: "Already have an account?", login_now: "Sign in",
                     reset_title: "Reset Password", reset_desc: "Enter your Email to receive a password reset link."
                 },
                 zh: {
-                    welcome: "系统激活中心", subwelcome: "登录您的管理员账户以运营您的企业。",
-                    login_email: "登录邮箱", login_pass: "密码", forgot: "忘记密码？", btn_login: "登录系统以运行",
-                    newbiz: "没有激活的许可证？", createnow: "立即初始化",
+                    welcome: "登录", subwelcome: "欢迎回来。登录以管理您的店铺。",
+                    login_email: "邮箱", login_pass: "密码", forgot: "忘记密码？", btn_login: "登录",
+                    newbiz: "还没有账户？", createnow: "创建账户",
                     reg_name: "全名（用户名）", reg_email: "管理员邮箱",
                     license_label: "<i class='fas fa-key mr-1'></i> 输入软件激活码",
                     reg_pass: "密码（最少8个字符）", reg_confirm: "确认密码",
-                    btn_reg: "初始化 BITPAW SOFTWARE", have_account: "已有账号？", login_now: "登录",
+                    btn_reg: "创建账户", have_account: "已有账号？", login_now: "登录",
                     reset_title: "重置密码", reset_desc: "输入您的邮箱以获取密码重置链接。"
                 }
             };
@@ -1907,6 +1660,18 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 index_reg_industry_label: { vi: 'Chọn Ngành Nghề', en: 'Select Industry' },
                 index_telemetry_secure_session: { vi: 'Secure Session', en: 'Secure Session' },
                 index_telemetry_multitenant: { vi: 'Multi-tenant Platform', en: 'Multi-tenant Platform' },
+                index_secure_note: { vi: 'Kết nối mã hoá HTTPS · Dữ liệu của bạn chỉ bạn xem được', en: 'Encrypted HTTPS connection · Only you can see your data' },
+                index_aside_kicker: { vi: 'Phần mềm quản lý cho tiệm dịch vụ & bán lẻ', en: 'Management software for service businesses & retail' },
+                index_aside_title: { vi: 'Đặt lịch, bán hàng, lương thợ và chăm sóc khách — trong một ứng dụng.', en: 'Bookings, checkout, staff pay and customer care — in one app.' },
+                index_aside_f1_t: { vi: 'Đặt lịch online 24/7', en: 'Online booking, 24/7' },
+                index_aside_f1_d: { vi: 'Khách tự chọn giờ trống thật; trợ lý AI trả lời và đặt lịch thay bạn.', en: 'Clients pick real free times; the AI assistant answers and books for you.' },
+                index_aside_f2_t: { vi: 'POS & thanh toán', en: 'POS & payments' },
+                index_aside_f2_d: { vi: 'Thu tiền mặt, thẻ, chia bill; hoa hồng và tip của thợ tự tính.', en: 'Cash, card and split bills; commission and tips calculated for you.' },
+                index_aside_f3_t: { vi: 'Lịch ca & chấm công', en: 'Rosters & time clock' },
+                index_aside_f3_d: { vi: 'Xếp ca, đổi ca, chấm công tại tiệm, bảng lương cuối kỳ.', en: 'Shifts, swaps, on-site clock-in and pay summaries.' },
+                index_aside_f4_t: { vi: 'Tin nhắn & báo cáo', en: 'Messages & reports' },
+                index_aside_f4_d: { vi: 'Nhắc lịch qua SMS/email, xin đánh giá, báo cáo doanh thu mỗi sáng.', en: 'SMS/email reminders, review requests and a daily sales report.' },
+                index_aside_foot: { vi: 'Chạy trên Windows, Android, iPhone, iPad và trình duyệt — một tài khoản, cùng dữ liệu.', en: 'Works on Windows, Android, iPhone, iPad and the web — one account, the same data.' },
                 index_telemetry_cloud_sync: { vi: 'Cloud Sync Ready', en: 'Cloud Sync Ready' },
                 index_secure_online_badge: { vi: 'Secure / Online', en: 'Secure / Online' },
                 index_live_ecosystem_map: { vi: 'Live Ecosystem Map', en: 'Live Ecosystem Map' },
@@ -1939,6 +1704,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const t = i18n[lang];
                 currentLang = lang;
                 applyDataI18n(lang);
+                document.querySelectorAll('#reg_business_type option[data-vi]').forEach(o => { o.textContent = lang === 'vi' ? o.dataset.vi : o.dataset.en; });
                 if (!t) return;
 
                 const wTxt = document.getElementById('txt_welcome');
@@ -2041,14 +1807,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     const confirm = document.getElementById('regConfirm').value;
                     if (password !== confirm) {
                         e.preventDefault();
-                        showMessage(currentLang === 'en' ? "❌ Password confirmation does not match!" : "❌ Mật khẩu xác nhận không khớp!", true);
+                        showMessage(currentLang === 'en' ? "Password confirmation does not match!" : "Mật khẩu xác nhận không khớp!", true);
                         return false;
                     }
                     // Server (register()) yêu cầu tối thiểu 8 ký tự — đồng bộ để không qua client rồi bị server từ chối.
                     const strongRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
                     if (!strongRegex.test(password)) {
                         e.preventDefault();
-                        showMessage(currentLang === 'en' ? "❌ Password must have at least 8 characters, 1 uppercase letter and 1 number!" : "❌ Mật khẩu phải có ít nhất 8 ký tự, 1 chữ hoa và 1 số!", true);
+                        showMessage(currentLang === 'en' ? "Password must have at least 8 characters, 1 uppercase letter and 1 number!" : "Mật khẩu phải có ít nhất 8 ký tự, 1 chữ hoa và 1 số!", true);
                         return false;
                     }
                     const originalText = document.getElementById('btnRegister').textContent;
@@ -2072,21 +1838,21 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             function closeForgotModal() { document.getElementById('forgotPasswordModal').classList.replace('flex', 'hidden'); }
             async function sendResetPassword() {
                 const email = document.getElementById('resetEmail').value.trim();
-                if (!email) return showMessage(currentLang === 'en' ? "Please enter your Email!" : "Vui lòng nhập Email!", true);
+                if (!email) return showMessage(currentLang === 'en' ? "Please enter your email." : "Vui lòng nhập email.", true);
                 const btn = document.getElementById('btnReset');
+                const label = btn.innerHTML;
                 btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'Sending...' : 'Đang gửi...'}`; btn.disabled = true;
-                // GAP (not wired): no backend route exists yet for password-reset emails.
-                // app.py has no "/reset_password", "/forgot_password" or similar endpoint
-                // (grepped app.py case-insensitively for "reset"/"forgot" - zero hits besides
-                // one unrelated comment). The old client-side call being replaced here
-                // asked a hosted BaaS auth service to email a reset link directly.
-                // Keeping the modal/button in the UI (not silently dropping the feature),
-                // but it is a no-op until a real endpoint (e.g. POST /api/auth/reset-password
-                // that generates a reset token in Mongo and emails it) is built server-side.
-                showMessage(currentLang === 'en'
-                    ? "Password reset is not available yet. Please contact support."
-                    : "Tính năng khôi phục mật khẩu chưa khả dụng. Vui lòng liên hệ hỗ trợ.", true);
-                btn.innerHTML = currentLang === 'en' ? 'Send Reset Link' : 'Gửi Link Reset'; btn.disabled = false;
+                try {
+                    const res = await fetch('/api/auth/forgot_password', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, lang: currentLang, company_website: (document.getElementById('resetHp') || {}).value || '' }) });
+                    const j = await res.json().catch(() => ({}));
+                    if (res.status === 429) showMessage(currentLang === 'en' ? 'Too many requests — please try again later.' : 'Gửi quá nhiều lần — vui lòng thử lại sau.', true);
+                    else if (!res.ok || j.success === false) showMessage(j.message || (currentLang === 'en' ? 'Could not send. Please try again.' : 'Chưa gửi được, vui lòng thử lại.'), true);
+                    else { showMessage(j.message, false); closeForgotModal(); }
+                } catch (e) {
+                    showMessage(currentLang === 'en' ? 'Network error — please try again.' : 'Lỗi mạng — vui lòng thử lại.', true);
+                }
+                btn.innerHTML = label; btn.disabled = false;
             }
 
             fetchDashboardData();
@@ -2116,27 +1882,27 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         if (img) {
                             // Define error fallbacks programmatically matching user's exact priorities
                             img.onerror = function () {
-                                // Fallback 1: try /static/cho1.jpg (verified working local mascot)
+                                // Fallback 1: try /static/brand/mark.svg?v=1 (verified working local mascot)
                                 this.onerror = function () {
                                     // Fallback 2: try /static/chol.jpg
                                     this.onerror = function () {
                                         // Fallback 3: try /static/uploads/chol1.jpg
                                         this.onerror = function () {
-                                            // Fallback 4: try /static/uploads/cho1.jpg
+                                            // Fallback 4: try /static/brand/mark.svg?v=1
                                             this.onerror = function () {
                                                 // Fallback 5: final fallback if all others fail
                                                 this.onerror = null;
                                                 this.src = 'https://cdn-icons-png.flaticon.com/512/616/616408.png';
                                             };
-                                            this.src = '/static/uploads/cho1.jpg';
+                                            this.src = '/static/brand/mark.svg?v=1';
                                         };
                                         this.src = '/static/uploads/chol1.jpg';
                                     };
                                     this.src = '/static/chol.jpg';
                                 };
-                                this.src = '/static/cho1.jpg';
+                                this.src = '/static/brand/mark.svg?v=1';
                             };
-                            img.src = '/static/cho1.jpg';
+                            img.src = '/static/brand/mark.svg?v=1';
                         }
                     }
                 }, 80);

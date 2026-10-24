@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+{# Trang ĐẶT CHỖ công khai cho KHÁCH của tiệm (Pha 28) — dùng chung cho đặt bàn (F&B), phòng karaoke, phòng khách sạn
+   (trước đây 3 file riêng, chỉ có tiếng Việt, tiêu đề "BitPaw" thay vì tên quán, số mẫu "09xxxxxxxx" kiểu VN, mỗi ngành 1 màu neon).
+   Khách thấy: logo/tên QUÁN, địa chỉ + số gọi được, form ngắn, ngôn ngữ theo trình duyệt, lời hứa chỉ dùng SĐT để xác nhận.
+   kind: 'table' | 'karaoke' | 'hotel'. Selector giữ nguyên cho script kiểm thử: #reserveForm #formCard #successCard #submitBtn, name=... #}
+{% set vi = default_lang == 'vi' %}
+{% set T = {
+  'table':   {'vi': ('Đặt bàn', 'Đặt bàn trước — quán sẽ xác nhận với bạn sớm nhất.', 'Gửi yêu cầu đặt bàn', 'Đã gửi yêu cầu đặt bàn', 'Ví dụ: bàn gần cửa sổ, có ghế trẻ em', 'fa-utensils'),
+              'en': ('Reserve a table', 'Request a table — the restaurant will confirm with you shortly.', 'Request reservation', 'Reservation request sent', 'e.g. window seat, high chair needed', 'fa-utensils')},
+  'karaoke': {'vi': ('Đặt phòng hát', 'Đặt phòng trước — quán sẽ xác nhận với bạn sớm nhất.', 'Gửi yêu cầu đặt phòng', 'Đã gửi yêu cầu đặt phòng', 'Ví dụ: phòng lớn, có tổ chức sinh nhật', 'fa-microphone'),
+              'en': ('Book a room', 'Request a room — the venue will confirm with you shortly.', 'Request booking', 'Booking request sent', 'e.g. large room, birthday party', 'fa-microphone')},
+  'hotel':   {'vi': ('Đặt phòng', 'Đặt phòng trước — khách sạn sẽ xác nhận với bạn sớm nhất.', 'Gửi yêu cầu đặt phòng', 'Đã gửi yêu cầu đặt phòng', 'Ví dụ: tầng cao, nhận phòng muộn', 'fa-bed'),
+              'en': ('Book your stay', 'Request a room — the hotel will confirm with you shortly.', 'Request booking', 'Booking request sent', 'e.g. high floor, late check-in', 'fa-bed')},
+} %}
+{% set t = T[kind]['vi' if vi else 'en'] %}
+{% set shop = shop_name or ('' ) %}
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ (shop ~ ' · ' if shop else '') ~ t[0] }}</title>
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0b1120; --panel: #111827; --line: rgba(148,163,184,.18); --ink: #f1f5f9; --muted: #94a3b8; --accent: #22d3ee; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+               display: flex; justify-content: center; padding: 28px 16px 48px; -webkit-font-smoothing: antialiased; }
+        .wrap { width: 100%; max-width: 440px; }
+        .hero { text-align: center; margin-bottom: 20px; }
+        .logo { width: 72px; height: 72px; margin: 0 auto 12px; border-radius: 50%; padding: 2px; background: rgba(148,163,184,.28); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+        .logo > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #0f172a; display: grid; place-items: center; }
+        .logo img { width: 100%; height: 100%; object-fit: cover; }
+        .logo span { font-size: 28px; font-weight: 700; color: #e2e8f0; }
+        .logo i { font-size: 24px; color: var(--accent); }
+        h1 { font-size: 23px; line-height: 1.25; font-weight: 700; margin: 0 0 4px; letter-spacing: -.01em; }
+        .kind { font-size: 13px; font-weight: 600; color: var(--accent); margin: 0 0 6px; }
+        .sub { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+        .contact { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: #cbd5e1; }
+        .contact a { color: #cbd5e1; text-decoration: none; }
+        .contact i { color: var(--muted); margin-right: 6px; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+        .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+        .row > * { min-width: 0; }
+        .field { margin-bottom: 14px; }
+        label { display: block; font-size: 13px; font-weight: 500; color: #cbd5e1; margin: 0 0 6px 2px; }
+        label small { color: var(--muted); font-weight: 400; }
+        input, select, textarea { width: 100%; background: #0b1220; border: 1px solid #263244; color: var(--ink); border-radius: 12px; padding: 12px 13px;
+                                  font: inherit; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; -webkit-appearance: none; appearance: none; }
+        select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+                 background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 36px; }
+        input[type=date], input[type=time] { color-scheme: dark; min-height: 48px; min-width: 0; max-width: 100%; display: block; }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.18); }
+        textarea { resize: none; }
+        .btn { width: 100%; border: 0; border-radius: 12px; padding: 14px; margin-top: 4px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+               background: var(--accent); color: #04121a; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
+        .btn:hover { background: #67e8f9; }
+        .btn:disabled { opacity: .65; cursor: default; }
+        .note { text-align: center; font-size: 12px; color: var(--muted); margin: 12px 0 0; }
+        .ok { text-align: center; padding: 30px 22px; }
+        .ok .tick { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: rgba(16,185,129,.12);
+                    border: 1px solid rgba(16,185,129,.35); color: #34d399; font-size: 22px; }
+        .ok h2 { font-size: 20px; margin: 0 0 6px; }
+        .ok p { color: var(--muted); font-size: 14px; margin: 4px 0; line-height: 1.55; }
+        .summary { margin: 16px 0 0; text-align: left; background: #0b1220; border: 1px solid #1f2937; border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+        .summary div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+        .summary span { color: var(--muted); }
+        .err { display: none; margin: 0 0 14px; color: #fca5a5; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+        .hidden { display: none !important; }
+        .powered { text-align: center; margin-top: 18px; font-size: 11.5px; color: #475569; }
+        .powered a { color: #64748b; text-decoration: none; }
+        .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="hero">
+        <div class="logo"><div>{% if shop_logo_url %}<img src="{{ shop_logo_url }}" alt="">{% elif shop %}<span>{{ shop[:1] | upper }}</span>{% else %}<i class="fas {{ t[5] }}"></i>{% endif %}</div></div>
+        {% if shop %}<h1>{{ shop }}</h1><p class="kind">{{ t[0] }}</p>{% else %}<h1>{{ t[0] }}</h1>{% endif %}
+        <p class="sub">{{ t[1] }}</p>
+        {% if shop_address or shop_phone %}
+        <div class="contact">
+            {% if shop_address %}<span><i class="fas fa-location-dot"></i>{{ shop_address }}</span>{% endif %}
+            {% if shop_phone %}<a href="tel:{{ shop_phone | replace(' ', '') }}"><i class="fas fa-phone"></i>{{ shop_phone }}</a>{% endif %}
+        </div>
+        {% endif %}
+    </header>
+
+    <main class="card" id="formCard">
+        <form id="reserveForm" novalidate>
+            <input type="text" name="company_website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <div class="err" id="formErr" role="alert"></div>
+            <div class="field">
+                <label for="f_name">{{ 'Họ tên' if vi else 'Your name' }}</label>
+                <input id="f_name" type="text" name="name" required maxlength="80" autocomplete="name">
+            </div>
+            <div class="field">
+                <label for="f_phone">{{ 'Số điện thoại' if vi else 'Mobile number' }}</label>
+                <input id="f_phone" type="tel" name="phone" required maxlength="24" autocomplete="tel" inputmode="tel">
+            </div>
+            {% if kind == 'hotel' %}
+            <div class="row">
+                <div class="field"><label for="f_in">{{ 'Nhận phòng' if vi else 'Check-in' }}</label><input id="f_in" type="date" name="checkin_date" required></div>
+                <div class="field"><label for="f_out">{{ 'Trả phòng' if vi else 'Check-out' }}</label><input id="f_out" type="date" name="checkout_date" required></div>
+            </div>
+            <div class="row">
+                <div class="field"><label for="f_party">{{ 'Số khách' if vi else 'Guests' }}</label><input id="f_party" type="number" name="party_size" required min="1" max="50" value="2" inputmode="numeric"></div>
+                <div class="field"><label for="f_room">{{ 'Loại phòng' if vi else 'Room type' }}</label>
+                    <select id="f_room" name="room_type">
+                        <option value="">{{ 'Bất kỳ' if vi else 'No preference' }}</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Deluxe">Deluxe</option>
+                        <option value="Suite">Suite</option>
+                    </select></div>
+            </div>
+            {% else %}
+            <div class="row">
+                <div class="field"><label for="f_date">{{ 'Ngày' if vi else 'Date' }}</label><input id="f_date" type="date" name="date" required></div>
+                <div class="field"><label for="f_time">{{ 'Giờ đến' if vi else 'Time' }}</label><input id="f_time" type="time" name="time" required></div>
+            </div>
+            <div class="row">
+                <div class="field"><label for="f_party">{{ 'Số người' if vi else 'Party size' }}</label><input id="f_party" type="number" name="party_size" required min="1" max="100" value="{{ 4 if kind == 'karaoke' else 2 }}" inputmode="numeric"></div>
+                {% if kind == 'karaoke' %}
+                <div class="field"><label for="f_dur">{{ 'Thời lượng' if vi else 'Duration' }}</label>
+                    <select id="f_dur" name="duration_hours">
+                        {% for h in [1, 2, 3, 4, 6] %}<option value="{{ h }}"{% if h == 2 %} selected{% endif %}>{{ h }} {{ ('giờ' if vi else ('hour' if h == 1 else 'hours')) }}</option>{% endfor %}
+                    </select></div>
+                {% else %}<div></div>{% endif %}
+            </div>
+            {% endif %}
+            <div class="field">
+                <label for="f_note">{{ 'Ghi chú' if vi else 'Notes' }} <small>({{ 'không bắt buộc' if vi else 'optional' }})</small></label>
+                <textarea id="f_note" name="note" rows="2" maxlength="500" placeholder="{{ t[4] }}"></textarea>
+            </div>
+            <button type="submit" id="submitBtn" class="btn">{{ t[2] }}</button>
+            <p class="note"><i class="fas fa-lock" style="font-size:10px;margin-right:4px"></i>{{ 'Số điện thoại chỉ dùng để xác nhận đặt chỗ này.' if vi else 'Your number is only used to confirm this booking.' }}</p>
+        </form>
+    </main>
+
+    <section class="card ok hidden" id="successCard" aria-live="polite">
+        <div class="tick"><i class="fas fa-check"></i></div>
+        <h2>{{ t[3] }}</h2>
+        <p>{{ ('Chúng tôi sẽ gọi hoặc nhắn tin tới số của bạn để xác nhận.' if vi else "We'll call or text you to confirm.") }}</p>
+        <div class="summary" id="summary"></div>
+    </section>
+
+    <p class="powered">{{ 'Đặt chỗ trực tuyến bởi' if vi else 'Online booking by' }} <a href="/" rel="noopener">BitPaw</a></p>
+</div>
+
+<script>
+(function () {
+    const VI = {{ 'true' if vi else 'false' }};
+    const KIND = {{ kind | tojson }};
+    const API = {{ {'table': '/api/public/reservations/', 'karaoke': '/api/public/karaoke_reservations/', 'hotel': '/api/public/hotel_reservations/'}[kind] | tojson }} + encodeURIComponent({{ business_id | tojson }});
+    const LABEL = {{ t[2] | tojson }};
+    const form = document.getElementById('reserveForm'), btn = document.getElementById('submitBtn'), err = document.getElementById('formErr');
+    const today = new Date().toLocaleDateString('en-CA');
+    const $ = n => form.querySelector('[name="' + n + '"]');
+    function showErr(m) { err.textContent = m; err.style.display = 'block'; err.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    if (KIND === 'hotel') {
+        const ci = $('checkin_date'), co = $('checkout_date');
+        ci.min = today; ci.value = today;
+        const sync = () => { const d = new Date((ci.value || today) + 'T12:00:00'); d.setDate(d.getDate() + 1); const s = d.toLocaleDateString('en-CA');
+                             co.min = s; if (!co.value || co.value <= ci.value) co.value = s; };
+        ci.addEventListener('change', sync); sync();
+    } else {
+        $('date').min = today; $('date').value = today;
+    }
+    const fmtDate = s => { try { return new Date(s + 'T12:00:00').toLocaleDateString(VI ? 'vi-VN' : undefined, { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return s; } };
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        err.style.display = 'none';
+        const fd = new FormData(form);
+        const name = (fd.get('name') || '').trim(), phone = (fd.get('phone') || '').trim();
+        if (!name) return showErr(VI ? 'Vui lòng nhập họ tên.' : 'Please enter your name.');
+        if ((phone.match(/\d/g) || []).length < 6) return showErr(VI ? 'Vui lòng nhập số điện thoại hợp lệ.' : 'Please enter a valid phone number.');
+        const body = { name, phone, party_size: parseInt(fd.get('party_size')) || 1, note: (fd.get('note') || '').trim(),
+                       company_website: fd.get('company_website') || '', lang: VI ? 'vi' : 'en' };
+        let rows;
+        if (KIND === 'hotel') {
+            Object.assign(body, { checkin_date: fd.get('checkin_date'), checkout_date: fd.get('checkout_date'), room_type: fd.get('room_type') });
+            rows = [[VI ? 'Nhận phòng' : 'Check-in', fmtDate(body.checkin_date)], [VI ? 'Trả phòng' : 'Check-out', fmtDate(body.checkout_date)], [VI ? 'Số khách' : 'Guests', body.party_size]];
+        } else {
+            if (!fd.get('time')) return showErr(VI ? 'Vui lòng chọn giờ đến.' : 'Please choose a time.');
+            body.reserved_time = `${fd.get('date')}T${fd.get('time')}:00`;
+            if (KIND === 'karaoke') body.duration_hours = parseFloat(fd.get('duration_hours')) || 2;
+            rows = [[VI ? 'Ngày' : 'Date', fmtDate(fd.get('date'))], [VI ? 'Giờ' : 'Time', fd.get('time')], [VI ? 'Số người' : 'Party size', body.party_size]];
+        }
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (VI ? 'Đang gửi…' : 'Sending…');
+        try {
+            const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) throw new Error(data.message || (VI ? 'Không gửi được, vui lòng thử lại.' : 'Could not send your request. Please try again.'));
+            const sum = document.getElementById('summary');
+            sum.innerHTML = '';
+            [[VI ? 'Tên' : 'Name', name]].concat(rows).forEach(([k, v]) => {
+                const d = document.createElement('div'), a = document.createElement('span'), b = document.createElement('b');
+                a.textContent = k; b.textContent = v; d.append(a, b); sum.appendChild(d);
+            });
+            document.getElementById('formCard').classList.add('hidden');
+            document.getElementById('successCard').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (ex) {
+            showErr(ex.message);
+            btn.disabled = false; btn.textContent = LABEL;
+        }
+    });
+})();
+</script>
+</body>
+</html>

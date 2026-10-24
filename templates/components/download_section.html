@@ -8,15 +8,15 @@
    - Mã QR: tới /download/<ngành> -> điện thoại quét là trang tự nhận ra máy và gợi ý đúng bản.
    CSS/JS tự chứa (tiền tố bpdl-), song ngữ tự đọc bitpaw_lang, không đụng bảng dịch của trang. #}
 {% set _dl = {
-    'nail': ('Nails & Salon', 'Nails & Salon', 'BitPaw-Nails.exe', '#ec4899', '💅'),
-    'spa': ('Spa & Beauty', 'Spa & Beauty', 'BitPaw-Spa.exe', '#f43f5e', '🌸'),
-    'fnb': ('Nhà hàng & Cafe', 'Restaurant & Cafe', 'BitPaw-FnB.exe', '#f97316', '🍻'),
-    'karaoke': ('Karaoke & Bida', 'Karaoke & Billiards', 'BitPaw-Karaoke.exe', '#a855f7', '🎤'),
-    'hotel': ('Khách sạn & Homestay', 'Hotel & Homestay', 'BitPaw-Hotel.exe', '#f59e0b', '🏨'),
-    'retail': ('Cửa hàng bán lẻ', 'Retail store', 'BitPaw-Retail.exe', '#22c55e', '🛍️'),
-    'production': ('Sản xuất', 'Production', 'BitPaw-Production.exe', '#64748b', '🏭'),
-    'technical': ('Dịch vụ kỹ thuật', 'Technical services', 'BitPaw-Technical.exe', '#0ea5e9', '🛠️'),
-    'office': ('Văn phòng & Nhân sự', 'Office & HR', 'BitPaw-Office.exe', '#6366f1', '🏢'),
+    'nail': ('Nails & Salon', 'Nails & Salon', 'BitPaw-Nails.exe', '#ec4899', 'fa-hand-sparkles'),
+    'spa': ('Spa & Beauty', 'Spa & Beauty', 'BitPaw-Spa.exe', '#f43f5e', 'fa-spa'),
+    'fnb': ('Nhà hàng & Cafe', 'Restaurant & Cafe', 'BitPaw-FnB.exe', '#f97316', 'fa-utensils'),
+    'karaoke': ('Karaoke & Bida', 'Karaoke & Billiards', 'BitPaw-Karaoke.exe', '#a855f7', 'fa-microphone'),
+    'hotel': ('Khách sạn & Homestay', 'Hotel & Homestay', 'BitPaw-Hotel.exe', '#f59e0b', 'fa-hotel'),
+    'retail': ('Cửa hàng bán lẻ', 'Retail store', 'BitPaw-Retail.exe', '#22c55e', 'fa-bag-shopping'),
+    'production': ('Sản xuất', 'Production', 'BitPaw-Production.exe', '#64748b', 'fa-industry'),
+    'technical': ('Dịch vụ kỹ thuật', 'Technical services', 'BitPaw-Technical.exe', '#0ea5e9', 'fa-screwdriver-wrench'),
+    'office': ('Văn phòng & Nhân sự', 'Office & HR', 'BitPaw-Office.exe', '#6366f1', 'fa-building'),
 } %}
 {% set _d = _dl.get(dl_code, _dl['nail']) %}
 <section id="tai-ve" class="bpdl" style="--bpdl-accent: {{ _d[3] }};" data-industry="{{ dl_code }}">
@@ -85,7 +85,7 @@
     </style>
     <div class="bpdl-wrap">
         <div class="bpdl-head">
-            <span class="bpdl-chip">{{ _d[4] }} BitPaw {{ _d[1] }}</span>
+            <span class="bpdl-chip"><i class="fas {{ _d[4] }}"></i> BitPaw {{ _d[1] }}</span>
             <h2 class="bpdl-title">
                 <span data-bpdl-lang="vi">Tải về &amp; dùng ngay — đúng bản cho {{ _d[0] }}</span>
                 <span data-bpdl-lang="en">Download &amp; start now — built for {{ _d[1] }}</span>
@@ -182,7 +182,7 @@
 
     <div class="bpdl-sheet" data-bpdl-sheet role="dialog" aria-modal="true">
         <div class="bpdl-sheet-box">
-            <img src="/static/brand/icon-192.png?v=b2" alt="BitPaw">
+            <img src="/static/brand/mark.svg?v=1" alt="BitPaw">
             <h4><span data-bpdl-lang="vi">Cài BitPaw lên màn hình chính</span><span data-bpdl-lang="en">Add BitPaw to your Home Screen</span></h4>
             <ol class="bpdl-steps" data-bpdl-sheet-steps></ol>
             <a class="bpdl-btn bpdl-primary" style="margin-top:14px" href="/login?industry={{ dl_code }}&amp;src=pwa" data-bpdl-sheet-open>

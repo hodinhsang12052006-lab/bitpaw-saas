@@ -65,7 +65,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <div id="ai-loading-screen" class="fixed inset-0 bg-[#04020a] z-[999999] flex flex-col items-center justify-center transition-all duration-700">
         <div class="relative mb-6" style="perspective: 1000px;">
             <div class="w-24 h-24 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin flex items-center justify-center mascot-glow shadow-[0_0_30px_rgba(6,182,212,0.4)]">
-                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-16 h-16 rounded-full object-cover">
+                <img src="/static/brand/mark.svg?v=1" class="w-16 h-16 rounded-full object-cover">
             </div>
             <div class="absolute -inset-2 border border-purple-500/30 rounded-full animate-ping pointer-events-none"></div>
             <div class="scanner-line" style="height: 2px; width: 100%; top: 50%;"></div>
@@ -107,11 +107,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="flex justify-between items-center">
                     <div>
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_total_label">Tổng khách đồng bộ</span>
-                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-total-synced">10,480</strong>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-total-synced">—</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg"><i class="fas fa-users-viewfinder"></i></div>
                 </div>
-                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> <span data-i18n="omni_stat_total_trend">+12% tuần này</span></div>
+                
             </div>
 
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group shadow-lg">
@@ -119,7 +119,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="flex justify-between items-center">
                     <div>
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_channels_label">Kênh kết nối</span>
-                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-connected-channels">3 / 5</strong>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-connected-channels">—</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg"><i class="fas fa-network-wired"></i></div>
                 </div>
@@ -131,11 +131,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="flex justify-between items-center">
                     <div>
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_ai_label">AI CSKH hôm nay</span>
-                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-ai-nurtures">342</strong>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-ai-nurtures">—</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg"><i class="fas fa-brain"></i></div>
                 </div>
-                <div class="text-[9px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-circle animate-pulse text-[7px]"></i> <span data-i18n="omni_stat_ai_trend">100% tự động hóa</span></div>
+                
             </div>
 
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-rose-500 relative overflow-hidden group shadow-lg">
@@ -143,11 +143,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 <div class="flex justify-between items-center">
                     <div>
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest block" data-i18n="omni_stat_retention_label">Tỷ lệ quay lại (LTV)</span>
-                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-retention-rate">45.2%</strong>
+                        <strong class="text-xl lg:text-2xl font-black text-white mt-1 block tracking-wider" id="stat-retention-rate">—</strong>
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center text-lg"><i class="fas fa-chart-line"></i></div>
                 </div>
-                <div class="text-[9px] text-rose-400 mt-2 font-bold flex items-center gap-1"><i class="fas fa-caret-up"></i> <span data-i18n="omni_stat_retention_trend">+14.6% vs tháng trước</span></div>
+                
             </div>
         </div>
 
@@ -338,7 +338,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <summary class="font-bold text-cyan-400 select-none group-open:text-purple-400"><i class="fas fa-book-open mr-1"></i> <span data-i18n="omni_setup_guide">Hướng dẫn cài đặt</span></summary>
                         <div class="bg-black/30 p-3 rounded-xl border border-white/5 mt-2 leading-relaxed text-gray-400 space-y-1.5" data-i18n="omni_card_whatsapp_guide">
                             <p><strong>Bước 1:</strong> Đăng ký tài khoản WhatsApp Business Cloud API qua Meta Developer.</p>
-                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token cấu hình của sếp.</p>
+                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token của bạn.</p>
                             <p><strong>Bước 3:</strong> Kích hoạt chiến dịch nuôi dưỡng tự động an toàn.</p>
                         </div>
                     </details>
@@ -526,7 +526,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_card_whatsapp_desc: 'Gửi tin nhắc lịch hẹn, chăm sóc tự động và chốt đơn lại tập khách hàng cũ nước ngoài siêu mượt mà.',
                 omni_card_whatsapp_stat1: 'Số điện thoại:',
                 omni_card_whatsapp_guide: `<p><strong>Bước 1:</strong> Đăng ký tài khoản WhatsApp Business Cloud API qua Meta Developer.</p>
-                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token cấu hình của sếp.</p>
+                            <p><strong>Bước 2:</strong> Nhập số điện thoại và API Token của bạn.</p>
                             <p><strong>Bước 3:</strong> Kích hoạt chiến dịch nuôi dưỡng tự động an toàn.</p>`,
                 omni_card_whatsapp_btn: 'Kết nối WhatsApp',
                 omni_card_mascot_desc: 'Tích hợp AI Mascot Chatbot trực tiếp vào Website hoặc Landing Page của bạn để đón chào và tự động gom lead.',
@@ -561,17 +561,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_alert_allow_popup: 'Vui lòng cho phép hiển thị cửa sổ bật lên (popup) để chạy Cổng ủy quyền.',
                 omni_log_oauth_pending: '[PENDING] Vui lòng hoàn tất biểu mẫu cấp quyền trong cửa sổ mới...',
                 omni_log_oauth_closed: '[SYSTEM] Cửa sổ OAuth đã đóng. Đang kiểm tra lại trạng thái...',
-                omni_confirm_disconnect: 'Sếp có chắc chắn muốn ngắt kết nối cổng {platform} không?',
+                omni_confirm_disconnect: 'Bạn có chắc chắn muốn ngắt kết nối cổng {platform} không?',
                 omni_log_disconnecting: '[DISCONNECT] Đang ngắt kết nối cổng {platform}...',
                 omni_log_disconnect_success: '[SUCCESS] Đã ngắt kết nối thành công kênh {platform}.',
                 omni_log_disconnect_error: '[ERROR] Không thể ngắt kết nối: {msg}',
                 omni_log_system_error: '[ERROR] Lỗi hệ thống: {msg}',
                 omni_log_test_ping: '[TEST] Đang gửi yêu cầu ping thử nghiệm tới {platform} Provider API...',
                 omni_log_test_failed: '[ERROR] Kiểm thử thất bại: {msg}',
-                omni_alert_connection_error: '❌ Lỗi kết nối: {msg}',
+                omni_alert_connection_error: 'Lỗi kết nối: {msg}',
                 omni_log_api_error: '[ERROR] Lỗi kết nối API: {msg}',
                 omni_guide_facebook: `<p><strong>Hướng dẫn cấu hình Facebook:</strong></p>
-                    <p>1. Điền Tên Trang Facebook chính chủ của sếp.</p>
+                    <p>1. Điền Tên Trang Facebook của bạn.</p>
                     <p>2. Điền ID Trang (Page ID) tương ứng.</p>
                     <p>3. Điền API Access Token lấy từ Facebook Developers Console.</p>`,
                 omni_guide_zalo: `<p><strong>Hướng dẫn cấu hình Zalo OA:</strong></p>
@@ -583,7 +583,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <p>2. Điền số điện thoại đăng ký (định dạng quốc tế).</p>
                     <p>3. Điền API Access Token / System User Token từ Meta.</p>`,
                 omni_guide_mascot: `<p><strong>Hướng dẫn cấu hình Website Mascot Chat:</strong></p>
-                    <p>1. Điền Tên Website của sếp cần cài đặt.</p>
+                    <p>1. Điền tên website cần cài đặt.</p>
                     <p>2. Điền Mã ID Kịch bản AI Mascot.</p>
                     <p>3. Điền API Access Token của BitPaw Platform.</p>`,
                 omni_guide_default: `<p>Điền thông tin cấu hình đồng bộ cục bộ SQLite POS / Booking.</p>`,
@@ -603,7 +603,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_btn_disconnect_short: 'Hủy kết nối',
                 omni_status_setup_required: 'YÊU CẦU CẤU HÌNH',
                 omni_info_missing_credential: 'Thiếu API Credential',
-                omni_info_missing_credential_desc: 'Ứng dụng chưa được nhập API Access Token hợp lệ từ sếp quản trị.',
+                omni_info_missing_credential_desc: 'Ứng dụng chưa được nhập API Access Token hợp lệ.',
                 omni_btn_oauth_connect: 'Kết nối (OAuth)',
                 omni_btn_manual_config: 'Cấu hình thủ công',
                 omni_import_syncing: 'Đang đồng bộ dữ liệu...',
@@ -702,7 +702,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_log_system_error: '[ERROR] System error: {msg}',
                 omni_log_test_ping: '[TEST] Sending a test ping request to the {platform} Provider API...',
                 omni_log_test_failed: '[ERROR] Test failed: {msg}',
-                omni_alert_connection_error: '❌ Connection error: {msg}',
+                omni_alert_connection_error: 'Connection error: {msg}',
                 omni_log_api_error: '[ERROR] API connection error: {msg}',
                 omni_guide_facebook: `<p><strong>Facebook Configuration Guide:</strong></p>
                     <p>1. Enter your own Facebook Page name.</p>
@@ -998,6 +998,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         const connectedChannelsEl = document.getElementById("stat-connected-channels");
                         if (connectedChannelsEl) {
                             connectedChannelsEl.innerText = `${connectedCount} / 6`;
+                        }
+                        // khách đồng bộ THẬT = tổng lead các kênh (trước: số cứng 10,480)
+                        if (totalSyncedEl) {
+                            const synced = Object.values(res.data || {}).reduce((a, d) => a + (Number(d && d.leads_count) || 0), 0);
+                            totalSyncedEl.innerText = synced.toLocaleString();
                         }
                     }
                 })

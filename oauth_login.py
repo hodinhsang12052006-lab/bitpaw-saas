@@ -185,7 +185,9 @@ def oauth_callback(provider):
 def _login(user, provider, nxt=None):
     from app import _ensure_primary_membership, _get_real_client_ip
     session.clear()
+    session.clear()
     session['user_id'] = user['id']
+    session['sv'] = int(user.get('session_ver') or 0)
     session['business_id'] = user.get('business_id') or user['id']
     session['user_email'] = user.get('email')
     session['role'] = user.get('role', 'admin')
@@ -218,12 +220,17 @@ def oauth_complete():
     business_name = (request.form.get('business_name') or '').strip()[:120]
     business_type = (request.form.get('business_type') or '').strip().lower()
     err = None
-    if not license_key or not business_name:
+    import security_shield
+    ip = security_shield.client_ip(request)
+    if security_shield.code_attempts_blocked(ip):
+        err = 'Too many incorrect activation codes. Please try again in an hour or contact BitPaw.'
+    elif not license_key or not business_name:
         err = 'Please enter your activation code and business name.'
-    elif db.users.find_one({'email': {'$regex': f"^{pend['email'].replace('.', '[.]')}$", '$options': 'i'}}):
+    elif db.users.find_one({'email': {'$regex': f"^{re.escape(pend['email'])}$", '$options': 'i'}}):
         err = 'An account with this email already exists — sign in instead.'
     key = None if err else db.license_codes.find_one({'license_key': license_key, 'trang_thai': 'Sẵn sàng'})
     if not err and not key:
+        security_shield.record_code_failure(ip, license_key)
         err = 'Invalid activation code, or it has already been used.'
     if err:
         return render_template('oauth_complete.html', pend=pend, industry_en=INDUSTRY_EN, industries=INDUSTRY_CONFIG, error=err,

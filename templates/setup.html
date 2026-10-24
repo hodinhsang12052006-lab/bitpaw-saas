@@ -100,18 +100,18 @@
         }
         .mode-card:hover {
             border-color: #06b6d4;
-            transform: translateY(-8px);
-            box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
             background: rgba(6, 182, 212, 0.1);
         }
         .mode-card.selected {
-            border-color: #a855f7;
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
-            background: rgba(168, 85, 247, 0.1);
+            border-color: #22d3ee;
+            box-shadow: 0 0 0 1px #22d3ee inset;
+            background: rgba(34, 211, 238, 0.08);
         }
         .mode-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
+            width: 52px; height: 52px; margin: 0 auto 1rem; border-radius: 14px; display: grid; place-items: center;
+            font-size: 1.4rem; color: #67e8f9; background: rgba(34, 211, 238, .08); border: 1px solid rgba(34, 211, 238, .2);
         }
         .mode-title {
             font-size: 1.25rem;
@@ -257,7 +257,7 @@
         @media (max-width: 768px) {
             .mode-grid { gap: 1rem; }
             .mode-card { padding: 1.5rem; }
-            .mode-icon { font-size: 2.5rem; }
+            .mode-icon { font-size: 1.25rem; }
         }
     
         /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
@@ -280,7 +280,7 @@
                 <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
                 <div class="absolute inset-0 rounded-full border-t-2 border-purple-500/80 animate-spin" style="animation-duration: 3s;"></div>
                 <div class="absolute inset-0 rounded-full border-b-2 border-cyan-400/80 animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                <img src="/static/brand/mark.svg?v=1" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
             </div>
         </div>
 
@@ -290,16 +290,16 @@
                 <span class="text-cyan-400">BitPaw</span> <span class="text-gray-300">Software</span>
             </h1>
             <p class="text-gray-400 mt-2 mb-6 text-sm" data-i18n="setup_subtitle">Chào mừng đến với hệ sinh thái quản lý toàn diện</p>
-            <p class="text-gray-300 mb-2 font-medium" data-i18n="setup_question">🚀 Bạn đang kinh doanh mô hình gì?</p>
+            <p class="text-gray-300 mb-2 font-medium" data-i18n="setup_question">Bạn đang kinh doanh mô hình gì?</p>
             <p class="text-xs text-gray-500" data-i18n="setup_hint">Chọn mô hình để tối ưu giao diện và tính năng</p>
             
             <form id="setupForm" method="POST" action="{{ url_for('setup') }}">
                 <div class="mode-grid" id="modeGrid">
                     {% for code, cfg in industry_config.items() %}
                     <div class="mode-card" data-mode="{{ code }}">
-                        <div class="mode-icon">{{ cfg.icon|default('💼') }}</div>
-                        <h3 class="mode-title">{{ cfg.name }}</h3>
-                        <p class="mode-desc">{{ cfg.desc|default('') }}</p>
+                        <div class="mode-icon"><i class="fas {{ cfg.fa_icon|default('fa-briefcase') }}"></i></div>
+                        <h3 class="mode-title" data-vi="{{ cfg.name }}" data-en="{{ cfg.name_en or cfg.name }}">{{ cfg.name if default_lang == 'vi' else (cfg.name_en or cfg.name) }}</h3>
+                        <p class="mode-desc" data-vi="{{ cfg.desc|default('') }}" data-en="{{ cfg.desc_en or cfg.desc|default('') }}">{{ cfg.desc|default('') if default_lang == 'vi' else (cfg.desc_en or cfg.desc|default('')) }}</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -346,7 +346,7 @@
         const translations = {
             vi: {
                 setup_subtitle: 'Chào mừng đến với hệ sinh thái quản lý toàn diện',
-                setup_question: '🚀 Bạn đang kinh doanh mô hình gì?',
+                setup_question: 'Bạn đang kinh doanh mô hình gì?',
                 setup_hint: 'Chọn mô hình để tối ưu giao diện và tính năng',
                 setup_footer: 'Bảo mật bởi BitPaw Software | Chuyển đổi số Doanh nghiệp',
                 setup_modal_title: 'Xác Nhận Chuyển Mô Hình',
@@ -355,16 +355,16 @@
                 setup_confirm_btn: 'Xác Nhận',
                 setup_cancel_btn: 'Hủy',
                 setup_loading_text: 'Đang chuyển đổi giao diện...',
-                setup_toast_switched_prefix: '✅ Đã chuyển sang chế độ ',
+                setup_toast_switched_prefix: 'Đã chuyển sang chế độ ',
                 setup_toast_switched_suffix: '',
-                setup_toast_save_error_prefix: '❌ Lỗi khi lưu cài đặt: ',
+                setup_toast_save_error_prefix: 'Lỗi khi lưu cài đặt: ',
                 setup_toast_fill_fields: 'Vui lòng điền đầy đủ thông tin',
-                setup_toast_request_sent: '✅ Đã gửi yêu cầu! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                setup_toast_request_sent: 'Đã gửi yêu cầu! Chúng tôi sẽ liên hệ lại trong 15 phút.',
                 setup_toast_error_prefix: 'Lỗi: '
             },
             en: {
                 setup_subtitle: 'Welcome to the all-in-one management ecosystem',
-                setup_question: '🚀 What business are you running?',
+                setup_question: 'What business are you running?',
                 setup_hint: 'Choose a model to optimize the interface and features',
                 setup_footer: 'Secured by BitPaw Software | Business Digital Transformation',
                 setup_modal_title: 'Confirm Model Switch',
@@ -373,11 +373,11 @@
                 setup_confirm_btn: 'Confirm',
                 setup_cancel_btn: 'Cancel',
                 setup_loading_text: 'Switching interface...',
-                setup_toast_switched_prefix: '✅ Switched to ',
+                setup_toast_switched_prefix: 'Switched to ',
                 setup_toast_switched_suffix: ' mode',
-                setup_toast_save_error_prefix: '❌ Error saving settings: ',
+                setup_toast_save_error_prefix: 'Error saving settings: ',
                 setup_toast_fill_fields: 'Please fill in all fields',
-                setup_toast_request_sent: '✅ Request sent! We will contact you back within 15 minutes.',
+                setup_toast_request_sent: 'Request sent! We will contact you back within 15 minutes.',
                 setup_toast_error_prefix: 'Error: '
             }
         };
@@ -388,6 +388,7 @@
             document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
             document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+            document.querySelectorAll('.mode-card [data-vi][data-en]').forEach(el => { el.textContent = currentLang === 'vi' ? el.dataset.vi : el.dataset.en; });
             const langBtn = document.getElementById('langToggleBtn');
             if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
         }

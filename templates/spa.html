@@ -99,8 +99,8 @@
             width: 55px; 
             height: 55px; 
             border-radius: 50%; 
-            border: 2px solid var(--theme-color, #06b6d4); 
-            box-shadow: 0 0 15px var(--theme-color, #06b6d4); 
+            border: 0; 
+            box-shadow: none; 
             object-fit: cover; 
             transition: transform 0.3s; 
             animation: float-logo 4s ease-in-out infinite; 
@@ -117,11 +117,11 @@
 
         .header-left h1 { 
             margin: 0; 
-            font-family: 'Playfair Display', serif; 
-            font-size: 42px; 
-            color: var(--theme-color, #06b6d4); 
-            letter-spacing: 1px; 
-            text-shadow: 2px 2px 10px rgba(0,0,0,0.5); 
+            font-family: inherit; 
+            font-size: 28px; 
+            font-weight: 700; 
+            color: #fff; 
+            letter-spacing: -0.01em; 
         }
 
         .header-left p { 
@@ -264,9 +264,9 @@
         }
 
         .product-name { 
-            font-family: 'Playfair Display', serif; 
-            font-weight: 700; 
-            font-size: 22px; 
+            font-family: inherit; 
+            font-weight: 600; 
+            font-size: 18px; 
             margin-bottom: 8px; 
             color: #fff; 
         }
@@ -675,7 +675,7 @@
     <div class="overlay">
         <div class="header">
             <div class="header-left">
-                <img src="{{ url_for('static', filename='cho1.jpg') }}" class="logo-bitpaw" alt="BitPaw">
+                <img src="/static/brand/mark.svg?v=1" class="logo-bitpaw" alt="BitPaw">
                 <div>
                     <h1>{{ brand_name }}</h1>
                     <p data-i18n="spa_header_tagline">Khởi tạo dịch vụ - Chạm để thanh toán</p>
@@ -683,8 +683,8 @@
             </div>
             <div class="header-actions">
                 <button id="langToggleBtn" type="button" class="btn-glass" style="border:none; cursor:pointer;">EN</button>
-                <a href="{{ url_for('add_spa') }}" class="btn-glass"><span>✨</span> <span data-i18n="spa_btn_add_service">Thêm Dịch Vụ</span></a>
-                <a href="{{ url_for('brand_settings') }}" class="btn-glass"><span>⚙️</span> <span data-i18n="spa_btn_customize">Tùy Chỉnh</span></a>
+                <a href="{{ url_for('add_spa') }}" class="btn-glass"><i class="fas fa-plus"></i> <span data-i18n="spa_btn_add_service">Thêm Dịch Vụ</span></a>
+                <a href="{{ url_for('brand_settings') }}" class="btn-glass"><i class="fas fa-sliders"></i> <span data-i18n="spa_btn_customize">Tùy Chỉnh</span></a>
                 {# BUG THẬT đã vá (audit ghép nối màn hình theo ngành/vai trò): trước đây trỏ
                    cứng vào index() (/dashboard) — Spa không có dashboard chung riêng
                    (dashboard_route = /spa), nên index() redirect NGAY VỀ /spa, nút "Sảnh" chỉ
@@ -696,11 +696,11 @@
                 <div style="position:relative;" id="mgmtMenuWrap">
                     <button type="button" onclick="toggleMgmtMenu(event)" class="btn-glass" style="cursor:pointer;">⬅ <span data-i18n="spa_btn_lobby">Management</span> <span style="font-size:9px;opacity:0.7;">▾</span></button>
                     <div id="mgmtMenuPanel" class="hidden" style="position:absolute; right:0; top:calc(100% + 8px); width:210px; background:#0a0f25; border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:8px; z-index:50; box-shadow:0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(20px);">
-                        <a href="{{ url_for('chamcong_industry', industry_code='spa') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📅</span> <span data-i18n="spa_mgmt_attendance">Attendance</span></a>
-                        <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>👥</span> <span data-i18n="spa_mgmt_staff">Staff</span></a>
-                        <a href="{{ url_for('customers') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📇</span> <span data-i18n="spa_mgmt_customers">Customers</span></a>
-                        <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>💰</span> <span data-i18n="spa_mgmt_payroll">Payroll</span></a>
-                        <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><span>📊</span> <span data-i18n="spa_mgmt_reports">Reports</span></a>
+                        <a href="{{ url_for('chamcong_industry', industry_code='spa') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-calendar-check" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_attendance">Attendance</span></a>
+                        <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-users" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_staff">Staff</span></a>
+                        <a href="{{ url_for('customers') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-address-book" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_customers">Customers</span></a>
+                        <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-money-bill-wave" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_payroll">Payroll</span></a>
+                        <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-chart-line" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_reports">Reports</span></a>
                     </div>
                 </div>
                 {% else %}
@@ -716,11 +716,11 @@
             </div>
             <select id="categoryFilter" class="filter-select">
                 <option value="all" data-i18n="spa_cat_all">Tất cả danh mục</option>
-                <option value="Chăm sóc da mặt" data-i18n="spa_cat_facial">✨ Chăm sóc da mặt</option>
-                <option value="Massage cơ thể" data-i18n="spa_cat_massage">💆 Massage cơ thể</option>
-                <option value="Chăm sóc tóc" data-i18n="spa_cat_hair">💇 Chăm sóc tóc</option>
-                <option value="Liệu trình đặc biệt" data-i18n="spa_cat_special">🌿 Liệu trình đặc biệt</option>
-                <option value="Combo tiết kiệm" data-i18n="spa_cat_combo">🎁 Combo tiết kiệm</option>
+                <option value="Chăm sóc da mặt" data-i18n="spa_cat_facial">Chăm sóc da mặt</option>
+                <option value="Massage cơ thể" data-i18n="spa_cat_massage">Massage cơ thể</option>
+                <option value="Chăm sóc tóc" data-i18n="spa_cat_hair">Chăm sóc tóc</option>
+                <option value="Liệu trình đặc biệt" data-i18n="spa_cat_special">Liệu trình đặc biệt</option>
+                <option value="Combo tiết kiệm" data-i18n="spa_cat_combo">Combo tiết kiệm</option>
             </select>
         </div>
 
@@ -732,7 +732,7 @@
                     {% if s.image %}
                         <img class="product-img" src="{{ s.image if s.image.startswith('http') else url_for('static', filename='uploads/' + s.image) }}" alt="{{ s.name }}">
                     {% else %}
-                        <div class="w-full h-full bg-black/50 flex items-center justify-center text-5xl">🌸</div>
+                        <div class="w-full h-full bg-black/40 flex items-center justify-center text-3xl text-slate-500"><i class="fas fa-spa"></i></div>
                     {% endif %}
                     <div class="img-overlay"></div>
                 </div>
@@ -770,7 +770,7 @@
         <div class="cart-footer">
             <div class="cart-total">
                 <span data-i18n="spa_cart_total_label">Tổng cộng:</span>
-                <span id="cartTotalAmount">0₫</span>
+                <span id="cartTotalAmount">{{ 0 | money(tenant_currency) }}</span>
             </div>
             <button id="openCheckoutModalBtn" class="btn-checkout" data-i18n="spa_btn_checkout_now">Thanh toán ngay</button>
         </div>
@@ -807,7 +807,7 @@
                     <div class="flex justify-between font-bold">
                         <span data-i18n="spa_label_total_payment">Tổng thanh toán</span>
                         <div class="text-right">
-                            <span class="text-2xl text-cyan-400 block" id="checkoutTotalMain">0₫</span>
+                            <span class="text-2xl text-cyan-400 block" id="checkoutTotalMain">{{ 0 | money(tenant_currency) }}</span>
                             <span class="text-xs text-gray-500" id="checkoutTotalSub">~ $0.00 USD</span>
                         </div>
                     </div>
@@ -982,7 +982,7 @@
                 </p>
                 <p class="text-sm text-gray-300 flex justify-between font-bold border-t border-white/10 pt-2 mt-2">
                     <span data-i18n="spa_result_amount_label">Số tiền:</span>
-                    <span id="resAmount" class="text-xl text-emerald-400">0₫</span>
+                    <span id="resAmount" class="text-xl text-emerald-400">{{ 0 | money(tenant_currency) }}</span>
                 </p>
             </div>
 
@@ -1116,7 +1116,7 @@
         function updateCartUI() {
             if (cart.length === 0) {
                 cartItemsList.innerHTML = '<div class="text-center text-gray-500 py-5">' + t('spa_cart_empty') + '</div>';
-                cartTotalSpan.innerText = '0₫';
+                cartTotalSpan.innerText = formatShop(0);
                 cartCountBadge.style.display = 'none';
                 return;
             }
@@ -1508,11 +1508,11 @@
                 spa_mgmt_attendance: 'Chấm công', spa_mgmt_staff: 'Nhân sự', spa_mgmt_customers: 'Khách hàng', spa_mgmt_payroll: 'Bảng lương', spa_mgmt_reports: 'Báo cáo tổng hợp',
                 spa_placeholder_search: 'Tìm dịch vụ...',
                 spa_cat_all: 'Tất cả danh mục',
-                spa_cat_facial: '✨ Chăm sóc da mặt',
-                spa_cat_massage: '💆 Massage cơ thể',
-                spa_cat_hair: '💇 Chăm sóc tóc',
-                spa_cat_special: '🌿 Liệu trình đặc biệt',
-                spa_cat_combo: '🎁 Combo tiết kiệm',
+                spa_cat_facial: 'Chăm sóc da mặt',
+                spa_cat_massage: 'Massage cơ thể',
+                spa_cat_hair: 'Chăm sóc tóc',
+                spa_cat_special: 'Liệu trình đặc biệt',
+                spa_cat_combo: 'Combo tiết kiệm',
                 spa_btn_add: 'Thêm',
                 spa_empty_title: 'Chưa Có Dịch Vụ',
                 spa_empty_desc: 'Vui lòng thêm các liệu trình Spa / Thẩm mỹ',
@@ -1586,11 +1586,11 @@
                 spa_mgmt_attendance: 'Attendance', spa_mgmt_staff: 'Staff', spa_mgmt_customers: 'Customers', spa_mgmt_payroll: 'Payroll', spa_mgmt_reports: 'Consolidated Report',
                 spa_placeholder_search: 'Search services...',
                 spa_cat_all: 'All categories',
-                spa_cat_facial: '✨ Facial Care',
-                spa_cat_massage: '💆 Body Massage',
-                spa_cat_hair: '💇 Hair Care',
-                spa_cat_special: '🌿 Special Treatments',
-                spa_cat_combo: '🎁 Saving Combos',
+                spa_cat_facial: 'Facial Care',
+                spa_cat_massage: 'Body Massage',
+                spa_cat_hair: 'Hair Care',
+                spa_cat_special: 'Special Treatments',
+                spa_cat_combo: 'Saving Combos',
                 spa_btn_add: 'Add',
                 spa_empty_title: 'No Services Yet',
                 spa_empty_desc: 'Please add Spa / Beauty treatments',

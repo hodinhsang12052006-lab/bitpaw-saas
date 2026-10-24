@@ -83,35 +83,26 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <!-- AUTH SCREEN -->
         <div id="authScreen" class="absolute inset-0 z-50 glass-panel flex flex-col justify-center p-8 transition-transform duration-500">
             <div class="text-center mb-10">
-                <!-- LOGO HOLOGRAM 3D -->
-                <div class="relative flex justify-center items-center h-48 hologram-container mb-2">
-                    <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/30 to-purple-600/30 rounded-full blur-[40px]"></div>
-                    <div class="relative w-32 h-32 rounded-full border-4 border-cyan-500/30 flex items-center justify-center glass-panel shadow-[0_0_30px_rgba(6,182,212,0.3)]">
-                        <div class="absolute w-full h-full border-t-4 border-purple-500/50 rounded-full animate-spin" style="animation-duration: 4s;"></div>
-                        <div class="absolute w-[110%] h-[110%] border-b-4 border-cyan-400/50 rounded-full animate-spin" style="animation-duration: 6s; animation-direction: reverse;"></div>
-                        
-                        <div class="relative animated-logo-3d w-24 h-24 flex items-center justify-center overflow-hidden rounded-full bg-[#08061a]">
-                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover">
-                            <div class="scanner-line"></div>
-                        </div>
-                    </div>
+                <!-- Pha 28: logo gọn (bỏ vòng xoay, vạch quét, quầng tím) -->
+                <div class="flex flex-col items-center gap-3 mb-2">
+                    <img src="/static/brand/mark.svg?v=1" alt="BitPaw" class="w-16 h-16">
+                    <h1 class="text-2xl font-bold text-white">BitPaw</h1>
+                    <p class="text-slate-400 text-sm -mt-2">{{ 'Ứng dụng nhân viên' if default_lang == 'vi' else 'Staff app' }}</p>
                 </div>
-                <h1 class="text-4xl font-black tracking-widest text-white drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Bit<span class="text-cyan-400">Paw</span></h1>
-                <p class="text-cyan-400/70 text-xs mt-2 uppercase tracking-widest font-bold border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 rounded-full inline-block">For Employees</p>
             </div>
 
             <div class="flex bg-black/40 backdrop-blur-md p-1 rounded-xl mb-6 border border-white/10">
-                <button onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all">Sign In</button>
-                <button onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 py-2 text-sm font-bold text-gray-500 hover:text-white rounded-lg transition-all">New Account</button>
+                <button onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-slate-700 text-white transition-all">{{ 'Đăng nhập' if default_lang == 'vi' else 'Sign in' }}</button>
+                <button onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-white rounded-lg transition-all">{{ 'Nhân viên mới' if default_lang == 'vi' else 'New employee' }}</button>
             </div>
 
             <div id="formLogin" class="space-y-4">
                 <div class="relative">
-                    <i class="fas fa-fingerprint absolute top-1/2 left-4 -translate-y-1/2 text-cyan-500/50"></i>
-                    <input type="text" id="login_manv" placeholder="Enter Employee Code (e.g. NV001)" class="w-full bg-black/60 border border-white/10 py-4 pl-12 pr-4 rounded-xl text-white outline-none focus:border-cyan-500 font-mono uppercase tracking-widest shadow-inner transition-colors">
+                    <i class="far fa-id-badge absolute top-1/2 left-4 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="login_manv" placeholder="{{ 'Mã nhân viên (vd NV0012)' if default_lang == 'vi' else 'Employee code (e.g. NV0012)' }}" autocapitalize="characters" class="w-full bg-black/60 border border-white/10 py-4 pl-12 pr-4 rounded-xl text-white outline-none focus:border-cyan-500 font-medium tracking-wide shadow-inner transition-colors">
                 </div>
-                <button onclick="xuLyDangNhap()" id="btn_login_submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 font-black tracking-widest p-4 rounded-xl text-white shadow-[0_10px_20px_rgba(6,182,212,0.3)] mt-2 active:scale-95 transition-transform">
-                    START SHIFT <i class="fas fa-arrow-right ml-2"></i>
+                <button onclick="xuLyDangNhap()" id="btn_login_submit" class="w-full bg-cyan-500 hover:bg-cyan-400 font-semibold p-4 rounded-xl text-slate-950 mt-2 active:scale-[.99] transition">
+                    {{ 'Tiếp tục' if default_lang == 'vi' else 'Continue' }} <i class="fas fa-arrow-right ml-2"></i>
                 </button>
             </div>
 
@@ -186,7 +177,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="flex items-center gap-3 cursor-pointer group">
                         <!-- Mini Logo Nổi -->
                         <div class="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-xl flex items-center justify-center border border-cyan-500/50 group-hover:rotate-12 transition-transform overflow-hidden shadow-inner">
-                            <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full object-cover drop-shadow-[0_0_8px_#06b6d4]">
+                            <img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover drop-shadow-[0_0_8px_#06b6d4]">
                         </div>
                         <h1 class="text-xl font-black tracking-widest text-white">Bit<span class="text-cyan-400">Paw</span></h1>
                     </div>
@@ -273,8 +264,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             <p id="gpsStatusText" class="text-xs text-gray-400 mb-5 font-medium">Off. Turn on GPS for the Radar system to detect you.</p>
 
                             <div class="grid grid-cols-2 gap-3" id="workStatusBox" style="display:none; pointer-events: none; opacity: 0.5;">
-                                <button onclick="setWorkStatus('Rảnh')" id="btn_ranh" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-transform active:scale-95">🟢 AVAILABLE</button>
-                                <button onclick="setWorkStatus('Bận')" id="btn_ban" class="bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10">🔴 BUSY</button>
+                                <button onclick="setWorkStatus('Rảnh')" id="btn_ranh" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3 rounded-xl text-xs shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-transform active:scale-95">AVAILABLE</button>
+                                <button onclick="setWorkStatus('Bận')" id="btn_ban" class="bg-black/50 text-gray-400 border border-white/10 font-bold py-3 rounded-xl text-xs transition-colors hover:bg-white/10">BUSY</button>
                             </div>
                         </div>
 
@@ -662,12 +653,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const formLogin = document.getElementById('formLogin'); const formReg = document.getElementById('formRegister');
 
             if(tab === 'login') {
-                btnLogin.className = "flex-1 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all";
-                btnReg.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-white rounded-lg transition-all";
+                btnLogin.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-slate-700 text-white transition-all";
+                btnReg.className = "flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-white rounded-lg transition-all";
                 formLogin.classList.remove('hidden'); formReg.classList.add('hidden');
             } else {
-                btnReg.className = "flex-1 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all";
-                btnLogin.className = "flex-1 py-2 text-sm font-bold text-gray-500 hover:text-white rounded-lg transition-all";
+                btnReg.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-slate-700 text-white transition-all";
+                btnLogin.className = "flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-white rounded-lg transition-all";
                 formReg.classList.remove('hidden'); formLogin.classList.add('hidden');
             }
         }
@@ -900,7 +891,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             if (blinked && r.ear > 0.24 && descs.length >= 3) {
                                 resolve(descs[0].map((_, i) => descs.reduce((sum, d) => sum + d[i], 0) / descs.length)); return;
                             }
-                            setFaceUI(blinked ? 'Got it — hold still…' : 'Now blink once 👀', 'ok');
+                            setFaceUI(blinked ? 'Got it — hold still…' : 'Now blink once', 'ok');
                         } else { setFaceUI('Move your face into the frame', ''); }
                     } catch (e) { /* khung hình lỗi -> thử khung sau */ }
                     faceTimer = setTimeout(tick, 140);
@@ -1253,7 +1244,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         function toggleGPS() {
             const toggle = document.getElementById('gpsToggle'); const statusText = document.getElementById('gpsStatusText'); const workBox = document.getElementById('workStatusBox');
             if(toggle.checked) {
-                statusText.innerHTML = '<span class="text-emerald-400 font-bold animate-pulse">📡 ' + L('Connecting to the live map…', 'Đang kết nối bản đồ...') + '</span>';
+                statusText.innerHTML = '<span class="text-emerald-400 font-bold animate-pulse">' + L('Connecting to the live map…', 'Đang kết nối bản đồ...') + '</span>';
                 workBox.style.display = 'grid'; workBox.style.pointerEvents = 'auto'; workBox.style.opacity = '1';
                 startLiveTracking();
             } else {
@@ -1337,7 +1328,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } catch(e) { showToast(L('Could not send: ', 'Lỗi gửi đơn: ') + e.message, 'error'); }
         }
 
-        const LEAVE_STATUS_LABEL = { pending: L('⏳ Pending', '⏳ Chờ duyệt'), approved: L('✅ Approved', '✅ Đã duyệt'), rejected: L('❌ Declined', '❌ Từ chối') };
+        const LEAVE_STATUS_LABEL = { pending: L('Pending', 'Chờ duyệt'), approved: L('Approved', 'Đã duyệt'), rejected: L('Declined', 'Từ chối') };
         // Lịch ca (shift_roster.py) như Deputy/7shifts: nhận ca trống, xin đổi 1 ca CỤ THỂ cho đồng nghiệp (đồng nghiệp đồng ý ->
         // chủ duyệt -> lịch tự đổi người), tự khai thứ không làm được để chủ xếp lịch né.
         let rosterState = null, colleagues = [];
@@ -1513,7 +1504,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } catch (e) { /* offline — giữ số cũ */ }
         }
 
-        const EXPENSE_STATUS_LABEL = { pending: L('⏳ Pending', '⏳ Chờ duyệt'), approved: L('✅ Approved', '✅ Đã duyệt'), rejected: L('❌ Declined', '❌ Từ chối') };
+        const EXPENSE_STATUS_LABEL = { pending: L('Pending', 'Chờ duyệt'), approved: L('Approved', 'Đã duyệt'), rejected: L('Declined', 'Từ chối') };
         async function loadMyExpenseRequests() {
             const box = document.getElementById('myExpenseRequestsBox');
             if (!box || !currentUser || !currentUser.code) return;
@@ -1537,7 +1528,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     method: 'POST',
                     body: JSON.stringify({ points: 1 }),
                 });
-                showToast(L('⭐ Star sent!', '⭐ Đã tặng sao!'), 'success'); triggerConfetti();
+                showToast(L('Star sent!', 'Đã tặng sao!'), 'success'); triggerConfetti();
             } catch(e) { showToast(L('Could not send the star.', 'Lỗi tặng sao!'), 'error'); }
         }
         

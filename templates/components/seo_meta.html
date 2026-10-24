@@ -16,7 +16,7 @@
        - keywords              (tuỳ chọn)
        - canonical_path         ví dụ 'landing' hoặc 'solutions/nail' — KHÔNG có dấu / đầu
        - og_locale              mặc định 'en_US' (site cam kết tiếng Anh là ngôn ngữ gốc)
-       - image_filename         ảnh OG/Twitter, mặc định 'cho1.jpg' (1024x559)
+       - image_filename         ảnh OG/Twitter, mặc định 'brand/og-card.png' (1200x630, scripts/make_og_card.mjs)
        - logo_filename          ảnh favicon + logo schema Organization, mặc định 'icon.jpg' (1024x1024, vuông)
        - schema_name            tên phần mềm cho SoftwareApplication, mặc định 'BitPaw Software'
        - schema_subcategory     mặc định 'Point of Sale System, Human Resources Management System'
@@ -33,7 +33,7 @@
 {% set _canonical_url = request.url_root ~ (canonical_path | default('landing')) %}
 {% set _og_locale = og_locale | default('en_US') %}
 {% set _logo_filename = logo_filename | default('logo_b.jpg') %}
-{% set _image_url = url_for('static', filename=(image_filename | default('cho1.jpg')), _external=True) %}
+{% set _image_url = url_for('static', filename=(image_filename | default('brand/og-card.png')), _external=True) %}
 {% set _logo_url = url_for('static', filename=_logo_filename, _external=True) %}
 {% set _schema_name = schema_name | default('BitPaw Software') %}
 {% set _schema_subcategory = schema_subcategory | default('Point of Sale System, Human Resources Management System') %}

@@ -349,12 +349,12 @@ document.addEventListener("DOMContentLoaded", function() {
             karaoke: "Dạ <strong>BitPaw Karaoke</strong> quản lý tính giờ tự động theo phòng (Thường, VIP), gọi đồ ăn uống tích hợp POS, tự động chuyển trạng thái phòng và quản lý thâm niên nhân viên ca kíp.",
             production: "Dạ <strong>BitPaw Production</strong> giúp lập kế hoạch sản xuất, định mức vật tư (BOM), giám sát tiến độ xưởng real-time, chấm công sản phẩm công nhân và tối ưu hóa chuỗi cung ứng.",
             retention: "Dạ xuất sắc luôn sếp ơi! 🚀 BitPaw sở hữu công nghệ <strong>AI Auto-Pilot Retention</strong> độc quyền. Trợ lý AI sẽ tự động gom toàn bộ data khách cũ từ Facebook Page, Zalo OA và Website về một mối. Sau đó, AI tự động quét chẩn đoán rủi ro rời bỏ (Churn Risk) và gửi chuỗi tin nhắn bám đuổi (3/7/14 ngày) kèm mã coupon cá nhân hóa qua Zalo/FB hoàn toàn tự động. Giúp kéo 45% khách quay lại mà sếp không tốn 1 đồng chi phí quảng cáo!",
-            pricing_start: "Dạ vâng ạ! 🚀 Trợ lý AI sẽ lập tức khởi tạo bảng báo giá chi tiết và lộ trình triển khai tối ưu cho sếp. Sếp vui lòng cho em xin một vài thông tin để hoàn tất hồ sơ nhé.<br><br>👉 Đầu tiên, sếp tên gì ạ?",
-            pricing_phone: "Dạ chào sếp <strong>{name}</strong>! 🌸 Tiếp theo, sếp cho em xin Số điện thoại / Zalo để gửi bảng báo giá & kết nối chuyên viên hỗ trợ sau 5 phút nhé ạ? 📞",
-            pricing_email: "Tuyệt vời sếp ơi! 👍 Cuối cùng sếp cho em xin địa chỉ Email để nhận trọn bộ tài liệu giải pháp và hợp đồng mẫu của BitPaw nha sếp? ✉️",
-            pricing_success: "Báo cáo sếp <strong>{name}</strong>, thông tin của sếp đã được lưu trữ thành công trên CRM của BitPaw! 🟢<br><br>Chuyên viên tư vấn giải pháp sẽ liên hệ với sếp qua Zalo (<strong>{phone}</strong>) và gửi tài liệu qua Email (<strong>{email}</strong>) sau 5 phút nữa nha sếp! Cảm ơn sếp nhiều ạ! 🤖🚀",
+            pricing_start: "Dạ vâng ạ! 🚀 Trợ lý AI sẽ lập tức khởi tạo bảng báo giá chi tiết và lộ trình triển khai tối ưu cho sếp. Sếp vui lòng cho em xin một vài thông tin để hoàn tất hồ sơ nhé.<br><br>Đầu tiên, sếp tên gì ạ?",
+            pricing_phone: "Dạ chào sếp <strong>{name}</strong>! 🌸 Tiếp theo, sếp cho em xin Số điện thoại / Zalo để gửi bảng báo giá & kết nối chuyên viên hỗ trợ sau 5 phút nhé ạ?",
+            pricing_email: "Tuyệt vời sếp ơi! 👍 Cuối cùng sếp cho em xin địa chỉ Email để nhận trọn bộ tài liệu giải pháp và hợp đồng mẫu của BitPaw nha sếp?",
+            pricing_success: "Báo cáo sếp <strong>{name}</strong>, thông tin của sếp đã được lưu trữ thành công trên CRM của BitPaw!<br><br>Chuyên viên tư vấn giải pháp sẽ liên hệ với sếp qua Zalo (<strong>{phone}</strong>) và gửi tài liệu qua Email (<strong>{email}</strong>) sau 5 phút nữa nha sếp! Cảm ơn sếp nhiều ạ!",
             demo: "Dạ sếp có muốn nhận link demo trải nghiệm trực tiếp hệ thống Cloud ERP đa phân hệ của BitPaw không ạ? Sếp vui lòng chọn \"Tôi muốn báo giá\" hoặc nhập Số điện thoại để em gửi tài khoản dùng thử ngay nhé!",
-            fallback: "Dạ chào sếp! BitPaw rất vui vì sếp quan tâm. Trợ lý AI đang ghi nhận yêu cầu của sếp: <em>'{msg}'</em>. Chuyên gia giải pháp của tụi em sẽ trực tiếp gọi điện/Zalo tư vấn chi tiết cho sếp sau 5 phút nữa nha! 🚀"
+            fallback: "Dạ chào sếp! BitPaw rất vui vì sếp quan tâm. Trợ lý AI đang ghi nhận yêu cầu của sếp: <em>'{msg}'</em>. Chuyên gia giải pháp của tụi em sẽ trực tiếp gọi điện/Zalo tư vấn chi tiết cho sếp sau 5 phút nữa nha!"
         },
         'en': {
             spa: "Absolutely! 🌸 The <strong>BitPaw Spa & Clinic</strong> ecosystem is specially designed to automate online bookings, schedule fair staff rotations, and calculate commissions based on services or treatment packages in real-time. You will be completely free from manual bookkeeping! Would you like to sign up for a 30-day free trial?",
@@ -365,28 +365,28 @@ document.addEventListener("DOMContentLoaded", function() {
             karaoke: "<strong>BitPaw Karaoke</strong> automates hourly room rate billing (Standard, VIP), links food and drink ordering to POS, auto-updates room status, and manages staff shift schedules.",
             production: "<strong>BitPaw Production</strong> helps in manufacturing planning, Bill of Materials (BOM) management, real-time workshop monitoring, piece-rate worker payroll, and supply chain optimization.",
             retention: "Excellent, Boss! 🚀 BitPaw features our exclusive <strong>AI Auto-Pilot Retention</strong> technology. The AI assistant automatically gathers all customer data from Facebook Pages, Zalo OA, and websites into a single CRM database. It then auto-scans for churn risk and triggers a personalized messaging sequence (at 3/7/14 days) with custom discount coupons via Zalo/FB. This helps bring back 45% of inactive customers without spending a dime on ads!",
-            pricing_start: "Sure, Boss! 🚀 The AI Assistant will immediately generate a customized pricing quote and implementation plan for you. Please provide some quick details to complete your request.<br><br>👉 First, what is your name?",
-            pricing_phone: "Hi Boss <strong>{name}</strong>! 🌸 Next, could you please provide your Phone number / Zalo so we can send the quote and have our specialist contact you in 5 minutes? 📞",
-            pricing_email: "Wonderful, Boss! 👍 Lastly, what is your Email address to receive the full solution deck and sample agreement from BitPaw? ✉️",
-            pricing_success: "Report to Boss <strong>{name}</strong>, your details have been successfully saved in BitPaw CRM! 🟢<br><br>Our solution specialist will contact you on Zalo (<strong>{phone}</strong>) and send documents to your Email (<strong>{email}</strong>) within 5 minutes! Thank you so much, Boss! 🤖🚀",
+            pricing_start: "Sure, Boss! 🚀 The AI Assistant will immediately generate a customized pricing quote and implementation plan for you. Please provide some quick details to complete your request.<br><br>First, what is your name?",
+            pricing_phone: "Hi Boss <strong>{name}</strong>! 🌸 Next, could you please provide your Phone number / Zalo so we can send the quote and have our specialist contact you in 5 minutes?",
+            pricing_email: "Wonderful, Boss! 👍 Lastly, what is your Email address to receive the full solution deck and sample agreement from BitPaw?",
+            pricing_success: "Report to Boss <strong>{name}</strong>, your details have been successfully saved in BitPaw CRM!<br><br>Our solution specialist will contact you on Zalo (<strong>{phone}</strong>) and send documents to your Email (<strong>{email}</strong>) within 5 minutes! Thank you so much, Boss!",
             demo: "Would you like a live demo link to experience BitPaw's multi-module Cloud ERP system? Please select \"Request Pricing\" or input your phone number so I can send the trial credentials right away!",
-            fallback: "Hello Boss! BitPaw is glad to help. The AI Assistant has logged your request: <em>'{msg}'</em>. Our solution specialist will contact you on Zalo/Phone within 5 minutes to consult in detail! 🚀"
+            fallback: "Hello Boss! BitPaw is glad to help. The AI Assistant has logged your request: <em>'{msg}'</em>. Our solution specialist will contact you on Zalo/Phone within 5 minutes to consult in detail!"
         },
         'zh': {
-            spa: "完全可以！ 🌸 <strong>BitPaw 智能水疗与美容</strong>生态系统专为美容会所设计，支持在线预约自动排班、公平技师轮班，并自动按服务/疗程比例精确计算员工提成。您将彻底告别繁琐的手工记账！您想免费试用30天吗？",
-            nail: "老板您好！💅 <strong>标准版套餐（每月仅需99万越南盾起）</strong>是美甲店的最优选择。该套餐包含完整功能：智能桌位POS、客户关系管理 (CRM)、员工考勤打卡以及AI助手自动发送感谢短信。这是您从第一天起专业化运营的完美起点！",
+            spa: "完全可以！ <strong>BitPaw 智能水疗与美容</strong>生态系统专为美容会所设计，支持在线预约自动排班、公平技师轮班，并自动按服务/疗程比例精确计算员工提成。您将彻底告别繁琐的手工记账！您想免费试用30天吗？",
+            nail: "老板您好！ <strong>标准版套餐（每月仅需99万越南盾起）</strong>是美甲店的最优选择。该套餐包含完整功能：智能桌位POS、客户关系管理 (CRM)、员工考勤打卡以及AI助手自动发送感谢短信。这是您从第一天起专业化运营的完美起点！",
             fnb: "<strong>BitPaw 餐饮系统</strong>支持扫描桌码自主点餐、自动出票、原料库存精细化扣减防损，以及后厨KDS大屏联动。助您的餐厅/咖啡厅服务效率提升两倍！",
             retail: "<strong>BitPaw 零售方案</strong>支持多渠道库存实时同步（虾皮、Lazada、抖音、线下店），自动预警缺货，集成极速收银POS，并生成单品维度的精细利润报表。",
             hotel: "<strong>BitPaw 酒店系统</strong>助您优化实时房态管理，对接电子门锁，自动处理办理入住/退房，统计客房保洁绩效，并输出多维度营收报表。",
             karaoke: "<strong>BitPaw KTV系统</strong>支持包厢按时计费（普通房、VIP房）、酒水小吃POS协同点单、房态自动流转以及员工排班和业绩提成管理。",
             production: "<strong>BitPaw 生产管理系统</strong>提供排程生产、物料清单 (BOM) 管理、车间进度实时追踪、工人计件工资统计以及供应链优化方案。",
             retention: "太棒了，老板！🚀 BitPaw 拥有独家的 <strong>AI 自动客户流失挽回</strong>技术。AI助手会自动从 Facebook 页面、Zalo OA 和网站收集所有历史客户数据，汇入统一 CRM。随后，AI 会自动扫描评估流失风险，并自动通过 Zalo/FB 发送个性化折扣卡券的跟进短信（第3/7/14天），帮您挽回45%的老客户，完全无需额外广告费！",
-            pricing_start: "好的，老板！🚀 AI 助手将立即为您制定详细的报价表和最佳实施方案。请提供以下信息以完善您的申请。<br><br>👉 首先，请问您怎么称呼？",
-            pricing_phone: "您好，<strong>{name}</strong> 老板！🌸 接下来，请问您的电话号码或 Zalo 账号是多少，以便我们在5分钟内发送报价表并指派专员联络您？ 📞",
-            pricing_email: "太棒了，老板！👍 最后，请问您的电子邮箱地址是多少，以便接收 BitPaw 的全套解决方案文档和合同范本？ ✉️",
-            pricing_success: "报告 <strong>{name}</strong> 老板，您的信息已成功存入 BitPaw CRM 系统！ 🟢<br><br>我们的解决方案专员将在5分钟内通过 Zalo (<strong>{phone}</strong>) 与您联系，并将文档发送至您的邮箱 (<strong>{email}</strong>)！非常感谢老板！🤖🚀",
+            pricing_start: "好的，老板！🚀 AI 助手将立即为您制定详细的报价表和最佳实施方案。请提供以下信息以完善您的申请。<br><br>首先，请问您怎么称呼？",
+            pricing_phone: "您好，<strong>{name}</strong> 老板！🌸 接下来，请问您的电话号码或 Zalo 账号是多少，以便我们在5分钟内发送报价表并指派专员联络您？",
+            pricing_email: "太棒了，老板！👍 最后，请问您的电子邮箱地址是多少，以便接收 BitPaw 的全套解决方案文档和合同范本？",
+            pricing_success: "报告 <strong>{name}</strong> 老板，您的信息已成功存入 BitPaw CRM 系统！<br><br>我们的解决方案专员将在5分钟内通过 Zalo (<strong>{phone}</strong>) 与您联系，并将文档发送至您的邮箱 (<strong>{email}</strong>)！非常感谢老板！🤖🚀",
             demo: "老板，您想获得在线演示链接，亲自体验 BitPaw 的多模块云 ERP 系统吗？请选择“我想获取报价”或输入您的手机号，我将立即为您发送试用账号！",
-            fallback: "老板您好！BitPaw 很高兴为您服务。AI 助手已记录您的需求：<em>'{msg}'</em>。我们的解决方案专家将在5分钟内直接通过 Zalo/电话与您联系，为您提供详细咨询！ 🚀"
+            fallback: "老板您好！BitPaw 很高兴为您服务。AI 助手已记录您的需求：<em>'{msg}'</em>。我们的解决方案专家将在5分钟内直接通过 Zalo/电话与您联系，为您提供详细咨询！"
         }
     };
 
@@ -524,12 +524,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 <div class="bg-white/5 border border-white/10 p-3 rounded-2xl rounded-tr-sm max-w-[85%] text-gray-300 text-[11px] font-medium leading-relaxed">
                     ${text}
                 </div>
-                <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-white shrink-0 text-[10px]">👤</div>
+                <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-white shrink-0 text-[10px]"><i class="fas fa-user"></i></div>
             `;
         } else {
             item.className = "flex gap-2.5 items-start";
             item.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black mascot-glow overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
+                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black mascot-glow overflow-hidden"><img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover"></div>
                 <div class="bg-cyan-500/10 border border-cyan-500/30 p-3 rounded-2xl rounded-tl-sm max-w-[85%] text-cyan-300 text-[11px] font-medium leading-relaxed">
                     ${text}
                 </div>
@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function() {
         item.innerHTML = `
             <span class="text-[8px] text-cyan-400 font-bold ml-8 flex items-center gap-1"><i class="fas fa-spinner fa-spin"></i> ${label}</span>
             <div class="flex gap-2.5 items-start">
-                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
+                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black overflow-hidden"><img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover"></div>
                 <div class="typing-bubble bg-cyan-500/10 border border-cyan-500/20">
                     <div class="typing-dot"></div>
                     <div class="typing-dot"></div>
@@ -588,7 +588,7 @@ document.addEventListener("DOMContentLoaded", function() {
         <div class="bg-gradient-to-r from-cyan-600 to-blue-700 p-4 flex justify-between items-center text-white border-b border-white/20 animate-pulse-border">
             <div class="flex items-center gap-3">
                 <div class="relative">
-                    <img src="/static/cho1.jpg" onerror="this.onerror=null; this.src='/static/cho1.jpg';" class="w-10 h-10 rounded-full border-2 border-white/50 object-cover mascot-glow font-black flex items-center justify-center">
+                    <img src="/static/brand/mark.svg?v=1" onerror="this.onerror=null; this.src='/static/brand/mark.svg?v=1';" class="w-10 h-10 rounded-full border-2 border-white/50 object-cover mascot-glow font-black flex items-center justify-center">
                     <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-blue-700 rounded-full animate-pulse"></div>
                 </div>
                 <div>

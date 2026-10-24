@@ -99,7 +99,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 shrink-0 gap-4">
             <div>
                 <h2 class="text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-3">
-                    <span data-i18n="dashboard_greeting">Xin chào, Sếp!</span> <span class="text-2xl animate-[bounce_2s_infinite]">👋</span>
+                    <span data-i18n="dashboard_greeting">Xin chào!</span>
                 </h2>
                 <p class="text-gray-400 mt-2 text-sm lg:text-base"><span data-i18n="dashboard_subtitle_prefix">Không gian chỉ huy lõi của hệ thống</span> <span class="text-cyan-400 font-bold drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">BitPaw Software</span>.</p>
             </div>
@@ -262,24 +262,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         </div>
     </main>
 
-    <!-- Multi Language -->
-    <div class="fixed bottom-6 right-6 z-[9999] bg-white/5 backdrop-blur-xl rounded-full border border-white/10 p-1.5 flex gap-2 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-        <button onclick="switchGoogleTranslate('vi')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="Tiếng Việt">🇻🇳</button>
-        <button onclick="switchGoogleTranslate('en')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="English">🇺🇸</button>
-        <button onclick="switchGoogleTranslate('zh-CN')" class="w-10 h-10 rounded-full hover:bg-white/20 transition-all flex items-center justify-center text-2xl hover:scale-110" title="中文">🇨🇳</button>
-    </div>
-    <div id="google_translate_element" style="display:none;"></div>
-    <script type="text/javascript">
-        function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'vi', autoDisplay: false}, 'google_translate_element'); }
-        // Đổi tên từ changeLanguage -> switchGoogleTranslate để không xung đột với hàm
-        // changeLanguage(lang) của hệ thống i18n bitpaw_lang mới (data-i18n/t()) bên dưới.
-        function switchGoogleTranslate(langCode) {
-            document.cookie = `googtrans=/vi/${langCode}; path=/; domain=${window.location.hostname}`;
-            document.cookie = `googtrans=/vi/${langCode}; path=/`; window.location.reload();
-        }
-    </script>
-    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-    <style> body { top: 0 !important; } .skiptranslate { display: none !important; } #goog-gt-tt { display: none !important; } .goog-te-banner-frame { display: none !important; } </style>
+    <!-- Pha 28: bỏ widget Google Translate + cờ emoji (tải script bên thứ ba, trùng hệ thống ngôn ngữ EN/VI của app) -->
 
     <script>
         // ========================================================
@@ -325,7 +308,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 dashboard_nav_profit: 'Báo cáo lợi nhuận',
                 dashboard_nav_consolidated: 'Báo cáo Tổng hợp toàn chuỗi',
                 dashboard_logout: 'Đăng xuất',
-                dashboard_greeting: 'Xin chào, Sếp!',
+                dashboard_greeting: 'Xin chào!',
                 dashboard_subtitle_prefix: 'Không gian chỉ huy lõi của hệ thống',
                 dashboard_branch_loading: 'Đang tải chi nhánh...',
                 dashboard_branch_add_title: 'Thêm chi nhánh mới',
@@ -364,7 +347,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 dashboard_issue_amount_mismatch: 'Lệch số tiền',
                 dashboard_issue_stale_pending: 'Chờ thanh toán quá lâu',
                 dashboard_resolved_btn: 'Đã xử lý',
-                dashboard_cskh_autoreply: 'Em đã nhận được thông tin. Sếp cần gấp cứ alo thẳng Hotline hoặc Zalo cho em nhé!'
+                dashboard_cskh_autoreply: 'Chúng tôi đã nhận được yêu cầu. Nếu cần gấp, bạn cứ alo thẳng Hotline hoặc Zalo cho em nhé!'
             },
             en: {
                 dashboard_nav_overview: 'Overview',
@@ -380,7 +363,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 dashboard_nav_profit: 'Profit Report',
                 dashboard_nav_consolidated: 'Consolidated Chain Report',
                 dashboard_logout: 'Log Out',
-                dashboard_greeting: 'Hello, Boss!',
+                dashboard_greeting: 'Welcome back',
                 dashboard_subtitle_prefix: 'The core command center of',
                 dashboard_branch_loading: 'Loading branches...',
                 dashboard_branch_add_title: 'Add new branch',

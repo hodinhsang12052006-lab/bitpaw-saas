@@ -374,12 +374,12 @@
                             Segments</label>
                         <select id="nurtureFilter" onchange="applyNurtureFilter()"
                             class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
-                            <option value="ALL">📬 Multi-channel Inbox (All)</option>
+                            <option value="ALL">Multi-channel Inbox (All)</option>
                             <option value="NEW">🆕 New Customers</option>
-                            <option value="HOT">🔥 Hot Leads (Potential > 80%)</option>
-                            <option value="NEEDS_CARE">⚠️ Needs Follow-up</option>
-                            <option value="REMARKETING">🔄 Remarketing (Past Customers)</option>
-                            <option value="CAMPAIGNS">🎯 Active Campaigns</option>
+                            <option value="HOT">Hot Leads (Potential > 80%)</option>
+                            <option value="NEEDS_CARE">Needs Follow-up</option>
+                            <option value="REMARKETING">Remarketing (Past Customers)</option>
+                            <option value="CAMPAIGNS">Active Campaigns</option>
                         </select>
                     </div>
 
@@ -415,8 +415,8 @@
                 <div id="copilotChatHeader" class="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
                         <div
-                            class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">
-                            <span id="chatAvatar">👤</span>
+                            class="w-11 h-11 rounded-full bg-slate-700 flex items-center justify-center text-white font-semibold text-lg">
+                            <span id="chatAvatar"><i class="fas fa-user text-base"></i></span>
                         </div>
                         <div>
                             <h3 id="chatCustomerName" class="font-bold text-white text-sm">No customer selected</h3>
@@ -565,13 +565,13 @@
         function renderLiveDemoTriggers() {
             return `
                 <div class="px-1 pt-1 pb-2">
-                    <p class="text-[9px] text-emerald-400/80 font-black uppercase tracking-widest mb-2 px-2">⚡ Sales Demo Tools</p>
+                    <p class="text-[9px] text-emerald-400/80 font-black uppercase tracking-widest mb-2 px-2">Sales Demo Tools</p>
                     <div class="live-demo-trigger flex items-center gap-3 p-3 rounded-2xl cursor-pointer mb-2" onclick="startLiveDemo('en')">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md shrink-0">
                             <i class="fas fa-bolt"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-[13px] font-bold text-white truncate">🟢 Live Demo (English)</p>
+                            <p class="text-[13px] font-bold text-white truncate">Live Demo (English)</p>
                             <p class="text-[11px] text-emerald-300/80 truncate font-medium">Click to simulate a real-time AI reply</p>
                         </div>
                     </div>
@@ -580,7 +580,7 @@
                             <i class="fas fa-bolt"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-[13px] font-bold text-white truncate">🟢 Live Demo (Vietnamese)</p>
+                            <p class="text-[13px] font-bold text-white truncate">Live Demo (Vietnamese)</p>
                             <p class="text-[11px] text-emerald-300/80 truncate font-medium">Bấm để mô phỏng AI trả lời real-time</p>
                         </div>
                     </div>
@@ -597,8 +597,8 @@
             currentCustomerId = `live-demo-${lang}`;
             currentCustomerPhone = null;
             conversationHistory = [];
-            chatCustomerName.innerText = lang === 'en' ? '🟢 Live Demo (English)' : '🟢 Live Demo (Vietnamese)';
-            chatAvatar.innerText = '⚡';
+            chatCustomerName.innerText = lang === 'en' ? 'Live Demo (English)' : 'Live Demo (Vietnamese)';
+            chatAvatar.innerHTML = '<i class="fas fa-headset text-base"></i>';
             document.getElementById('aiClosingAlert').classList.add('hidden');
 
             // Step 1: wipe the chat window clean
@@ -761,7 +761,7 @@
                 { sender_type: 'customer', content: 'Bên em combo tay chân nước giá nhiêu vậy?', created_at: '2026-07-28T13:20:00+11:00' },
                 { sender_type: 'ai', content: 'Dạ Combo Tay Chân Nước bên em $65, đã gồm ngâm nước ấm + tẩy da chết + sơn dưỡng ạ. Chị đặt lịch hôm nào để em giữ chỗ nha?', created_at: '2026-07-28T13:20:15+11:00' },
                 { sender_type: 'customer', content: 'Để chị coi lịch rồi nhắn lại', created_at: '2026-07-28T13:21:00+11:00' },
-                { sender_type: 'ai', content: 'Dạ không sao ạ, khi nào chị chọn được ngày cứ nhắn em, em kiểm tra giờ trống và đặt ngay cho chị nha 💕', created_at: '2026-07-28T13:21:15+11:00' }
+                { sender_type: 'ai', content: 'Dạ không sao ạ, khi nào chị chọn được ngày cứ nhắn em, em kiểm tra giờ trống và đặt ngay cho chị nha', created_at: '2026-07-28T13:21:15+11:00' }
             ],
             'mock-4': [
                 { sender_type: 'customer', content: 'First time here, is gel-x good for short nails?', created_at: '2026-07-28T15:02:00+11:00' },
@@ -778,7 +778,7 @@
             'mock-6': [
                 { sender_type: 'customer', content: 'My gel lifted after 3 days, I want to talk to the manager', created_at: '2026-07-28T18:15:00+11:00' },
                 { sender_type: 'ai', content: "I'm really sorry, Sarah — gel lifting after only 3 days isn't what you should get. I've passed this to the manager; we're open until 7pm and they'll reply right here.", created_at: '2026-07-28T18:15:20+11:00' },
-                { sender_type: 'system', content: '🔴 Khách cần nhân viên: Gel lifted after 3 days — wants the manager', created_at: '2026-07-28T18:15:21+11:00' }
+                { sender_type: 'system', content: 'Khách cần nhân viên: Gel lifted after 3 days — wants the manager', created_at: '2026-07-28T18:15:21+11:00' }
             ]
         };
 
@@ -826,7 +826,7 @@
 
             // Reset chat area
             chatCustomerName.innerText = "No customer selected";
-            chatAvatar.innerText = "👤";
+            chatAvatar.innerHTML = '<i class="fas fa-user text-base"></i>';
             document.getElementById("aiClosingAlert").classList.add("hidden");
             chatBox.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-20 px-8 text-center bg-black/10 rounded-3xl border border-white/5">
@@ -1024,7 +1024,7 @@
             currentCustomerPhone = customer.phone || null; // để AI cá nhân hoá theo hạng/lịch sử chi tiêu nếu tra được
             conversationHistory = [];
             chatCustomerName.innerText = customer.full_name || 'Customer';
-            chatAvatar.innerText = customer.full_name?.charAt(0) || '👤';
+            if (customer.full_name) chatAvatar.innerText = customer.full_name.charAt(0).toUpperCase(); else chatAvatar.innerHTML = '<i class="fas fa-user text-base"></i>';
 
             // Công tắc AI phản ánh đúng trạng thái THẬT của khách này
             renderAiMode(!customer.ai_paused);

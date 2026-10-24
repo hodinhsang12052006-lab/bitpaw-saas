@@ -246,7 +246,7 @@
             <div class="flex items-center gap-4">
                 <div class="relative w-10 h-10 logo-float">
                     <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
+                    <img src="/static/brand/mark.svg?v=1" class="w-full h-full rounded-full border-2 border-cyan-400 object-cover shadow-[0_0_15px_#06b6d4]">
                 </div>
                 <div>
                     <h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-lg font-medium" data-i18n="kitchen_display_header_suffix">| Kitchen Display</span></h1>
@@ -450,7 +450,7 @@
                 await hrApi(`/api/kitchen/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify({ status: 'cooking' }) });
                 order.status = 'cooking';
                 renderOrders();
-                showToast(`🔥 ${tf('kitchen_display_toast_cooking_order', { table: order.table_name })}`, false);
+                showToast(`${tf('kitchen_display_toast_cooking_order', { table: order.table_name })}`, false);
             } catch (err) {
                 console.warn(err);
                 showToast(t('kitchen_display_toast_error_updating'), true);
@@ -468,7 +468,7 @@
                 orders = orders.filter(o => o.id !== orderId);
                 renderOrders();
                 checkNewOrders(orders);
-                showToast(`✅ ${tf('kitchen_display_toast_completed_order', { table: order.table_name })}`, false);
+                showToast(`${tf('kitchen_display_toast_completed_order', { table: order.table_name })}`, false);
             } catch (err) {
                 console.warn(err);
                 showToast(t('kitchen_display_toast_error_updating'), true);

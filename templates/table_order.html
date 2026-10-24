@@ -209,13 +209,12 @@
     <div class="relative z-10 max-w-6xl mx-auto px-4 pt-5">
         <div class="glass-panel p-4 flex flex-col md:flex-row justify-between items-center gap-3">
             <div class="flex items-center gap-3">
-                <div class="relative w-12 h-12 logo-float">
-                    <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-ping opacity-20"></div>
-                    <img src="{{ url_for('static', filename='cho1.jpg') }}" class="w-full h-full rounded-full border-2 border-cyan-400/70 object-cover shadow-md">
+                <div class="w-12 h-12 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-white text-lg font-semibold shrink-0">
+                    {% if shop_name %}{{ shop_name[:1] | upper }}{% else %}<i class="fas fa-utensils text-base"></i>{% endif %}
                 </div>
                 <div>
-                    {% if shop_name %}<h1 class="text-xl font-black tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-2xl font-black tracking-tight">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-sm font-normal">Menu</span></h1>{% endif %}
-                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="locationLabel">Vị trí</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
+                    {% if shop_name %}<h1 class="text-xl font-bold tracking-tight leading-tight" style="max-width:220px">{{ shop_name }}</h1>{% else %}<h1 class="text-xl font-bold tracking-tight">Menu</h1>{% endif %}
+                    <p class="text-[10px] text-gray-400 flex items-center gap-1"><i class="fas fa-qrcode"></i> <span id="locationLabel">Vị trí</span>: <span class="text-cyan-300 font-bold" id="tableNameDisplay" data-table-id="{{ table.id }}" data-table-token="{{ table.qr_token or '' }}" data-table-name="{{ table.name }}">{{ table.name }}</span></p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -300,7 +299,8 @@
         const tableDisplayEl = document.getElementById('tableNameDisplay');
         if (tableDisplayEl) {
             const attrId = tableDisplayEl.getAttribute('data-table-id');
-            tableId = attrId ? parseInt(attrId) : null;
+            // gửi mã QR ngẫu nhiên của bàn cho API công khai (id số tăng dần đoán được -> server không nhận từ khách)
+            tableId = tableDisplayEl.getAttribute('data-table-token') || (attrId ? parseInt(attrId) : null);
             tableName = tableDisplayEl.getAttribute('data-table-name');
         }
         let products = [];
@@ -349,7 +349,7 @@
                 table_undetermined: "Không xác định được bàn",
                 location_not_found_retry: "Không tìm thấy thông tin vị trí. Vui lòng thử lại.",
                 support_fill_all_fields: "Vui lòng nhập đầy đủ thông tin",
-                support_request_sent: "✅ Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.",
+                support_request_sent: "Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.",
                 error_prefix: "Lỗi: ",
                 label_table: "Bàn",
                 label_chair: "Ghế",
@@ -378,7 +378,7 @@
                 table_undetermined: "Could not determine the table",
                 location_not_found_retry: "Location information not found. Please try again.",
                 support_fill_all_fields: "Please fill in all fields",
-                support_request_sent: "✅ Request sent! We'll get back to you within 15 minutes.",
+                support_request_sent: "Request sent! We'll get back to you within 15 minutes.",
                 error_prefix: "Error: ",
                 label_table: "Table",
                 label_chair: "Chair",
@@ -407,7 +407,7 @@
                 table_undetermined: "테이블을 확인할 수 없습니다",
                 location_not_found_retry: "위치 정보를 찾을 수 없습니다. 다시 시도해 주세요.",
                 support_fill_all_fields: "모든 항목을 입력해 주세요",
-                support_request_sent: "✅ 요청이 전송되었습니다! 15분 이내에 연락드리겠습니다.",
+                support_request_sent: "요청이 전송되었습니다! 15분 이내에 연락드리겠습니다.",
                 error_prefix: "오류: ",
                 label_table: "테이블",
                 label_chair: "의자",
@@ -436,7 +436,7 @@
                 table_undetermined: "无法确定桌台",
                 location_not_found_retry: "未找到位置信息。请重试。",
                 support_fill_all_fields: "请填写完整信息",
-                support_request_sent: "✅ 请求已发送！我们将在15分钟内与您联系。",
+                support_request_sent: "请求已发送！我们将在15分钟内与您联系。",
                 error_prefix: "错误：",
                 label_table: "桌台",
                 label_chair: "座椅",
@@ -541,7 +541,7 @@
             container.innerHTML = productsArray.map(p => `
                 <div class="glass-card p-3 cursor-pointer transition" data-product-id="${p.id}" data-product-name="${escapeHtml(p.name)}" data-product-price="${p.price}" data-product-img="${p.image || ''}">
                     <div class="flex gap-3">
-                        ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-3xl">🍽️</div>`}
+                        ${p.image ? `<img src="${p.image}" class="w-20 h-20 rounded-xl object-cover bg-black/30">` : `<div class="w-20 h-20 rounded-xl bg-black/30 flex items-center justify-center text-2xl text-slate-500"><i class="fas fa-utensils"></i></div>`}
                         <div class="flex-1">
                             <h3 class="font-bold text-white text-base">${escapeHtml(p.name)}</h3>
                             <p class="text-xs text-gray-400">${escapeHtml(p.category) || t('default_category')}</p>

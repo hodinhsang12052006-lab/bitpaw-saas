@@ -2,6 +2,7 @@
 // + số request máy B tự phát ra khi đứng yên (do ping "đang online" của người khác).   node scripts/chat_latency_probe.mjs [tag]
 import { chromium } from 'playwright';
 import fs from 'fs';
+import { execFileSync } from 'child_process';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
@@ -52,6 +53,9 @@ const res = {
 console.log(JSON.stringify(res, null, 2));
 fs.mkdirSync('audit-results/ai_sim', { recursive: true });
 fs.writeFileSync(`audit-results/ai_sim/chat_latency_${TAG}.json`, JSON.stringify(res, null, 2));
-// dọn tin thử
-await send.evaluate(async () => {});
+// dọn tin thử (trước đây bước này trống -> 12 tin "latency-probe-..." nằm lại kênh chung của tiệm demo)
+console.log(execFileSync('python', ['-c', `
+from mongo_client import db
+print('removed probe messages:', db.chat_messages.delete_many({'content': {'$regex': '^latency-probe-${TAG}-'}}).deleted_count)`],
+  { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }).trim().split(/\r?\n/).pop());
 await b.close();

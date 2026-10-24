@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { ownerContextOptions } from './lib/device.mjs';
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { safeScreenshot } from './lib/nail_nav.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5001';
@@ -66,7 +67,7 @@ async function main() {
   let t0 = Date.now();
   try {
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-    const rateLimited = (await page.content()).match(/429|Too Many Requests|quá nhiều yêu cầu/i);
+    const rateLimited = (await page.innerText('body')).match(/Too Many Requests|quá nhiều yêu cầu/i); // chữ HIỆN trên trang (mã JS của trang có chứa chữ 429)
     if (rateLimited) throw new Error('Server đang rate-limit /login (5 lần/15 phút) — đợi hết cửa sổ giới hạn rồi chạy lại.');
 
     await page.fill('#loginEmail', EMAIL);
@@ -289,6 +290,7 @@ async function main() {
 }
 
 async function finalize({ browser, results, findings, consoleErrors = [], networkErrors = [] }) {
+  try { console.log(execFileSync('python', ['scripts/_cleanup_audit_reservations.py'], { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }).trim().split(/\r?\n/).pop()); } catch (e) { console.log('Dọn đơn đặt chỗ thử lỗi:', e.message.split(/\r?\n/)[0]); }
   await browser.close();
 
   const passCount = results.filter((r) => r.status === 'PASS').length;
