@@ -36,9 +36,19 @@ from mongo_client import db
 
 MAX_IMAGE_BYTES = 8_000_000
 MAX_VIDEO_BYTES = 30_000_000
-SLICE = 3_500_000
-# Không có header Range mà file ≤ ngưỡng này -> trả trọn file (200). Dưới 4,5 MB của Vercel, chừa chỗ cho header.
-FULL_MAX = 4_400_000
+# Vercel chặn body response > 4,5 MB và body nhị phân đi qua dạng base64 (to thêm 4/3): lát 3,5 MB thành ~4,67 MB -> lỗi.
+# 2,5 MB -> ~3,33 MB; trọn file 3,2 MB -> ~4,27 MB + header, vẫn dưới trần.
+SLICE = 2_500_000
+# Không có header Range mà file ≤ ngưỡng này -> trả trọn file (200). Module khác import hằng này (social_publisher:
+# Instagram image_url/video_url, Google sourceUrl tự tải 1 lần KHÔNG Range -> file lớn hơn sẽ nhận bản cụt).
+FULL_MAX = 3_200_000
+# Ảnh tải lên để đăng bài bị nền tảng/thẻ <img> tải 1 lần không Range -> phải vừa 1 response
+MAX_SHARE_IMAGE_BYTES = FULL_MAX
+# Khúc tải lên: client mới dùng chunk_size = SLICE do /upload/init trả về; vẫn nhận tới 3,5 MB cho trang đang mở bản cũ
+CHUNK_MAX = 3_500_000
+MIN_CHUNK = 256 * 1024     # chặn số khúc tối đa / phiên (khúc nhỏ quá = hàng nghìn document rác)
+# Link /m/ không thu hồi được -> cache CDN/trình duyệt tối đa 1 ngày: xoá file thì sau ≤ 1 ngày link thôi phát
+PUBLIC_CACHE = 'public, max-age=86400'
 KINDS = {'ai_image', 'ai_video', 'promo_video', 'social_upload'}   # đều "chia sẻ công khai bằng link ký"
 UPLOAD_KINDS = ('promo_video', 'social_upload')
 IMAGE_TYPES = ('image/jpeg', 'image/png', 'image/webp')
@@ -128,8 +138,33 @@ def ext_for(content_type):
     return EXT.get(content_type or '', 'bin')
 
 
-def _cap_for(content_type):
-    return MAX_VIDEO_BYTES if (content_type or '').startswith('video/') else MAX_IMAGE_BYTES
+def _cap_for(content_type, kind=None):
+    if (content_type or '').startswith('video/'):
+        return MAX_VIDEO_BYTES
+    # Ảnh chủ tiệm tải lên để đăng: Instagram/Google tải bằng 1 GET không Range -> > FULL_MAX sẽ nhận bản cụt (206).
+    # Ảnh AI (Replicate) giữ trần 8 MB: đã trả tiền rồi, không vứt kết quả vì cỡ file.
+    return MAX_SHARE_IMAGE_BYTES if kind in UPLOAD_KINDS else MAX_IMAGE_BYTES
+
+
+def _mb(n):
+    return f'{n / 1_000_000:g} MB'
+
+
+def file_links(file_id, content_type):
+    """Các link của 1 file media. play_url/download_url = link /m/ có Range (phát được trên iOS, tải từng lát ≤ SLICE
+    khi file > 4,5 MB). 'url' giữ cho giao diện cũ: video trỏ luôn về /m/ vì /api/storage/file trả trọn file, không
+    Range (vỡ trên Vercel và Safari); ảnh vẫn là /api/storage/file như trước."""
+    fid = str(file_id)
+    pub = public_url(fid, ext_for(content_type))
+    is_video = (content_type or '').startswith('video/')
+    return {'url': pub if is_video else f'/api/storage/file/{fid}', 'public_url': pub, 'play_url': pub, 'download_url': pub}
+
+
+def public_limits():
+    """Ngưỡng cho giao diện (cắt khúc tải lên, ảnh phải nhỏ hơn bao nhiêu để đăng được bằng link)."""
+    return {'slice_bytes': SLICE, 'chunk_bytes': SLICE, 'full_max_bytes': FULL_MAX,
+            'max_upload_image_bytes': MAX_SHARE_IMAGE_BYTES, 'max_image_bytes': MAX_IMAGE_BYTES,
+            'max_video_bytes': MAX_VIDEO_BYTES}
 
 
 # ---------------------------------------------------------------- GridFS
@@ -167,9 +202,9 @@ def save_bytes(business_id, data, kind, filename=None, meta=None):
     ctype = sniff(data)
     if not ctype:
         raise MediaError('unsupported_type', 'Only JPEG, PNG, WebP images and MP4/WebM videos are supported.')
-    cap = _cap_for(ctype)
+    cap = _cap_for(ctype, kind)
     if len(data) > cap:
-        raise MediaError('too_large', f'File is larger than {cap // 1_000_000} MB.', detail={'max_bytes': cap})
+        raise MediaError('too_large', f'File is larger than {_mb(cap)}.', detail={'max_bytes': cap})
     meta = dict(meta or {})
     now = _now()
     ext = ext_for(ctype)
@@ -185,8 +220,7 @@ def save_bytes(business_id, data, kind, filename=None, meta=None):
             fields[k] = v
     # content_type -> pymongo lưu thành 'contentType' (GridOut.content_type đọc lại), như app.py api_storage_upload
     file_id = str(_fs().put(data, filename=f'{base}.{ext}', content_type=ctype, **fields))
-    return {'file_id': file_id, 'content_type': ctype, 'size': len(data),
-            'url': f'/api/storage/file/{file_id}', 'public_url': public_url(file_id, ext)}
+    return {'file_id': file_id, 'content_type': ctype, 'size': len(data), **file_links(file_id, ctype)}
 
 
 def _host_allowed(host, allowed_hosts):
@@ -292,6 +326,16 @@ def usage_bytes(business_id):
     return int(rows[0]['n']) if rows else 0
 
 
+def pending_upload_bytes(business_id, now=None):
+    """Byte đã giữ chỗ bởi phiên tải lên CHƯA xong (open/finishing, chưa hết hạn) — khúc của chúng nằm trong
+    media_upload_chunks, chưa vào GridFS nên usage_bytes() không thấy. Không tính thì mở N phiên trước khi finish
+    phiên nào là vượt trần dung lượng tiệm."""
+    now = now or _now()
+    return sum(int(s.get('size') or 0) for s in db.media_upload_chunks.find(
+        {'type': 'session', 'business_id': business_id, 'status': {'$in': ['open', 'finishing']}, 'expires_at': {'$gte': now}},
+        {'_id': 0, 'size': 1}))
+
+
 def list_files(business_id, kinds=UPLOAD_KINDS, limit=40):
     """File media (không phải job AI) của tiệm — cho thư viện AI Studio / bộ chọn media của trang Đăng bài."""
     cur = _files().find({'business_id': business_id, 'kind': {'$in': list(kinds)}},
@@ -303,7 +347,7 @@ def list_files(business_id, kinds=UPLOAD_KINDS, limit=40):
         ctype = f.get('contentType')
         out.append({'file_id': fid, 'kind': f.get('kind'), 'content_type': ctype, 'size': f.get('length'),
                     'source': f.get('source') or 'upload', 'created_at': iso(f.get('created_at') or f.get('uploadDate')),
-                    'url': f'/api/storage/file/{fid}', 'public_url': public_url(fid, ext_for(ctype))})
+                    **file_links(fid, ctype)})
     return out
 
 
@@ -346,37 +390,46 @@ def absolute_public_url(file_id, ext, base):
     return (base or '').rstrip('/') + public_url(file_id, ext)
 
 
+_RANGE_RE = re.compile(r'(\d*)\s*-\s*(\d*)')
+_RANGE_DIGITS = 15   # 15 chữ số ≈ 1 PB, thừa cho mọi file; số dài hơn = rác (5000 chữ số làm int() ném ValueError -> 500)
+
+
 def plan_range(range_header, size):
     """(status, start, end) cho 1 response ≤ SLICE byte.
-    Không có Range: file ≤ FULL_MAX -> 200 trọn file; file lớn hơn -> 206 lát đầu. Trả 206 cho request không xin Range là
-    lệch chuẩn HTTP, nhưng trả trọn file > 4,5 MB thì Vercel cắt hẳn response (lỗi 500) — 206 + Content-Range ít ra để
-    trình duyệt/trình tải hiểu là còn phần sau. Trình phát <video> luôn gửi 'Range: bytes=0-' nên không vướng."""
+    Không có Range (hoặc đơn vị lạ, vd 'items=' — RFC 9110 §14.2 bắt phải bỏ qua): file ≤ FULL_MAX -> 200 trọn file;
+    file lớn hơn -> 206 lát đầu. Trả 206 cho request không xin Range là lệch chuẩn HTTP, nhưng trả trọn file > 4,5 MB thì
+    Vercel cắt hẳn response (lỗi) — 206 + Content-Range ít ra để trình tải hiểu là còn phần sau. Trình phát <video> luôn
+    gửi 'Range: bytes=0-' nên không vướng; ảnh tải lên bị chặn ≤ FULL_MAX nên luôn trọn file.
+    'bytes=' sai cú pháp / số quá dài / cuối < đầu / ngoài file -> 416 (RFC cho phép từ chối), không bao giờ 500."""
     if size <= 0:
         return 416, None, None
     spec = (range_header or '').strip()
-    if not spec.lower().startswith('bytes='):
+    unit, eq, ranges = spec.partition('=')
+    if not eq or unit.strip().lower() != 'bytes':
         if size <= FULL_MAX:
             return 200, 0, size - 1
         return 206, 0, min(size, SLICE) - 1
-    first = spec[6:].split(',')[0].strip()   # nhiều khoảng -> chỉ phục vụ khoảng đầu (single-part)
-    m = re.fullmatch(r'(\d*)\s*-\s*(\d*)', first)
+    first = ranges.split(',')[0].strip()   # nhiều khoảng -> chỉ phục vụ khoảng đầu (single-part)
+    m = _RANGE_RE.fullmatch(first)
     if not m or (m.group(1) == '' and m.group(2) == ''):
-        # Range sai cú pháp -> bỏ qua như không có (RFC 7233)
-        return plan_range(None, size)
+        return 416, None, None
     a, b = m.group(1), m.group(2)
-    if a == '':
-        n = int(b)
-        if n <= 0:
-            return 416, None, None
-        start, end = max(0, size - n), size - 1
-    else:
-        start = int(a)
-        end = int(b) if b != '' else size - 1
-        if b != '' and end < start:
-            return plan_range(None, size)
-        if start >= size:
-            return 416, None, None
-        end = min(end, size - 1)
+    if len(a) > _RANGE_DIGITS or len(b) > _RANGE_DIGITS:
+        return 416, None, None
+    try:
+        if a == '':
+            n = int(b)
+            if n <= 0:
+                return 416, None, None
+            start, end = max(0, size - n), size - 1
+        else:
+            start = int(a)
+            end = int(b) if b != '' else size - 1
+            if end < start or start >= size:
+                return 416, None, None
+            end = min(end, size - 1)
+    except ValueError:
+        return 416, None, None
     end = min(end, start + SLICE - 1)
     return 206, start, end
 
@@ -415,8 +468,9 @@ def public_media(name):
     etag = f'"{file_id}"'
     headers = {
         'Accept-Ranges': 'bytes',
-        # Nội dung theo file_id không bao giờ đổi -> cache lâu; X-Media-Cache để after_request của app.py không ghi đè no-store
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        # Nội dung theo file_id không đổi nhưng chủ tiệm XOÁ được -> chỉ cache 1 ngày (không 'immutable', không 1 năm),
+        # để CDN/trình duyệt thôi phát file đã xoá trong ≤ 1 ngày. X-Media-Cache: after_request của app.py không ghi đè no-store
+        'Cache-Control': PUBLIC_CACHE,
         'X-Media-Cache': '1',
         'ETag': etag,
         'X-Content-Type-Options': 'nosniff',
@@ -452,18 +506,25 @@ def upload_init():
         size = int(data.get('size'))
     except (TypeError, ValueError):
         return _err('bad_size', 'size must be a number of bytes.')
-    cap = _cap_for(ctype)
+    cap = _cap_for(ctype, kind)
     if size <= 0:
         return _err('empty_file', 'The file is empty.')
     if size > cap:
-        return _err('too_large', f'File is larger than {cap // 1_000_000} MB.', detail={'max_bytes': cap})
+        if ctype.startswith('image/') and size <= MAX_IMAGE_BYTES:
+            # Ảnh 3,2–8 MB: Instagram/Google tải link 1 lần không Range -> nhận ảnh cụt. Trang tự thu nhỏ trước khi tải lên.
+            return _err('too_large', f'Photos must be {_mb(cap)} or smaller so Instagram and Google can fetch them — '
+                                     'shrink the photo and try again.', detail={'max_bytes': cap, 'reason': 'share_by_link'})
+        return _err('too_large', f'File is larger than {_mb(cap)}.', detail={'max_bytes': cap})
     now = _now()
     try:
-        # Dọn phiên tải dở đã hết hạn ("TTL-ish"; nên có thêm TTL index expires_at trên media_upload_chunks)
+        _ensure_upload_indexes()
+        # Dọn phiên tải dở đã hết hạn (TTL index ở trên cũng tự xoá, lệnh này cho chắc khi index chưa kịp chạy)
         db.media_upload_chunks.delete_many({'expires_at': {'$lt': now}})
-        if usage_bytes(bid) + size > SHOP_CAP_BYTES:
+        # Trần dung lượng tính cả phiên tải CHƯA xong (khúc đang nằm trong media_upload_chunks)
+        used = usage_bytes(bid) + pending_upload_bytes(bid, now)
+        if used + size > SHOP_CAP_BYTES:
             return _err('storage_full', 'Media storage for this shop is full — delete old videos first.',
-                        detail={'cap_bytes': SHOP_CAP_BYTES})
+                        detail={'cap_bytes': SHOP_CAP_BYTES, 'used_bytes': used})
         upload_id = secrets.token_urlsafe(18)
         chunks = math.ceil(size / SLICE)
         db.media_upload_chunks.insert_one({
@@ -473,7 +534,27 @@ def upload_init():
         })
     except MediaError as e:
         return jsonify(e.as_dict()), e.status
-    return jsonify({'success': True, 'upload_id': upload_id, 'chunk_size': SLICE, 'chunks': chunks})
+    return jsonify({'success': True, 'upload_id': upload_id, 'chunk_size': SLICE, 'chunks': chunks,
+                    'max_chunk_bytes': CHUNK_MAX})
+
+
+_INDEXES = {'done': False}
+
+
+def _ensure_upload_indexes():
+    """TTL index trên expires_at: khúc của phiên bỏ dở tự biến mất (trước đây chỉ dọn khi có lần init sau). 1 lần/tiến trình."""
+    if _INDEXES['done']:
+        return
+    _INDEXES['done'] = True
+    try:
+        db.media_upload_chunks.create_index('expires_at', expireAfterSeconds=0, name='ttl_expires_at')
+    except Exception as e:   # index đã có với tuỳ chọn khác… -> không chặn việc tải lên
+        print(f'[media_store] TTL index: {e}')
+
+
+def _max_chunks(sess):
+    # Không ép đúng 1 cỡ khúc: trang cũ cắt 3,0/3,4 MB, trang mới cắt theo chunk_size — miễn đủ byte và liền mạch
+    return max(int(sess.get('chunks') or 1), math.ceil(int(sess.get('size') or 0) / MIN_CHUNK))
 
 
 def _session_doc(upload_id, bid):
@@ -496,15 +577,15 @@ def upload_chunk(upload_id):
         index = int(request.args.get('index', ''))
     except ValueError:
         return _err('bad_index', 'index must be a number.')
-    if not 0 <= index < int(sess['chunks']):
+    if not 0 <= index < _max_chunks(sess):
         return _err('bad_index', 'Chunk index out of range.')
-    if (request.content_length or 0) > SLICE:
-        return _err('chunk_too_large', f'Each chunk must be at most {SLICE} bytes.', 413)
+    if (request.content_length or 0) > CHUNK_MAX:
+        return _err('chunk_too_large', f'Each chunk must be at most {CHUNK_MAX} bytes.', 413)
     body = request.get_data(cache=False)
     if not body:
         return _err('empty_chunk', 'Empty chunk.')
-    if len(body) > SLICE:
-        return _err('chunk_too_large', f'Each chunk must be at most {SLICE} bytes.', 413)
+    if len(body) > CHUNK_MAX:
+        return _err('chunk_too_large', f'Each chunk must be at most {CHUNK_MAX} bytes.', 413)
     others = sum(c.get('size', 0) for c in db.media_upload_chunks.find(
         {'type': 'chunk', 'upload_id': upload_id, 'index': {'$ne': index}}, {'_id': 0, 'size': 1}))
     if others + len(body) > int(sess['size']):
@@ -537,12 +618,21 @@ def upload_finish(upload_id):
     try:
         parts = sorted(db.media_upload_chunks.find({'type': 'chunk', 'upload_id': upload_id}, {'_id': 0, 'index': 1, 'data': 1}),
                        key=lambda c: c['index'])
-        if [c['index'] for c in parts] != list(range(int(sess['chunks']))):
+        have = [c['index'] for c in parts]
+        # Khúc phải liền mạch từ 0 và đủ đúng số byte đã khai (số khúc tuỳ cỡ khúc client dùng)
+        if not parts or have != list(range(len(parts))):
             raise MediaError('missing_chunks', 'Some chunks are missing — upload them again.',
-                             detail={'have': [c['index'] for c in parts], 'chunks': sess['chunks']})
+                             detail={'have': have, 'chunks': sess['chunks']})
         data = b''.join(bytes(c['data']) for c in parts)
+        if len(data) < int(sess['size']):
+            raise MediaError('missing_chunks', 'Some chunks are missing — upload them again.',
+                             detail={'have': have, 'chunks': sess['chunks']})
         if len(data) != int(sess['size']):
             raise MediaError('size_mismatch', 'Uploaded size does not match the declared size.')
+        # Kiểm lại trần lúc lưu thật (phiên mở song song lúc init có thể cùng lọt)
+        if usage_bytes(bid) + len(data) > SHOP_CAP_BYTES:
+            raise MediaError('storage_full', 'Media storage for this shop is full — delete old videos first.',
+                             detail={'cap_bytes': SHOP_CAP_BYTES})
         ctype = sniff(data)
         declared = sess.get('content_type') or ''
         if not ctype or ctype.split('/')[0] != declared.split('/')[0]:

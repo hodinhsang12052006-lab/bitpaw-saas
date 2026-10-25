@@ -122,7 +122,11 @@ class FakeCursor:
 
 class FakeCollection:
     def __init__(self, name):
-        self.name, self.docs = name, []
+        self.name, self.docs, self.indexes = name, [], []
+
+    def create_index(self, keys, **kw):
+        self.indexes.append((keys, kw))
+        return kw.get('name') or str(keys)
 
     def insert_one(self, doc):
         doc.setdefault('_id', ObjectId())
@@ -420,19 +424,28 @@ class TokenTests(unittest.TestCase):
 class RangeTests(unittest.TestCase):
     S = media_store.SLICE
 
+    def test_limits_fit_vercel(self):
+        # base64 (×4/3) của 1 lát / 1 file trọn vẫn dưới 4,5 MB của Vercel
+        self.assertEqual((media_store.SLICE, media_store.FULL_MAX), (2_500_000, 3_200_000))
+        self.assertLess(media_store.SLICE * 4 / 3, 4_500_000)
+        self.assertLess(media_store.FULL_MAX * 4 / 3, 4_500_000)
+
     def test_no_range(self):
-        self.assertEqual(media_store.plan_range(None, 4_000_000), (200, 0, 3_999_999))
-        self.assertEqual(media_store.plan_range(None, 4_400_000), (200, 0, 4_399_999))
+        self.assertEqual(media_store.plan_range(None, 3_000_000), (200, 0, 2_999_999))
+        self.assertEqual(media_store.plan_range(None, 3_200_000), (200, 0, 3_199_999))
+        self.assertEqual(media_store.plan_range(None, 3_200_001), (206, 0, self.S - 1))
         self.assertEqual(media_store.plan_range(None, 10_000_000), (206, 0, self.S - 1))
-        self.assertEqual(media_store.plan_range('items=0-5', 100), (200, 0, 99))
+        self.assertEqual(media_store.plan_range('items=0-5', 100), (200, 0, 99))     # đơn vị lạ -> bỏ qua (RFC)
+        self.assertEqual(media_store.plan_range('bytes', 100), (200, 0, 99))
 
     def test_slices(self):
         size = 10_000_000
         self.assertEqual(media_store.plan_range('bytes=0-', size), (206, 0, self.S - 1))          # đầu, mở -> cắt
         self.assertEqual(media_store.plan_range('bytes=0-99', size), (206, 0, 99))
+        self.assertEqual(media_store.plan_range('Bytes=0-99', size), (206, 0, 99))                 # đơn vị không phân biệt hoa thường
         self.assertEqual(media_store.plan_range(f'bytes={self.S}-{2 * self.S - 1}', size), (206, self.S, 2 * self.S - 1))
         self.assertEqual(media_store.plan_range('bytes=1000-9999999', size), (206, 1000, 1000 + self.S - 1))  # giữa, cắt
-        self.assertEqual(media_store.plan_range('bytes=7000000-', size), (206, 7_000_000, size - 1))       # lát cuối
+        self.assertEqual(media_store.plan_range('bytes=8000000-', size), (206, 8_000_000, size - 1))       # lát cuối
         self.assertEqual(media_store.plan_range('bytes=9999999-20000000', size), (206, 9_999_999, 9_999_999))
         self.assertEqual(media_store.plan_range('bytes=0-99,200-299', size), (206, 0, 99))
 
@@ -442,8 +455,16 @@ class RangeTests(unittest.TestCase):
         self.assertEqual(media_store.plan_range('bytes=-5000000', 10_000_000), (206, 5_000_000, 5_000_000 + self.S - 1))
         self.assertEqual(media_store.plan_range('bytes=20000000-', 10_000_000)[0], 416)
         self.assertEqual(media_store.plan_range('bytes=-0', 100)[0], 416)
-        self.assertEqual(media_store.plan_range('bytes=50-10', 100), (200, 0, 99))   # sai cú pháp -> bỏ qua
-        self.assertEqual(media_store.plan_range('bytes=abc', 100), (200, 0, 99))
+        # 'bytes=' sai -> 416 (RFC 9110 cho phép từ chối), không bao giờ ném lỗi
+        for bad in ('bytes=50-10', 'bytes=abc', 'bytes=-', 'bytes=', 'bytes=1-2-3', 'bytes=0x10-'):
+            self.assertEqual(media_store.plan_range(bad, 100), (416, None, None), bad)
+
+    def test_overlong_numbers_are_416_not_500(self):
+        # SEC-7: Python 3.12 int() từ chối > 4300 chữ số (ValueError) -> trước đây 500 trên route công khai
+        big = '9' * 5000
+        for spec in (f'bytes={big}-', f'bytes=0-{big}', f'bytes=-{big}', f'bytes={"1" * 16}-'):
+            self.assertEqual(media_store.plan_range(spec, 1000), (416, None, None), spec[:30])
+        self.assertEqual(media_store.plan_range(f'bytes=0-{"9" * 15}', 1000), (206, 0, 999))   # 15 chữ số vẫn hợp lệ
 
 
 class StoreAndPublicRouteTests(unittest.TestCase):
@@ -464,8 +485,12 @@ class StoreAndPublicRouteTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data, JPEG)
         self.assertEqual(r.headers['Content-Type'], 'image/jpeg')
-        self.assertEqual(r.headers['Cache-Control'], 'public, max-age=31536000, immutable')
+        # SEC-6: link không thu hồi được -> cache tối đa 1 ngày, không 'immutable' 1 năm (file xoá thì thôi phát)
+        self.assertEqual(r.headers['Cache-Control'], 'public, max-age=86400')
+        self.assertNotIn('immutable', r.headers['Cache-Control'])
         self.assertEqual(r.headers['X-Media-Cache'], '1')
+        self.assertEqual((saved['play_url'], saved['download_url']), (saved['public_url'], saved['public_url']))
+        self.assertEqual(saved['url'], f"/api/storage/file/{saved['file_id']}")   # ảnh: giữ link cũ
         self.assertEqual(r.headers['Accept-Ranges'], 'bytes')
         r = self.c.get(saved['public_url'], headers={'Range': 'bytes=0-9'})
         self.assertEqual(r.status_code, 206)
@@ -524,11 +549,13 @@ class UploadApiTests(unittest.TestCase):
         _reset_db()
         self.app = _flask_app()
         self.c = self.app.test_client()
-        self.p = mock.patch.object(media_store, 'SLICE', 128)
-        self.p.start()
+        self.ps = [mock.patch.object(media_store, 'SLICE', 128), mock.patch.object(media_store, 'CHUNK_MAX', 160)]
+        for p in self.ps:
+            p.start()
 
     def tearDown(self):
-        self.p.stop()
+        for p in self.ps:
+            p.stop()
 
     def _init(self, data, kind='social_upload', ctype='video/mp4'):
         return self.c.post('/api/media/upload/init', json={'kind': kind, 'size': len(data), 'content_type': ctype})
@@ -635,16 +662,30 @@ class FakeReplicate:
     """Replicate giả: ghi lại mọi request, trả lời theo kịch bản."""
 
     def __init__(self):
-        self.posts, self.gets = [], []
+        self.posts, self.gets, self.deletes, self.uploads = [], [], [], []
         self.create = {'id': 'pred_abc123', 'status': 'starting'}
         self.create_status = 201
         self.pred = {'id': 'pred_abc123', 'status': 'processing'}
         self.files = {'http://127.0.0.1:9/out/a.jpg': JPEG, 'http://127.0.0.1:9/out/v.mp4': MP4}
+        # Replicate Files API giả (POST /v1/files multipart 'content')
+        self.file_status = 201
+        self.file_resp = {'id': 'file_src001', 'urls': {'get': 'http://127.0.0.1:9/v1/files/file_src001'}}
 
-    def post(self, url, headers=None, json=None, timeout=None, **kw):
+    def post(self, url, headers=None, json=None, timeout=None, files=None, **kw):
         assert timeout, 'requests must have a timeout'
+        if url.endswith('/v1/files'):
+            assert files and 'content' in files and json is None, 'Files API takes multipart content'
+            self.uploads.append({'url': url, 'headers': headers, 'files': files})
+            return FakeResp(self.file_status, self.file_resp)
         self.posts.append({'url': url, 'headers': headers, 'json': json})
+        if url.endswith('/cancel'):
+            return FakeResp(200, {'id': url.rsplit('/', 2)[-2], 'status': 'canceled'})
         return FakeResp(self.create_status, self.create)
+
+    def delete(self, url, headers=None, timeout=None, **kw):
+        assert timeout, 'requests must have a timeout'
+        self.deletes.append(url)
+        return FakeResp(204, content=b'')
 
     def get(self, url, headers=None, timeout=None, stream=False, allow_redirects=True, **kw):
         assert timeout, 'requests must have a timeout'
@@ -660,7 +701,8 @@ class JobTests(unittest.TestCase):
     def setUp(self):
         _reset_db()
         self.r = FakeReplicate()
-        self.patches = [mock.patch('requests.post', self.r.post), mock.patch('requests.get', self.r.get)]
+        self.patches = [mock.patch('requests.post', self.r.post), mock.patch('requests.get', self.r.get),
+                        mock.patch('requests.delete', self.r.delete)]
         for p in self.patches:
             p.start()
 
@@ -896,7 +938,8 @@ class StudioRouteTests(unittest.TestCase):
         self.c = self.app.test_client()
         _login(self.c)
         self.r = FakeReplicate()
-        self.patches = [mock.patch('requests.post', self.r.post), mock.patch('requests.get', self.r.get)]
+        self.patches = [mock.patch('requests.post', self.r.post), mock.patch('requests.get', self.r.get),
+                        mock.patch('requests.delete', self.r.delete)]
         for p in self.patches:
             p.start()
 
@@ -1021,6 +1064,335 @@ class StudioRouteTests(unittest.TestCase):
         self.assertEqual(self.c.post('/api/ai_studio/scene_plan', json={'seconds': 10}).status_code, 400)
         _DEEPSEEK['reply'] = 'not json'
         self.assertEqual(self.c.post('/api/ai_studio/scene_plan', json={'topic': 'x'}).json['code'], 'ai_bad_output')
+
+
+def _signed_headers(key, body, wid='msg_rv'):
+    ts = str(int(time.time()))
+    sig = base64.b64encode(hmac.new(key, f'{wid}.{ts}.'.encode() + body, hashlib.sha256).digest()).decode()
+    return {'webhook-id': wid, 'webhook-timestamp': ts, 'webhook-signature': f'v1,{sig}', 'Content-Type': 'application/json'}
+
+
+class ReviewFixTests(unittest.TestCase):
+    """Hồi quy cho các lỗi review đã xác minh (25/10): F2, F3, F5–F8, SEC-4..SEC-7."""
+    KEY = b'r' * 32
+
+    def setUp(self):
+        _reset_db()
+        self.app = _flask_app()
+        self.c = self.app.test_client()
+        _login(self.c)
+        self.r = FakeReplicate()
+        self.patches = [mock.patch('requests.post', self.r.post), mock.patch('requests.get', self.r.get),
+                        mock.patch('requests.delete', self.r.delete)]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+
+    def _held(self, bid='biz-test'):
+        return FDB.ai_media_quota.find_one({'business_id': bid}) or {}
+
+    def _age(self, job_id, minutes, **extra):
+        FDB.ai_media_jobs.update_one({'id': job_id}, {'$set': dict(
+            {'created_at': datetime.now(timezone.utc) - timedelta(minutes=minutes)}, **extra)})
+
+    # ------------------------------------------------------------ F2: 202 = đã tạo, không phải lỗi
+    def test_f2_202_created_is_not_a_failure(self):
+        self.r.create_status, self.r.create = 202, {'id': 'pred_slow1', 'status': 'processing'}
+        job = ai_media.create_job('biz-test', 'u1', 'image', 'hd', 'gel nails', aspect='1:1')
+        self.assertEqual((job['status'], job['prediction_id'], job['error']), ('running', 'pred_slow1', None))
+        self.assertEqual(ai_media.quota_status('biz-test')['images']['pending'], 1)
+        self.r.pred = {'id': 'pred_slow1', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/a.jpg'}
+        done = ai_media.refresh_job(job['id'])
+        self.assertEqual(done['status'], 'succeeded')
+        self.assertEqual(FDB.ai_usage.count_documents({'job_id': job['id']}), 1)
+        # 4xx/5xx vẫn là lỗi và trả lại chỗ hạn mức
+        self.r.create_status, self.r.create = 503, {'detail': 'busy'}
+        with self.assertRaises(ai_media.MediaError) as cm:
+            ai_media.create_job('biz-test', 'u1', 'image', 'hd', 'x', aspect='1:1')
+        self.assertEqual(cm.exception.code, 'provider_error')
+        self.assertEqual(self._held()['images'], 1)
+
+    # ------------------------------------------------------------ F3: link phát/tải có Range cho mọi mục
+    def test_f3_jobs_and_gallery_expose_range_links(self):
+        self.r.create = {'id': 'pred_v1', 'status': 'starting'}
+        job = ai_media.create_job('biz-test', 'u1', 'video', 'standard', 'spa', duration=5)
+        self.r.pred = {'id': 'pred_v1', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/v.mp4'}
+        pub = ai_media.public_job(ai_media.refresh_job(job['id']))
+        self.assertTrue(pub['public_url'].startswith('/m/') and pub['public_url'].endswith('.mp4'))
+        for k in ('url', 'play_url', 'download_url'):      # video: cả 'url' cũng về /m/ (Range), không /api/storage/file
+            self.assertEqual(pub[k], pub['public_url'], k)
+        self.assertEqual(pub['size'], len(MP4))
+        for k in ('quota_key', 'source_file', 'swept_at', 'public_base', 'storing_until', 'store_attempts'):
+            self.assertNotIn(k, pub)
+        r = self.c.get(f"/api/ai_studio/media/jobs/{job['id']}")
+        self.assertEqual(r.json['job']['play_url'], pub['public_url'])
+        media_store.save_bytes('biz-test', MP4, 'promo_video', meta={'source': 'browser'})
+        media_store.save_bytes('biz-test', JPEG, 'social_upload')
+        d = self.c.get('/api/ai_studio/media').json
+        self.assertEqual(len(d['items']), 3)
+        for it in d['items']:
+            self.assertTrue(it['public_url'].startswith('/m/'), it)
+            self.assertEqual((it['play_url'], it['download_url']), (it['public_url'], it['public_url']))
+            if it['content_type'].startswith('video/'):
+                self.assertEqual(it['url'], it['public_url'])
+            else:
+                self.assertEqual(it['url'], f"/api/storage/file/{it['file_id']}")   # ảnh: link cũ giữ nguyên
+        self.assertEqual(d['limits']['full_max_bytes'], media_store.FULL_MAX)
+        r = self.c.get(pub['play_url'], headers={'Range': 'bytes=0-9'})
+        self.assertEqual((r.status_code, r.data), (206, MP4[:10]))
+
+    # ------------------------------------------------------------ F3 (media_store): ảnh chia sẻ bằng link phải vừa 1 response
+    def test_f3_shared_images_must_fit_one_response(self):
+        fm = media_store.FULL_MAX
+        r = self.c.post('/api/media/upload/init', json={'kind': 'social_upload', 'size': fm + 1, 'content_type': 'image/jpeg'})
+        self.assertEqual((r.status_code, r.json['code']), (400, 'too_large'))
+        self.assertEqual(r.json['detail'], {'max_bytes': fm, 'reason': 'share_by_link'})
+        r = self.c.post('/api/media/upload/init', json={'kind': 'social_upload', 'size': fm, 'content_type': 'image/jpeg'})
+        self.assertEqual(r.status_code, 200, r.json)
+        self.assertEqual(r.json['chunk_size'], media_store.SLICE)
+        r = self.c.post('/api/media/upload/init', json={'kind': 'social_upload', 'size': 12_000_000, 'content_type': 'video/mp4'})
+        self.assertEqual(r.status_code, 200, r.json)    # video lớn vẫn được (phát theo Range; đăng IG xử lý riêng)
+        big = JPEG + bytes(fm)
+        with self.assertRaises(media_store.MediaError) as cm:
+            media_store.save_bytes('biz-test', big, 'social_upload')
+        self.assertEqual(cm.exception.code, 'too_large')
+        self.assertEqual(media_store.save_bytes('biz-test', big, 'ai_image')['content_type'], 'image/jpeg')   # ảnh AI đã trả tiền: giữ
+        ok = media_store.save_bytes('biz-test', JPEG + bytes(fm - len(JPEG)), 'social_upload')
+        r = self.c.get(ok['public_url'])   # Instagram/Google: GET không Range -> nhận trọn file
+        self.assertEqual((r.status_code, len(r.data)), (200, fm))
+
+    # ------------------------------------------------------------ SEC-4 / F4 / F7: giữ chỗ hạn mức nguyên tử
+    def test_quota_reservation_is_atomic_under_stale_reads(self):
+        FDB.ai_usage.insert_one({'business_id': 'biz-test', 'kind': 'video', 'units': 292, 'job_id': 5000,
+                                 'created_at': datetime.now(timezone.utc)})
+        stale = ai_media.quota_status('biz-test')   # điều mọi request song song cùng đọc được: còn 8 giây
+        self.assertEqual((stale['video_seconds']['used'], stale['video_seconds']['pending']), (292, 0))
+        results = []
+        with mock.patch.object(ai_media, 'quota_status', lambda bid: json.loads(json.dumps(stale))):
+            for _ in range(6):
+                try:
+                    ai_media.create_job('biz-test', 'u1', 'video', 'premium', 'x', duration=8)
+                    results.append('ok')
+                except ai_media.MediaError as e:
+                    results.append(e.code)
+        self.assertEqual(results, ['ok'] + ['quota_exceeded'] * 5)
+        paid = [p for p in self.r.posts if p['url'].endswith('/predictions')]
+        self.assertEqual(len(paid), 1)               # chỉ 1 lệnh tốn tiền tới Replicate
+        self.assertEqual(self._held()['video_seconds'], 300)
+        self.assertEqual(FDB.ai_media_jobs.count_documents({}), 1)
+
+    def test_quota_released_once_on_failure_kept_on_success(self):
+        self.r.create_status, self.r.create = 422, {'detail': 'invalid'}
+        with self.assertRaises(ai_media.MediaError):
+            ai_media.create_job('biz-test', 'u1', 'video', 'standard', 'x', duration=5)
+        self.assertEqual(self._held()['video_seconds'], 0)
+        self.r.create_status, self.r.create = 201, {'id': 'pred_ok', 'status': 'starting'}
+        job = ai_media.create_job('biz-test', 'u1', 'video', 'standard', 'x', duration=5)
+        self.assertEqual(self._held()['video_seconds'], 5)
+        self.r.pred = {'id': 'pred_ok', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/v.mp4'}
+        ai_media.refresh_job(job['id'])
+        self.assertEqual(self._held()['video_seconds'], 5)     # thành công: chỗ giữ thành "đã dùng"
+        q = ai_media.quota_status('biz-test')['video_seconds']
+        self.assertEqual((q['used'], q['pending'], q['reserved']), (5, 0, 5))
+        self.assertFalse(ai_media._fail(job['id'], 'x', 'y'))  # job đã xong -> không trả chỗ
+        job2 = ai_media.create_job('biz-test', 'u1', 'video', 'standard', 'x', duration=5)
+        self.assertEqual(self._held()['video_seconds'], 10)
+        self.assertTrue(ai_media._fail(job2['id'], 'timeout', 't'))
+        self.assertFalse(ai_media._fail(job2['id'], 'timeout', 't'))   # lần 2 không trả thêm
+        self.assertEqual(self._held()['video_seconds'], 5)
+        row = FDB.ai_usage.find_one({'job_id': job['id']})
+        self.assertEqual(row['created_at'], FDB.ai_media_jobs.find_one({'id': job['id']})['created_at'])
+        self.assertIn('recorded_at', row)
+
+    # ------------------------------------------------------------ F5: ảnh nguồn > 1 MB -> Replicate Files API
+    def test_f5_large_source_photo_uses_replicate_files(self):
+        big = JPEG + bytes(1_500_000)
+        oid = media_store._FS.put(big, content_type='image/jpeg', business_id='biz-test', kind='social_upload')
+        job = ai_media.create_job('biz-test', 'u1', 'video', 'draft', 'animate', image_file_id=str(oid))   # không cần base_url
+        self.assertEqual(len(self.r.uploads), 1)
+        up = self.r.uploads[0]
+        self.assertEqual(up['url'], 'http://127.0.0.1:9/v1/files')
+        name, data, ctype = up['files']['content']
+        self.assertEqual((data, ctype, name), (big, 'image/jpeg', f'bitpaw-{oid}.jpg'))
+        self.assertEqual(up['headers'], {'Authorization': 'Bearer r8_unit_test'})   # multipart: requests tự đặt Content-Type
+        call = self.r.posts[-1]
+        self.assertEqual(call['json']['input']['image'], 'http://127.0.0.1:9/v1/files/file_src001')
+        self.assertEqual((job['model'], job['cost_estimate_usd']), ('wan-video/wan-2.2-i2v-fast', 0.065))
+        self.assertNotIn('source_file', ai_media.public_job(job))
+        self.r.pred = {'id': 'pred_abc123', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/v.mp4'}
+        self.assertEqual(ai_media.refresh_job(job['id'])['status'], 'succeeded')
+        self.assertEqual(self.r.deletes, ['http://127.0.0.1:9/v1/files/file_src001'])   # ảnh tiệm không nằm lại bên thứ 3
+        held = self._held()['video_seconds']
+        # Files API trả link lạ / lỗi -> từ chối, job failed, trả chỗ hạn mức, không gọi model
+        for status, resp in ((201, {'id': 'file_bad', 'urls': {'get': 'https://evil.example/x.jpg'}}),
+                             (500, {'detail': 'down'})):
+            self.r.file_status, self.r.file_resp = status, resp
+            n = len(self.r.posts)
+            with self.assertRaises(ai_media.MediaError) as cm:
+                ai_media.create_job('biz-test', 'u1', 'video', 'draft', 'animate', image_file_id=str(oid))
+            self.assertEqual(cm.exception.code, 'provider_error')
+            self.assertEqual(len(self.r.posts), n)
+            self.assertEqual(self._held()['video_seconds'], held)
+        self.assertEqual(FDB.ai_media_jobs.count_documents({'status': 'failed'}), 2)
+
+    # ------------------------------------------------------------ F6 / F7: input Veo + giá Wan theo model
+    def test_f6_f7_veo_720p_and_wan_prices(self):
+        ai_media.create_job('biz-test', 'u1', 'video', 'premium', 'x', duration=8)
+        self.assertEqual(self.r.posts[-1]['json']['input'],
+                         {'prompt': 'x', 'duration': 8, 'aspect_ratio': '9:16', 'resolution': '720p', 'generate_audio': True})
+        t2v = ai_media.create_job('biz-test', 'u1', 'video', 'draft', 'x')
+        self.assertEqual((t2v['model'], t2v['cost_estimate_usd']), ('wan-video/wan-2.2-t2v-fast', 0.05))
+        self.assertEqual(ai_media.estimate('video', 'draft', 5, model='wan-video/wan-2.2-i2v-fast'), 0.065)
+        q = self.c.get('/api/ai_studio/quota').json
+        draft = next(p for p in q['presets']['video'] if p['preset'] == 'draft')
+        self.assertEqual((draft['estimates_usd'], draft['estimates_animate_usd']), ({'5': 0.05}, {'5': 0.065}))
+        premium = next(p for p in q['presets']['video'] if p['preset'] == 'premium')
+        self.assertEqual(premium['estimates_usd'], {'4': 0.6, '8': 1.2})
+        self.assertEqual(q['presets']['image'][0]['estimate_usd'], 0.003)
+        self.assertEqual(q['limits']['slice_bytes'], media_store.SLICE)
+
+    # ------------------------------------------------------------ F8: job mồ côi thôi giữ chỗ hạn mức
+    def test_f8_sweep_orphans(self):
+        jobs = {}
+        for name in ('lost', 'young', 'done', 'dead', 'stuck'):
+            jobs[name] = ai_media.create_job('biz-test', 'u1', 'image', 'draft', name, aspect='1:1')['id']
+        self.assertEqual(self._held()['images'], 5)
+        self._age(jobs['lost'], 25, prediction_id=None)          # lệnh tạo chết sau insert
+        self._age(jobs['young'], 25)                              # có prediction, mới 25 phút -> để yên
+        self._age(jobs['done'], 35, prediction_id='pred_done1')   # xong bên Replicate nhưng không ai hỏi lại
+        self._age(jobs['dead'], 35, prediction_id='pred_dead1')
+        self._age(jobs['stuck'], 35, prediction_id='pred_stuck1')
+        preds = {'pred_done1': {'id': 'pred_done1', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/a.jpg'},
+                 'pred_dead1': {'id': 'pred_dead1', 'status': 'failed', 'error': 'OOM'},
+                 'pred_stuck1': {'id': 'pred_stuck1', 'status': 'processing'}}
+        orig_get = self.r.get
+
+        def get(url, **kw):
+            pid = url.rsplit('/', 1)[-1]
+            if '/v1/predictions/' in url and pid in preds:
+                self.r.gets.append(url)
+                return FakeResp(200, preds[pid])
+            return orig_get(url, **kw)
+        with mock.patch('requests.get', get):
+            self.assertEqual(ai_media.sweep_stale('biz-test', limit=10), 4)
+            st = {k: FDB.ai_media_jobs.find_one({'id': v})['status'] for k, v in jobs.items()}
+            self.assertEqual(st, {'lost': 'failed', 'young': 'queued', 'done': 'succeeded', 'dead': 'failed', 'stuck': 'failed'})
+            self.assertEqual(FDB.ai_media_jobs.find_one({'id': jobs['lost']})['error']['code'], 'create_lost')
+            self.assertEqual(FDB.ai_media_jobs.find_one({'id': jobs['stuck']})['error']['code'], 'timeout')
+            self.assertIn('http://127.0.0.1:9/v1/predictions/pred_stuck1/cancel', [p['url'] for p in self.r.posts])
+            self.assertEqual(self._held()['images'], 2)       # young (đang chạy) + done (đã dùng)
+            q = ai_media.quota_status('biz-test')['images']
+            self.assertEqual((q['used'], q['pending'], q['reserved']), (1, 1, 2))
+            # job vừa bị quét (Replicate lỗi mạng chẳng hạn) -> chỉ hỏi lại tối đa 1 lần / 2 phút
+            self._age(jobs['young'], 40, swept_at=datetime.now(timezone.utc))
+            n = len(self.r.gets)
+            self.assertEqual(ai_media.sweep_stale('biz-test', limit=10), 0)
+            self.assertEqual(len(self.r.gets), n)
+            FDB.ai_media_jobs.update_one({'id': jobs['young']},
+                                         {'$set': {'swept_at': datetime.now(timezone.utc) - timedelta(minutes=3)}})
+            self.assertEqual(ai_media.sweep_stale('biz-test', limit=10), 1)   # Replicate vẫn 'processing' quá 30 phút
+            self.assertEqual(FDB.ai_media_jobs.find_one({'id': jobs['young']})['error']['code'], 'timeout')
+            self.assertEqual(self._held()['images'], 1)
+
+    def test_f8_quota_route_sweeps_lost_job(self):
+        jid = ai_media.create_job('biz-test', 'u1', 'image', 'draft', 'x', aspect='1:1')['id']
+        self._age(jid, 21, prediction_id=None)
+        q = self.c.get('/api/ai_studio/quota').json
+        self.assertEqual((q['images']['pending'], q['images']['reserved']), (0, 0))
+        self.assertEqual(FDB.ai_media_jobs.find_one({'id': jid})['status'], 'failed')
+
+    def test_f8_signed_webhook_adopts_job_without_prediction_id(self):
+        jid = ai_media.create_job('biz-test', 'u1', 'video', 'draft', 'x')['id']
+        FDB.ai_media_jobs.update_one({'id': jid}, {'$set': {'prediction_id': None}})   # chết trước khi lưu prediction_id
+        self.r.pred = {'id': 'pred_late1', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/v.mp4'}
+        with mock.patch.dict(os.environ, {'REPLICATE_WEBHOOK_SECRET': 'whsec_' + base64.b64encode(self.KEY).decode()}):
+            # model khác / id rác -> không nhận
+            for body in ({'id': 'pred_late1', 'status': 'succeeded', 'model': 'someone/else'},
+                         {'id': '../../x', 'status': 'succeeded'}):
+                raw = json.dumps(body).encode()
+                r = self.c.post(f'/api/ai_studio/replicate_webhook?job={jid}', data=raw, headers=_signed_headers(self.KEY, raw))
+                self.assertTrue(r.json.get('ignored'), body)
+            self.assertIsNone(FDB.ai_media_jobs.find_one({'id': jid})['prediction_id'])
+            raw = json.dumps({'id': 'pred_late1', 'status': 'succeeded', 'model': 'wan-video/wan-2.2-t2v-fast'}).encode()
+            r = self.c.post(f'/api/ai_studio/replicate_webhook?job={jid}', data=raw, headers=_signed_headers(self.KEY, raw))
+            self.assertEqual((r.status_code, r.json['status']), (200, 'succeeded'))
+        j = FDB.ai_media_jobs.find_one({'id': jid})
+        self.assertEqual((j['prediction_id'], j['status']), ('pred_late1', 'succeeded'))
+        self.assertEqual(FDB.ai_usage.count_documents({'job_id': jid}), 1)
+
+    def test_webhook_asks_for_retry_while_another_worker_stores(self):
+        jid = ai_media.create_job('biz-test', 'u1', 'video', 'draft', 'x')['id']
+        self.r.pred = {'id': 'pred_abc123', 'status': 'succeeded', 'output': 'http://127.0.0.1:9/out/v.mp4'}
+        FDB.ai_media_jobs.update_one({'id': jid}, {'$set': {'storing_until': datetime.now(timezone.utc) + timedelta(seconds=60)}})
+        raw = json.dumps({'id': 'pred_abc123', 'status': 'succeeded'}).encode()
+        with mock.patch.dict(os.environ, {'REPLICATE_WEBHOOK_SECRET': 'whsec_' + base64.b64encode(self.KEY).decode()}):
+            r = self.c.post(f'/api/ai_studio/replicate_webhook?job={jid}', data=raw, headers=_signed_headers(self.KEY, raw))
+            self.assertEqual((r.status_code, r.json['code']), (503, 'retry_later'))   # Replicate gửi lại sau
+            FDB.ai_media_jobs.update_one({'id': jid}, {'$set': {'storing_until': datetime.now(timezone.utc) - timedelta(seconds=1)}})
+            r = self.c.post(f'/api/ai_studio/replicate_webhook?job={jid}', data=raw, headers=_signed_headers(self.KEY, raw, 'msg_2'))
+            self.assertEqual((r.status_code, r.json['status']), (200, 'succeeded'))
+
+    # ------------------------------------------------------------ SEC-5: trần dung lượng tính cả phiên tải dở
+    def test_sec5_open_uploads_count_toward_cap(self):
+        media_store._INDEXES['done'] = False
+        init = lambda n: self.c.post('/api/media/upload/init', json={'kind': 'social_upload', 'size': n, 'content_type': 'video/mp4'})
+        with mock.patch.object(media_store, 'SHOP_CAP_BYTES', 1000):
+            r1 = init(600)
+            self.assertEqual(r1.status_code, 200, r1.json)
+            r2 = init(600)
+            self.assertEqual((r2.status_code, r2.json['code']), (400, 'storage_full'))
+            self.assertEqual(r2.json['detail']['used_bytes'], 600)
+            _login(self.c, 'biz-pro')
+            self.assertEqual(init(600).status_code, 200)        # tiệm khác không bị tính chung
+            _login(self.c)
+            FDB.media_upload_chunks.update_one({'type': 'session', 'upload_id': r1.json['upload_id']},
+                                               {'$set': {'expires_at': datetime.now(timezone.utc) - timedelta(seconds=1)}})
+            self.assertEqual(init(600).status_code, 200)        # phiên hết hạn không còn giữ chỗ
+        ttl = [kw for keys, kw in FDB.media_upload_chunks.indexes if keys == 'expires_at']
+        self.assertEqual(ttl, [{'expireAfterSeconds': 0, 'name': 'ttl_expires_at'}])
+
+    def test_sec5_finish_rechecks_cap(self):
+        data = MP4 + bytes(200)
+        with mock.patch.object(media_store, 'SHOP_CAP_BYTES', 1000):
+            r = self.c.post('/api/media/upload/init', json={'kind': 'promo_video', 'size': len(data), 'content_type': 'video/mp4'})
+            up = r.json['upload_id']
+            self.assertEqual(self.c.post(f'/api/media/upload/{up}/chunk?index=0', data=data).status_code, 200)
+            media_store.save_bytes('biz-test', MP4 + bytes(300), 'promo_video')   # file khác vừa lưu xong
+            r = self.c.post(f'/api/media/upload/{up}/finish')
+            self.assertEqual((r.status_code, r.json['code']), (400, 'storage_full'))
+            self.assertEqual(FDB.media_upload_chunks.find_one({'type': 'session', 'upload_id': up})['status'], 'open')
+            self.assertEqual(FDB['media.files'].count_documents({}), 1)
+
+    def test_chunks_of_any_client_size_assemble(self):
+        # trang đang mở bản cũ cắt 3,0/3,4 MB trong khi SLICE giờ 2,5 MB -> vẫn ghép được miễn liền mạch + đủ byte
+        data = MP4 + bytes(range(256))
+        with mock.patch.object(media_store, 'SLICE', 128), mock.patch.object(media_store, 'CHUNK_MAX', 400):
+            r = self.c.post('/api/media/upload/init', json={'kind': 'promo_video', 'size': len(data), 'content_type': 'video/mp4'})
+            up = r.json['upload_id']
+            self.assertEqual(r.json['chunks'], -(-len(data) // 128))
+            for i, part in enumerate((data[:300], data[300:])):
+                self.assertEqual(self.c.post(f'/api/media/upload/{up}/chunk?index={i}', data=part).status_code, 200)
+            r = self.c.post(f'/api/media/upload/{up}/finish')
+            self.assertEqual(r.status_code, 200, r.json)
+            self.assertEqual(media_store._FS.blobs[ObjectId(r.json['file_id'])], data)
+            self.assertEqual(r.json['play_url'], r.json['public_url'])
+            # khúc hở giữa -> missing_chunks
+            r = self.c.post('/api/media/upload/init', json={'kind': 'promo_video', 'size': len(data), 'content_type': 'video/mp4'})
+            up = r.json['upload_id']
+            self.c.post(f'/api/media/upload/{up}/chunk?index=0', data=data[:300])
+            self.c.post(f'/api/media/upload/{up}/chunk?index=2', data=data[300:])
+            self.assertEqual(self.c.post(f'/api/media/upload/{up}/finish').json['code'], 'missing_chunks')
+
+    # ------------------------------------------------------------ SEC-7 trên route công khai
+    def test_sec7_public_route_overlong_range_is_416(self):
+        saved = media_store.save_bytes('biz-test', MP4, 'ai_video')
+        for rng in ('bytes=' + '9' * 5000 + '-', 'bytes=0-' + '9' * 5000, 'bytes=abc'):
+            r = self.c.get(saved['public_url'], headers={'Range': rng})
+            self.assertEqual(r.status_code, 416, rng[:20])
+            self.assertEqual(r.headers['Content-Range'], f'bytes */{len(MP4)}')
 
 
 if __name__ == '__main__':
