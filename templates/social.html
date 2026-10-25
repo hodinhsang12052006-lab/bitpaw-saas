@@ -709,6 +709,8 @@
             return String(d.message || d.error || dict.http.replace('{detail}', 'HTTP ' + (status || '?')));
         }
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        // Bài đánh giá AI có **đậm** / gạch đầu dòng Markdown: escape trước rồi mới đổi **x** thành <strong> (không chèn HTML thô)
+        const mdLite = (s) => esc(s).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>').replace(/^#{1,4}\s*/gm, '');
         // Chỉ cho link https/http hoặc đường dẫn nội bộ (chặn javascript:)
         function safeUrl(u) {
             u = String(u || '').trim();
@@ -1702,7 +1704,7 @@
                     win = typeof w === 'string' ? w : (w.from && w.to ? `${fmt(w.from, { dateStyle: 'medium' })} – ${fmt(w.to, { dateStyle: 'medium' })}` : (w.days ? t('perfDays', { n: w.days }) : ''));
                 }
                 box.innerHTML = `<div class="row">${'<i class="fas fa-wand-magic-sparkles" style="color:#22d3ee"></i>'}<h3>${esc(t('review'))}</h3>${win ? `<span class="hint">· ${esc(t('windowLbl', { w: win }))}</span>` : ''}</div>
-                    <div class="${d.enough_data === false ? 'info' : 'rv'}">${esc(d.text || d.message || '')}</div>
+                    <div class="${d.enough_data === false ? 'info' : 'rv'}">${mdLite(d.text || d.message || '')}</div>
                     ${d.enough_data !== false && tops.length ? `<span class="lbl">${esc(t('topPosts'))}</span><div class="stack">${tops.map((x) => {
                         const p = x.post || x, plat = x.platform || ((p.targets || [])[0] || {}).platform;
                         return `<div class="tgt"><span class="row" style="flex-wrap:nowrap;align-items:flex-start">${plat ? logo(plat) : ''}<span style="overflow-wrap:anywhere">${esc(String(x.caption || p.caption || p.title || '').slice(0, 160))}</span></span>${metsHtml(x.metrics || {})}</div>`;
