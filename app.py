@@ -592,6 +592,9 @@ _CSRF_EXEMPT_ENDPOINTS = [
     'api_public_karaoke_order',
     # Hộp thư chung: webhook Meta/Zalo/Viber (xác thực bằng chữ ký của nền tảng — inbox_channels.verify_signature)
     'inbox_webhook',
+    # AI Studio: Replicate báo video/ảnh xong (chữ ký Svix — ai_media.verify_webhook); cron đăng bài (Bearer CRON_SECRET)
+    'ai_studio.replicate_webhook',
+    'social.cron_social_tick',
 ]
 
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
@@ -840,6 +843,9 @@ def _disable_html_caching(response):
     dùng thấy dữ liệu CŨ sau khi server/source đã cập nhật. Không áp dụng cho /static/ vì
     file tĩnh (css/js/ảnh) cache bình thường là an toàn và cần thiết cho hiệu năng.
     """
+    # Media công khai đã ký (/m/<token> — media_store.py) bất biến theo id: giữ cache dài, không ép no-store
+    if response.headers.get('X-Media-Cache') == '1':
+        return response
     if not request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'no-store, must-revalidate'
     return response
@@ -11615,7 +11621,12 @@ def ai_bot():
     }
     # Công cụ "Sales Demo" (mô phỏng hội thoại để đội bán hàng BitPaw trình diễn) chỉ cho tài khoản demo / super admin
     sales_demo = (session.get('role') == 'super_admin') or str(session.get('user_email') or '').endswith('@bitpawdemo.com')
-    return render_template('ai_bot.html', profile=profile, sales_demo=sales_demo, is_vn_shop=is_vn_shop)
+    try:
+        copilot_enabled = _is_superadmin() or plans.allows(plans.business_plan(db, business_id), 'ai_copilot')
+    except Exception:
+        copilot_enabled = True
+    return render_template('ai_bot.html', profile=profile, sales_demo=sales_demo, is_vn_shop=is_vn_shop,
+                           copilot_enabled=copilot_enabled)
 
 
 @app.route('/api/ai/campaigns/summary', methods=['GET'])
@@ -14186,6 +14197,29 @@ try:
     # login_required (dòng ~534) vì ai_studio_bp.py làm `from app import login_required`.
     from ai_studio_bp import ai_studio_bp
     app.register_blueprint(ai_studio_bp)
+    # Media bền vững (GridFS + link công khai có chữ ký, upload chia khúc) cho ảnh/video AI Studio + bài đăng
+    from media_store import media_bp
+    app.register_blueprint(media_bp)
+    # AI quản lý đa nền tảng: Facebook Page, Instagram, YouTube, TikTok, Google Business — xem docs/AI_SUITE_SPEC.md
+    from social_bp import social_bp
+    app.register_blueprint(social_bp)
+    # Route tốn tiền thật (Replicate/DeepSeek) hoặc gọi nền tảng ngoài: giới hạn riêng theo IP, ngoài hạn mức theo gói
+    for _ep, _lim in {
+        'ai_studio.media_create_job': '30 per hour;6 per minute',
+        'ai_studio.generate_image_route': '30 per hour;6 per minute',
+        'ai_studio.scene_plan': '60 per hour',
+        'ai_studio.generate_text': '200 per hour',
+        'media_store.upload_init': '60 per hour',
+        'social.plan_week': '20 per hour',
+        'social.captions_route': '120 per hour',
+        'social.review_route': '30 per hour',
+        'social.posts_publish_now': '60 per hour',
+        'social.accounts_action': '30 per hour',
+    }.items():
+        if _ep in app.view_functions:
+            limiter.limit(_lim)(app.view_functions[_ep])
+        else:
+            print(f"[!] rate limit: không thấy endpoint '{_ep}'")
 except Exception as bp_err:
     print(f"Error registering ai_studio_bp: {str(bp_err)}")
 

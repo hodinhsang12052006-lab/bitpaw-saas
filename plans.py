@@ -72,7 +72,7 @@ def price(industry, plan, currency='USD'):
 FEATURE_MIN_PLAN = {
     'roster': 'pro', 'requests': 'pro', 'messaging': 'pro', 'packages': 'pro', 'inventory': 'pro', 'finance': 'pro',
     'kds': 'pro', 'qr_ordering': 'pro', 'reservations': 'pro', 'gps_radar': 'pro', 'parts': 'pro', 'materials': 'pro',
-    'crm_ai': 'pro',
+    'crm_ai': 'pro', 'ai_inbox': 'pro',
     'ai_copilot': 'empire', 'ai_studio': 'empire', 'marketing_pro': 'empire', 'multi_location': 'empire',
 }
 FEATURE_LABELS = {
@@ -84,6 +84,7 @@ FEATURE_LABELS = {
     'parts': ('Kho phụ tùng', 'Parts inventory'), 'materials': ('Nguyên vật liệu', 'Raw materials'),
     'crm_ai': ('CRM + AI nhắc khách quay lại', 'CRM + AI win-back'), 'ai_copilot': ('AI Copilot', 'AI Copilot'),
     'ai_studio': ('AI Studio', 'AI Studio'), 'marketing_pro': ('Marketing đa kênh', 'Multi-channel marketing'),
+    'ai_inbox': ('Hộp thư AI đa kênh', 'AI multi-channel inbox'),
     'multi_location': ('Nhiều chi nhánh & báo cáo gộp', 'Multiple locations & consolidated reports'),
 }
 # Trang/API của CHỦ TIỆM bị khoá khi gói chưa có tính năng (tiền tố đường dẫn). Trang công khai của khách không khoá.
@@ -100,8 +101,10 @@ ROUTE_FEATURES = [
     ('/map_dashboard', 'gps_radar'), ('/technical/parts', 'parts'), ('/production/materials', 'materials'),
     ('/campaign_builder', 'crm_ai'), ('/ai/campaign-builder', 'crm_ai'), ('/customer_nurturing', 'crm_ai'),
     ('/ai/customer-nurturing', 'crm_ai'), ('/crm_automation', 'crm_ai'),
-    ('/ai_bot', 'ai_copilot'), ('/api/ai/copilot', 'ai_copilot'),
-    ('/ai-studio', 'ai_studio'), ('/ai_studio', 'ai_studio'), ('/api/ai/studio', 'ai_studio'),
+    ('/ai_bot', 'ai_inbox'), ('/inbox/channels', 'ai_inbox'), ('/api/inbox', 'ai_inbox'), ('/api/bot', 'ai_inbox'),
+    ('/api/ai/copilot', 'ai_copilot'),
+    ('/ai-studio', 'ai_studio'), ('/ai_studio', 'ai_studio'), ('/api/ai_studio', 'ai_studio'), ('/api/media', 'ai_studio'),
+    ('/social', 'marketing_pro'), ('/api/social', 'marketing_pro'),
     ('/ad-assistant', 'marketing_pro'), ('/omnichannel', 'marketing_pro'), ('/omnichannel_connect', 'marketing_pro'), ('/ai/connect-platforms', 'marketing_pro'),
     ('/ecommerce_sync', 'marketing_pro'),
     ('/report_consolidated', 'multi_location'),

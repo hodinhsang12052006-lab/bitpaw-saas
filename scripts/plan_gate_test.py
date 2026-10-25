@@ -63,7 +63,11 @@ check('Essential: /roster (Pro) -> chuyển tới /plan', r.status_code == 302 a
 r = c.get('/api/roster/week', headers={'Accept': 'application/json'})
 check('Essential: API lịch ca -> 403 upgrade_required', r.status_code == 403 and (r.get_json() or {}).get('upgrade_required') is True, str(r.status_code))
 r = c.get('/ai_bot')
-check('Essential: AI Copilot (Empire) -> /plan', r.status_code == 302 and 'feature=ai_copilot' in r.headers.get('Location', ''))
+check('Essential: Hộp thư AI (Pro) -> /plan', r.status_code == 302 and 'feature=ai_inbox' in r.headers.get('Location', ''))
+r = c.post('/api/ai_studio/media/jobs', json={'kind': 'image', 'preset': 'draft', 'prompt': 'x'})
+check('Essential: API AI Studio (Empire) -> 403 upgrade_required', r.status_code == 403 and (r.get_json() or {}).get('feature') == 'ai_studio', str(r.status_code))
+r = c.get('/api/social/posts')
+check('Essential: API Đăng bài (Empire) -> 403', r.status_code == 403 and (r.get_json() or {}).get('feature') == 'marketing_pro', str(r.status_code))
 r = c.get('/pos')
 check('Essential: POS không bị khoá', r.status_code in (200, 302) and '/plan' not in r.headers.get('Location', ''), str(r.status_code))
 r = c.get('/calendar')
@@ -83,7 +87,9 @@ check('Không cho "nâng cấp" xuống gói thấp hơn/bằng', r.status_code 
 CURRENT['plan'] = 'pro'
 check('Pro: /roster mở', c.get('/roster').status_code == 200)
 r = c.get('/ai_bot')
-check('Pro: AI Copilot vẫn khoá (Empire)', r.status_code == 302 and 'feature=ai_copilot' in r.headers.get('Location', ''))
+check('Pro: Hộp thư AI mở (gói Pro bán trợ lý AI trả lời khách)', r.status_code == 200 and 'const COPILOT_ON = false' in r.get_data(as_text=True))
+r = c.post('/api/ai/copilot', json={'mode': 'insight', 'topic': 'revenue'})
+check('Pro: Copilot riêng vẫn khoá (Empire) -> 403', r.status_code == 403 and (r.get_json() or {}).get('feature') == 'ai_copilot', str(r.status_code))
 CURRENT['plan'] = 'empire'
 check('Empire: AI Copilot mở', c.get('/ai_bot').status_code == 200)
 html = c.get('/calendar').get_data(as_text=True)

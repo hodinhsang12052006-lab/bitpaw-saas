@@ -569,7 +569,9 @@
         let allCustomers = [];
         let isMockMode = false;
         let isDemoMode = false;
-        const SALES_DEMO = {{ 'true' if sales_demo else 'false' }};   // chủ tiệm thật không thấy "Sales Demo Tools"
+        const SALES_DEMO = {{ 'true' if sales_demo else 'false' }};
+        // Hộp thư mở từ gói Pro; Copilot riêng của chủ tiệm (gợi ý trả lời, hỏi số liệu) thuộc gói Empire
+        const COPILOT_ON = {{ 'true' if copilot_enabled is not defined or copilot_enabled else 'false' }};   // chủ tiệm thật không thấy "Sales Demo Tools"
 
         // Bumped every time ANY chat gets (re)loaded — startLiveDemo()'s multi-second delayed
         // steps check this before touching the DOM, so switching to a real customer mid-animation
@@ -1016,6 +1018,7 @@
                 alertEl.classList.add('hidden');
                 return;
             }
+            if (!COPILOT_ON) { alertEl.classList.add('hidden'); return; }
             const last = lastLoadedMessages[lastLoadedMessages.length - 1];
             if (!last || last.sender_type !== 'customer') { alertEl.classList.add('hidden'); draftForKey = null; return; }
             const key = currentCustomerId + '|' + lastLoadedMessages.length + '|' + (last.created_at || '');
@@ -1042,6 +1045,12 @@
         async function runCopilot(payload) {
             openCopilot();
             const box = document.getElementById('copilotAnswer');
+            if (!COPILOT_ON) {
+                box.innerHTML = `<i class="fas fa-lock text-amber-300 mr-2"></i>${escapeHtml(cpLang() === 'vi'
+                    ? 'Copilot riêng của chủ tiệm (hỏi số liệu, gợi ý trả lời) có trong gói Empire Scale.'
+                    : 'The owner Copilot (ask your numbers, suggested replies) is included in Empire Scale.')} <a href="/plan?feature=ai_copilot" class="underline text-cyan-300">${cpLang() === 'vi' ? 'Xem gói' : 'See plans'}</a>`;
+                return;
+            }
             box.innerHTML = `<i class="fas fa-circle-notch fa-spin text-purple-400 mr-2"></i>${escapeHtml(cpt('thinking'))}`;
             try {
                 const res = await hrApi('/api/ai/copilot', { method: 'POST', body: JSON.stringify(Object.assign({ mode: 'insight', lang: cpLang() }, payload)) });
