@@ -848,3 +848,8 @@ Yêu cầu: "nâng cấp hệ thống bảo mật lên, chống hacker… crack 
 - Chữ: nhãn đầu trang 10 ngành ngắn + viết hoa đầu câu (vi/en); tiêu đề Nails thôi Viết Hoa Từng Chữ; bỏ xưng "Sếp" ở 5 landing (trang Văn phòng giữ — ở đó "sếp" là người quản lý thật).
 - Nền: mọi trang (app, khách, landing, giới thiệu, thanh toán, tải app, pháp lý) cùng nền #0b1120.
 - Kiểm thử: landing_pages 66/66 · landing_polish đạt · landing_mobile_blank 0 màn trống · landing_fab đạt · landing_download 47/47 · CSP 219 lượt 0 vi phạm. Công cụ mới: `scripts/landing_shots.mjs` (máy tính + điện thoại, FULL=1 chụp toàn trang đã hiện hết hiệu ứng cuộn).
+
+**Pha 28c (25/10) — "thấy nào hợp lí là làm": chuẩn hoá thương hiệu + chữ landing**
+- Logo trên trang = chú chó ở MỌI trang (thêm trang thanh toán gói, trang tải app). Chữ B neon giữ đúng vai trò icon của app (favicon, icon cài đặt, hộp "Thêm vào màn hình chính") — khách cài xong thấy đúng icon đó.
+- 427 chuỗi tiếng Việt trên 11 landing (10 trang ngành + trang chủ `translations/vi.json`) từ "Viết Hoa Từng Chữ" → viết hoa đầu câu (menu, nút, tiêu đề mục, nhãn, chân trang); giữ viết tắt/tên riêng (POS, QR, F&B, BitPaw Karaoke, Zalo, Hàn Quốc...), không đụng nội dung mẫu (tên khách, tin mẫu, màn terminal). Công cụ: scratchpad `sentence_case.py` (chạy thử → soát → ghi).
+- Trang chủ còn "Sếp/Boss" và 🔥 trong `translations/*.json` (không thuộc lượt quét template trước) → đã thay; nút "Download Desktop App" trên trang tiếng Việt → "Tải ứng dụng" / "Download app".
