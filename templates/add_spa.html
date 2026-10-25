@@ -2,387 +2,147 @@
 <html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Add Spa Treatment - BitPaw Software</title>
-    
-    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ brand_name }} · Add a treatment</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {#  Thêm liệu trình (làm lại 25/10/2026, cùng hệ giao diện với POS Spa): danh mục là ô gõ tự do có gợi ý từ chính danh sách
+        của tiệm (trước đây chọn gì máy chủ cũng ghi cứng "Spa & Beauty"), giá nhận số lẻ cho tiệm tiền đô ($89.95), đơn vị
+        tiền theo tiệm (trước luôn "₫"), ảnh xem trước, lỗi hiện ngay trên form thay vì trang lỗi trắng. #}
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: #08061a; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        
-
-        .scan-line {
-            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
-            background: linear-gradient(90deg, transparent, #e879f9, #c084fc, transparent);
-            z-index: -1; pointer-events: none; opacity: 0.5;
-            animation: scanMove 8s linear infinite;
-        }
-        .laser-vertical {
-            position: fixed; top: 0; left: 0; width: 1px; height: 100%;
-            background: linear-gradient(180deg, transparent, #e879f9, #c084fc, transparent);
-            z-index: -1; pointer-events: none; opacity: 0.3;
-            animation: laserVertical 12s ease-in-out infinite;
-        }
-        @keyframes scanMove { 0% { top: -5%; } 100% { top: 105%; } }
-        @keyframes laserVertical { 0% { left: -10%; } 50% { left: 110%; } 100% { left: -10%; } }
-
-        .absolute-blur {
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 500px;
-            height: 500px;
-            background: rgba(232, 121, 249, 0.15);
-            border-radius: 50%;
-            filter: blur(150px);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .glass-panel { 
-            background: rgba(10, 15, 37, 0.6); 
-            backdrop-filter: blur(24px); 
-            border: 1px solid rgba(232, 121, 249, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(232, 121, 249, 0.15); 
-        }
-        
-        .glass-input, .glass-select { 
-            background: rgba(0,0,0,0.6); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            color: white; 
-            transition: all 0.3s; 
-            padding: 12px 16px; 
-            border-radius: 12px; 
-            outline: none; 
-            width: 100%; 
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        .glass-input:focus, .glass-select:focus { 
-            border-color: #e879f9; 
-            box-shadow: 0 0 15px rgba(232, 121, 249, 0.4); 
-            background: rgba(0,0,0,0.8); 
-        }
-
-        .glass-select option { background-color: #0f111a; color: white; }
-        .glass-select optgroup { color: #e879f9; font-weight: 900; background: #08061a; }
-
-        .file-label {
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .file-label:hover {
-            background: rgba(232, 121, 249, 0.2);
-            border-color: #e879f9;
-        }
-        #imagePreview {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 12px;
-            border: 1px solid rgba(232,121,249,0.5);
-            background: rgba(0,0,0,0.5);
-        }
-
-        @keyframes float-hologram {
-            0% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(232, 121, 249, 0.4)); }
-            50% { transform: translateY(-4px); filter: drop-shadow(0 12px 12px rgba(255, 148, 77, 0.5)); }
-            100% { transform: translateY(0px); filter: drop-shadow(0 5px 5px rgba(232, 121, 249, 0.4)); }
-        }
-        .logo-float { animation: float-hologram 4s ease-in-out infinite; }
-
-        /* CSKH Widget hiển thị đầy đủ thông tin */
-        .cskh-widget {
-            background: rgba(0,0,0,0.4);
-            border-radius: 1.5rem;
-            padding: 1rem;
-            margin-top: 1rem;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .cskh-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem;
-            border-radius: 1rem;
-            transition: 0.2s;
-            text-decoration: none;
-        }
-        .cskh-item:hover {
-            background: rgba(232,121,249,0.15);
-        }
-        .cskh-info {
-            display: flex;
-            flex-direction: column;
-        }
-        .cskh-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #9ca3af;
-        }
-        .cskh-value {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: white;
-        }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(232,121,249,0.5); border-radius: 10px; }
-
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(232, 121, 249, 0.5);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 40px;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 9999;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            white-space: nowrap;
-        }
-        .toast.show {
-            transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
-    
-        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
-        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
+        :root { --ground: #0a1013; --surface: #111a1e; --line: rgba(255,255,255,.07); --line-2: rgba(255,255,255,.12); --control: rgba(255,255,255,.16);
+                --text: #eef5f4; --muted: #b0c0be; --faint: #8fa3a0; --accent: #2dd4bf; --accent-ink: #032824; --danger: #f87171; --ease: cubic-bezier(.2,.8,.2,1); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { min-height: 100dvh; font: 15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); -webkit-font-smoothing: antialiased;
+               background: radial-gradient(1100px 620px at 8% -12%, rgba(45,212,191,.12), transparent 62%), radial-gradient(900px 560px at 104% 112%, rgba(214,178,132,.09), transparent 60%), var(--ground);
+               background-attachment: fixed; padding: 20px 16px 40px; }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        button, input { font: inherit; color: inherit; }
+        .wrap { max-width: 560px; margin: 0 auto; }
+        .top { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+        .top img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+        .top .who { flex: 1; min-width: 0; }
+        .top .shop { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .top .sub { font-size: 12.5px; color: var(--faint); }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+               color: var(--text); border: 1px solid var(--control); background: none; text-decoration: none; cursor: pointer; transition: background .15s var(--ease); }
+        .btn:hover { background: rgba(255,255,255,.06); }
+        .btn i { color: var(--muted); }
+        .card { background: rgba(13,21,24,.92); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+        h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+        .lede { color: var(--muted); font-size: 14px; margin: 6px 0 22px; }
+        form { display: grid; gap: 18px; }
+        .field { display: grid; gap: 7px; }
+        .field > span { font-size: 13px; font-weight: 600; color: var(--muted); }
+        .field small { font-size: 12.5px; color: var(--faint); }
+        .input { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-2); }
+        .input:focus-within { border-color: rgba(45,212,191,.6); }
+        .input i, .input .unit { color: var(--faint); flex-shrink: 0; }
+        .input .unit { font-weight: 600; }
+        .input input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: none; font-size: 15.5px; }
+        .input input::placeholder { color: var(--faint); }
+        .price input { font-variant-numeric: tabular-nums; }
+        .photo { display: flex; align-items: center; gap: 14px; }
+        .thumb { width: 96px; height: 72px; border-radius: 12px; background: var(--surface); border: 1px dashed var(--line-2); display: grid; place-items: center; overflow: hidden; flex-shrink: 0; color: var(--faint); font-size: 22px; }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .cats { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cats button { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-2); background: none; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+        .cats button:hover { color: var(--text); border-color: rgba(255,255,255,.26); }
+        .err { color: var(--danger); font-size: 14px; padding: 10px 12px; border: 1px solid rgba(248,113,113,.35); border-radius: 10px; background: rgba(127,29,29,.25); }
+        .actions { display: flex; gap: 10px; margin-top: 4px; }
+        .save { flex: 1; height: 52px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .save:hover { filter: brightness(1.07); }
+        .save:disabled { opacity: .6; cursor: wait; }
+        .actions .btn { height: 52px; border-radius: 14px; padding: 0 18px; }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
 </head>
-<body class="antialiased relative">
-    
-    <!-- <div class="scan-line"></div> -->
-    <!-- <div class="laser-vertical"></div> -->
-    <div class="absolute-blur"></div>
-
-    <div class="w-full max-w-lg mx-auto relative z-10 px-4 py-8 max-h-screen overflow-y-auto custom-scrollbar">
-        
-        <div class="flex flex-col items-center justify-center mb-6">
-            <div class="relative w-16 h-16 flex items-center justify-center logo-float mb-3">
-                <div class="absolute w-full h-full border-t-2 border-fuchsia-500/80 rounded-full animate-spin" style="animation-duration: 3s;"></div>
-                <div class="absolute w-[120%] h-[120%] border-b-2 border-pink-400/80 rounded-full animate-spin" style="animation-duration: 4s; animation-direction: reverse;"></div>
-                <img src="/static/cho1.jpg" alt="BitPaw Logo" class="relative w-12 h-12 rounded-full object-cover bg-[#08061a] border border-white/20 p-0.5 z-10">
-            </div>
-            <h1 class="text-2xl font-black tracking-widest text-white">Bit<span class="text-fuchsia-400">Paw</span></h1>
-            <p class="text-xs text-gray-400 mt-1" data-i18n="addspa_tagline">Professional spa treatment management</p>
-            <button id="langToggleBtn" type="button" class="mt-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-full text-[10px] font-bold transition">EN</button>
-        </div>
-
-        <div class="glass-panel rounded-3xl p-6 sm:p-8">
-            <div class="text-center mb-6">
-                <h2 class="text-xl font-bold text-fuchsia-400 flex items-center justify-center gap-2">
-                    <i class="fas fa-spa"></i> <span data-i18n="addspa_title">Add New Treatment</span>
-                </h2>
-                <p class="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-widest" data-i18n="addspa_subtitle">Set up a professional Spa service</p>
-            </div>
-
-            <form id="spaForm" method="POST" action="{{ url_for('add_spa') }}" enctype="multipart/form-data" class="space-y-5">
-                <!-- Image preview -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_image">Description Image (Optional)</label>
-                    <div class="flex items-center gap-4">
-                        <div class="flex-1 glass-input file-label border-dashed border-2 hover:border-fuchsia-400 transition-colors flex items-center gap-2">
-                            <i class="fas fa-camera text-gray-500"></i>
-                            <span id="fileName" class="text-gray-400 text-sm" data-i18n="addspa_no_image">No image selected</span>
-                            <input type="file" id="imageInput" name="image" accept="image/*" class="hidden">
-                        </div>
-                        <div class="w-16 h-16 flex-shrink-0 bg-black/30 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden">
-                            <img id="imagePreview" class="w-full h-full object-cover hidden">
-                            <i id="previewPlaceholder" class="fas fa-spa text-gray-500 text-2xl"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Treatment name -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_name">Treatment / Service Package Name</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-leaf text-fuchsia-500/70 text-sm"></i></div>
-                        <input type="text" name="name" id="spaName" required placeholder="E.g.: Therapeutic Hair Wash 60min..." data-i18n-placeholder="addspa_placeholder_name" class="glass-input pl-11">
-                    </div>
-                </div>
-
-                <!-- Treatment category -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_category">Treatment category</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-tags text-gray-500 text-sm"></i></div>
-                        <select name="category" id="spaCategory" class="glass-select pl-11 appearance-none cursor-pointer">
-                            <option value="Chăm sóc da mặt" data-i18n="addspa_opt_facial">Facial care</option>
-                            <option value="Massage cơ thể" data-i18n="addspa_opt_massage">Body massage</option>
-                            <option value="Chăm sóc tóc" data-i18n="addspa_opt_hair">Hair care</option>
-                            <option value="Liệu trình đặc biệt" data-i18n="addspa_opt_special">Special treatment</option>
-                            <option value="Combo tiết kiệm" data-i18n="addspa_opt_combo">Value combo</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><i class="fas fa-chevron-down text-fuchsia-500 text-xs"></i></div>
-                    </div>
-                </div>
-
-                <!-- Formatted service price -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1" data-i18n="addspa_label_price">Service Price (VND)</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-money-bill-wave text-gray-500 text-sm"></i></div>
-                        <input type="text" id="priceDisplay" placeholder="0" class="glass-input pl-11 font-mono text-fuchsia-300 text-right">
-                        <input type="hidden" name="price" id="priceHidden">
-                        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><span class="text-gray-500 text-sm font-bold">₫</span></div>
-                    </div>
-                </div>
-
-                <!-- Submit button -->
-                <div class="pt-4 space-y-3">
-                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-fuchsia-500 to-pink-600 hover:from-fuchsia-400 hover:to-pink-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(232,121,249,0.4)] hover:shadow-[0_0_25px_rgba(232,121,249,0.6)] hover:-translate-y-0.5 flex items-center justify-center gap-2">
-                        <i class="fas fa-magic"></i> <span data-i18n="addspa_btn_save">Save Treatment</span>
-                    </button>
-
-                    <a href="{{ url_for('spa') }}" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-pink-400 hover:text-pink-300 font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
-                        <i class="fas fa-arrow-left"></i> <span data-i18n="addspa_btn_back">Back to List</span>
-                    </a>
-                </div>
-            </form>
-        </div>
-
+<body>
+<div class="wrap">
+    <div class="top">
+        <img src="/static/cho1.jpg" alt="">
+        <div class="who"><div class="shop">{{ brand_name }}</div><div class="sub" data-t="sub">Treatments</div></div>
+        <button class="btn" type="button" id="langBtn" aria-label="Language">VI</button>
+        <a class="btn" href="{{ url_for('spa') }}"><i class="fas fa-arrow-left"></i><span data-t="back">Back to POS</span></a>
     </div>
-
-    <div id="toast" class="toast">Notification</div>
-
-    <script type="module">
-        // ========== i18n ==========
-        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
-        const translations = {
-            vi: {
-                addspa_tagline: 'Quản lý dịch vụ Spa chuyên nghiệp',
-                addspa_title: 'Thêm Liệu Trình Mới',
-                addspa_subtitle: 'Thiết lập một dịch vụ Spa chuyên nghiệp',
-                addspa_label_image: 'Hình ảnh minh họa (Không bắt buộc)',
-                addspa_no_image: 'Chưa chọn hình ảnh',
-                addspa_label_name: 'Tên Liệu Trình / Gói Dịch Vụ',
-                addspa_placeholder_name: 'VD: Gội đầu dưỡng sinh 60 phút...',
-                addspa_label_category: 'Danh mục liệu trình',
-                addspa_opt_facial: 'Chăm sóc da mặt',
-                addspa_opt_massage: 'Massage cơ thể',
-                addspa_opt_hair: 'Chăm sóc tóc',
-                addspa_opt_special: 'Liệu trình đặc biệt',
-                addspa_opt_combo: 'Combo tiết kiệm',
-                addspa_label_price: 'Giá Dịch Vụ (VNĐ)',
-                addspa_btn_save: 'Lưu Liệu Trình',
-                addspa_btn_saving: 'Đang lưu...',
-                addspa_btn_back: 'Quay Lại Danh Sách',
-                addspa_toast_no_name: 'Vui lòng nhập tên liệu trình',
-                addspa_toast_invalid_price: 'Vui lòng nhập giá hợp lệ',
-                addspa_toast_upload_error_prefix: 'Lỗi tải ảnh lên: ',
-                addspa_toast_success: 'Thêm liệu trình thành công!',
-                addspa_toast_error_prefix: 'Lỗi: '
-            },
-            en: {
-                addspa_tagline: 'Professional spa treatment management',
-                addspa_title: 'Add New Treatment',
-                addspa_subtitle: 'Set up a professional Spa service',
-                addspa_label_image: 'Description Image (Optional)',
-                addspa_no_image: 'No image selected',
-                addspa_label_name: 'Treatment / Service Package Name',
-                addspa_placeholder_name: 'E.g.: Therapeutic Hair Wash 60min...',
-                addspa_label_category: 'Treatment category',
-                addspa_opt_facial: 'Facial care',
-                addspa_opt_massage: 'Body massage',
-                addspa_opt_hair: 'Hair care',
-                addspa_opt_special: 'Special treatment',
-                addspa_opt_combo: 'Value combo',
-                addspa_label_price: 'Service Price (VND)',
-                addspa_btn_save: 'Save Treatment',
-                addspa_btn_saving: 'Saving...',
-                addspa_btn_back: 'Back to List',
-                addspa_toast_no_name: 'Please enter a treatment name',
-                addspa_toast_invalid_price: 'Please enter a valid price',
-                addspa_toast_upload_error_prefix: 'Image upload error: ',
-                addspa_toast_success: 'Treatment added successfully!',
-                addspa_toast_error_prefix: 'Error: '
-            }
-        };
-        function t(key) {
-            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
-        }
-        function applyStaticTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
-            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
-            const langBtn = document.getElementById('langToggleBtn');
-            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
-        }
-        function changeLanguage(lang) {
-            currentLang = lang;
-            localStorage.setItem('bitpaw_lang', lang);
-            applyStaticTranslations();
-        }
-        applyStaticTranslations();
-        document.getElementById('langToggleBtn')?.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
-
-        // DOM elements
-        const imageInput = document.getElementById('imageInput');
-        const previewImg = document.getElementById('imagePreview');
-        const previewPlaceholder = document.getElementById('previewPlaceholder');
-        const fileNameSpan = document.getElementById('fileName');
-        const priceDisplay = document.getElementById('priceDisplay');
-        const priceHidden = document.getElementById('priceHidden');
-        const form = document.getElementById('spaForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const toast = document.getElementById('toast');
-
-        // ========== Preview ảnh ==========
-        imageInput.addEventListener('change', function(e) {
-            if (this.files && this.files[0]) {
-                const file = this.files[0];
-                fileNameSpan.innerText = file.name;
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    previewImg.src = ev.target.result;
-                    previewImg.classList.remove('hidden');
-                    previewPlaceholder.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                fileNameSpan.innerText = t('addspa_no_image');
-                previewImg.classList.add('hidden');
-                previewPlaceholder.classList.remove('hidden');
-                previewImg.src = '';
-            }
-        });
-        document.querySelector('.file-label').addEventListener('click', () => imageInput.click());
-
-        // ========== Format giá ==========
-        function formatPriceInput(e) {
-            let value = e.target.value.replace(/[^0-9]/g, '');
-            if (value === '') value = '0';
-            let intValue = parseInt(value, 10);
-            e.target.value = intValue.toLocaleString('vi-VN');
-            priceHidden.value = intValue;
-        }
-        priceDisplay.addEventListener('input', formatPriceInput);
-
-        // ========== Toast ==========
-        function showToast(message, isError = false) {
-            toast.textContent = message;
-            toast.style.borderColor = isError ? '#ef4444' : '#10b981';
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        // Track click CSKH + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung, gọi
-        // /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp ở cuối trang.
-
-        // Submit: form gửi trực tiếp lên Flask (POST /add_spa), không can thiệp JS.
-    </script>
-    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
+    <div class="card">
+        <h1 data-t="title">Add a treatment</h1>
+        <p class="lede" data-t="lede">It appears in the POS straight away, in the category you choose.</p>
+        <form method="POST" action="{{ url_for('add_spa') }}" enctype="multipart/form-data" id="form" novalidate>
+            {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+            <label class="field"><span data-t="name">Treatment name</span>
+                <span class="input"><i class="fas fa-spa"></i><input name="name" id="name" required maxlength="80" value="{{ form.name or '' }}" autocomplete="off" data-tp="name_ph" placeholder="Hot stone massage (60 min)"></span>
+            </label>
+            <div class="field"><span data-t="category">Category</span>
+                <span class="input"><i class="fas fa-tags"></i><input name="category" id="category" list="catList" maxlength="40" value="{{ form.category or '' }}" autocomplete="off" data-tp="cat_ph" placeholder="Massage"></span>
+                <datalist id="catList">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
+                {% if categories %}<div class="cats" aria-label="Categories">{% for c in categories %}<button type="button" data-cat="{{ c }}">{{ c }}</button>{% endfor %}</div>{% endif %}
+            </div>
+            <label class="field"><span><span data-t="price">Price</span> ({{ tenant_currency }})</span>
+                <span class="input price">
+                    {% if tenant_currency != 'VND' %}<span class="unit">$</span>{% endif %}
+                    <input name="price" id="price" required inputmode="decimal" value="{{ form.price or '' }}" autocomplete="off" placeholder="{{ '450000' if tenant_currency == 'VND' else '89.00' }}">
+                    {% if tenant_currency == 'VND' %}<span class="unit">₫</span>{% endif %}
+                </span>
+            </label>
+            <div class="field"><span data-t="photo">Photo (optional)</span>
+                <div class="photo">
+                    <div class="thumb" id="thumb"><i class="fas fa-image"></i></div>
+                    <div>
+                        <label class="btn" for="image"><i class="fas fa-camera"></i><span data-t="choose">Choose a photo</span></label>
+                        <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp" hidden>
+                        <small style="display:block;margin-top:6px" id="fileName" data-t="photo_hint">A clear landscape photo works best.</small>
+                    </div>
+                </div>
+            </div>
+            <p class="err" id="clientErr" role="alert" hidden></p>
+            <div class="actions">
+                <a class="btn" href="{{ url_for('spa') }}" data-t="cancel">Cancel</a>
+                <button class="save" type="submit" id="saveBtn"><i class="fas fa-check"></i><span data-t="save">Save treatment</span></button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+(function () {
+    var T = {
+        en: { sub: 'Treatments', back: 'Back to POS', title: 'Add a treatment', lede: 'It appears in the POS straight away, in the category you choose.', name: 'Treatment name',
+              name_ph: 'Hot stone massage (60 min)', category: 'Category', cat_ph: 'Massage', price: 'Price', photo: 'Photo (optional)', choose: 'Choose a photo',
+              photo_hint: 'A clear landscape photo works best.', cancel: 'Cancel', save: 'Save treatment', saving: 'Saving…', need_name: 'Enter the treatment name.', need_price: 'Enter a price above 0.' },
+        vi: { sub: 'Liệu trình', back: 'Về POS', title: 'Thêm liệu trình', lede: 'Liệu trình hiện ngay trên POS, trong nhóm bạn chọn.', name: 'Tên liệu trình',
+              name_ph: 'Massage đá nóng (60 phút)', category: 'Nhóm', cat_ph: 'Massage', price: 'Giá', photo: 'Ảnh (không bắt buộc)', choose: 'Chọn ảnh',
+              photo_hint: 'Ảnh ngang, rõ nét là đẹp nhất.', cancel: 'Huỷ', save: 'Lưu liệu trình', saving: 'Đang lưu…', need_name: 'Nhập tên liệu trình.', need_price: 'Nhập giá lớn hơn 0.' }
+    };
+    var lang = (function () { try { return localStorage.getItem('bitpaw_lang') || {{ default_lang | tojson }}; } catch (e) { return {{ default_lang | tojson }}; } })();
+    if (!T[lang]) lang = 'en';
+    var t = function (k) { return (T[lang] || T.en)[k] || T.en[k] || k; };
+    var $ = function (id) { return document.getElementById(id); };
+    function apply() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-t]').forEach(function (el) { if (el.id === 'fileName' && $('image').files.length) return; el.textContent = t(el.getAttribute('data-t')); });
+        document.querySelectorAll('[data-tp]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-tp')); });
+        $('langBtn').textContent = lang === 'vi' ? 'EN' : 'VI';
+    }
+    $('langBtn').addEventListener('click', function () { lang = lang === 'vi' ? 'en' : 'vi'; try { localStorage.setItem('bitpaw_lang', lang); } catch (e) {} apply(); });
+    document.querySelectorAll('.cats button').forEach(function (b) { b.addEventListener('click', function () { $('category').value = b.dataset.cat; }); });
+    $('image').addEventListener('change', function () {
+        var f = this.files && this.files[0];
+        if (!f) return;
+        $('fileName').textContent = f.name;
+        var r = new FileReader();
+        r.onload = function (e) { $('thumb').innerHTML = '<img alt="" src="' + e.target.result + '">'; };
+        r.readAsDataURL(f);
+    });
+    $('form').addEventListener('submit', function (e) {
+        var err = '', price = parseFloat(String($('price').value).replace(/[^0-9.]/g, ''));
+        if (!$('name').value.trim()) err = t('need_name');
+        else if (!(price > 0)) err = t('need_price');
+        if (err) { e.preventDefault(); $('clientErr').textContent = err; $('clientErr').hidden = false; return; }
+        $('saveBtn').disabled = true; $('saveBtn').querySelector('span').textContent = t('saving');
+    });
+    apply();
+})();
+</script>
 </body>
 </html>

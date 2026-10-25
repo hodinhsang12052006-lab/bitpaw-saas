@@ -1220,6 +1220,25 @@
 
     <!-- 10. FAQ Accordion Section -->
     {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#f97316',
+        ('Đây là BitPaw đang chạy ở một nhà hàng', 'This is BitPaw running in a restaurant'),
+        ('Không phải ảnh minh hoạ: POS sơ đồ bàn và menu QR khách tự gọi món của nhà hàng demo ở California. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the floor-plan POS and the QR menu guests order from, at our demo restaurant in California. Tap a screen to see it up close.'),
+        'fnb_pos_pc', 'fnb_qr_mob',
+        'Màn hình POS nhà hàng: thực đơn có ảnh, sơ đồ bàn, đơn đang mở / Restaurant POS: menu with photos, floor plan, open order',
+        'Menu QR khách tự gọi món tại bàn / The QR menu guests order from at the table',
+        [('fa-table-cells-large', 'Sơ đồ bàn trực quan', 'Live floor plan'), ('fa-qrcode', 'Khách quét QR gọi món', 'Guests order by QR')],
+        [('fa-utensils', 'Thực đơn có ảnh, giá rõ', 'A menu with photos and clear prices',
+          'Chạm món để thêm vào bàn, ghi chú cho bếp, tách hoặc gộp bill khi thanh toán.',
+          'Tap dishes onto a table, add kitchen notes, split or merge the bill at checkout.'),
+         ('fa-qrcode', 'Menu QR tại bàn', 'QR menu at every table',
+          'Khách quét mã trên bàn để xem món và gọi; đơn vào thẳng màn hình bếp.',
+          'Guests scan the table code to browse and order; tickets go straight to the kitchen screen.'),
+         ('fa-fire-burner', 'Màn hình bếp', 'Kitchen display',
+          'Bếp thấy món theo thứ tự, bấm xong là phục vụ biết để mang ra.',
+          'The kitchen sees tickets in order and taps when ready, so servers know to pick up.')]) }}
+
     {% set pricing_industry = 'fnb' %}
     {% include 'components/pricing.html' %}
 
@@ -1381,7 +1400,7 @@
                         </div>
                         <div class="overflow-hidden">
                             <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
-                            <a href="mailto:bitpawsoftware@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="bitpawsoftware@gmail.com">bitpawsoftware@gmail.com</a>
+                            <a href="mailto:support@bitpawsoftware.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="support@bitpawsoftware.com">support@bitpawsoftware.com</a>
                         </div>
                     </li>
                     <li class="flex items-center gap-3 group">

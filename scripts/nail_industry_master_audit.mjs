@@ -27,6 +27,8 @@ import { gotoSell, safeScreenshot } from './lib/nail_nav.mjs';
 import { pickSlot, isoDate } from './lib/booking_slot.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5001';
+// Bill do bài audit tạo — dọn ở finalize() (trước 25/10/2026 để lại trong tiệm demo: 85 bill "Nail Art Design (QA Audit)")
+const CREATED_ORDERS = [];
 const EMAIL = process.env.NAIL_DEMO_EMAIL || 'demo.nails.au.006758@bitpawdemo.com';
 const PASSWORD = process.env.NAIL_DEMO_PASSWORD || 'DemoNails2026!';
 
@@ -350,6 +352,7 @@ async function main() {
     const status = checkoutResp.status();
     checkoutResponseBody = await checkoutResp.json().catch(() => null);
     checkoutOrderId = checkoutResponseBody?.order_id ?? null;
+    if (checkoutOrderId) CREATED_ORDERS.push(checkoutOrderId);
 
     await page.waitForSelector('#receiptModal.active', { timeout: 8000 });
     const receiptOrderIdText = await page.locator('#receiptOrderId').innerText();
@@ -652,6 +655,7 @@ async function main() {
       ]);
       const splitBody = await splitResp.json().catch(() => null);
       splitOrderId = splitBody?.order_id ?? null;
+      if (splitOrderId) CREATED_ORDERS.push(splitOrderId);
       await page.waitForSelector('#receiptModal.active', { timeout: 8000 }).catch(() => {});
     } else {
       finding('Split payment: #confirmPaymentBtn bị disable dù đã set cash+card = đúng tổng tiền (half+half) — kiểm tra lại validateSplit()/làm tròn số thập phân.');
@@ -739,6 +743,7 @@ async function main() {
         page.click('#confirmPaymentBtn'),
       ]);
       const body = await resp.json().catch(() => null);
+      if (body?.order_id) CREATED_ORDERS.push(body.order_id);
       await page.waitForSelector('#receiptModal.active', { timeout: 8000 }).catch(() => {});
       return { body, cashPriceText, cardPriceText, modalSurchargeVisible, confirmedTechId };
     }
@@ -784,6 +789,7 @@ async function main() {
 
 async function finalize({ browser, results, findings, checkoutOrderId, checkoutResponseBody, consoleErrors = [], networkErrors = [] }) {
   await browser.close();
+  cleanupCreatedOrders();
 
   const passCount = results.filter((r) => r.status === 'PASS').length;
   const warnCount = results.filter((r) => r.status === 'WARN').length;
@@ -822,6 +828,27 @@ async function finalize({ browser, results, findings, checkoutOrderId, checkoutR
   console.log(`\nTổng kết: ${passCount} PASS · ${warnCount} WARN · ${failCount} FAIL`);
   console.log(`\nBáo cáo: ${REPORT_MD}`);
   console.log(`Ảnh chụp: ${SCREEN_DIR}`);
+}
+
+// Xoá các bill bài audit vừa tạo (+ bill hoàn tiền của chúng, dòng hàng, sổ cái, hoa hồng/khấu trừ hoa hồng)
+function cleanupCreatedOrders() {
+  const ids = [...new Set(CREATED_ORDERS.filter(Boolean).map(Number))];
+  if (!ids.length) return;
+  const code = `
+from mongo_client import db
+ids = ${JSON.stringify(ids)}
+bid = (db.orders.find_one({'id': ids[0]}, {'business_id': 1}) or {}).get('business_id')
+ids += [o['id'] for o in db.orders.find({'business_id': bid, 'metadata.original_order_id': {'$in': ids}}, {'id': 1})]
+rx = '#(' + '|'.join(str(i) for i in ids) + ')(?![0-9])'
+print({'orders': db.orders.delete_many({'business_id': bid, 'id': {'$in': ids}}).deleted_count,
+       'items': db.order_items.delete_many({'order_id': {'$in': ids}}).deleted_count,
+       'tx': db.transactions.delete_many({'business_id': bid, 'order_id': {'$in': ids}}).deleted_count,
+       'pay': db.payment_transactions.delete_many({'business_id': bid, 'order_id': {'$in': ids}}).deleted_count,
+       'cc': db.chamcong.delete_many({'business_id': bid, 'ghi_chu': {'$regex': rx}}).deleted_count})`;
+  try {
+    const out = execFileSync('python', ['-c', code], { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+    console.log('Dọn bill audit:', out.trim().split(/\r?\n/).pop());
+  } catch (e) { console.log('Dọn bill audit lỗi:', e.message.slice(0, 160)); }
 }
 
 main().catch((err) => {

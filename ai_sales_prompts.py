@@ -234,7 +234,7 @@ def bitpaw_facts(plans, currencies):
     """Khối dữ kiện thật về BitPaw cho bot bán hàng — giá THEO NGÀNH lấy từ plans.py (cùng nguồn với bảng giá/checkout)."""
     import plans as plan_book
     lines = ["BITPAW FACTS (the only product/pricing facts you may state):",
-             "- Company: BitPaw Technology LLC (San Francisco, USA + Sydney, Australia). Email bitpawsoftware@gmail.com, "
+             "- Company: BitPaw Technology LLC (San Francisco, USA + Sydney, Australia). Email support@bitpawsoftware.com, "
              "US +1 727 496 2470, AU +61 3 8593 7410. Terms /terms, Privacy /privacy, Payment policy /payment-policy.",
              "- Sign-up: choose a plan on /checkout — nothing is charged at sign-up; BitPaw confirms and emails a card invoice (Square).",
              "- Pricing is PER INDUSTRY (monthly USD, AUD in brackets). Yearly billing = 2 months free. Ask which industry first, then quote that row only:"]

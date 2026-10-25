@@ -2,1684 +2,652 @@
 <html lang="{{ default_lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>{{ brand_name }} - Dịch Vụ Đẳng Cấp</title>
-    
-    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ brand_name }} · Spa POS</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}?v={{ asset_v('js/print_receipt.js') }}"></script>
+    {#  POS Spa (làm lại 25/10/2026 theo chấm điểm UX): một màn hình làm việc của quầy lễ tân —
+        trái là danh sách liệu trình (chạm để thêm), phải là phiếu thu luôn hiện (điện thoại: thanh dưới mở phiếu).
+        Bỏ: ảnh nền mờ + tia quét, nút xoá trên từng ảnh, bắt nhập tên + email khi thu tiền mặt, cổng thanh toán giả
+        (form số thẻ, PayPal, crypto, MoMo...) vì không cổng nào thật sự trừ tiền — tiền thu tại quầy (tiền mặt / máy quẹt
+        của tiệm / chuyển khoản) rồi bấm xác nhận để ghi bill + hoa hồng + tip cho kỹ thuật viên. #}
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-        }
-
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'Montserrat', sans-serif; 
-            color: #fff;
-            min-height: 100vh;
-            position: relative;
-            --theme-color: {{ brand_color|default('#06b6d4', true) }};
-            background: url("{{ url_for('static', filename='uploads/spa_bg.jpg.webp') }}") no-repeat center center fixed;
-            background-size: cover;
-        }
-
-        /* Lớp phủ đen mờ */
-        .overlay {
-            background-color: rgba(15, 17, 26, 0.7);
-            min-height: 100vh;
-            padding: 40px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            position: relative;
-            z-index: 2;
-        }
-
-        .scan-line {
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 2px; 
-            background: linear-gradient(90deg, transparent, var(--theme-color, #06b6d4), transparent); 
-            z-index: -1; 
-            pointer-events: none; 
-            opacity: 0.5; 
-            animation: scanMove 8s linear infinite; 
-        }
-
-        .laser-vertical { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 1px; 
-            height: 100%; 
-            background: linear-gradient(180deg, transparent, var(--theme-color, #06b6d4), transparent); 
-            z-index: -1; 
-            pointer-events: none; 
-            opacity: 0.3; 
-            animation: laserVertical 12s ease-in-out infinite; 
-        }
-
-        @keyframes scanMove { 
-            0% { top: -5%; } 
-            100% { top: 105%; } 
-        }
-        
-        @keyframes laserVertical { 
-            0% { left: -10%; } 
-            50% { left: 110%; } 
-            100% { left: -10%; } 
-        }
-
-        /* Component Styles */
-        .header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
-            padding-bottom: 20px; 
-            margin-bottom: 40px; 
-        }
-
-        .header-left { 
-            display: flex; 
-            align-items: center; 
-            gap: 20px; 
-        }
-
-        .logo-bitpaw { 
-            width: 55px; 
-            height: 55px; 
-            border-radius: 50%; 
-            border: 0; 
-            box-shadow: none; 
-            object-fit: cover; 
-            transition: transform 0.3s; 
-            animation: float-logo 4s ease-in-out infinite; 
-        }
-
-        .logo-bitpaw:hover { 
-            transform: scale(1.05); 
-        }
-
-        @keyframes float-logo { 
-            0%, 100% { transform: translateY(0px); } 
-            50% { transform: translateY(-5px); } 
-        }
-
-        .header-left h1 { 
-            margin: 0; 
-            font-family: inherit; 
-            font-size: 28px; 
-            font-weight: 700; 
-            color: #fff; 
-            letter-spacing: -0.01em; 
-        }
-
-        .header-left p { 
-            margin: 8px 0 0 0; 
-            color: rgba(255,255,255,0.7); 
-            font-size: 15px; 
-            font-weight: 300; 
-        }
-
-        .header-actions { 
-            display: flex; 
-            gap: 15px; 
-            align-items: center; 
-        }
-
-        .btn-glass { 
-            background: rgba(255, 255, 255, 0.05); 
-            border: 1px solid rgba(255, 255, 255, 0.2); 
-            color: #fff; 
-            text-decoration: none; 
-            padding: 10px 20px; 
-            border-radius: 30px; 
-            font-size: 14px; 
-            font-weight: 500; 
-            backdrop-filter: blur(5px); 
-            transition: all 0.3s ease; 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 8px; 
-        }
-
-        .btn-glass:hover { 
-            background: var(--theme-color, #06b6d4); 
-            color: #000; 
-            border-color: var(--theme-color, #06b6d4); 
-            box-shadow: 0 0 20px var(--theme-color, #06b6d4); 
-        }
-        
-        .search-filter-bar { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 30px; 
-            flex-wrap: wrap; 
-            gap: 15px; 
-        }
-
-        .search-box { 
-            flex: 1; 
-            max-width: 300px; 
-            background: rgba(0,0,0,0.5); 
-            border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 40px; 
-            padding: 10px 20px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-
-        .search-box input { 
-            background: transparent; 
-            border: none; 
-            color: white; 
-            width: 100%; 
-            outline: none; 
-        }
-
-        .search-box i { 
-            color: var(--theme-color, #06b6d4); 
-        }
-
-        .filter-select { 
-            background: rgba(0,0,0,0.5); 
-            border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 40px; 
-            padding: 10px 20px; 
-            color: white; 
-            cursor: pointer; 
-            outline: none; 
-        }
-
-        .image-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 30px; 
-            padding-bottom: 50px; 
-        }
-
-        .product-card { 
-            background: rgba(30, 27, 56, 0.6); 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            border-radius: 20px; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column; 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            position: relative; 
-            backdrop-filter: blur(15px); 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2); 
-        }
-
-        .product-card:hover { 
-            border-color: var(--theme-color, #06b6d4); 
-            transform: translateY(-10px); 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px var(--theme-color, #06b6d4); 
-        }
-
-        .img-container { 
-            width: 100%; 
-            height: 220px; 
-            overflow: hidden; 
-            position: relative; 
-        }
-
-        .product-img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            transition: transform 0.5s ease; 
-        }
-
-        .product-card:hover .product-img { 
-            transform: scale(1.1); 
-        }
-
-        .img-overlay { 
-            position: absolute; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 50%; 
-            background: linear-gradient(to top, rgba(30, 27, 56, 1) 0%, rgba(30, 27, 56, 0) 100%); 
-        }
-
-        .product-info { 
-            padding: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            flex-grow: 1; 
-        }
-
-        .product-name { 
-            font-family: inherit; 
-            font-weight: 600; 
-            font-size: 18px; 
-            margin-bottom: 8px; 
-            color: #fff; 
-        }
-
-        .product-price { 
-            color: var(--theme-color, #06b6d4); 
-            font-size: 18px; 
-            font-weight: 600; 
-            margin-bottom: 20px; 
-        }
-
-        .qty-cart-wrapper { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            gap: 10px; 
-            margin-top: auto; 
-        }
-
-        .qty-control { 
-            display: flex; 
-            align-items: center; 
-            background: rgba(0,0,0,0.5); 
-            border-radius: 30px; 
-            overflow: hidden; 
-        }
-
-        .qty-btn { 
-            width: 32px; 
-            height: 32px; 
-            background: rgba(255,255,255,0.1); 
-            border: none; 
-            color: white; 
-            font-weight: bold; 
-            cursor: pointer; 
-        }
-
-        .qty-value { 
-            width: 40px; 
-            text-align: center; 
-            background: transparent; 
-            border: none; 
-            color: white; 
-            font-weight: bold; 
-        }
-
-        .btn-add-cart { 
-            background: var(--theme-color, #06b6d4); 
-            border: none; 
-            padding: 8px 16px; 
-            border-radius: 30px; 
-            font-weight: bold; 
-            color: #000; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            display: flex; 
-            align-items: center; 
-            gap: 5px; 
-        }
-
-        .btn-add-cart:hover { 
-            background: #fff; 
-            transform: scale(1.02); 
-        }
-
-        /* CSKH Widget */
-        .cskh-widget { 
-            background: rgba(0,0,0,0.4); 
-            border-radius: 1.5rem; 
-            padding: 1rem; 
-            margin-top: 2rem; 
-            border: 1px solid rgba(255,255,255,0.05); 
-        }
-
-        .cskh-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 0.75rem; 
-            padding: 0.5rem; 
-            border-radius: 1rem; 
-            transition: 0.2s; 
-            text-decoration: none; 
-        }
-
-        .cskh-item:hover { 
-            background: rgba(6,182,212,0.15); 
-        }
-
-        .cskh-info { 
-            display: flex; 
-            flex-direction: column; 
-        }
-
-        .cskh-label { 
-            font-size: 0.7rem; 
-            font-weight: 600; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-            color: #9ca3af; 
-        }
-
-        .cskh-value { 
-            font-size: 0.85rem; 
-            font-weight: 500; 
-            color: white; 
-        }
-
-        .glass-input-sm { 
-            background: rgba(0,0,0,0.6); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            border-radius: 1rem; 
-            padding: 0.5rem 1rem; 
-            width: 100%; 
-            color: white; 
-            outline: none; 
-            font-size: 0.8rem; 
-            transition: 0.2s;
-        }
-
-        /* Ô nhập của hộp thanh toán (Tên/Email/SĐT) — class này trước đây KHÔNG được định nghĩa -> trình duyệt vẽ hộp trắng
-           mặc định, lệch hẳn nền tối. */
-        .glass-input { background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.14); border-radius: 0.8rem; padding: 0.65rem 0.9rem;
-                       width: 100%; min-height: 44px; color: #fff; outline: none; font-size: 0.9rem; transition: 0.2s; }
-        .glass-input::placeholder { color: #64748b; }
-        .glass-input:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
-        .glass-input-sm:focus { 
-            border-color: #06b6d4; 
-            box-shadow: 0 0 8px rgba(6,182,212,0.3); 
-        }
-
-        /* Cart Sidebar */
-        .cart-sidebar { 
-            position: fixed; 
-            top: 0; 
-            right: 0; 
-            width: 380px; 
-            height: 100vh; 
-            background: rgba(8, 6, 26, 0.95); 
-            backdrop-filter: blur(20px); 
-            border-left: 1px solid rgba(6, 182, 212, 0.4); 
-            transform: translateX(100%); 
-            transition: transform 0.3s ease, opacity 0.3s ease; 
-            z-index: 1000; 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: -5px 0 30px rgba(0,0,0,0.5); 
-        }
-
-        .cart-sidebar.open { 
-            transform: translateX(0); 
-        }
-
-        .cart-header { 
-            padding: 20px; 
-            border-bottom: 1px solid rgba(255,255,255,0.1); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-        }
-
-        .cart-items { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 15px; 
-        }
-
-        .cart-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 12px 0; 
-            border-bottom: 1px solid rgba(255,255,255,0.05); 
-        }
-
-        .cart-item-info h4 { 
-            font-size: 1rem; 
-            margin-bottom: 4px; 
-        }
-
-        .cart-item-price { 
-            color: var(--theme-color, #06b6d4); 
-            font-size: 0.85rem; 
-        }
-
-        /* ô chọn kỹ thuật viên cho từng dịch vụ (hoa hồng vào bảng lương) */
-        .cart-tech { margin-top: 6px; width: 220px; max-width: 100%; min-height: 36px; background: rgba(0,0,0,.45); color: #e2e8f0;
-                     border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; }
-        .cart-item-qty { 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-        }
-
-        .cart-qty-btn { 
-            width: 28px; 
-            height: 28px; 
-            border-radius: 50%; 
-            background: rgba(255,255,255,0.1); 
-            border: none; 
-            color: white; 
-            cursor: pointer; 
-        }
-
-        .cart-footer { 
-            padding: 20px; 
-            border-top: 1px solid rgba(255,255,255,0.1); 
-        }
-
-        .cart-total { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 15px; 
-            font-size: 1.2rem; 
-            font-weight: bold; 
-        }
-
-        .btn-checkout { 
-            width: 100%; 
-            background: var(--theme-color, #06b6d4); 
-            border: none; 
-            padding: 14px; 
-            border-radius: 40px; 
-            font-weight: bold; 
-            color: #000; 
-            cursor: pointer; 
-            transition: 0.2s;
-        }
-
-        .btn-checkout:hover { 
-            transform: scale(1.02); 
-            background: white; 
-        }
-
-        .cart-icon { 
-            position: fixed; 
-            bottom: 20px; 
-            right: 20px; 
-            background: var(--theme-color, #06b6d4); 
-            width: 55px; 
-            height: 55px; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer; 
-            z-index: 90; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-            transition: 0.2s; 
-            color: black;
-        }
-
-        .cart-icon:hover { 
-            transform: scale(1.05); 
-        }
-
-        .cart-badge { 
-            position: absolute; 
-            top: -5px; 
-            right: -5px; 
-            background: #ef4444; 
-            color: white; 
-            border-radius: 50%; 
-            width: 22px; 
-            height: 22px; 
-            font-size: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
-
-        /* ================= GLOBAL PAYMENT GATEWAY STYLES ================= */
-        .glass-panel-pay { 
-            background: rgba(10, 15, 37, 0.95); 
-            backdrop-filter: blur(24px); 
-            border: 1px solid rgba(6, 182, 212, 0.4); 
-            border-radius: 2rem; 
-            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8); 
-        }
-
-        .payment-method { 
-            cursor: pointer; 
-            transition: all 0.2s; 
-            border: 1px solid rgba(255,255,255,0.1); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 90px; 
-            position: relative; 
-            overflow: hidden; 
-            font-family: 'Inter', sans-serif;
-        }
-
-        .payment-method:hover, .payment-method.active { 
-            border-color: #06b6d4; 
-            background: rgba(6, 182, 212, 0.15); 
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); 
-        }
-
-        .payment-method.active::after { 
-            content: '\f058'; 
-            font-family: "Font Awesome 6 Free"; 
-            font-weight: 900; 
-            position: absolute; 
-            top: 5px; 
-            right: 8px; 
-            color: #06b6d4; 
-            font-size: 14px; 
-        }
-
-        .pay-category-title { 
-            font-size: 0.75rem; 
-            color: #9ca3af; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-            margin-bottom: 0.5rem; 
-            font-weight: 700; 
-            display: flex; 
-            align-items: center; 
-            font-family: 'Inter', sans-serif;
-        }
-
-        .pay-category-title::after { 
-            content: ""; 
-            flex: 1; 
-            height: 1px; 
-            background: rgba(255,255,255,0.1); 
-            margin-left: 10px; 
-        }
-
-        .qr-area { 
-            background: white; 
-            padding: 10px; 
-            border-radius: 1rem; 
-            display: inline-block; 
-            margin: 0 auto; 
-        }
-        
-        .toast { 
-            position: fixed; 
-            bottom: 30px; 
-            left: 50%; 
-            transform: translateX(-50%) translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none; 
-            background: rgba(0,0,0,0.85); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid #10b981; 
-            color: white; 
-            padding: 12px 24px; 
-            border-radius: 40px; 
-            font-size: 14px; 
-            font-weight: 600; 
-            z-index: 20000; 
-            transition: transform 0.3s ease; 
-        }
-
-        .toast.show { 
-            transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: none; }
-        /* Điện thoại: toast từng nằm ĐÈ nút thanh toán/giỏ hàng ghim đáy màn hình (test iPhone: chạm "Checkout" ngay sau
-           khi thêm món thì trúng toast). Đưa toast lên trên + luôn cho chạm xuyên qua (toast chỉ là thông báo). */
-        @media (max-width: 767px) {
-            .toast { bottom: auto; top: 12px; transform: translateX(-50%) translateY(calc(-100% - 40px)); max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
-            .toast.show { transform: translateX(-50%) translateY(0); }
-        }
-        
-        .loading-overlay { 
-            position: fixed; 
-            inset: 0; 
-            background: rgba(0,0,0,0.8); 
-            backdrop-filter: blur(8px); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 10005; 
-            visibility: hidden; 
-            opacity: 0; 
-            transition: 0.2s; 
-        }
-
-        .loading-overlay.active { 
-            visibility: visible; 
-            opacity: 1; 
-        }
-
+        :root {
+            --ground: #0a1013; --surface: #111a1e; --surface-2: #142126; --raised: #1a2a30;
+            --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .12); --control: rgba(255, 255, 255, .16);
+            --text: #eef5f4; --muted: #b0c0be; --faint: #8fa3a0;
+            --accent: {{ (brand_color if brand_color and brand_color|lower not in ('#06b6d4', '') else '#2dd4bf') }};
+            --accent-ink: #032824; --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+            --danger: #f87171; --ok: #34d399;
+            --r: 14px; --r-sm: 10px;
+            --ease: cubic-bezier(.2, .8, .2, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font: 15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); -webkit-font-smoothing: antialiased;
+            /* nền: tối ấm, ánh sáng dịu kiểu phòng spa (xanh ngọc phía trên trái, cát ấm phía dưới phải) — không ảnh, không tia quét */
+            background: radial-gradient(1100px 620px at 8% -12%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 62%),
+                        radial-gradient(900px 560px at 104% 112%, rgba(214, 178, 132, .09), transparent 60%),
+                        var(--ground);
+            background-attachment: fixed;
+        }
+        ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); color: #fff; }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .num { font-variant-numeric: tabular-nums; }
+        button, input, select { font: inherit; color: inherit; }
+        button { cursor: pointer; background: none; border: 0; }
+        [hidden] { display: none !important; }
+
+        /* khung: máy tính = 1 "máy POS" đặt giữa màn hình, điện thoại = tràn màn hình */
+        .shell { display: grid; grid-template-rows: auto 1fr; height: 100dvh; }
+        @media (min-width: 1024px) {
+            body { padding: 14px; }
+            .shell { height: calc(100dvh - 28px); border: 1px solid var(--line-2); border-radius: 22px; overflow: hidden;
+                     background: linear-gradient(180deg, rgba(255, 255, 255, .025), transparent 160px), rgba(8, 13, 15, .55);
+                     box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .8); }
+        }
+
+        /* thanh trên */
+        .top { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); min-height: 64px; }
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+        .logo { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .shop { font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sub { font-size: 12.5px; color: var(--faint); }
+        .clock { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+        .actions { display: flex; align-items: center; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+               color: var(--text); border: 1px solid var(--control); text-decoration: none; transition: background .15s var(--ease), border-color .15s var(--ease); white-space: nowrap; }
+        .btn:hover { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .26); }
+        .btn i { color: var(--muted); font-size: 14px; }
+        .btn.sm { height: 36px; padding: 0 12px; font-size: 13px; }
+        .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+        .menu-wrap { position: relative; }
+        .menu { position: absolute; right: 0; top: calc(100% + 8px); width: 270px; z-index: 60; padding: 8px; border-radius: 16px;
+                background: #121c20; border: 1px solid var(--line-2); box-shadow: 0 24px 48px -12px rgba(0, 0, 0, .7); }
+        .menu h3 { font-size: 12px; font-weight: 600; color: var(--faint); padding: 10px 10px 4px; }
+        .menu a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 14px; }
+        .menu a:hover { background: rgba(255, 255, 255, .06); }
+        .menu a i { width: 18px; text-align: center; color: var(--faint); }
+        .menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+
+        /* vùng làm việc */
+        .work { display: grid; grid-template-columns: 1fr; min-height: 0; }
+        @media (min-width: 1024px) { .work { grid-template-columns: minmax(0, 1fr) 390px; } }
+        .catalog { min-height: 0; overflow: auto; padding: 18px 20px 120px; }
+        @media (min-width: 1024px) { .catalog { padding-bottom: 28px; } }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .search { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border-radius: 12px;
+                  background: var(--surface); border: 1px solid var(--line-2); }
+        .search:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+        .search i { color: var(--faint); }
+        .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: 15px; }
+        .search input::placeholder { color: var(--faint); }
+        .search kbd { font: 600 11px/1 Inter, sans-serif; color: var(--faint); border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 6px; }
+        @media (hover: none) { .search kbd { display: none; } }
+        .chips { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 4px; scrollbar-width: none; }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip { flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); font-size: 13.5px; font-weight: 600; }
+        .chip span { color: var(--faint); font-weight: 500; margin-left: 4px; }
+        .chip[aria-selected="true"] { background: var(--text); color: #0a1013; border-color: var(--text); }
+        .chip[aria-selected="true"] span { color: #45514f; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 14px; }
+        .tile { position: relative; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); overflow: hidden;
+                transition: border-color .15s var(--ease), transform .15s var(--ease); }
+        .tile:hover { border-color: var(--line-2); transform: translateY(-2px); }
+        .tile.in { border-color: color-mix(in srgb, var(--accent) 65%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+        .tile-hit { display: flex; flex-direction: column; width: 100%; text-align: left; }
+        .ph { display: block; aspect-ratio: 4 / 3; background: var(--surface-2); overflow: hidden; }
+        .ph img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s var(--ease); }
+        .tile:hover .ph img { transform: scale(1.03); }
+        .ph .noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--faint); font-size: 26px; }
+        .tbody { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
+        .tname { font-weight: 600; font-size: 14.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+        .tmeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .tprice { font-weight: 650; color: var(--accent); }
+        .tcat { font-size: 12px; color: var(--faint); }
+        .badge { position: absolute; top: 10px; right: 10px; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 999px; display: grid; place-items: center;
+                 background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .7); }
+        .tile-del { position: absolute; inset: auto 10px 10px auto; height: 34px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+                    background: rgba(127, 29, 29, .9); color: #fee2e2; border: 1px solid rgba(248, 113, 113, .5); display: inline-flex; align-items: center; gap: 6px; }
+        .editing .tile-hit { pointer-events: none; opacity: .65; }
+        .empty { grid-column: 1 / -1; text-align: center; padding: 56px 16px; border: 1px dashed var(--line-2); border-radius: var(--r); color: var(--muted); }
+        .empty h2 { font-size: 18px; color: var(--text); margin-bottom: 6px; }
+        .empty .btn { margin-top: 16px; }
+
+        /* điện thoại: danh sách 1 cột, mỗi liệu trình 1 hàng (ảnh nhỏ + tên + giá + nút thêm 44px) — dùng một tay */
         @media (max-width: 640px) {
-            .overlay { padding: 20px; }
-            .cart-sidebar { width: 100%; }
-            .header-left { flex-direction: column; align-items: flex-start; gap: 10px; }
-            /* 4 nút (EN / Thêm dịch vụ / Tùy chỉnh / Quản lý) cố định 1 hàng rộng ~700px -> trang POS Spa
-               cuộn ngang trên điện thoại. Cho xuống dòng, nút gọn hơn. */
-            .header { flex-wrap: wrap; gap: 14px; }
-            .header-actions { flex-wrap: wrap; gap: 8px; }
-            .header-actions .btn-glass { padding: 8px 14px; font-size: 13px; }
-            .search-filter-bar { flex-direction: column; align-items: stretch; }
-            .search-box { max-width: 100%; }
+            .top { padding: 10px 14px; gap: 10px; }
+            .clock, .btn .lbl, .toolbar a.btn { display: none; }
+            .btn { padding: 0 12px; }
+            .catalog { padding: 12px 14px 120px; }
+            .grid { grid-template-columns: 1fr; gap: 10px; }
+            .tile-hit { flex-direction: row; align-items: center; gap: 12px; padding: 10px; }
+            .ph { width: 72px; height: 72px; aspect-ratio: auto; border-radius: 10px; flex-shrink: 0; }
+            .tbody { padding: 0; flex: 1; min-width: 0; }
+            .tname { min-height: 0; }
+            .tile .add-ic { display: grid; }
+            .badge { top: 50%; right: 12px; transform: translateY(-50%); }
+            .tile.in .add-ic { visibility: hidden; }
         }
-    
-        /* Tia quét trang trí: nằm DƯỚI nội dung (trước đây z-index 9998 đè lên thẻ/bảng/nút -> trông như màn hình lỗi), tắt trên điện thoại + khi máy bật giảm chuyển động. */
-        @media (max-width: 768px), (prefers-reduced-motion: reduce) { .scan-line, .laser-vertical { display: none !important; } }
+        .add-ic { display: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; background: var(--accent-soft); color: var(--accent); }
+
+        /* phiếu thu */
+        .ticket { display: flex; flex-direction: column; min-height: 0; background: rgba(13, 21, 24, .92); border-left: 1px solid var(--line); }
+        .t-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
+        .t-head h2 { font-size: 17px; font-weight: 650; flex: 1; }
+        .t-head .count { color: var(--faint); font-weight: 500; }
+        .link { color: var(--muted); font-size: 13.5px; font-weight: 600; padding: 8px; border-radius: 8px; }
+        .link:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+        .t-body { flex: 1; min-height: 0; overflow: auto; padding: 0 18px 12px; }
+        .field { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 500; }
+        .field input, .field select { height: 44px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-2); padding: 0 12px; font-size: 15px; color: var(--text); outline: none; }
+        .field input:focus, .field select:focus { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+        .field input::placeholder { color: var(--faint); }
+        .cust { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+        .field input { min-width: 0; width: 100%; }
+        .hint { grid-column: 1 / -1; font-size: 13px; color: var(--muted); min-height: 0; }
+        .hint b { color: var(--text); font-weight: 600; }
+        .pkg { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-size: 13.5px; }
+        .pkg p { font-weight: 600; margin-bottom: 6px; }
+        .pkg label { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+        .pkg input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+        .lines { list-style: none; margin-top: 14px; display: flex; flex-direction: column; }
+        .line { padding: 12px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; }
+        .l-name { font-weight: 600; font-size: 14.5px; }
+        .l-price { text-align: right; font-weight: 600; }
+        .l-sub { font-size: 12.5px; color: var(--faint); }
+        .l-row { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
+        .l-row select { flex: 1; min-width: 0; height: 40px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-2); padding: 0 10px; font-size: 14px; color: var(--text); }
+        .qty { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 10px; height: 40px; }
+        .qty button { width: 38px; height: 38px; color: var(--muted); }
+        .qty button:hover { color: var(--text); }
+        .qty span { min-width: 22px; text-align: center; font-weight: 600; }
+        .rm { width: 40px; height: 40px; border-radius: 10px; color: var(--faint); border: 1px solid var(--line-2); }
+        .rm:hover { color: var(--danger); border-color: rgba(248, 113, 113, .45); }
+        .pkg-tag { font-size: 12px; font-weight: 600; color: var(--accent); }
+        .t-empty { margin-top: 18px; padding: 28px 14px; text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--muted); font-size: 14px; }
+        .t-empty i { display: block; font-size: 22px; color: var(--faint); margin-bottom: 8px; }
+        .t-foot { border-top: 1px solid var(--line); padding: 14px 18px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
+        .row-lbl { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); font-weight: 500; }
+        .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+        .seg button { height: 38px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+        .seg button:hover { color: var(--text); }
+        .seg button[aria-checked="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
+        .tip-seg { flex: 1; max-width: 250px; }
+        .tip-seg button { height: 34px; font-size: 13px; }
+        .sums { display: grid; gap: 6px; font-size: 14px; }
+        .sums div { display: flex; justify-content: space-between; color: var(--muted); }
+        .sums dd { color: var(--text); }
+        .sums .total { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 15px; color: var(--text); font-weight: 600; }
+        .sums .total dd { font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
+        .pay-note { font-size: 12.5px; color: var(--faint); margin-top: -4px; }
+        .charge { height: 54px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px;
+                  transition: filter .15s var(--ease), transform .1s var(--ease); }
+        .charge:hover:not(:disabled) { filter: brightness(1.07); }
+        .charge:active:not(:disabled) { transform: scale(.99); }
+        .charge:disabled { background: var(--raised); color: var(--faint); cursor: not-allowed; }
+        .err { color: var(--danger); font-size: 13.5px; }
+        .err:empty { display: none; }
+        .done { flex: 1; overflow: auto; padding: 28px 22px; display: flex; flex-direction: column; gap: 14px; text-align: center; }
+        .done .ok { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 0; display: grid; place-items: center; background: rgba(52, 211, 153, .14); color: var(--ok); font-size: 28px; }
+        .done h2 { font-size: 20px; }
+        .done .amt { font-size: 30px; font-weight: 700; }
+        .receipt { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; display: grid; gap: 6px; }
+        .receipt div { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); }
+        .receipt div b { color: var(--text); font-weight: 600; }
+        .done .btn { justify-content: center; height: 48px; border-radius: 12px; }
+        .done .primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+        .done .primary i { color: var(--accent-ink); }
+
+        /* điện thoại / máy tính bảng dọc: phiếu thu thành tấm trượt từ dưới lên + thanh tóm tắt cố định ở đáy */
+        .sheet-bar { display: none; }
+        @media (max-width: 1023px) {
+            .ticket { position: fixed; inset: 0; z-index: 70; border-left: 0; background: #0d1518; transform: translateY(100%); transition: transform .28s var(--ease); }
+            .ticket.open { transform: none; }
+            .sheet-bar { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 50; display: flex; align-items: center; gap: 12px;
+                         height: 58px; padding: 0 18px; border-radius: 16px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 15px;
+                         box-shadow: 0 18px 40px -14px rgba(0, 0, 0, .9); }
+            .sheet-bar .grow { flex: 1; text-align: left; }
+            .sheet-bar.empty { background: var(--raised); color: var(--muted); box-shadow: none; }
+        }
+        @media (min-width: 1024px) { .close-sheet { display: none; } }
+        .toast { position: fixed; left: 50%; top: 14px; z-index: 90; transform: translate(-50%, -160%); opacity: 0; visibility: hidden; transition: transform .25s var(--ease), opacity .2s, visibility .2s; pointer-events: none;
+                 background: #16252a; border: 1px solid var(--line-2); color: var(--text); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; max-width: calc(100vw - 32px); }
+        .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
     </style>
 </head>
-<body class="antialiased">
-    
-    <div class="scan-line"></div>
-    <div class="laser-vertical"></div>
-
-    <div class="overlay">
-        <div class="header">
-            <div class="header-left">
-                <img src="/static/cho1.jpg" class="logo-bitpaw" alt="BitPaw">
-                <div>
-                    <h1>{{ brand_name }}</h1>
-                    <p data-i18n="spa_header_tagline">Khởi tạo dịch vụ - Chạm để thanh toán</p>
-                </div>
+<body>
+{% set is_admin = session.get('role') in ('admin', 'super_admin') %}
+{% set cats = [] %}{% for s in services %}{% if s.category and s.category not in cats %}{% set _ = cats.append(s.category) %}{% endif %}{% endfor %}
+<div class="shell">
+    <header class="top">
+        <div class="brand">
+            <img src="/static/cho1.jpg" alt="" class="logo">
+            <div style="min-width:0">
+                <div class="shop">{{ brand_name }}</div>
+                <div class="sub" data-t="sub">Front desk · Spa POS</div>
             </div>
-            <div class="header-actions">
-                <button id="langToggleBtn" type="button" class="btn-glass" style="border:none; cursor:pointer;">EN</button>
-                <a href="{{ url_for('add_spa') }}" class="btn-glass"><i class="fas fa-plus"></i> <span data-i18n="spa_btn_add_service">Thêm Dịch Vụ</span></a>
-                <a href="{{ url_for('brand_settings') }}" class="btn-glass"><i class="fas fa-sliders"></i> <span data-i18n="spa_btn_customize">Tùy Chỉnh</span></a>
-                {# BUG THẬT đã vá (audit ghép nối màn hình theo ngành/vai trò): trước đây trỏ
-                   cứng vào index() (/dashboard) — Spa không có dashboard chung riêng
-                   (dashboard_route = /spa), nên index() redirect NGAY VỀ /spa, nút "Sảnh" chỉ
-                   vòng lại đúng màn hình đang đứng, chủ tiệm không tới được Quản lý nhân
-                   viên/Chấm công/Lương/Báo cáo/AI Copilot (chỉ có sidebar đầy đủ ở
-                   chamcong_spa.html). Đổi sang trỏ thẳng vào đó cho admin; nhân viên (bị
-                   chamcong_industry() chặn) trỏ vào đúng trang cá nhân của họ. #}
-                {% if session.get('role') in ('admin', 'super_admin') %}
-                <div style="position:relative;" id="mgmtMenuWrap">
-                    <button type="button" onclick="toggleMgmtMenu(event)" class="btn-glass" style="cursor:pointer;">⬅ <span data-i18n="spa_btn_lobby">Management</span> <span style="font-size:9px;opacity:0.7;">▾</span></button>
-                    <div id="mgmtMenuPanel" class="hidden" style="position:absolute; right:0; top:calc(100% + 8px); width:210px; background:#0a0f25; border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:8px; z-index:50; box-shadow:0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(20px);">
-                        <a href="{{ url_for('chamcong_industry', industry_code='spa') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-calendar-check" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_attendance">Attendance</span></a>
-                        <a href="{{ url_for('staff_list') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-users" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_staff">Staff</span></a>
-                        <a href="{{ url_for('customers') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-address-book" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_customers">Customers</span></a>
-                        <a href="{{ url_for('bangluong') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-money-bill-wave" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_payroll">Payroll</span></a>
-                        <a href="{{ url_for('report_consolidated') }}" style="display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; color:#e2e8f0; font-size:13px; text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"><i class="fas fa-chart-line" style="width:16px;text-align:center;color:#94a3b8"></i> <span data-i18n="spa_mgmt_reports">Reports</span></a>
-                    </div>
-                </div>
-                {% else %}
-                <a href="{{ url_for('app_nhanvien') }}" class="btn-glass">⬅ <span data-i18n="spa_btn_my_attendance">My Attendance</span></a>
+        </div>
+        <div class="clock num" id="clock" aria-hidden="true"></div>
+        <div class="actions">
+            <a class="btn" href="{{ url_for('calendar_view') }}" title="Appointments"><i class="fa-regular fa-calendar"></i><span class="lbl" data-t="appointments">Appointments</span></a>
+            <button class="btn" type="button" id="langBtn" aria-label="Language">VI</button>
+            <div class="menu-wrap">
+                <button class="btn" type="button" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel"><i class="fas fa-bars"></i><span class="lbl" data-t="menu">Menu</span></button>
+                <nav class="menu" id="menuPanel" hidden aria-label="Menu">
+                    {% if is_admin %}
+                    <h3 data-t="m_front">Front desk</h3>
+                    <a href="{{ url_for('calendar_view') }}"><i class="fa-regular fa-calendar"></i><span data-t="appointments">Appointments</span></a>
+                    <a href="/packages"><i class="fas fa-ticket"></i><span data-t="m_packages">Session packages</span>{{ plan_lock('packages') if plan_lock is defined else '' }}</a>
+                    <a href="{{ url_for('customers') }}"><i class="fas fa-address-book"></i><span data-t="m_customers">Customers</span></a>
+                    <a href="{{ url_for('qr_poster_booking') }}"><i class="fas fa-qrcode"></i><span data-t="m_poster">Booking QR poster</span></a>
+                    <h3 data-t="m_team">Team</h3>
+                    <a href="{{ url_for('chamcong_industry', industry_code='spa') }}"><i class="fas fa-rotate"></i><span data-t="m_turns">Attendance &amp; turns</span></a>
+                    <a href="/roster"><i class="fas fa-calendar-week"></i><span data-t="m_roster">Shift roster</span>{{ plan_lock('roster') if plan_lock is defined else '' }}</a>
+                    <a href="{{ url_for('staff_list') }}"><i class="fas fa-users"></i><span data-t="m_staff">Staff</span></a>
+                    <a href="{{ url_for('bangluong') }}"><i class="fas fa-money-check-dollar"></i><span data-t="m_payroll">Payroll</span></a>
+                    <h3 data-t="m_business">Business</h3>
+                    <a href="{{ url_for('report') }}"><i class="fas fa-chart-line"></i><span data-t="m_reports">Reports</span></a>
+                    <a href="{{ url_for('add_spa') }}"><i class="fas fa-plus"></i><span data-t="m_add">Add a treatment</span></a>
+                    <a href="{{ url_for('brand_settings') }}"><i class="fas fa-sliders"></i><span data-t="m_brand">Brand &amp; booking page</span></a>
+                    <a href="{{ url_for('plan_page') }}"><i class="fas fa-gem"></i><span data-t="m_plan">My plan</span></a>
+                    <hr>
+                    {% else %}
+                    <a href="{{ url_for('app_nhanvien') }}"><i class="fas fa-user-clock"></i><span data-t="m_mine">My attendance</span></a>
+                    <hr>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}"><i class="fas fa-arrow-right-from-bracket"></i><span data-t="m_logout">Log out</span></a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="work">
+        <section class="catalog" id="catalog" aria-label="Treatments">
+            <div class="toolbar">
+                <label class="search"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                    <input id="q" type="search" autocomplete="off" placeholder="Search treatments" data-tp="search" aria-label="Search treatments"><kbd>/</kbd></label>
+                {% if is_admin and services %}
+                <button class="btn sm" type="button" id="editBtn" aria-pressed="false"><i class="fas fa-pen"></i><span data-t="edit">Edit list</span></button>
+                <a class="btn sm" href="{{ url_for('add_spa') }}"><i class="fas fa-plus"></i><span data-t="m_add">Add a treatment</span></a>
                 {% endif %}
             </div>
-        </div>
-
-        <div class="search-filter-bar">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="Tìm dịch vụ..." data-i18n-placeholder="spa_placeholder_search">
+            {% if cats|length > 1 %}
+            <div class="chips" role="tablist" aria-label="Categories" id="chips">
+                <button class="chip" role="tab" aria-selected="true" data-cat=""><b data-t="all">All</b><span>{{ services|length }}</span></button>
+                {% for c in cats %}<button class="chip" role="tab" aria-selected="false" data-cat="{{ c }}">{{ c }}<span>{{ services|selectattr('category', 'equalto', c)|list|length }}</span></button>{% endfor %}
             </div>
-            <select id="categoryFilter" class="filter-select">
-                <option value="all" data-i18n="spa_cat_all">Tất cả danh mục</option>
-                <option value="Chăm sóc da mặt" data-i18n="spa_cat_facial">Chăm sóc da mặt</option>
-                <option value="Massage cơ thể" data-i18n="spa_cat_massage">Massage cơ thể</option>
-                <option value="Chăm sóc tóc" data-i18n="spa_cat_hair">Chăm sóc tóc</option>
-                <option value="Liệu trình đặc biệt" data-i18n="spa_cat_special">Liệu trình đặc biệt</option>
-                <option value="Combo tiết kiệm" data-i18n="spa_cat_combo">Combo tiết kiệm</option>
-            </select>
-        </div>
-
-        <div class="image-grid" id="servicesGrid">
-            {% for s in services %}
-            <div class="product-card" data-id="{{ s.id }}" data-name="{{ s.name }}" data-price="{{ s.price }}" data-category="{{ s.category }}">
-                <a href="{{ url_for('delete_spa', id=s.id) }}" class="absolute top-2 right-2 bg-red-500/80 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-500 z-10" title="Xóa dịch vụ" onclick="return confirm('Xóa {{ s.name }}?');">✕</a>
-                <div class="img-container">
-                    {% if s.image %}
-                        <img class="product-img" src="{{ s.image if s.image.startswith('http') else url_for('static', filename='uploads/' + s.image) }}" alt="{{ s.name }}">
-                    {% else %}
-                        <div class="w-full h-full bg-black/40 flex items-center justify-center text-3xl text-slate-500"><i class="fas fa-spa"></i></div>
-                    {% endif %}
-                    <div class="img-overlay"></div>
+            {% endif %}
+            <div class="grid" id="grid">
+                {% for s in services %}
+                <article class="tile" data-id="{{ s.id }}" data-name="{{ s.name }}" data-price="{{ s.price }}" data-cat="{{ s.category or '' }}">
+                    <button class="tile-hit" type="button" aria-label="{{ s.name }}">
+                        <span class="ph">{% if s.image %}<img src="{{ s.image if s.image.startswith('http') else url_for('static', filename='uploads/' + s.image) }}" alt="" loading="lazy" decoding="async">{% else %}<span class="noimg"><i class="fas fa-spa"></i></span>{% endif %}</span>
+                        <span class="tbody">
+                            <span class="tname">{{ s.name }}</span>
+                            <span class="tmeta"><span class="tprice num">{{ s.price | money(tenant_currency) }}</span>{% if s.category %}<span class="tcat">{{ s.category }}</span>{% endif %}</span>
+                        </span>
+                        <span class="add-ic" aria-hidden="true"><i class="fas fa-plus"></i></span>
+                    </button>
+                    <span class="badge num" hidden></span>
+                    {% if is_admin %}<button class="tile-del" type="button" data-del="{{ s.id }}" hidden><i class="fas fa-trash"></i><span data-t="remove">Remove</span></button>{% endif %}
+                </article>
+                {% else %}
+                <div class="empty">
+                    <h2 data-t="empty_title">No treatments yet</h2>
+                    <p data-t="empty_desc">Add your first treatment with its price and a photo — it appears here ready to sell.</p>
+                    {% if is_admin %}<a class="btn" href="{{ url_for('add_spa') }}"><i class="fas fa-plus"></i><span data-t="m_add">Add a treatment</span></a>{% endif %}
                 </div>
-                <div class="product-info">
-                    <div class="product-name">{{ s.name }}</div>
-                    <div class="product-price">{{ s.price | money(tenant_currency) }}</div>
-                    <div class="qty-cart-wrapper">
-                        <div class="qty-control">
-                            <button class="qty-btn decr">-</button>
-                            <input type="number" value="1" min="1" class="qty-value" readonly>
-                            <button class="qty-btn incr">+</button>
-                        </div>
-                        <button class="btn-add-cart"><i class="fas fa-cart-plus"></i> <span data-i18n="spa_btn_add">Thêm</span></button>
-                    </div>
+                {% endfor %}
+                <div class="empty" id="noMatch" hidden><h2 data-t="no_match">No treatment matches</h2><p data-t="no_match_desc">Try another word or clear the search.</p></div>
+            </div>
+        </section>
+
+        <aside class="ticket" id="ticket" aria-label="Ticket">
+            <div id="ticketMain" style="display:flex;flex-direction:column;min-height:0;flex:1">
+                <div class="t-head">
+                    <h2><span data-t="ticket">Ticket</span> <span class="count num" id="tCount"></span></h2>
+                    <button class="link" type="button" id="clearBtn" data-t="clear">Clear</button>
+                    <button class="link close-sheet" type="button" id="closeSheet" aria-label="Close"><i class="fas fa-xmark"></i></button>
                 </div>
-            </div>
-            {% else %}
-            <div class="col-span-full text-center py-20">
-                <h2 style="color: var(--theme-color, #06b6d4);" class="text-2xl font-bold mb-2" data-i18n="spa_empty_title">Chưa Có Dịch Vụ</h2>
-                <p class="text-gray-400" data-i18n="spa_empty_desc">Vui lòng thêm các liệu trình Spa / Thẩm mỹ</p>
-            </div>
-            {% endfor %}
-        </div>
-
-    </div>
-
-    <div id="cartSidebar" class="cart-sidebar">
-        <div class="cart-header">
-            <h3 class="font-bold text-xl"><i class="fas fa-shopping-basket"></i> <span data-i18n="spa_cart_title">Giỏ hàng</span></h3>
-            <button id="closeCartBtn" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
-        </div>
-        <div id="cartItemsList" class="cart-items">
-            <div class="text-center text-gray-500 py-5" data-i18n="spa_cart_empty">Chưa có sản phẩm</div>
-        </div>
-        <div class="cart-footer">
-            <div class="cart-total">
-                <span data-i18n="spa_cart_total_label">Tổng cộng:</span>
-                <span id="cartTotalAmount">{{ 0 | money(tenant_currency) }}</span>
-            </div>
-            <button id="openCheckoutModalBtn" class="btn-checkout" data-i18n="spa_btn_checkout_now">Thanh toán ngay</button>
-        </div>
-    </div>
-
-    <div id="cartIcon" class="cart-icon">
-        <i class="fas fa-shopping-cart fa-lg"></i>
-        <span id="cartCountBadge" class="cart-badge" style="display:none;">0</span>
-    </div>
-
-    <div id="globalCheckoutModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10002] hidden overflow-y-auto py-10 px-4">
-        <div class="max-w-6xl mx-auto w-full relative font-[Inter]">
-            <button id="closeGlobalCheckoutBtn" class="absolute -top-6 right-0 md:-right-6 text-gray-400 hover:text-white text-3xl z-10 transition">&times;</button>
-            
-            <h2 class="text-3xl font-black text-white mb-6 text-center tracking-tight" data-i18n="spa_checkout_title">Thanh Toán An Toàn</h2>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 glass-panel-pay p-6 h-fit sticky top-4">
-                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-shopping-bag mr-2"></i> <span data-i18n="spa_checkout_summary_title">Tổng quan (Summary)</span></h3>
-
-                    <div id="checkoutSummaryItems" class="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
-                        </div>
-
-                    <div class="border-t border-white/10 my-4"></div>
-
-                    <div class="flex justify-between items-center text-sm text-gray-400 mb-4">
-                        <span data-i18n="spa_label_currency">Tiền tệ (Currency)</span>
-                        <select id="currencySelector" class="bg-black/50 border border-white/20 rounded px-2 py-1 outline-none cursor-pointer text-white">
-                            <option value="VND">VND (₫)</option>
-                            <option value="USD">USD ($)</option>
-                        </select>
+                <div class="t-body">
+                    <div class="cust">
+                        <label class="field"><span data-t="phone">Client phone</span><input id="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="{{ '0901 234 567' if tenant_currency == 'VND' else '0412 345 678' }}"></label>
+                        <label class="field"><span data-t="name">Name</span><input id="cname" type="text" autocomplete="off" data-tp="name_ph" placeholder="New client"></label>
+                        <p class="hint" id="custHint" aria-live="polite"></p>
                     </div>
-
-                    <div class="flex justify-between font-bold">
-                        <span data-i18n="spa_label_total_payment">Tổng thanh toán</span>
-                        <div class="text-right">
-                            <span class="text-2xl text-cyan-400 block" id="checkoutTotalMain">{{ 0 | money(tenant_currency) }}</span>
-                            <span class="text-xs text-gray-500" id="checkoutTotalSub">~ $0.00 USD</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-3 mt-6">
-                        <div class="flex items-center gap-3">
-                            <i class="fas fa-undo text-blue-400 text-xl"></i>
-                            <div>
-                                <p class="text-xs font-bold text-white" data-i18n="spa_refund_policy_title">Chính sách hoàn tiền (Refund Policy)</p>
-                                <p class="text-[10px] text-gray-400"><span data-i18n="spa_refund_policy_desc_prefix">Cam kết hoàn tiền theo quy định của</span> {{ brand_name }}.</p>
-                            </div>
-                        </div>
-                        <div class="border-t border-white/5"></div>
-                        <div class="flex items-center gap-3">
-                            <i class="fas fa-shield-alt text-emerald-400 text-xl"></i>
-                            <div>
-                                <p class="text-xs font-bold text-white" data-i18n="spa_security_title">Bảo mật giao dịch</p>
-                                <p class="text-[10px] text-gray-400" data-i18n="spa_security_desc">Mã hóa 256-bit SSL. Thông tin thẻ không được lưu trữ.</p>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="pkg" id="pkgBox" hidden aria-live="polite"></div>
+                    <ol class="lines" id="lines"></ol>
+                    <div class="t-empty" id="tEmpty"><i class="fas fa-hand-pointer"></i><span data-t="t_empty">Tap a treatment to add it to the ticket.</span></div>
                 </div>
-
-                <div class="lg:col-span-2 glass-panel-pay p-6">
-                    <h3 class="text-lg font-bold text-cyan-400 mb-4"><i class="fas fa-credit-card mr-2"></i> <span data-i18n="spa_choose_payment_title">Chọn cổng thanh toán</span></h3>
-
-                    <div class="space-y-6">
-                        <!-- Tiệm ở Mỹ/Úc: thu tại quầy (tiền mặt / quẹt thẻ trên máy của tiệm / chuyển khoản). Ô "Tiền mặt" được chuyển vào đây bằng JS. -->
-                        <div id="counterPayments" class="hidden">
-                            <div class="pay-category-title" data-i18n="spa_pay_category_counter">Thu tại quầy</div>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="counterPayGrid">
-                                <div class="payment-method glass-card" data-method="card" data-type="counter">
-                                    <i class="fas fa-credit-card text-3xl text-sky-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_card_terminal">Thẻ (máy quẹt của tiệm)</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="bank" data-type="counter">
-                                    <i class="fas fa-building-columns text-3xl text-emerald-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_bank">Chuyển khoản</p>
-                                </div>
-                            </div>
+                <div class="t-foot">
+                    <div class="row-lbl"><span data-t="tip">Tip</span>
+                        <div class="seg tip-seg" role="radiogroup" aria-label="Tip" id="tipSeg">
+                            <button type="button" role="radio" data-tip="0" aria-checked="true" data-t="none">None</button>
+                            <button type="button" role="radio" data-tip="10" aria-checked="false">10%</button>
+                            <button type="button" role="radio" data-tip="15" aria-checked="false">15%</button>
+                            <button type="button" role="radio" data-tip="20" aria-checked="false">20%</button>
                         </div>
-                        <div id="intlPayments">
-                            <div class="pay-category-title" data-i18n="spa_pay_category_intl">Cards & Digital Wallets (Quốc tế)</div>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div class="payment-method glass-card active" data-method="stripe" data-type="card">
-                                    <div class="flex gap-1 text-xl">
-                                        <i class="fab fa-cc-visa text-blue-500"></i>
-                                        <i class="fab fa-cc-mastercard text-orange-500"></i>
-                                    </div>
-                                    <p class="text-[11px] mt-2 font-medium">Credit / Debit Card</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="paypal" data-type="redirect">
-                                    <i class="fab fa-paypal text-3xl text-blue-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium">PayPal</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="applepay" data-type="wallet">
-                                    <i class="fab fa-apple text-3xl text-white"></i>
-                                    <p class="text-[11px] mt-2 font-medium">Apple / Google Pay</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="crypto" data-type="crypto">
-                                    <i class="fab fa-bitcoin text-3xl text-orange-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium">Crypto (USDT)</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="localVnPayments">
-                            <div class="pay-category-title" data-i18n="spa_pay_category_local">Local Payment (Việt Nam)</div>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div class="payment-method glass-card" data-method="vietqr" data-type="qr">
-                                    <i class="fas fa-qrcode text-3xl text-emerald-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_vietqr">Chuyển khoản VietQR</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="vnpay" data-type="redirect">
-                                    <div class="text-blue-500 font-black text-xl border-b-2 border-red-500 inline-block leading-none">VNPAY</div>
-                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_atm_domestic">Thẻ ATM Nội địa</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="momo" data-type="qr">
-                                    <div class="bg-pink-600 text-white font-bold px-2 py-1 rounded-md mb-1">MoMo</div>
-                                    <p class="text-[11px] mt-1 font-medium" data-i18n="spa_pay_momo">Ví MoMo</p>
-                                </div>
-                                <div class="payment-method glass-card" data-method="cash" data-type="cash">
-                                    <i class="fas fa-money-bill-wave text-3xl text-green-400"></i>
-                                    <p class="text-[11px] mt-2 font-medium" data-i18n="spa_pay_cash">Tiền mặt tại quầy</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr class="border-white/10">
-
-                        <form id="paymentProcessForm" class="space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_fullname">Họ và tên</label>
-                                    <input type="text" id="custName" class="glass-input" placeholder="JOHN DOE" required>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_email">Email nhận biên lai</label>
-                                    <input type="email" id="custEmail" class="glass-input" placeholder="email@domain.com" required>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_phone_optional">Số điện thoại khách hàng (Tùy chọn)</label>
-                                <input type="tel" id="custPhone" class="glass-input" placeholder="09xx xxx xxx" pattern="[0-9+ ]{8,15}" autocomplete="tel">
-                            </div>
-                            <!-- Gói liệu trình của khách (service_packages.py): tick để dùng 1 buổi cho dịch vụ trong giỏ -->
-                            <div id="pkgBox" class="hidden bg-pink-500/10 border border-pink-400/30 rounded-xl p-3 space-y-2" aria-live="polite"></div>
-
-                            <div id="cardDetailsBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4">
-                                <h3 class="text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-credit-card"></i> <span data-i18n="spa_label_card_info">Thông tin thẻ tín dụng</span></h3>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_card_number">Số thẻ</label>
-                                        <input type="text" id="cardNumber" class="glass-input" placeholder="4242 4242 4242 4242">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-xs font-bold text-gray-400 mb-1" data-i18n="spa_label_expiry">Hết hạn (MM/YY)</label>
-                                            <input type="text" class="glass-input" placeholder="12/26">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-bold text-gray-400 mb-1">CVV</label>
-                                            <input type="password" class="glass-input" placeholder="123" maxlength="4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="qrCodeBlock" class="bg-black/30 p-4 rounded-xl border border-white/5 mt-4 hidden text-center">
-                                <h3 class="text-sm font-bold mb-3" id="qrTitle" data-i18n="spa_qr_title">Quét mã QR</h3>
-                                <div class="qr-area mb-3">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=BitPayCheckout" class="w-36 h-36 mx-auto">
-                                </div>
-                                <p class="text-xs text-gray-400" id="qrInstruction" data-i18n="spa_qr_instruction">Mở ứng dụng để quét mã thanh toán.</p>
-                            </div>
-
-                            <div id="cryptoAddressBox" class="bg-black/30 p-4 rounded-xl border border-orange-500/20 mt-4 hidden text-center">
-                                <p class="text-xs text-gray-400 mb-1" data-i18n="spa_crypto_address_label">Địa chỉ ví USDT (TRC20)</p>
-                                <p class="text-xs font-mono text-orange-400 break-all">TXn9y9Q1qQqfM1qQz7fJvZC5m6bK5m6bK5m6bK</p>
-                            </div>
-
-                            <div id="redirectBlock" class="bg-blue-900/20 p-4 rounded-xl border border-blue-500/20 mt-4 hidden text-center">
-                                <i id="redirectIcon" class="fas fa-external-link-alt text-4xl text-blue-400 mb-2"></i>
-                                <p class="text-sm" id="redirectText" data-i18n="spa_redirect_default_text">Bạn sẽ được chuyển hướng an toàn để hoàn tất giao dịch.</p>
-                            </div>
-
-                            <button type="submit" id="finalPayBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-4 rounded-xl shadow-lg mt-6 transition">
-                                <i class="fas fa-lock"></i> <span data-i18n="spa_btn_pay">Thanh toán</span>
-                            </button>
-                        </form>
                     </div>
+                    <dl class="sums">
+                        <div><dt data-t="subtotal">Subtotal</dt><dd class="num" id="sSub">—</dd></div>
+                        <div id="sPkgRow" hidden><dt data-t="pkg_used">Package sessions</dt><dd class="num" id="sPkg"></dd></div>
+                        <div id="sTipRow" hidden><dt data-t="tip">Tip</dt><dd class="num" id="sTip"></dd></div>
+                        <div class="total"><dt data-t="total">Total</dt><dd class="num" id="sTotal">—</dd></div>
+                    </dl>
+                    <div class="seg" role="radiogroup" aria-label="Payment" id="paySeg">
+                        <button type="button" role="radio" data-pay="cash" aria-checked="true" data-t="cash">Cash</button>
+                        <button type="button" role="radio" data-pay="card" aria-checked="false" data-t="card">Card</button>
+                        <button type="button" role="radio" data-pay="bank" aria-checked="false" data-t="bank">Transfer</button>
+                    </div>
+                    <p class="pay-note" id="payNote"></p>
+                    <button class="charge num" type="button" id="chargeBtn" disabled><span data-t="charge">Charge</span> <span id="chargeAmt"></span></button>
+                    <p class="err" id="err" role="alert"></p>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="resultModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10005] hidden items-center justify-center p-4">
-        <div class="glass-panel p-8 w-full max-w-md text-center transform scale-95 transition-transform duration-300 font-[Inter]" id="resultModalInner">
-            <i class="fas fa-check-circle text-7xl text-emerald-400 mb-4 shadow-emerald-500/50 drop-shadow-lg"></i>
-            <h3 class="text-2xl font-black mb-2 text-white" data-i18n="spa_result_success_title">Thành công!</h3>
-            <p class="text-gray-400 text-sm mb-4" data-i18n="spa_result_success_desc">Hệ thống đã ghi nhận đơn hàng của bạn.</p>
-
-            <div class="bg-black/40 p-4 rounded-xl text-left mb-6 mt-4">
-                <p class="text-sm text-gray-300 flex justify-between mb-2">
-                    <span data-i18n="spa_result_txn_label">Mã GD:</span>
-                    <span id="resTxn" class="font-mono text-cyan-400">#TXN</span>
-                </p>
-                <p class="text-sm text-gray-300 flex justify-between mb-2">
-                    <span data-i18n="spa_result_method_label">Phương thức:</span>
-                    <span id="resMethod" class="font-bold text-white">STRIPE</span>
-                </p>
-                <p class="text-sm text-gray-300 flex justify-between font-bold border-t border-white/10 pt-2 mt-2">
-                    <span data-i18n="spa_result_amount_label">Số tiền:</span>
-                    <span id="resAmount" class="text-xl text-emerald-400">{{ 0 | money(tenant_currency) }}</span>
-                </p>
+            <div class="done" id="done" hidden>
+                <div class="ok"><i class="fas fa-check"></i></div>
+                <h2 data-t="paid">Payment recorded</h2>
+                <div class="amt num" id="dAmt"></div>
+                <div class="receipt num" id="dReceipt"></div>
+                <button class="btn" type="button" id="printBtn"><i class="fas fa-print"></i><span data-t="print">Print receipt</span></button>
+                <button class="btn primary" type="button" id="newBtn"><i class="fas fa-plus"></i><span data-t="new_sale">New sale</span></button>
             </div>
-
-            <button onclick="printReceipt(window.lastReceiptData)" class="w-full bg-white border-2 border-gray-900 hover:bg-gray-100 text-gray-900 py-3 rounded-xl font-bold transition mb-2">
-                <i class="fas fa-print mr-2"></i>In hoá đơn
-            </button>
-            <button onclick="window.location.reload()" class="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition" data-i18n="spa_btn_close_home">Đóng & Về trang chủ</button>
-        </div>
+        </aside>
     </div>
+</div>
+<button class="sheet-bar empty" type="button" id="sheetBar" aria-controls="ticket"><i class="fas fa-receipt"></i><span class="grow" id="barText"></span><span class="num" id="barTotal"></span></button>
+<div class="toast" id="toast" role="status"></div>
 
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="bg-black/80 rounded-2xl p-8 flex flex-col items-center gap-4 border border-cyan-500/30">
-            <div class="relative w-16 h-16">
-                <div class="absolute inset-0 border-4 border-white/10 rounded-full"></div>
-                <div class="absolute inset-0 border-4 border-cyan-400 rounded-full border-t-transparent animate-spin"></div>
-                <i class="fas fa-shield-alt absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-400 text-xl"></i>
-            </div>
-            <div class="text-center">
-                <h3 class="font-bold text-white mb-1" data-i18n="spa_loading_title">Hệ thống đang xử lý...</h3>
-                <span class="text-xs text-gray-400 font-mono" id="loadingMethodText" data-i18n="spa_loading_subtitle">Xin vui lòng không đóng trang</span>
-            </div>
-        </div>
-    </div>
-    
-    <div id="toast" class="toast"></div>
+<script>
+(function () {
+    'use strict';
+    var CUR = {{ (tenant_currency or 'VND') | tojson }};
+    var THERAPISTS = {{ (therapists or []) | tojson }};
+    var SHOP = {{ brand_name | tojson }};
+    var $ = function (id) { return document.getElementById(id); };
+    var esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    var money = function (n) {
+        n = Number(n) || 0;
+        return CUR === 'VND' ? Math.round(n).toLocaleString('vi-VN') + '₫' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    var round2 = function (n) { return Math.round((Number(n) || 0) * 100) / 100; };
 
-    <script type="module">
-        // ========== Flask API nội bộ, thay Supabase JS. ==========
-        async function hrApi(path, options) {
-            const res = await fetch(path, {
-                ...options,
-                headers: { 'Content-Type': 'application/json', ...(options && options.headers) },
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok || body.success === false) {
-                throw new Error(body.error || body.message || `Lỗi máy chủ (${res.status})`);
-            }
-            return body;
-        }
+    // ---------- chữ (vi / en) ----------
+    var T = {
+        en: { sub: 'Front desk · Spa POS', appointments: 'Appointments', menu: 'Menu', m_front: 'Front desk', m_packages: 'Session packages', m_customers: 'Customers',
+              m_poster: 'Booking QR poster', m_team: 'Team', m_turns: 'Attendance & turns', m_roster: 'Shift roster', m_staff: 'Staff', m_payroll: 'Payroll',
+              m_business: 'Business', m_reports: 'Reports', m_add: 'Add a treatment', m_brand: 'Brand & booking page', m_plan: 'My plan', m_mine: 'My attendance', m_logout: 'Log out',
+              search: 'Search treatments', edit: 'Edit list', done_edit: 'Done', remove: 'Remove', all: 'All', empty_title: 'No treatments yet',
+              empty_desc: 'Add your first treatment with its price and a photo — it appears here ready to sell.', no_match: 'No treatment matches', no_match_desc: 'Try another word or clear the search.',
+              ticket: 'Ticket', clear: 'Clear', phone: 'Client phone', name: 'Name', name_ph: 'New client', t_empty: 'Tap a treatment to add it to the ticket.',
+              tip: 'Tip', none: 'None', subtotal: 'Subtotal', pkg_used: 'Package sessions', total: 'Total', cash: 'Cash', card: 'Card', bank: 'Transfer', charge: 'Charge',
+              paid: 'Payment recorded', print: 'Print receipt', new_sale: 'New sale', therapist: 'Therapist', no_therapist: 'Choose therapist', each: 'each',
+              note_cash: 'Take the cash, then confirm to record the bill.', note_card: 'Charge the card on your own terminal (Square / EFTPOS), then confirm.',
+              note_bank: 'Check the transfer has arrived in your account, then confirm.', added: 'Added', confirm_clear: 'Clear this ticket?',
+              confirm_remove: 'Remove "{n}" from the treatment list? Past sales stay in your reports.', removed: 'Removed', saving: 'Recording…',
+              returning: 'Returning client', pts: 'pts', new_client: 'New client — they will be added to Customers.', pkg_title: 'Client packages',
+              pkg_use: 'Use 1 session from "{n}" ({l} left)', pkg_none: 'This client has packages, but none cover the treatments on this ticket.', pkg_tag: 'Package session',
+              order: 'Bill', method: 'Paid by', items: 'items', item: 'item', view: 'View ticket', empty_bar: 'Ticket is empty', err_generic: 'Could not record the bill. Please try again.',
+              m_cash: 'Cash', m_card: 'Card (terminal)', m_bank: 'Bank transfer', thanks: 'Thank you — see you soon!' },
+        vi: { sub: 'Quầy lễ tân · POS Spa', appointments: 'Lịch hẹn', menu: 'Menu', m_front: 'Quầy lễ tân', m_packages: 'Gói liệu trình', m_customers: 'Khách hàng',
+              m_poster: 'Poster QR đặt lịch', m_team: 'Nhân sự', m_turns: 'Chấm công & tua', m_roster: 'Lịch ca', m_staff: 'Nhân viên', m_payroll: 'Bảng lương',
+              m_business: 'Kinh doanh', m_reports: 'Báo cáo', m_add: 'Thêm liệu trình', m_brand: 'Thương hiệu & trang đặt lịch', m_plan: 'Gói của tôi', m_mine: 'Chấm công của tôi', m_logout: 'Đăng xuất',
+              search: 'Tìm liệu trình', edit: 'Sửa danh sách', done_edit: 'Xong', remove: 'Xoá', all: 'Tất cả', empty_title: 'Chưa có liệu trình',
+              empty_desc: 'Thêm liệu trình đầu tiên kèm giá và ảnh — liệu trình hiện ở đây, sẵn sàng để bán.', no_match: 'Không có liệu trình phù hợp', no_match_desc: 'Thử từ khác hoặc xoá ô tìm kiếm.',
+              ticket: 'Phiếu thu', clear: 'Xoá phiếu', phone: 'SĐT khách', name: 'Tên', name_ph: 'Khách mới', t_empty: 'Chạm vào liệu trình để thêm vào phiếu.',
+              tip: 'Tip', none: 'Không', subtotal: 'Tạm tính', pkg_used: 'Trừ buổi gói', total: 'Tổng', cash: 'Tiền mặt', card: 'Thẻ', bank: 'Chuyển khoản', charge: 'Thu',
+              paid: 'Đã ghi nhận thanh toán', print: 'In hoá đơn', new_sale: 'Phiếu mới', therapist: 'Kỹ thuật viên', no_therapist: 'Chọn kỹ thuật viên', each: 'mỗi',
+              note_cash: 'Nhận tiền mặt rồi bấm xác nhận để ghi bill.', note_card: 'Quẹt thẻ trên máy của tiệm (Square / máy POS), xong bấm xác nhận.',
+              note_bank: 'Kiểm tra tiền đã vào tài khoản của tiệm rồi bấm xác nhận.', added: 'Đã thêm', confirm_clear: 'Xoá phiếu này?',
+              confirm_remove: 'Xoá "{n}" khỏi danh sách liệu trình? Các bill cũ vẫn giữ trong báo cáo.', removed: 'Đã xoá', saving: 'Đang ghi…',
+              returning: 'Khách quen', pts: 'điểm', new_client: 'Khách mới — sẽ được thêm vào danh sách Khách hàng.', pkg_title: 'Gói liệu trình của khách',
+              pkg_use: 'Dùng 1 buổi từ "{n}" (còn {l})', pkg_none: 'Khách có gói nhưng không áp dụng cho liệu trình trong phiếu.', pkg_tag: 'Buổi trong gói',
+              order: 'Bill', method: 'Thanh toán', items: 'liệu trình', item: 'liệu trình', view: 'Xem phiếu', empty_bar: 'Phiếu đang trống', err_generic: 'Chưa ghi được bill. Vui lòng thử lại.',
+              m_cash: 'Tiền mặt', m_card: 'Thẻ (máy quẹt)', m_bank: 'Chuyển khoản', thanks: 'Cảm ơn quý khách!' }
+    };
+    var lang = (function () { try { return localStorage.getItem('bitpaw_lang') || {{ default_lang | tojson }}; } catch (e) { return {{ default_lang | tojson }}; } })();
+    if (!T[lang]) lang = 'en';
+    var t = function (k, p) { var s = (T[lang] && T[lang][k]) || T.en[k] || k; for (var x in (p || {})) s = s.split('{' + x + '}').join(p[x]); return s; };
+    function applyLang() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = t(el.getAttribute('data-t')); });
+        document.querySelectorAll('[data-tp]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-tp')); });
+        $('langBtn').textContent = lang === 'vi' ? 'EN' : 'VI';
+        if (editing) $('editBtn').querySelector('span').textContent = t('done_edit');
+        render();
+    }
 
-        // ========== STATE ==========
-        let cart = [];
-        const brandColor = "{{ brand_color|default('#06b6d4', true) }}";
-        
-        // Checkout State
-        const exchangeRate = 25000;
-        let baseVND = 0;
-        let baseUSD = 0;
-        let selectedMethod = 'stripe';
-        let paymentType = 'card';
-        let currentCurrency = 'VND';
-        
-        // ========== DOM ELEMENTS ==========
-        const cartItemsList = document.getElementById('cartItemsList');
-        const cartTotalSpan = document.getElementById('cartTotalAmount');
-        const cartCountBadge = document.getElementById('cartCountBadge');
-        const cartSidebar = document.getElementById('cartSidebar');
-        const toast = document.getElementById('toast');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const loadingMethodText = document.getElementById('loadingMethodText');
+    // ---------- đồng hồ ----------
+    function tick() {
+        var d = new Date();
+        $('clock').textContent = d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
+            d.toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-AU', { hour: '2-digit', minute: '2-digit' });
+    }
+    tick(); setInterval(tick, 20000);
 
-        // Global Checkout Modal
-        const globalCheckoutModal = document.getElementById('globalCheckoutModal');
-        const openCheckoutModalBtn = document.getElementById('openCheckoutModalBtn');
-        const closeGlobalCheckoutBtn = document.getElementById('closeGlobalCheckoutBtn');
-        const checkoutSummaryItems = document.getElementById('checkoutSummaryItems');
-        const checkoutTotalMain = document.getElementById('checkoutTotalMain');
-        const checkoutTotalSub = document.getElementById('checkoutTotalSub');
-        const currencySelector = document.getElementById('currencySelector');
-        
-        const paymentMethods = document.querySelectorAll('.payment-method');
-        const cardDetailsBlock = document.getElementById('cardDetailsBlock');
-        const qrCodeBlock = document.getElementById('qrCodeBlock');
-        const redirectBlock = document.getElementById('redirectBlock');
-        const finalPayBtn = document.getElementById('finalPayBtn');
-        const paymentProcessForm = document.getElementById('paymentProcessForm');
+    // ---------- menu ----------
+    var menuBtn = $('menuBtn'), menu = $('menuPanel');
+    function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    menuBtn.addEventListener('click', function (e) { e.stopPropagation(); setMenu(menu.hidden); });
+    document.addEventListener('click', function (e) { if (!menu.hidden && !menu.contains(e.target)) setMenu(false); });
 
-        // ========== CORE FUNCTIONS ==========
-        function showToast(msg, isError = false) {
-            toast.innerText = msg;
-            toast.style.borderColor = isError ? '#ef4444' : brandColor;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        function showLoading(show, text = null) {
-            if (text === null) text = t('spa_loading_processing');
-            loadingMethodText.innerText = text;
-            if (show) {
-                loadingOverlay.classList.add('active');
-            } else {
-                loadingOverlay.classList.remove('active');
-            }
-        }
-
-        // "Management" quick-access dropdown (Nhân sự/Chấm công/Lương/Báo cáo) — đóng khi
-        // bấm ra ngoài, giống pattern dropdown chuẩn của trình duyệt.
-        function toggleMgmtMenu(e) {
-            e.stopPropagation();
-            document.getElementById('mgmtMenuPanel')?.classList.toggle('hidden');
-        }
-        // Script này là type="module" (phạm vi riêng) -> phải gắn lên window thì onclick="toggleMgmtMenu(event)"
-        // trong HTML mới gọi được; trước đây nút "Management" bấm không có tác dụng gì.
-        window.toggleMgmtMenu = toggleMgmtMenu;
-        document.addEventListener('click', (e) => {
-            const wrap = document.getElementById('mgmtMenuWrap');
-            const panel = document.getElementById('mgmtMenuPanel');
-            if (wrap && panel && !wrap.contains(e.target)) panel.classList.add('hidden');
+    // ---------- danh sách liệu trình: tìm + lọc nhóm ----------
+    var tiles = Array.prototype.slice.call(document.querySelectorAll('.tile'));
+    var activeCat = '';
+    function filter() {
+        var q = $('q').value.trim().toLowerCase(), shown = 0;
+        tiles.forEach(function (el) {
+            var ok = (!activeCat || el.dataset.cat === activeCat) && (!q || el.dataset.name.toLowerCase().indexOf(q) > -1);
+            el.hidden = !ok; if (ok) shown++;
         });
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
-        }
-
-        // Tiền tệ THẬT của tiệm (tiệm Úc/Mỹ: $) — trước đây giỏ hàng/hộp thanh toán luôn ghi "₫" và quy đổi USD theo tỉ giá
-        // cứng 25.000: tiệm Spa ở Úc thấy dịch vụ $135 thành "135₫" ≈ "$0.0054".
-        const SHOP_CURRENCY = {{ (tenant_currency or 'VND') | tojson }};
-        const THERAPISTS = {{ (therapists or []) | tojson }};
-        function formatShop(amount) {
-            return SHOP_CURRENCY === 'VND' ? Math.round(amount).toLocaleString('vi-VN') + '₫' : '$' + Number(amount).toFixed(2);
-        }
-        function formatCurrency(amount, cur) {
-            if(cur === 'VND') {
-                return amount.toLocaleString('vi-VN') + '₫';
-            }
-            return '$' + amount.toFixed(2);
-        }
-
-        // ========== CART LOGIC ==========
-        function updateCartUI() {
-            if (cart.length === 0) {
-                cartItemsList.innerHTML = '<div class="text-center text-gray-500 py-5">' + t('spa_cart_empty') + '</div>';
-                cartTotalSpan.innerText = formatShop(0);
-                cartCountBadge.style.display = 'none';
-                return;
-            }
-            
-            let html = '';
-            baseVND = 0;
-            let totalQty = 0;
-            
-            cart.forEach((item, idx) => {
-                const itemTotal = item.price * item.qty;
-                baseVND += itemTotal;
-                totalQty += item.qty;
-                html += `
-                    <div class="cart-item" data-index="${idx}">
-                        <div class="cart-item-info">
-                            <h4>${escapeHtml(item.name)}</h4>
-                            <div class="cart-item-price">${formatShop(item.price)}</div>
-                            ${THERAPISTS.length ? `<select class="cart-tech" data-idx="${idx}" aria-label="${t('spa_assign_therapist')}">
-                                <option value="">${t('spa_assign_therapist')}</option>
-                                ${THERAPISTS.map(tp => `<option value="${escapeHtml(tp.ma_nv)}" ${item.ma_nv === tp.ma_nv ? 'selected' : ''}>${escapeHtml(tp.ho_ten)}</option>`).join('')}
-                            </select>` : ''}
-                        </div>
-                        <div class="cart-item-qty">
-                            <button class="cart-qty-btn decr-cart" data-idx="${idx}">-</button>
-                            <span>${item.qty}</span>
-                            <button class="cart-qty-btn incr-cart" data-idx="${idx}">+</button>
-                            <button class="cart-remove-btn text-red-400 ml-2" data-idx="${idx}"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            cartItemsList.innerHTML = html;
-            cartTotalSpan.innerText = formatShop(baseVND);
-            cartCountBadge.innerText = totalQty;
-            cartCountBadge.style.display = totalQty > 0 ? 'flex' : 'none';
-            baseUSD = baseVND / exchangeRate;
-            
-            // Gắn lại sự kiện cho các nút trong giỏ
-            document.querySelectorAll('.cart-tech').forEach(sel => {
-                sel.addEventListener('change', () => { cart[sel.dataset.idx].ma_nv = sel.value || null; });
-            });
-            document.querySelectorAll('.decr-cart').forEach(btn => {
-                btn.addEventListener('click', () => adjustCart(btn.dataset.idx, -1));
-            });
-            document.querySelectorAll('.incr-cart').forEach(btn => {
-                btn.addEventListener('click', () => adjustCart(btn.dataset.idx, 1));
-            });
-            document.querySelectorAll('.cart-remove-btn').forEach(btn => {
-                btn.addEventListener('click', () => removeCartItem(btn.dataset.idx));
-            });
-        }
-
-        function adjustCart(idx, delta) {
-            if (cart[idx]) {
-                cart[idx].qty += delta;
-                if (cart[idx].qty <= 0) cart.splice(idx, 1);
-                updateCartUI();
-            }
-        }
-
-        function removeCartItem(idx) { 
-            cart.splice(idx, 1); 
-            updateCartUI(); 
-        }
-
-        // Product Grid Add to Cart
-        document.querySelectorAll('.product-card').forEach(card => {
-            const qtyInput = card.querySelector('.qty-value');
-            
-            card.querySelector('.decr').addEventListener('click', () => { 
-                if (qtyInput.value > 1) qtyInput.value--; 
-            });
-            
-            card.querySelector('.incr').addEventListener('click', () => { 
-                qtyInput.value++; 
-            });
-            
-            card.querySelector('.btn-add-cart').addEventListener('click', () => {
-                const id = parseInt(card.getAttribute('data-id'));
-                const name = card.getAttribute('data-name');
-                const price = parseInt(card.getAttribute('data-price'));
-                const qty = parseInt(qtyInput.value);
-                
-                const existing = cart.find(item => item.id === id);
-                if (existing) {
-                    existing.qty += qty;
-                } else {
-                    cart.push({ id, name, price, qty });
-                }
-                
-                updateCartUI();
-                showToast(t('spa_toast_added_to_cart'));
-                qtyInput.value = 1;
-            });
+        $('noMatch').hidden = !tiles.length || shown > 0;
+    }
+    $('q').addEventListener('input', filter);
+    document.querySelectorAll('.chip').forEach(function (c) {
+        c.addEventListener('click', function () {
+            activeCat = c.dataset.cat;
+            document.querySelectorAll('.chip').forEach(function (x) { x.setAttribute('aria-selected', x === c ? 'true' : 'false'); });
+            filter();
         });
-
-        // Toggle Cart Sidebar
-        document.getElementById('cartIcon').addEventListener('click', () => {
-            cartSidebar.classList.add('open');
-        });
-        document.getElementById('closeCartBtn').addEventListener('click', () => {
-            cartSidebar.classList.remove('open');
-        });
-
-        // ========== CHECKOUT MODAL LOGIC ==========
-        openCheckoutModalBtn.addEventListener('click', () => {
-            if (cart.length === 0) {
-                showToast(t('spa_toast_cart_empty'), true);
-                return;
-            }
-            
-            // Populate Checkout Summary
-            let summaryHtml = '';
-            cart.forEach(item => {
-                summaryHtml += `
-                    <div class="flex justify-between text-sm text-gray-200">
-                        <span>${escapeHtml(item.name)} <span class="text-cyan-400">x${item.qty}</span></span>
-                        <span class="font-mono">${formatShop(item.price * item.qty)}</span>
-                    </div>`;
-            });
-            checkoutSummaryItems.innerHTML = summaryHtml;
-            
-            // Init Default Payment View — tiệm VND: VNPay + đổi VND/USD như cũ; tiệm đô (AUD/USD): tiền tệ của tiệm, mặc định tiền mặt
-            const vndShop = SHOP_CURRENCY === 'VND';
-            currentCurrency = vndShop ? 'VND' : SHOP_CURRENCY;
-            if (vndShop) currencySelector.value = 'VND';
-            currencySelector.closest('div').classList.toggle('hidden', !vndShop);
-            // Tiệm ngoài Việt Nam: ẩn VietQR/VNPAY/MoMo, gợi ý SĐT không theo dạng VN
-            document.getElementById('localVnPayments').classList.toggle('hidden', !vndShop);
-            document.getElementById('intlPayments').classList.toggle('hidden', !vndShop);
-            document.getElementById('counterPayments').classList.toggle('hidden', vndShop);
-            if (!vndShop) {  // ô Tiền mặt nằm trong nhóm Việt Nam -> đưa lên nhóm "thu tại quầy" để tiệm Mỹ/Úc thấy được
-                const cashOpt = document.querySelector('.payment-method[data-method="cash"]');
-                const grid = document.getElementById('counterPayGrid');
-                if (cashOpt && cashOpt.parentElement !== grid) grid.insertBefore(cashOpt, grid.firstChild);
-            }
-            document.getElementById('custPhone').placeholder = vndShop ? '09xx xxx xxx' : '04xx xxx xxx';
-            checkoutTotalSub.classList.toggle('hidden', !vndShop);
-            selectedMethod = vndShop ? 'vnpay' : 'cash';
-            paymentType = vndShop ? 'redirect' : 'cash';
-
-            paymentMethods.forEach(m => {
-                m.classList.remove('active');
-                if(m.dataset.method === selectedMethod) {
-                    m.classList.add('active');
-                }
-            });
-            
-            updateCheckoutPriceDisplay();
-            updatePaymentFormVisibility();
-            
-            cart.forEach(it => { it.package_id = null; });
-            custPackages = []; renderPackageBox();
-            if (document.getElementById('custPhone').value.trim()) lookupPackages();
-            // Hide Cart, Show Modal
-            cartSidebar.classList.remove('open');
-            globalCheckoutModal.classList.remove('hidden');
-        });
-
-        closeGlobalCheckoutBtn.addEventListener('click', () => {
-            globalCheckoutModal.classList.add('hidden');
-        });
-
-        // Switch Currency
-        currencySelector.addEventListener('change', (e) => {
-            currentCurrency = e.target.value;
-            updateCheckoutPriceDisplay();
-        });
-
-        // ===== Gói liệu trình: tra theo SĐT, dòng dùng gói = 0 trên bill (máy chủ kiểm tra lại + trừ buổi) =====
-        let custPackages = [];
-        function recalcCheckoutTotal() {
-            baseVND = cart.reduce((sum, it) => sum + (it.package_id ? 0 : it.price * it.qty), 0);
-            baseUSD = baseVND / exchangeRate;
-            updateCheckoutPriceDisplay();
+    });
+    document.addEventListener('keydown', function (e) {
+        var typing = /INPUT|SELECT|TEXTAREA/.test((document.activeElement || {}).tagName || '');
+        if (e.key === '/' && !typing) { e.preventDefault(); $('q').focus(); }
+        if (e.key === 'Escape') { setMenu(false); openSheet(false); }
+        if (e.key === 'Enter' && document.activeElement === $('q')) {   // Enter trong ô tìm = thêm liệu trình đầu tiên đang hiện
+            var first = tiles.filter(function (el) { return !el.hidden; })[0];
+            if (first) add(first);
         }
-        function renderPackageBox() {
-            const box = document.getElementById('pkgBox');
-            if (!custPackages.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
-            const rows = [];
-            cart.forEach((it, idx) => {
-                const pk = custPackages.find(p => p.sessions_left >= it.qty && (!p.service_ids.length || p.service_ids.includes(it.id)));
-                if (!pk) return;
-                rows.push(`<label class="flex items-start gap-2 text-sm cursor-pointer"><input type="checkbox" class="pkg-use mt-1" data-idx="${idx}" data-pkg="${pk.id}" ${it.package_id === pk.id ? 'checked' : ''}>
-                    <span><b>${escapeHtml(it.name)}</b><br><span class="text-pink-200/80 text-xs">${escapeHtml(tf('spa_pkg_use', { name: pk.name, left: pk.sessions_left }))}</span></span></label>`);
-            });
-            box.innerHTML = `<p class="text-xs font-bold text-pink-300 uppercase tracking-wider"><i class="fas fa-ticket mr-1"></i> ${t('spa_pkg_title')}</p>` +
-                (rows.join('') || `<p class="text-xs text-gray-400">${t('spa_pkg_none')}</p>`);
-            box.classList.remove('hidden');
-            box.querySelectorAll('.pkg-use').forEach(cb => cb.addEventListener('change', () => {
-                cart[cb.dataset.idx].package_id = cb.checked ? Number(cb.dataset.pkg) : null;
-                recalcCheckoutTotal();
-            }));
-        }
-        let pkgLookupTimer = null;
-        async function lookupPackages() {
-            const phone = document.getElementById('custPhone').value.trim();
-            cart.forEach(it => { it.package_id = null; });
-            custPackages = [];
-            if (phone.replace(/\D/g, '').length >= 6) {
-                try { custPackages = (await hrApi('/api/packages/customer?phone=' + encodeURIComponent(phone))).data || []; } catch (e) { custPackages = []; }
-            }
-            renderPackageBox(); recalcCheckoutTotal();
-        }
-        document.getElementById('custPhone').addEventListener('input', () => { clearTimeout(pkgLookupTimer); pkgLookupTimer = setTimeout(lookupPackages, 450); });
+    });
 
-        function updateCheckoutPriceDisplay() {
-            if (SHOP_CURRENCY !== 'VND') {
-                checkoutTotalMain.innerText = formatShop(baseVND);
-                checkoutTotalSub.innerText = '';
-            } else if(currentCurrency === 'VND') {
-                checkoutTotalMain.innerText = formatCurrency(baseVND, 'VND');
-                checkoutTotalSub.innerText = '~ ' + formatCurrency(baseUSD, 'USD');
-            } else {
-                checkoutTotalMain.innerText = formatCurrency(baseUSD, 'USD');
-                checkoutTotalSub.innerText = '~ ' + formatCurrency(baseVND, 'VND');
-            }
-            
-            // Update button text
-            const displayStr = SHOP_CURRENCY !== 'VND' ? formatShop(baseVND)
-                : (currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD'));
-            
-            if (paymentType === 'card') {
-                finalPayBtn.innerHTML = `<i class="fas fa-lock"></i> ${tf('spa_btn_pay_amount', {amount: displayStr})}`;
-            } else if (paymentType === 'qr' || paymentType === 'crypto') {
-                finalPayBtn.innerHTML = `<i class="fas fa-qrcode"></i> ${tf('spa_btn_get_qr', {amount: displayStr})}`;
-            } else if (paymentType === 'cash') {
-                finalPayBtn.innerHTML = `<i class="fas fa-check"></i> ${tf('spa_btn_confirm_booking', {amount: displayStr})}`;
-            } else {
-                finalPayBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> ${tf('spa_btn_continue', {amount: displayStr})}`;
-            }
-        }
+    // ---------- phiếu thu ----------
+    var cart = [];          // {id, name, price, qty, ma_nv, package_id}
+    var tipPct = 0, pay = 'cash', packages = [], customer = null, editing = false, lastReceipt = null;
+    function add(el) {
+        var id = Number(el.dataset.id), price = Number(el.dataset.price) || 0;     // giá có số lẻ ($89.95) — trước đây parseInt cắt mất
+        var line = cart.filter(function (x) { return x.id === id && !x.package_id; })[0];
+        if (line) line.qty += 1;
+        else cart.push({ id: id, name: el.dataset.name, price: price, qty: 1, ma_nv: THERAPISTS.length === 1 ? THERAPISTS[0].ma_nv : '', package_id: null });
+        render(); toast(t('added') + ' · ' + el.dataset.name);
+    }
+    tiles.forEach(function (el) { el.querySelector('.tile-hit').addEventListener('click', function () { if (!editing) add(el); }); });
 
-        // Switch Payment Method
-        paymentMethods.forEach(method => {
-            method.addEventListener('click', () => {
-                paymentMethods.forEach(m => m.classList.remove('active'));
-                method.classList.add('active');
-                
-                selectedMethod = method.dataset.method;
-                paymentType = method.dataset.type;
-                
-                if (SHOP_CURRENCY === 'VND') {
-                    currencySelector.value = ['stripe', 'paypal', 'applepay', 'crypto'].includes(selectedMethod) ? 'USD' : 'VND';
-                    currentCurrency = currencySelector.value;
-                } else {
-                    currentCurrency = SHOP_CURRENCY;  // tiệm đô (AUD/USD) không quy đổi
-                }
-                updateCheckoutPriceDisplay();
-                updatePaymentFormVisibility();
-            });
+    function totals() {
+        var sub = 0, pkg = 0;
+        cart.forEach(function (x) { var v = x.price * x.qty; sub += v; if (x.package_id) pkg += v; });
+        var payable = round2(sub - pkg), tip = round2(payable * tipPct / 100);
+        return { sub: round2(sub), pkg: round2(pkg), payable: payable, tip: tip, total: round2(payable + tip) };
+    }
+    function render() {
+        var s = totals(), n = cart.reduce(function (a, x) { return a + x.qty; }, 0);
+        // thẻ liệu trình: số lượng đang có trong phiếu
+        tiles.forEach(function (el) {
+            var q = cart.filter(function (x) { return x.id === Number(el.dataset.id); }).reduce(function (a, x) { return a + x.qty; }, 0);
+            var b = el.querySelector('.badge'); b.hidden = !q; b.textContent = '×' + q; el.classList.toggle('in', !!q);
         });
+        $('tCount').textContent = n ? '· ' + n : '';
+        $('tEmpty').hidden = cart.length > 0;
+        $('lines').innerHTML = cart.map(function (x, i) {
+            var opts = '<option value="">' + esc(t('no_therapist')) + '</option>' + THERAPISTS.map(function (p) {
+                return '<option value="' + esc(p.ma_nv) + '"' + (p.ma_nv === x.ma_nv ? ' selected' : '') + '>' + esc(p.ho_ten) + '</option>'; }).join('');
+            return '<li class="line"><div><div class="l-name">' + esc(x.name) + '</div><div class="l-sub num">' + (x.qty > 1 ? money(x.price) + ' ' + esc(t('each')) : '') +
+                (x.package_id ? ' <span class="pkg-tag">' + esc(t('pkg_tag')) + '</span>' : '') + '</div></div>' +
+                '<div class="l-price num">' + (x.package_id ? money(0) : money(x.price * x.qty)) + '</div>' +
+                '<div class="l-row">' + (THERAPISTS.length ? '<select data-i="' + i + '" aria-label="' + esc(t('therapist')) + '">' + opts + '</select>' : '<span style="flex:1"></span>') +
+                '<span class="qty"><button type="button" data-dec="' + i + '" aria-label="−">−</button><span class="num">' + x.qty + '</span><button type="button" data-inc="' + i + '" aria-label="+">+</button></span>' +
+                '<button type="button" class="rm" data-rm="' + i + '" aria-label="' + esc(t('remove')) + '"><i class="fas fa-trash-can"></i></button></div></li>';
+        }).join('');
+        $('sSub').textContent = cart.length ? money(s.sub) : '—';
+        $('sPkgRow').hidden = !s.pkg; $('sPkg').textContent = '−' + money(s.pkg);
+        $('sTipRow').hidden = !s.tip; $('sTip').textContent = money(s.tip);
+        $('sTotal').textContent = cart.length ? money(s.total) : '—';
+        $('chargeBtn').disabled = !cart.length;
+        $('chargeAmt').textContent = cart.length ? money(s.total) : '';
+        $('payNote').textContent = t('note_' + pay);
+        var bar = $('sheetBar');
+        bar.classList.toggle('empty', !cart.length);
+        $('barText').textContent = cart.length ? t('view') + ' · ' + n + ' ' + (n === 1 ? t('item') : t('items')) : t('empty_bar');
+        $('barTotal').textContent = cart.length ? money(s.total) : '';
+        renderPackages();
+    }
+    $('lines').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.inc) { cart[+b.dataset.inc].qty++; }
+        else if (b.dataset.dec) { var x = cart[+b.dataset.dec]; x.qty--; if (x.qty < 1) cart.splice(+b.dataset.dec, 1); }
+        else if (b.dataset.rm) { cart.splice(+b.dataset.rm, 1); }
+        render();
+    });
+    $('lines').addEventListener('change', function (e) { if (e.target.dataset.i != null) cart[+e.target.dataset.i].ma_nv = e.target.value; });
+    $('clearBtn').addEventListener('click', function () { if (!cart.length || confirm(t('confirm_clear'))) resetSale(); });
+    function seg(id, attr, cb) {
+        $(id).addEventListener('click', function (e) {
+            var b = e.target.closest('button'); if (!b) return;
+            $(id).querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
+            cb(b.getAttribute(attr)); render();
+        });
+    }
+    seg('tipSeg', 'data-tip', function (v) { tipPct = Number(v) || 0; });
+    seg('paySeg', 'data-pay', function (v) { pay = v; });
 
-        function updatePaymentFormVisibility() {
-            cardDetailsBlock.classList.add('hidden');
-            qrCodeBlock.classList.add('hidden');
-            redirectBlock.classList.add('hidden');
-            document.getElementById('cryptoAddressBox').classList.add('hidden');
-
-            if (paymentType === 'card') {
-                cardDetailsBlock.classList.remove('hidden');
-            } 
-            else if (paymentType === 'qr' || paymentType === 'crypto') {
-                qrCodeBlock.classList.remove('hidden');
-                document.getElementById('qrTitle').innerText =
-                    selectedMethod === 'crypto' ? t('spa_qr_title_crypto') : tf('spa_qr_title_scan', {method: selectedMethod.toUpperCase()});
-
-                if (selectedMethod === 'crypto') {
-                    document.getElementById('cryptoAddressBox').classList.remove('hidden');
-                }
-            }
-            else if (paymentType === 'counter') {
-                redirectBlock.classList.remove('hidden');
-                document.getElementById('redirectIcon').className = selectedMethod === 'card' ? 'fas fa-credit-card text-4xl text-sky-400 mb-2' : 'fas fa-building-columns text-4xl text-emerald-400 mb-2';
-                document.getElementById('redirectText').innerText = t(selectedMethod === 'card' ? 'spa_redirect_card_terminal_text' : 'spa_redirect_bank_text');
-            }
-            else if (paymentType === 'redirect' || paymentType === 'wallet' || paymentType === 'cash') {
-                redirectBlock.classList.remove('hidden');
-                document.getElementById('redirectIcon').className =
-                    paymentType === 'cash' ? 'fas fa-store text-4xl text-green-400 mb-2' : 'fas fa-shield-alt text-4xl text-blue-400 mb-2';
-                document.getElementById('redirectText').innerText =
-                    paymentType === 'cash' ? t('spa_redirect_cash_text') : t('spa_redirect_online_text');
-            }
-        }
-
-        // ========== EXECUTE PAYMENT & LƯU ĐƠN HÀNG (Flask API) ==========
-        paymentProcessForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Validate form
-            const custName = document.getElementById('custName').value.trim();
-            const custEmail = document.getElementById('custEmail').value.trim();
-            const custPhone = document.getElementById('custPhone').value.trim() || null;
-
-            if(paymentType === 'card') {
-                const cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
-                if (cardNum.length < 15) {
-                    showToast(t('spa_toast_invalid_card'), true);
-                    return;
-                }
-            }
-
-            showLoading(true, tf('spa_loading_connecting_gateway', {method: selectedMethod.toUpperCase()}));
-
+    // ---------- khách: tra theo SĐT (khách quen + gói liệu trình) ----------
+    var lookupTimer = null, lookupSeq = 0;
+    $('phone').addEventListener('input', function () { clearTimeout(lookupTimer); lookupTimer = setTimeout(lookupClient, 400); });
+    async function lookupClient() {
+        var phone = $('phone').value.trim(), seq = ++lookupSeq, digits = phone.replace(/\D/g, '');
+        customer = null; packages = []; cart.forEach(function (x) { x.package_id = null; });
+        $('custHint').textContent = '';
+        if (digits.length >= 6) {
             try {
-                // Lưu vào cơ sở dữ liệu qua Flask API
-                showLoading(true, t('spa_loading_saving_order'));
-
-                const checkoutBody = await hrApi('/api/sales/checkout', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        // ma_nv: kỹ thuật viên của từng dịch vụ -> hoa hồng vào chấm công/bảng lương
-                        items: cart.map(item => ({ product_id: item.id, quantity: item.qty, ma_nv: item.ma_nv || null, package_id: item.package_id || null })),
-                        payment_method: selectedMethod,
-                        // Thu ngân bấm xác nhận tiền mặt = đã nhận tiền. Trước đây ghi 'pending' và KHÔNG có bước nào chuyển
-                        // sang đã thu -> bill tiền mặt Spa không vào sổ giao dịch, khách không được cộng điểm.
-                        status: 'completed',
-                        customer_phone: custPhone,
-                        client_local_date: new Date().toLocaleDateString('en-GB'),
-                    }),
-                });
-
-                const orderId = checkoutBody.order_id;
-
-                // Lưu lại dữ liệu hoá đơn TRƯỚC KHI xoá giỏ hàng — nút "In hoá đơn" ở
-                // resultModal cần dùng lại sau khi cart đã bị xoá.
-                window.lastReceiptData = {
-                    businessName: {{ brand_name|tojson }},
-                    items: cart.map(item => ({ name: item.name + (item.package_id ? ' (package)' : ''), qty: item.qty, price: item.package_id ? 0 : item.price, total: item.package_id ? 0 : item.price * item.qty })),
-                    subtotal: cart.reduce((s, item) => s + (item.package_id ? 0 : item.price * item.qty), 0),
-                    total: cart.reduce((s, item) => s + (item.package_id ? 0 : item.price * item.qty), 0),
-                    paymentMethod: selectedMethod.toUpperCase(),
-                };
-
-                // Xóa giỏ hàng & Ẩn Checkout Modal
-                cart = [];
-                updateCartUI();
-                globalCheckoutModal.classList.add('hidden');
-                
-                // Show Result Modal
-                const finalAmountStr = SHOP_CURRENCY !== 'VND' ? formatShop(baseVND) : (currentCurrency === 'VND' ? formatCurrency(baseVND, 'VND') : formatCurrency(baseUSD, 'USD'));
-                document.getElementById('resTxn').innerText = '#' + orderId;
-                document.getElementById('resMethod').innerText = selectedMethod.toUpperCase();
-                document.getElementById('resAmount').innerText = finalAmountStr;
-                
-                document.getElementById('resultModal').classList.remove('hidden');
-                document.getElementById('resultModal').classList.add('flex');
-                
-                setTimeout(() => {
-                    document.getElementById('resultModalInner').classList.remove('scale-95');
-                }, 50);
-
-            } catch (err) {
-                console.error(err);
-                showToast(err && err.message && !/^Lỗi máy chủ/.test(err.message) ? err.message : t('spa_toast_transaction_error'), true);
-            } finally {
-                showLoading(false);
-            }
+                var r = await fetch('/api/customers?page_size=5&q=' + encodeURIComponent(phone)); var j = await r.json();
+                if (seq !== lookupSeq) return;
+                customer = (j.data || []).filter(function (c) { return (c.phone || '').replace(/\D/g, '') === digits; })[0] || null;
+            } catch (e) { /* tra cứu lỗi: vẫn bán bình thường */ }
+            try {
+                var r2 = await fetch('/api/packages/customer?phone=' + encodeURIComponent(phone)); var j2 = await r2.json();
+                if (seq !== lookupSeq) return;
+                packages = j2.data || [];
+            } catch (e) { packages = []; }
+            if (customer) {
+                $('cname').value = customer.name || ''; $('cname').readOnly = true;
+                $('custHint').innerHTML = esc(t('returning')) + ' · <b>' + esc(customer.name || '') + '</b>' + (customer.tier ? ' · ' + esc(customer.tier) : '') +
+                    (customer.loyalty_points != null ? ' · ' + esc(customer.loyalty_points) + ' ' + esc(t('pts')) : '');
+            } else { $('cname').readOnly = false; $('custHint').textContent = t('new_client'); }
+        } else { $('cname').readOnly = false; }
+        render();
+    }
+    function renderPackages() {
+        var box = $('pkgBox');
+        if (!packages.length || !cart.length) { box.hidden = true; box.innerHTML = ''; return; }
+        var rows = [];
+        cart.forEach(function (x, i) {
+            var pk = packages.filter(function (p) { return p.sessions_left >= x.qty && (!(p.service_ids || []).length || p.service_ids.indexOf(x.id) > -1); })[0];
+            if (!pk) return;
+            rows.push('<label><input type="checkbox" data-pi="' + i + '" data-pk="' + pk.id + '"' + (x.package_id === pk.id ? ' checked' : '') + '><span><b>' + esc(x.name) + '</b><br>' +
+                esc(t('pkg_use', { n: pk.name, l: pk.sessions_left })) + '</span></label>');
         });
+        box.innerHTML = '<p><i class="fas fa-ticket"></i> ' + esc(t('pkg_title')) + '</p>' + (rows.join('') || '<span>' + esc(t('pkg_none')) + '</span>');
+        box.hidden = false;
+    }
+    $('pkgBox').addEventListener('change', function (e) {
+        var cb = e.target; if (cb.dataset.pi == null) return;
+        cart[+cb.dataset.pi].package_id = cb.checked ? Number(cb.dataset.pk) : null; render();
+    });
 
-        // Search Filter (Client Side)
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        
-        function filterGrid() {
-            const keyword = searchInput.value.toLowerCase();
-            const cat = categoryFilter.value;
-            
-            document.querySelectorAll('.product-card').forEach(card => {
-                const nameMatch = card.dataset.name.toLowerCase().includes(keyword);
-                const catMatch = cat === 'all' || card.dataset.category === cat;
-                card.style.display = (nameMatch && catMatch) ? '' : 'none';
-            });
-        }
-        
-        searchInput.addEventListener('input', filterGrid);
-        categoryFilter.addEventListener('change', filterGrid);
+    // ---------- thu tiền ----------
+    $('chargeBtn').addEventListener('click', async function () {
+        if (!cart.length) return;
+        var btn = this, s = totals(), phone = $('phone').value.trim();
+        $('err').textContent = ''; btn.disabled = true; $('chargeAmt').textContent = t('saving');
+        try {
+            var r = await fetch('/api/sales/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                items: cart.map(function (x) { return { product_id: x.id, quantity: x.qty, ma_nv: x.ma_nv || null, package_id: x.package_id || null }; }),
+                payment_method: pay, status: 'completed', tip_amount: s.tip,
+                customer_phone: phone || null, customer_name: (!customer && $('cname').value.trim()) || null,
+                client_local_date: new Date().toLocaleDateString('en-GB') }) });
+            var j = await r.json().catch(function () { return {}; });
+            if (!r.ok || j.success === false) throw new Error(j.message || j.error || '');
+            lastReceipt = { businessName: SHOP, items: cart.map(function (x) { return { name: x.name + (x.package_id ? ' (' + t('pkg_tag') + ')' : ''), qty: x.qty, price: x.package_id ? 0 : x.price, total: x.package_id ? 0 : x.price * x.qty }; }),
+                subtotal: s.payable, tip: s.tip, total: s.total, paymentMethod: t('m_' + pay), currency: CUR === 'VND' ? '₫' : '$', lang: lang === 'vi' ? 'vi' : 'en', footerNote: t('thanks') };
+            var who = $('cname').value.trim();
+            $('dAmt').textContent = money(s.total);
+            $('dReceipt').innerHTML = '<div><span>' + esc(t('order')) + '</span><b>#' + esc(j.order_id) + '</b></div>' +
+                '<div><span>' + esc(t('method')) + '</span><b>' + esc(t('m_' + pay)) + '</b></div>' +
+                (s.tip ? '<div><span>' + esc(t('tip')) + '</span><b>' + money(s.tip) + '</b></div>' : '') +
+                (who ? '<div><span>' + esc(t('name')) + '</span><b>' + esc(who) + '</b></div>' : '');
+            $('ticketMain').hidden = true; $('done').hidden = false; openSheet(true);
+        } catch (e) {
+            $('err').textContent = (e && e.message) || t('err_generic');
+        } finally { btn.disabled = !cart.length; render(); }
+    });
+    $('printBtn').addEventListener('click', function () { if (lastReceipt && window.printReceipt) printReceipt(lastReceipt); });
+    function resetSale() {
+        cart = []; tipPct = 0; packages = []; customer = null; lastReceipt = null;
+        $('phone').value = ''; $('cname').value = ''; $('cname').readOnly = false; $('custHint').textContent = ''; $('err').textContent = '';
+        $('tipSeg').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', x.dataset.tip === '0' ? 'true' : 'false'); });
+        $('ticketMain').hidden = false; $('done').hidden = true; render();
+    }
+    $('newBtn').addEventListener('click', function () { resetSale(); openSheet(false); $('q').focus({ preventScroll: true }); });
 
-        // ========== MULTI-REGION i18n ==========
-        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
-        const translations = {
-            vi: {
-                spa_header_tagline: 'Khởi tạo dịch vụ - Chạm để thanh toán',
-                spa_btn_add_service: 'Thêm Dịch Vụ',
-                spa_btn_customize: 'Tùy Chỉnh',
-                spa_btn_lobby: 'Quản lý',
-                spa_btn_my_attendance: 'Chấm công của tôi',
-                spa_mgmt_attendance: 'Chấm công', spa_mgmt_staff: 'Nhân sự', spa_mgmt_customers: 'Khách hàng', spa_mgmt_payroll: 'Bảng lương', spa_mgmt_reports: 'Báo cáo tổng hợp',
-                spa_placeholder_search: 'Tìm dịch vụ...',
-                spa_cat_all: 'Tất cả danh mục',
-                spa_cat_facial: 'Chăm sóc da mặt',
-                spa_cat_massage: 'Massage cơ thể',
-                spa_cat_hair: 'Chăm sóc tóc',
-                spa_cat_special: 'Liệu trình đặc biệt',
-                spa_cat_combo: 'Combo tiết kiệm',
-                spa_btn_add: 'Thêm',
-                spa_empty_title: 'Chưa Có Dịch Vụ',
-                spa_empty_desc: 'Vui lòng thêm các liệu trình Spa / Thẩm mỹ',
-                spa_cart_title: 'Giỏ hàng',
-                spa_cart_empty: 'Chưa có sản phẩm',
-                spa_cart_total_label: 'Tổng cộng:',
-                spa_btn_checkout_now: 'Thanh toán ngay',
-                spa_checkout_title: 'Thanh Toán An Toàn',
-                spa_checkout_summary_title: 'Tổng quan (Summary)',
-                spa_label_currency: 'Tiền tệ (Currency)',
-                spa_label_total_payment: 'Tổng thanh toán',
-                spa_refund_policy_title: 'Chính sách hoàn tiền (Refund Policy)',
-                spa_refund_policy_desc_prefix: 'Cam kết hoàn tiền theo quy định của',
-                spa_security_title: 'Bảo mật giao dịch',
-                spa_security_desc: 'Mã hóa 256-bit SSL. Thông tin thẻ không được lưu trữ.',
-                spa_choose_payment_title: 'Chọn cổng thanh toán',
-                spa_pay_category_intl: 'Cards & Digital Wallets (Quốc tế)',
-                spa_pay_category_local: 'Local Payment (Việt Nam)',
-                spa_pay_vietqr: 'Chuyển khoản VietQR',
-                spa_pay_atm_domestic: 'Thẻ ATM Nội địa',
-                spa_pay_momo: 'Ví MoMo',
-                spa_pay_cash: 'Tiền mặt tại quầy',
-                spa_label_fullname: 'Họ và tên',
-                spa_label_email: 'Email nhận biên lai',
-                spa_label_phone_optional: 'Số điện thoại khách hàng (Tùy chọn)',
-                spa_pkg_title: 'Gói liệu trình của khách',
-                spa_pkg_use: 'Dùng 1 buổi từ "{name}" (còn {left})',
-                spa_pkg_none: 'Khách có gói nhưng không áp dụng cho dịch vụ trong giỏ.',
-                spa_label_card_info: 'Thông tin thẻ tín dụng',
-                spa_label_card_number: 'Số thẻ',
-                spa_label_expiry: 'Hết hạn (MM/YY)',
-                spa_qr_title: 'Quét mã QR',
-                spa_qr_instruction: 'Mở ứng dụng để quét mã thanh toán.',
-                spa_redirect_default_text: 'Bạn sẽ được chuyển hướng an toàn để hoàn tất giao dịch.',
-                spa_btn_pay: 'Thanh toán',
-                spa_result_success_title: 'Thành công!',
-                spa_result_success_desc: 'Hệ thống đã ghi nhận đơn hàng của bạn.',
-                spa_result_txn_label: 'Mã GD:',
-                spa_result_method_label: 'Phương thức:',
-                spa_result_amount_label: 'Số tiền:',
-                spa_btn_close_home: 'Đóng & Về trang chủ',
-                spa_loading_title: 'Hệ thống đang xử lý...',
-                spa_loading_subtitle: 'Xin vui lòng không đóng trang',
-                spa_loading_processing: 'Đang xử lý...',
-                spa_toast_added_to_cart: 'Đã thêm vào giỏ',
-                spa_assign_therapist: 'Chọn kỹ thuật viên',
-                spa_toast_cart_empty: 'Giỏ hàng trống!',
-                spa_btn_pay_amount: 'Thanh toán {amount}',
-                spa_btn_get_qr: 'Lấy mã QR ({amount})',
-                spa_btn_confirm_booking: 'Xác nhận đặt hẹn ({amount})',
-                spa_btn_continue: 'Tiếp tục ({amount})',
-                spa_qr_title_crypto: 'Gửi Crypto (USDT)',
-                spa_crypto_address_label: 'Địa chỉ ví USDT (TRC20)',
-                spa_qr_title_scan: 'Quét mã {method}',
-                spa_redirect_cash_text: 'Thanh toán trực tiếp tại quầy khi đến sử dụng dịch vụ.',
-                spa_pay_category_counter: 'Thu tại quầy', spa_pay_card_terminal: 'Thẻ (máy quẹt của tiệm)', spa_pay_bank: 'Chuyển khoản',
-                spa_redirect_card_terminal_text: 'Quẹt thẻ trên máy của tiệm (Square/EFTPOS), xong bấm xác nhận để ghi bill.',
-                spa_redirect_bank_text: 'Khách chuyển khoản vào tài khoản của tiệm; kiểm tra tiền đã vào rồi bấm xác nhận.',
-                spa_redirect_online_text: 'Chuyển hướng an toàn để hoàn tất thanh toán.',
-                spa_toast_invalid_card: 'Số thẻ không hợp lệ',
-                spa_loading_connecting_gateway: 'Kết nối cổng {method}...',
-                spa_loading_saving_order: 'Đang lưu đơn hàng...',
-                spa_toast_transaction_error: 'Lỗi xử lý giao dịch. Vui lòng thử lại.'
-            },
-            en: {
-                spa_header_tagline: 'Set up services - Tap to pay',
-                spa_btn_add_service: 'Add Service',
-                spa_btn_customize: 'Customize',
-                spa_btn_lobby: 'Management',
-                spa_btn_my_attendance: 'My Attendance',
-                spa_mgmt_attendance: 'Attendance', spa_mgmt_staff: 'Staff', spa_mgmt_customers: 'Customers', spa_mgmt_payroll: 'Payroll', spa_mgmt_reports: 'Consolidated Report',
-                spa_placeholder_search: 'Search services...',
-                spa_cat_all: 'All categories',
-                spa_cat_facial: 'Facial Care',
-                spa_cat_massage: 'Body Massage',
-                spa_cat_hair: 'Hair Care',
-                spa_cat_special: 'Special Treatments',
-                spa_cat_combo: 'Saving Combos',
-                spa_btn_add: 'Add',
-                spa_empty_title: 'No Services Yet',
-                spa_empty_desc: 'Please add Spa / Beauty treatments',
-                spa_cart_title: 'Cart',
-                spa_cart_empty: 'No products yet',
-                spa_cart_total_label: 'Total:',
-                spa_btn_checkout_now: 'Checkout Now',
-                spa_checkout_title: 'Secure Checkout',
-                spa_checkout_summary_title: 'Summary',
-                spa_label_currency: 'Currency',
-                spa_label_total_payment: 'Total Payment',
-                spa_refund_policy_title: 'Refund Policy',
-                spa_refund_policy_desc_prefix: 'Refund guaranteed according to',
-                spa_security_title: 'Transaction Security',
-                spa_security_desc: '256-bit SSL encryption. Card details are not stored.',
-                spa_choose_payment_title: 'Choose Payment Gateway',
-                spa_pay_category_intl: 'Cards & Digital Wallets (International)',
-                spa_pay_category_local: 'Local Payment (Vietnam)',
-                spa_pay_vietqr: 'VietQR Bank Transfer',
-                spa_pay_atm_domestic: 'Domestic ATM Card',
-                spa_pay_momo: 'MoMo Wallet',
-                spa_pay_cash: 'Cash at Counter',
-                spa_label_fullname: 'Full Name',
-                spa_label_email: 'Receipt Email',
-                spa_label_phone_optional: 'Customer Phone Number (Optional)',
-                spa_pkg_title: 'Customer packages',
-                spa_pkg_use: 'Use 1 session from "{name}" ({left} left)',
-                spa_pkg_none: 'This customer has packages, but none cover the services in the cart.',
-                spa_label_card_info: 'Credit Card Information',
-                spa_label_card_number: 'Card Number',
-                spa_label_expiry: 'Expiry (MM/YY)',
-                spa_qr_title: 'Scan QR Code',
-                spa_qr_instruction: 'Open the app to scan the payment code.',
-                spa_redirect_default_text: 'You will be securely redirected to complete the transaction.',
-                spa_btn_pay: 'Pay',
-                spa_result_success_title: 'Success!',
-                spa_result_success_desc: 'Your order has been recorded.',
-                spa_result_txn_label: 'Transaction ID:',
-                spa_result_method_label: 'Method:',
-                spa_result_amount_label: 'Amount:',
-                spa_btn_close_home: 'Close & Back to Home',
-                spa_loading_title: 'Processing...',
-                spa_loading_subtitle: 'Please do not close this page',
-                spa_loading_processing: 'Processing...',
-                spa_toast_added_to_cart: 'Added to cart',
-                spa_assign_therapist: 'Assign therapist',
-                spa_toast_cart_empty: 'Cart is empty!',
-                spa_btn_pay_amount: 'Pay {amount}',
-                spa_btn_get_qr: 'Get QR Code ({amount})',
-                spa_btn_confirm_booking: 'Confirm Booking ({amount})',
-                spa_btn_continue: 'Continue ({amount})',
-                spa_qr_title_crypto: 'Send Crypto (USDT)',
-                spa_crypto_address_label: 'USDT Wallet Address (TRC20)',
-                spa_qr_title_scan: 'Scan {method} Code',
-                spa_redirect_cash_text: 'Pay directly at the counter when you arrive for your service.',
-                spa_pay_category_counter: 'Take payment at the counter', spa_pay_card_terminal: 'Card (your terminal)', spa_pay_bank: 'Bank transfer',
-                spa_redirect_card_terminal_text: 'Charge the card on your own terminal (Square/EFTPOS), then confirm to record the bill.',
-                spa_redirect_bank_text: 'The client transfers to your business account; check it has arrived, then confirm.',
-                spa_redirect_online_text: 'Securely redirecting to complete payment.',
-                spa_toast_invalid_card: 'Invalid card number',
-                spa_loading_connecting_gateway: 'Connecting to {method} gateway...',
-                spa_loading_saving_order: 'Saving order...',
-                spa_toast_transaction_error: 'Error processing transaction. Please try again.'
-            }
-        };
-        function t(key) {
-            return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key;
-        }
-        function tf(key, params) {
-            let str = t(key);
-            for (const k in params) str = str.split(`{${k}}`).join(params[k]);
-            return str;
-        }
-        function applyStaticTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
-            const langBtn = document.getElementById('langToggleBtn');
-            if (langBtn) langBtn.innerText = currentLang === 'vi' ? 'EN' : 'VI';
-        }
-        function changeLanguage(lang) {
-            currentLang = lang;
-            localStorage.setItem('bitpaw_lang', lang);
-            applyStaticTranslations();
-        }
-        applyStaticTranslations();
-        const langToggleBtn = document.getElementById('langToggleBtn');
-        if (langToggleBtn) {
-            langToggleBtn.addEventListener('click', () => changeLanguage(currentLang === 'vi' ? 'en' : 'vi'));
-        }
-    </script>
+    // ---------- điện thoại: phiếu thu dạng tấm trượt ----------
+    function openSheet(open) { $('ticket').classList.toggle('open', !!open); document.body.style.overflow = open && innerWidth < 1024 ? 'hidden' : ''; }
+    $('sheetBar').addEventListener('click', function () { if (cart.length) openSheet(true); });
+    $('closeSheet').addEventListener('click', function () { openSheet(false); });
+
+    // ---------- sửa danh sách (chủ tiệm): xoá liệu trình bằng POST, không nằm sẵn trên màn bán ----------
+    var editBtn = $('editBtn');
+    if (editBtn) editBtn.addEventListener('click', function () {
+        editing = !editing;
+        editBtn.setAttribute('aria-pressed', editing ? 'true' : 'false');
+        editBtn.querySelector('span').textContent = t(editing ? 'done_edit' : 'edit');
+        $('grid').classList.toggle('editing', editing);
+        document.querySelectorAll('.tile-del').forEach(function (b) { b.hidden = !editing; });
+    });
+    document.querySelectorAll('.tile-del').forEach(function (b) {
+        b.addEventListener('click', async function () {
+            var el = b.closest('.tile');
+            if (!confirm(t('confirm_remove', { n: el.dataset.name }))) return;
+            try {
+                var r = await fetch('/delete_spa/' + b.dataset.del, { method: 'POST', headers: { 'Accept': 'application/json' } });
+                var j = await r.json().catch(function () { return {}; });
+                if (!r.ok || j.success === false) throw new Error(j.message || '');
+                cart = cart.filter(function (x) { return x.id !== Number(el.dataset.id); });
+                tiles = tiles.filter(function (x) { return x !== el; }); el.remove(); render(); filter(); toast(t('removed'));
+            } catch (e) { toast(t('err_generic')); }
+        });
+    });
+
+    var toastTimer = null;
+    function toast(msg) { var el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1600); }
+
+    $('langBtn').addEventListener('click', function () { lang = lang === 'vi' ? 'en' : 'vi'; try { localStorage.setItem('bitpaw_lang', lang); } catch (e) {} applyLang(); tick(); });
+    applyLang();
+})();
+</script>
 </body>
 </html>

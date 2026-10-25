@@ -86,9 +86,9 @@ async function main() {
     if (afterLoginUrl.includes('/login')) throw new Error(`Đăng nhập thất bại — vẫn ở lại /login. URL: ${afterLoginUrl}`);
 
     await page.goto(`${BASE}/spa`, { waitUntil: 'networkidle' });
-    await page.waitForSelector('.product-card', { timeout: 10000 });
+    await page.waitForSelector('.tile', { timeout: 10000 });
 
-    const serviceCount = await page.locator('.product-card').count();
+    const serviceCount = await page.locator('.tile').count();
     await shot(page, '01_spa_launch.png');
 
     const pass = consoleErrors.length === 0 && networkErrors.length === 0 && serviceCount > 0;
@@ -106,22 +106,17 @@ async function main() {
   // ============================================================
   t0 = Date.now();
   try {
-    const cards = page.locator('.product-card');
+    // POS Spa mới (25/10): chạm thẻ để thêm, phiếu thu luôn hiện bên phải (không còn giỏ ẩn + modal thanh toán)
+    const cards = page.locator('.tile');
     const count = await cards.count();
     const addCount = Math.min(2, count);
     for (let i = 0; i < addCount; i++) {
-      await cards.nth(i).locator('.btn-add-cart').click();
+      await cards.nth(i).locator('.tile-hit').click();
       await page.waitForTimeout(200);
     }
-
-    await page.click('#cartIcon');
-    await page.waitForTimeout(200);
-    const cartLineCount = await page.locator('#cartItemsList .cart-item').count();
+    const cartLineCount = await page.locator('#lines .line').count();
     await shot(page, '02_spa_cart_added.png');
-
-    await page.click('#openCheckoutModalBtn');
-    await page.waitForTimeout(300);
-    const modalVisible = await page.locator('#globalCheckoutModal').isVisible().catch(() => false);
+    const modalVisible = await page.locator('#chargeBtn').isEnabled().catch(() => false);
     await shot(page, '02b_spa_checkout_modal.png');
 
     const pass = addCount > 0 && cartLineCount === addCount && modalVisible;
@@ -137,22 +132,22 @@ async function main() {
   // ============================================================
   t0 = Date.now();
   try {
-    await page.click('.payment-method[data-method="cash"]');
+    await page.click('#paySeg [data-pay="cash"]');
     await page.waitForTimeout(150);
-    await page.fill('#custName', 'QA Audit Spa Khach');
-    await page.fill('#custEmail', 'qa.audit.spa@example.com');
-    await page.fill('#custPhone', '0493' + String(Date.now()).slice(-6));
+    await page.fill('#phone', '0493' + String(Date.now()).slice(-6));
+    await page.fill('#cname', 'QA Audit Spa Client');
+    await page.waitForTimeout(600);
 
     const [checkoutResp] = await Promise.all([
       page.waitForResponse((res) => res.url().includes('/api/sales/checkout') && res.request().method() === 'POST', { timeout: 15000 }),
-      page.click('#finalPayBtn'),
+      page.click('#chargeBtn'),
     ]);
     const status = checkoutResp.status();
     const body = await checkoutResp.json().catch(() => null);
     checkoutOrderId = body?.order_id ?? null;
 
-    await page.waitForSelector('#resultModal:not(.hidden)', { timeout: 8000 });
-    const resTxnText = await page.locator('#resTxn').innerText();
+    await page.waitForSelector('#done:not([hidden])', { timeout: 8000 });
+    const resTxnText = await page.locator('#dReceipt').innerText();
     await shot(page, '03_spa_checkout_success.png');
 
     const pass = (status === 200) && body?.success !== false && !!checkoutOrderId && resTxnText.includes(String(checkoutOrderId));
@@ -287,6 +282,25 @@ async function main() {
   } catch (e) {
     record('6. Module Dùng Chung Cho Spa (Customers/AI Bot/Nhân Viên/Báo Cáo)', 'FAIL', Date.now() - t0, e.message);
     await shot(page, '06_spa_shared_modules_FAILED.png').catch(() => {});
+  }
+
+  // Dọn bill thử của bước 3 (trước đây để lại trong tiệm demo: mỗi lần chạy thêm 1 bill + 1 khách "Khách 1234")
+  if (checkoutOrderId) {
+    try {
+      const out = execFileSync('python', ['-c', `
+from mongo_client import db
+o = db.orders.find_one({'id': ${checkoutOrderId}}, {'_id': 0, 'business_id': 1, 'metadata': 1}) or {}
+bid, phone = o.get('business_id'), (o.get('metadata') or {}).get('customer_phone')
+cids = [c['id'] for c in db.customers.find({'business_id': bid, 'phone': phone, 'name': 'QA Audit Spa Client'}, {'id': 1})] if phone else []
+print({'orders': db.orders.delete_many({'business_id': bid, 'id': ${checkoutOrderId}}).deleted_count,
+       'items': db.order_items.delete_many({'order_id': ${checkoutOrderId}}).deleted_count,
+       'tx': db.transactions.delete_many({'business_id': bid, 'order_id': ${checkoutOrderId}}).deleted_count,
+       'cc': db.chamcong.delete_many({'business_id': bid, 'ghi_chu': {'$regex': r'^\\[SPA POS\\] Order #${checkoutOrderId}(?!\\d)'}}).deleted_count,
+       'loyalty': db.loyalty_events.delete_many({'business_id': bid, 'customer_id': {'$in': cids}}).deleted_count,
+       'cust': db.customers.delete_many({'business_id': bid, 'id': {'$in': cids}}).deleted_count})`],
+        { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+      console.log('Dọn bill thử:', out.trim().split(/\r?\n/).pop());
+    } catch (e) { console.log('Dọn bill thử lỗi:', e.message.slice(0, 120)); }
   }
 
   await finalize({ browser, results, findings, consoleErrors, networkErrors });

@@ -35,7 +35,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, jsonify, session
 
 from mongo_client import db, next_mongo_id
-from app import app, limiter, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get
+from app import app, limiter, login_required, role_required, allowed_file, _assert_owns_product, _assert_owns_row_mongo, _brand_setting_get, _shop_header_name
 from booking_engine import book_appointment, SlotAlreadyBookedError
 from werkzeug.utils import secure_filename
 
@@ -44,11 +44,7 @@ from werkzeug.utils import secure_filename
 @login_required
 def spa():
     business_id = session.get('business_id') or session['user_id']
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
+    brand_name = _shop_header_name(business_id)   # tên tiệm thật khi chưa đặt tên thương hiệu (trước luôn "BitPaw")
     try:
         brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
     except Exception as db_err:
@@ -77,44 +73,72 @@ def spa():
 
 @app.route('/add_spa', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def add_spa():
+    """Thêm liệu trình cho POS Spa. Trước đây: danh mục chọn gì cũng ghi cứng 'Spa & Beauty', giá chỉ nhận số nguyên
+    (tiệm Úc không nhập được $89.95), lỗi trả trang chữ trắng. Giờ: danh mục tự do (gợi ý từ danh sách của chính tiệm),
+    giá số lẻ, lỗi hiện lại trên form với dữ liệu đã nhập; ảnh lưu tên ngẫu nhiên để không đè ảnh trùng tên."""
     business_id = session.get('business_id') or session['user_id']
+    try:
+        existing = sorted({c for c in db.products.distinct('category', {'business_id': business_id, 'channel_type': 'spa', 'is_active': 1})
+                           if isinstance(c, str) and c.strip() and c != 'Spa & Beauty'})
+    except Exception:
+        existing = []
+    defaults = ['Massage', 'Facial', 'Body Treatment', 'Packages', 'Nails', 'Waxing']
+    categories = existing + [c for c in defaults if c not in existing]
+    ctx = {'brand_name': _shop_header_name(business_id), 'categories': categories[:12], 'form': {}, 'error': None}
     if request.method == 'POST':
+        name = (request.form.get('name') or '').strip()[:80]
+        category = (request.form.get('category') or '').strip()[:40] or 'Other'
+        raw_price = (request.form.get('price') or '').strip()
+        ctx['form'] = {'name': name, 'category': category, 'price': raw_price}
         try:
-            image_file = request.files.get('image')
-            filename = ""
-            if image_file and image_file.filename != '' and allowed_file(image_file.filename):
-                filename = secure_filename(image_file.filename)
-                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            db.products.insert_one({
-                'id': next_mongo_id('products'),
-                'name': request.form['name'],
-                'category': 'Spa & Beauty',
-                'channel_type': 'spa',
-                'stock': 9999,
-                'price': float(request.form['price']),
-                'image': filename,
-                'is_active': 1,
-                'business_id': business_id
-            })
-            return redirect(url_for('spa'))
-        except Exception as e:
-            return f"Lỗi thêm dịch vụ spa: {str(e)}", 500
-    return render_template('add_spa.html')
+            price = round(float(raw_price.replace(',', '')), 2)
+        except ValueError:
+            price = -1
+        if not name:
+            ctx['error'] = 'Enter the treatment name. / Nhập tên liệu trình.'
+        elif not (0 < price < 1e9):
+            ctx['error'] = 'Enter a price above 0. / Nhập giá lớn hơn 0.'
+        if ctx['error']:
+            return render_template('add_spa.html', **ctx), 400
+        filename = ''
+        image_file = request.files.get('image')
+        if image_file and image_file.filename and allowed_file(image_file.filename):
+            filename = f"{uuid.uuid4().hex[:10]}_{secure_filename(image_file.filename)}"
+            image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        db.products.insert_one({
+            'id': next_mongo_id('products'),
+            'name': name,
+            'category': category,
+            'channel_type': 'spa',
+            'stock': 9999,
+            'price': price,
+            'image': filename,
+            'is_active': 1,
+            'business_id': business_id,
+        })
+        return redirect(url_for('spa'))
+    return render_template('add_spa.html', **ctx)
 
 
-@app.route('/delete_spa/<int:id>')
+@app.route('/delete_spa/<int:id>', methods=['POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def delete_spa(id):
+    # Ẩn 1 dịch vụ khỏi POS Spa. Chỉ nhận POST (có mã CSRF) từ chế độ "Sửa danh sách" của POS — trước đây là link GET
+    # nằm ngay trên ảnh dịch vụ ở màn bán hàng: chạm nhầm hoặc mở 1 link lạ là mất dịch vụ.
     business_id = session.get('business_id') or session['user_id']
     try:
         owns, err = _assert_owns_row_mongo('products', id, business_id)
         if not owns:
             return err, 403
         db.products.update_one({'id': id, 'business_id': business_id}, {'$set': {'is_active': 0}})
+        if request.accept_mimetypes.best == 'application/json' or request.is_json:
+            return jsonify({'success': True, 'id': id})
         return redirect(url_for('spa'))
     except Exception as e:
-        return f"Lỗi xóa dịch vụ spa: {str(e)}", 500
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/checkout_spa', methods=['POST'])

@@ -317,7 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
         <div class="contact-dial-wrap" id="contactDialWrap">
         <div class="contact-dial" id="contactDial" role="menu">
-        <a href="mailto:bitpawsoftware@gmail.com" class="contact-btn btn-mail" data-tooltip="Email">
+        <a href="mailto:support@bitpawsoftware.com" class="contact-btn btn-mail" data-tooltip="Email">
             <i class="fas fa-envelope"></i>
         </a>
         <a href="https://wa.me/84794678904" target="_blank" class="contact-btn btn-whatsapp" data-tooltip="WhatsApp">

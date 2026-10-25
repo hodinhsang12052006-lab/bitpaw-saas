@@ -1041,6 +1041,25 @@
 
     <!-- 8. FAQ Section -->
     {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#4f46e5',
+        ('Đây là BitPaw đang chạy ở một văn phòng', 'This is BitPaw running in an office'),
+        ('Không phải ảnh minh hoạ: màn hình chấm công và nghỉ phép của công ty demo ở California. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the attendance and leave screen of our demo company in California. Tap a screen to see it up close.'),
+        'office_attendance_pc', 'office_attendance_mob',
+        'Chấm công văn phòng: giờ vào/ra, tăng ca, nghỉ phép / Office attendance: in/out times, overtime, leave',
+        'Chấm công trên điện thoại / Attendance on a phone',
+        [('fa-clock', 'Giờ vào / ra, tăng ca', 'In / out times and overtime'), ('fa-plane-departure', 'Duyệt nghỉ phép', 'Leave approvals')],
+        [('fa-fingerprint', 'Chấm công', 'Attendance',
+          'Giờ vào, giờ ra và tăng ca của từng người trong một bảng.',
+          'In, out and overtime for everyone in one table.'),
+         ('fa-plane-departure', 'Nghỉ phép', 'Leave',
+          'Gửi và duyệt nghỉ phép; ngày nghỉ tự tính vào bảng lương.',
+          'Request and approve leave; days off flow into payroll.'),
+         ('fa-money-check-dollar', 'Bảng lương', 'Payroll',
+          'Lương tự cộng từ chấm công, xem lại rồi gửi email tóm tắt cho từng người.',
+          'Pay adds up from attendance; review it, then email each person a summary.')]) }}
+
     {% set pricing_industry = 'office' %}
     {% include 'components/pricing.html' %}
 
@@ -1225,7 +1244,7 @@
                         </div>
                         <div class="overflow-hidden">
                             <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
-                            <a href="mailto:bitpawsoftware@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="bitpawsoftware@gmail.com">bitpawsoftware@gmail.com</a>
+                            <a href="mailto:support@bitpawsoftware.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="support@bitpawsoftware.com">support@bitpawsoftware.com</a>
                         </div>
                     </li>
                     <li class="flex items-center gap-3 group">

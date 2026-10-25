@@ -97,7 +97,8 @@ async function main() {
 
     // Xác nhận bàn tiếng Việt có dấu ("Bàn 1"...) hiển thị đúng — regression check cho
     // bug thật đã fix (stripDiacritics) trong lượt audit này.
-    const vietnameseTableVisible = await page.locator('.table-item', { hasText: /Bàn/ }).count();
+    // tiệm demo F&B đổi sang Mỹ (25/10/2026): bàn tên "Table N" — chấp nhận cả 2 kiểu tên
+    const vietnameseTableVisible = await page.locator('.table-item', { hasText: /Bàn|Table/ }).count();
     if (vietnameseTableVisible === 0) {
       finding('Không thấy bàn tên tiếng Việt có dấu ("Bàn ...") nào hiển thị trên lưới bàn — kiểm tra lại fix stripDiacritics() trong pos.html.');
     }

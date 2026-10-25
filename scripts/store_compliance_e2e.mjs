@@ -19,9 +19,9 @@ const nav = async (page, url) => {
 // 1) Trang chính sách công khai
 const web = await b.newPage({ viewport: { width: 390, height: 844 } });
 const legal = [
-  ['/privacy-policy?lang=en', 'BitPaw Technology LLC'], ['/privacy-policy?lang=vi', 'bitpawsoftware@gmail.com'],
+  ['/privacy-policy?lang=en', 'BitPaw Technology LLC'], ['/privacy-policy?lang=vi', 'support@bitpawsoftware.com'],
   ['/terms?lang=en', 'BitPaw Technology LLC'], ['/terms?lang=vi', 'BitPaw Technology LLC'],
-  ['/payment-policy?lang=en', 'bitpawsoftware@gmail.com'],
+  ['/payment-policy?lang=en', 'support@bitpawsoftware.com'],
 ];
 for (const [url, must] of legal) {
   const r = await nav(web, url);
@@ -32,7 +32,7 @@ for (const [url, must] of legal) {
 await web.screenshot({ path: `${OUT}/store_privacy_policy_mobile.png` });
 await nav(web, '/account/delete?lang=en');
 rec('/account/delete khi CHƯA đăng nhập: có nút Sign in + email yêu cầu xoá',
-  (await web.locator('a.btn').count()) === 1 && (await web.innerText('body')).includes('bitpawsoftware@gmail.com'));
+  (await web.locator('a.btn').count()) === 1 && (await web.innerText('body')).includes('support@bitpawsoftware.com'));
 await web.screenshot({ path: `${OUT}/store_account_delete_logged_out.png` });
 await web.close();
 

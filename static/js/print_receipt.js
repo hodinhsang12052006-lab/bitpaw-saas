@@ -9,10 +9,23 @@
  *   items: [{name, qty, price, total}]
  *   subtotal, discount, tax, tip, total: number
  *   paymentMethod: string (hiển thị nguyên văn, đã dịch sẵn ở nơi gọi)
- *   currency: string (mặc định 'đ')
+ *   currency: string (mặc định 'đ'; '$' / 'A$' -> in kiểu đô: $135.00)
+ *   lang: 'vi' (mặc định) | 'en' — nhãn hoá đơn + định dạng ngày cho tiệm Mỹ/Úc
  *   footerNote: string (tuỳ chọn)
  */
 function printReceipt(options) {
+    // Tiệm Mỹ/Úc (window.BP_CURRENCY do app.py nạp cho tiệm khác VND): mặc định in kiểu $ + tiếng Anh nếu trang gọi không truyền
+    // (trước đây khách sạn/karaoke/bán lẻ ở Mỹ in "162.5đ", "Tiền mặt", "TỔNG CỘNG").
+    const shopCur = String(window.BP_CURRENCY || '').toUpperCase();
+    let uiLang = 'en';
+    try { uiLang = localStorage.getItem('bitpaw_lang') || document.documentElement.lang || 'en'; } catch (e) { /* bị chặn */ }
+    if (shopCur && shopCur !== 'VND') {
+        options = Object.assign({ currency: '$', lang: uiLang === 'vi' ? 'vi' : 'en' }, options || {});
+        if (options.lang === 'en' && typeof options.paymentMethod === 'string') {
+            const PM = { 'Tiền mặt': 'Cash', 'Thẻ/Chuyển khoản': 'Card / transfer', 'Thẻ': 'Card', 'Chuyển khoản': 'Bank transfer' };
+            options.paymentMethod = PM[options.paymentMethod] || options.paymentMethod;
+        }
+    }
     const {
         businessName = 'BitPaw Software',
         subtitle = '',
@@ -24,10 +37,16 @@ function printReceipt(options) {
         total = 0,
         paymentMethod = '',
         currency = 'đ',
-        footerNote = 'Cảm ơn quý khách!',
+        lang = 'vi',
+        footerNote = lang === 'en' ? 'Thank you!' : 'Cảm ơn quý khách!',
     } = options || {};
+    const EN = lang === 'en';
+    const L = EN ? { title: 'Receipt', sub: 'Subtotal', disc: 'Discount', tax: 'Tax', total: 'TOTAL', paid: 'Paid by' }
+                 : { title: 'Hoá đơn', sub: 'Tạm tính', disc: 'Giảm giá', tax: 'Thuế', total: 'TỔNG CỘNG', paid: 'Thanh toán' };
 
-    const fmt = (n) => Number(n || 0).toLocaleString('vi-VN') + currency;
+    const fmt = /\$/.test(currency)
+        ? (n) => currency + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : (n) => Number(n || 0).toLocaleString('vi-VN') + currency;
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
@@ -40,14 +59,14 @@ function printReceipt(options) {
     `).join('');
 
     const now = new Date();
-    const dateStr = now.toLocaleString('vi-VN');
+    const dateStr = now.toLocaleString(EN ? 'en-AU' : 'vi-VN');
 
     const html = `
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="${EN ? 'en' : 'vi'}">
 <head>
 <meta charset="UTF-8">
-<title>Hoá đơn</title>
+<title>${L.title}</title>
 <style>
     * { box-sizing: border-box; }
     body { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 10px; color: #000; font-size: 12px; }
@@ -69,13 +88,13 @@ function printReceipt(options) {
     <hr>
     <table>${itemsHtml}</table>
     <hr>
-    <div class="row"><span>Tạm tính</span><span>${fmt(subtotal)}</span></div>
-    ${discount > 0 ? `<div class="row"><span>Giảm giá</span><span>-${fmt(discount)}</span></div>` : ''}
-    ${tax > 0 ? `<div class="row"><span>Thuế</span><span>${fmt(tax)}</span></div>` : ''}
+    <div class="row"><span>${L.sub}</span><span>${fmt(subtotal)}</span></div>
+    ${discount > 0 ? `<div class="row"><span>${L.disc}</span><span>-${fmt(discount)}</span></div>` : ''}
+    ${tax > 0 ? `<div class="row"><span>${L.tax}</span><span>${fmt(tax)}</span></div>` : ''}
     ${tip > 0 ? `<div class="row"><span>Tip</span><span>${fmt(tip)}</span></div>` : ''}
     <hr>
-    <div class="row total-row"><span>TỔNG CỘNG</span><span>${fmt(total)}</span></div>
-    ${paymentMethod ? `<div class="row"><span>Thanh toán</span><span>${esc(paymentMethod)}</span></div>` : ''}
+    <div class="row total-row"><span>${L.total}</span><span>${fmt(total)}</span></div>
+    ${paymentMethod ? `<div class="row"><span>${L.paid}</span><span>${esc(paymentMethod)}</span></div>` : ''}
     <div class="footer">${esc(footerNote)}</div>
 </body>
 </html>`;
@@ -83,7 +102,7 @@ function printReceipt(options) {
     const printWindow = window.open('', '_blank', 'width=380,height=600');
     if (!printWindow) {
         // Trình duyệt chặn popup — không phải lỗi, chỉ báo cho thu ngân biết để tự bật popup
-        alert('Trình duyệt đang chặn cửa sổ in. Vui lòng cho phép popup để in hoá đơn.');
+        alert(EN ? 'Your browser blocked the print window. Allow pop-ups to print receipts.' : 'Trình duyệt đang chặn cửa sổ in. Vui lòng cho phép popup để in hoá đơn.');
         return;
     }
     printWindow.document.write(html);

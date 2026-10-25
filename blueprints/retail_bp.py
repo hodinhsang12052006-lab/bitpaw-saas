@@ -14,18 +14,14 @@
 from flask import render_template, session
 
 from mongo_client import db
-from app import app, login_required, _brand_setting_get
+from app import app, login_required, _brand_setting_get, _shop_header_name
 
 
 @app.route('/retail_pos')
 @login_required
 def retail_pos():
     business_id = session.get('business_id') or session['user_id']
-    try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
-    except Exception as db_err:
-        print(f"MongoDB brand_name select failed: {str(db_err)}")
-        brand_name = 'BitPaw'
+    brand_name = _shop_header_name(business_id)   # tên tiệm thật khi chưa đặt tên thương hiệu (trước luôn "BitPaw")
     try:
         brand_color = _brand_setting_get(business_id, 'brand_color', '#6366f1')
     except Exception as db_err:

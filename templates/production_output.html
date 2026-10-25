@@ -58,7 +58,7 @@
                     </div>
                     <div>
                         <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1.5" data-i18n="po_stage_label">Công đoạn / Sản phẩm</label>
-                        <input type="text" id="logStage" placeholder="VD: Đóng gói, May áo..." class="field-input">
+                        <input type="text" id="logStage" placeholder="e.g. Packing, Sewing..." data-ph-vi="VD: Đóng gói, May áo..." data-ph-en="e.g. Packing, Sewing..." class="field-input">
                     </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -130,6 +130,7 @@
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
         function applyStaticTranslations() {
+            document.querySelectorAll('[data-ph-en]').forEach(function (el) { el.placeholder = currentLang === 'vi' ? el.dataset.phVi : el.dataset.phEn; });
             document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
             document.title = t('po_title');
             const langBtn = document.getElementById('langToggleBtn');

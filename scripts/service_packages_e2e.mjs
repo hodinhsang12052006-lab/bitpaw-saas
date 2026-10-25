@@ -70,26 +70,25 @@ r = await co([{ product_id: S1, quantity: 4, package_id: sold.id }], PHONE);
 rec('Dùng quá số buổi còn lại -> chặn', r.status === 400);
 
 // 4) POS Spa: dùng 1 buổi + 1 dịch vụ trả tiền, gán KTV
-await p.goto(BASE + '/spa', { waitUntil: 'networkidle' }); await p.waitForSelector('.product-card');
-await p.locator(`.product-card[data-id="${S1}"] .btn-add-cart`).click(); await p.waitForTimeout(200);
-await p.locator(`.product-card[data-id="${S2}"] .btn-add-cart`).click(); await p.waitForTimeout(200);
-await p.click('#cartIcon'); await p.waitForTimeout(300);
-const techSel = p.locator('.cart-tech').first();
+// POS Spa mới (25/10): chạm thẻ để thêm, phiếu thu luôn hiện; nhập SĐT -> hiện gói của khách
+await p.goto(BASE + '/spa', { waitUntil: 'networkidle' }); await p.waitForSelector('.tile');
+await p.locator(`.tile[data-id="${S1}"] .tile-hit`).click(); await p.waitForTimeout(200);
+await p.locator(`.tile[data-id="${S2}"] .tile-hit`).click(); await p.waitForTimeout(200);
+const techSel = p.locator('#lines select').first();
 if (await techSel.count()) await techSel.selectOption(TECH).catch(() => {});
-await p.click('#openCheckoutModalBtn'); await p.waitForTimeout(400);
-await p.click('.payment-method[data-method="cash"]').catch(() => {});
-await p.fill('#custName', 'Ava QA'); await p.fill('#custEmail', 'ava.qa@example.com'); await p.fill('#custPhone', PHONE);
-await p.waitForSelector('#pkgBox .pkg-use', { timeout: 6000 }).catch(() => {});
+await p.click('#paySeg [data-pay="cash"]').catch(() => {});
+await p.fill('#phone', PHONE);
+await p.waitForSelector('#pkgBox input[type=checkbox]', { timeout: 6000 }).catch(() => {});
 const boxTxt = await p.textContent('#pkgBox');
-rec('Nhập SĐT ở thanh toán -> hiện gói của khách cho đúng dịch vụ', /3 left|còn 3/.test(boxTxt) && await p.locator('#pkgBox .pkg-use').count() === 1, boxTxt.replace(/\s+/g, ' ').slice(0, 90));
-const before = await p.textContent('#checkoutTotalMain');
-await p.check('#pkgBox .pkg-use'); await p.waitForTimeout(200);
-const after = await p.textContent('#checkoutTotalMain');
+rec('Nhập SĐT ở phiếu thu -> hiện gói của khách cho đúng dịch vụ', /3 left|còn 3/.test(boxTxt) && await p.locator('#pkgBox input[type=checkbox]').count() === 1, boxTxt.replace(/\s+/g, ' ').slice(0, 90));
+const before = await p.textContent('#sTotal');
+await p.check('#pkgBox input[type=checkbox]'); await p.waitForTimeout(200);
+const after = await p.textContent('#sTotal');
 rec('Tick "dùng buổi" -> tổng chỉ còn dịch vụ trả tiền', before !== after && [prices[S2], Math.round(prices[S2] * 100)].includes(Number(after.replace(/[^\d]/g, ''))), `${before} -> ${after}`);
-const [resp] = await Promise.all([p.waitForResponse((x) => x.url().includes('/api/sales/checkout') && x.request().method() === 'POST'), p.click('#finalPayBtn')]);
+const [resp] = await Promise.all([p.waitForResponse((x) => x.url().includes('/api/sales/checkout') && x.request().method() === 'POST'), p.click('#chargeBtn')]);
 const body = await resp.json();
 orderIds.push(body.order_id);
-await p.waitForSelector('#resultModal:not(.hidden)', { timeout: 8000 }).catch(() => {});
+await p.waitForSelector('#done:not([hidden])', { timeout: 8000 }).catch(() => {});
 const after1 = JSON.parse(py(`
 import json
 from mongo_client import db

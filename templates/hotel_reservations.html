@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
+{% set vi = default_lang == 'vi' %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đặt phòng trước | BitPaw Software</title>
+    <title>{{ 'Đặt phòng trước' if vi else 'Bookings' }} | BitPaw Software</title>
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -28,18 +29,18 @@
         <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
             <div>
                 <h2 class="text-3xl font-black tracking-tight flex items-center gap-3">
-                    <i class="fas fa-calendar-days text-purple-400"></i> Đặt phòng trước
+                    <i class="fas fa-calendar-days text-purple-400"></i> {{ 'Đặt phòng trước' if vi else 'Bookings' }}
                 </h2>
                 <p class="text-gray-400 mt-2 text-sm">
-                    Toàn bộ yêu cầu đặt phòng còn hiệu lực từ hôm nay (<span class="text-purple-400 font-bold">{{ today }}</span>) trở đi — kể cả đặt xa nhiều tuần/tháng. Duyệt, xếp phòng hoặc huỷ ngay tại đây.
+                    {% if vi %}Toàn bộ yêu cầu đặt phòng còn hiệu lực từ hôm nay (<span class="text-purple-400 font-bold">{{ today }}</span>) trở đi — kể cả đặt xa nhiều tuần/tháng. Duyệt, xếp phòng hoặc huỷ ngay tại đây.{% else %}Every upcoming booking request from today (<span class="text-purple-400 font-bold">{{ today }}</span>) on, including stays weeks or months ahead. Approve, assign a room or cancel right here.{% endif %}
                 </p>
             </div>
         </header>
 
         <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0"><i class="fas fa-qrcode text-purple-400"></i> Link đặt phòng công khai:</span>
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0"><i class="fas fa-qrcode text-purple-400"></i> {{ 'Link đặt phòng công khai:' if vi else 'Public booking link:' }}</span>
             <input type="text" readonly value="{{ reservation_link }}" id="reservationLink" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300 w-full">
-            <button onclick="copyLink()" class="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-300 px-4 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><i class="fas fa-copy"></i> Sao chép</button>
+            <button onclick="copyLink()" class="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-300 px-4 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><i class="fas fa-copy"></i> {{ 'Sao chép' if vi else 'Copy' }}</button>
         </div>
 
         {% if reservations %}
@@ -48,15 +49,15 @@
                 <table class="w-full text-sm text-left">
                     <thead class="bg-white/[0.04] text-gray-400 uppercase text-xs tracking-wider">
                         <tr>
-                            <th class="px-6 py-4">Nhận phòng</th>
-                            <th class="px-6 py-4">Trả phòng</th>
-                            <th class="px-6 py-4">Tên khách</th>
-                            <th class="px-6 py-4">Số điện thoại</th>
-                            <th class="px-6 py-4">Số khách</th>
-                            <th class="px-6 py-4">Loại phòng</th>
-                            <th class="px-6 py-4">Phòng xếp</th>
-                            <th class="px-6 py-4">Trạng thái</th>
-                            <th class="px-6 py-4">Thao tác</th>
+                            <th class="px-6 py-4">{{ 'Nhận phòng' if vi else 'Check-in' }}</th>
+                            <th class="px-6 py-4">{{ 'Trả phòng' if vi else 'Check-out' }}</th>
+                            <th class="px-6 py-4">{{ 'Tên khách' if vi else 'Guest' }}</th>
+                            <th class="px-6 py-4">{{ 'Số điện thoại' if vi else 'Phone' }}</th>
+                            <th class="px-6 py-4">{{ 'Số khách' if vi else 'Guests' }}</th>
+                            <th class="px-6 py-4">{{ 'Loại phòng' if vi else 'Room type' }}</th>
+                            <th class="px-6 py-4">{{ 'Phòng xếp' if vi else 'Room' }}</th>
+                            <th class="px-6 py-4">{{ 'Trạng thái' if vi else 'Status' }}</th>
+                            <th class="px-6 py-4">{{ 'Thao tác' if vi else 'Actions' }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5" id="reservationsBody">
@@ -64,13 +65,13 @@
                         <tr class="hover:bg-white/[0.03] transition-colors" data-res-id="{{ r.id }}">
                             <td class="px-6 py-4 font-bold text-purple-300 whitespace-nowrap">{{ r.checkin_date }}</td>
                             <td class="px-6 py-4 font-bold text-pink-300 whitespace-nowrap">{{ r.checkout_date }}</td>
-                            <td class="px-6 py-4 font-medium">{{ r.guest_name or 'Không rõ' }}</td>
+                            <td class="px-6 py-4 font-medium">{{ r.guest_name or ('Không rõ' if vi else 'Unknown') }}</td>
                             <td class="px-6 py-4 text-gray-300">{{ r.guest_phone or '—' }}</td>
                             <td class="px-6 py-4 text-gray-300"><i class="fas fa-user-friends text-gray-500"></i> {{ r.party_size }}</td>
-                            <td class="px-6 py-4 text-gray-400">{{ r.room_type or 'Bất kỳ' }}</td>
+                            <td class="px-6 py-4 text-gray-400">{{ r.room_type or ('Bất kỳ' if vi else 'Any') }}</td>
                             <td class="px-6 py-4" data-room-cell data-status="{{ r.status }}">
                                 <select class="room-select" onchange="assignRoom({{ r.id }}, this)" {% if r.status == 'cancelled' %}disabled{% endif %}>
-                                    <option value="">-- Chưa xếp --</option>
+                                    <option value="">{{ '-- Chưa xếp --' if vi else '— Not assigned —' }}</option>
                                     {% for rm in rooms %}
                                     <option value="{{ rm.id }}" {% if r.room_id == rm.id %}selected{% endif %}>{{ rm.room_number }} ({{ rm.room_type }})</option>
                                     {% endfor %}
@@ -78,20 +79,20 @@
                             </td>
                             <td class="px-6 py-4" data-status-cell>
                                 {% if r.status == 'confirmed' %}
-                                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>
+                                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Đã xác nhận' if vi else 'Confirmed' }}</span>
                                 {% elif r.status == 'cancelled' %}
-                                <span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>
+                                <span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Đã huỷ' if vi else 'Cancelled' }}</span>
                                 {% else %}
-                                <span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>
+                                <span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Chờ xác nhận' if vi else 'Pending' }}</span>
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4" data-actions-cell>
                                 <div class="flex gap-2 flex-wrap">
                                     {% if r.status == 'pending' %}
-                                    <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ r.id }}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
-                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ r.id }}, 'confirmed', this)"><i class="fas fa-check"></i> {{ 'Duyệt' if vi else 'Approve' }}</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> {{ 'Huỷ' if vi else 'Cancel' }}</button>
                                     {% elif r.status == 'confirmed' %}
-                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> {{ 'Huỷ' if vi else 'Cancel' }}</button>
                                     {% else %}
                                     <span class="text-gray-600 text-xs">—</span>
                                     {% endif %}
@@ -106,7 +107,7 @@
         {% else %}
         <div class="flex flex-col items-center justify-center py-24 bg-white/[0.02] border border-white/10 rounded-2xl">
             <i class="fas fa-calendar-days text-5xl text-gray-600 mb-4"></i>
-            <p class="text-gray-400 font-bold">Không có yêu cầu đặt phòng nào sắp tới.</p>
+            <p class="text-gray-400 font-bold">{{ 'Không có yêu cầu đặt phòng nào sắp tới.' if vi else 'No upcoming booking requests.' }}</p>
         </div>
         {% endif %}
     </main>
@@ -114,23 +115,24 @@
     <div id="toast" class="toast"></div>
 
     <script>
+        const VI = {{ 'true' if vi else 'false' }};
         function copyLink() {
             const input = document.getElementById('reservationLink');
             input.select();
-            navigator.clipboard.writeText(input.value).then(() => showToast('Đã sao chép link!'));
+            navigator.clipboard.writeText(input.value).then(() => showToast((VI ? 'Đã sao chép link!' : 'Link copied')));
         }
 
         const STATUS_BADGE = {
-            confirmed: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã xác nhận</span>',
-            cancelled: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">Đã huỷ</span>',
-            pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">Chờ xác nhận</span>',
+            confirmed: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Đã xác nhận' : 'Confirmed') + '</span>',
+            cancelled: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Đã huỷ' : 'Cancelled') + '</span>',
+            pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Chờ xác nhận' : 'Pending') + '</span>',
         };
         const NEXT_ACTIONS = {
             pending: (id) => `
-                <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus(${id}, 'confirmed', this)"><i class="fas fa-check"></i> Duyệt</button>
-                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+                <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus(${id}, 'confirmed', this)"><i class="fas fa-check"></i> ${VI ? 'Duyệt' : 'Approve'}</button>
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> ${VI ? 'Huỷ' : 'Cancel'}</button>`,
             confirmed: (id) => `
-                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> Huỷ</button>`,
+                <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus(${id}, 'cancelled', this)"><i class="fas fa-xmark"></i> ${VI ? 'Huỷ' : 'Cancel'}</button>`,
             cancelled: () => '<span class="text-gray-600 text-xs">—</span>',
         };
 
@@ -153,17 +155,17 @@
                     body: JSON.stringify({ status }),
                 });
                 const result = await res.json();
-                if (!result.success) throw new Error(result.message || 'Lỗi không xác định');
+                if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
 
                 row.querySelector('[data-status-cell]').innerHTML = STATUS_BADGE[status];
                 row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2 flex-wrap">${NEXT_ACTIONS[status](id)}</div>`;
                 const sel = row.querySelector('[data-room-cell] select');
                 if (sel && status === 'cancelled') sel.disabled = true;
 
-                const labelMap = { confirmed: 'Đã duyệt yêu cầu đặt phòng', cancelled: 'Đã huỷ đặt phòng' };
-                showToast(labelMap[status] || 'Đã cập nhật');
+                const labelMap = VI ? { confirmed: 'Đã duyệt yêu cầu đặt phòng', cancelled: 'Đã huỷ đặt phòng' } : { confirmed: 'Booking approved', cancelled: 'Booking cancelled' };
+                showToast(labelMap[status] || (VI ? 'Đã cập nhật' : 'Updated'));
             } catch (err) {
-                showToast('Lỗi: ' + err.message, true);
+                showToast((VI ? 'Lỗi: ' : 'Error: ') + err.message, true);
                 buttons.forEach(b => b.disabled = false);
             }
         }
@@ -180,13 +182,13 @@
                     body: JSON.stringify({ room_id: roomId }),
                 });
                 const result = await res.json();
-                if (!result.success) throw new Error(result.message || 'Lỗi không xác định');
+                if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
                 select.dataset.lastValid = select.value;
-                showToast('Đã xếp phòng');
+                showToast((VI ? 'Đã xếp phòng' : 'Room assigned'));
             } catch (err) {
                 // 409 = trùng lịch phòng — khôi phục lựa chọn cũ, KHÔNG được để dropdown hiện sai
                 // trạng thái (trông như đã xếp thành công trong khi server đã từ chối).
-                showToast('Lỗi: ' + err.message, true);
+                showToast((VI ? 'Lỗi: ' : 'Error: ') + err.message, true);
                 select.value = select.dataset.lastValid || '';
             } finally {
                 select.disabled = false;

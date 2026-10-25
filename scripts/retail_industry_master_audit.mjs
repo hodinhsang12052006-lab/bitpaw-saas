@@ -199,6 +199,7 @@ async function main() {
     const status = checkoutResp.status();
     const body = await checkoutResp.json().catch(() => null);
     checkoutOrderId = body?.order_id ?? null;
+    globalThis.__retailTotal = Number(body?.total_amount) || null;
 
     await page.waitForTimeout(500);
     const modalClosed = !(await page.locator('#checkoutModal').evaluate((el) => el.classList.contains('active')));
@@ -225,7 +226,9 @@ async function main() {
     await page.evaluate(() => window.openRefundModal());
     await page.waitForSelector('#refundModal.active', { timeout: 3000 });
     await page.fill('#refundOrderId', String(checkoutOrderId));
-    await page.fill('#refundAmount', '1000');
+    // hoàn 1 phần nhỏ theo đúng tiền của tiệm (tiệm demo giờ là USD: bill ~$34 — trước cố định 1000 kiểu VND)
+    const refundAmt = globalThis.__retailTotal ? Math.max(0.01, Math.round(globalThis.__retailTotal * 0.25 * 100) / 100) : 1;
+    await page.fill('#refundAmount', String(refundAmt));
     await page.fill('#refundReason', 'QA Audit — kiểm tra luồng hoàn tiền một phần Retail.');
     await shot(page, '05a_retail_refund_modal.png');
 

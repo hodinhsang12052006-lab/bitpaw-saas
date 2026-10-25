@@ -400,7 +400,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <img src="/static/cho1.jpg" class="w-full h-full rounded-full border-2 border-cyan-400/70 object-cover shadow-md">
                 </div>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">Bit<span class="text-cyan-400">Paw</span> <span class="text-gray-300 text-xs sm:text-lg font-medium" data-i18n="pos_header_title">| POS Bán hàng</span></h1>
+                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-1">{{ shop_header_name() }} <span class="text-gray-300 text-xs sm:text-lg font-medium" data-i18n="pos_header_title">| POS Bán hàng</span></h1>
                     <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider" id="posHeaderSubtitle" data-i18n="pos_header_subtitle">Sơ đồ bàn & Thực đơn quán</p>
                 </div>
             </div>
@@ -527,32 +527,31 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                         <div class="flex justify-between font-bold text-white text-sm border-t border-white/5 pt-2 mb-4">
                             <span data-i18n="pos_total_label">Tổng cộng:</span>
-                            <span id="orderTotal" class="text-cyan-400 font-mono text-base">0₫</span>
+                            <span id="orderTotal" class="text-cyan-400 font-mono text-base">{{ 0 | money(tenant_currency) }}</span>
                         </div>
 
                         <div class="mb-3">
-                            <div class="text-xs text-gray-400 mb-1.5">Phương thức thanh toán</div>
+                            <div class="text-xs text-gray-400 mb-1.5" data-i18n="pos_pm_title">Phương thức thanh toán</div>
                             <div class="grid grid-cols-3 gap-1.5" id="posPaymentMethodGroup">
-                                <button type="button" class="pos-pm-btn active" data-method="cash">Tiền mặt</button>
-                                <button type="button" class="pos-pm-btn" data-method="card">Thẻ</button>
-                                <button type="button" class="pos-pm-btn" data-method="split">Chia đôi</button>
+                                <button type="button" class="pos-pm-btn active" data-method="cash" data-i18n="pos_pm_cash">Tiền mặt</button>
+                                <button type="button" class="pos-pm-btn" data-method="card" data-i18n="pos_pm_card">Thẻ</button>
+                                <button type="button" class="pos-pm-btn" data-method="split" data-i18n="pos_pm_split">Chia đôi</button>
                             </div>
                             <div id="posSplitInputs" class="grid grid-cols-2 gap-2 mt-2" style="display:none;">
-                                <input type="number" id="posSplitCash" placeholder="Tiền mặt" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
-                                <input type="number" id="posSplitCard" placeholder="Thẻ" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
+                                <input type="number" id="posSplitCash" placeholder="Tiền mặt" data-i18n-placeholder="pos_pm_cash" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
+                                <input type="number" id="posSplitCard" placeholder="Thẻ" data-i18n-placeholder="pos_pm_card" min="0" class="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400 font-mono">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
-                            {% if tenant_country == 'US' %}
+                            {% if tenant_country == 'US' %}{# tiệm Mỹ: thêm Square Terminal; tiền mặt / thẻ máy riêng / chia đôi vẫn thu bằng nút dưới #}
                             <button id="squareCheckoutBtn" class="col-span-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-md">
                                 <i class="fab fa-square"></i> <span data-i18n="pos_square_checkout_btn">Pay with Square / Credit Card</span>
                             </button>
-                            {% else %}
+                            {% endif %}
                             <button id="posCheckoutBtn" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-md">
                                 <i class="fas fa-check-circle"></i> <span data-i18n="pos_checkout_btn">Thanh toán</span>
                             </button>
-                            {% endif %}
                             <button id="posClearBtn" class="bg-white/5 hover:bg-white/10 border border-white/10 text-rose-400 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-1">
                                 <i class="fas fa-trash-alt"></i> <span data-i18n="pos_clear_order_btn">Hủy đơn</span>
                             </button>
@@ -736,6 +735,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_tip_custom_placeholder: 'Nhập số tiền tip',
                 pos_total_label: 'Tổng cộng:',
                 pos_checkout_btn: 'Thanh toán',
+                pos_pm_title: 'Phương thức thanh toán', pos_pm_cash: 'Tiền mặt', pos_pm_card: 'Thẻ', pos_pm_split: 'Chia đôi',
                 pos_clear_order_btn: 'Hủy đơn',
                 pos_square_checkout_btn: 'Thanh toán Square / Thẻ tín dụng',
                 pos_selecting_table_prefix: 'Đang chọn bàn:',
@@ -833,7 +833,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 pos_tip_custom_btn: 'Custom',
                 pos_tip_custom_placeholder: 'Enter tip amount',
                 pos_total_label: 'Total:',
-                pos_checkout_btn: 'Checkout',
+                pos_checkout_btn: 'Record payment',
+                pos_pm_title: 'Payment method', pos_pm_cash: 'Cash', pos_pm_card: 'Card', pos_pm_split: 'Split',
                 pos_clear_order_btn: 'Clear Order',
                 pos_square_checkout_btn: 'Pay with Square / Credit Card',
                 pos_selecting_table_prefix: 'Selected table:',

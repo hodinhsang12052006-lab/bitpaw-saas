@@ -295,7 +295,7 @@
         <div class="p-4 border-t border-white/10 bg-black/40">
             <div class="flex justify-between items-center mb-4">
                 <span class="text-gray-300" data-i18n="total">Tổng cộng:</span>
-                <span id="cartTotal" class="text-2xl font-bold text-cyan-400">0₫</span>
+                <span id="cartTotal" class="text-2xl font-bold text-cyan-400">{{ 0 | money(shop_currency or "VND") }}</span>
             </div>
             <button id="submitOrderBtn" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg">
                 <i class="fas fa-paper-plane mr-1"></i> Gửi đơn hàng
@@ -307,6 +307,13 @@
     <div id="toast" class="toast"></div>
 
     <script>
+        // tiền theo quán (đặt ở app.py::qr_menu — trang khách không có phiên đăng nhập của tiệm)
+        const QR_CUR = {{ (shop_currency or 'VND') | tojson }};
+        function qrMoney(n) {
+            n = Number(n) || 0;
+            return QR_CUR === 'VND' ? Math.round(n).toLocaleString('vi-VN') + '₫' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         // ========== FLASK/MONGO JSON API (thay lớp gọi thẳng DB từ trình duyệt trước đây) ==========
         // Wrapper fetch dùng chung, cùng phong cách posApi() ở templates/table_order.html: set JSON
         // header, throw nếu !res.ok hoặc body.success === false để các nơi gọi chỉ cần try/catch.
@@ -553,7 +560,7 @@
                             <h3 class="font-bold text-white text-base">${escapeHtml(p.name)}</h3>
                             <p class="text-xs text-gray-400">${escapeHtml(p.category) || t('default_category')}</p>
                             <div class="flex justify-between items-center mt-2">
-                                <span class="text-cyan-400 font-mono font-bold">${p.price.toLocaleString('vi-VN')}₫</span>
+                                <span class="text-cyan-400 font-mono font-bold">${qrMoney(p.price)}</span>
                                 <div class="flex items-center gap-2">
                                     <button class="qty-btn-decr w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30 text-white text-sm">-</button>
                                     <span class="item-qty-display w-6 text-center text-white font-bold">1</span>
@@ -619,7 +626,7 @@
             let total = 0, count = 0;
             if (!cart.length) {
                 container.innerHTML = `<div class="text-center text-gray-500 py-10">${t('cart_empty')}</div>`;
-                totalSpan.innerText = '0₫';
+                totalSpan.innerText = qrMoney(0);
                 badge.innerText = '0';
                 return;
             }
@@ -636,7 +643,7 @@
                                 <button class="cart-qty-down w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30" data-idx="${idx}">-</button>
                                 <span class="w-6 text-center text-white">${item.quantity}</span>
                                 <button class="cart-qty-up w-7 h-7 rounded-full bg-white/10 hover:bg-cyan-500/30" data-idx="${idx}">+</button>
-                                <span class="ml-2 text-cyan-400 font-mono">${item.price.toLocaleString('vi-VN')}₫</span>
+                                <span class="ml-2 text-cyan-400 font-mono">${qrMoney(item.price)}</span>
                             </div>
                         </div>
                         <button class="cart-remove text-rose-400 hover:text-rose-300 text-xl w-8 h-8 rounded-full flex items-center justify-center" data-idx="${idx}"><i class="fas fa-trash-alt text-sm"></i></button>
@@ -644,7 +651,7 @@
                 `;
             });
             container.innerHTML = html;
-            totalSpan.innerText = total.toLocaleString('vi-VN') + '₫';
+            totalSpan.innerText = qrMoney(total);
             badge.innerText = count;
             
             // Cart events

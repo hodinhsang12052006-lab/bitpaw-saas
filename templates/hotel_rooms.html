@@ -6,7 +6,7 @@
     <title data-i18n="hr_title">Quản Lý Phòng | BitPaw Software</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="{{ url_for('static', filename='js/print_receipt.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/print_receipt.js') }}?v={{ asset_v('js/print_receipt.js') }}"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -204,6 +204,12 @@
     <div class="toast" id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(150%); background:rgba(10,12,22,0.95); border:1px solid rgba(168,85,247,0.4); color:white; padding:12px 28px; border-radius:40px; font-size:13px; font-weight:600; z-index:10010; transition:transform 0.3s ease, opacity 0.3s ease; opacity:0;"></div>
 
     <script>
+        // tiền theo tiệm (trước đây luôn "162.5₫" kể cả khách sạn ở Mỹ/Úc)
+        const HOTEL_CUR = {{ (tenant_currency or 'VND') | tojson }};
+        function hotelMoney(n) {
+            n = Number(n) || 0;
+            return HOTEL_CUR === 'VND' ? Math.round(n).toLocaleString('vi-VN') + '₫' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
         let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
         const translations = {
             vi: {
@@ -335,7 +341,7 @@
                         <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border ${meta.badge}">${meta.label}</span>
                     </div>
                     <div class="text-[11px] text-gray-500 mt-1">${escapeHtml(r.room_type || '')} · ${t('hr_floor_label')} ${escapeHtml(r.floor || '-')} · <i class="fas fa-user-group"></i> ${r.capacity || '-'}</div>
-                    <div class="text-sm font-bold text-purple-400 mt-1">${Number(r.price_per_night || 0).toLocaleString()}₫<span class="text-[10px] text-gray-500">/${currentLang === 'vi' ? 'đêm' : 'night'}</span></div>
+                    <div class="text-sm font-bold text-purple-400 mt-1">${hotelMoney(r.price_per_night)}<span class="text-[10px] text-gray-500">/${currentLang === 'vi' ? 'đêm' : 'night'}</span></div>
                     ${body}
                 </div>`;
             }).join('');
@@ -374,16 +380,16 @@
         function renderCheckoutTotals(nights, pricePerNight, charges) {
             const roomSubtotal = nights * pricePerNight;
             const chargesTotal = charges.reduce((s, c) => s + (c.amount || 0), 0);
-            document.getElementById('checkoutRoomSubtotal').innerText = roomSubtotal.toLocaleString() + '₫';
+            document.getElementById('checkoutRoomSubtotal').innerText = hotelMoney(roomSubtotal);
             document.getElementById('checkoutChargesList').innerHTML = charges.map(c => `
                 <div class="flex justify-between items-center text-gray-400">
                     <span>${escapeHtml(c.description)}</span>
                     <span class="flex items-center gap-2">
-                        <span class="text-white font-bold">${Number(c.amount).toLocaleString()}₫</span>
+                        <span class="text-white font-bold">${hotelMoney(c.amount)}</span>
                         <button onclick="removeCheckoutCharge(${c.id})" class="text-rose-400 hover:text-rose-300"><i class="fas fa-times-circle"></i></button>
                     </span>
                 </div>`).join('');
-            document.getElementById('checkoutTotal').innerText = (roomSubtotal + chargesTotal).toLocaleString() + '₫';
+            document.getElementById('checkoutTotal').innerText = hotelMoney(roomSubtotal + chargesTotal);
         }
         async function openCheckoutModal(roomId) {
             const room = rooms.find(r => r.id === roomId);

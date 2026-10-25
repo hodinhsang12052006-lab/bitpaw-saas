@@ -1006,6 +1006,25 @@
 
     <!-- 8. FAQ Section -->
     {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#f59e0b',
+        ('Đây là BitPaw đang chạy ở một cửa hàng', 'This is BitPaw running in a store'),
+        ('Không phải ảnh minh hoạ: màn hình bán hàng quét mã vạch của cửa hàng demo ở California. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the barcode checkout of our demo store in California. Tap a screen to see it up close.'),
+        'retail_pos_pc', 'retail_pos_mob',
+        'POS bán lẻ: quét mã vạch, ảnh sản phẩm, tồn kho / Retail POS: barcode scan, product photos, stock',
+        'Bán hàng trên điện thoại / Selling from a phone',
+        [('fa-barcode', 'Quét mã vạch', 'Barcode scanning'), ('fa-boxes-stacked', 'Trừ kho tự động', 'Stock updates itself')],
+        [('fa-barcode', 'Quét là bán', 'Scan and sell',
+          'Quét mã vạch hoặc tìm tên, chọn tiền mặt / thẻ, in hoá đơn.',
+          'Scan a barcode or search by name, take cash or card, print the receipt.'),
+         ('fa-boxes-stacked', 'Tồn kho từng món', 'Stock for every item',
+          'Bán là trừ kho, cảnh báo khi sắp hết hàng.',
+          'Every sale comes off stock, with alerts before you run out.'),
+         ('fa-rotate-left', 'Đổi trả có sổ sách', 'Returns on record',
+          'Hoàn tiền một phần hoặc toàn bộ, hàng tự nhập lại kho.',
+          'Refund part or all of a sale and the items go back into stock.')]) }}
+
     {% set pricing_industry = 'retail' %}
     {% include 'components/pricing.html' %}
 
@@ -1184,7 +1203,7 @@
                         </div>
                         <div class="overflow-hidden">
                             <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
-                            <a href="mailto:bitpawsoftware@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="bitpawsoftware@gmail.com">bitpawsoftware@gmail.com</a>
+                            <a href="mailto:support@bitpawsoftware.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="support@bitpawsoftware.com">support@bitpawsoftware.com</a>
                         </div>
                     </li>
                     <li class="flex items-center gap-3 group">

@@ -1054,6 +1054,25 @@
 
     <!-- 8. FAQ Section -->
     {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#a855f7',
+        ('Đây là BitPaw đang chạy ở quán karaoke', 'This is BitPaw running in a karaoke lounge'),
+        ('Không phải ảnh minh hoạ: màn hình phòng hát và bàn bida của quán demo ở California, tính tiền theo giờ. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the room and pool-table board of our demo lounge in California, billed by the hour. Tap a screen to see it up close.'),
+        'karaoke_rooms_pc', 'karaoke_rooms_mob',
+        'Màn hình phòng hát và bàn bida, giá theo giờ / Karaoke rooms and pool tables priced by the hour',
+        'Quản lý phòng trên điện thoại / Managing rooms from a phone',
+        [('fa-clock', 'Tính giờ tự động', 'Automatic hourly billing'), ('fa-qrcode', 'Gọi đồ bằng QR trong phòng', 'In-room QR ordering')],
+        [('fa-microphone', 'Bắt đầu / kết thúc phòng', 'Start and close rooms',
+          'Một chạm để bắt đầu tính giờ; kết thúc là ra bill giờ hát cộng đồ uống.',
+          'One tap starts the clock; closing the room totals the hours plus drinks.'),
+         ('fa-qrcode', 'Gọi đồ ngay trong phòng', 'Order from the room',
+          'In mã QR cho từng phòng, khách gọi đồ, quầy thấy ngay.',
+          'Print a QR code for each room; guests order drinks and the counter sees it instantly.'),
+         ('fa-calendar-check', 'Đặt phòng trước', 'Room bookings',
+          'Khách đặt phòng qua link, quầy duyệt và xếp phòng.',
+          'Guests book through your link; the counter approves and assigns a room.')]) }}
+
     {% set pricing_industry = 'karaoke' %}
     {% include 'components/pricing.html' %}
 
@@ -1228,7 +1247,7 @@
                         </div>
                         <div class="overflow-hidden">
                             <p class="text-xs lg:text-[13px] text-slate-400 font-bold uppercase" data-i18n="footer_email_label">Email Công việc</p>
-                            <a href="mailto:bitpawsoftware@gmail.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="bitpawsoftware@gmail.com">bitpawsoftware@gmail.com</a>
+                            <a href="mailto:support@bitpawsoftware.com" class="hover:text-rose-400 transition font-bold block truncate text-base lg:text-[17px] text-white" title="support@bitpawsoftware.com">support@bitpawsoftware.com</a>
                         </div>
                     </li>
                     <li class="flex items-center gap-3 group">

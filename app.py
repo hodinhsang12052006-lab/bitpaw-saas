@@ -3958,6 +3958,9 @@ def _compute_cart_order(business_id, data, allow_packages=False):
     phone = data.get('customer_phone')
     if isinstance(phone, str) and phone.strip():
         metadata_fields['customer_phone'] = phone.strip()[:32]
+        cname = data.get('customer_name')
+        if isinstance(cname, str) and cname.strip():
+            metadata_fields['customer_name'] = re.sub(r'[<>]', '', cname.strip())[:60]
     return order_fields, metadata_fields, order_items_docs, stock_items
 
 
@@ -3973,7 +3976,7 @@ def _finalize_paid_order(order_doc):
     if customer_phone:
         _award_loyalty_points(
             order_doc['business_id'], customer_phone, order_doc['total_amount'],
-            currency=metadata.get('currency', 'VND')
+            currency=metadata.get('currency', 'VND'), name=metadata.get('customer_name')
         )
 
         # Event Hook cho AI CRM/Nurture — chỉ đẩy XADD vào Redis Stream (KHÔNG gọi API AI/CRM
@@ -4070,7 +4073,8 @@ def api_sales_checkout():
         # chỉ 8/100 thành công, 92 lượt còn lại bị lỗi 500 "Write conflict" dù tồn kho đủ cho tới
         # tận lượt thứ 50. `with_transaction()` là API pymongo CHÍNH THỨC cho đúng vấn đề này —
         # tự động thử lại (kèm backoff) cho MỌI lỗi transient, giữ nguyên toàn bộ logic bên trong.
-        commission_docs, techs_paid = _build_cart_commission_docs(order_id, business_id, order_items_docs, data) \
+        commission_docs, techs_paid = _build_cart_commission_docs(
+            order_id, business_id, order_items_docs, {**data, '_tip_amount': metadata_fields.get('tip_amount') or 0}) \
             if status == 'completed' else ([], [])
         with mongo_client_instance.start_session() as db_session:
             def _do_checkout_txn(s):
@@ -4122,18 +4126,27 @@ def _build_cart_commission_docs(order_id, business_id, order_items_docs, data):
     if not per_tech:
         return [], []
     rate = float(_get_business_commission_rate(business_id))
+    # Tip của cả bill chia cho các kỹ thuật viên theo phần doanh thu dịch vụ họ làm (người cuối nhận phần lẻ để tổng khớp)
+    try:
+        tip_total = max(0.0, float(data.get('_tip_amount') or 0))
+    except (TypeError, ValueError):
+        tip_total = 0.0
+    rev_total = sum(per_tech.values()) or 1.0
+    tip_left = round(tip_total, 2)
     local_date = data.get('client_local_date')
     if not (isinstance(local_date, str) and re.fullmatch(r'\d{2}/\d{2}/\d{4}', local_date)):
         local_date = datetime.now().strftime('%d/%m/%Y')
     ids = iter(next_mongo_id_batch('chamcong', len(per_tech)))
     docs, paid = [], []
-    for ma_nv, revenue in per_tech.items():
+    for i, (ma_nv, revenue) in enumerate(per_tech.items()):
         tua = round(revenue * rate / 100, 2)
+        tip = tip_left if i == len(per_tech) - 1 else round(tip_total * revenue / rev_total, 2)
+        tip_left = round(tip_left - tip, 2)
         docs.append({'id': next(ids), 'business_id': business_id, 'ma_nv': ma_nv, 'ngay_cham': local_date,
                      'nganh_nghe': 'Spa', 'trang_thai': 'Đã chốt',
                      'ghi_chu': f"[SPA POS] Order #{order_id} — {rate:g}% hoa hồng",
-                     'tien_tua': tua, 'tien_tips': 0, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
-        paid.append({'ma_nv': ma_nv, 'commission': tua, 'revenue': round(revenue, 2)})
+                     'tien_tua': tua, 'tien_tips': tip, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
+        paid.append({'ma_nv': ma_nv, 'commission': tua, 'tip': tip, 'revenue': round(revenue, 2)})
     return docs, paid
 
 
@@ -4240,11 +4253,12 @@ def api_order_refund(order_id):
         claw = []
         for rec in db.chamcong.find({'business_id': business_id, 'ghi_chu': {'$regex': rf'^\[SPA POS\] Order #{order_id}(?!\d)'}}, {'_id': 0}):
             back = round(float(rec.get('tien_tua') or 0) * ratio, 2)
-            if back > 0:
+            back_tip = round(float(rec.get('tien_tips') or 0) * ratio, 2)
+            if back > 0 or back_tip > 0:
                 claw.append({'business_id': business_id, 'ma_nv': rec['ma_nv'], 'ngay_cham': datetime.now().strftime('%d/%m/%Y'),
                              'nganh_nghe': rec.get('nganh_nghe', 'Spa'), 'trang_thai': 'Đã chốt',
                              'ghi_chu': f"[REFUND] Deduction for Order #{order_id} — linked to original chamcong #{rec.get('id')}",
-                             'tien_tua': -back, 'tien_tips': 0, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
+                             'tien_tua': -back, 'tien_tips': -back_tip, 'phu_cap': 0, 'so_gio': 0, 'tang_ca': 0})
         if claw:
             for doc, cid in zip(claw, next_mongo_id_batch('chamcong', len(claw))):
                 doc['id'] = cid
@@ -5063,7 +5077,7 @@ def _queue_loyalty_notification(business_id, customer, event_type, message):
         print(f"Loi ghi loyalty_events: {e}")
 
 
-def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='VND'):
+def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='VND', name=None):
     """Tự động cộng điểm + xét lên hạng cho khách ngay sau khi thanh toán xong.
     Nếu SĐT chưa có trong CRM thì tự tạo khách mới. Không chặn luồng thanh toán nếu lỗi.
     `currency` mặc định 'VND' (giữ nguyên hành vi cũ cho mọi caller hiện có) — truyền 'USD'
@@ -5086,7 +5100,8 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='V
                 'id': next_mongo_id('customers'),
                 'business_id': business_id,
                 'phone': customer_phone,
-                'name': f'Khách {customer_phone[-4:]}',
+                # tên thu ngân nhập (nếu có); không có thì nhãn theo ngôn ngữ của tiệm (tiệm Mỹ/Úc trước đây thấy "Khách 1234")
+                'name': name or (f'Client {customer_phone[-4:]}' if is_usd else f'Khách {customer_phone[-4:]}'),
                 'tier': _tier_for_spend(amount_spent, currency=currency),
                 'loyalty_points': points_earned,
                 'total_spent': amount_spent,
@@ -5114,13 +5129,17 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='V
                                         {'$set': {'tier': new_tier}})
                 customer['tier'] = new_tier
 
+        # Tin gửi KHÁCH của tiệm: tiệm Mỹ/Úc (tiền đô) viết tiếng Anh — trước đây khách ở Úc nhận tin tiếng Việt
+        total_pts = customer.get('loyalty_points', 0)
         _queue_loyalty_notification(
             business_id, customer, 'points_awarded',
-            f"Cảm ơn bạn đã mua hàng! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {customer.get('loyalty_points', 0)} điểm."
+            f"Thanks for visiting! You earned {points_earned} reward points — you now have {total_pts}." if is_usd else
+            f"Cảm ơn bạn đã mua hàng! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {total_pts} điểm."
         )
         if old_tier is not None and new_tier != old_tier:
             _queue_loyalty_notification(
                 business_id, customer, 'tier_upgrade',
+                f"Congratulations — you're now a {new_tier} member. A special offer is waiting for you on your next visit!" if is_usd else
                 f"Chúc mừng! Bạn vừa được nâng hạng thành viên lên {new_tier}. Một ưu đãi đặc biệt đang chờ bạn ở lần ghé thăm tiếp theo!"
             )
     except Exception as e:
@@ -8367,7 +8386,8 @@ def qr_menu(identifier):
         print(f"MongoDB qr_menu products select failed: {str(e)}")
         menu_data = []
     return render_template('qr_menu.html', table=table_data, menu=menu_data, channel_type=channel_type,
-                           shop_name=_shop_display_name(table_business_id))
+                           shop_name=_shop_display_name(table_business_id),
+                           shop_currency=_tenant_currency(table_business_id))   # giá theo tiền của quán (trước luôn "16,25₫")
 
 
 @app.route('/api/submit_qr_order', methods=['POST'])
@@ -8774,6 +8794,34 @@ def _brand_setting_get(business_id, key, default=None):
     return doc['value'] if doc else default
 
 
+def _shop_header_name(business_id):
+    """Tên hiện trên màn hình làm việc của tiệm: tên thương hiệu đã đặt, không có thì tên tiệm thật (trước đây mặc định "BitPaw").
+    Khác _shop_display_name (trang khách: trả None khi chưa có tên)."""
+    try:
+        return (_public_shop_context(business_id) or {}).get('shop_name') or 'BitPaw'
+    except Exception:
+        return 'BitPaw'
+
+
+_HEADER_NAME_CACHE = {}
+
+
+def _jinja_shop_header_name():
+    """{{ shop_header_name() }} trong template: tên tiệm đang đăng nhập cho đầu trang POS (cache 60 giây / tiệm)."""
+    bid = session.get('business_id') or session.get('user_id')
+    if not bid:
+        return 'BitPaw'
+    hit = _HEADER_NAME_CACHE.get(bid)
+    if hit and time.time() - hit[1] < 60:
+        return hit[0]
+    name = _shop_header_name(bid)
+    _HEADER_NAME_CACHE[bid] = (name, time.time())
+    return name
+
+
+app.jinja_env.globals['shop_header_name'] = _jinja_shop_header_name
+
+
 def _brand_setting_set(business_id, key, value):
     db.system_settings.update_one(
         {'key': key, 'business_id': business_id}, {'$set': {'value': value}}, upsert=True
@@ -8803,7 +8851,7 @@ def brand_settings():
         # đến ĐÚNG cho MỌI ngành, không cần tra cứu lại dashboard riêng từng ngành.
         return redirect(url_for('brand_settings'))
     try:
-        brand_name = _brand_setting_get(business_id, 'brand_name', 'BitPaw')
+        brand_name = _shop_header_name(business_id)
         brand_color = _brand_setting_get(business_id, 'brand_color', '#06b6d4')
         error_message = None
     except Exception as e:
@@ -14982,7 +15030,7 @@ def _geocode_address(business_id, address):
         return (hit['lat'], hit['lng']) if hit.get('lat') is not None else None
     try:
         r = requests.get(f"{_NOMINATIM_BASE}/search", params={'q': q, 'format': 'json', 'limit': 1, 'countrycodes': country},
-                         headers={'User-Agent': 'BitPawSoftware/1.0 (bitpawsoftware@gmail.com)'}, timeout=6)
+                         headers={'User-Agent': 'BitPawSoftware/1.0 (support@bitpawsoftware.com)'}, timeout=6)
         rows = r.json() if r.ok else []
     except Exception as e:
         print(f"[geocode] {e}")

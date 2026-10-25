@@ -40,8 +40,8 @@
 
                 <div class="grid grid-cols-3 gap-2 mb-3">
                     <input type="text" id="newMaterialName" placeholder="Tên NVL" class="field-input">
-                    <input type="text" id="newMaterialUnit" placeholder="Đơn vị (kg, m, cuộn...)" class="field-input">
-                    <input type="number" id="newMaterialStock" placeholder="Tồn ban đầu" min="0" class="field-input">
+                    <input type="text" id="newMaterialUnit" placeholder="Unit (kg, m, roll...)" data-ph-vi="Đơn vị (kg, m, cuộn...)" data-ph-en="Unit (kg, m, roll...)" class="field-input">
+                    <input type="number" id="newMaterialStock" placeholder="Opening stock" data-ph-vi="Tồn ban đầu" data-ph-en="Opening stock" min="0" class="field-input">
                 </div>
                 <button onclick="addMaterial()" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black py-2.5 rounded-xl text-xs uppercase tracking-widest mb-4">
                     <i class="fas fa-plus mr-1"></i> <span data-i18n="pm_add_material_btn">Thêm NVL</span>
@@ -54,7 +54,7 @@
             <div class="glass-panel rounded-3xl p-6">
                 <h3 class="font-black text-white mb-4 tracking-widest text-xs uppercase flex items-center gap-2"><i class="fas fa-flask text-amber-400"></i> <span data-i18n="pm_recipes_title">Công Thức Tiêu Hao</span></h3>
 
-                <input type="text" id="recipeOutputName" placeholder="Tên công đoạn/sản phẩm (khớp CHÍNH XÁC với ô 'Công đoạn' lúc ghi sản lượng)" class="field-input mb-3">
+                <input type="text" id="recipeOutputName" placeholder="Stage / product name (must match the Stage you log exactly)" data-ph-vi="Tên công đoạn/sản phẩm (khớp CHÍNH XÁC với ô 'Công đoạn' lúc ghi sản lượng)" data-ph-en="Stage / product name (must match the Stage you log exactly)" class="field-input mb-3">
                 <div id="recipeMaterialRows" class="space-y-2 mb-2"></div>
                 <button onclick="addRecipeMaterialRow()" class="text-xs text-orange-400 font-bold mb-3"><i class="fas fa-plus-circle mr-1"></i> <span data-i18n="pm_add_row_btn">Thêm dòng NVL</span></button>
                 <button onclick="saveRecipe()" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black py-2.5 rounded-xl text-xs uppercase tracking-widest mb-4">
@@ -98,6 +98,7 @@
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
         function applyStaticTranslations() {
+            document.querySelectorAll('[data-ph-en]').forEach(function (el) { el.placeholder = currentLang === 'vi' ? el.dataset.phVi : el.dataset.phEn; });
             document.querySelectorAll('[data-i18n]').forEach(el => { if (el.closest('#app-sidebar')) return; const k = el.getAttribute('data-i18n'), v = t(k); if (v !== k) el.innerHTML = v; });
             document.title = t('pm_title');
         }
@@ -186,7 +187,7 @@
             row.className = 'flex gap-2 recipe-row';
             row.innerHTML = `
                 <select class="field-input recipe-material-select">${materialOptionsHtml(materialId)}</select>
-                <input type="number" class="field-input recipe-qty-input" style="width:110px;" placeholder="Định mức/đvsp" min="0" step="0.01" value="${qty || ''}">
+                <input type="number" class="field-input recipe-qty-input" style="width:110px;" placeholder="${currentLang === 'vi' ? 'Định mức/đvsp' : 'Qty per unit'}" min="0" step="0.01" value="${qty || ''}">
                 <button class="btn-mini bg-rose-500/15 text-rose-300 border-rose-500/40" onclick="this.closest('.recipe-row').remove()"><i class="fas fa-xmark"></i></button>
             `;
             document.getElementById('recipeMaterialRows').appendChild(row);

@@ -23,29 +23,27 @@ try {
   await page.fill('#loginEmail', EMAIL); await page.fill('#loginPassword', 'DemoBitPaw2026!');
   await Promise.all([page.waitForLoadState('networkidle').catch(() => {}), page.click('#btnLogin')]);
   await page.goto(BASE + '/spa', { waitUntil: 'networkidle' });
-  const cards = page.locator('.product-card');
-  for (let i = 0; i < 2; i++) { await cards.nth(i).locator('.btn-add-cart').click(); await page.waitForTimeout(250); }
-  await page.click('#cartIcon'); await page.waitForTimeout(400);
-  const sel = page.locator('#cartItemsList .cart-tech');
+  // POS Spa mới (25/10): chạm thẻ liệu trình để thêm, phiếu thu luôn hiện bên phải, không bắt nhập tên/email
+  const cards = page.locator('.tile');
+  for (let i = 0; i < 2; i++) { await cards.nth(i).locator('.tile-hit').click(); await page.waitForTimeout(250); }
+  const sel = page.locator('#lines select');
   const n = await sel.count();
-  rec('Mỗi dịch vụ trong giỏ có ô chọn kỹ thuật viên', n === 2, `${n} ô`);
+  rec('Mỗi dịch vụ trong phiếu có ô chọn kỹ thuật viên', n === 2, `${n} ô`);
   const techs = await sel.first().locator('option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
   await sel.nth(0).selectOption(techs[0]); await sel.nth(1).selectOption(techs[1] || techs[0]);
-  const cartTxt = await page.locator('#cartItemsList').innerText();
-  const totalTxt = await page.locator('#cartTotal, [id*="cartTotal"]').first().innerText().catch(() => '');
-  rec('Giỏ hàng ghi đúng tiền tệ của tiệm ($, không phải ₫)', /\$\d/.test(cartTxt) && !/₫/.test(cartTxt + totalTxt), `tổng ${totalTxt}`);
-  await page.click('#openCheckoutModalBtn'); await page.waitForTimeout(400);
-  const mainTotal = await page.locator('#checkoutTotalMain').innerText();
-  const vndSel = await page.locator('#currencySelector').isVisible();
-  rec('Hộp thanh toán: tổng bằng $ của tiệm, không quy đổi VND/USD', /^\$\d/.test(mainTotal) && !vndSel, mainTotal);
-  await page.click('.payment-method[data-method="cash"]');
-  await page.fill('#custName', 'QA Spa Therapist Khach'); await page.fill('#custEmail', 'qa.spa.therapist@example.com'); await page.fill('#custPhone', PHONE);
+  const cartTxt = await page.locator('#lines').innerText();
+  const totalTxt = await page.locator('#sTotal').innerText().catch(() => '');
+  rec('Phiếu thu ghi đúng tiền tệ của tiệm ($, không phải ₫)', /\$\d/.test(cartTxt + totalTxt) && !/₫/.test(cartTxt + totalTxt), `tổng ${totalTxt}`);
+  const mainTotal = await page.locator('#chargeAmt').innerText();
+  rec('Nút thu tiền ghi tổng bằng $ của tiệm, không quy đổi VND/USD', /^\$\d/.test(mainTotal), mainTotal);
+  await page.click('#paySeg [data-pay="cash"]');
+  await page.fill('#phone', PHONE); await page.fill('#cname', 'QA Spa Therapist Client'); await page.waitForTimeout(600);
   const t0 = Date.now();
-  const [resp] = await Promise.all([page.waitForResponse((r) => r.url().includes('/api/sales/checkout'), { timeout: 15000 }), page.click('#finalPayBtn')]);
+  const [resp] = await Promise.all([page.waitForResponse((r) => r.url().includes('/api/sales/checkout'), { timeout: 15000 }), page.click('#chargeBtn')]);
   const body = await resp.json();
   const ms = Date.now() - t0;
   orderId = body.order_id;
-  await page.waitForSelector('#resultModal:not(.hidden)', { timeout: 8000 }).catch(() => {});
+  await page.waitForSelector('#done:not([hidden])', { timeout: 8000 }).catch(() => {});
   rec('Thanh toán tiền mặt xong ngay (không còn chờ giả 2 giây)', body.success && ms < 1900, `${ms} ms · order #${orderId}`);
   const st = py(`
 import json
