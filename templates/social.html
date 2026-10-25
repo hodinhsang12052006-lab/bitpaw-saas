@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <title>Social posts · BitPaw</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        /* Class riêng của trang (tailwind.output.css build sẵn — class mới sẽ không có tác dụng) */
+        :root { --bg: #08061a; --panel: rgba(12, 18, 42, .72); --line: rgba(255, 255, 255, .09); --muted: #94a3b8; --text: #e5e7eb; --cyan: #22d3ee; color-scheme: dark; }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .glow { position: fixed; width: 640px; height: 640px; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+        main { position: relative; z-index: 1; }
+        a { color: #67e8f9; }
+        .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; }
+        .head h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -.01em; color: #fff; }
+        .head p { margin: 6px 0 0; color: var(--muted); font-size: 14px; max-width: 680px; line-height: 1.55; }
+        .tz { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: #cbd5e1; background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; max-width: 100%; }
+        .tz i { color: var(--cyan); }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-weight: 800; font-size: 13.5px; padding: 10px 16px; min-height: 40px;
+               border: 1px solid var(--line); background: rgba(255,255,255,.05); color: #fff; cursor: pointer; text-decoration: none; transition: background .15s, transform .1s; font-family: inherit; }
+        .btn:hover { background: rgba(255,255,255,.1); }
+        .btn:active { transform: scale(.98); }
+        .btn:focus-visible, .tab:focus-visible, .ptog:focus-visible, .pc:focus-visible, .chip:focus-visible, .seg button:focus-visible, .gitem:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+        .btn-primary { background: linear-gradient(90deg, #06b6d4, #2563eb); border-color: rgba(34,211,238,.5); }
+        .btn-primary:hover { background: linear-gradient(90deg, #22d3ee, #3b82f6); }
+        .btn-ok { background: rgba(16,185,129,.16); border-color: rgba(52,211,153,.45); color: #d1fae5; }
+        .btn-ok:hover { background: rgba(16,185,129,.26); }
+        .btn-danger { color: #fecaca; border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.08); }
+        .btn-danger:hover { background: rgba(248,113,113,.16); }
+        .btn.sm { padding: 7px 11px; font-size: 12.5px; min-height: 34px; border-radius: 10px; }
+        .btn.icon { padding: 0; width: 40px; }
+        .btn[disabled], .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+        .btn[data-armed="1"] { background: rgba(225,29,72,.25); border-color: rgba(248,113,113,.6); color: #fff; }
+        /* Tabs */
+        .tabs { display: flex; gap: 6px; margin: 20px 0 18px; padding: 5px; background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 16px; width: max-content; max-width: 100%; }
+        .tab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; border: 0; background: transparent; color: #cbd5e1; font-weight: 800; font-size: 13.5px; cursor: pointer; font-family: inherit; position: relative; }
+        .tab:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .tab[aria-selected="true"] { background: linear-gradient(90deg, rgba(6,182,212,.22), rgba(37,99,235,.22)); color: #fff; box-shadow: inset 0 0 0 1px rgba(34,211,238,.4); }
+        .tab .n { min-width: 18px; padding: 1px 6px; border-radius: 999px; background: #f59e0b; color: #111827; font-size: 11px; font-weight: 900; line-height: 16px; text-align: center; }
+        /* Thẻ, ô nhập */
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px; backdrop-filter: blur(16px); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        .card.on { border-color: rgba(52, 211, 153, .35); }
+        .card.warnb { border-color: rgba(251,191,36,.35); }
+        .card h3, .h3 { margin: 0; font-size: 16px; font-weight: 900; color: #fff; }
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; min-width: 0; }
+        .between { justify-content: space-between; }
+        .stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .lbl { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .02em; }
+        .f { width: 100%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.14); border-radius: 11px; padding: 10px 12px; color: #fff; font-size: 14px; font-family: inherit; min-height: 42px; }
+        textarea.f { resize: vertical; line-height: 1.5; min-height: 90px; }
+        select.f option { background: #0c1230; color: #fff; }
+        .f:focus { outline: none; border-color: rgba(34,211,238,.6); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+        .f.bad { border-color: rgba(248,113,113,.6); }
+        .hint { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+        .cnt { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .cnt.over { color: #fca5a5; font-weight: 800; }
+        .err { font-size: 12.5px; color: #fecaca; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); border-radius: 10px; padding: 8px 10px; overflow-wrap: anywhere; }
+        .note { font-size: 12.5px; color: #fde68a; background: rgba(245,158,11,.08); border: 1px solid rgba(251,191,36,.25); border-radius: 10px; padding: 8px 10px; line-height: 1.5; overflow-wrap: anywhere; }
+        .info { font-size: 12.5px; color: #cffafe; background: rgba(6,182,212,.08); border: 1px solid rgba(34,211,238,.22); border-radius: 10px; padding: 8px 10px; line-height: 1.5; overflow-wrap: anywhere; }
+        .pill { font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--line); color: #cbd5e1; background: rgba(0,0,0,.3); }
+        .pill.on { color: #a7f3d0; border-color: rgba(52,211,153,.4); background: rgba(16,185,129,.12); }
+        .pill.warn { color: #fde68a; border-color: rgba(251,191,36,.4); background: rgba(245,158,11,.1); }
+        .pill.ai { color: #e9d5ff; border-color: rgba(168,85,247,.45); background: rgba(147,51,234,.14); }
+        .sec-title { margin: 26px 0 10px; font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+        .empty { text-align: center; padding: 34px 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+        .empty i.big { display: block; font-size: 30px; color: rgba(34,211,238,.6); margin-bottom: 10px; }
+        .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; display: inline-block; }
+        .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+        .switch span { position: absolute; inset: 0; border-radius: 999px; background: #475569; transition: background .15s; pointer-events: none; }
+        .switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+        .switch input:checked + span { background: #06b6d4; }
+        .switch input:checked + span::after { transform: translateX(18px); }
+        .switch input:disabled + span { opacity: .45; }
+        .switch input:focus-visible + span { outline: 2px solid #67e8f9; outline-offset: 2px; }
+        .tgl { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px; color: #e5e7eb; min-height: 36px; }
+        .chk { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13.5px; color: #e5e7eb; }
+        .chk input { width: 18px; height: 18px; margin-top: 2px; accent-color: #06b6d4; flex-shrink: 0; }
+        /* Logo nền tảng */
+        .pl { width: 22px; height: 22px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; flex-shrink: 0; }
+        .pl.lg { width: 44px; height: 44px; border-radius: 14px; font-size: 21px; }
+        .pl.md { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
+        /* Nhãn trạng thái từng nền tảng */
+        .st { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 9px 3px 3px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: #cbd5e1; max-width: 100%; }
+        .st > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .st.ok { color: #a7f3d0; border-color: rgba(52,211,153,.4); background: rgba(16,185,129,.12); }
+        .st.info { color: #a5f3fc; border-color: rgba(34,211,238,.4); background: rgba(6,182,212,.1); }
+        .st.run { color: #bfdbfe; border-color: rgba(96,165,250,.4); background: rgba(59,130,246,.12); }
+        .st.warn { color: #fde68a; border-color: rgba(251,191,36,.4); background: rgba(245,158,11,.1); }
+        .st.bad { color: #fecaca; border-color: rgba(248,113,113,.45); background: rgba(225,29,72,.12); }
+        .st.mute { color: #cbd5e1; }
+        .tgt { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.28); border: 1px solid var(--line); min-width: 0; }
+        .tgt .why { font-size: 12.5px; color: #fecaca; overflow-wrap: anywhere; }
+        .tgt .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+        /* Lịch tuần */
+        .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .bar .grow { flex: 1 1 auto; }
+        .seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 12px; background: rgba(0,0,0,.35); border: 1px solid var(--line); }
+        .seg button { border: 0; background: transparent; color: #cbd5e1; font-weight: 800; font-size: 13px; padding: 7px 12px; border-radius: 9px; cursor: pointer; font-family: inherit; min-height: 34px; }
+        .seg button[aria-pressed="true"] { background: rgba(6,182,212,.2); color: #fff; box-shadow: inset 0 0 0 1px rgba(34,211,238,.4); }
+        .wkl { font-weight: 900; color: #fff; font-size: 14px; white-space: nowrap; }
+        .wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+        .day { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; min-height: 200px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .day.today { border-color: rgba(34,211,238,.5); box-shadow: inset 0 0 0 1px rgba(34,211,238,.15); }
+        .day-h { font-size: 12px; color: var(--muted); font-weight: 800; display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 4px; }
+        .day-h b { color: #fff; font-size: 15px; }
+        .day.today .day-h b { color: var(--cyan); }
+        .day-e { font-size: 12px; color: rgba(148,163,184,.6); padding: 4px; }
+        .pc { text-align: left; width: 100%; background: rgba(0,0,0,.38); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; color: #e5e7eb; cursor: pointer; font: inherit; font-size: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0; transition: border-color .15s, background .15s; }
+        .pc:hover { border-color: rgba(34,211,238,.45); background: rgba(6,182,212,.08); }
+        .pc-t { display: flex; align-items: center; gap: 6px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+        .pc-c { color: #cbd5e1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; overflow-wrap: anywhere; }
+        .pc-d { display: flex; flex-wrap: wrap; gap: 4px; }
+        .dot { width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; border: 2px solid #475569; background: rgba(0,0,0,.4); }
+        .dot.ok { border-color: #34d399; } .dot.info { border-color: #22d3ee; } .dot.run { border-color: #60a5fa; }
+        .dot.warn { border-color: #fbbf24; } .dot.bad { border-color: #f87171; background: rgba(225,29,72,.35); } .dot.mute { border-color: #64748b; opacity: .75; }
+        .tagai { font-size: 10px; font-weight: 900; color: #e9d5ff; background: rgba(147,51,234,.25); border-radius: 6px; padding: 1px 5px; }
+        .lst { display: flex; flex-direction: column; gap: 8px; }
+        .lst-d { font-size: 12.5px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 12px 0 2px; }
+        .lr { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 12px; align-items: start; text-align: left; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: #e5e7eb; cursor: pointer; font: inherit; }
+        .lr:hover { border-color: rgba(34,211,238,.45); }
+        .lr-t { font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+        .lr-c { font-size: 13.5px; color: #e5e7eb; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; margin-bottom: 6px; }
+        /* Soạn bài */
+        .cmp { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+        .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        .ptogs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+        .ptog { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: #e5e7eb; cursor: pointer; font: inherit; min-height: 54px; min-width: 0; }
+        .ptog[aria-pressed="true"] { border-color: rgba(34,211,238,.6); background: rgba(6,182,212,.12); }
+        .ptog[disabled] { opacity: .5; cursor: not-allowed; }
+        .ptog b { display: block; font-size: 13px; color: #fff; }
+        .ptog small { display: block; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ptog .ck { margin-left: auto; color: var(--cyan); }
+        .ed { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(0,0,0,.22); display: flex; flex-direction: column; gap: 8px; }
+        .ed-h { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #fff; }
+        .ed-h .cnt { margin-left: auto; }
+        .media { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+        .mthumb { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #000; aspect-ratio: 1 / 1; }
+        .mthumb img, .mthumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .mthumb .x { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 999px; border: 0; background: rgba(0,0,0,.7); color: #fff; cursor: pointer; }
+        .mthumb .k { position: absolute; left: 6px; bottom: 6px; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,.7); color: #fff; }
+        .prog { height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+        .prog span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #06b6d4, #2563eb); transition: width .2s; }
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: #e5e7eb; background: rgba(0,0,0,.35); cursor: pointer; font-family: inherit; min-height: 34px; }
+        .chip:hover { background: rgba(255,255,255,.07); }
+        .chip[aria-pressed="true"] { background: rgba(6,182,212,.18); border-color: rgba(34,211,238,.6); color: #fff; }
+        .src { font-size: 11.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+        .src.learned { color: #a7f3d0; background: rgba(16,185,129,.12); border: 1px solid rgba(52,211,153,.35); }
+        .src.default { color: #cbd5e1; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+        .tt { border-color: rgba(255,255,255,.18); }
+        .tt-sub { padding-left: 14px; border-left: 2px solid rgba(34,211,238,.3); display: flex; flex-direction: column; gap: 10px; }
+        .warns { display: flex; flex-direction: column; gap: 6px; }
+        .warns div { font-size: 12.5px; border-radius: 10px; padding: 7px 10px; line-height: 1.45; overflow-wrap: anywhere; }
+        .warns .b { color: #fecaca; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); }
+        .warns .s { color: #fde68a; background: rgba(245,158,11,.08); border: 1px solid rgba(251,191,36,.22); }
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+        /* Duyệt bài, tài khoản, hiệu quả */
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .plan-f { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, .7fr) auto; gap: 12px; align-items: end; }
+        .c-top { display: flex; align-items: center; gap: 12px; }
+        .c-name { font-weight: 900; font-size: 16px; color: #fff; }
+        .c-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+        .c-top .pill { margin-left: auto; }
+        .reqs { margin: 0; padding-left: 18px; font-size: 12.5px; color: #cbd5e1; line-height: 1.55; }
+        .kv { display: grid; gap: 8px; }
+        .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .tbl th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+        .tbl td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; color: #e5e7eb; }
+        .tbl-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+        .totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .mets { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: #cbd5e1; }
+        .mets b { color: #fff; font-variant-numeric: tabular-nums; }
+        .rv { white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #e5e7eb; overflow-wrap: anywhere; }
+        .cap-full { white-space: pre-wrap; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; color: #e5e7eb; }
+        details summary { cursor: pointer; font-size: 13px; font-weight: 800; color: #a5f3fc; min-height: 32px; display: flex; align-items: center; }
+        /* Hộp thoại (bài viết, thư viện) */
+        .modal { position: fixed; inset: 0; z-index: 80; background: rgba(2,6,23,.74); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal-card { width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #0c1230; border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+        .modal-h { display: flex; align-items: center; gap: 10px; }
+        .modal-h .h3 { flex: 1; min-width: 0; }
+        .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+        .gitem { position: relative; border-radius: 12px; overflow: hidden; border: 2px solid transparent; background: #000; aspect-ratio: 1 / 1; cursor: pointer; padding: 0; }
+        .gitem:hover { border-color: rgba(34,211,238,.6); }
+        .gitem img, .gitem video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+        .gitem .k { position: absolute; left: 6px; bottom: 6px; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,.72); color: #fff; }
+        .row:has(#cmpFile:focus-visible) #cmpFileBtn { outline: 2px solid #67e8f9; outline-offset: 2px; }   /* ô chọn tệp bị ẩn -> viền focus hiện trên nút */
+        .pv { max-width: 100%; max-height: 340px; border-radius: 14px; display: block; background: #000; }
+        #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 99; max-width: 92vw; padding: 11px 16px; border-radius: 12px; font-weight: 700; font-size: 13.5px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+        .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        @media (max-width: 1240px) {
+            .wk { grid-template-columns: 1fr; }
+            .day { min-height: 0; }
+            .day .pcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+            .day-h { justify-content: flex-start; gap: 8px; }
+        }
+        @media (max-width: 1240px) {
+            .day.empty-day { flex-direction: row; align-items: center; justify-content: space-between; padding: 6px 12px; }
+            .day.empty-day .day-h { padding: 0; }
+        }
+        @media (max-width: 1100px) {
+            .grid2 { grid-template-columns: minmax(0, 1fr); }
+            .plan-f { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            /* 1 cột: chọn nền tảng lên đầu — ô nội dung riêng + cảnh báo phụ thuộc nền tảng đã chọn */
+            .cmp { display: flex; flex-direction: column; }
+            .cmp .col { display: contents; }
+            #cmpPlatCard { order: -1; }
+        }
+        @media (max-width: 760px) {
+            .head h1 { font-size: 22px; }
+            .tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; }
+            .tab { flex-direction: column; gap: 4px; padding: 8px 2px; font-size: 11px; text-align: center; }
+            .tab .n { position: absolute; top: 2px; right: 4px; }
+            .plan-f { grid-template-columns: minmax(0, 1fr); }
+            .card { padding: 14px; border-radius: 16px; }
+            .lr { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+            .day .pcs { grid-template-columns: minmax(0, 1fr); }
+            .ptogs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            .actions { justify-content: stretch; }
+            .actions .btn { flex: 1 1 auto; }
+            .modal { align-items: flex-end; padding: 0; }
+            .modal-card { border-radius: 20px 20px 0 0; max-height: 90vh; padding: 16px; }
+            .gal { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+    <div class="glow" style="top:-12%;left:18%;background:rgba(6,182,212,.10)"></div>
+    <div class="glow" style="bottom:-20%;right:-10%;background:rgba(124,58,237,.10)"></div>
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 min-w-0 p-4 md:p-8">
+        <div class="head">
+            <div>
+                <h1 data-t="pageTitle">Social posts</h1>
+                <p data-t="lead">Plan, write and schedule posts for Facebook, Instagram, TikTok, YouTube and Google — then see how they really did.</p>
+            </div>
+            <span class="tz" id="tzLabel"><i class="fas fa-clock"></i> <span></span></span>
+        </div>
+
+        <div class="tabs" role="tablist" id="tabs" aria-label="Social">
+            <button class="tab" role="tab" id="tab-calendar" data-tab="calendar" aria-controls="pane-calendar" aria-selected="true"><i class="fas fa-calendar-week"></i><span data-t="tabCalendar">Calendar</span></button>
+            <button class="tab" role="tab" id="tab-compose" data-tab="compose" aria-controls="pane-compose" aria-selected="false" tabindex="-1"><i class="fas fa-pen-to-square"></i><span data-t="tabCompose">Compose</span></button>
+            <button class="tab" role="tab" id="tab-approvals" data-tab="approvals" aria-controls="pane-approvals" aria-selected="false" tabindex="-1"><i class="fas fa-list-check"></i><span data-t="tabApprovals">Approvals</span><span class="n" id="pendBadge" hidden></span></button>
+            <button class="tab" role="tab" id="tab-accounts" data-tab="accounts" aria-controls="pane-accounts" aria-selected="false" tabindex="-1"><i class="fas fa-plug"></i><span data-t="tabAccounts">Accounts</span></button>
+            <button class="tab" role="tab" id="tab-performance" data-tab="performance" aria-controls="pane-performance" aria-selected="false" tabindex="-1"><i class="fas fa-chart-simple"></i><span data-t="tabPerformance">Performance</span></button>
+        </div>
+
+        <!-- ============ LỊCH ĐĂNG ============ -->
+        <section id="pane-calendar" role="tabpanel" aria-labelledby="tab-calendar">
+            <div class="bar">
+                <div class="seg" role="group" aria-label="View">
+                    <button type="button" data-act="view" data-view="week" aria-pressed="true" data-t="viewWeek">Week</button>
+                    <button type="button" data-act="view" data-view="list" aria-pressed="false" data-t="viewList">List</button>
+                </div>
+                <div class="row" id="wkNav">
+                    <button type="button" class="btn icon" data-act="wk-prev" data-ta="prevWeek" aria-label="Previous week"><i class="fas fa-chevron-left"></i></button>
+                    <span class="wkl" id="wkLabel"></span>
+                    <button type="button" class="btn icon" data-act="wk-next" data-ta="nextWeek" aria-label="Next week"><i class="fas fa-chevron-right"></i></button>
+                    <button type="button" class="btn sm" data-act="wk-today" data-t="thisWeek">This week</button>
+                </div>
+                <select class="f" id="listFilter" style="width:auto;min-width:160px" hidden aria-label="Filter">
+                    <option value="all" data-t="fltAll">All posts</option>
+                    <option value="scheduled" data-t="fltScheduled">Scheduled</option>
+                    <option value="published" data-t="fltPublished">Published</option>
+                    <option value="problems" data-t="fltProblems">Problems</option>
+                    <option value="drafts" data-t="fltDrafts">Drafts</option>
+                </select>
+                <span class="grow"></span>
+                <button type="button" class="btn btn-primary" data-act="new-post"><i class="fas fa-pen"></i> <span data-t="newPost">New post</span></button>
+            </div>
+            <div id="calBody"><div class="card"><div class="hint"><i class="fas fa-circle-notch fa-spin"></i> <span data-t="loading">Loading…</span></div></div></div>
+        </section>
+
+        <!-- ============ SOẠN BÀI ============ -->
+        <section id="pane-compose" role="tabpanel" aria-labelledby="tab-compose" hidden>
+            <div class="cmp">
+                <div class="col">
+                    <div class="card">
+                        <div class="row between">
+                            <h3 id="cmpMode">New post</h3>
+                            <button type="button" class="btn sm" data-act="cmp-reset"><i class="fas fa-rotate-left"></i> <span data-t="cmpReset">Start over</span></button>
+                        </div>
+                        <div class="info" id="cmpPendingNote" hidden></div>
+                        <label class="lbl" for="cmpCaption" data-t="lblCaption">Main caption</label>
+                        <textarea id="cmpCaption" class="f" rows="6" data-tp="phCaption" placeholder="What do you want to tell your customers?"></textarea>
+                        <div class="row between">
+                            <span class="cnt" id="cmpCapCount">0</span>
+                            <button type="button" class="btn" data-act="ai-captions" id="btnAiCap"><i class="fas fa-wand-magic-sparkles"></i> <span data-t="aiWrite">Write for each platform</span></button>
+                        </div>
+                        <div class="stack" id="cmpEditorsWrap" hidden>
+                            <span class="lbl" data-t="perPlatform">Caption for each platform</span>
+                            <div class="stack" id="cmpEditors"></div>
+                        </div>
+                        <label class="lbl" for="cmpLink" data-t="lblLink">Link (optional)</label>
+                        <input id="cmpLink" class="f" type="url" inputmode="url" placeholder="https://" autocomplete="off">
+                        <span class="hint" data-t="linkHint">Facebook shows it as a link preview. Google uses your booking link for its Book button.</span>
+                    </div>
+
+                    <div class="card">
+                        <h3 data-t="media">Photo or video</h3>
+                        <div id="cmpMedia"></div>
+                        <div class="row">
+                            <button type="button" class="btn" data-act="open-picker"><i class="fas fa-images"></i> <span data-t="fromStudio">Choose from AI Studio</span></button>
+                            <label class="btn" for="cmpFile" id="cmpFileBtn"><i class="fas fa-upload"></i> <span data-t="upload">Upload</span></label>
+                            <input type="file" id="cmpFile" class="sr" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm">
+                        </div>
+                        <div class="stack" id="upProg" hidden>
+                            <div class="prog"><span id="upBar"></span></div>
+                            <span class="hint" id="upTxt"></span>
+                        </div>
+                        <span class="hint" data-t="mediaHint">One photo or one video per post. Photos are saved as JPEG so Instagram accepts them. Up to 8 MB per photo and 30 MB per video (MP4 or WebM).</span>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card" id="cmpPlatCard">
+                        <h3 data-t="postTo">Post to</h3>
+                        <div class="ptogs" id="cmpPlatforms"></div>
+                    </div>
+
+                    <div class="card tt" id="cmpTiktok" hidden></div>
+
+                    <div class="card">
+                        <h3 data-t="when">When</h3>
+                        <div class="seg" role="group" aria-label="When">
+                            <button type="button" data-act="when" data-when="now" aria-pressed="true" data-t="now">Now</button>
+                            <button type="button" data-act="when" data-when="later" aria-pressed="false" data-t="later">Schedule</button>
+                        </div>
+                        <div class="stack" id="cmpWhenWrap" hidden>
+                            <label class="lbl" for="cmpWhen" id="cmpWhenLbl">Date and time</label>
+                            <input type="datetime-local" id="cmpWhen" class="f">
+                            <div class="stack" id="cmpBest"></div>
+                        </div>
+                    </div>
+
+                    <div class="warns" id="cmpWarn" aria-live="polite"></div>
+                    <div class="actions">
+                        <button type="button" class="btn" data-act="cmp-draft" id="btnDraft"><i class="far fa-floppy-disk"></i> <span>Save draft</span></button>
+                        <button type="button" class="btn btn-primary" data-act="cmp-submit" id="btnSubmit"><i class="fas fa-paper-plane"></i> <span>Publish now</span></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ DUYỆT BÀI ============ -->
+        <section id="pane-approvals" role="tabpanel" aria-labelledby="tab-approvals" hidden>
+            <div class="card">
+                <h3 data-t="planTitle">Let AI plan your week</h3>
+                <p class="hint" style="margin:0" data-t="planLead">AI drafts posts from your real services, prices, promotions and photos. Nothing is posted until you approve it.</p>
+                <form class="plan-f" id="planForm" autocomplete="off">
+                    <div class="kv"><label class="lbl" for="planStart" data-t="planStart">Week starting</label><input type="date" id="planStart" class="f" required></div>
+                    <div class="kv"><span class="lbl" data-t="planPlats">Platforms</span><div class="chips" id="planPlats"></div></div>
+                    <div class="kv"><label class="lbl" for="planN" data-t="planN">Posts per week</label><input type="number" id="planN" class="f" min="1" max="14" value="3" required></div>
+                    <button type="submit" class="btn btn-primary" id="btnPlan"><i class="fas fa-wand-magic-sparkles"></i> <span data-t="planGo">Plan my week</span></button>
+                </form>
+                <span class="hint" data-t="planVideoNote">YouTube and TikTok need a video you choose — post those from Compose.</span>
+            </div>
+            <div class="row between" style="margin:24px 0 12px">
+                <h3 class="h3"><span data-t="pendTitle">Waiting for approval</span> <span class="hint" id="pendCount"></span></h3>
+                <button type="button" class="btn btn-ok" data-act="approve-all" id="btnApproveAll" hidden><i class="fas fa-check-double"></i> <span data-t="approveAll">Approve all</span></button>
+            </div>
+            <div id="pendList" class="grid2"></div>
+        </section>
+
+        <!-- ============ TÀI KHOẢN ============ -->
+        <section id="pane-accounts" role="tabpanel" aria-labelledby="tab-accounts" hidden>
+            <p class="hint" style="margin:0 0 14px" data-t="accLead">Connect the accounts BitPaw may post to. BitPaw checks each connection with the platform before saving it.</p>
+            <div class="grid2" id="accCards"></div>
+        </section>
+
+        <!-- ============ HIỆU QUẢ ============ -->
+        <section id="pane-performance" role="tabpanel" aria-labelledby="tab-performance" hidden>
+            <div class="bar">
+                <select class="f" id="perfDays" style="width:auto;min-width:150px" aria-label="Period">
+                    <option value="7"></option><option value="30" selected></option><option value="90"></option>
+                </select>
+                <span class="grow"></span>
+                <button type="button" class="btn btn-primary" data-act="ai-review" id="btnReview"><i class="fas fa-wand-magic-sparkles"></i> <span data-t="review">AI review</span></button>
+            </div>
+            <div class="card" id="reviewBox" hidden></div>
+            <div id="perfBody"><div class="card"><div class="hint"><i class="fas fa-circle-notch fa-spin"></i> <span data-t="loading">Loading…</span></div></div></div>
+            <p class="sec-title" data-t="btTitle">Best times to post</p>
+            <p class="hint" style="margin:-4px 0 10px" data-t="btLead">Learned from your own posts once a platform has 10 or more published posts with stats. Until then BitPaw uses industry defaults.</p>
+            <div id="btTable"></div>
+        </section>
+    </main>
+
+    <!-- Hộp thoại chi tiết bài -->
+    <div class="modal" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="modal-card">
+            <div class="modal-h"><span class="h3" id="sheetTitle"></span><button type="button" class="btn icon" data-act="close-modal" data-ta="close" aria-label="Close"><i class="fas fa-xmark"></i></button></div>
+            <div class="stack" id="sheetBody" style="gap:14px"></div>
+        </div>
+    </div>
+    <!-- Hộp thoại thư viện AI Studio -->
+    <div class="modal" id="picker" hidden role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+        <div class="modal-card">
+            <div class="modal-h"><span class="h3" id="pickerTitle" data-t="fromStudio">Choose from AI Studio</span><button type="button" class="btn icon" data-act="close-modal" data-ta="close" aria-label="Close"><i class="fas fa-xmark"></i></button></div>
+            <div class="seg" role="group" aria-label="Filter">
+                <button type="button" data-act="gal-filter" data-f="all" aria-pressed="true" data-t="galAll">All</button>
+                <button type="button" data-act="gal-filter" data-f="image" aria-pressed="false" data-t="galPhotos">Photos</button>
+                <button type="button" data-act="gal-filter" data-f="video" aria-pressed="false" data-t="galVideos">Videos</button>
+            </div>
+            <div id="pickerBody"></div>
+        </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        // ---------------------------------------------------------------- cấu hình từ server
+        const CURRENCY = {{ (tenant_currency or 'USD')|tojson }};
+        const SERVER_TZ = {{ (shop_timezone or '')|tojson }};
+        const PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube', 'google_business'];
+        // Kế hoạch tuần của AI chỉ có chữ/ảnh -> YouTube/TikTok (chỉ nhận video, TikTok không bao giờ tự động) không nằm trong kế hoạch
+        const PLAN_PLATFORMS = ['facebook', 'instagram', 'google_business'];
+        const CHUNK = 3000000, MAX_IMAGE = 8000000, MAX_VIDEO = 30000000;   // khớp media_store (Vercel chặn body > 4.5 MB)
+        const MUSIC_URL = 'https://www.tiktok.com/legal/page/global/music-usage-confirmation/en';
+        const BC_URL = 'https://www.tiktok.com/legal/page/global/bc-policy/en';
+        const TT_PRIVACY_DEFAULT = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
+        const PLAT = {
+            facebook: { name: 'Facebook', bg: '#0866ff', icon: 'fa-brands fa-facebook-f', limit: 63206, media: ['text', 'image', 'video'] },
+            instagram: { name: 'Instagram', bg: 'linear-gradient(45deg,#f58529,#dd2a7b,#8134af)', icon: 'fa-brands fa-instagram', limit: 2200, media: ['image', 'video'] },
+            tiktok: { name: 'TikTok', bg: '#111827', icon: 'fa-brands fa-tiktok', limit: 2200, media: ['video'], utf16: true, provider: 'TikTok' },
+            youtube: { name: 'YouTube', bg: '#ff0000', icon: 'fa-brands fa-youtube', limit: 5000, titleLimit: 100, media: ['video'], provider: 'Google' },
+            google_business: { name: 'Google Business Profile', short: 'Google', bg: '#1a73e8', icon: 'fa-brands fa-google', limit: 1500, media: ['text', 'image'], provider: 'Google' },
+        };
+
+        function lang() {
+            let l = '';
+            try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
+            return (l || document.documentElement.lang || 'en').slice(0, 2) === 'vi' ? 'vi' : 'en';
+        }
+        const T = {
+            en: {
+                pageTitle: 'Social posts', lead: 'Plan, write and schedule posts for Facebook, Instagram, TikTok, YouTube and Google — then see how they really did.',
+                tzIn: 'Times in {tz}', tabCalendar: 'Calendar', tabCompose: 'Compose', tabApprovals: 'Approvals', tabAccounts: 'Accounts', tabPerformance: 'Performance',
+                loading: 'Loading…', close: 'Close', cancel: 'Cancel', required: 'required', optional: 'optional', confirmAgain: 'Click again to confirm',
+                viewWeek: 'Week', viewList: 'List', thisWeek: 'This week', prevWeek: 'Previous week', nextWeek: 'Next week', newPost: 'New post',
+                fltAll: 'All posts', fltScheduled: 'Scheduled', fltPublished: 'Published', fltProblems: 'Problems', fltDrafts: 'Drafts & approvals',
+                noPostsWeek: 'Nothing planned this week.', noPostsList: 'No posts in this period.', dayEmpty: 'No posts', upcoming: 'Upcoming', recent: 'Recent',
+                planWithAi: 'Let AI plan a week', listRange: 'Showing the last 30 days and the next 90 days.',
+                s_draft: 'Draft', s_pending_approval: 'Waiting for approval', s_scheduled: 'Scheduled', s_publishing: 'Publishing', s_published: 'Published',
+                s_partial: 'Partly published', s_failed: 'Failed', s_canceled: 'Canceled', asap: 'As soon as possible',
+                tg_scheduled: 'Scheduled', tg_publishing: 'Publishing…', tg_retry: 'Retrying at {time}', tg_remote: 'Scheduled on {p}',
+                tg_remoteHint: 'Handed to {p} — it publishes the post at the set time.', tg_processing: 'Processing on {p}',
+                tg_processingHint: '{p} is still processing the media. This can take a few minutes.', tg_published: 'Published', tg_view: 'View post',
+                tg_failed: 'Failed', tg_skipped: 'Skipped', tg_attempts: 'Attempt {n}', tg_publishedAt: 'Published {time}',
+                aiDraft: 'AI draft', aiMedia: 'AI-generated media',
+                actEdit: 'Edit', actPublishNow: 'Publish now', actCancel: 'Cancel post', actDelete: 'Delete', actRemove: 'Remove from BitPaw',
+                removeNote: 'Removes it from BitPaw only — what is already on the platforms stays there.',
+                canceledOk: 'Post canceled', deletedOk: 'Deleted', publishSent: 'Sent — each platform’s status is shown on the post.',
+                publishResult: 'Published on {ok} of {n}. Check the post for details.',
+                cmpNew: 'New post', cmpEditing: 'Editing post #{id}', cmpReset: 'Start over', lblCaption: 'Main caption',
+                phCaption: 'What do you want to tell your customers?', aiWrite: 'Write for each platform', aiWriting: 'Writing…',
+                aiNeedText: 'Write the main caption first.', aiNeedPlat: 'Choose at least one platform first.',
+                aiDone: 'Captions written — read them before posting.', aiReplace: 'Replace your platform captions? Click again',
+                perPlatform: 'Caption for each platform', phPlat: 'Empty = use the main caption', ytTitle: 'YouTube title', ytDesc: 'Description',
+                lblLink: 'Link (optional)', linkHint: 'Facebook shows it as a link preview. Google uses your booking link for its Book button.',
+                media: 'Photo or video', fromStudio: 'Choose from AI Studio', upload: 'Upload', remove: 'Remove',
+                mediaHint: 'One photo or one video per post. Photos are saved as JPEG so Instagram accepts them. Up to 8 MB per photo and 30 MB per video (MP4 or WebM).',
+                noMedia: 'No photo or video — text only.', uploading: 'Uploading… {pct}%', preparing: 'Preparing the photo…', uploadDone: 'Uploaded',
+                tooBigImg: 'This photo is larger than 8 MB even after compressing.', tooBigVid: 'This video is larger than 30 MB — trim or compress it first.',
+                imgReadFail: 'This photo could not be read. Try a JPEG or PNG.', mediaNotFound: 'That photo or video is not in your AI Studio gallery.',
+                k_image: 'Photo', k_video: 'Video', k_ai_image: 'AI photo', k_ai_video: 'AI video', k_promo_video: 'Promo video', k_social_upload: 'Upload',
+                galAll: 'All', galPhotos: 'Photos', galVideos: 'Videos', galEmpty: 'Nothing in your AI Studio gallery yet.', openStudio: 'Open AI Studio',
+                postTo: 'Post to', notConnected: 'Not connected', needsReconnect: 'Reconnect needed', connectIt: 'Connect in Accounts',
+                noAccounts: 'No account is connected yet — connect one before posting.', thePlatform: 'the platform',
+                when: 'When', now: 'Now', later: 'Schedule', dateTime: 'Date and time ({tz})',
+                bestTimes: 'Best times', learned: 'Learned from your posts', learnedN: '{n} posts', industryDefault: 'Industry default',
+                bestNone: 'No suggestion available for {p}.',
+                btnPublish: 'Publish now', btnSchedule: 'Schedule', btnDraft: 'Save draft', btnSave: 'Save changes', saving: 'Saving…', publishing: 'Publishing…',
+                savedDraft: 'Draft saved', scheduledOk: 'Scheduled for {time}', savedOk: 'Saved',
+                pendingNote: 'This AI draft is waiting for approval. Save your changes here, then approve it in Approvals.',
+                w_noPlat: 'Choose where to post.', w_noContent: 'Write a caption or add a photo or video.', w_needVideo: '{p} only takes videos.',
+                w_needMedia: 'Instagram needs a photo or a video.', w_noVideo: 'Google Business Profile can’t post videos — remove the video or turn Google off.',
+                w_igJpeg: 'Instagram only takes JPEG photos — this one is {type}. Upload it again so BitPaw saves it as JPEG.',
+                w_igMp4: 'Instagram needs an MP4 video.', w_tooLong: '{p}: {n} characters — the limit is {max}.',
+                w_hashtags: 'Instagram allows up to 30 hashtags — this caption has {n}.', w_ytTitle: 'YouTube needs a title.',
+                w_ytTitleLong: 'The YouTube title is over 100 characters.', w_ytAngle: 'YouTube doesn’t accept < or > in the title or description.',
+                w_gbpHash: 'Google Business Profile posts look better without hashtags.', w_ttPrivacy: 'TikTok: choose who can see the video.',
+                w_ttBrand: 'TikTok: say whether the promotion is for your own brand or a paid partnership.',
+                w_ttBrandPrivate: 'TikTok: branded content can’t be private — choose another audience.',
+                w_pickTime: 'Pick a date and time.', w_past: 'That time has already passed.', w_uploading: 'Wait for the upload to finish.',
+                w_reconnect: '{p} needs to be reconnected (Accounts tab).',
+                ttTitle: 'TikTok settings', ttAs: 'Posting to TikTok as {name}', ttWho: 'Who can see this video', ttChoose: 'Choose…',
+                priv_PUBLIC_TO_EVERYONE: 'Everyone', priv_MUTUAL_FOLLOW_FRIENDS: 'Friends (followers you follow back)', priv_FOLLOWER_OF_CREATOR: 'Followers', priv_SELF_ONLY: 'Only me',
+                ttAllow: 'Allow viewers to', ttComment: 'Comment', ttDuet: 'Duet', ttStitch: 'Stitch', ttOffByCreator: 'turned off in your TikTok settings',
+                ttDisclose: 'Disclose video content', ttDiscloseHint: 'Turn this on if the video promotes you, a brand, a product or a service.',
+                ttYourBrand: 'Your brand', ttYourBrandHint: 'You are promoting yourself or your own business. TikTok labels the video “Promotional content”.',
+                ttBranded: 'Branded content', ttBrandedHint: 'You are promoting another brand or a third party. TikTok labels the video “Paid partnership”.',
+                ttMusicPre: "By posting, you agree to TikTok's ", ttMusic: 'Music Usage Confirmation', ttBc: 'Branded Content Policy', ttAnd: ' and ',
+                ttAigc: 'This video comes from AI Studio, so TikTok will label it as AI-generated.',
+                ttAfter: 'After posting, TikTok can take a few minutes to process the video before it shows on your profile.',
+                ttMaxDur: 'TikTok allows videos up to {s} seconds on your account.',
+                planTitle: 'Let AI plan your week', planLead: 'AI drafts posts from your real services, prices, promotions and photos. Nothing is posted until you approve it.',
+                planStart: 'Week starting', planPlats: 'Platforms', planN: 'Posts per week', planGo: 'Plan my week', planning: 'AI is planning — this can take up to a minute…',
+                planDone: '{n} drafts are ready for your review', planDone1: 'One draft is ready for your review', planDone0: 'The AI didn’t create any drafts this time — try again, or write a post yourself.', planNeedPlat: 'Choose at least one connected platform.',
+                planNoneConnected: 'Connect Facebook, Instagram or Google Business Profile in Accounts first.',
+                planVideoNote: 'YouTube and TikTok need a video you choose — post those from Compose.',
+                pendTitle: 'Waiting for approval', pendEmpty: 'No drafts waiting. Plan a week with AI above, or write a post yourself.',
+                approve: 'Approve', approveAll: 'Approve all', reject: 'Reject', editInCompose: 'Open in Compose', approvedOk: 'Approved — it will post {time}',
+                approvedAll: 'Approved {ok} of {n}', rejectedOk: 'Draft removed', imageIdea: 'Image idea', makeInStudio: 'Make it in AI Studio',
+                igNeedsPhoto: 'Instagram needs a photo — add one in Compose, or Instagram will skip this post.', timeAt: 'at {time}', timeAsap: 'as soon as possible',
+                accLead: 'Connect the accounts BitPaw may post to. BitPaw checks each connection with the platform before saving it.',
+                cap_facebook: 'Text, photo and video posts on your Facebook Page. Posts scheduled at least 12 minutes ahead are handed to Facebook, which publishes them on time.',
+                cap_instagram: 'Photos (JPEG) and Reels on an Instagram professional account linked to your Facebook Page. Instagram can’t post text only, and it limits how many posts an app may publish per day.',
+                cap_youtube: 'Video uploads (Shorts) to your channel. Until Google verifies BitPaw’s app, uploads stay private — you can make them public in YouTube Studio.',
+                cap_tiktok: 'Videos only. You choose who can see each video before it posts. Until TikTok audits BitPaw’s app, TikTok keeps posts private (only you can see them).',
+                cap_google_business: 'Updates with an optional photo on your Google Business Profile — no videos, no hashtags, up to 1,500 characters, with a Book button when you have a booking link.',
+                connected: 'Connected', notConnectedPill: 'Not connected', needsReconnectPill: 'Reconnect needed',
+                via_inbox: 'via your inbox connection', via_token: 'via a pasted token', via_oauth: 'via sign-in',
+                useInbox: 'Use my inbox connection', useInboxHint_facebook: 'Uses the Facebook Page you already connected for Messenger.',
+                useInboxHint_instagram: 'Uses the Instagram account you already connected for Direct messages.',
+                pasteToken: 'Paste a token', fToken: 'Page access token', fPageId: 'Page ID', fIgId: 'Instagram account ID', checkConnect: 'Check & connect',
+                checking: 'Checking with {p}…', signIn: 'Connect with {provider}', signInAgain: 'Reconnect with {provider}', notConfigured: 'BitPaw’s {p} app is not set up yet — the BitPaw team has to register it with {provider} first, so connecting isn’t possible today.',
+                disconnect: 'Disconnect', disconnected: 'Disconnected', reqTitle: 'What’s needed', lastErr: 'Last problem', connectedOk: '{p} connected',
+                sureOff: 'Disconnect? Scheduled posts to {p} will fail. Click again',
+                perfDays: 'Last {n} days', review: 'AI review', reviewing: 'Reviewing…', topPosts: 'Top posts', perfEmpty: 'No published posts with stats yet',
+                perfEmptyHint: 'Numbers show up here once your posts are live and the platforms report their stats.', perfPosts: 'Posts',
+                m_views: 'Views', m_reach: 'Reach', m_likes: 'Likes', m_comments: 'Comments', m_shares: 'Shares', m_saves: 'Saves', m_saved: 'Saves', m_clicks: 'Clicks', m_posts: 'Posts',
+                statsAsOf: 'Stats as of {time}', btTitle: 'Best times to post',
+                btLead: 'Learned from your own posts once a platform has 10 or more published posts with stats. Until then BitPaw uses industry defaults.',
+                btPlatform: 'Platform', btSource: 'Based on', btSlots: 'Best slots', windowLbl: 'Period: {w}', colPost: 'Post', colStats: 'Stats',
+            },
+            vi: {
+                pageTitle: 'Đăng bài mạng xã hội', lead: 'Lên kế hoạch, viết và hẹn giờ đăng bài lên Facebook, Instagram, TikTok, YouTube và Google — rồi xem kết quả thật.',
+                tzIn: 'Giờ theo {tz}', tabCalendar: 'Lịch đăng', tabCompose: 'Soạn bài', tabApprovals: 'Duyệt bài', tabAccounts: 'Tài khoản', tabPerformance: 'Hiệu quả',
+                loading: 'Đang tải…', close: 'Đóng', cancel: 'Huỷ', required: 'bắt buộc', optional: 'không bắt buộc', confirmAgain: 'Bấm lần nữa để xác nhận',
+                viewWeek: 'Tuần', viewList: 'Danh sách', thisWeek: 'Tuần này', prevWeek: 'Tuần trước', nextWeek: 'Tuần sau', newPost: 'Bài mới',
+                fltAll: 'Tất cả bài', fltScheduled: 'Đã hẹn giờ', fltPublished: 'Đã đăng', fltProblems: 'Có lỗi', fltDrafts: 'Nháp & chờ duyệt',
+                noPostsWeek: 'Tuần này chưa có bài nào.', noPostsList: 'Không có bài nào trong khoảng này.', dayEmpty: 'Trống', upcoming: 'Sắp đăng', recent: 'Gần đây',
+                planWithAi: 'Để AI lên kế hoạch tuần', listRange: 'Hiện 30 ngày qua và 90 ngày tới.',
+                s_draft: 'Nháp', s_pending_approval: 'Chờ duyệt', s_scheduled: 'Đã hẹn giờ', s_publishing: 'Đang đăng', s_published: 'Đã đăng',
+                s_partial: 'Đăng được một phần', s_failed: 'Thất bại', s_canceled: 'Đã huỷ', asap: 'Đăng sớm nhất có thể',
+                tg_scheduled: 'Đã hẹn giờ', tg_publishing: 'Đang đăng…', tg_retry: 'Thử lại lúc {time}', tg_remote: 'Đã hẹn giờ trên {p}',
+                tg_remoteHint: 'Đã giao cho {p} — {p} tự đăng đúng giờ đã hẹn.', tg_processing: '{p} đang xử lý',
+                tg_processingHint: '{p} vẫn đang xử lý ảnh/video. Việc này có thể mất vài phút.', tg_published: 'Đã đăng', tg_view: 'Xem bài',
+                tg_failed: 'Lỗi', tg_skipped: 'Bỏ qua', tg_attempts: 'Lần thử {n}', tg_publishedAt: 'Đăng lúc {time}',
+                aiDraft: 'AI soạn', aiMedia: 'Ảnh/video do AI tạo',
+                actEdit: 'Sửa', actPublishNow: 'Đăng ngay', actCancel: 'Huỷ bài', actDelete: 'Xoá', actRemove: 'Xoá khỏi BitPaw',
+                removeNote: 'Chỉ xoá khỏi BitPaw — bài đã lên các nền tảng vẫn còn ở đó.',
+                canceledOk: 'Đã huỷ bài', deletedOk: 'Đã xoá', publishSent: 'Đã gửi — trạng thái từng nền tảng hiện trên bài.',
+                publishResult: 'Đã đăng lên {ok}/{n} nền tảng. Mở bài để xem chi tiết.',
+                cmpNew: 'Bài mới', cmpEditing: 'Đang sửa bài #{id}', cmpReset: 'Làm lại', lblCaption: 'Nội dung chính',
+                phCaption: 'Bạn muốn nói gì với khách?', aiWrite: 'AI viết cho từng nền tảng', aiWriting: 'AI đang viết…',
+                aiNeedText: 'Hãy viết nội dung chính trước.', aiNeedPlat: 'Hãy chọn ít nhất 1 nền tảng trước.',
+                aiDone: 'AI đã viết xong — đọc lại trước khi đăng.', aiReplace: 'Thay nội dung riêng bạn đã viết? Bấm lần nữa',
+                perPlatform: 'Nội dung riêng từng nền tảng', phPlat: 'Để trống = dùng nội dung chính', ytTitle: 'Tiêu đề YouTube', ytDesc: 'Mô tả',
+                lblLink: 'Đường link (không bắt buộc)', linkHint: 'Facebook hiện link dạng xem trước. Google dùng link đặt lịch của tiệm cho nút Đặt lịch.',
+                media: 'Ảnh hoặc video', fromStudio: 'Chọn từ AI Studio', upload: 'Tải lên', remove: 'Bỏ',
+                mediaHint: 'Mỗi bài 1 ảnh hoặc 1 video. Ảnh được lưu dạng JPEG để Instagram nhận. Tối đa 8 MB mỗi ảnh và 30 MB mỗi video (MP4 hoặc WebM).',
+                noMedia: 'Chưa có ảnh/video — chỉ đăng chữ.', uploading: 'Đang tải lên… {pct}%', preparing: 'Đang chuẩn bị ảnh…', uploadDone: 'Đã tải lên',
+                tooBigImg: 'Ảnh vẫn lớn hơn 8 MB sau khi nén.', tooBigVid: 'Video lớn hơn 30 MB — hãy cắt ngắn hoặc nén trước.',
+                imgReadFail: 'Không đọc được ảnh này. Hãy thử ảnh JPEG hoặc PNG.', mediaNotFound: 'Ảnh/video đó không có trong thư viện AI Studio của bạn.',
+                k_image: 'Ảnh', k_video: 'Video', k_ai_image: 'Ảnh AI', k_ai_video: 'Video AI', k_promo_video: 'Video quảng bá', k_social_upload: 'Tải lên',
+                galAll: 'Tất cả', galPhotos: 'Ảnh', galVideos: 'Video', galEmpty: 'Thư viện AI Studio của bạn chưa có gì.', openStudio: 'Mở AI Studio',
+                postTo: 'Đăng lên', notConnected: 'Chưa nối', needsReconnect: 'Cần nối lại', connectIt: 'Nối ở tab Tài khoản',
+                noAccounts: 'Chưa nối tài khoản nào — hãy nối trước khi đăng.', thePlatform: 'nền tảng',
+                when: 'Khi nào', now: 'Ngay', later: 'Hẹn giờ', dateTime: 'Ngày giờ ({tz})',
+                bestTimes: 'Giờ đẹp', learned: 'Học từ bài của bạn', learnedN: '{n} bài', industryDefault: 'Mặc định theo ngành',
+                bestNone: 'Chưa có gợi ý giờ cho {p}.',
+                btnPublish: 'Đăng ngay', btnSchedule: 'Hẹn giờ đăng', btnDraft: 'Lưu nháp', btnSave: 'Lưu thay đổi', saving: 'Đang lưu…', publishing: 'Đang đăng…',
+                savedDraft: 'Đã lưu nháp', scheduledOk: 'Đã hẹn đăng lúc {time}', savedOk: 'Đã lưu',
+                pendingNote: 'Bài AI soạn này đang chờ duyệt. Lưu thay đổi ở đây rồi duyệt ở tab Duyệt bài.',
+                w_noPlat: 'Chọn nơi đăng.', w_noContent: 'Viết nội dung hoặc thêm ảnh/video.', w_needVideo: '{p} chỉ nhận video.',
+                w_needMedia: 'Instagram cần ảnh hoặc video.', w_noVideo: 'Google Business Profile không đăng được video — bỏ video hoặc tắt Google.',
+                w_igJpeg: 'Instagram chỉ nhận ảnh JPEG — ảnh này là {type}. Tải ảnh lên lại để BitPaw lưu thành JPEG.',
+                w_igMp4: 'Instagram cần video MP4.', w_tooLong: '{p}: {n} ký tự — giới hạn {max}.',
+                w_hashtags: 'Instagram cho tối đa 30 hashtag — bài này có {n}.', w_ytTitle: 'YouTube cần tiêu đề.',
+                w_ytTitleLong: 'Tiêu đề YouTube dài quá 100 ký tự.', w_ytAngle: 'YouTube không nhận dấu < hoặc > trong tiêu đề/mô tả.',
+                w_gbpHash: 'Bài trên Google Business Profile nên bỏ hashtag.', w_ttPrivacy: 'TikTok: chọn ai được xem video.',
+                w_ttBrand: 'TikTok: chọn quảng bá cho thương hiệu của bạn hay hợp tác trả phí.',
+                w_ttBrandPrivate: 'TikTok: nội dung có thương hiệu không được để riêng tư — chọn người xem khác.',
+                w_pickTime: 'Chọn ngày và giờ.', w_past: 'Thời điểm này đã qua.', w_uploading: 'Đợi tải lên xong đã.',
+                w_reconnect: '{p} cần được nối lại (tab Tài khoản).',
+                ttTitle: 'Cài đặt TikTok', ttAs: 'Đăng lên TikTok bằng tài khoản {name}', ttWho: 'Ai được xem video này', ttChoose: 'Chọn…',
+                priv_PUBLIC_TO_EVERYONE: 'Mọi người', priv_MUTUAL_FOLLOW_FRIENDS: 'Bạn bè (theo dõi lẫn nhau)', priv_FOLLOWER_OF_CREATOR: 'Người theo dõi', priv_SELF_ONLY: 'Chỉ mình tôi',
+                ttAllow: 'Cho phép người xem', ttComment: 'Bình luận', ttDuet: 'Duet', ttStitch: 'Stitch', ttOffByCreator: 'đã tắt trong cài đặt TikTok của bạn',
+                ttDisclose: 'Công khai nội dung quảng bá', ttDiscloseHint: 'Bật nếu video quảng bá cho bạn, một thương hiệu, sản phẩm hay dịch vụ.',
+                ttYourBrand: 'Thương hiệu của bạn', ttYourBrandHint: 'Bạn quảng bá cho chính mình hoặc tiệm của mình. TikTok gắn nhãn “Nội dung quảng cáo”.',
+                ttBranded: 'Nội dung có thương hiệu', ttBrandedHint: 'Bạn quảng bá cho thương hiệu khác hoặc bên thứ ba. TikTok gắn nhãn “Hợp tác trả phí”.',
+                ttMusicPre: 'Khi đăng, bạn đồng ý với ', ttMusic: 'Xác nhận sử dụng âm nhạc (Music Usage Confirmation) của TikTok', ttBc: 'Chính sách nội dung có thương hiệu của TikTok', ttAnd: ' và ',
+                ttAigc: 'Video này lấy từ AI Studio nên TikTok sẽ gắn nhãn “do AI tạo”.',
+                ttAfter: 'Sau khi đăng, TikTok có thể mất vài phút xử lý trước khi video hiện trên trang của bạn.',
+                ttMaxDur: 'Tài khoản TikTok của bạn đăng được video dài tối đa {s} giây.',
+                planTitle: 'Để AI lên kế hoạch tuần', planLead: 'AI soạn bài từ dịch vụ, giá, khuyến mãi và ảnh thật của tiệm. Không bài nào được đăng cho tới khi bạn duyệt.',
+                planStart: 'Tuần bắt đầu từ', planPlats: 'Nền tảng', planN: 'Số bài mỗi tuần', planGo: 'Lên kế hoạch', planning: 'AI đang lên kế hoạch — có thể mất tới 1 phút…',
+                planDone: 'Đã soạn {n} bài chờ bạn duyệt', planDone1: 'Đã soạn 1 bài chờ bạn duyệt', planDone0: 'Lần này AI chưa soạn được bài nào — thử lại, hoặc tự viết bài.', planNeedPlat: 'Chọn ít nhất 1 nền tảng đã nối.',
+                planNoneConnected: 'Hãy nối Facebook, Instagram hoặc Google Business Profile ở tab Tài khoản trước.',
+                planVideoNote: 'YouTube và TikTok cần video do bạn chọn — đăng chúng từ tab Soạn bài.',
+                pendTitle: 'Chờ duyệt', pendEmpty: 'Không có bài nào chờ duyệt. Để AI lên kế hoạch tuần ở trên, hoặc tự viết bài.',
+                approve: 'Duyệt', approveAll: 'Duyệt tất cả', reject: 'Bỏ', editInCompose: 'Mở trong Soạn bài', approvedOk: 'Đã duyệt — bài sẽ đăng {time}',
+                approvedAll: 'Đã duyệt {ok}/{n} bài', rejectedOk: 'Đã bỏ bài nháp', imageIdea: 'Gợi ý hình', makeInStudio: 'Tạo trong AI Studio',
+                igNeedsPhoto: 'Instagram cần ảnh — thêm ảnh ở tab Soạn bài, nếu không Instagram sẽ bỏ qua bài này.', timeAt: 'lúc {time}', timeAsap: 'sớm nhất có thể',
+                accLead: 'Nối các tài khoản BitPaw được phép đăng bài. BitPaw kiểm tra thật với từng nền tảng rồi mới lưu.',
+                cap_facebook: 'Đăng chữ, ảnh và video lên Fanpage. Bài hẹn giờ trước ít nhất 12 phút được giao cho Facebook tự đăng đúng giờ.',
+                cap_instagram: 'Đăng ảnh (JPEG) và Reels lên Instagram chuyên nghiệp đã liên kết với Fanpage. Instagram không đăng được bài chỉ có chữ và giới hạn số bài một ứng dụng được đăng mỗi ngày.',
+                cap_youtube: 'Tải video (Shorts) lên kênh của bạn. Cho tới khi Google xác minh ứng dụng của BitPaw, video tải lên ở chế độ riêng tư — bạn có thể chuyển sang công khai trong YouTube Studio.',
+                cap_tiktok: 'Chỉ đăng video. Bạn tự chọn ai được xem trước mỗi lần đăng. Cho tới khi TikTok duyệt ứng dụng của BitPaw, TikTok để bài ở chế độ riêng tư (chỉ bạn xem được).',
+                cap_google_business: 'Đăng bài cập nhật kèm ảnh (không bắt buộc) lên Google Business Profile — không video, không hashtag, tối đa 1.500 ký tự, có nút Đặt lịch khi tiệm có link đặt lịch.',
+                connected: 'Đã nối', notConnectedPill: 'Chưa nối', needsReconnectPill: 'Cần nối lại',
+                via_inbox: 'qua kết nối hộp thư', via_token: 'qua token đã dán', via_oauth: 'qua đăng nhập',
+                useInbox: 'Dùng kết nối hộp thư', useInboxHint_facebook: 'Dùng Fanpage bạn đã nối cho Messenger.',
+                useInboxHint_instagram: 'Dùng tài khoản Instagram bạn đã nối cho tin nhắn Direct.',
+                pasteToken: 'Dán token', fToken: 'Page access token', fPageId: 'Page ID', fIgId: 'Instagram account ID', checkConnect: 'Kiểm tra & nối',
+                checking: 'Đang kiểm tra với {p}…', signIn: 'Kết nối bằng {provider}', signInAgain: 'Nối lại bằng {provider}', notConfigured: 'Ứng dụng {p} của BitPaw chưa được thiết lập — đội BitPaw phải đăng ký với {provider} trước, nên hiện chưa nối được.',
+                disconnect: 'Ngắt kết nối', disconnected: 'Đã ngắt', reqTitle: 'Cần có', lastErr: 'Sự cố gần nhất', connectedOk: 'Đã nối {p}',
+                sureOff: 'Ngắt kết nối? Bài đã hẹn lên {p} sẽ không đăng được. Bấm lần nữa',
+                perfDays: '{n} ngày qua', review: 'AI nhận xét', reviewing: 'Đang xem xét…', topPosts: 'Bài nổi bật', perfEmpty: 'Chưa có bài đã đăng nào có số liệu',
+                perfEmptyHint: 'Số liệu hiện ở đây khi bài đã lên và các nền tảng báo số liệu về.', perfPosts: 'Bài đăng',
+                m_views: 'Lượt xem', m_reach: 'Tiếp cận', m_likes: 'Thích', m_comments: 'Bình luận', m_shares: 'Chia sẻ', m_saves: 'Lưu', m_saved: 'Lưu', m_clicks: 'Lượt bấm', m_posts: 'Bài',
+                statsAsOf: 'Số liệu lúc {time}', btTitle: 'Giờ đăng tốt nhất',
+                btLead: 'Học từ chính bài của bạn khi một nền tảng có từ 10 bài đã đăng có số liệu. Trước đó BitPaw dùng mặc định theo ngành.',
+                btPlatform: 'Nền tảng', btSource: 'Dựa trên', btSlots: 'Khung giờ tốt nhất', windowLbl: 'Giai đoạn: {w}', colPost: 'Bài', colStats: 'Số liệu',
+            },
+        };
+        function t(k, vars) {
+            let s = (T[lang()] || T.en)[k];
+            if (s === undefined) s = T.en[k];
+            if (s === undefined) s = k;
+            if (vars) s = s.replace(/\{(\w+)\}/g, (m, n) => (vars[n] !== undefined && vars[n] !== null ? String(vars[n]) : m));
+            return s;
+        }
+        // Mã lỗi từ API -> câu dễ hiểu (cả 2 ngôn ngữ); mã lạ thì dùng message tiếng Anh của server
+        const E = {
+            en: {
+                network: 'Can’t reach BitPaw — check your internet connection.', session: 'Your session ended — please sign in again.',
+                http: 'Something went wrong ({detail}). Please try again.', forbidden: 'Your account can’t do this — ask the shop owner or an admin.',
+                rate_limited: 'Too many requests — wait a moment and try again.', upgrade: 'This is part of a higher plan.',
+                quota_exceeded: 'You have used this month’s AI allowance for your plan.',
+                app_not_configured: 'BitPaw’s {p} app is not set up yet, so connecting {p} isn’t possible today.',
+                ig_daily_limit: 'Instagram’s daily publishing limit for apps was reached, so Instagram skipped this post.',
+                ig_needs_media: 'Instagram can’t post text only — add a photo or a video.', gbp_no_video: 'Google Business Profile can’t post videos.',
+                needs_reconnect: '{p} needs to be reconnected.', not_connected: '{p} is not connected.',
+                token_invalid: 'The token is invalid or expired — reconnect {p}.', invalid_grant: 'Access to {p} was revoked or expired — reconnect it.',
+                unreachable: 'Couldn’t reach {p} — try again in a few minutes.', provider: '{p} said: {detail}', rejected: '{p} refused: {detail}',
+                page_mismatch: 'This token belongs to a different Page than the Page ID you entered.', need_token: 'Paste the access token first.',
+                need_ig_id: 'The Instagram account ID is required.', inbox_not_connected: 'Your inbox isn’t connected to {p} yet — connect it under Messaging channels first.',
+                not_found: 'This post no longer exists.', not_editable: 'This post can’t be changed any more — it is already publishing or published.',
+                bad_status: 'This post can’t do that in its current state.', bad_time: 'Pick a valid date and time.', past_time: 'That time has already passed.',
+                bad_platform: 'Unknown platform.', no_targets: 'Choose at least one platform.', empty_post: 'Write a caption or add a photo or video.',
+                media_not_found: 'A photo or video in this post was not found.', needs_video: '{p} only takes videos.', caption_too_long: '{p}: the caption is too long.',
+                privacy_required: 'TikTok: choose who can see the video.', privacy_invalid: 'TikTok doesn’t allow that audience for your account.',
+                too_large: 'The file is too large.', bad_type: 'This file type isn’t supported — use JPEG, PNG, WebP, MP4 or WebM.',
+                upload_incomplete: 'The upload was incomplete — please try again.', bad_state: 'The sign-in link expired — try connecting again.',
+                access_denied: 'Sign-in was canceled.', oauth_failed: '{p} sign-in failed: {detail}', ai_unavailable: 'The AI is busy right now — try again in a moment.',
+                test_mode: 'Test mode: this shop is not on the test list, so nothing was sent.', bad_request: 'Some information is missing or invalid.',
+            },
+            vi: {
+                network: 'Không kết nối được tới BitPaw — kiểm tra mạng.', session: 'Phiên đăng nhập đã hết — hãy đăng nhập lại.',
+                http: 'Có lỗi xảy ra ({detail}). Vui lòng thử lại.', forbidden: 'Tài khoản của bạn không làm được thao tác này — nhờ chủ tiệm hoặc quản trị viên.',
+                rate_limited: 'Thao tác quá nhanh — đợi một chút rồi thử lại.', upgrade: 'Tính năng này thuộc gói cao hơn.',
+                quota_exceeded: 'Bạn đã dùng hết hạn mức AI tháng này của gói.',
+                app_not_configured: 'Ứng dụng {p} của BitPaw chưa được thiết lập, nên hiện chưa nối {p} được.',
+                ig_daily_limit: 'Đã chạm giới hạn đăng bài mỗi ngày của Instagram cho ứng dụng, nên Instagram bỏ qua bài này.',
+                ig_needs_media: 'Instagram không đăng được bài chỉ có chữ — thêm ảnh hoặc video.', gbp_no_video: 'Google Business Profile không đăng được video.',
+                needs_reconnect: '{p} cần được nối lại.', not_connected: '{p} chưa được nối.',
+                token_invalid: 'Token không hợp lệ hoặc đã hết hạn — hãy nối lại {p}.', invalid_grant: 'Quyền truy cập {p} đã bị thu hồi hoặc hết hạn — hãy nối lại.',
+                unreachable: 'Không kết nối được tới {p} — thử lại sau ít phút.', provider: '{p} báo lỗi: {detail}', rejected: '{p} từ chối: {detail}',
+                page_mismatch: 'Token này thuộc Fanpage khác với Page ID bạn nhập.', need_token: 'Hãy dán access token trước.',
+                need_ig_id: 'Cần Instagram account ID.', inbox_not_connected: 'Hộp thư chưa nối với {p} — hãy nối ở mục Kênh nhắn tin trước.',
+                not_found: 'Bài này không còn nữa.', not_editable: 'Không sửa được bài này nữa — bài đang đăng hoặc đã đăng.',
+                bad_status: 'Bài ở trạng thái hiện tại không làm được thao tác này.', bad_time: 'Hãy chọn ngày giờ hợp lệ.', past_time: 'Thời điểm này đã qua.',
+                bad_platform: 'Nền tảng không hợp lệ.', no_targets: 'Chọn ít nhất 1 nền tảng.', empty_post: 'Viết nội dung hoặc thêm ảnh/video.',
+                media_not_found: 'Không tìm thấy ảnh/video của bài này.', needs_video: '{p} chỉ nhận video.', caption_too_long: '{p}: nội dung quá dài.',
+                privacy_required: 'TikTok: chọn ai được xem video.', privacy_invalid: 'TikTok không cho chọn nhóm người xem này với tài khoản của bạn.',
+                too_large: 'Tệp quá lớn.', bad_type: 'Không hỗ trợ loại tệp này — dùng JPEG, PNG, WebP, MP4 hoặc WebM.',
+                upload_incomplete: 'Tải lên chưa xong — vui lòng thử lại.', bad_state: 'Liên kết đăng nhập đã hết hạn — hãy thử nối lại.',
+                access_denied: 'Đã huỷ đăng nhập.', oauth_failed: 'Đăng nhập {p} không thành công: {detail}', ai_unavailable: 'AI đang bận — thử lại sau giây lát.',
+                test_mode: 'Chế độ thử: tiệm này không nằm trong danh sách thử nên không gửi gì cả.', bad_request: 'Thiếu thông tin hoặc thông tin không hợp lệ.',
+            },
+        };
+        // Tên mã khác nhau giữa các module -> quy về 1 mã đã dịch
+        const E_ALIAS = {
+            invalid_platform: 'bad_platform', unknown_platform: 'bad_platform', need_targets: 'no_targets', empty: 'empty_post', need_content: 'empty_post',
+            not_editable_status: 'not_editable', invalid_status: 'bad_status', invalid_time: 'bad_time', in_past: 'past_time', too_soon: 'past_time',
+            video_only: 'needs_video', need_video: 'needs_video', too_long: 'caption_too_long', tiktok_privacy_required: 'privacy_required',
+            tiktok_privacy_invalid: 'privacy_invalid', upload_too_large: 'too_large', unsupported_type: 'bad_type', missing_chunks: 'upload_incomplete',
+            oauth_state: 'bad_state', state_mismatch: 'bad_state', ai_error: 'ai_unavailable', ai_failed: 'ai_unavailable', test_mode_blocked: 'test_mode',
+            no_inbox_connection: 'inbox_not_connected', inbox_missing: 'inbox_not_connected', rate_limit: 'rate_limited', token_expired: 'token_invalid',
+            reconnect: 'needs_reconnect', media_missing: 'media_not_found', forbidden_role: 'forbidden', admin_only: 'forbidden', validation: 'bad_request',
+        };
+        function errText(d, status) {
+            if (!d) return (E[lang()] || E.en).http.replace('{detail}', 'HTTP ' + (status || '?'));
+            if (d.upgrade_required) return d.message || (E[lang()] || E.en).upgrade;
+            let code = d.code || (status === 403 ? 'forbidden' : status === 429 ? 'rate_limited' : '');
+            code = E_ALIAS[code] || code;
+            const dict = E[lang()] || E.en;
+            const tpl = code && (dict[code] || E.en[code]);
+            const pk = d.platform || d.ch;
+            const pn = PLAT[pk] ? PLAT[pk].name : (pk || t('thePlatform'));
+            const detail = d.detail ? String(d.detail) : '';
+            if (tpl) {
+                // Mẫu cần {detail} mà server không gửi -> ưu tiên câu của server, không thì bỏ phần chi tiết
+                if (tpl.includes('{detail}') && !detail) {
+                    if (d.message || d.error) return String(d.message || d.error);
+                    return tpl.replace(/:?\s*\(?\{detail\}\)?/, '').replace(/\{p\}/g, pn).trim();
+                }
+                const s = tpl.replace(/\{p\}/g, pn).replace('{detail}', detail);
+                return s.charAt(0).toUpperCase() + s.slice(1);
+            }
+            return String(d.message || d.error || dict.http.replace('{detail}', 'HTTP ' + (status || '?')));
+        }
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        // Chỉ cho link https/http hoặc đường dẫn nội bộ (chặn javascript:)
+        function safeUrl(u) {
+            u = String(u || '').trim();
+            if (/^\/(?!\/)/.test(u)) return u;
+            return /^https?:\/\//i.test(u) ? u : '';
+        }
+        // Link xem ảnh/video: url (đăng nhập) trước, không hợp lệ thì link công khai /m/...
+        const mUrl = (m) => safeUrl(m && m.url) || safeUrl(m && m.public_url);
+        const $ = (id) => document.getElementById(id);
+
+        // ---------------------------------------------------------------- múi giờ của tiệm
+        const CUR_TZ = { AUD: 'Australia/Sydney', USD: 'America/Los_Angeles', VND: 'Asia/Ho_Chi_Minh' };
+        function validTz(z) { if (!z || typeof z !== 'string') return false; try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; } catch (e) { return false; } }
+        let SHOP_TZ = [SERVER_TZ, CUR_TZ[CURRENCY]].find(validTz) || (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+        function adoptTz(z) { if (validTz(z) && z !== SHOP_TZ) { SHOP_TZ = z; renderTz(); return true; } return false; }
+        const LOC = () => (lang() === 'vi' ? 'vi-VN' : (CURRENCY === 'AUD' ? 'en-AU' : 'en-US'));
+        const WDMAP = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+        const _dtf = {};
+        function parts(d, tz) {
+            tz = tz || SHOP_TZ;
+            const f = _dtf[tz] || (_dtf[tz] = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', weekday: 'short' }));
+            const o = {};
+            f.formatToParts(d).forEach((p) => { o[p.type] = p.value; });
+            return { y: +o.year, m: +o.month, d: +o.day, h: (+o.hour) % 24, mi: +o.minute, s: +o.second, wd: WDMAP[o.weekday] };
+        }
+        function tzOff(ts, tz) { const p = parts(new Date(ts), tz); return Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - Math.floor(ts / 1000) * 1000; }
+        // Giờ "trên đồng hồ" của tiệm -> thời điểm UTC (xử lý cả giờ mùa hè)
+        function zonedToUtc(y, m, d, h, mi, tz) {
+            tz = tz || SHOP_TZ;
+            const guess = Date.UTC(y, m - 1, d, h || 0, mi || 0);
+            const off = tzOff(guess, tz);
+            let ts = guess - off;
+            const off2 = tzOff(ts, tz);
+            if (off2 !== off) ts = guess - off2;
+            return new Date(ts);
+        }
+        const pad = (n) => String(n).padStart(2, '0');
+        const civil = (y, m, d) => { const x = new Date(Date.UTC(y, m - 1, d)); return { y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate(), wd: (x.getUTCDay() + 6) % 7 }; };
+        const isoZ = (dt) => dt.toISOString().replace(/\.\d{3}Z$/, 'Z');
+        const toDate = (iso) => { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : d; };
+        function localInput(dt) { const p = parts(dt); return `${p.y}-${pad(p.m)}-${pad(p.d)}T${pad(p.h)}:${pad(p.mi)}`; }
+        function parseLocal(v) { const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || ''); return m ? zonedToUtc(+m[1], +m[2], +m[3], +m[4], +m[5]) : null; }
+        function fmt(iso, opt) {
+            const d = iso instanceof Date ? iso : toDate(iso);
+            if (!d) return '';
+            try { return new Intl.DateTimeFormat(LOC(), Object.assign({ timeZone: SHOP_TZ }, opt || { dateStyle: 'medium', timeStyle: 'short' })).format(d); } catch (e) { return d.toISOString(); }
+        }
+        const fmtTime = (iso) => fmt(iso, { hour: 'numeric', minute: '2-digit' });
+        const fmtShort = (iso) => fmt(iso, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+        const wdName = (i, style) => new Intl.DateTimeFormat(LOC(), { weekday: style || 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, 1 + i, 12)));   // 01/01/2024 là thứ Hai
+        const hourName = (h) => new Intl.DateTimeFormat(LOC(), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, 1, h, 0)));
+        const civilFmt = (c, opt) => new Intl.DateTimeFormat(LOC(), Object.assign({ timeZone: 'UTC' }, opt)).format(new Date(Date.UTC(c.y, c.m - 1, c.d, 12)));
+        function tzShort() {
+            try { const p = new Intl.DateTimeFormat('en-US', { timeZone: SHOP_TZ, timeZoneName: 'short' }).formatToParts(new Date()).find((x) => x.type === 'timeZoneName'); return p ? p.value : ''; } catch (e) { return ''; }
+        }
+        const tzName = () => `${SHOP_TZ.replace(/_/g, ' ')}${tzShort() ? ' · ' + tzShort() : ''}`;
+        function renderTz() {
+            const el = $('tzLabel');
+            if (el) el.querySelector('span').textContent = t('tzIn', { tz: tzName() });
+            const l = $('cmpWhenLbl'); if (l) l.textContent = t('dateTime', { tz: tzName() });
+        }
+
+        // ---------------------------------------------------------------- tiện ích chung
+        function toast(msg, ok) {
+            const el = $('toast');
+            el.textContent = msg; el.style.display = 'block';
+            el.style.background = ok ? 'rgba(16,185,129,.95)' : 'rgba(225,29,72,.95)'; el.style.color = '#fff';
+            clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = 'none'; }, ok ? 3500 : 7000);
+        }
+        async function api(path, opts) {
+            opts = opts || {};
+            const init = { method: opts.method || (opts.body !== undefined ? 'POST' : 'GET'), headers: {} };
+            if (opts.body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
+            let r;
+            try { r = await fetch(path, init); } catch (e) { throw mkErr({ code: 'network' }, 0); }
+            let j = null;
+            try { j = await r.json(); } catch (e) { j = null; }
+            if (!j || typeof j !== 'object') throw mkErr({ code: (r.status === 401 || (r.redirected && /login|signin/i.test(r.url))) ? 'session' : 'http', detail: 'HTTP ' + r.status }, r.status);
+            if (!r.ok || j.success === false) throw mkErr(j, r.status);
+            return j;
+        }
+        function mkErr(d, status) { const e = new Error(errText(d, status)); e.data = d; e.status = status; return e; }
+        // Nút xoá/ngắt/bỏ: bấm 2 lần thay cho confirm() chặn màn hình
+        function armed(btn, label) {
+            if (btn.dataset.armed === '1') { btn.dataset.armed = ''; clearTimeout(btn._arm); if (btn._old !== undefined) btn.innerHTML = btn._old; return true; }
+            btn._old = btn.innerHTML; btn.dataset.armed = '1';
+            btn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> ${esc(label || t('confirmAgain'))}`;
+            btn._arm = setTimeout(() => { btn.dataset.armed = ''; btn.innerHTML = btn._old; }, 4500);
+            return false;
+        }
+        function busy(btn, on, label) {
+            if (!btn) return;
+            if (on) { btn._html = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${esc(label || '')}`; }
+            else { btn.disabled = false; if (btn._html !== undefined) btn.innerHTML = btn._html; }
+        }
+        const logo = (p, cls) => { const d = PLAT[p] || { bg: '#334155', icon: 'fas fa-share-nodes' }; return `<span class="pl ${cls || ''}" style="background:${d.bg}" aria-hidden="true"><i class="${d.icon}"></i></span>`; };
+        const pname = (p) => (PLAT[p] ? PLAT[p].name : String(p || ''));
+        const charLen = (p, s) => (PLAT[p] && PLAT[p].utf16 ? String(s || '').length : Array.from(String(s || '')).length);
+        const hashCount = (s) => (String(s || '').match(/(^|\s)#[^\s#]+/g) || []).length;
+        const fmtNum = (n) => { try { return new Intl.NumberFormat(LOC()).format(n); } catch (e) { return String(n); } };
+
+        // Lấy file_id thật của 1 mục thư viện (job ảnh có id riêng; link công khai /m/<file_id>.<chữ ký>.<đuôi>)
+        function fidFromUrl(u) { const s = String(u || ''); const m = /\/m\/([0-9a-f]{24})\./i.exec(s) || /([0-9a-f]{24})/i.exec(s); return m ? m[1] : ''; }
+        function fileIdOf(it) { return String(it.file_id || fidFromUrl(it.public_url) || fidFromUrl(it.url) || (/^[0-9a-f]{24}$/i.test(String(it.id || '')) ? it.id : '')); }
+        function mediaKind(it) {
+            const ct = String(it.content_type || '');
+            if (ct.startsWith('video/')) return 'video';
+            if (ct.startsWith('image/')) return 'image';
+            return /video/.test(String(it.kind || '')) ? 'video' : 'image';
+        }
+        function isAiItem(it) { return it.is_ai === true || it.is_ai_generated === true || it.source === 'replicate' || /^ai_/.test(String(it.kind || '')) || (!!it.preset && (it.kind === 'image' || it.kind === 'video')); }
+        function kindLabel(it) {
+            const k = String(it.kind || '');
+            if (T.en['k_' + k] && k !== 'image' && k !== 'video') return t('k_' + k);
+            if (isAiItem(it)) return t(mediaKind(it) === 'video' ? 'k_ai_video' : 'k_ai_image');
+            return t('k_' + mediaKind(it));
+        }
+        function toMedia(it) { return { file_id: fileIdOf(it), content_type: it.content_type || '', kind: it.kind || '', url: mUrl(it), is_ai: isAiItem(it) }; }
+        function mediaTag(m, cls) {
+            const u = mUrl(m);
+            if (!u) return `<div class="${cls || ''}" style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8"><i class="fas ${mediaKind(m) === 'video' ? 'fa-film' : 'fa-image'} fa-2x"></i></div>`;
+            return mediaKind(m) === 'video'
+                ? `<video class="${cls || ''}" src="${esc(u)}#t=0.1" muted playsinline preload="metadata"></video>`
+                : `<img class="${cls || ''}" src="${esc(u)}" alt="" loading="lazy">`;
+        }
+
+        // ---------------------------------------------------------------- trạng thái trang
+        const S = {
+            tab: 'calendar', accounts: {}, accLoaded: false, accOpen: {}, view: 'week', weekStart: null, posts: [], pending: [], pendDirty: {},
+            bt: {}, gallery: null, galFilter: 'all', perfDays: 30, insights: null, pollN: 0, pollT: null, lastFocus: null,
+        };
+        const C = newCompose();
+        function newCompose() {
+            return { editingId: null, editingStatus: null, caption: '', captions: {}, title: '', link: '', media: [], targets: [], when: 'now', local: '', uploading: false,
+                     tt: { privacy: '', comment: false, duet: false, stitch: false, disclose: false, yourBrand: false, branded: false } };
+        }
+
+        // ---------------------------------------------------------------- dịch phần tĩnh
+        function applyStatic() {
+            document.documentElement.lang = lang();
+            document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+            document.querySelectorAll('[data-tp]').forEach((el) => { el.placeholder = t(el.dataset.tp); });
+            document.querySelectorAll('[data-ta]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.ta)); });
+            document.querySelectorAll('#perfDays option').forEach((o) => { o.textContent = t('perfDays', { n: o.value }); });
+            document.title = t('pageTitle') + ' · BitPaw';
+            renderTz();
+        }
+        // Sidebar gọi changeLanguage() khi bấm EN/VI -> dịch lại tại chỗ, không tải lại trang
+        function changeLanguage(l) {
+            try { localStorage.setItem('bitpaw_lang', l === 'vi' ? 'vi' : 'en'); } catch (e) { /* bị chặn */ }
+            applyStatic(); renderAll();
+        }
+        function renderAll() {
+            renderCalendar(); renderCompose(); renderPending(); renderPlanPlats(); renderAccounts(); renderInsights(); renderBestTable();
+        }
+
+        // ---------------------------------------------------------------- tabs
+        const TABS = ['calendar', 'compose', 'approvals', 'accounts', 'performance'];
+        function showTab(name, noHash) {
+            if (!TABS.includes(name)) name = 'calendar';
+            S.tab = name;
+            TABS.forEach((n) => {
+                const b = $('tab-' + n), p = $('pane-' + n), on = n === name;
+                b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; p.hidden = !on;
+            });
+            if (!noHash) { try { history.replaceState(null, '', location.pathname + '#' + name); } catch (e) { /* bỏ qua */ } }
+            if (name === 'calendar') loadCalendar();
+            if (name === 'compose') renderCompose();
+            if (name === 'approvals') { loadPending(); renderPlanPlats(); }
+            if (name === 'accounts') loadAccounts();
+            if (name === 'performance') { loadInsights(); loadBestTable(); }
+        }
+        $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
+        $('tabs').addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            const i = TABS.indexOf(S.tab), n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+            showTab(n); $('tab-' + n).focus(); e.preventDefault();
+        });
+
+        // ---------------------------------------------------------------- tài khoản
+        async function loadAccounts() {
+            try {
+                const j = await api('/api/social/accounts');
+                S.accounts = (j.data && typeof j.data === 'object') ? j.data : {};
+                if (j.timezone) adoptTz(j.timezone);
+                S.accLoaded = true;
+            } catch (e) { if (!S.accLoaded) toast(e.message, false); }
+            renderAccounts(); renderPlatforms(); renderTiktok(); renderPlanPlats(); renderWarn();
+        }
+        const acc = (p) => S.accounts[p] || {};
+        const isOn = (p) => { const a = acc(p); return !!a.connected && (a.status || 'connected') === 'connected'; };
+        function accPill(p) {
+            const a = acc(p);
+            if (a.status === 'needs_reconnect') return `<span class="pill warn">${esc(t('needsReconnectPill'))}</span>`;
+            return a.connected ? `<span class="pill on">${esc(t('connected'))}</span>` : `<span class="pill">${esc(t('notConnectedPill'))}</span>`;
+        }
+        function renderAccounts() {
+            const box = $('accCards');
+            if (!S.accLoaded) { box.innerHTML = `<div class="card"><div class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('loading'))}</div></div>`; return; }
+            box.innerHTML = PLATFORMS.map((p) => {
+                const a = acc(p), d = PLAT[p], on = !!a.connected, needs = a.status === 'needs_reconnect';
+                let body = '';
+                if (on || needs) {
+                    body += `<div class="row"><i class="fas ${needs ? 'fa-triangle-exclamation' : 'fa-circle-check'}" style="color:${needs ? '#fbbf24' : '#34d399'}"></i><b style="overflow-wrap:anywhere">${esc(a.account_name || d.name)}</b>${a.external_id ? `<span class="hint" style="overflow-wrap:anywhere">· ${esc(a.external_id)}</span>` : ''}${a.connected_via ? `<span class="hint">· ${esc(t('via_' + a.connected_via))}</span>` : ''}</div>`;
+                }
+                if (a.last_error && (a.last_error.message || a.last_error.code)) body += `<div class="err"><b>${esc(t('lastErr'))}:</b> ${esc(errText(Object.assign({ platform: p }, a.last_error)))}${a.last_error.at ? ` <span class="hint">(${esc(fmt(a.last_error.at))})</span>` : ''}</div>`;
+                body += `<div class="hint" style="font-size:13px">${esc(t('cap_' + p))}</div>`;
+                const reqs = Array.isArray(a.requirements) ? a.requirements.filter(Boolean) : [];
+                if (reqs.length) body += `<div class="stack" style="gap:4px"><span class="lbl">${esc(t('reqTitle'))}</span><ul class="reqs">${reqs.map((r) => `<li>${esc(typeof r === 'string' ? r : (r.text || r.message || ''))}</li>`).join('')}</ul></div>`;
+                let acts = '';
+                if (p === 'facebook' || p === 'instagram') {
+                    if (a.inbox_available) acts += `<button type="button" class="btn ${on ? '' : 'btn-primary'}" data-act="acc-inbox" data-p="${p}"><i class="fas fa-inbox"></i> ${esc(t('useInbox'))}</button>`;
+                    acts += `<button type="button" class="btn ${on || a.inbox_available ? '' : 'btn-primary'}" data-act="acc-token-open" data-p="${p}" ${S.accOpen[p] ? 'hidden' : ''}><i class="fas fa-key"></i> ${esc(t('pasteToken'))}</button>`;
+                } else if (a.can_oauth) {
+                    acts += `<a class="btn ${on ? '' : 'btn-primary'}" data-act="oauth-start" data-p="${p}" href="/social/oauth/${encodeURIComponent(p)}/start"><i class="fas fa-right-to-bracket"></i> ${esc(t(on || needs ? 'signInAgain' : 'signIn', { provider: d.provider }))}</a>`;
+                }
+                if (on || needs) acts += `<button type="button" class="btn btn-danger" data-act="acc-off" data-p="${p}"><i class="fas fa-link-slash"></i> ${esc(t('disconnect'))}</button>`;
+                let extra = '';
+                if ((p === 'facebook' || p === 'instagram') && a.inbox_available) extra += `<span class="hint">${esc(t('useInboxHint_' + p))}</span>`;
+                if (!(p === 'facebook' || p === 'instagram') && !a.can_oauth) extra += `<div class="note">${esc(t('notConfigured', { p: d.name, provider: d.provider }))}</div>`;
+                const form = (p === 'facebook' || p === 'instagram') ? `<form class="kv" data-accform="${p}" ${S.accOpen[p] ? '' : 'hidden'} autocomplete="off">
+                        <div class="kv"><label class="lbl" for="af_${p}_token">${esc(t('fToken'))} <span class="hint">(${esc(t('required'))})</span></label><input class="f" id="af_${p}_token" name="access_token" type="password" required spellcheck="false"></div>
+                        <div class="kv"><label class="lbl" for="af_${p}_id">${esc(t(p === 'instagram' ? 'fIgId' : 'fPageId'))} <span class="hint">(${esc(t(p === 'instagram' ? 'required' : 'optional'))})</span></label><input class="f" id="af_${p}_id" name="external_id" type="text" inputmode="numeric" ${p === 'instagram' ? 'required' : ''} spellcheck="false"></div>
+                        <div class="row"><button class="btn btn-primary" type="submit"><i class="fas fa-plug"></i> ${esc(t('checkConnect'))}</button><button class="btn" type="button" data-act="acc-token-close" data-p="${p}">${esc(t('cancel'))}</button></div>
+                    </form>` : '';
+                return `<section class="card ${on && !needs ? 'on' : ''} ${needs ? 'warnb' : ''}" aria-labelledby="an_${p}">
+                    <div class="c-top">${logo(p, 'lg')}<div style="min-width:0"><div class="c-name" id="an_${p}">${esc(d.name)}</div></div>${accPill(p)}</div>
+                    ${body}${extra}${form}
+                    ${acts ? `<div class="row">${acts}</div>` : ''}
+                </section>`;
+            }).join('');
+        }
+        async function accAction(p, body, btn, okMsg) {
+            busy(btn, true, t('checking', { p: pname(p) }));
+            try {
+                await api(`/api/social/accounts/${encodeURIComponent(p)}`, { body });
+                S.accOpen[p] = false; toast(okMsg, true); await loadAccounts();
+            } catch (e) { busy(btn, false); toast(errText(Object.assign({ platform: p }, e.data || {}), e.status) || e.message, false); }
+        }
+        $('accCards').addEventListener('submit', (ev) => {
+            const f = ev.target.closest('[data-accform]'); if (!f) return;
+            ev.preventDefault();
+            const p = f.dataset.accform, fields = {};
+            new FormData(f).forEach((v, k) => { fields[k] = String(v).trim(); });
+            // Thêm tên trường dự phòng để khớp backend dù đặt tên page_id / ig_user_id
+            if (fields.external_id) { if (p === 'facebook') fields.page_id = fields.external_id; else fields.ig_user_id = fields.external_id; }
+            accAction(p, { action: 'connect_token', fields }, f.querySelector('button[type=submit]'), t('connectedOk', { p: pname(p) }));
+        });
+
+        // ---------------------------------------------------------------- lịch đăng
+        function weekOf(dt) { const p = parts(dt); return civil(p.y, p.m, p.d - p.wd); }
+        function postTime(p) {
+            if (p.scheduled_at) return toDate(p.scheduled_at);
+            const pub = (p.targets || []).map((x) => toDate(x.published_at)).filter(Boolean).sort((a, b) => a - b)[0];
+            return pub || toDate(p.created_at) || null;
+        }
+        async function loadCalendar(quiet) {
+            if (!S.weekStart) S.weekStart = weekOf(new Date());
+            let from, to;
+            if (S.view === 'week') {
+                const w = S.weekStart, e = civil(w.y, w.m, w.d + 7);
+                from = zonedToUtc(w.y, w.m, w.d, 0, 0); to = zonedToUtc(e.y, e.m, e.d, 0, 0);
+            } else {
+                from = new Date(Date.now() - 30 * 864e5); to = new Date(Date.now() + 90 * 864e5);
+            }
+            if (!quiet) renderCalendarHead();
+            try {
+                const j = await api(`/api/social/posts?from=${encodeURIComponent(isoZ(from))}&to=${encodeURIComponent(isoZ(to))}`);
+                if (j.timezone) adoptTz(j.timezone);
+                S.posts = Array.isArray(j.data) ? j.data : (Array.isArray(j.posts) ? j.posts : []);
+                S.calErr = '';
+            } catch (e) { S.calErr = e.message; if (!quiet) toast(e.message, false); }
+            renderCalendar(); schedulePoll();
+        }
+        function renderCalendarHead() {
+            const wk = S.view === 'week';
+            document.querySelectorAll('[data-act="view"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === S.view ? 'true' : 'false'));
+            $('wkNav').hidden = !wk; $('listFilter').hidden = wk;
+            if (S.weekStart) {
+                const w = S.weekStart, e = civil(w.y, w.m, w.d + 6);
+                $('wkLabel').textContent = `${civilFmt(w, { day: 'numeric', month: 'short' })} – ${civilFmt(e, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+            }
+        }
+        // Trạng thái thật của 1 nền tảng trong 1 bài -> {cls, label, why, link, sub}
+        function tState(post, tg) {
+            const p = tg.platform, ps = post.status, st = tg.status || 'pending', err = tg.error && (tg.error.code || tg.error.message) ? errText(Object.assign({ platform: p }, tg.error)) : '';
+            if (st === 'published') return { cls: 'ok', icon: 'fa-circle-check', label: t('tg_published'), link: safeUrl(tg.permalink), sub: tg.published_at ? t('tg_publishedAt', { time: fmtShort(tg.published_at) }) : '' };
+            if (st === 'scheduled_remote') return { cls: 'info', icon: 'fa-calendar-check', label: t('tg_remote', { p: pname(p) }), sub: t('tg_remoteHint', { p: pname(p) }), link: safeUrl(tg.permalink) };
+            if (st === 'processing') return { cls: 'run', icon: 'fa-gear', label: t('tg_processing', { p: pname(p) }), sub: t('tg_processingHint', { p: pname(p) }) };
+            if (st === 'failed') return { cls: 'bad', icon: 'fa-circle-xmark', label: t('tg_failed'), why: err };
+            if (st === 'skipped') return { cls: 'mute', icon: 'fa-forward', label: t('tg_skipped'), why: err };
+            if (ps === 'draft') return { cls: 'mute', icon: 'fa-file-pen', label: t('s_draft') };
+            if (ps === 'pending_approval') return { cls: 'warn', icon: 'fa-hourglass-half', label: t('s_pending_approval') };
+            if (ps === 'canceled') return { cls: 'mute', icon: 'fa-ban', label: t('s_canceled') };
+            if (ps === 'scheduled') return { cls: 'info', icon: 'fa-clock', label: t('tg_scheduled'), sub: post.scheduled_at ? fmtShort(post.scheduled_at) : t('asap') };
+            if ((tg.attempts || 0) > 0 && tg.next_attempt_at) return { cls: 'warn', icon: 'fa-rotate', label: t('tg_retry', { time: fmtTime(tg.next_attempt_at) }), why: err, sub: t('tg_attempts', { n: tg.attempts }) };
+            return { cls: 'run', icon: 'fa-paper-plane', label: t('tg_publishing') };
+        }
+        const chip = (post, tg) => { const s = tState(post, tg); return `<span class="st ${s.cls}" title="${esc(pname(tg.platform) + ': ' + s.label)}">${logo(tg.platform)}<span>${esc(s.label)}</span></span>`; };
+        const dots = (post) => (post.targets || []).map((tg) => { const s = tState(post, tg); return `<span class="dot ${s.cls}" title="${esc(pname(tg.platform) + ': ' + s.label)}"><i class="${(PLAT[tg.platform] || {}).icon || 'fas fa-share-nodes'}" aria-hidden="true"></i><span class="sr">${esc(pname(tg.platform) + ': ' + s.label)}</span></span>`; }).join('');
+        const excerpt = (post) => esc((post.caption || Object.values(post.captions || {}).find(Boolean) || post.title || '').slice(0, 160))
+            || ((post.media || []).length ? `<i>${esc(t('k_' + mediaKind(post.media[0])))}</i>` : '—');
+        function postCard(post) {
+            const d = postTime(post);
+            return `<button type="button" class="pc" data-act="open-post" data-id="${esc(post.id)}">
+                <span class="pc-t">${d ? esc(fmtTime(d)) : '—'}${post.created_by === 'ai' ? `<span class="tagai">AI</span>` : ''}${post.status === 'draft' || post.status === 'pending_approval' ? `<span class="tagai" style="background:rgba(245,158,11,.2);color:#fde68a">${esc(t('s_' + post.status))}</span>` : ''}</span>
+                <span class="pc-c">${excerpt(post)}</span><span class="pc-d">${dots(post)}</span></button>`;
+        }
+        function renderCalendar() {
+            renderCalendarHead();
+            const box = $('calBody');
+            if (!S.weekStart) return;
+            const errBox = S.calErr ? `<div class="err" style="margin-bottom:12px">${esc(S.calErr)}</div>` : '';
+            if (S.view === 'week') {
+                const today = parts(new Date()), w = S.weekStart, byDay = [[], [], [], [], [], [], []];
+                S.posts.forEach((p) => {
+                    const d = postTime(p); if (!d) return;
+                    const x = parts(d);
+                    for (let i = 0; i < 7; i++) { const c = civil(w.y, w.m, w.d + i); if (c.y === x.y && c.m === x.m && c.d === x.d) { byDay[i].push(p); break; } }
+                });
+                byDay.forEach((arr) => arr.sort((a, b) => (postTime(a) || 0) - (postTime(b) || 0)));
+                const cols = byDay.map((arr, i) => {
+                    const c = civil(w.y, w.m, w.d + i), isT = c.y === today.y && c.m === today.m && c.d === today.d;
+                    return `<div class="day ${isT ? 'today' : ''} ${arr.length ? '' : 'empty-day'}"><div class="day-h"><span>${esc(wdName(i))}</span><b>${c.d}</b></div>
+                        <div class="pcs stack" style="gap:6px">${arr.length ? arr.map(postCard).join('') : `<span class="day-e">${esc(t('dayEmpty'))}</span>`}</div></div>`;
+                }).join('');
+                const none = !S.posts.length ? `<div class="card" style="margin-top:12px"><div class="empty"><i class="fas fa-calendar-plus big"></i>${esc(t('noPostsWeek'))}<div class="row" style="justify-content:center;margin-top:12px"><button type="button" class="btn btn-primary" data-act="new-post"><i class="fas fa-pen"></i> ${esc(t('newPost'))}</button><button type="button" class="btn" data-act="goto" data-tab="approvals"><i class="fas fa-wand-magic-sparkles"></i> ${esc(t('planWithAi'))}</button></div></div></div>` : '';
+                box.innerHTML = errBox + `<div class="wk">${cols}</div>` + none;
+                return;
+            }
+            const f = $('listFilter').value;
+            const keep = (p) => {
+                if (f === 'scheduled') return p.status === 'scheduled' || (p.targets || []).some((x) => x.status === 'scheduled_remote');
+                if (f === 'published') return p.status === 'published' || p.status === 'partial';
+                if (f === 'problems') return p.status === 'failed' || p.status === 'partial' || (p.targets || []).some((x) => x.status === 'failed');
+                if (f === 'drafts') return p.status === 'draft' || p.status === 'pending_approval';
+                return true;
+            };
+            const now = Date.now(), list = S.posts.filter(keep);
+            const up = list.filter((p) => (postTime(p) || 0) >= now).sort((a, b) => postTime(a) - postTime(b));
+            const past = list.filter((p) => (postTime(p) || 0) < now).sort((a, b) => postTime(b) - postTime(a));
+            const row = (p) => {
+                const d = postTime(p);
+                return `<button type="button" class="lr" data-act="open-post" data-id="${esc(p.id)}"><span class="lr-t">${d ? esc(fmt(d, { day: 'numeric', month: 'short' })) + '<br>' + esc(fmtTime(d)) : '—'}</span>
+                    <span style="min-width:0"><span class="lr-c">${p.created_by === 'ai' ? '<span class="tagai">AI</span> ' : ''}${excerpt(p)}</span><span class="chips">${(p.targets || []).map((x) => chip(p, x)).join('')}</span></span></button>`;
+            };
+            box.innerHTML = errBox + `<p class="hint" style="margin:0 0 6px">${esc(t('listRange'))}</p>` + (list.length
+                ? (up.length ? `<div class="lst-d">${esc(t('upcoming'))}</div><div class="lst">${up.map(row).join('')}</div>` : '') + (past.length ? `<div class="lst-d">${esc(t('recent'))}</div><div class="lst">${past.map(row).join('')}</div>` : '')
+                : `<div class="card"><div class="empty"><i class="fas fa-inbox big"></i>${esc(t('noPostsList'))}</div></div>`);
+        }
+        // Bài đang đăng/đang xử lý -> hỏi lại vài lần (tối đa ~10 phút) để nhãn trạng thái tự cập nhật
+        function schedulePoll() {
+            clearTimeout(S.pollT);
+            const live = S.posts.some((p) => p.status === 'publishing' || p.status === 'partial' && (p.targets || []).some((x) => x.status === 'pending' || x.status === 'processing'));
+            if (!live || S.pollN >= 20) return;
+            S.pollT = setTimeout(() => { if (document.visibilityState === 'visible' && S.tab === 'calendar') { S.pollN++; loadCalendar(true); } else schedulePoll(); }, 30000);
+        }
+        const findPost = (id) => S.posts.concat(S.pending).find((p) => String(p.id) === String(id));
+        const editable = (p) => ['draft', 'pending_approval', 'scheduled'].includes(p.status) && !(p.targets || []).some((x) => ['published', 'processing', 'scheduled_remote'].includes(x.status));
+        function openModal(id) { S.lastFocus = document.activeElement; $(id).hidden = false; const b = $(id).querySelector('[data-act="close-modal"]'); if (b) b.focus(); }
+        function closeModals() { ['sheet', 'picker'].forEach((id) => { $(id).hidden = true; }); if (S.lastFocus && S.lastFocus.focus) { try { S.lastFocus.focus(); } catch (e) { /* bỏ qua */ } } }
+        function openPost(id) {
+            const p = findPost(id); if (!p) return;
+            S.sheetId = p.id; renderSheet(); openModal('sheet');
+        }
+        function renderSheet() {
+            const p = findPost(S.sheetId);
+            if (!p) return;
+            const d = postTime(p), st = p.status || 'draft';
+            const cls = { published: 'on', partial: 'warn', failed: 'warn', pending_approval: 'warn' }[st] || '';
+            $('sheetTitle').innerHTML = `<span class="pill ${cls}">${esc(t('s_' + st))}</span> <span style="font-size:14px;color:#cbd5e1;font-weight:700">${d ? esc(fmt(d, { dateStyle: 'full', timeStyle: 'short' })) : esc(t('asap'))}</span>`;
+            const media = (p.media || []).map((m) => `<div>${mediaKind(m) === 'video' && mUrl(m) ? `<video class="pv" src="${esc(mUrl(m))}" controls playsinline preload="metadata"></video>` : (mUrl(m) ? `<img class="pv" src="${esc(mUrl(m))}" alt="">` : '')}</div>`).join('');
+            const capByP = Object.entries(p.captions || {}).filter(([k, v]) => PLAT[k] && v && v !== p.caption);
+            const tg = (p.targets || []).map((x) => {
+                const s = tState(p, x);
+                return `<div class="tgt"><div class="row between"><span class="row" style="gap:8px">${logo(x.platform, 'md')}<b style="color:#fff">${esc(pname(x.platform))}</b></span><span class="st ${s.cls}"><i class="fas ${s.icon}" style="margin-left:6px"></i><span>${esc(s.label)}</span></span></div>
+                    ${s.sub ? `<div class="sub">${esc(s.sub)}</div>` : ''}${s.why ? `<div class="why">${esc(s.why)}</div>` : ''}
+                    ${s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener" class="sub" style="color:#67e8f9"><i class="fas fa-arrow-up-right-from-square"></i> ${esc(t('tg_view'))}</a>` : ''}</div>`;
+            }).join('');
+            let acts = '';
+            if (editable(p)) acts += `<button type="button" class="btn" data-act="edit-post" data-id="${esc(p.id)}"><i class="fas fa-pen"></i> ${esc(t('actEdit'))}</button>`;
+            if (st === 'scheduled') acts += `<button type="button" class="btn btn-primary" data-act="publish-now" data-id="${esc(p.id)}"><i class="fas fa-paper-plane"></i> ${esc(t('actPublishNow'))}</button>`;
+            if (st === 'scheduled') acts += `<button type="button" class="btn btn-danger" data-act="cancel-post" data-id="${esc(p.id)}"><i class="fas fa-ban"></i> ${esc(t('actCancel'))}</button>`;
+            const wasOut = (p.targets || []).some((x) => ['published', 'scheduled_remote'].includes(x.status));
+            if (st !== 'publishing') acts += `<button type="button" class="btn btn-danger" data-act="delete-post" data-id="${esc(p.id)}"><i class="fas fa-trash"></i> ${esc(t(wasOut ? 'actRemove' : 'actDelete'))}</button>`;
+            $('sheetBody').innerHTML = `
+                ${p.created_by === 'ai' || p.is_ai_generated ? `<div class="row">${p.created_by === 'ai' ? `<span class="pill ai">${esc(t('aiDraft'))}</span>` : ''}${p.is_ai_generated ? `<span class="pill ai">${esc(t('aiMedia'))}</span>` : ''}</div>` : ''}
+                ${media}
+                ${p.title ? `<div class="h3">${esc(p.title)}</div>` : ''}
+                <div class="cap-full">${esc(p.caption || '')}</div>
+                ${capByP.length ? `<details><summary>${esc(t('perPlatform'))}</summary><div class="stack" style="margin-top:8px">${capByP.map(([k, v]) => `<div class="tgt"><span class="row">${logo(k)}<b style="color:#fff">${esc(pname(k))}</b></span><div class="cap-full" style="font-size:13px">${esc(v)}</div></div>`).join('')}</div></details>` : ''}
+                <div class="stack">${tg}</div>
+                ${wasOut && st !== 'publishing' ? `<p class="hint" style="margin:0">${esc(t('removeNote'))}</p>` : ''}
+                ${acts ? `<div class="actions">${acts}</div>` : ''}`;
+        }
+        async function postAction(kind, id, btn) {
+            try {
+                if (kind === 'publish-now') {
+                    busy(btn, true, t('publishing'));
+                    const j = await api(`/api/social/posts/${encodeURIComponent(id)}/publish_now`, { body: {} });
+                    publishToast(j);
+                } else if (kind === 'cancel-post') {
+                    if (!armed(btn)) return;
+                    busy(btn, true, '');
+                    await api(`/api/social/posts/${encodeURIComponent(id)}/cancel`, { body: {} }); toast(t('canceledOk'), true);
+                } else if (kind === 'delete-post') {
+                    if (!armed(btn)) return;
+                    busy(btn, true, '');
+                    await api(`/api/social/posts/${encodeURIComponent(id)}`, { method: 'DELETE' }); toast(t('deletedOk'), true);
+                    closeModals();
+                }
+            } catch (e) { busy(btn, false); toast(e.message, false); return; }
+            await Promise.all([loadCalendar(true), loadPending()]);
+            if (!$('sheet').hidden) renderSheet();
+        }
+        function publishToast(j) {
+            const post = j && (j.post || (j.data && j.data.targets ? j.data : null));
+            if (post && Array.isArray(post.targets) && post.targets.length) {
+                const ok = post.targets.filter((x) => x.status === 'published' || x.status === 'scheduled_remote').length;
+                const bad = post.targets.find((x) => x.status === 'failed');
+                toast(t('publishResult', { ok, n: post.targets.length }) + (bad ? ' — ' + pname(bad.platform) + ': ' + errText(Object.assign({ platform: bad.platform }, bad.error || {})) : ''), !bad);
+            } else toast(t('publishSent'), true);
+        }
+
+        // ---------------------------------------------------------------- soạn bài
+        function resetCompose() {
+            Object.assign(C, newCompose());
+            $('cmpCaption').value = ''; $('cmpLink').value = '';
+            renderCompose();
+        }
+        function loadIntoCompose(p) {
+            Object.assign(C, newCompose());
+            C.editingId = p.id; C.editingStatus = p.status;
+            C.caption = p.caption || ''; C.captions = Object.assign({}, p.captions || {}); C.title = p.title || ''; C.link = p.link || '';
+            C.media = (p.media || []).map((m) => Object.assign({}, m, { url: mUrl(m), is_ai: !!(m.is_ai || p.is_ai_generated || /^ai_/.test(String(m.kind || ''))) }));
+            C.targets = (p.targets || []).map((x) => x.platform).filter((x) => PLAT[x]);
+            const tt = (p.targets || []).find((x) => x.platform === 'tiktok');
+            if (tt && tt.options) {
+                const o = tt.options;
+                Object.assign(C.tt, { privacy: o.privacy_level || '', comment: o.disable_comment === false, duet: o.disable_duet === false, stitch: o.disable_stitch === false,
+                    yourBrand: !!o.brand_organic_toggle, branded: !!o.brand_content_toggle });
+                C.tt.disclose = C.tt.yourBrand || C.tt.branded;
+            }
+            const d = toDate(p.scheduled_at);
+            if (d && d > new Date()) { C.when = 'later'; C.local = localInput(d); } else C.when = 'now';
+            $('cmpCaption').value = C.caption; $('cmpLink').value = C.link;
+            showTab('compose');
+        }
+        function renderCompose() {
+            $('cmpMode').textContent = C.editingId ? t('cmpEditing', { id: C.editingId }) : t('cmpNew');
+            const pn = $('cmpPendingNote'); pn.hidden = C.editingStatus !== 'pending_approval'; pn.textContent = t('pendingNote');
+            renderPlatforms(); renderEditors(); renderMedia(); renderTiktok(); renderWhen(); renderWarn();
+        }
+        function renderPlatforms() {
+            const box = $('cmpPlatforms'); if (!box) return;
+            box.innerHTML = PLATFORMS.map((p) => {
+                const a = acc(p), on = isOn(p), sel = C.targets.includes(p);
+                const sub = on ? (a.account_name || t('connected')) : (a.status === 'needs_reconnect' ? t('needsReconnect') : t('notConnected'));
+                return `<button type="button" class="ptog" data-act="toggle-plat" data-p="${p}" aria-pressed="${sel ? 'true' : 'false'}" ${!on && !sel ? 'disabled' : ''}>
+                    ${logo(p, 'md')}<span style="min-width:0"><b>${esc(PLAT[p].short || PLAT[p].name)}</b><small>${esc(sub)}</small></span>${sel ? '<i class="fas fa-circle-check ck"></i>' : ''}</button>`;
+            }).join('') + (S.accLoaded && !PLATFORMS.some(isOn)
+                ? `<div class="note" style="grid-column:1/-1">${esc(t('noAccounts'))} <button type="button" class="btn sm" data-act="goto" data-tab="accounts" style="margin-top:6px"><i class="fas fa-plug"></i> ${esc(t('tabAccounts'))}</button></div>` : '');
+        }
+        function effCaption(p) { const c = C.captions[p]; return (c && c.trim()) ? c : C.caption; }
+        function renderEditors() {
+            const wrap = $('cmpEditorsWrap'), box = $('cmpEditors');
+            wrap.hidden = !C.targets.length;
+            box.innerHTML = C.targets.map((p) => {
+                const d = PLAT[p];
+                const yt = p === 'youtube' ? `<label class="lbl" for="ytTitleIn">${esc(t('ytTitle'))}</label><div class="row" style="flex-wrap:nowrap"><input class="f" id="ytTitleIn" data-yt-title value="${esc(C.title)}" maxlength="140"><span class="cnt" data-tcount></span></div><span class="lbl">${esc(t('ytDesc'))}</span>` : '';
+                return `<div class="ed"><div class="ed-h">${logo(p)}<span>${esc(d.name)}</span><span class="cnt" data-count="${p}"></span></div>
+                    ${yt}<textarea class="f" rows="3" data-cap="${p}" aria-label="${esc(d.name)}" placeholder="${esc(t('phPlat'))}">${esc(C.captions[p] || '')}</textarea></div>`;
+            }).join('');
+            updateCounts();
+        }
+        function updateCounts() {
+            const b = $('cmpCapCount'); b.textContent = String(Array.from(C.caption).length);
+            C.targets.forEach((p) => {
+                const el = document.querySelector(`[data-count="${p}"]`); if (!el) return;
+                const n = charLen(p, effCaption(p)), max = PLAT[p].limit;
+                el.textContent = `${fmtNum(n)} / ${fmtNum(max)}${p === 'instagram' ? ` · #${hashCount(effCaption(p))}/30` : ''}`;
+                el.classList.toggle('over', n > max || (p === 'instagram' && hashCount(effCaption(p)) > 30));
+            });
+            const tc = document.querySelector('[data-tcount]');
+            if (tc) { const n = Array.from(C.title).length; tc.textContent = `${n} / 100`; tc.classList.toggle('over', n > 100); }
+        }
+        function renderMedia() {
+            const box = $('cmpMedia');
+            box.innerHTML = C.media.length
+                ? `<div class="media">${C.media.map((m, i) => `<div class="mthumb">${mediaTag(m)}<span class="k">${esc(kindLabel(m))}</span><button type="button" class="x" data-act="media-remove" data-i="${i}" aria-label="${esc(t('remove'))}"><i class="fas fa-xmark"></i></button></div>`).join('')}</div>`
+                : `<p class="hint" style="margin:0">${esc(t('noMedia'))}</p>`;
+            $('cmpFileBtn').setAttribute('aria-disabled', C.uploading ? 'true' : 'false');
+            $('cmpFile').disabled = C.uploading;
+        }
+        function ttInfo() {
+            const a = acc('tiktok'), ci = a.creator_info || {};
+            const opts = (Array.isArray(ci.privacy_level_options) && ci.privacy_level_options.length) ? ci.privacy_level_options
+                : (Array.isArray(a.privacy_level_options) && a.privacy_level_options.length ? a.privacy_level_options : TT_PRIVACY_DEFAULT);
+            return { a, ci, opts };
+        }
+        function renderTiktok() {
+            const box = $('cmpTiktok');
+            const show = C.targets.includes('tiktok');
+            box.hidden = !show;
+            if (!show) return;
+            const { a, ci, opts } = ttInfo();
+            const name = ci.creator_nickname || ci.creator_username || a.account_name || 'TikTok';
+            const tg = (k, key, off) => `<label class="tgl"><span class="switch"><input type="checkbox" data-tt="${k}" ${C.tt[k] && !off ? 'checked' : ''} ${off ? 'disabled' : ''}><span></span></span>${esc(t(key))}${off ? ` <span class="hint">· ${esc(t('ttOffByCreator'))}</span>` : ''}</label>`;
+            const reqs = Array.isArray(a.requirements) ? a.requirements.filter(Boolean) : [];
+            box.innerHTML = `
+                <div class="row">${logo('tiktok', 'md')}<h3>${esc(t('ttTitle'))}</h3></div>
+                <div class="hint" style="font-size:13px">${esc(t('ttAs', { name }))}</div>
+                <div class="kv"><label class="lbl" for="ttPrivacy">${esc(t('ttWho'))}</label>
+                    <select class="f" id="ttPrivacy" data-tt="privacy"><option value="" ${C.tt.privacy ? '' : 'selected'} disabled>${esc(t('ttChoose'))}</option>
+                    ${opts.map((o) => `<option value="${esc(o)}" ${C.tt.privacy === o ? 'selected' : ''}>${esc(t('priv_' + o) !== 'priv_' + o ? t('priv_' + o) : o)}</option>`).join('')}</select></div>
+                <div class="stack" style="gap:2px"><span class="lbl">${esc(t('ttAllow'))}</span>
+                    ${tg('comment', 'ttComment', !!ci.comment_disabled)}${tg('duet', 'ttDuet', !!ci.duet_disabled)}${tg('stitch', 'ttStitch', !!ci.stitch_disabled)}</div>
+                <div class="stack" style="gap:6px">${tg('disclose', 'ttDisclose', false)}<span class="hint">${esc(t('ttDiscloseHint'))}</span>
+                    <div class="tt-sub" data-tt-sub>
+                        <label class="chk"><input type="checkbox" data-tt="yourBrand" ${C.tt.yourBrand ? 'checked' : ''}><span><b>${esc(t('ttYourBrand'))}</b><br><span class="hint">${esc(t('ttYourBrandHint'))}</span></span></label>
+                        <label class="chk"><input type="checkbox" data-tt="branded" ${C.tt.branded ? 'checked' : ''}><span><b>${esc(t('ttBranded'))}</b><br><span class="hint">${esc(t('ttBrandedHint'))}</span></span></label>
+                    </div></div>
+                ${ci.max_video_post_duration_sec ? `<span class="hint">${esc(t('ttMaxDur', { s: ci.max_video_post_duration_sec }))}</span>` : ''}
+                <div class="info" data-tt-aigc hidden>${esc(t('ttAigc'))}</div>
+                ${reqs.length ? `<ul class="reqs">${reqs.map((r) => `<li>${esc(typeof r === 'string' ? r : (r.text || r.message || ''))}</li>`).join('')}</ul>` : ''}
+                <p class="hint" style="margin:0" data-tt-music></p>
+                <span class="hint">${esc(t('ttAfter'))}</span>`;
+            syncTiktok();
+        }
+        // Cập nhật phần phụ thuộc lựa chọn TikTok mà không vẽ lại khối (giữ focus bàn phím)
+        function syncTiktok() {
+            const box = $('cmpTiktok'); if (box.hidden) return;
+            const sub = box.querySelector('[data-tt-sub]'); if (sub) sub.hidden = !C.tt.disclose;
+            const sel = box.querySelector('[data-tt="privacy"]');
+            if (sel) { const o = sel.querySelector('option[value="SELF_ONLY"]'); if (o) o.disabled = C.tt.disclose && C.tt.branded; }
+            const ai = box.querySelector('[data-tt-aigc]'); if (ai) ai.hidden = !C.media.some((m) => m.is_ai);
+            const mu = box.querySelector('[data-tt-music]');
+            if (mu) {
+                const link = (u, k) => `<a href="${u}" target="_blank" rel="noopener">${esc(t(k))}</a>`;
+                mu.innerHTML = esc(t('ttMusicPre')) + (C.tt.disclose && C.tt.branded ? link(BC_URL, 'ttBc') + esc(t('ttAnd')) : '') + link(MUSIC_URL, 'ttMusic');
+            }
+        }
+        function renderWhen() {
+            document.querySelectorAll('[data-act="when"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.when === C.when ? 'true' : 'false'));
+            $('cmpWhenWrap').hidden = C.when !== 'later';
+            const inp = $('cmpWhen');
+            inp.min = localInput(new Date());
+            if (C.when === 'later' && !C.local) { const n = new Date(Date.now() + 2 * 3600e3); n.setUTCMinutes(0, 0, 0); C.local = localInput(n); }
+            if (inp.value !== C.local) inp.value = C.local;
+            renderTz();
+            if (C.when === 'later') loadBest(); else $('cmpBest').innerHTML = '';
+        }
+        async function fetchBest(p) {
+            if (S.bt[p]) return S.bt[p];
+            try {
+                const j = await api(`/api/social/best_times?platform=${encodeURIComponent(p)}`);
+                const d = (j.data && typeof j.data === 'object' && !Array.isArray(j.data)) ? j.data : j;
+                if (d.timezone) adoptTz(d.timezone);
+                S.bt[p] = { source: d.source, slots: Array.isArray(d.slots) ? d.slots : [], sample_size: d.sample_size, note: d.note };
+            } catch (e) { S.bt[p] = { error: e.message, slots: [] }; }
+            return S.bt[p];
+        }
+        // Lần tới của (thứ, giờ) theo giờ tiệm, cách hiện tại ít nhất 30 phút
+        function nextSlot(wd, hour) {
+            const now = Date.now() + 30 * 60e3, tp = parts(new Date());
+            for (let i = 0; i < 15; i++) {
+                const c = civil(tp.y, tp.m, tp.d + i);
+                if (c.wd !== Number(wd)) continue;
+                const dt = zonedToUtc(c.y, c.m, c.d, Number(hour) || 0, 0);
+                if (dt.getTime() >= now) return dt;
+            }
+            return null;
+        }
+        async function loadBest() {
+            const box = $('cmpBest'), plats = C.targets.slice();
+            if (!plats.length) { box.innerHTML = ''; return; }
+            box.innerHTML = `<span class="lbl">${esc(t('bestTimes'))}</span><span class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('loading'))}</span>`;
+            await Promise.all(plats.map(fetchBest));
+            if (C.when !== 'later') return;
+            box.innerHTML = `<span class="lbl">${esc(t('bestTimes'))}</span>` + plats.map((p) => {
+                const b = S.bt[p] || {};
+                const src = b.source === 'learned' ? `<span class="src learned">${esc(t('learned'))}${b.sample_size ? ' · ' + esc(t('learnedN', { n: b.sample_size })) : ''}</span>` : (b.source ? `<span class="src default">${esc(t('industryDefault'))}</span>` : '');
+                const chips = (b.slots || []).slice(0, 3).map((s) => {
+                    const dt = nextSlot(s.weekday, s.hour); if (!dt) return '';
+                    const v = localInput(dt);
+                    return `<button type="button" class="chip" data-act="pick-slot" data-v="${v}" aria-pressed="${C.local === v ? 'true' : 'false'}" title="${esc(fmt(dt, { dateStyle: 'full', timeStyle: 'short' }))}"><i class="far fa-clock"></i> ${esc(fmtShort(dt))}</button>`;
+                }).join('');
+                return `<div class="stack" style="gap:6px"><div class="row">${logo(p)}<b style="color:#fff;font-size:13px">${esc(pname(p))}</b>${src}</div>
+                    ${chips ? `<div class="chips">${chips}</div>` : `<span class="hint">${esc(b.error || t('bestNone', { p: pname(p) }))}</span>`}
+                    ${b.note ? `<span class="hint">${esc(b.note)}</span>` : ''}</div>`;
+            }).join('');
+        }
+        // Kiểm tra trước khi gửi: lỗi chặn (b) và lưu ý (s)
+        function problems(forDraft) {
+            const out = [], add = (msg, block) => out.push({ msg, block });
+            const m = C.media[0], mk = m ? mediaKind(m) : 'text';
+            if (C.uploading) add(t('w_uploading'), true);
+            if (!C.caption.trim() && !Object.values(C.captions).some((x) => x && x.trim()) && !C.media.length) add(t('w_noContent'), true);
+            if (forDraft) return out;
+            if (!C.targets.length) add(t('w_noPlat'), true);
+            C.targets.forEach((p) => {
+                if (S.accLoaded && !isOn(p)) add(t('w_reconnect', { p: pname(p) }), true);
+                if (!PLAT[p].media.includes(mk)) {
+                    if (p === 'instagram') add(t('w_needMedia'), true);
+                    else if (p === 'google_business') add(t('w_noVideo'), true);
+                    else add(t('w_needVideo', { p: pname(p) }), true);
+                }
+                const n = charLen(p, effCaption(p));
+                if (n > PLAT[p].limit) add(t('w_tooLong', { p: pname(p), n: fmtNum(n), max: fmtNum(PLAT[p].limit) }), true);
+            });
+            if (C.targets.includes('instagram') && m) {
+                if (mk === 'image' && m.content_type && m.content_type !== 'image/jpeg') add(t('w_igJpeg', { type: m.content_type.replace('image/', '').toUpperCase() }), true);
+                if (mk === 'video' && m.content_type && m.content_type !== 'video/mp4') add(t('w_igMp4'), true);
+            }
+            if (C.targets.includes('instagram') && hashCount(effCaption('instagram')) > 30) add(t('w_hashtags', { n: hashCount(effCaption('instagram')) }), true);
+            if (C.targets.includes('youtube')) {
+                if (!C.title.trim()) add(t('w_ytTitle'), true);
+                else if (Array.from(C.title).length > 100) add(t('w_ytTitleLong'), true);
+                if (/[<>]/.test(C.title + effCaption('youtube'))) add(t('w_ytAngle'), true);
+            }
+            if (C.targets.includes('google_business') && hashCount(effCaption('google_business')) > 0) add(t('w_gbpHash'), false);
+            if (C.targets.includes('tiktok')) {
+                if (!C.tt.privacy) add(t('w_ttPrivacy'), true);
+                if (C.tt.disclose && !C.tt.yourBrand && !C.tt.branded) add(t('w_ttBrand'), true);
+                if (C.tt.disclose && C.tt.branded && C.tt.privacy === 'SELF_ONLY') add(t('w_ttBrandPrivate'), true);
+            }
+            if (C.when === 'later') {
+                const d = parseLocal(C.local);
+                if (!d) add(t('w_pickTime'), true);
+                else if (d.getTime() < Date.now() + 60e3) add(t('w_past'), true);
+            }
+            return out;
+        }
+        function renderWarn() {
+            const list = problems(false), draftList = problems(true);
+            $('cmpWarn').innerHTML = list.map((w) => `<div class="${w.block ? 'b' : 's'}"><i class="fas ${w.block ? 'fa-circle-exclamation' : 'fa-lightbulb'}"></i> ${esc(w.msg)}</div>`).join('');
+            const sub = $('btnSubmit'), dr = $('btnDraft');
+            const pend = C.editingStatus === 'pending_approval';
+            // Đang gửi (nút có vòng quay) thì không vẽ đè nhãn/trạng thái nút
+            if (!sub.querySelector('.fa-spin')) {
+                sub.innerHTML = `<i class="fas ${pend ? 'fa-floppy-disk' : (C.when === 'now' ? 'fa-paper-plane' : 'fa-calendar-check')}"></i> <span>${esc(pend ? t('btnSave') : (C.when === 'now' ? t('btnPublish') : t('btnSchedule')))}</span>`;
+                sub.disabled = list.some((w) => w.block);
+            }
+            dr.hidden = pend;
+            if (!dr.querySelector('.fa-spin')) { dr.innerHTML = `<i class="far fa-floppy-disk"></i> <span>${esc(t('btnDraft'))}</span>`; dr.disabled = draftList.some((w) => w.block); }
+        }
+        function payload(status) {
+            const captions = {};
+            C.targets.forEach((p) => { const c = (C.captions[p] || '').trim(); if (c) captions[p] = c; });
+            const body = {
+                caption: C.caption.trim(), captions, title: C.title.trim(), link: C.link.trim(),
+                media_file_ids: C.media.map((m) => m.file_id).filter(Boolean),
+                targets: C.targets.map((p) => {
+                    if (p !== 'tiktok') return { platform: p };
+                    return { platform: p, options: {
+                        privacy_level: C.tt.privacy, disable_comment: !C.tt.comment, disable_duet: !C.tt.duet, disable_stitch: !C.tt.stitch,
+                        brand_content_toggle: !!(C.tt.disclose && C.tt.branded), brand_organic_toggle: !!(C.tt.disclose && C.tt.yourBrand), is_aigc: C.media.some((m) => m.is_ai) } };
+                }),
+            };
+            if (C.when === 'later') { const d = parseLocal(C.local); if (d) body.scheduled_at = isoZ(d); } else body.scheduled_at = null;
+            if (status) body.status = status;
+            return body;
+        }
+        async function submitCompose(draft, btn) {
+            const pend = C.editingStatus === 'pending_approval';
+            if (problems(draft).some((w) => w.block)) { renderWarn(); return; }
+            const status = pend ? null : (draft ? 'draft' : 'scheduled');
+            const now = !draft && !pend && C.when === 'now';
+            busy(btn, true, now ? t('publishing') : t('saving'));
+            let post = null;
+            try {
+                const body = payload(status);
+                const j = C.editingId
+                    ? await api(`/api/social/posts/${encodeURIComponent(C.editingId)}`, { method: 'PUT', body })
+                    : await api('/api/social/posts', { body });
+                post = j.post || (j.data && j.data.id ? j.data : null);
+                const id = (post && post.id) || C.editingId;
+                if (now && id) {
+                    const r = await api(`/api/social/posts/${encodeURIComponent(id)}/publish_now`, { body: {} });
+                    publishToast(r);
+                } else if (draft) toast(t('savedDraft'), true);
+                else if (pend) toast(t('savedOk'), true);
+                else toast(t('scheduledOk', { time: fmt(parseLocal(C.local)) }), true);
+            } catch (e) {
+                busy(btn, false); renderWarn(); toast(e.message, false);
+                // bài đã tạo nhưng đăng ngay lỗi -> chuyển sang sửa bài đó, tránh tạo trùng khi bấm lại
+                if (post && post.id && !C.editingId) { C.editingId = post.id; C.editingStatus = post.status; renderCompose(); }
+                return;
+            }
+            busy(btn, false);
+            const when = C.when === 'later' ? parseLocal(C.local) : new Date();
+            resetCompose();
+            S.view = 'week'; S.weekStart = weekOf(when || new Date());
+            if (pend) { showTab('approvals'); } else showTab('calendar');
+            loadPending();
+        }
+        async function aiCaptions(btn) {
+            if (!C.caption.trim()) { toast(t('aiNeedText'), false); $('cmpCaption').focus(); return; }
+            if (!C.targets.length) { toast(t('aiNeedPlat'), false); return; }
+            if (C.targets.some((p) => (C.captions[p] || '').trim()) && !armed(btn, t('aiReplace'))) return;
+            busy(btn, true, t('aiWriting'));
+            try {
+                const j = await api('/api/social/captions', { body: { text: C.caption, platforms: C.targets, lang: lang() } });
+                const caps = j.captions || (j.data && (j.data.captions || j.data)) || {};
+                C.targets.forEach((p) => { if (typeof caps[p] === 'string') C.captions[p] = caps[p]; });
+                if (typeof caps.youtube_title === 'string' && caps.youtube_title.trim()) C.title = caps.youtube_title.trim();
+                renderEditors(); renderWarn(); toast(t('aiDone'), true);
+            } catch (e) { toast(e.message, false); }
+            busy(btn, false);
+        }
+
+        // ---------------------------------------------------------------- thư viện AI Studio + tải lên
+        async function loadGallery(force) {
+            if (S.gallery && !force) return S.gallery;
+            try {
+                const j = await api('/api/ai_studio/media?limit=100');
+                const items = Array.isArray(j.items) ? j.items : (Array.isArray(j.data) ? j.data : []);
+                S.gallery = items.filter((it) => (!it.status || it.status === 'succeeded') && fileIdOf(it) && mUrl(it));
+            } catch (e) { S.gallery = null; throw e; }
+            return S.gallery;
+        }
+        async function openPicker() {
+            openModal('picker');
+            $('pickerBody').innerHTML = `<div class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('loading'))}</div>`;
+            try { await loadGallery(true); } catch (e) { $('pickerBody').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+            renderPicker();
+        }
+        function renderPicker() {
+            if (!S.gallery) return;
+            document.querySelectorAll('[data-act="gal-filter"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === S.galFilter ? 'true' : 'false'));
+            const list = S.gallery.filter((it) => S.galFilter === 'all' || mediaKind(it) === S.galFilter);
+            $('pickerBody').innerHTML = list.length
+                ? `<div class="gal">${list.map((it) => `<button type="button" class="gitem" data-act="gal-pick" data-fid="${esc(fileIdOf(it))}" title="${esc((it.prompt || '').slice(0, 140))}">${mediaTag(it)}<span class="k">${esc(kindLabel(it))}</span></button>`).join('')}</div>`
+                : `<div class="empty"><i class="fas fa-images big"></i>${esc(t('galEmpty'))}<div style="margin-top:12px"><a class="btn btn-primary" href="/ai-studio"><i class="fas fa-wand-magic-sparkles"></i> ${esc(t('openStudio'))}</a></div></div>`;
+        }
+        function pickMedia(fid) {
+            const it = (S.gallery || []).find((x) => fileIdOf(x) === fid);
+            if (!it) { toast(t('mediaNotFound'), false); return false; }
+            C.media = [toMedia(it)];   // mỗi bài 1 ảnh hoặc 1 video
+            renderMedia(); syncTiktok(); renderWarn();
+            return true;
+        }
+        // Ảnh không phải JPEG / quá 8 MB -> vẽ lại thành JPEG (Instagram chỉ nhận JPEG), cạnh dài tối đa 2160px
+        async function toJpeg(file) {
+            const url = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
+                const s = Math.min(1, 2160 / Math.max(img.naturalWidth, img.naturalHeight));
+                const w = Math.max(1, Math.round(img.naturalWidth * s)), h = Math.max(1, Math.round(img.naturalHeight * s));
+                const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+                const cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+                return await new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('jpeg'))), 'image/jpeg', 0.9));
+            } finally { URL.revokeObjectURL(url); }
+        }
+        async function sendChunk(uid, i, part) {
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const r = await fetch(`/api/media/upload/${encodeURIComponent(uid)}/chunk?index=${i}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: part });
+                    let j = null; try { j = await r.json(); } catch (e) { j = null; }
+                    if (r.ok && j && j.success !== false) return j;
+                    if (r.status < 500 && r.status !== 429) throw mkErr(j || { code: 'http', detail: 'HTTP ' + r.status }, r.status);
+                } catch (e) { if (e.data || attempt === 2) throw (e.data ? e : mkErr({ code: 'network' }, 0)); }
+                await new Promise((res) => setTimeout(res, 800 * (attempt + 1)));
+            }
+            throw mkErr({ code: 'upload_incomplete' }, 0);
+        }
+        function upProgress(txt, pct) {
+            $('upProg').hidden = txt === null;
+            if (txt !== null) { $('upTxt').textContent = txt; $('upBar').style.width = (pct || 0) + '%'; }
+        }
+        async function handleFile(file) {
+            if (!file || C.uploading) return;
+            let blob = file, ct = String(file.type || '').toLowerCase();
+            const isImg = /^image\/(jpeg|png|webp)$/.test(ct), isVid = /^video\/(mp4|webm)$/.test(ct);
+            if (!isImg && !isVid) { toast(errText({ code: 'bad_type' }), false); return; }
+            if (isVid && file.size > MAX_VIDEO) { toast(t('tooBigVid'), false); return; }
+            C.uploading = true; renderMedia(); renderWarn();
+            try {
+                if (isImg && (ct !== 'image/jpeg' || file.size > MAX_IMAGE)) {
+                    upProgress(t('preparing'), 0);
+                    try { blob = await toJpeg(file); ct = 'image/jpeg'; } catch (e) { throw new Error(t('imgReadFail')); }
+                }
+                if (isImg && blob.size > MAX_IMAGE) throw new Error(t('tooBigImg'));
+                upProgress(t('uploading', { pct: 0 }), 0);
+                const init = await api('/api/media/upload/init', { body: { kind: 'social_upload', size: blob.size, content_type: ct } });
+                const uid = init.upload_id || (init.data && init.data.upload_id);
+                if (!uid) throw mkErr({ code: 'upload_incomplete' }, 0);
+                const n = Math.max(1, Math.ceil(blob.size / CHUNK));
+                for (let i = 0; i < n; i++) {
+                    await sendChunk(uid, i, blob.slice(i * CHUNK, Math.min(blob.size, (i + 1) * CHUNK)));
+                    const pct = Math.round(((i + 1) / n) * 100);
+                    upProgress(t('uploading', { pct }), pct);
+                }
+                const fin = await api(`/api/media/upload/${encodeURIComponent(uid)}/finish`, { body: {} });
+                const d = (fin.data && fin.data.file_id) ? fin.data : fin;
+                if (!d.file_id) throw mkErr({ code: 'upload_incomplete' }, 0);
+                C.media = [{ file_id: String(d.file_id), content_type: d.content_type || ct, kind: 'social_upload', url: mUrl(d), is_ai: false }];
+                S.gallery = null;
+                toast(t('uploadDone'), true);
+            } catch (e) { toast(e.message, false); }
+            C.uploading = false; upProgress(null); $('cmpFile').value = '';
+            renderMedia(); syncTiktok(); renderWarn();
+        }
+
+        // ---------------------------------------------------------------- duyệt bài + kế hoạch tuần
+        async function loadPending() {
+            try {
+                const j = await api('/api/social/posts?status=pending_approval');
+                const all = Array.isArray(j.data) ? j.data : (Array.isArray(j.posts) ? j.posts : []);
+                S.pending = all.filter((p) => p.status === 'pending_approval').sort((a, b) => (postTime(a) || 0) - (postTime(b) || 0));
+                S.pendErr = '';
+            } catch (e) { S.pendErr = e.message; }
+            renderPending();
+        }
+        function pendCaption(p) { const d = S.pendDirty[p.id]; return d ? d.caption : (p.caption || ''); }
+        function pendCaps(p) { const d = S.pendDirty[p.id]; return d ? d.captions : (p.captions || {}); }
+        function renderPending() {
+            const n = S.pending.length;
+            const badge = $('pendBadge'); badge.hidden = !n; badge.textContent = String(n);
+            $('pendCount').textContent = n ? `(${n})` : '';
+            $('btnApproveAll').hidden = n < 2;
+            const box = $('pendList');
+            if (S.pendErr && !n) { box.innerHTML = `<div class="err">${esc(S.pendErr)}</div>`; return; }
+            if (!n) { box.innerHTML = `<div class="card" style="grid-column:1/-1"><div class="empty"><i class="fas fa-list-check big"></i>${esc(t('pendEmpty'))}</div></div>`; return; }
+            box.innerHTML = S.pending.map((p) => {
+                const d = postTime(p), plats = (p.targets || []).map((x) => x.platform).filter((x) => PLAT[x]);
+                const m = (p.media || [])[0];
+                const noMediaIg = plats.includes('instagram') && !m;
+                const caps = pendCaps(p);
+                const dirty = !!S.pendDirty[p.id];
+                return `<article class="card" data-pid="${esc(p.id)}">
+                    <div class="row between"><span class="row"><span class="pill ai">${esc(t('aiDraft'))}</span><span class="hint"><i class="far fa-clock"></i> ${d ? esc(fmt(d, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) : esc(t('asap'))}</span></span>
+                        <span class="row" style="gap:4px">${plats.map((x) => logo(x)).join('')}</span></div>
+                    ${m ? `<div class="mthumb" style="aspect-ratio:16/10">${mediaTag(m)}</div>` : ''}
+                    ${!m && p.image_prompt ? `<div class="info"><b>${esc(t('imageIdea'))}:</b> ${esc(p.image_prompt)} <a href="/ai-studio" style="white-space:nowrap">${esc(t('makeInStudio'))} →</a></div>` : ''}
+                    ${noMediaIg ? `<div class="note">${esc(t('igNeedsPhoto'))}</div>` : ''}
+                    <label class="lbl" for="pc_${esc(p.id)}">${esc(t('lblCaption'))}</label>
+                    <textarea class="f" id="pc_${esc(p.id)}" rows="4" data-pcap="${esc(p.id)}">${esc(pendCaption(p))}</textarea>
+                    ${plats.length ? `<details><summary>${esc(t('perPlatform'))}</summary><div class="stack" style="margin-top:8px">${plats.map((x) => `<div class="ed"><div class="ed-h">${logo(x)}<span>${esc(pname(x))}</span><span class="cnt" data-pcount="${esc(p.id)}|${x}"></span></div><textarea class="f" rows="3" data-pcp="${esc(p.id)}" data-p="${x}" aria-label="${esc(pname(x))}" placeholder="${esc(t('phPlat'))}">${esc(caps[x] || '')}</textarea></div>`).join('')}</div></details>` : ''}
+                    <div class="actions">
+                        <button type="button" class="btn sm btn-danger" data-act="reject" data-id="${esc(p.id)}"><i class="fas fa-xmark"></i> ${esc(t('reject'))}</button>
+                        <button type="button" class="btn sm" data-act="edit-post" data-id="${esc(p.id)}"><i class="fas fa-pen-to-square"></i> ${esc(t('editInCompose'))}</button>
+                        <button type="button" class="btn sm" data-act="save-pend" data-id="${esc(p.id)}" ${dirty ? '' : 'disabled'}><i class="far fa-floppy-disk"></i> ${esc(t('btnSave'))}</button>
+                        <button type="button" class="btn sm btn-ok" data-act="approve" data-id="${esc(p.id)}"><i class="fas fa-check"></i> ${esc(t('approve'))}</button>
+                    </div></article>`;
+            }).join('');
+            S.pending.forEach(pendCounts);
+        }
+        function pendCounts(p) {
+            const caps = pendCaps(p), base = pendCaption(p);
+            (p.targets || []).forEach((x) => {
+                const el = document.querySelector(`[data-pcount="${CSS.escape(String(p.id) + '|' + x.platform)}"]`); if (!el || !PLAT[x.platform]) return;
+                const txt = (caps[x.platform] || '').trim() ? caps[x.platform] : base, n = charLen(x.platform, txt), max = PLAT[x.platform].limit;
+                el.textContent = `${fmtNum(n)} / ${fmtNum(max)}`; el.classList.toggle('over', n > max);
+            });
+        }
+        async function savePend(id) {
+            const d = S.pendDirty[id]; if (!d) return;
+            await api(`/api/social/posts/${encodeURIComponent(id)}`, { method: 'PUT', body: { caption: d.caption, captions: d.captions } });
+            delete S.pendDirty[id];
+        }
+        async function approveOne(id) {
+            await savePend(id);
+            const j = await api(`/api/social/posts/${encodeURIComponent(id)}/approve`, { body: {} });
+            return j.post || (j.data && j.data.id ? j.data : null);
+        }
+        async function pendAction(kind, id, btn) {
+            if (kind === 'reject') {
+                if (!armed(btn)) return;
+                busy(btn, true, '');
+                try { await api(`/api/social/posts/${encodeURIComponent(id)}`, { method: 'DELETE' }); delete S.pendDirty[id]; toast(t('rejectedOk'), true); }
+                catch (e) { busy(btn, false); toast(e.message, false); return; }
+            } else if (kind === 'save-pend') {
+                busy(btn, true, t('saving'));
+                try { await savePend(id); toast(t('savedOk'), true); } catch (e) { busy(btn, false); toast(e.message, false); return; }
+            } else if (kind === 'approve') {
+                busy(btn, true, '');
+                try {
+                    const post = await approveOne(id), orig = findPost(id);
+                    const when = (post && post.scheduled_at) || (orig && orig.scheduled_at);
+                    toast(t('approvedOk', { time: when ? t('timeAt', { time: fmtShort(when) }) : t('timeAsap') }), true);
+                } catch (e) { busy(btn, false); toast(e.message, false); return; }
+            }
+            await loadPending();
+            if (S.tab === 'calendar') loadCalendar(true);
+        }
+        async function approveAll(btn) {
+            const ids = S.pending.map((p) => p.id);
+            if (!ids.length) return;
+            busy(btn, true, t('approve') + '…');
+            let ok = 0, lastErr = '';
+            for (const id of ids) { try { await approveOne(id); ok++; } catch (e) { lastErr = e.message; } }
+            busy(btn, false);
+            toast(t('approvedAll', { ok, n: ids.length }) + (lastErr ? ' — ' + lastErr : ''), ok === ids.length);
+            await loadPending();
+        }
+        function renderPlanPlats() {
+            const box = $('planPlats'); if (!box) return;
+            if (!box.dataset.init && S.accLoaded) { box.dataset.init = '1'; S.planSel = PLAN_PLATFORMS.filter(isOn); }
+            const sel = S.planSel || [];
+            box.innerHTML = PLAN_PLATFORMS.map((p) => `<button type="button" class="chip" data-act="plan-plat" data-p="${p}" aria-pressed="${sel.includes(p) ? 'true' : 'false'}" ${isOn(p) ? '' : 'disabled title="' + esc(t('notConnected')) + '"'}>${logo(p)} ${esc(PLAT[p].short || PLAT[p].name)}</button>`).join('')
+                + (S.accLoaded && !PLAN_PLATFORMS.some(isOn) ? `<span class="hint" style="flex-basis:100%">${esc(t('planNoneConnected'))}</span>` : '');
+            const ps = $('planStart');
+            if (!ps.value) {
+                const tp = parts(new Date()), c = civil(tp.y, tp.m, tp.d + (tp.wd === 0 ? 0 : 7 - tp.wd));
+                ps.value = `${c.y}-${pad(c.m)}-${pad(c.d)}`;
+                ps.min = `${tp.y}-${pad(tp.m)}-${pad(tp.d)}`;
+            }
+        }
+        $('planForm').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const plats = (S.planSel || []).filter(isOn);
+            if (!plats.length) { toast(t(PLAN_PLATFORMS.some(isOn) ? 'planNeedPlat' : 'planNoneConnected'), false); return; }
+            const n = Math.min(14, Math.max(1, parseInt($('planN').value, 10) || 3));
+            const btn = $('btnPlan');
+            busy(btn, true, t('planning'));
+            try {
+                const j = await api('/api/social/plan/week', { body: { start_date: $('planStart').value, platforms: plats, posts_per_week: n, lang: lang() } });
+                const posts = Array.isArray(j.posts) ? j.posts : ((j.data && j.data.posts) || []);
+                toast(posts.length > 1 ? t('planDone', { n: posts.length }) : t(posts.length ? 'planDone1' : 'planDone0'), posts.length > 0);
+            } catch (e) { toast(e.message, false); }
+            busy(btn, false);
+            await loadPending();
+        });
+
+        // ---------------------------------------------------------------- hiệu quả
+        const METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'saved', 'clicks'];
+        const metsHtml = (m) => { const xs = METRICS.filter((k) => typeof (m || {})[k] === 'number'); return xs.length ? `<div class="mets">${xs.map((k) => `<span>${esc(t('m_' + k))} <b>${esc(fmtNum(m[k]))}</b></span>`).join('')}</div>` : ''; };
+        async function loadInsights() {
+            S.perfDays = parseInt($('perfDays').value, 10) || 30;
+            try {
+                const j = await api(`/api/social/insights?days=${S.perfDays}`);
+                const d = (j.data && !Array.isArray(j.data) && typeof j.data === 'object') ? j.data : j;
+                S.insights = { totals: d.totals || {}, posts: Array.isArray(d.posts) ? d.posts : [] };
+                S.perfErr = '';
+            } catch (e) { S.perfErr = e.message; S.insights = S.insights || null; }
+            renderInsights();
+        }
+        // Mỗi mục {post, metrics, fetched_at} -> các dòng theo nền tảng (metrics có thể phẳng hoặc theo nền tảng)
+        function insightRows(it) {
+            const p = it.post || {}, m = it.metrics || {}, keys = Object.keys(m);
+            if (it.platform) return [{ platform: it.platform, metrics: m, fetched_at: it.fetched_at, post: p }];
+            if (keys.length && keys.every((k) => PLAT[k])) return keys.map((k) => ({ platform: k, metrics: (m[k] && m[k].metrics) || m[k] || {}, fetched_at: (m[k] && m[k].fetched_at) || it.fetched_at, post: p }));
+            return [{ platform: ((p.targets || [])[0] || {}).platform || '', metrics: m, fetched_at: it.fetched_at, post: p }];
+        }
+        function renderInsights() {
+            const box = $('perfBody');
+            if (S.perfErr && !S.insights) { box.innerHTML = `<div class="err">${esc(S.perfErr)}</div>`; return; }
+            if (!S.insights) return;
+            const rows = S.insights.posts.flatMap(insightRows).filter((r) => METRICS.some((k) => typeof r.metrics[k] === 'number'));
+            const tot = Object.entries(S.insights.totals || {}).filter(([k, v]) => PLAT[k] && v && METRICS.concat('posts').some((x) => typeof v[x] === 'number'));
+            if (!rows.length && !tot.length) {
+                box.innerHTML = `<div class="card"><div class="empty"><i class="fas fa-chart-simple big"></i><b style="color:#fff">${esc(t('perfEmpty'))}</b><br>${esc(t('perfEmptyHint'))}</div></div>`;
+                return;
+            }
+            const cards = tot.map(([k, v]) => `<div class="card" style="gap:8px"><div class="row">${logo(k, 'md')}<b style="color:#fff">${esc(pname(k))}</b>${typeof v.posts === 'number' ? `<span class="hint">· ${esc(fmtNum(v.posts))} ${esc(t('m_posts').toLowerCase())}</span>` : ''}</div>${metsHtml(v)}</div>`).join('');
+            const tbl = rows.length ? `<p class="sec-title">${esc(t('perfPosts'))}</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${esc(t('colPost'))}</th><th>${esc(t('colStats'))}</th></tr></thead><tbody>${rows.map((r) => {
+                const tg = (r.post.targets || []).find((x) => x.platform === r.platform) || {};
+                const link = safeUrl(tg.permalink), when = tg.published_at || r.post.scheduled_at;
+                return `<tr><td style="min-width:180px"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${logo(r.platform)}<span style="min-width:0"><span style="display:block;overflow-wrap:anywhere">${esc((r.post.caption || r.post.title || '').slice(0, 120))}</span><span class="hint">${when ? esc(fmtShort(when)) : ''}${link ? ` · <a href="${esc(link)}" target="_blank" rel="noopener">${esc(t('tg_view'))}</a>` : ''}</span></span></div></td>
+                    <td style="min-width:180px">${metsHtml(r.metrics)}${r.fetched_at ? `<div class="hint" style="margin-top:4px">${esc(t('statsAsOf', { time: fmtShort(r.fetched_at) }))}</div>` : ''}</td></tr>`;
+            }).join('')}</tbody></table></div>` : '';
+            box.innerHTML = (S.perfErr ? `<div class="err" style="margin-bottom:12px">${esc(S.perfErr)}</div>` : '') + (cards ? `<div class="totals">${cards}</div>` : '') + tbl;
+        }
+        async function loadBestTable() {
+            const plats = PLATFORMS.filter(isOn);
+            const use = plats.length ? plats : PLATFORMS;
+            $('btTable').innerHTML = `<div class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('loading'))}</div>`;
+            await Promise.all(use.map(fetchBest));
+            S.btPlats = use; renderBestTable();
+        }
+        function renderBestTable() {
+            const use = S.btPlats; if (!use) return;
+            $('btTable').innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>${esc(t('btPlatform'))}</th><th>${esc(t('btSlots'))}</th><th>${esc(t('btSource'))}</th></tr></thead><tbody>${use.map((p) => {
+                const b = S.bt[p] || {};
+                const slots = (b.slots || []).slice(0, 3).map((s) => `<span class="chip" style="cursor:default">${esc(wdName(Number(s.weekday) || 0))} ${esc(hourName(Number(s.hour) || 0))}</span>`).join('');
+                const src = b.source === 'learned' ? `<span class="src learned">${esc(t('learned'))}</span>${b.sample_size ? `<div class="hint">${esc(t('learnedN', { n: b.sample_size }))}</div>` : ''}` : (b.source ? `<span class="src default">${esc(t('industryDefault'))}</span>` : '');
+                return `<tr><td><span class="row" style="flex-wrap:nowrap">${logo(p)}<span>${esc(pname(p))}</span></span></td><td>${slots ? `<div class="chips">${slots}</div>` : `<span class="hint">${esc(b.error || t('bestNone', { p: pname(p) }))}</span>`}${b.note ? `<div class="hint" style="margin-top:4px">${esc(b.note)}</div>` : ''}</td><td>${src}</td></tr>`;
+            }).join('')}</tbody></table></div>`;
+        }
+        async function aiReview(btn) {
+            busy(btn, true, t('reviewing'));
+            const box = $('reviewBox');
+            try {
+                const j = await api('/api/social/review', { body: { lang: lang() } });
+                const d = (j.data && typeof j.data === 'object' && !Array.isArray(j.data)) ? j.data : j;
+                const tops = Array.isArray(d.top_posts) ? d.top_posts : [];
+                let win = '';
+                if (d.metrics_window) {
+                    const w = d.metrics_window;
+                    win = typeof w === 'string' ? w : (w.from && w.to ? `${fmt(w.from, { dateStyle: 'medium' })} – ${fmt(w.to, { dateStyle: 'medium' })}` : (w.days ? t('perfDays', { n: w.days }) : ''));
+                }
+                box.innerHTML = `<div class="row">${'<i class="fas fa-wand-magic-sparkles" style="color:#22d3ee"></i>'}<h3>${esc(t('review'))}</h3>${win ? `<span class="hint">· ${esc(t('windowLbl', { w: win }))}</span>` : ''}</div>
+                    <div class="${d.enough_data === false ? 'info' : 'rv'}">${esc(d.text || d.message || '')}</div>
+                    ${d.enough_data !== false && tops.length ? `<span class="lbl">${esc(t('topPosts'))}</span><div class="stack">${tops.map((x) => {
+                        const p = x.post || x, plat = x.platform || ((p.targets || [])[0] || {}).platform;
+                        return `<div class="tgt"><span class="row" style="flex-wrap:nowrap;align-items:flex-start">${plat ? logo(plat) : ''}<span style="overflow-wrap:anywhere">${esc(String(x.caption || p.caption || p.title || '').slice(0, 160))}</span></span>${metsHtml(x.metrics || {})}</div>`;
+                    }).join('')}</div>` : ''}`;
+                box.hidden = false;
+            } catch (e) { toast(e.message, false); }
+            busy(btn, false);
+        }
+
+        // ---------------------------------------------------------------- sự kiện
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+            const a = el.dataset.act, id = el.dataset.id, p = el.dataset.p;
+            switch (a) {
+                case 'view': S.view = el.dataset.view; loadCalendar(); break;
+                case 'wk-prev': case 'wk-next': { const w = S.weekStart; S.weekStart = civil(w.y, w.m, w.d + (a === 'wk-next' ? 7 : -7)); loadCalendar(); break; }
+                case 'wk-today': S.weekStart = weekOf(new Date()); loadCalendar(); break;
+                case 'new-post': if (C.editingId) resetCompose(); showTab('compose'); $('cmpCaption').focus(); break;
+                case 'goto': showTab(el.dataset.tab); break;
+                case 'open-post': openPost(id); break;
+                case 'close-modal': closeModals(); break;
+                case 'edit-post': { const post = findPost(id); if (post) { closeModals(); loadIntoCompose(post); } break; }
+                case 'publish-now': case 'cancel-post': case 'delete-post': postAction(a, id, el); break;
+                case 'cmp-reset': resetCompose(); break;
+                case 'toggle-plat':
+                    C.targets = C.targets.includes(p) ? C.targets.filter((x) => x !== p) : PLATFORMS.filter((x) => x === p || C.targets.includes(x));
+                    renderPlatforms(); renderEditors(); renderTiktok(); if (C.when === 'later') loadBest(); renderWarn(); break;
+                case 'when': C.when = el.dataset.when; renderWhen(); renderWarn(); break;
+                case 'pick-slot': C.local = el.dataset.v; $('cmpWhen').value = C.local; document.querySelectorAll('[data-act="pick-slot"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === C.local ? 'true' : 'false')); renderWarn(); break;
+                case 'ai-captions': aiCaptions(el); break;
+                case 'open-picker': openPicker(); break;
+                case 'gal-filter': S.galFilter = el.dataset.f; renderPicker(); break;
+                case 'gal-pick': if (pickMedia(el.dataset.fid)) closeModals(); break;
+                case 'media-remove': C.media.splice(Number(el.dataset.i), 1); renderMedia(); syncTiktok(); renderWarn(); break;
+                case 'cmp-draft': submitCompose(true, el); break;
+                case 'cmp-submit': submitCompose(false, el); break;
+                case 'approve': case 'reject': case 'save-pend': pendAction(a, id, el); break;
+                case 'approve-all': approveAll(el); break;
+                case 'plan-plat': { const sel = S.planSel || []; S.planSel = sel.includes(p) ? sel.filter((x) => x !== p) : sel.concat(p); renderPlanPlats(); break; }
+                case 'acc-inbox': accAction(p, { action: 'connect_inbox' }, el, t('connectedOk', { p: pname(p) })); break;
+                case 'acc-token-open': S.accOpen[p] = true; renderAccounts(); { const f = document.getElementById(`af_${p}_token`); if (f) f.focus(); } break;
+                case 'acc-token-close': S.accOpen[p] = false; renderAccounts(); break;
+                case 'acc-off': if (armed(el, t('sureOff', { p: pname(p) }))) accAction(p, { action: 'disconnect' }, el, t('disconnected')); break;
+                case 'ai-review': aiReview(el); break;
+                // Nhớ nền tảng đang đăng nhập: callback chỉ trả ?error=<code>, cần biết lỗi của nền tảng nào
+                case 'oauth-start': try { sessionStorage.setItem('bp_social_oauth', p); } catch (err) { /* bị chặn */ } break;
+                default: break;
+            }
+        });
+        // Bấm ra ngoài hộp thoại / phím Esc -> đóng
+        ['sheet', 'picker'].forEach((id) => $(id).addEventListener('click', (e) => { if (e.target.id === id) closeModals(); }));
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (!$('sheet').hidden || !$('picker').hidden)) closeModals(); });
+        $('cmpCaption').addEventListener('input', (e) => { C.caption = e.target.value; updateCounts(); renderWarn(); });
+        $('cmpLink').addEventListener('input', (e) => { C.link = e.target.value; });
+        $('cmpWhen').addEventListener('input', (e) => { C.local = e.target.value; document.querySelectorAll('[data-act="pick-slot"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === C.local ? 'true' : 'false')); renderWarn(); });
+        $('cmpEditors').addEventListener('input', (e) => {
+            if (e.target.dataset.cap) C.captions[e.target.dataset.cap] = e.target.value;
+            if (e.target.hasAttribute('data-yt-title')) C.title = e.target.value;
+            updateCounts(); renderWarn();
+        });
+        $('cmpTiktok').addEventListener('change', (e) => {
+            const k = e.target.dataset.tt; if (!k) return;
+            C.tt[k] = k === 'privacy' ? e.target.value : e.target.checked;
+            if (k === 'disclose' && !C.tt.disclose) { C.tt.yourBrand = false; C.tt.branded = false; $('cmpTiktok').querySelectorAll('[data-tt="yourBrand"],[data-tt="branded"]').forEach((x) => { x.checked = false; }); }
+            syncTiktok(); renderWarn();
+        });
+        $('cmpFile').addEventListener('change', (e) => handleFile(e.target.files && e.target.files[0]));
+        $('listFilter').addEventListener('change', renderCalendar);
+        $('perfDays').addEventListener('change', loadInsights);
+        $('pendList').addEventListener('input', (e) => {
+            const tgt = e.target, id = tgt.dataset.pcap || tgt.dataset.pcp; if (!id) return;
+            const p = S.pending.find((x) => String(x.id) === String(id)); if (!p) return;
+            const d = S.pendDirty[p.id] || (S.pendDirty[p.id] = { caption: p.caption || '', captions: Object.assign({}, p.captions || {}) });
+            if (tgt.dataset.pcap) d.caption = tgt.value; else d.captions[tgt.dataset.p] = tgt.value;
+            const sb = document.querySelector(`[data-act="save-pend"][data-id="${CSS.escape(String(p.id))}"]`); if (sb) sb.disabled = false;
+            pendCounts(p);
+        });
+
+        // ---------------------------------------------------------------- khởi động
+        (async function init() {
+            applyStatic();
+            S.weekStart = weekOf(new Date());
+            const q = new URLSearchParams(location.search);
+            let tab = (location.hash || '').replace('#', '');
+            const mediaId = q.get('compose') === '1' ? (q.get('media') || '') : '';
+            if (q.get('compose') === '1') tab = 'compose';
+            let oauthP = '';
+            try { oauthP = sessionStorage.getItem('bp_social_oauth') || ''; sessionStorage.removeItem('bp_social_oauth'); } catch (e) { /* bị chặn */ }
+            if (q.get('connected')) { tab = 'accounts'; toast(t('connectedOk', { p: pname(q.get('connected')) }), true); }
+            if (q.get('error')) { tab = 'accounts'; toast(errText({ code: q.get('error'), platform: q.get('platform') || oauthP, detail: q.get('detail') || '' }), false); }
+            if (q.toString()) { try { history.replaceState(null, '', location.pathname + (tab ? '#' + tab : '')); } catch (e) { /* bỏ qua */ } }
+            S.tab = TABS.includes(tab) ? tab : 'calendar';   // trước khi pump trả về, để không tải lịch thừa khi mở tab khác
+            // Chạy hàng đợi đăng bài của tiệm 1 lần (server tự giới hạn 2 phút/lần) rồi làm mới lịch
+            fetch('/api/social/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+                .then((r) => { if (r.ok && S.tab === 'calendar') loadCalendar(true); }).catch(() => {});
+            await loadAccounts();
+            showTab(TABS.includes(tab) ? tab : 'calendar', !tab);
+            if (S.tab !== 'approvals') loadPending();
+            if (mediaId && /^[A-Za-z0-9_-]{1,64}$/.test(mediaId)) {
+                try { await loadGallery(true); pickMedia(mediaId); } catch (e) { toast(e.message, false); }
+            }
+        })();
+    </script>
+</body>
+</html>
