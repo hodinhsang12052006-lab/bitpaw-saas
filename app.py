@@ -1658,7 +1658,8 @@ def register():
                 'name': business_name or email,
                 'owner_name': fullname,
                 'industry_code': business_type,
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now().isoformat(),
+                **({'plan': key_valid['plan']} if key_valid.get('plan') in plans.PLAN_ORDER else {}),
             })
             session['business_mode'] = business_type
             # Lưu business type vào system_settings, khóa riêng theo user_id để tránh đè chéo giữa các tài khoản
@@ -2921,18 +2922,19 @@ SAAS_CURRENCIES = {'USD': {'symbol': '$', 'label': 'USD', 'tax_vi': 'Chưa gồm
                            'tax_en': 'Sales tax may apply'},
                    'AUD': {'symbol': 'A$', 'label': 'AUD', 'tax_vi': 'Chưa gồm GST nếu có',
                            'tax_en': 'Excludes GST where applicable'}}
-SAAS_PLANS = {
-    'essential': {'name': 'Essential', 'setup': {'USD': 999, 'AUD': 1499}, 'monthly': {'USD': 99, 'AUD': 149}},
-    'pro': {'name': 'Pro Partner', 'setup': {'USD': 2999, 'AUD': 4499}, 'monthly': {'USD': 299, 'AUD': 449}},
-    'empire': {'name': 'Empire Scale', 'setup': {'USD': 4999, 'AUD': 7499}, 'monthly': {'USD': 599, 'AUD': 899}},
-}
+import plans  # noqa: E402  — giá + tính năng THEO NGÀNH (25/10/2026), xem plans.py
+# Bảng giá mặc định (ngành Nails) cho chỗ cũ chưa biết ngành; giá thật luôn tính theo plans.price(ngành, gói, tiền tệ).
+SAAS_PLANS = {k: {'name': plans.PLAN_NAMES[k],
+                  'setup': {c: plans.price('nail', k, c)[1] for c in ('USD', 'AUD')},
+                  'monthly': {c: plans.price('nail', k, c)[0] for c in ('USD', 'AUD')}} for k in plans.PLAN_ORDER}
+SAAS_PRICING = plans.catalog()
 # Link cũ /checkout?plan=hrm|pos|ecom|agency (trang cũ bán theo module bằng VND) -> gói tương ứng
 SAAS_PLAN_ALIASES = {'hrm': 'essential', 'pos': 'essential', 'ecom': 'pro', 'agency': 'pro'}
 
 
 @app.context_processor
 def inject_saas_plans():
-    return {'saas_plans': SAAS_PLANS, 'saas_currencies': SAAS_CURRENCIES}
+    return {'saas_plans': SAAS_PLANS, 'saas_currencies': SAAS_CURRENCIES, 'saas_pricing': SAAS_PRICING}
 
 
 @app.route('/api/checkout/signup', methods=['POST'])
@@ -2960,13 +2962,16 @@ def api_checkout_signup():
     industry = data.get('industry') if isinstance(data.get('industry'), str) and data.get('industry') in INDUSTRY_CONFIG else ''
     note = data.get('note') if isinstance(data.get('note'), str) else ''
     p = SAAS_PLANS[plan]
+    monthly_fee, setup_fee = plans.price(industry or 'nail', plan, currency)   # giá theo NGÀNH
+    billing = 'year' if data.get('billing') == 'year' else 'month'
+    first_period = monthly_fee * 10 if billing == 'year' else monthly_fee      # trả năm: tặng 2 tháng
     try:
         doc = {
             'id': next_mongo_id('saas_signups'),
             **fields,
             'plan': plan, 'plan_name': p['name'], 'currency': currency, 'country': country, 'industry': industry,
-            'setup_fee': p['setup'][currency], 'monthly_fee': p['monthly'][currency],
-            'total_price': p['setup'][currency] + p['monthly'][currency],  # phải thu kỳ đầu = phí cài + tháng đầu
+            'setup_fee': setup_fee, 'monthly_fee': monthly_fee, 'billing': billing,
+            'total_price': setup_fee + first_period,  # phải thu kỳ đầu = phí cài + tháng đầu (hoặc cả năm)
             'note': note.strip()[:1000],
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
@@ -2982,12 +2987,13 @@ def api_checkout_signup():
         admin_to = [SUPERADMIN_ROOT_EMAIL] + [e.strip() for e in os.environ.get('SUPERADMIN_EMAILS', '').split(',') if e.strip()]
         body = (f"<h3>New BitPaw signup request #{doc['id']}</h3><p><b>{html_escape(doc['shop_name'])}</b> — {html_escape(doc['customer_name'])}"
                 f"<br>{html_escape(doc['email'])} · {html_escape(doc['phone'])} · {country} · {industry or '-'}</p>"
-                f"<p>Plan: <b>{p['name']}</b> · {currency} · setup {sym}{doc['setup_fee']:,} + {sym}{doc['monthly_fee']:,}/month</p>"
+                f"<p>Plan: <b>{p['name']}</b> · {industry or 'nail'} · {currency} · setup {sym}{doc['setup_fee']:,} + {sym}{doc['monthly_fee']:,}/month"
+                f"{' (billed yearly: ' + sym + format(doc['monthly_fee'] * 10, ',') + ')' if billing == 'year' else ''}</p>"
                 f"<p>{html_escape(doc['note'])}</p><p>Send a Square invoice, then activate the account in Super Admin.</p>")
         EmailService.send_email(admin_to[0], f"[BitPaw] New signup: {doc['shop_name']} ({p['name']}, {currency})", body)
     except Exception as e:
         print(f"[api_checkout_signup] admin email failed: {e}")
-    return jsonify({"success": True, "data": {'id': doc['id'], 'plan': plan, 'currency': currency,
+    return jsonify({"success": True, "data": {'id': doc['id'], 'plan': plan, 'currency': currency, 'billing': billing,
                                               'setup_fee': doc['setup_fee'], 'monthly_fee': doc['monthly_fee']}})
 
 
@@ -3011,6 +3017,132 @@ def api_superadmin_saas_signup_status(signup_id):
         return jsonify({"success": False, "message": "Invalid status"}), 400
     r = db.saas_signups.update_one({'id': signup_id}, {'$set': {'status': status, 'updated_at': datetime.now().isoformat()}})
     return jsonify({"success": r.matched_count == 1})
+
+
+# ========== GÓI CỦA TIỆM: khoá tính năng + trang nâng cấp (plans.py) ==========
+def _session_business_id():
+    return session.get('business_id') or session.get('user_id')
+
+
+@app.before_request
+def _plan_gate():
+    """Trang/API của chủ tiệm thuộc gói cao hơn -> trang /plan (web) hoặc 403 upgrade_required (API).
+    Chạy SAU kiểm tra phiên (đăng ký sau _session_guard). Trang công khai của khách không bao giờ bị khoá."""
+    feat = plans.feature_for_path(request.path)
+    if not feat or 'user_id' not in session:
+        return None
+    try:
+        if _is_superadmin():
+            return None
+    except Exception:
+        pass
+    plan = plans.business_plan(db, _session_business_id())
+    if plans.allows(plan, feat):
+        return None
+    need = plans.FEATURE_MIN_PLAN[feat]
+    vi = resolve_lang(request) == 'vi'
+    label = plans.FEATURE_LABELS[feat][0 if vi else 1]
+    msg = (f'{label} có trong gói {plans.PLAN_NAMES[need]} trở lên.' if vi
+           else f'{label} is included in {plans.PLAN_NAMES[need]} and above.')
+    if _wants_json() or request.path.startswith('/api/'):
+        return jsonify({'success': False, 'upgrade_required': True, 'plan': plan, 'required_plan': need,
+                        'feature': feat, 'message': msg}), 403
+    return redirect(url_for('plan_page', feature=feat))
+
+
+@app.context_processor
+def inject_current_plan():
+    """current_plan + plan_lock('tính_năng') cho sidebar: mục thuộc gói cao hơn hiện nhãn khoá nhỏ (vẫn bấm được -> trang nâng cấp)."""
+    if 'user_id' not in session:
+        return {'current_plan': None, 'plan_lock': lambda feat: ''}
+    try:
+        superadmin = _is_superadmin()
+    except Exception:
+        superadmin = False
+    plan = plans.business_plan(db, _session_business_id())
+
+    def plan_lock(feat):
+        if superadmin or plans.allows(plan, feat):
+            return ''
+        need = plans.FEATURE_MIN_PLAN.get(feat, 'pro')
+        return Markup('<span class="plan-lock" title="%s"><i class="fas fa-lock"></i> %s</span>'
+                      % (plans.PLAN_NAMES[need], 'Pro' if need == 'pro' else 'Empire'))
+    return {'current_plan': plan, 'plan_lock': plan_lock}
+
+
+@app.route('/plan')
+@login_required
+def plan_page():
+    """Gói hiện tại + so sánh 3 gói của ĐÚNG ngành tiệm + gửi yêu cầu nâng cấp."""
+    bid = _session_business_id()
+    plan = plans.business_plan(db, bid)
+    industry = (session.get('business_mode') or '').lower()
+    if industry not in plans.INDUSTRY_PRICES:
+        industry = 'nail'
+    currency = _tenant_currency(bid) if '_tenant_currency' in globals() else 'USD'
+    currency = currency if currency in ('USD', 'AUD') else 'USD'
+    feat = request.args.get('feature')
+    feat = feat if feat in plans.FEATURE_MIN_PLAN else None
+    return render_template('plan.html', plan=plan, industry=industry, currency=currency, cards=plans.tier_cards(industry),
+                           feature=feat, required_plan=plans.FEATURE_MIN_PLAN.get(feat) if feat else None,
+                           feature_label=plans.FEATURE_LABELS.get(feat) if feat else None, plan_names=plans.PLAN_NAMES,
+                           plan_order=plans.PLAN_ORDER, industry_label=plans.INDUSTRY_LABELS[industry])
+
+
+@app.route('/api/plan/request', methods=['POST'])
+@login_required
+@limiter.limit("5 per hour")
+def api_plan_request():
+    """Chủ tiệm bấm "Nâng cấp" -> lưu yêu cầu (db.saas_signups, type=upgrade) + email BitPaw. Chưa thu tiền:
+    BitPaw gửi hoá đơn rồi đổi gói trong Super Admin."""
+    data = request.json or {}
+    target = data.get('plan')
+    bid = _session_business_id()
+    current = plans.business_plan(db, bid)
+    if target not in plans.PLAN_ORDER or plans.PLAN_ORDER.index(target) <= plans.PLAN_ORDER.index(current):
+        return jsonify({'success': False, 'message': 'Please choose a higher plan.'}), 400
+    industry = (session.get('business_mode') or '').lower()
+    industry = industry if industry in plans.INDUSTRY_PRICES else 'nail'
+    currency = _tenant_currency(bid) if '_tenant_currency' in globals() else 'USD'
+    currency = currency if currency in ('USD', 'AUD') else 'USD'
+    monthly_fee, setup_fee = plans.price(industry, target, currency)
+    biz = db.businesses.find_one({'id': bid}, {'_id': 0, 'name': 1, 'owner_name': 1, 'phone': 1}) or {}
+    doc = {'id': next_mongo_id('saas_signups'), 'type': 'upgrade', 'business_id': bid,
+           'customer_name': biz.get('owner_name') or '', 'shop_name': biz.get('name') or '', 'email': session.get('user_email') or '',
+           'phone': biz.get('phone') or '', 'plan': target, 'plan_name': plans.PLAN_NAMES[target], 'current_plan': current,
+           'currency': currency, 'industry': industry, 'setup_fee': setup_fee, 'monthly_fee': monthly_fee,
+           'total_price': setup_fee + monthly_fee, 'note': str(data.get('note') or '')[:500], 'status': 'pending',
+           'created_at': datetime.now().isoformat()}
+    db.saas_signups.insert_one(doc)
+    try:
+        from markupsafe import escape as html_escape
+        EmailService.send_email(SUPERADMIN_ROOT_EMAIL, f"[BitPaw] Upgrade request: {doc['shop_name']} → {doc['plan_name']}",
+                                f"<p><b>{html_escape(doc['shop_name'])}</b> ({html_escape(doc['email'])}) wants "
+                                f"{doc['plan_name']} (now {plans.PLAN_NAMES[current]}), {industry}, {currency}: "
+                                f"{monthly_fee}/month + {setup_fee} setup.</p><p>Send the invoice, then change the plan in Super Admin.</p>")
+    except Exception as e:
+        print(f"[api_plan_request] admin email failed: {e}")
+    return jsonify({'success': True, 'data': {'id': doc['id'], 'plan': target, 'monthly_fee': monthly_fee, 'setup_fee': setup_fee,
+                                              'currency': currency}})
+
+
+@app.route('/api/superadmin/business_plan', methods=['POST'])
+@login_required
+def api_superadmin_business_plan():
+    """Super admin đổi gói của 1 tiệm (theo email đăng nhập của chủ tiệm)."""
+    if not _is_superadmin():
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+    data = request.json or {}
+    email, plan = str(data.get('email') or '').strip(), data.get('plan')
+    if plan not in plans.PLAN_ORDER or not email:
+        return jsonify({'success': False, 'message': 'Email and plan are required.'}), 400
+    user = db.users.find_one(_email_query(email), {'_id': 0, 'id': 1, 'business_id': 1})
+    if not user:
+        return jsonify({'success': False, 'message': 'No account with that email.'}), 404
+    bid = user.get('business_id') or user['id']
+    db.businesses.update_one({'id': bid}, {'$set': {'plan': plan, 'plan_updated_at': datetime.now().isoformat()}})
+    plans.forget(bid)
+    return jsonify({'success': True, 'data': {'business_id': bid, 'plan': plan}})
 
 
 @app.route('/landing_nail')
@@ -7469,26 +7601,36 @@ def api_report_summary():
         revenue_by_day = list(revenue_by_day_map.values())
 
         order_ids = [o['id'] for o in orders]
-        order_items = list(db.order_items.find({'order_id': {'$in': order_ids}}, {'product_id': 1, 'quantity': 1, '_id': 0})) if order_ids else []
+        order_items = list(db.order_items.find({'order_id': {'$in': order_ids}},
+                                               {'product_id': 1, 'quantity': 1, 'custom_name': 1, 'price': 1, 'total_price': 1, '_id': 0})) if order_ids else []
         products = list(db.products.find({'business_id': business_id}, {'id': 1, 'name': 1, 'category': 1, 'price': 1, '_id': 0}))
         product_map = {p['id']: p for p in products}
 
+        # Mục "tự nhập" trên POS (product_id = None) gộp theo tên tự nhập — trước đây hiện "SPNone".
+        # Doanh thu = tiền thật của dòng hàng (đã tính giá bán thực), thiếu thì lấy giá niêm yết × số lượng.
         sold_map = {}
         for oi in order_items:
-            sold_map[oi['product_id']] = sold_map.get(oi['product_id'], 0) + (oi.get('quantity') or 0)
-        top_products = sorted(
-            [{'id': pid, 'name': product_map.get(pid, {}).get('name', f'SP{pid}'), 'sold': sold,
-              'revenue': sold * (product_map.get(pid, {}).get('price') or 0)}
-             for pid, sold in sold_map.items()],
-            key=lambda x: x['sold'], reverse=True
-        )[:5]
+            pid, qty = oi.get('product_id'), (oi.get('quantity') or 0)
+            if pid is None:
+                key, name = ('custom', oi.get('custom_name') or ''), (oi.get('custom_name') or 'Custom item')
+            else:
+                key, name = pid, product_map.get(pid, {}).get('name') or f'#{pid}'
+            line = oi.get('total_price')
+            if line is None:
+                line = qty * (oi.get('price') if oi.get('price') is not None else (product_map.get(pid, {}).get('price') or 0))
+            row = sold_map.setdefault(key, {'id': pid, 'name': name, 'sold': 0, 'revenue': 0})
+            row['sold'] += qty
+            row['revenue'] += line or 0
+        top_products = sorted(sold_map.values(), key=lambda x: x['sold'], reverse=True)[:5]
 
         category_revenue = {}
         for oi in order_items:
-            prod = product_map.get(oi['product_id'])
-            if prod:
-                cat = prod.get('category') or 'Other'
-                category_revenue[cat] = category_revenue.get(cat, 0) + (prod.get('price') or 0) * (oi.get('quantity') or 0)
+            prod = product_map.get(oi.get('product_id')) or {}
+            cat = prod.get('category') or 'Other'      # mục tự nhập / dịch vụ đã xoá -> Other
+            line = oi.get('total_price')
+            if line is None:
+                line = (oi.get('quantity') or 0) * (oi.get('price') if oi.get('price') is not None else (prod.get('price') or 0))
+            category_revenue[cat] = category_revenue.get(cat, 0) + (line or 0)
         category_data = [{'name': cat, 'total': total} for cat, total in category_revenue.items()]
 
         # Đơn hàng chỉ lưu SĐT khách (metadata.customer_phone), không có customer_id -> trước đây
@@ -12306,6 +12448,7 @@ def duc_ma():
     data = request.json or {}
     ma_key = (data.get('license_key') or '').strip().upper()
     nganh = data.get('nganh_nghe')
+    goi = data.get('plan') if data.get('plan') in plans.PLAN_ORDER else 'pro'
     if not ma_key or ma_key == 'AUTO':
         ma_key = generate_license_code()
     # Pha 28: mã kiểu "TEN123456" đoán được bằng công cụ dò (≈1 triệu khả năng/tên) -> bắt buộc mã ngẫu nhiên dài
@@ -12317,7 +12460,7 @@ def duc_ma():
         # "INSERT OR REPLACE" cũ (nếu key đã tồn tại thì reset lại về 'Sẵn sàng').
         db.license_codes.update_one(
             {'license_key': ma_key},
-            {'$set': {'nganh_nghe': nganh, 'trang_thai': 'Sẵn sàng'},
+            {'$set': {'nganh_nghe': nganh, 'plan': goi, 'trang_thai': 'Sẵn sàng'},
              '$setOnInsert': {'id': next_mongo_id('license_codes')}},
             upsert=True
         )
@@ -12363,7 +12506,7 @@ def get_keys():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     try:
         docs = db.license_codes.find(
-            {}, {'id': 1, 'license_key': 1, 'nganh_nghe': 1, 'trang_thai': 1, '_id': 0}
+            {}, {'id': 1, 'license_key': 1, 'nganh_nghe': 1, 'plan': 1, 'trang_thai': 1, '_id': 0}
         ).sort('id', -1)
         # Trả về status code trung lập (không phải chuỗi tiếng Việt trực tiếp) để frontend tự
         # dịch hiển thị theo currentLang — trước đây trả thẳng 'trang_thai' tiếng Việt ('Đã kích
@@ -12373,6 +12516,7 @@ def get_keys():
             "id": k['id'],
             "key_code": k['license_key'],
             "industry": k['nganh_nghe'],
+            "plan": k.get('plan') or '',
             "status": _status_code_map.get(k['trang_thai'], k['trang_thai'])
         } for k in docs]
         return jsonify({"success": True, "data": keys_list})

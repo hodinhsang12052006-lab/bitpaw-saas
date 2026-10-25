@@ -1,0 +1,173 @@
+{# Khung thiết bị 3D (laptop + điện thoại) chứa ẢNH CHỤP PHẦN MỀM THẬT — static/images/showcase/*.webp
+   (tạo lại bằng scripts/showcase_shots.mjs từ tiệm demo Úc, tiền A$). Chỉ CSS 3D + một đoạn JS nhỏ: nghiêng theo
+   chuột trên máy tính, nghiêng nhẹ theo cuộn trên điện thoại, đứng yên khi người dùng bật "giảm chuyển động".
+   Bấm vào màn hình để xem ảnh lớn.
+   Dùng:
+     {% from 'components/device_showcase.html' import device3d, device3d_assets %}
+     {{ device3d_assets() }}   (một lần mỗi trang)
+     {{ device3d('nails_pos_pc', 'nails_booking_mob', 'Màn hình POS ...', 'Trang đặt lịch ...', '#f472b6',
+                 [('fa-credit-card', 'Square Terminal · tips', 'Square Terminal · tips')], flip=False) }}
+   chips: (icon, vi, en) — chỉ ghi TÍNH NĂNG THẬT đang thấy trong ảnh, không ghi số liệu bịa. #}
+
+{% macro device3d_assets() %}
+<style>
+  .bp3d { --acc: #22d3ee; --rx: 7deg; --ry: -15deg; position: relative; margin: 0; padding: 4% 7% 9% 1%; perspective: 1900px; perspective-origin: 50% 35%; }
+  .bp3d.flip { --ry: 15deg; padding: 4% 1% 9% 7%; }
+  .bp3d-glow { position: absolute; inset: 8% 4% 4% 4%; border-radius: 50%; background: radial-gradient(closest-side, var(--acc), transparent); opacity: .28; filter: blur(48px); pointer-events: none; }
+  .bp3d-stage { position: relative; transform-style: preserve-3d; transform: rotateX(var(--rx)) rotateY(var(--ry)); transition: transform .7s cubic-bezier(.2, .7, .2, 1); }
+  .bp3d-laptop { position: relative; transform-style: preserve-3d; }
+  .bp3d-lid { position: relative; transform-style: preserve-3d; border-radius: 16px 16px 5px 5px; padding: 2.1% 2.1% 2.4%;
+    background: linear-gradient(150deg, #3a4456 0%, #1a202b 45%, #0d1118 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .22); }
+  .bp3d-lid::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: #07090e; transform: translateZ(-9px); }
+  .bp3d-bezel { position: relative; border-radius: 9px; padding: 2.3% 1.4% 1.4%; background: #04060a; }
+  .bp3d-cam { position: absolute; top: .85%; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #18202b; box-shadow: 0 0 0 1px #29323f; }
+  .bp3d-screen { position: relative; display: block; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 3px; background: #0a0f1c; border: 0; padding: 0; cursor: zoom-in; }
+  .bp3d-screen img, .bp3d-phone-screen img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+  .bp3d-screen::after, .bp3d-phone-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(118deg, rgba(255, 255, 255, .13) 0%, rgba(255, 255, 255, .04) 26%, transparent 44%); }
+  .bp3d-base { position: relative; height: 0; padding-bottom: 2.6%; margin: 0 -5.5%; border-radius: 2px 2px 16px 16px / 2px 2px 100% 100%;
+    background: linear-gradient(180deg, #4a5468 0%, #262d3a 40%, #10141c 100%); box-shadow: 0 1px 0 rgba(255, 255, 255, .18) inset; }
+  .bp3d-notch { position: absolute; top: 0; left: 50%; width: 15%; height: 42%; transform: translateX(-50%); border-radius: 0 0 10px 10px; background: #161b24; }
+  .bp3d-shadow { position: absolute; left: 2%; right: 2%; bottom: -5%; height: 9%; border-radius: 50%; background: rgba(0, 0, 0, .7); filter: blur(18px); transform: translateZ(-40px); }
+  .bp3d-phone { position: absolute; right: -5%; bottom: -9%; width: 27%; transform: translateZ(80px) rotateY(-5deg); transform-style: preserve-3d; }
+  .bp3d.flip .bp3d-phone { right: auto; left: -5%; transform: translateZ(80px) rotateY(5deg); }
+  .bp3d-phone-body { position: relative; transform-style: preserve-3d; border-radius: 15% / 7%; padding: 3.4%;
+    background: linear-gradient(150deg, #4b5567 0%, #1d2330 50%, #0d1118 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 34px 60px -22px rgba(0, 0, 0, .9); }
+  .bp3d-phone-body::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: #07090e; transform: translateZ(-8px); }
+  .bp3d-phone-screen { position: relative; display: block; width: 100%; aspect-ratio: 390 / 844; overflow: hidden; border-radius: 12% / 5.6%; background: #000; border: 0; padding: 0; cursor: zoom-in; }
+  .bp3d-island { position: absolute; z-index: 2; top: 2.4%; left: 50%; width: 31%; height: 3.4%; transform: translateX(-50%); border-radius: 999px; background: #000; }
+  .bp3d-chip { position: absolute; z-index: 3; transform: translateZ(130px); pointer-events: none; }
+  .bp3d-chip > span { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border-radius: 14px; white-space: nowrap;
+    background: rgba(7, 11, 20, .82); border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent); color: #fff; font-size: 13px; font-weight: 700;
+    box-shadow: 0 16px 34px -14px rgba(0, 0, 0, .9), 0 0 24px -10px var(--acc); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    animation: bp3d-bob 6s ease-in-out infinite; }
+  .bp3d-chip i { color: var(--acc); font-size: 15px; }
+  .bp3d-chip.c1 { top: 1%; left: -1%; }
+  .bp3d-chip.c2 { bottom: 3%; left: 7%; }
+  .bp3d-chip.c2 > span { animation-delay: -3s; }
+  .bp3d.flip .bp3d-chip.c1 { left: auto; right: -1%; }
+  .bp3d.flip .bp3d-chip.c2 { left: auto; right: 7%; }
+  @keyframes bp3d-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .bp3d-screen:focus-visible, .bp3d-phone-screen:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+  @media (max-width: 640px) {
+    .bp3d { --rx: 5deg; --ry: -10deg; padding: 6% 9% 12% 0; }
+    .bp3d.flip { --ry: 10deg; padding: 6% 0 12% 9%; }
+    .bp3d-phone { width: 30%; right: -6%; }
+    .bp3d.flip .bp3d-phone { left: -6%; }
+    .bp3d-chip > span { font-size: 11px; padding: 7px 10px; gap: 6px; }
+    .bp3d-chip i { font-size: 12px; }
+    .bp3d-chip.c1 { top: -3%; left: 3%; }
+    .bp3d.flip .bp3d-chip.c1 { left: auto; right: 3%; }
+    .bp3d-chip.c2 { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bp3d-stage { transition: none; } .bp3d-chip > span { animation: none; } }
+  .bp3d-zoom { border: 0; padding: 0; background: transparent; max-width: min(1200px, 94vw); max-height: 92vh; }
+  .bp3d-zoom::backdrop { background: rgba(2, 6, 14, .86); backdrop-filter: blur(4px); }
+  .bp3d-zoom img { display: block; max-width: 100%; max-height: 86vh; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, .7); }
+  .bp3d-zoom form { text-align: center; margin-top: 10px; }
+  .bp3d-zoom button { border: 1px solid rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .08); color: #fff; font: 600 14px/1 inherit; padding: 10px 18px; border-radius: 999px; cursor: pointer; }
+</style>
+<dialog class="bp3d-zoom" id="bp3dZoom" aria-label="Screenshot">
+  <img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+  <form method="dialog"><button type="submit"><span class="bf-vi">Đóng</span><span class="bf-en">Close</span></button></form>
+</dialog>
+<script>
+(function () {
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var zoom = document.getElementById('bp3dZoom');
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-bp3d-zoom]');
+    if (!t || !zoom || typeof zoom.showModal !== 'function') return;
+    var img = zoom.querySelector('img'); img.src = t.getAttribute('data-bp3d-zoom'); img.alt = t.getAttribute('aria-label') || '';
+    zoom.showModal();
+  });
+  if (zoom) zoom.addEventListener('click', function (e) { if (e.target === zoom) zoom.close(); });
+  if (reduce) return;
+  document.querySelectorAll('[data-bp3d]').forEach(function (fig) {
+    var stage = fig.querySelector('.bp3d-stage'), flip = fig.classList.contains('flip');
+    var baseY = flip ? 15 : -15, baseX = 7, raf = 0;
+    var set = function (rx, ry) { cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { fig.style.setProperty('--rx', rx + 'deg'); fig.style.setProperty('--ry', ry + 'deg'); }); };
+    if (fine) {
+      fig.addEventListener('pointermove', function (e) {
+        var r = fig.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+        stage.style.transition = 'transform .25s ease-out';
+        set((baseX - y * 9).toFixed(2), (baseY + x * 16).toFixed(2));
+      });
+      fig.addEventListener('pointerleave', function () { stage.style.transition = ''; fig.style.removeProperty('--rx'); fig.style.removeProperty('--ry'); });
+    } else if ('IntersectionObserver' in window) {
+      // điện thoại: nghiêng nhẹ theo vị trí cuộn, chỉ khi khung đang hiện trên màn hình
+      var on = false, onScroll = function () {
+        var r = fig.getBoundingClientRect(), p = (r.top + r.height / 2) / innerHeight - .5;   // -0.5 .. 0.5
+        set((5 + p * 6).toFixed(2), ((flip ? 10 : -10) - p * 10).toFixed(2));
+      };
+      new IntersectionObserver(function (en) {
+        var vis = en[0].isIntersecting;
+        if (vis && !on) { addEventListener('scroll', onScroll, { passive: true }); on = true; onScroll(); }
+        if (!vis && on) { removeEventListener('scroll', onScroll); on = false; }
+      }).observe(fig);
+    }
+  });
+})();
+</script>
+{% endmacro %}
+
+{% macro device3d(pc, mob, alt_pc, alt_mob, accent='#22d3ee', chips=[], flip=False) %}
+{% set pc_src = url_for('static', filename='images/showcase/' ~ pc ~ '.webp') %}
+{% set mob_src = url_for('static', filename='images/showcase/' ~ mob ~ '.webp') %}
+<figure class="bp3d{{ ' flip' if flip }}" style="--acc: {{ accent }};" data-bp3d>
+  <div class="bp3d-glow" aria-hidden="true"></div>
+  <div class="bp3d-stage">
+    <div class="bp3d-laptop">
+      <div class="bp3d-lid">
+        <div class="bp3d-bezel">
+          <span class="bp3d-cam" aria-hidden="true"></span>
+          <button type="button" class="bp3d-screen" data-bp3d-zoom="{{ pc_src }}" aria-label="{{ alt_pc }}">
+            <img src="{{ pc_src }}" alt="{{ alt_pc }}" width="1600" height="1000" loading="lazy" decoding="async">
+          </button>
+        </div>
+      </div>
+      <div class="bp3d-base" aria-hidden="true"><span class="bp3d-notch"></span></div>
+      <div class="bp3d-shadow" aria-hidden="true"></div>
+    </div>
+    <div class="bp3d-phone">
+      <div class="bp3d-phone-body">
+        <span class="bp3d-island" aria-hidden="true"></span>
+        <button type="button" class="bp3d-phone-screen" data-bp3d-zoom="{{ mob_src }}" aria-label="{{ alt_mob }}">
+          <img src="{{ mob_src }}" alt="{{ alt_mob }}" width="600" height="1298" loading="lazy" decoding="async">
+        </button>
+      </div>
+    </div>
+    {% for ico, vi, en in chips[:2] %}
+    <div class="bp3d-chip c{{ loop.index }}" aria-hidden="true"><span><i class="fas {{ ico }}"></i><span><span class="bf-vi">{{ vi }}</span><span class="bf-en">{{ en }}</span></span></span></div>
+    {% endfor %}
+  </div>
+</figure>
+{% endmacro %}
+
+{# Mục "ảnh chụp phần mềm thật" cho trang ngành: tiêu đề + khung 3D + 3 ý (icon, vi, en, mô tả vi, mô tả en). #}
+{% macro real_software_section(sid, accent, heading, sub, pc, mob, alt_pc, alt_mob, chips, points) %}
+<section id="{{ sid }}" class="py-16 md:py-24 relative z-10 bg-transparent border-y border-white/5 overflow-hidden scroll-mt-28">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+    <div class="lg:col-span-5" data-aos="fade-right">
+      <span class="text-sm font-black tracking-widest uppercase" style="color: {{ accent }};"><span class="bf-vi">Ảnh chụp phần mềm thật</span><span class="bf-en">Real screenshots</span></span>
+      <h2 class="text-3xl md:text-4xl font-bold mt-3 mb-5 tracking-tight break-words"><span class="bf-vi">{{ heading[0] }}</span><span class="bf-en">{{ heading[1] }}</span></h2>
+      <p class="text-base md:text-lg text-gray-300 leading-relaxed mb-8"><span class="bf-vi">{{ sub[0] }}</span><span class="bf-en">{{ sub[1] }}</span></p>
+      <ul class="space-y-5">
+        {% for ico, vi, en, dvi, den in points %}
+        <li class="flex gap-4">
+          <span class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border" style="color: {{ accent }}; border-color: {{ accent }}55; background: {{ accent }}14;"><i class="fas {{ ico }}"></i></span>
+          <span><strong class="block text-white text-base mb-1"><span class="bf-vi">{{ vi }}</span><span class="bf-en">{{ en }}</span></strong>
+            <span class="block text-gray-400 text-sm leading-relaxed"><span class="bf-vi">{{ dvi }}</span><span class="bf-en">{{ den }}</span></span></span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="lg:col-span-7" data-aos="fade-left">
+      {{ device3d(pc, mob, alt_pc, alt_mob, accent, chips) }}
+    </div>
+  </div>
+</section>
+{% endmacro %}

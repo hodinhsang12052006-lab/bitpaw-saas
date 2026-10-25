@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Gói của tiệm' if default_lang == 'vi' else 'Your plan' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Gói của tiệm (plans.py): gói hiện tại + 3 gói của đúng ngành + yêu cầu nâng cấp. */
+        :root { --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #22d3ee; }
+        body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); margin: 0; }
+        .pl-main { flex: 1; min-width: 0; padding: 28px 28px 90px; max-width: 1180px; }
+        h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+        .lead { color: var(--muted); margin: 0 0 18px; max-width: 72ch; line-height: 1.6; font-size: 14px; }
+        .need { display: flex; gap: 10px; align-items: flex-start; background: rgba(34,211,238,.07); border: 1px solid rgba(34,211,238,.25);
+                border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; font-size: 14px; line-height: 1.5; }
+        .need i { color: var(--accent); margin-top: 3px; }
+        .cur { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+        .cur b { color: #fff; background: rgba(255,255,255,.08); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; }
+        .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+        .card { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 22px 20px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+        .card.hot { border-color: #f472b6; box-shadow: 0 0 0 1px #f472b6; }
+        .card.mine { border-color: var(--accent); }
+        .tag { position: absolute; top: -11px; left: 18px; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: #f472b6; color: #1a0612; }
+        .tag.mine { background: var(--accent); color: #031418; }
+        .card h2 { margin: 4px 0 0; font-size: 19px; font-weight: 800; }
+        .price { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+        .price b { font-size: 38px; font-weight: 800; letter-spacing: -.02em; }
+        .price span { color: var(--muted); font-size: 14px; }
+        .setup { font-size: 13px; color: var(--muted); margin-top: -6px; }
+        .card ul { list-style: none; margin: 4px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; flex: 1; }
+        .card li { display: flex; gap: 9px; font-size: 13.5px; line-height: 1.45; color: #dbe3ee; }
+        .card li i { color: var(--accent); width: 16px; text-align: center; margin-top: 3px; flex-shrink: 0; }
+        .bonus { font-size: 12.5px; font-weight: 600; color: #fcd34d; background: rgba(252,211,77,.08); border: 1px solid rgba(252,211,77,.22); border-radius: 10px; padding: 8px 10px; }
+        .btn { border: 0; border-radius: 12px; padding: 12px; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; background: var(--accent); color: #031418; }
+        .btn.ghost { background: rgba(255,255,255,.06); color: var(--muted); border: 1px solid var(--line); cursor: default; }
+        .btn[disabled] { opacity: .6; }
+        .msg { font-size: 13px; min-height: 18px; }
+        .msg.ok { color: #34d399; } .msg.err { color: #fb7185; }
+        .foot { color: var(--muted); font-size: 13px; margin-top: 18px; line-height: 1.6; }
+        @media (max-width: 960px) { .grid { grid-template-columns: 1fr; max-width: 480px; } }
+        @media (max-width: 640px) { .pl-main { padding: 72px 14px 90px; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% set sym = 'A$' if currency == 'AUD' else '$' %}
+{% include 'components/app_sidebar.html' %}
+<main class="pl-main">
+    <h1><i class="fas fa-gem" style="color: var(--accent)"></i> {{ 'Gói của tiệm' if vi else 'Your plan' }}</h1>
+    <p class="lead">{{ ('Giá theo đúng ngành ' ~ industry_label[0] ~ '. Nâng cấp không mất dữ liệu; BitPaw gửi hoá đơn rồi mở tính năng trong 1 ngày làm việc.') if vi
+        else ('Pricing for ' ~ industry_label[1] ~ '. Upgrading keeps all your data; we send an invoice and switch it on within 1 business day.') }}</p>
+    {% if feature %}
+    <div class="need" role="status"><i class="fas fa-lock"></i><span>{{ ('“' ~ feature_label[0] ~ '” có trong gói ' ~ plan_names[required_plan] ~ ' trở lên.') if vi
+        else ('“' ~ feature_label[1] ~ '” is included in ' ~ plan_names[required_plan] ~ ' and above.') }}</span></div>
+    {% endif %}
+    <div class="cur">{{ 'Gói hiện tại' if vi else 'Current plan' }} <b>{{ plan_names[plan] }}</b></div>
+    <div class="grid">
+        {% for c in cards %}
+        {% set is_mine = c.key == plan %}
+        {% set higher = plan_order.index(c.key) > plan_order.index(plan) %}
+        <article class="card{{ ' hot' if c.hot and not is_mine }}{{ ' mine' if is_mine }}">
+            {% if is_mine %}<span class="tag mine">{{ 'Đang dùng' if vi else 'Your plan' }}</span>
+            {% elif c.hot %}<span class="tag">{{ 'Phổ biến nhất' if vi else 'Most popular' }}</span>{% endif %}
+            <h2>{{ c.name }}</h2>
+            <div class="price"><b>{{ sym }}{{ c.monthly[currency] }}</b><span>{{ '/ tháng' if vi else '/ month' }}</span></div>
+            <div class="setup">{% if c.setup[currency] %}{{ 'Phí cài đặt một lần' if vi else 'One-time setup' }} {{ sym }}{{ '{:,}'.format(c.setup[currency]) }}{% else %}{{ 'Không phí cài đặt' if vi else 'No setup fee' }}{% endif %}
+                · {{ ('hoặc ' ~ sym ~ c.yearly_monthly[currency] ~ '/tháng khi trả theo năm') if vi else ('or ' ~ sym ~ c.yearly_monthly[currency] ~ '/mo billed yearly') }}</div>
+            <ul>{% for ico, ivi, ien in c['items'] %}<li><i class="fas {{ ico }}"></i><span>{{ ivi if vi else ien }}</span></li>{% endfor %}</ul>
+            {% if c.bonus %}<div class="bonus"><i class="fas fa-gift"></i> {{ c.bonus[0] if vi else c.bonus[1] }}</div>{% endif %}
+            {% if higher %}
+            <button class="btn" type="button" data-plan="{{ c.key }}">{{ ('Nâng cấp lên ' ~ c.name) if vi else ('Upgrade to ' ~ c.name) }}</button>
+            {% else %}
+            <button class="btn ghost" type="button" disabled>{{ ('Đang dùng' if is_mine else 'Đã có trong gói của bạn') if vi else ('Current plan' if is_mine else 'Included in your plan') }}</button>
+            {% endif %}
+            <div class="msg" data-msg="{{ c.key }}" role="status"></div>
+        </article>
+        {% endfor %}
+    </div>
+    <p class="foot">{{ 'Giá chưa gồm thuế. Huỷ bất cứ lúc nào, dữ liệu là của bạn. Phí SMS tính theo số tin thực gửi.' if vi
+        else 'Prices exclude sales tax / GST. Cancel anytime — your data stays yours. SMS usage is billed at cost.' }}</p>
+</main>
+<script>
+(function () {
+    var VI = {{ 'true' if vi else 'false' }};
+    document.querySelectorAll('button[data-plan]').forEach(function (b) {
+        b.addEventListener('click', async function () {
+            var key = b.getAttribute('data-plan'), msg = document.querySelector('[data-msg="' + key + '"]');
+            b.disabled = true; msg.className = 'msg'; msg.textContent = VI ? 'Đang gửi…' : 'Sending…';
+            try {
+                var res = await fetch('/api/plan/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: key }) });
+                var body = await res.json().catch(function () { return {}; });
+                if (!res.ok || !body.success) throw new Error(body.message || (VI ? 'Chưa gửi được, thử lại sau.' : 'Could not send. Please try again.'));
+                msg.className = 'msg ok';
+                msg.textContent = VI ? 'Đã gửi yêu cầu. BitPaw sẽ email hoá đơn trong 1 ngày làm việc.' : 'Request sent. We will email your invoice within 1 business day.';
+            } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; b.disabled = false; }
+        });
+    });
+})();
+</script>
+</body>
+</html>

@@ -86,6 +86,7 @@
                 {% endfor %}
             </div>
             <div class="cur" role="group" aria-label="Currency">{% for code, c in saas_currencies.items() %}<button type="button" data-cur="{{ code }}">{{ c.label }}</button>{% endfor %}</div>
+            <div class="cur" role="group" aria-label="Billing" style="margin-left:8px"><button type="button" data-bill="month"><span class="en">Monthly</span><span class="vi">Theo tháng</span></button><button type="button" data-bill="year"><span class="en">Yearly · 2 months free</span><span class="vi">Theo năm · tặng 2 tháng</span></button></div>
 
             <p class="step" style="margin-top:22px"><span class="en">2 · Your business</span><span class="vi">2 · Thông tin tiệm</span></p>
             <div class="fields">
@@ -111,9 +112,9 @@
         <aside class="card sum" aria-live="polite">
             <div id="sumBox">
                 <h2 id="sumName">Pro Partner</h2>
-                <p class="for"><span class="en">Software included free · cancel anytime</span><span class="vi">Phần mềm miễn phí · hủy bất cứ lúc nào</span></p>
+                <p class="for" id="sumFor"></p>
                 <div class="row"><span><span class="en">One-time setup</span><span class="vi">Phí cài đặt một lần</span></span><span id="sumSetup"></span></div>
-                <div class="row"><span><span class="en">Monthly</span><span class="vi">Hằng tháng</span></span><span id="sumMonthly"></span></div>
+                <div class="row"><span id="sumPeriod"></span><span id="sumMonthly"></span></div>
                 <div class="row total"><span><span class="en">First invoice</span><span class="vi">Hoá đơn đầu tiên</span></span><span id="sumTotal"></span></div>
                 <p class="tax" id="sumTax"></p>
                 <ul class="how">
@@ -133,7 +134,11 @@
 </div>
 <script>
 (function () {
-    var PLANS = {{ saas_plans | tojson }}, CUR = {{ saas_currencies | tojson }};
+    var PLANS = {{ saas_plans | tojson }}, CUR = {{ saas_currencies | tojson }}, PRICING = {{ saas_pricing | tojson }};
+    var bill = (new URLSearchParams(location.search).get('billing') === 'year') ? 'year' : 'month';
+    // giá theo NGÀNH đang chọn (plans.py) — tên gói từ PLANS, số tiền từ PRICING[ngành]
+    var cardOf = function (key) { var ind = document.getElementById('custIndustry').value; var cs = (PRICING[ind] || PRICING.nail).cards;
+        for (var i = 0; i < cs.length; i++) { if (cs[i].key === key) return cs[i]; } return cs[1]; };
     var q = new URLSearchParams(location.search);
     var ALIAS = { hrm: 'essential', pos: 'essential', ecom: 'pro', agency: 'pro' };
     var lang = 'en';
@@ -161,17 +166,24 @@
     var money = function (n) { return CUR[cur].symbol + Number(n).toLocaleString('en-US'); };
     function selected() { var r = document.querySelector('input[name=plan]:checked'); return r ? r.value : 'pro'; }
     function render() {
-        var p = PLANS[selected()];
+        var p = cardOf(selected());
+        var period = bill === 'year' ? p.monthly[cur] * 10 : p.monthly[cur];
         document.querySelectorAll('[data-cur]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.cur === cur ? 'true' : 'false'); });
-        document.querySelectorAll('[data-monthly]').forEach(function (el) { el.textContent = money(PLANS[el.dataset.monthly].monthly[cur]) + (lang === 'en' ? ' / month' : ' / tháng'); });
+        document.querySelectorAll('[data-bill]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.bill === bill ? 'true' : 'false'); });
+        document.querySelectorAll('[data-monthly]').forEach(function (el) { var c = cardOf(el.dataset.monthly);
+            el.textContent = money(bill === 'year' ? c.yearly_monthly[cur] : c.monthly[cur]) + (lang === 'en' ? ' / month' : ' / tháng'); });
         document.getElementById('sumName').textContent = p.name;
-        document.getElementById('sumSetup').textContent = money(p.setup[cur]);
-        document.getElementById('sumMonthly').textContent = money(p.monthly[cur]);
-        document.getElementById('sumTotal').textContent = money(p.setup[cur] + p.monthly[cur]) + ' ' + cur;
+        document.getElementById('sumFor').textContent = lang === 'en' ? p.bonus[1] + ' · cancel anytime' : p.bonus[0] + ' · huỷ bất cứ lúc nào';
+        document.getElementById('sumSetup').textContent = p.setup[cur] ? money(p.setup[cur]) : (lang === 'en' ? 'None' : 'Không');
+        document.getElementById('sumPeriod').textContent = bill === 'year' ? (lang === 'en' ? 'Yearly (2 months free)' : 'Theo năm (tặng 2 tháng)') : (lang === 'en' ? 'Monthly' : 'Hằng tháng');
+        document.getElementById('sumMonthly').textContent = money(period);
+        document.getElementById('sumTotal').textContent = money(p.setup[cur] + period) + ' ' + cur;
         document.getElementById('sumTax').textContent = (lang === 'en' ? CUR[cur].tax_en : CUR[cur].tax_vi) + '.';
         document.getElementById('custPhone').placeholder = cur === 'AUD' ? '+61 4xx xxx xxx' : '+1 555 123 4567';
     }
     document.querySelectorAll('input[name=plan]').forEach(function (r) { r.addEventListener('change', render); });
+    document.getElementById('custIndustry').addEventListener('change', render);
+    document.querySelectorAll('[data-bill]').forEach(function (b) { b.addEventListener('click', function () { bill = b.dataset.bill; render(); }); });
     document.querySelectorAll('[data-cur]').forEach(function (b) { b.addEventListener('click', function () { cur = b.dataset.cur; try { localStorage.setItem('bitpaw_cur', cur); } catch (e) {} if (cur === 'AUD' && country.value === 'US') country.value = 'AU'; if (cur === 'USD' && country.value === 'AU') country.value = 'US'; render(); }); });
     document.querySelectorAll('[data-lang]').forEach(function (b) { b.addEventListener('click', function () { setLang(b.dataset.lang); }); });
 
@@ -187,12 +199,12 @@
         try {
             var res = await fetch('/api/checkout/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ customer_name: v('custName'), shop_name: v('custShop'), email: v('custEmail'), phone: v('custPhone'),
-                    country: country.value, industry: v('custIndustry'), note: v('custNote'), plan: selected(), currency: cur }) });
+                    country: country.value, industry: v('custIndustry'), note: v('custNote'), plan: selected(), currency: cur, billing: bill }) });
             var body = await res.json().catch(function () { return {}; });
             if (!res.ok || !body.success) throw new Error(body.message || T('Could not send. Please try again.', 'Gửi chưa được, vui lòng thử lại.'));
             var d = body.data;
             document.getElementById('doneText').textContent = T(
-                'Request #' + d.id + ' for ' + PLANS[d.plan].name + ' (' + money(d.setup_fee) + ' setup + ' + money(d.monthly_fee) + '/month, ' + d.currency + '). We will email ' + v('custEmail') + ' within 1 business day. Nothing has been charged.',
+                'Request #' + d.id + ' for ' + PLANS[d.plan].name + ' (' + money(d.setup_fee) + ' setup + ' + money(d.monthly_fee) + '/month' + (d.billing === 'year' ? ', billed yearly' : '') + ', ' + d.currency + '). We will email ' + v('custEmail') + ' within 1 business day. Nothing has been charged.',
                 'Yêu cầu #' + d.id + ' gói ' + PLANS[d.plan].name + ' (cài đặt ' + money(d.setup_fee) + ' + ' + money(d.monthly_fee) + '/tháng, ' + d.currency + '). BitPaw sẽ email tới ' + v('custEmail') + ' trong 1 ngày làm việc. Chưa có khoản nào bị trừ.');
             document.getElementById('sumBox').hidden = true; document.getElementById('doneBox').hidden = false;
             form.querySelectorAll('input, select, textarea, button').forEach(function (el) { el.disabled = true; });

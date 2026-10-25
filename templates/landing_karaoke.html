@@ -247,7 +247,7 @@
                 <a href="#promise" class="hover:text-purple-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
                 <a href="#features" class="hover:text-purple-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-purple-400 transition-colors whitespace-nowrap" data-i18n="nav_ai_cskh">AI CSKH</a>
-                <a href="#calculator" class="hover:text-purple-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
+                <a href="#bang-gia" class="hover:text-purple-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -279,7 +279,7 @@
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors" data-i18n="nav_ai_cskh">AI CSKH</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
+            <a href="#bang-gia" onclick="toggleMobileMenu()" class="hover:text-purple-400 transition-colors" data-i18n="nav_pricing">Bảng giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
                 <span class="text-sm text-gray-400" data-i18n="nav_lang_label">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
@@ -1053,6 +1053,10 @@
     </section>
 
     <!-- 8. FAQ Section -->
+    {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% set pricing_industry = 'karaoke' %}
+    {% include 'components/pricing.html' %}
+
     <section id="faq" class="py-16 md:py-24 relative overflow-hidden z-10 bg-transparent border-t border-white/5 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16" data-aos="fade-up">
@@ -1464,7 +1468,7 @@
 
         const translations = {
             vi: {
-                nav_solutions: 'Giải Pháp', nav_features: 'Tính Năng', nav_pricing: 'Bảng Giá',
+                nav_solutions: 'Giải Pháp', nav_features: 'Tính Năng', nav_pricing: 'Bảng giá',
                 nav_login: 'Đăng Nhập', nav_register: 'Dùng Thử Miễn Phí', nav_lang_label: 'Ngôn ngữ:', nav_ai_cskh: 'AI CSKH',
                 hero_h1_kicker: 'Phần mềm quản lý karaoke & bida',
                 hero_badge: 'Phần mềm cho karaoke, bida &amp; game center',

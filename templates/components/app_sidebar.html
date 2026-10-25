@@ -217,12 +217,12 @@
             </a>
             <a href="{{ url_for('kitchen_display') }}" class="flex items-center space-x-4 {% if request.path == url_for('kitchen_display') %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <span class="nav-icon-chip">{{ navico('fa-kitchen-set', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                <span data-i18n="menu_kitchen_display">{{ menu_i18n.kitchen_display }}</span>
+                <span data-i18n="menu_kitchen_display">{{ menu_i18n.kitchen_display }}</span>{{ plan_lock('kds') if plan_lock is defined else '' }}
             </a>
             {% if not is_staff %}
             <a href="{{ url_for('qr_menu_base') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                 <span class="nav-icon-chip">{{ navico('fa-qrcode', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                <span data-i18n="menu_qr_menu">{{ menu_i18n.qr_menu }}</span>
+                <span data-i18n="menu_qr_menu">{{ menu_i18n.qr_menu }}</span>{{ plan_lock('qr_ordering') if plan_lock is defined else '' }}
             </a>
             {% endif %}
             {% endif %}
@@ -256,7 +256,7 @@
             </a>
             <a href="/packages" class="flex items-center space-x-4 {% if request.path == '/packages' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <span class="nav-icon-chip">{{ navico('fa-ticket', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                <span data-i18n="menu_packages">{{ menu_i18n.packages or 'Packages' }}</span>
+                <span data-i18n="menu_packages">{{ menu_i18n.packages or 'Packages' }}</span>{{ plan_lock('packages') if plan_lock is defined else '' }}
             </a>
             {% endif %}
             {% endif %}
@@ -273,7 +273,7 @@
             </a>
             <a href="{{ url_for('hotel_reservations_page') }}" class="flex items-center space-x-4 {% if request.path == '/hotel/reservations' %} bg-gradient-to-r from-purple-500/20 to-transparent border-l-4 border-purple-400 text-purple-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <span class="nav-icon-chip">{{ navico('fa-calendar-days', ' group-hover:text-purple-400 transition-colors') }}</span>
-                <span data-i18n="menu_hotel_reservations">{{ menu_i18n.hotel_reservations or 'Đặt Phòng Trước' }}</span>
+                <span data-i18n="menu_hotel_reservations">{{ menu_i18n.hotel_reservations or 'Đặt Phòng Trước' }}</span>{{ plan_lock('reservations') if plan_lock is defined else '' }}
             </a>
             {% endif %}
             {% if 'room_timing' in modules or 'pos_ordering' in modules %}
@@ -290,7 +290,7 @@
             {% if session.get('role') in ('admin', 'super_admin') %}
             <a href="{{ url_for('production_materials_page') }}" class="flex items-center space-x-4 {% if request.path == '/production/materials' %} bg-gradient-to-r from-orange-500/20 to-transparent border-l-4 border-orange-400 text-orange-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
                 <span class="nav-icon-chip">{{ navico('fa-boxes-stacked', ' group-hover:text-orange-400 transition-colors') }}</span>
-                <span data-i18n="menu_production_materials">{{ menu_i18n.production_materials or 'Nguyên Vật Liệu' }}</span>
+                <span data-i18n="menu_production_materials">{{ menu_i18n.production_materials or 'Nguyên Vật Liệu' }}</span>{{ plan_lock('materials') if plan_lock is defined else '' }}
             </a>
             {% endif %}
             {% endif %}
@@ -320,11 +320,11 @@
 
                 <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-robot', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>
+                    <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>{{ plan_lock('ai_copilot') if plan_lock is defined else '' }}
                 </a>
                 <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-magic', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>
+                    <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>{{ plan_lock('ai_studio') if plan_lock is defined else '' }}
                 </a>
 
                 {% if 'attendance' in modules or 'payroll' in modules %}
@@ -352,15 +352,15 @@
                 {% if session.get('role') in ('admin', 'super_admin') %}
                 <a href="/roster" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-calendar-week', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_roster">{{ menu_i18n.roster or 'Shift roster' }}</span>
+                    <span data-i18n="menu_roster">{{ menu_i18n.roster or 'Shift roster' }}</span>{{ plan_lock('roster') if plan_lock is defined else '' }}
                 </a>
                 <a href="{{ url_for('leave_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-calendar-times', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>
+                    <span data-i18n="menu_leave_requests">{{ menu_i18n.leave_requests or 'Đơn Nghỉ Phép' }}</span>{{ plan_lock('requests') if plan_lock is defined else '' }}
                 </a>
                 <a href="{{ url_for('expense_requests_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-hand-holding-dollar', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_expense_requests">{{ menu_i18n.expense_requests or 'Đơn Hoàn Ứng' }}</span>
+                    <span data-i18n="menu_expense_requests">{{ menu_i18n.expense_requests or 'Đơn Hoàn Ứng' }}</span>{{ plan_lock('requests') if plan_lock is defined else '' }}
                 </a>
                 {% endif %}
                 {% endif %}
@@ -368,39 +368,39 @@
                 {% if 'dispatch_gps' in modules %}
                 <a href="{{ url_for('map_dashboard') }}" class="flex items-center space-x-4 hover:bg-rose-500/10 px-4 py-2.5 rounded-xl transition-all text-rose-400 hover:text-rose-300 font-medium group border border-transparent hover:border-rose-500/30">
                     <span class="nav-icon-chip">{{ navico('fa-map-marked-alt', ' group-hover:scale-110 transition-transform') }}</span>
-                    <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>
+                    <span data-i18n="menu_gps_radar">{{ menu_i18n.gps_radar }}</span>{{ plan_lock('gps_radar') if plan_lock is defined else '' }}
                 </a>
                 <a href="{{ url_for('technical_parts_page') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-toolbox', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_tech_parts">{{ menu_i18n.tech_parts }}</span>
+                    <span data-i18n="menu_tech_parts">{{ menu_i18n.tech_parts }}</span>{{ plan_lock('parts') if plan_lock is defined else '' }}
                 </a>
                 {% endif %}
 
                 {% if 'inventory' in modules %}
                 <a href="/inventory_alert" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-warehouse', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_inventory_management">{{ menu_i18n.inventory_management }}</span>
+                    <span data-i18n="menu_inventory_management">{{ menu_i18n.inventory_management }}</span>{{ plan_lock('inventory') if plan_lock is defined else '' }}
                 </a>
                 {% endif %}
 
                 {% if 'expenses' in modules or 'inventory' in modules %}
                 <a href="/quanly_congno" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-hand-holding-usd', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_debt">{{ menu_i18n.debt }}</span>
+                    <span data-i18n="menu_debt">{{ menu_i18n.debt }}</span>{{ plan_lock('finance') if plan_lock is defined else '' }}
                 </a>
                 <a href="/quanly_thuchi" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-coins', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_cashflow">{{ menu_i18n.cashflow }}</span>
+                    <span data-i18n="menu_cashflow">{{ menu_i18n.cashflow }}</span>{{ plan_lock('finance') if plan_lock is defined else '' }}
                 </a>
                 <a href="/baocao_loinhuan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-chart-line', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_profit_report">{{ menu_i18n.profit_report }}</span>
+                    <span data-i18n="menu_profit_report">{{ menu_i18n.profit_report }}</span>{{ plan_lock('finance') if plan_lock is defined else '' }}
                 </a>
                 {% endif %}
 
                 <a href="/report_consolidated" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-sitemap', ' group-hover:text-purple-400 transition-colors') }}</span>
-                    <span data-i18n="menu_consolidated_report">{{ menu_i18n.consolidated_report }}</span>
+                    <span data-i18n="menu_consolidated_report">{{ menu_i18n.consolidated_report }}</span>{{ plan_lock('multi_location') if plan_lock is defined else '' }}
                 </a>
                 <a href="/brand_settings" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-cog', ' group-hover:text-cyan-400 transition-colors') }}</span>
@@ -412,7 +412,11 @@
                 </a>
                 <a href="/settings/messaging" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-comment-sms', ' group-hover:text-emerald-400 transition-colors') }}</span>
-                    <span>{{ 'Nhắn tin & SMS' if default_lang == 'vi' else 'Messaging & SMS' }}</span>
+                    <span>{{ 'Nhắn tin & SMS' if default_lang == 'vi' else 'Messaging & SMS' }}</span>{{ plan_lock('messaging') if plan_lock is defined else '' }}
+                </a>
+                <a href="/plan" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all {% if request.path == '/plan' %}text-white bg-white/5{% else %}text-gray-400 hover:text-white{% endif %} font-medium group">
+                    <span class="nav-icon-chip">{{ navico('fa-gem', ' group-hover:text-cyan-400 transition-colors') }}</span>
+                    <span>{{ 'Gói của tôi' if default_lang == 'vi' else 'My plan' }}</span>
                 </a>
             {% else %}
                 {# Vai trò staff: chỉ giữ Chấm công cá nhân + Hoa hồng/Tip (POS/Booking đã hiện ở trên nếu ngành có) #}

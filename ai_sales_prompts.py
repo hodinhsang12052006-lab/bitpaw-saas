@@ -231,22 +231,21 @@ TRUTH RULES (very important — customers check):
 
 
 def bitpaw_facts(plans, currencies):
-    """Khối dữ kiện thật về BitPaw cho bot bán hàng (giá lấy từ SAAS_PLANS — cùng nguồn với trang bảng giá/checkout)."""
+    """Khối dữ kiện thật về BitPaw cho bot bán hàng — giá THEO NGÀNH lấy từ plans.py (cùng nguồn với bảng giá/checkout)."""
+    import plans as plan_book
     lines = ["BITPAW FACTS (the only product/pricing facts you may state):",
              "- Company: BitPaw Technology LLC (San Francisco, USA + Sydney, Australia). Email bitpawsoftware@gmail.com, "
              "US +1 727 496 2470, AU +61 3 8593 7410. Terms /terms, Privacy /privacy, Payment policy /payment-policy.",
-             "- Sign-up: choose a plan on /checkout — nothing is charged at sign-up; BitPaw confirms and emails a card invoice (Square)."]
-    for key, p in plans.items():
-        price = ', '.join(f"{currencies[c]['symbol']}{p['monthly'][c]}/month + {currencies[c]['symbol']}{p['setup'][c]:,} one-time setup ({c})"
-                          for c in ('USD', 'AUD') if c in p['monthly'])
-        lines.append(f"- Plan {p['name']}: {price}.")
+             "- Sign-up: choose a plan on /checkout — nothing is charged at sign-up; BitPaw confirms and emails a card invoice (Square).",
+             "- Pricing is PER INDUSTRY (monthly USD, AUD in brackets). Yearly billing = 2 months free. Ask which industry first, then quote that row only:"]
+    lines += plan_book.facts_lines()
     lines += [
-        "- Essential: professional website, online booking + email reminders, POS with staff payroll/tips/commission, apps for Windows/Android/iPhone/iPad. No SMS/AI automation.",
-        "- Pro Partner (most popular): everything in Essential + premium custom website, SMS reminders, missed-call text back, 5-star review requests, CRM + AI win-back messages (owner approves), daily owner report; includes 1 pre-configured Square Terminal.",
-        "- Empire Scale: everything in Pro + branded app, AI Copilot (ask your numbers) + AI Studio (content), multiple locations with consolidated reports, dedicated technology manager; includes iPad + Square Terminal.",
-        "- Prices exclude sales tax (US) / GST (AU) where applicable. Cancel any time; the data belongs to the business.",
+        "- Essential: self-setup in a day, no setup fee; POS & payments (where relevant), the core tools for that industry, time clock + staff pay & tips, apps for Windows/Android/iPhone/iPad; 1 location, up to 5 staff (Office: 15).",
+        "- Pro Partner (most popular): everything in Essential with unlimited staff + done-for-you setup and the business's own website, SMS reminders, missed-call text back, 5-star review requests, 24/7 AI assistant that answers & books, CRM win-back, shift roster, leave approvals, profit reports, plus industry extras (e.g. KDS + QR ordering for restaurants, GPS dispatch for field service); includes 1 pre-configured Square Terminal for businesses that take payments.",
+        "- Empire Scale: everything in Pro + AI Copilot (ask your numbers) + AI Studio (posts & ads), multiple locations with consolidated reports, multi-channel marketing, branded app, dedicated technology manager; includes iPad + Square Terminal for businesses that take payments.",
+        "- Prices exclude sales tax (US) / GST (AU) where applicable. SMS usage billed at cost. Cancel any time; the data belongs to the business.",
         "- Works for: nail, spa, restaurant/cafe, karaoke/billiards, small hotel, retail, production workshop, field technical teams, office/HR.",
-        "- NOT available yet (say so honestly if asked): marketplace sync (Shopee/TikTok/Lazada/Shopify), hotel OTA channel sync and online room booking, accounting software integrations (Xero/QuickBooks — export files instead), per-van stock, barcode label printing.",
+        "- NOT available yet (say so honestly if asked): marketplace sync (Shopee/TikTok/Lazada/Shopify), hotel OTA channel sync, accounting software integrations (Xero/QuickBooks — export files instead), per-van stock, barcode label printing.",
     ]
     return "\n".join(lines)
 

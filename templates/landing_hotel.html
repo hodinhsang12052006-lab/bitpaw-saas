@@ -257,7 +257,7 @@
                 <a href="#promise" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
                 <a href="#features" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_ai_cskh">Trợ lý AI</a>
-                <a href="#calculator" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
+                <a href="#bang-gia" class="hover:text-blue-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -289,7 +289,7 @@
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_ai_cskh">Trợ lý AI</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
+            <a href="#bang-gia" onclick="toggleMobileMenu()" class="hover:text-blue-400 transition-colors" data-i18n="nav_pricing">Bảng giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
                 <span class="text-sm text-gray-400" data-i18n="nav_language_label">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
@@ -1212,6 +1212,10 @@
     </section>
 
     <!-- 10. FAQ Accordion Section -->
+    {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% set pricing_industry = 'hotel' %}
+    {% include 'components/pricing.html' %}
+
     <section id="faq" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
@@ -1719,7 +1723,7 @@
             ,
                 nav_solutions: 'Giải Pháp',
                 nav_features: 'Tính Năng',
-                nav_pricing: 'Bảng Giá',
+                nav_pricing: 'Bảng giá',
                 nav_ai_cskh: 'Trợ lý AI',
                 nav_lang_vi: 'Tiếng Việt',
                 nav_login: 'Đăng Nhập',

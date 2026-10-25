@@ -256,7 +256,7 @@
                 <a href="#promise" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_solutions">Giải Pháp</a>
                 <a href="#features" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_features">Tính Năng</a>
                 <a href="#ai-cskh" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_ai_cskh">AI CSKH</a>
-                <a href="#calculator" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng Giá</a>
+                <a href="#bang-gia" class="hover:text-cyan-400 transition-colors whitespace-nowrap" data-i18n="nav_pricing">Bảng giá</a>
             </nav>
 
             <div class="flex items-center gap-4 whitespace-nowrap">
@@ -288,7 +288,7 @@
             <a href="#promise" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_solutions">Giải Pháp</a>
             <a href="#features" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_features">Tính Năng</a>
             <a href="#ai-cskh" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_ai_cskh">AI CSKH</a>
-            <a href="#calculator" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_pricing">Bảng Giá</a>
+            <a href="#bang-gia" onclick="toggleMobileMenu()" class="hover:text-cyan-400 transition-colors" data-i18n="nav_pricing">Bảng giá</a>
             <div class="flex items-center gap-4 border-y border-white/10 py-3">
                 <span class="text-sm text-gray-400" data-i18n="nav_language_label">Ngôn ngữ:</span>
                 <button onclick="changeLanguage('vi'); toggleMobileMenu()" class="text-2xl hover:scale-110 transition">🇻🇳</button>
@@ -929,6 +929,25 @@
         </div>
     </section>
 
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#06b6d4',
+        ('Đây là BitPaw đang chạy ở một spa', 'This is BitPaw running in a spa'),
+        ('Không phải ảnh minh hoạ: màn hình bán dịch vụ và trang đặt lịch của spa demo ở Úc. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the treatment checkout and booking page of our demo spa in Australia. Tap a screen to see it up close.'),
+        'spa_pos_pc', 'spa_booking_mob',
+        'Màn hình bán dịch vụ spa có ảnh và giá / Spa treatment checkout with photos and prices',
+        'Trang khách tự đặt lịch spa với giờ trống thật / Spa booking page showing real free times',
+        [('fa-spa', 'Liệu trình & gói nhiều buổi', 'Treatments & session packages'), ('fa-clock', 'Chỉ hiện giờ còn trống', 'Only real free times')],
+        [('fa-hand-sparkles', 'Bán liệu trình có ảnh', 'Sell treatments with photos',
+          'Chạm để thêm liệu trình, chọn kỹ thuật viên, thu tiền mặt, thẻ hoặc Square Terminal.',
+          'Tap to add treatments, pick the therapist, then take cash, card or Square Terminal.'),
+         ('fa-ticket', 'Gói nhiều buổi', 'Multi-visit packages',
+          'Bán gói 10 buổi; mỗi lần khách đến trừ một buổi, kỹ thuật viên vẫn nhận hoa hồng theo buổi.',
+          'Sell a 10-visit package; each visit takes one session off and the therapist still earns per-session commission.'),
+         ('fa-calendar-check', 'Khách tự đặt lịch', 'Clients book themselves',
+          'Trang đặt lịch riêng của spa chỉ hiện giờ còn trống, xác nhận ngay.',
+          'Your own booking page shows only free times and confirms instantly.')]) }}
+
     <!-- 6. Section Interactive Calculator -->
     <section id="calculator" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1213,6 +1232,10 @@
     </section>
 
     <!-- 10. FAQ Accordion Section -->
+    {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% set pricing_industry = 'spa' %}
+    {% include 'components/pricing.html' %}
+
     <section id="faq" class="py-10 md:py-20 bg-transparent border-y border-white/5 relative z-10 scroll-mt-28">
         <div class="max-w-4xl mx-auto px-6">
             <div class="text-center mb-16" data-aos="fade-up">
@@ -1780,7 +1803,7 @@
                 nav_features: 'Tính Năng',
                 nav_language_label: 'Ngôn ngữ:',
                 nav_login: 'Đăng Nhập',
-                nav_pricing: 'Bảng Giá',
+                nav_pricing: 'Bảng giá',
                 nav_solutions: 'Giải Pháp',
                 nav_trial: 'Dùng thử miễn phí',
                 pain1_tag: 'Lệch lịch',
@@ -2174,7 +2197,7 @@
                 nav_solutions: 'Giải Pháp',
                 nav_features: 'Tính Năng',
                 nav_ai_cskh: 'AI CSKH',
-                nav_pricing: 'Bảng Giá',
+                nav_pricing: 'Bảng giá',
                 nav_login: 'Đăng Nhập',
                 nav_trial: 'Dùng thử miễn phí',
                 nav_language_label: 'Ngôn ngữ:',

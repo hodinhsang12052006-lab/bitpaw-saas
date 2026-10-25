@@ -1,4 +1,4 @@
-// pricing_checkout_e2e.mjs — bảng giá USD/AUD (Mỹ + Úc) trên landing, /checkout tính giá ở server, trang pháp lý.
+// pricing_checkout_e2e.mjs — bảng giá THEO NGÀNH (plans.py), USD/AUD (Mỹ + Úc), tháng/năm trên landing, /checkout tính giá ở server, trang pháp lý.
 //   node scripts/pricing_checkout_e2e.mjs        (CHỈ server local; tự xoá yêu cầu đăng ký thử)
 import { chromium, devices } from 'playwright';
 import { execFileSync } from 'child_process';
@@ -11,19 +11,30 @@ const TAG = 'QA Pricing ' + Date.now();
 const b = await chromium.launch({ channel: 'chrome' });
 
 // 1) Landing: khách Mỹ -> USD, khách Úc (múi giờ Sydney) -> AUD; nút chuyển; link đăng ký mang theo tiền tệ
-for (const [label, opt, cur, price] of [['Mỹ', { timezoneId: 'America/Los_Angeles', locale: 'en-US' }, 'USD', '$299'],
-                                         ['Úc', { timezoneId: 'Australia/Sydney', locale: 'en-AU' }, 'AUD', 'A$449']]) {
+// trang chủ mặc định ngành Nails: Pro $129 (A$199), phí cài $499 (A$749)
+for (const [label, opt, cur, price] of [['Mỹ', { timezoneId: 'America/Los_Angeles', locale: 'en-US' }, 'USD', '$129'],
+                                         ['Úc', { timezoneId: 'Australia/Sydney', locale: 'en-AU' }, 'AUD', 'A$199']]) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, ...opt });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(BASE + '/landing', { waitUntil: 'load' }); await p.waitForTimeout(800);
   const st = await p.evaluate(() => ({ cur: document.getElementById('bang-gia').dataset.currency,
-    pro: document.querySelector('.bppr-card.hot .bppr-price b').textContent, href: document.querySelector('a[data-plan="pro"]').getAttribute('href'),
+    pro: document.querySelector('.bppr-card.hot .bppr-price b').textContent, href: document.querySelector('.bppr-card.hot .bppr-cta').getAttribute('href'),
     tax: document.querySelector('[data-tax]').textContent }));
-  rec(`Landing — khách ${label} thấy ${cur}`, st.cur === cur && st.pro === price && st.href === `/checkout?plan=pro&currency=${cur}` && st.tax.length > 5 && errs.length === 0, JSON.stringify(st));
+  rec(`Landing — khách ${label} thấy ${cur}`, st.cur === cur && st.pro === price && st.href === `/checkout?plan=pro&industry=nail&currency=${cur}&billing=month` && st.tax.length > 5 && errs.length === 0, JSON.stringify(st));
   if (cur === 'USD') {
-    await p.click('.bppr-cur [data-cur="AUD"]');
+    const hot = () => p.evaluate(() => ({ pro: document.querySelector('.bppr-card.hot .bppr-price b').textContent, setup: document.querySelector('.bppr-card.hot .bppr-setup').textContent.replace(/\s+/g, ' ').trim(),
+      href: document.querySelector('.bppr-card.hot .bppr-cta').getAttribute('href') }));
+    // đổi ngành: Nhà hàng Pro $159; trả năm $133/tháng (làm tròn lên) và tổng năm = 10 tháng ($1,590), link mang billing=year
+    await p.click('#bang-gia [data-ind="fnb"]');
+    const fnb = await hot();
+    rec('Landing — chọn ngành Nhà hàng: Pro $159, phí cài $799', fnb.pro === '$159' && /\$799/.test(fnb.setup) && fnb.href.includes('industry=fnb'), JSON.stringify(fnb));
+    await p.click('#bang-gia [data-bill="year"]');
+    const yr = await hot();
+    rec('Landing — trả năm: $133/tháng, tổng năm $1,590 (= 10 tháng, khớp checkout)', yr.pro === '$133' && /\$1,590/.test(yr.setup) && yr.href.endsWith('billing=year'), JSON.stringify(yr));
+    await p.click('#bang-gia [data-bill="month"]'); await p.click('#bang-gia [data-ind="nail"]');
+    await p.click('#bang-gia [data-cur="AUD"]');
     const after = await p.evaluate(() => ({ pro: document.querySelector('.bppr-card.hot .bppr-price b').textContent, setup: document.querySelector('.bppr-card.hot .bppr-setup strong').textContent }));
-    rec('Landing — bấm AUD đổi giá ngay', after.pro === 'A$449' && after.setup === 'A$4,499', JSON.stringify(after));
+    rec('Landing — bấm AUD đổi giá ngay', after.pro === 'A$199' && after.setup === 'A$749', JSON.stringify(after));
     await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(500);
     rec('Landing — nhớ lựa chọn AUD khi tải lại', await p.evaluate(() => document.getElementById('bang-gia').dataset.currency) === 'AUD');
     const links = await p.evaluate(() => ['terms', 'privacy', 'payment-policy'].map((k) => !!document.querySelector(`footer a[href="/${k}"], a[href="/${k}"]`)));
@@ -44,13 +55,21 @@ for (const [label, opt, cur, price] of [['Mỹ', { timezoneId: 'America/Los_Ange
   await ctx.close();
 }
 
-// 3) /checkout: Pro AUD -> A$4,499 + A$449 = A$4,948; gửi yêu cầu; server lưu đúng giá
+// 3) /checkout: Nails Pro AUD -> A$749 + A$199 = A$948; gửi yêu cầu; server lưu đúng giá
 {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, timezoneId: 'Australia/Sydney' });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(BASE + '/checkout?plan=pro&currency=AUD&industry=nail', { waitUntil: 'load' });
   const sum = await p.evaluate(() => ({ setup: sumSetup.textContent, m: sumMonthly.textContent, t: sumTotal.textContent, country: custCountry.value, ind: custIndustry.value }));
-  rec('Checkout — Pro AUD: A$4,499 + A$449 = A$4,948', sum.setup === 'A$4,499' && sum.m === 'A$449' && sum.t === 'A$4,948 AUD' && sum.country === 'AU' && sum.ind === 'nail', JSON.stringify(sum));
+  rec('Checkout — Nails Pro AUD: A$749 + A$199 = A$948', sum.setup === 'A$749' && sum.m === 'A$199' && sum.t === 'A$948 AUD' && sum.country === 'AU' && sum.ind === 'nail', JSON.stringify(sum));
+  // đổi ngành ngay trên form -> giá đổi theo ngành; trả năm -> kỳ đầu = 10 tháng
+  await p.selectOption('#custIndustry', 'fnb');
+  const fsum = await p.evaluate(() => ({ setup: sumSetup.textContent, m: sumMonthly.textContent, t: sumTotal.textContent }));
+  rec('Checkout — đổi sang Nhà hàng: A$1,199 + A$239', fsum.setup === 'A$1,199' && fsum.m === 'A$239' && fsum.t === 'A$1,438 AUD', JSON.stringify(fsum));
+  await p.click('[data-bill="year"]');
+  const ysum = await p.evaluate(() => ({ m: sumMonthly.textContent, t: sumTotal.textContent }));
+  rec('Checkout — trả năm: A$2,390 (10 tháng) + phí cài = A$3,589', ysum.m === 'A$2,390' && ysum.t === 'A$3,589 AUD', JSON.stringify(ysum));
+  await p.click('[data-bill="month"]'); await p.selectOption('#custIndustry', 'nail');
   await p.click('#btnSubmit');
   rec('Checkout — thiếu thông tin thì báo lỗi, không gửi', (await p.textContent('#err')).length > 5);
   await p.fill('#custName', 'QA Owner'); await p.fill('#custShop', TAG); await p.fill('#custEmail', 'qa.pricing@bitpawdemo.com'); await p.fill('#custPhone', '+61 400 000 000');
@@ -66,11 +85,18 @@ for (const [label, opt, cur, price] of [['Mỹ', { timezoneId: 'America/Los_Ange
 import json
 from mongo_client import db
 print(json.dumps(db.saas_signups.find_one({'shop_name': '${TAG}'}, {'_id': 0, 'plan': 1, 'currency': 1, 'setup_fee': 1, 'monthly_fee': 1, 'total_price': 1, 'country': 1, 'industry': 1})))`));
-  rec('DB — lưu đúng gói/tiền tệ/giá tính ở server', row && row.plan === 'pro' && row.currency === 'AUD' && row.setup_fee === 4499 && row.monthly_fee === 449 && row.total_price === 4948 && row.country === 'AU' && row.industry === 'nail', JSON.stringify(row));
+  rec('DB — lưu đúng gói/tiền tệ/giá tính ở server', row && row.plan === 'pro' && row.currency === 'AUD' && row.setup_fee === 749 && row.monthly_fee === 199 && row.total_price === 948 && row.country === 'AU' && row.industry === 'nail', JSON.stringify(row));
   // trình duyệt gửi giá giả -> server bỏ qua; gói/tiền tệ lạ -> 400
   const forged = await p.evaluate(async (tag) => (await fetch('/api/checkout/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ customer_name: 'QA', shop_name: tag + ' forged', email: 'qa.pricing@bitpawdemo.com', phone: '+1 555 000 0000', plan: 'empire', currency: 'USD', total_price: 1, setup_fee: 1 }) })).json(), TAG);
-  rec('Gửi giá giả $1 -> server vẫn tính $4,999 + $599', forged.success && forged.data.setup_fee === 4999 && forged.data.monthly_fee === 599, JSON.stringify(forged.data));
+  rec('Gửi giá giả $1 -> server vẫn tính giá Empire Nails $1,499 + $249', forged.success && forged.data.setup_fee === 1499 && forged.data.monthly_fee === 249, JSON.stringify(forged.data));
+  const yearly = await p.evaluate(async (tag) => (await fetch('/api/checkout/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customer_name: 'QA', shop_name: tag + ' yearly', email: 'qa.pricing@bitpawdemo.com', phone: '+1 555 000 0000', plan: 'pro', industry: 'office', currency: 'USD', billing: 'year' }) })).json(), TAG);
+  const yrow = JSON.parse(py(`
+import json
+from mongo_client import db
+print(json.dumps(db.saas_signups.find_one({'shop_name': '${TAG} yearly'}, {'_id': 0, 'billing': 1, 'total_price': 1, 'monthly_fee': 1, 'setup_fee': 1})))`));
+  rec('Văn phòng Pro trả năm: server lưu $299 + 10×$89 = $1,189', yearly.success && yrow && yrow.billing === 'year' && yrow.monthly_fee === 89 && yrow.setup_fee === 299 && yrow.total_price === 1189, JSON.stringify(yrow));
   const bad = await p.evaluate(async () => (await fetch('/api/checkout/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ customer_name: 'QA', shop_name: 'x', email: 'qa@x.com', phone: '+1 555 000 0000', plan: 'gold', currency: 'VND' }) })).status);
   rec('Gói/tiền tệ không hợp lệ -> 400', bad === 400);

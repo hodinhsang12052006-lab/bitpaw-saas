@@ -522,6 +522,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </div>
 
                     <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Gói / Plan</label>
+                        <select id="planSelect" class="w-full bg-black/50 border border-white/10 p-3.5 rounded-xl text-white text-sm outline-none focus:border-cyan-400 cursor-pointer">
+                            <option value="essential">Essential</option>
+                            <option value="pro" selected>Pro Partner</option>
+                            <option value="empire">Empire Scale</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2"
                             data-i18n="super_admin_label_key_code">Mã Khách Hàng (Tự tạo hoặc Random)</label>
                         <div class="flex gap-2">
@@ -543,7 +552,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 </div>
             </div>
 
-            <div class="lg:col-span-8 glass-panel p-6">
+            <div class="lg:col-span-4 lg:col-start-1 bg-white/5 border border-white/10 p-6 rounded-3xl h-fit">
+                <h3 class="text-sm font-bold text-cyan-400 mb-4 flex items-center gap-2"><i class="fas fa-gem"></i> Đổi gói cho tiệm / Change a shop's plan</h3>
+                <div class="space-y-3">
+                    <input type="email" id="planEmail" placeholder="owner@email.com" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm outline-none focus:border-cyan-400">
+                    <select id="planTarget" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-sm outline-none focus:border-cyan-400">
+                        <option value="essential">Essential</option><option value="pro">Pro Partner</option><option value="empire">Empire Scale</option>
+                    </select>
+                    <button type="button" onclick="setShopPlan()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold p-3 rounded-xl transition">Lưu gói / Save plan</button>
+                    <p class="text-xs text-gray-400">Tiệm chưa từng được gán gói = Empire (giữ nguyên quyền cũ).</p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 lg:col-start-5 lg:row-start-1 lg:row-span-2 glass-panel p-6">
                 <div class="flex justify-between items-center mb-6 pb-3 border-b border-white/5">
                     <h3 class="text-sm font-black text-cyan-400 uppercase tracking-widest"><i class="fas fa-key"></i>
                         <span data-i18n="super_admin_license_list_title">Danh Sách License Đã Đúc</span></h3>
@@ -881,7 +902,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const res = await fetch('/api/superadmin/duc_ma', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ license_key: maKhachHang, nganh_nghe: nganhNghe })
+                    body: JSON.stringify({ license_key: maKhachHang, nganh_nghe: nganhNghe, plan: document.getElementById('planSelect').value })
                 });
                 const resJson = await res.json();
                 if (!resJson.success) {
@@ -894,6 +915,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             } catch (err) {
                 showToast(t('super_admin_err_prefix') + err.message);
             }
+        }
+
+        async function setShopPlan() {
+            const email = document.getElementById('planEmail').value.trim(), plan = document.getElementById('planTarget').value;
+            if (!email) { showToast('Nhập email chủ tiệm / Enter the owner email'); return; }
+            try {
+                const res = await fetch('/api/superadmin/business_plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, plan }) });
+                const j = await res.json();
+                showToast(j.success ? ('OK: ' + email + ' → ' + plan) : (j.message || 'Error'));
+            } catch (e) { showToast(e.message); }
         }
 
         async function loadKeys() {
@@ -915,7 +946,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         tbody.innerHTML += `
                             <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
                                 <td class="p-3 font-mono font-bold text-white tracking-wider">${item.key_code}</td>
-                                <td class="p-3 text-cyan-400 text-xs font-bold uppercase tracking-wider">${item.industry}</td>
+                                <td class="p-3 text-cyan-400 text-xs font-bold uppercase tracking-wider">${item.industry}${item.plan ? ' · <span class="text-amber-300">' + item.plan + '</span>' : ''}</td>
                                 <td class="p-3">
                                     <span class="px-2 py-0.5 rounded text-[9px] uppercase font-black border ${statusColor}">${displayStatus}</span>
                                 </td>
@@ -1183,7 +1214,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <td class="py-2 pr-3 text-gray-500">${esc(r.id)}</td>
                         <td class="py-2 pr-3"><b class="text-white">${esc(r.shop_name)}</b><br><span class="text-gray-400">${esc(r.customer_name)}</span>${r.note ? `<br><span class="text-gray-500">${esc(r.note)}</span>` : ''}</td>
                         <td class="py-2 pr-3 text-gray-300">${esc(r.email)}<br>${esc(r.phone)} · ${esc(r.country || '')}</td>
-                        <td class="py-2 pr-3 text-gray-300">${esc(r.plan_name || r.module_plan || '')}<br><span class="text-gray-500">${esc(r.industry || '')} · ${esc(cur)}</span></td>
+                        <td class="py-2 pr-3 text-gray-300">${r.type === 'upgrade' ? '<span class="text-amber-300 font-bold">NÂNG CẤP</span> ' + esc(r.current_plan || '') + ' → ' : ''}${esc(r.plan_name || r.module_plan || '')}<br><span class="text-gray-500">${esc(r.industry || '')} · ${esc(cur)}${r.billing === 'year' ? ' · trả năm' : ''}</span></td>
                         <td class="py-2 pr-3 text-right font-mono">${money(r.setup_fee)}</td>
                         <td class="py-2 pr-3 text-right font-mono">${money(r.monthly_fee)}</td>
                         <td class="py-2 pr-3 text-gray-400">${esc((r.created_at || '').slice(0, 10))}</td>

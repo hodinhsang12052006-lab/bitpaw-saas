@@ -247,8 +247,11 @@ def oauth_complete():
             'oauth': {pend['provider']: pend['sub']}, 'created_at': datetime.now().isoformat(), 'signup_method': pend['provider']}
     try:
         db.users.insert_one(dict(user))
-        db.businesses.insert_one({'id': user_id, 'name': business_name, 'owner_name': pend.get('name') or '', 'industry_code': business_type,
-                                  'created_at': datetime.now().isoformat()})
+        biz_doc = {'id': user_id, 'name': business_name, 'owner_name': pend.get('name') or '', 'industry_code': business_type,
+                   'created_at': datetime.now().isoformat()}
+        if (key or {}).get('plan') in ('essential', 'pro', 'empire'):
+            biz_doc['plan'] = key['plan']
+        db.businesses.insert_one(biz_doc)
         db.system_settings.update_one({'key': f'business_mode_{user_id}'}, {'$set': {'key': f'business_mode_{user_id}', 'value': business_type}}, upsert=True)
     except Exception as e:
         db.license_codes.update_one({'license_key': license_key, 'trang_thai': 'Đã kích hoạt'}, {'$set': {'trang_thai': 'Sẵn sàng'}})
