@@ -240,14 +240,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         </div>
                     </div>
 
-                    <!-- Performance Predictions Metrics -->
+                    <!-- Số liệu THẬT của các chiến dịch gần đây (/api/ai/campaigns/summary). Trước đây là "Dự đoán hiệu suất AI"
+                         Open/CTR/ROI bịa từ mã ký tự của tin nhắn (88% + ...), không có mô hình nào. -->
                     <div class="space-y-3 font-medium text-xs">
-                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-chart-line text-xs"></i> <span data-i18n="campaignbuilder_perf_title">AI Performance Prediction</span></h4>
+                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-chart-line text-xs"></i> <span data-i18n="campaignbuilder_real_title">Recent campaigns (real counts)</span></h4>
                         <div class="space-y-2">
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_open">Open rate (Open):</span><strong class="text-emerald-400 text-sm font-black" id="predOpen">--%</strong></p>
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_ctr">Expected clicks (CTR):</span><strong class="text-cyan-400 text-sm font-black" id="predCTR">--%</strong></p>
-                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_perf_roi">Recovery effectiveness (ROI):</span><strong class="text-purple-400 text-sm font-black" id="predROI">--%</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_real_sent">Sent successfully:</span><strong class="text-emerald-400 text-sm font-black" id="realSent">—</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_real_approved">Approved, not sent yet:</span><strong class="text-cyan-400 text-sm font-black" id="realApproved">—</strong></p>
+                            <p class="flex justify-between text-gray-400 pb-1 border-b border-white/5"><span data-i18n="campaignbuilder_real_pending">Waiting for approval:</span><strong class="text-purple-400 text-sm font-black" id="realPending">—</strong></p>
                         </div>
+                        <p class="text-[9px] text-gray-500 leading-relaxed" data-i18n="campaignbuilder_real_note">Counted from real data. Open and click rates are not measured, so they are not shown.</p>
                     </div>
                 </div>
 
@@ -326,10 +328,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_phone_label: {{ ('Zalo Chat' if (tenant_currency or 'VND') == 'VND' else 'Tin nhắn') | tojson }},
                 campaignbuilder_phone_placeholder: 'Chọn một tin nhắn dưới đây để xem trước nội dung AI đã soạn...',
                 campaignbuilder_phone_send: 'Gửi',
-                campaignbuilder_perf_title: 'Dự Đoán Hiệu Suất AI',
-                campaignbuilder_perf_open: 'Tỷ lệ mở (Open):',
-                campaignbuilder_perf_ctr: 'Tỷ lệ click dự kiến (CTR):',
-                campaignbuilder_perf_roi: 'Hiệu quả thu hồi (ROI):',
+                campaignbuilder_real_title: 'Chiến dịch gần đây (số thật)',
+                campaignbuilder_real_sent: 'Đã gửi thành công:',
+                campaignbuilder_real_approved: 'Đã duyệt, chưa gửi:',
+                campaignbuilder_real_pending: 'Chờ duyệt:',
+                campaignbuilder_real_note: 'Đếm từ dữ liệu thật. Tỷ lệ mở / nhấp chưa đo được nên không hiển thị.',
                 campaignbuilder_queue_title: 'Hàng Chờ Duyệt Tin Nhắn',
                 campaignbuilder_pending_counter: '{count} CHỜ DUYỆT',
                 campaignbuilder_empty_title: 'Không có tin nhắn chờ duyệt',
@@ -402,10 +405,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_phone_label: {{ ('Zalo Chat' if (tenant_currency or 'VND') == 'VND' else 'Messages') | tojson }},
                 campaignbuilder_phone_placeholder: 'Select a message below to preview the actual AI-drafted content here...',
                 campaignbuilder_phone_send: 'Send',
-                campaignbuilder_perf_title: 'AI Performance Prediction',
-                campaignbuilder_perf_open: 'Open rate (Open):',
-                campaignbuilder_perf_ctr: 'Expected clicks (CTR):',
-                campaignbuilder_perf_roi: 'Recovery effectiveness (ROI):',
+                campaignbuilder_real_title: 'Recent campaigns (real counts)',
+                campaignbuilder_real_sent: 'Sent successfully:',
+                campaignbuilder_real_approved: 'Approved, not sent yet:',
+                campaignbuilder_real_pending: 'Waiting for approval:',
+                campaignbuilder_real_note: 'Counted from real data. Open and click rates are not measured, so they are not shown.',
                 campaignbuilder_queue_title: 'Message Approval Queue',
                 campaignbuilder_pending_counter: '{count} PENDING',
                 campaignbuilder_empty_title: 'No messages pending',
@@ -456,6 +460,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         renderApprovalQueue(res.data);
                     }
                 });
+            loadRealCampaignStats();   // duyệt / tạo chiến dịch xong -> số thật cập nhật theo
         }
 
         let allMessages = [];
@@ -521,16 +526,23 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             if (!m) return;
             
             document.getElementById("phonePreviewText").innerText = m.body;
-            
-            // Randomize prediction slightly for that specific user
-            const seed = m.body.charCodeAt(0) + m.body.charCodeAt(m.body.length - 1);
-            const openVal = (88 + (seed % 10)).toFixed(1);
-            const ctrVal = (42 + (seed % 15)).toFixed(1);
-            const roiVal = (28 + (seed % 20)).toFixed(1);
-            
-            document.getElementById("predOpen").innerText = `${openVal}%`;
-            document.getElementById("predCTR").innerText = `${ctrVal}%`;
-            document.getElementById("predROI").innerText = `+${roiVal}%`;
+            // (Đã bỏ "dự đoán" Open/CTR/ROI tính từ mã ký tự của tin nhắn — con số bịa, không có mô hình nào.)
+        }
+
+        // Số đếm THẬT từ các chiến dịch gần đây của tiệm (đã gửi thành công / đã duyệt chưa gửi / chờ duyệt)
+        function loadRealCampaignStats() {
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            fetch("/api/ai/campaigns/summary")
+                .then(res => res.json())
+                .then(res => {
+                    if (!res.success) return;
+                    const rows = res.data || [];
+                    const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+                    set("realSent", sum('sent').toLocaleString());
+                    set("realApproved", sum('approved').toLocaleString());
+                    set("realPending", sum('pending').toLocaleString());
+                })
+                .catch(() => {});
         }
 
         function approveMessage(messageId, action, event) {

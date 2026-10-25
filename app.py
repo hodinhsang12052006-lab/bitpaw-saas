@@ -13496,31 +13496,15 @@ def omnichannel_disconnect_api(channel):
 @app.route('/omnichannel/test/<channel>', methods=['POST'])
 @login_required
 def omnichannel_test_api(channel):
-    target = CHANNEL_MAP.get(channel.lower())
-    if not target:
-        return jsonify({"success": False, "message": f"Invalid channel: {channel}"}), 400
-    business_id, _biz_err = _get_tenant_business_id_or_401()
-    if _biz_err:
-        return _biz_err
-    try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("SELECT config_data FROM platform_connections WHERE business_id = ? AND platform = ? AND connection_status = 'CONNECTED'", (business_id, target))
-        row = c.fetchone()
-        conn.close()
-        if not row:
-            return jsonify({"success": False, "message": f"Cổng kết nối {channel.upper()} chưa được cấu hình. Vui lòng kết nối trước!"}), 400
-        config = json.loads(row[0]) if row[0] else {}
-        access_token = config.get("access_token")
-        channel_id = config.get("channel_id")
-        if not access_token or not channel_id:
-            return jsonify({"success": False, "message": "Thông tin cấu hình không hợp lệ!"}), 400
-        return jsonify({
-            "success": True,
-            "message": f"Kết nối kiểm thử tới Provider API ({channel.upper()}) thành công! Phản hồi từ Máy chủ đối tác: OK (200)."
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    # Bài "kiểm thử" cũ KHÔNG gọi nhà cung cấp nào mà vẫn báo đối tác phản hồi "OK 200" — giả.
+    # Kết nối + kiểm tra token THẬT của kênh nhắn tin nay nằm ở Kênh nhắn tin (/inbox/channels, inbox_channels.py).
+    return jsonify({
+        "success": False, "code": "replaced_by_inbox_channels", "redirect": "/inbox/channels",
+        "message": _vi_en('Bài kiểm tra cũ này đã ngừng (trước đây không hề gọi tới nhà cung cấp). '
+                          'Hãy kết nối và kiểm tra kênh tại Kênh nhắn tin: /inbox/channels.',
+                          'This legacy test has been retired (it never actually contacted the provider). '
+                          'Connect and verify channels in Messaging channels: /inbox/channels.'),
+    }), 410
 
 # /api/cskh/lead-submit đã gỡ (10/2026): không trang nào gọi, và ghi vào SQLite database.db — Vercel không có file đó.
 
@@ -13630,6 +13614,7 @@ def nurture_import_data():
 
 @app.route('/api/ai/nurture/generate-campaign', methods=['POST'])
 @login_required
+@limiter.limit("30 per minute")  # mỗi lần gọi = 1 lượt DeepSeek tốn tiền (cả chế độ xem trước 1 khách)
 def nurture_generate_campaign():
     """Giờ target segment (ALL/VIP/CHURN) được lọc trực tiếp trên db.customers thật,
     và nội dung nhắn được AINurturingEngine.generate_nurturing_copy() sinh THẬT qua
@@ -13654,6 +13639,27 @@ def nurture_generate_campaign():
     channel = (data.get('channel') or ('SMS' if lang == 'en' else 'ZALO')).upper()
     if channel not in ('SMS', 'EMAIL', 'ZALO', 'FACEBOOK'):
         channel = 'SMS'
+
+    # Chế độ XEM TRƯỚC cho 1 khách (customer_nurturing.html): AI viết 1 tin cho đúng khách đó rồi trả về — KHÔNG tạo
+    # chiến dịch, KHÔNG tạo tin chờ duyệt nào. Trước đây nút "gợi ý" gọi route này với segment ALL nên mỗi lần bấm
+    # tạo nguyên 1 chiến dịch + 3 tin PENDING cho MỌI khách, rồi bỏ qua kết quả và hiện 1 câu viết sẵn hứa giảm 30%.
+    preview_cid = str(data.get('preview_customer_id') or '').strip()
+    if preview_cid:
+        from ai_context_engine import AIContextEngine
+        id_candidates = [preview_cid] + ([int(preview_cid)] if preview_cid.lstrip('-').isdigit() else [])
+        cust = db.customers.find_one({'id': {'$in': id_candidates}, 'business_id': business_id},
+                                     {'id': 1, 'name': 1, 'phone': 1, '_id': 0})
+        if not cust:
+            return jsonify({"success": False, "code": "customer_not_found", "message": "Customer not found."}), 404
+        biz = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0}) or {}
+        history = AIContextEngine._load_purchase_history(business_id, cust.get('phone'), limit=5) if cust.get('phone') else []
+        text = AINurturingEngine.generate_single_nurture_message(
+            biz.get('name') or '', industry, goal, tone, cust.get('name'), purchase_history=history, lang=lang)
+        # generate_single_nurture_message tự rơi về câu mẫu khi thiếu key/DeepSeek lỗi — báo thật cho UI
+        fallback_text = AINurturingEngine._fallback_copy(cust.get('name') or ("there" if lang == 'en' else "bạn"), lang)['7days']
+        return jsonify({"success": True, "preview": True, "saved": False, "message": text,
+                        "ai_generated": bool(os.environ.get('DEEPSEEK_API_KEY')) and text != fallback_text,
+                        "used_purchase_history": bool(history), "channel": channel, "language": lang})
 
     campaign_id = f"camp-{next_mongo_id('nurturing_campaigns')}"
     goal_name = {'RECALL': 'Win-back', 'UPSELL': 'Upsell'}.get(str(goal).upper(), str(goal)) if lang == 'en' else goal
@@ -13860,6 +13866,10 @@ def nurture_recommendations():
 
 
 # ========== AI BOT SCENARIO BUILDER API ENDPOINTS ==========
+# GIỚI HẠN THẬT (ghi rõ để không ai hiểu nhầm): kịch bản lưu ở SQLite database.db — chỉ bền trên máy chạy local;
+# trên Vercel file này không ghi được/không bền nên các route dưới trả lỗi. CHƯA có bộ máy nào chạy kịch bản để gửi
+# tin: lưu + xem trước thôi. Gửi tin chăm sóc THẬT: /campaign_builder (duyệt rồi gửi) + kênh ở /inbox/channels.
+# Chưa chuyển sang MongoDB trong đợt sửa này (crm_automation.html hiện banner nói rõ giới hạn).
 
 @app.route('/api/bot/scenarios', methods=['GET'])
 @login_required
@@ -13876,53 +13886,8 @@ def get_bot_scenarios():
             FROM bot_scenarios WHERE business_id = ? ORDER BY created_at DESC
         """, (business_id,))
         rows = c.fetchall()
-        
-        # If empty, let's auto-seed mock scenarios to wow the admin on first launch
-        if not rows:
-            mock_scenarios = [
-                (
-                    str(uuid.uuid4()), business_id, "Cảm ơn & Hỏi thăm", 
-                    "Tự động gửi lời cảm ơn và khảo sát hài lòng sau khi hoàn tất bill thanh toán trên POS.",
-                    "zalo_oa", "after_payment", 
-                    "Dạ chào {customer_name}, cảm ơn sếp đã ủng hộ tiệm. Dịch vụ/sản phẩm vừa rồi sếp có hài lòng không ạ? Nếu có góp ý gì sếp phản hồi cho em biết nhé!", 
-                    60, "ACTIVE", 150
-                ),
-                (
-                    str(uuid.uuid4()), business_id, "Nhắc lịch hẹn dịch vụ", 
-                    "Tự động gửi tin nhắn SMS/Zalo trước giờ hẹn để khách hàng không quên lịch.",
-                    "messenger", "appointment_reminder", 
-                    "BitPaw xin chào {customer_name}! Lịch hẹn dịch vụ {service_name} của sếp đã được xác nhận vào lúc {appointment_time}. Sếp nhớ ghé đúng giờ nhé!", 
-                    120, "ACTIVE", 200
-                ),
-                (
-                    str(uuid.uuid4()), business_id, "Quà tặng Sinh nhật khách hàng", 
-                    "Tự động gửi mã giảm giá chúc mừng sinh nhật khách hàng VIP.",
-                    "whatsapp", "birthday", 
-                    "Chúc mừng sinh nhật sếp {customer_name} thân yêu! BitPaw gửi tặng sếp mã quà tặng đặc biệt {order_code} giảm giá 20% cho tất cả dịch vụ trong tháng sinh nhật.", 
-                    0, "ACTIVE", 50
-                ),
-                (
-                    str(uuid.uuid4()), business_id, "Chào mừng khách ghé Mascot Chat", 
-                    "Website Mascot AI Chatbot tự động chào đón và thu thập thông tin khách mới ghé trang chủ.",
-                    "mascot_chat", "new_customer", 
-                    "Chào mừng sếp {customer_name} ghé thăm Website! Em là Trợ lý Mascot AI, em có thể giúp gì cho sếp trong hôm nay?", 
-                    0, "ACTIVE", 500
-                )
-            ]
-            for s in mock_scenarios:
-                c.execute("""
-                    INSERT INTO bot_scenarios (id, business_id, name, description, channel, trigger_type, message_template, delay_minutes, status, max_send_per_day)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, s)
-            conn.commit()
-            
-            c.execute("""
-                SELECT id, name, description, channel, trigger_type, message_template, 
-                       delay_minutes, status, max_send_per_day, created_at, updated_at 
-                FROM bot_scenarios WHERE business_id = ? ORDER BY created_at DESC
-            """, (business_id,))
-            rows = c.fetchall()
-            
+        # Danh sách trống -> trả trống. Trước đây tự chèn 4 kịch bản mẫu "để gây ấn tượng" ở trạng thái ACTIVE
+        # (có cả "giảm giá 20%" mà tiệm chưa từng hứa) như thể tiệm đã tự cài.
         conn.close()
         
         scenarios = []
@@ -14095,100 +14060,80 @@ def toggle_bot_scenario(scenario_id):
 @app.route('/api/bot/scenarios/<scenario_id>/test', methods=['POST'])
 @login_required
 def test_bot_scenario(scenario_id):
+    """Xem trước tin của kịch bản bằng DỮ LIỆU THẬT của tiệm — KHÔNG gửi gì, không ghi nhật ký gửi. Trước đây báo
+    "Gửi tin nhắn test thành công! ... Phản hồi: OK 200." dù không gọi nhà cung cấp nào, và điền giá trị bịa
+    ('Chăm Sóc Da Hắc Ín VIP', '15:30 Ngày mai', 'BP-MOCK-999'). Biến nào tiệm chưa có dữ liệu thật thì giữ nguyên
+    {biến} + trả về trong missing_vars để chủ tiệm thấy rõ."""
     business_id, _biz_err = _get_tenant_business_id_or_401()
     if _biz_err:
         return _biz_err
     data = request.json or {}
-    customer_id = data.get('customer_id', '').strip()
-    
+    customer_id = str(data.get('customer_id') or '').strip()
+
     try:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        
-        # 1. Fetch scenario
         c.execute("SELECT name, channel, message_template FROM bot_scenarios WHERE id = ? AND business_id = ?", (scenario_id, business_id))
         scen_row = c.fetchone()
-        if not scen_row:
-            conn.close()
-            return jsonify({"success": False, "message": "Không tìm thấy kịch bản!"}), 404
-            
-        scen_name, channel, template = scen_row
-        
-        # 2. Fetch customer details or use a generic placeholder for a dry-run test —
-        # trước đây tra ở customer_profiles (SQLite, đã bị loại bỏ), giờ tra thẳng
-        # db.customers (MongoDB). customer_id ở đây là ô nhập tay tự do trên UI, không
-        # đảm bảo đúng định dạng, nên thử ép kiểu int an toàn, lỗi/không khớp thì rơi về
-        # placeholder gốc (hành vi y hệt trước đây).
-        cust_name = "Khách hàng mẫu"
-        cust_phone = "0900000000"
-        if customer_id and db is not None:
-            try:
-                cust_doc = db.customers.find_one(
-                    {'id': int(customer_id), 'business_id': business_id}, {'name': 1, 'phone': 1, '_id': 0}
-                )
-            except (ValueError, TypeError):
-                cust_doc = None
-            if cust_doc:
-                cust_name, cust_phone = cust_doc.get('name') or cust_name, cust_doc.get('phone') or cust_phone
-                
-        # 3. Check connection status of the channel
-        c.execute("SELECT connection_status, config_data FROM platform_connections WHERE business_id = ? AND platform = ?", (business_id, channel))
-        conn_row = c.fetchone()
-        
-        is_connected = False
-        config = {}
-        if conn_row:
-            is_connected = (conn_row[0] == 'CONNECTED')
-            if conn_row[1]:
-                try:
-                    config = json.loads(conn_row[1])
-                except Exception:
-                    pass
-                    
-        # Verify access token and channel id are validly setup
-        access_token = config.get("access_token")
-        channel_id = config.get("channel_id")
-        if not access_token or not channel_id:
-            is_connected = False
-            
-        # 4. Fill variables in template
-        filled_message = template.replace("{customer_name}", cust_name)\
-                                 .replace("{service_name}", "Chăm Sóc Da Hắc Ín VIP")\
-                                 .replace("{appointment_time}", "15:30 Ngày mai")\
-                                 .replace("{order_code}", "BP-MOCK-999")
-        
-        # Determine status
-        log_id = str(uuid.uuid4())
-        status_label = 'simulated'
-        error_msg = None
-        
-        if is_connected:
-            status_label = 'simulated'
-            resp_message = f"Gửi tin nhắn test thành công! [Chế độ mô phỏng qua Provider API {channel.upper()}] Phản hồi: OK 200."
-        else:
-            status_label = 'pending_provider_api'
-            error_msg = f"Kênh {channel.upper()} chưa được cấu hình token. Vui lòng kết nối tài khoản trước."
-            resp_message = f"Simulated test trigger: Kịch bản đã sẵn sàng, nhưng kênh {channel.upper()} chưa kết nối thật. Tin nhắn hiển thị chế độ nháp."
-            
-        # Insert log
-        c.execute("""
-            INSERT INTO bot_message_logs (id, business_id, scenario_id, customer_id, channel, message_content, status, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (log_id, business_id, scenario_id, cust_phone, channel, filled_message, status_label, error_msg))
-        
-        conn.commit()
         conn.close()
-        
+        if not scen_row:
+            return jsonify({"success": False, "message": "Không tìm thấy kịch bản!"}), 404
+        scen_name, channel, template = scen_row
+
+        values = {}
+        cust_doc = None
+        if customer_id and db is not None:
+            # id khách thường là int nhưng UI gửi dạng chuỗi — thử cả 2 kiểu, luôn giới hạn trong đúng tiệm
+            id_candidates = [customer_id] + ([int(customer_id)] if customer_id.lstrip('-').isdigit() else [])
+            cust_doc = db.customers.find_one({'id': {'$in': id_candidates}, 'business_id': business_id},
+                                             {'id': 1, 'name': 1, 'phone': 1, 'last_purchase_at': 1, '_id': 0})
+        if cust_doc:
+            phone = cust_doc.get('phone')
+            if cust_doc.get('name'):
+                values['customer_name'] = cust_doc['name']
+            if phone:
+                # Lịch hẹn sắp tới THẬT của khách (giờ + dịch vụ)
+                appt = db.appointments.find_one(
+                    {'business_id': business_id, 'customer_phone': phone,
+                     'book_time': {'$gte': datetime.now().strftime('%Y-%m-%dT%H:%M')},
+                     'status': {'$nin': ['cancelled', 'canceled']}},
+                    {'_id': 0, 'book_time': 1, 'service_id': 1, 'service_name': 1}, sort=[('book_time', 1)])
+                if appt:
+                    values['appointment_time'] = str(appt.get('book_time') or '')[:16].replace('T', ' ')
+                    svc = db.products.find_one({'id': appt.get('service_id'), 'business_id': business_id}, {'_id': 0, 'name': 1}) or {}
+                    if svc.get('name') or appt.get('service_name'):
+                        values['service_name'] = svc.get('name') or appt.get('service_name')
+                if 'service_name' not in values:
+                    from ai_nurturing_engine import customer_fill_values
+                    last_service = customer_fill_values(business_id, cust_doc)[1]
+                    if last_service:
+                        values['service_name'] = last_service
+                # Mã đơn gần nhất THẬT của khách
+                order = db.orders.find_one(
+                    {'business_id': business_id, 'metadata.customer_phone': phone, 'metadata.order_code': {'$exists': True}},
+                    {'_id': 0, 'metadata.order_code': 1}, sort=[('created_at', -1)])
+                code = ((order or {}).get('metadata') or {}).get('order_code')
+                if code:
+                    values['order_code'] = str(code)
+
+        preview = template
+        for k, v in values.items():
+            preview = preview.replace('{' + k + '}', str(v))
+        missing = sorted(set(re.findall(r'\{(customer_name|service_name|appointment_time|order_code)\}', preview)))
         return jsonify({
             "success": True,
-            "message": resp_message,
-            "simulated_message": filled_message,
-            "log_status": status_label,
+            "sent": False,
+            "preview": preview,
+            "simulated_message": preview,  # khoá cũ, giữ tương thích
+            "missing_vars": missing,
             "channel": channel,
-            "is_connected": is_connected
+            "scenario_name": scen_name,
+            "log_status": "preview_not_sent",
+            "message": _vi_en("Bản xem trước — KHÔNG có tin nào được gửi.", "Preview only — no message was sent."),
         })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route('/api/bot/logs', methods=['GET'])
 @login_required
@@ -14219,7 +14164,9 @@ def get_bot_logs():
                 "message_content": r[4],
                 "status": r[5],
                 "error_message": r[6],
-                "sent_at": r[7],
+                "sent_at": r[7],  # thời điểm GHI dòng nhật ký, không phải lúc gửi
+                # Chưa từng có bộ máy gửi theo kịch bản: dòng cũ 'simulated'/'pending_provider_api' đều là chạy thử, KHÔNG gửi
+                "sent": r[5] in ('sent', 'delivered'),
                 "scenario_name": r[8] or "Kịch bản đã xóa"
             })
         return jsonify({"success": True, "data": logs})
@@ -14298,11 +14245,9 @@ try:
 except Exception as bp_err:
     print(f"Error registering messaging_bp: {str(bp_err)}")
 
-try:
-    from ad_suggest_api import ad_suggest_bp
-    app.register_blueprint(ad_suggest_bp)
-except Exception as bp_err:
-    print(f"Error registering ad_suggest_bp: {str(bp_err)}")
+# /api/ad-suggest (ad_suggest_api.py) đã gỡ 10/2026: mẫu emoji viết sẵn giả danh "AI" kèm câu bịa ("hàng ngàn khách
+# tin dùng", "miễn phí vận chuyển"), công khai không cần đăng nhập, không trang nào gọi. Gợi ý quảng cáo THẬT (DeepSeek,
+# có đăng nhập + giới hạn tần suất) nằm ở /ad-assistant/api/suggest (ad_assistant.py).
 
 try:
     from email_test_api import email_test_bp

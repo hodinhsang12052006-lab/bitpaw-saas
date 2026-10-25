@@ -164,7 +164,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                 <th class="p-4" data-i18n="customer_nurturing_th_source">Source</th>
                                 <th class="p-4" data-i18n="customer_nurturing_th_spend">Total Spend</th>
                                 <th class="p-4" data-i18n="customer_nurturing_th_last_purchase">Last Purchase</th>
-                                <th class="p-4 text-center" data-i18n="customer_nurturing_th_churn">Churn</th>
+                                <th class="p-4 text-center">{{ 'Phân khúc' if default_lang == 'vi' else 'Segment' }}</th>
                             </tr>
                         </thead>
                         <tbody id="customerTableBody">
@@ -200,90 +200,73 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </div>
 
                     <!-- Spending Statistics & Potential score -->
+                    {% set _vi = (default_lang == 'vi') %}
                     <div class="grid grid-cols-2 gap-4 mt-5 mb-4 shrink-0">
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_spend_label">Total Spend</span>
-                            <strong id="detailTotalSpend" class="text-emerald-400 text-base font-black">{{ '$0.00' if tenant_currency in ('USD', 'AUD') else '0₫' }}</strong>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block">{{ 'Tổng chi tiêu' if _vi else 'Total Spend' }}</span>
+                            <strong id="detailTotalSpend" class="text-emerald-400 text-base font-black">—</strong>
                         </div>
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_score_label">Potential Score (AI)</span>
+                            <!-- Điểm này do quy tắc chi tiêu + số ngày chưa quay lại tính ra (ai_nurturing_engine.predict_churn_risk), không phải mô hình AI -->
+                            <span class="text-[9px] text-gray-500 uppercase font-black block">{{ 'Điểm tiềm năng (theo quy tắc)' if _vi else 'Potential score (rule-based)' }}</span>
                             <strong id="detailPotentialScore" class="text-cyan-400 text-base font-black">—</strong>
                         </div>
                     </div>
 
-                    <!-- Interactive AI Risk & Loyalty Indicators -->
+                    <!-- Rủi ro rời bỏ + xếp hạng chi tiêu: chỉ từ dữ liệu thật (trước đây: "xác suất rời bỏ" = 100 - điểm, sao theo ngưỡng VND) -->
                     <div class="grid grid-cols-2 gap-4 shrink-0 mb-4">
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl flex flex-col justify-between">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_heat_label">Churn Likelihood (Heat)</span>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block">{{ 'Rủi ro rời bỏ' if _vi else 'Churn risk' }}</span>
                             <div class="flex items-center gap-2 mt-2">
-                                <div class="w-2.5 h-2.5 rounded-full bg-gray-600" id="heat-indicator"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-gray-600 shrink-0" id="heat-indicator"></div>
                                 <strong id="detailHeatIndex" class="text-gray-400 text-xs font-black">—</strong>
                             </div>
                         </div>
                         <div class="bg-black/40 border border-white/5 p-3 rounded-2xl flex flex-col justify-between">
-                            <span class="text-[9px] text-gray-500 uppercase font-black block" data-i18n="customer_nurturing_detail_tier_label">Membership Tier</span>
-                            <div class="flex items-center gap-0.5 mt-2 text-yellow-400" id="detailStars">
-                                <i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="fas fa-star text-[10px]"></i><i class="far fa-star text-[10px] text-gray-600"></i>
-                            </div>
+                            <span class="text-[9px] text-gray-500 uppercase font-black block">{{ 'Xếp hạng chi tiêu trong tiệm' if _vi else 'Spend rank in your shop' }}</span>
+                            <strong id="detailSpendRank" class="text-yellow-400 text-xs font-black mt-2">—</strong>
                         </div>
                     </div>
 
-                    <!-- NEW: AI Recommended Actions Alert Bar -->
+                    <!-- Gợi ý hành động theo quy tắc (số ngày chưa quay lại) — không tự hứa voucher/giảm giá nào -->
                     <div class="bg-gradient-to-r from-cyan-500/10 to-transparent border border-cyan-500/30 p-4 rounded-2xl relative overflow-hidden shrink-0 shadow-lg mb-4">
-                        <div class="absolute -right-6 -bottom-6 w-16 h-16 bg-cyan-500/5 rounded-full blur-xl"></div>
-                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1"><i class="fas fa-bell text-xs animate-bounce"></i> <span data-i18n="customer_nurturing_rec_header">AI Khuyến Nghị Hành Động</span></h4>
-                        <p id="detailRecommendation" class="text-[11px] text-white leading-relaxed font-bold">Chọn một khách hàng ở danh sách bên trái để xem đề xuất AI.</p>
+                        <h4 class="text-[9px] text-cyan-400 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1"><i class="fas fa-lightbulb text-xs"></i> <span>{{ 'Gợi ý hành động' if _vi else 'Suggested next step' }}</span></h4>
+                        <p id="detailRecommendation" class="text-[11px] text-white leading-relaxed font-bold">—</p>
                     </div>
 
                     <div class="flex-1 overflow-y-auto pr-1 space-y-5 custom-scrollbar my-2">
                         <!-- Contact Fields -->
                         <div class="space-y-2 text-xs">
-                            <p class="text-gray-400 flex justify-between border-b border-white/5 pb-2"><span>SĐT / Zalo:</span><strong id="detailPhone" class="text-white font-medium">—</strong></p>
-                            <p class="text-gray-400 flex justify-between border-b border-white/5 pb-2"><span>Email address:</span><strong id="detailEmail" class="text-white font-medium">—</strong></p>
-                            <p class="text-gray-400 flex justify-between border-b border-white/5 pb-2"><span>Dịch vụ quan tâm:</span><strong id="detailService" class="text-white font-medium">—</strong></p>
-                            <p class="text-gray-400 flex justify-between border-b border-white/5 pb-2"><span>Lần cuối mua hàng:</span><strong id="detailLastPurchase" class="text-white font-medium">—</strong></p>
+                            <p class="text-gray-400 flex justify-between gap-3 border-b border-white/5 pb-2"><span>{{ 'SĐT / Zalo:' if _vi else 'Phone:' }}</span><strong id="detailPhone" class="text-white font-medium text-right break-all">—</strong></p>
+                            <p class="text-gray-400 flex justify-between gap-3 border-b border-white/5 pb-2"><span>Email:</span><strong id="detailEmail" class="text-white font-medium text-right break-all">—</strong></p>
+                            <p class="text-gray-400 flex justify-between gap-3 border-b border-white/5 pb-2"><span>{{ 'Dịch vụ quan tâm:' if _vi else 'Interested in:' }}</span><strong id="detailService" class="text-white font-medium text-right">—</strong></p>
+                            <p class="text-gray-400 flex justify-between gap-3 border-b border-white/5 pb-2"><span>{{ 'Lần cuối mua hàng:' if _vi else 'Last purchase:' }}</span><strong id="detailLastPurchase" class="text-white font-medium text-right">—</strong></p>
                         </div>
 
-                        <!-- NEW: Visual Interactive Customer Timeline -->
+                        <!-- Mốc thật duy nhất có trong dữ liệu: lần mua gần nhất (trước đây thêm 2 mốc bịa lùi -3/-6 ngày) -->
                         <div class="bg-black/40 border border-white/5 p-4 rounded-2xl">
-                            <h4 class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-3 flex items-center gap-1.5"><i class="fas fa-timeline text-xs text-cyan-400"></i> Lịch Sử Tương Tác Hệ Thống</h4>
-                            <div class="space-y-3 relative before:absolute before:left-2 before:top-2 before:w-[1px] before:h-[80%] before:bg-white/10" id="detailTimeline">
-                                <div class="flex gap-3 text-xs relative">
-                                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-[7px] text-emerald-400 z-10"><i class="fas fa-circle animate-pulse"></i></div>
-                                    <div>
-                                        <span class="text-[9px] text-gray-500 block font-bold" id="timeline-t1-time">24-05-2026</span>
-                                        <p class="text-gray-300 font-medium" id="timeline-t1-desc">Giao dịch thành công tại POS: Sơn Gel + Dưỡng Móng</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-3 text-xs relative">
-                                    <div class="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-[7px] text-cyan-400 z-10"><i class="fas fa-comment"></i></div>
-                                    <div>
-                                        <span class="text-[9px] text-gray-500 block font-bold" id="timeline-t2-time">21-05-2026</span>
-                                        <p class="text-gray-300 font-medium" id="timeline-t2-desc">Nhận kịch bản CSKH qua Zalo OA: Chuỗi nhắc hẹn 3 ngày</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-3 text-xs relative">
-                                    <div class="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-[7px] text-purple-400 z-10"><i class="fas fa-user-plus"></i></div>
-                                    <div>
-                                        <span class="text-[9px] text-gray-500 block font-bold" id="timeline-t3-time">18-05-2026</span>
-                                        <p class="text-gray-300 font-medium" id="timeline-t3-desc">Tạo hồ sơ và đồng bộ tự động từ lead-form chiến dịch quảng cáo</p>
-                                    </div>
+                            <h4 class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-3 flex items-center gap-1.5"><i class="fas fa-clock-rotate-left text-xs text-cyan-400"></i> {{ 'Lần ghé gần nhất' if _vi else 'Most recent visit' }}</h4>
+                            <div class="flex gap-3 text-xs" id="detailTimeline">
+                                <div class="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-[7px] text-emerald-400 shrink-0"><i class="fas fa-circle"></i></div>
+                                <div>
+                                    <span class="text-[9px] text-gray-500 block font-bold" id="timeline-t1-time">—</span>
+                                    <p class="text-gray-300 font-medium" id="timeline-t1-desc">—</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- AI Diagnostic Notes -->
+                        <!-- Ghi chú phân khúc do quy tắc tính ra (ai_notes) -->
                         <div class="bg-[#0a192f] border border-cyan-500/30 p-4 rounded-2xl">
-                            <h4 class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1"><i class="fas fa-brain text-sm"></i> Chẩn đoán BitPaw AI</h4>
-                            <p id="detailAINotes" class="text-xs text-gray-300 leading-relaxed font-medium">Khách hàng rất thân thiết. Lâu rồi chưa ghé. Đề xuất gửi tin nhắn chúc sinh nhật tặng coupon.</p>
+                            <h4 class="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1"><i class="fas fa-notes-medical text-sm"></i> {{ 'Ghi chú phân khúc (theo quy tắc)' if _vi else 'Segment note (rule-based)' }}</h4>
+                            <p id="detailAINotes" class="text-xs text-gray-300 leading-relaxed font-medium">—</p>
                         </div>
 
-                        <!-- AI Suggest Reply -->
+                        <!-- AI viết bản nháp cho ĐÚNG khách này (DeepSeek thật) — không gửi, không tạo chiến dịch -->
                         <div class="bg-black/50 border border-white/5 p-4 rounded-2xl">
-                            <h4 class="text-[10px] text-rose-400 font-black uppercase tracking-widest mb-3 flex justify-between items-center"><span class="flex items-center gap-1"><i class="fas fa-magic text-sm"></i> Gợi ý kịch bản của AI</span> <button onclick="copyAISuggest()" class="text-[9px] text-gray-500 hover:text-white transition"><i class="fas fa-copy"></i> Sao chép</button></h4>
-                            <div id="aiSuggestBody" class="bg-black/40 border border-white/5 p-3 rounded-xl text-xs text-gray-400 leading-relaxed max-h-32 overflow-y-auto italic font-medium">
-                                Chọn một khách hàng để xem tin nhắn chăm sóc được AI tạo độc quyền.
-                            </div>
+                            <h4 class="text-[10px] text-rose-400 font-black uppercase tracking-widest mb-3 flex flex-wrap justify-between items-center gap-2"><span class="flex items-center gap-1"><i class="fas fa-magic text-sm"></i> {{ 'Tin nhắn AI viết cho khách này' if _vi else 'AI-written message for this customer' }}</span> <button type="button" onclick="copyAISuggest()" class="text-[9px] text-gray-500 hover:text-white transition"><i class="fas fa-copy"></i> {{ 'Sao chép' if _vi else 'Copy' }}</button></h4>
+                            <button type="button" id="aiSuggestBtn" onclick="generateAISuggestReply()" class="w-full mb-3 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold text-xs py-2 rounded-xl transition"><i class="fas fa-wand-magic-sparkles mr-1"></i> {{ 'Viết bản nháp bằng AI' if _vi else 'Draft with AI' }}</button>
+                            <div id="aiSuggestBody" class="bg-black/40 border border-white/5 p-3 rounded-xl text-xs text-gray-400 leading-relaxed max-h-32 overflow-y-auto font-medium" style="white-space: pre-line;">{{ 'Bấm "Viết bản nháp bằng AI" để AI viết 1 tin cho khách này.' if _vi else 'Click "Draft with AI" to have the AI write a message for this customer.' }}</div>
+                            <p id="aiSuggestNote" class="text-[10px] text-gray-500 mt-2 leading-relaxed">{{ 'Chỉ là bản nháp để bạn xem — chưa gửi, không tạo chiến dịch.' if _vi else 'Draft only — nothing is sent and no campaign is created.' }}</p>
                         </div>
                     </div>
                 </div>
@@ -292,6 +275,65 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     </main>
 
     <script>
+        // Ngôn ngữ cho chữ do JS tạo (cùng cách fmtPurchaseDate đọc: lựa chọn đã lưu, rồi tới lang của trang)
+        const NC_LANG = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || document.documentElement.lang || 'en';
+        const NC_VI = String(NC_LANG).startsWith('vi');
+        const NC_T = {
+            vi: {
+                none: 'Không tìm thấy khách hàng nào.',
+                st_REGULAR: 'Thường xuyên', st_NEEDS_CARE: 'Cần chăm sóc', st_HIBERNATING: 'Ngủ đông', st_CHURN_RISK: 'Nguy cơ rời bỏ', st_NEW: 'Mới',
+                risk_high: 'Cao', risk_mid: 'Trung bình', risk_low: 'Thấp', risk_unknown: 'Chưa đủ dữ liệu',
+                days_away: '{n} ngày chưa quay lại',
+                days_n: '{n} ngày',
+                rank: 'Hạng {r} / {n} khách',
+                rec_CHURN_RISK: 'Đã hơn 90 ngày chưa quay lại{d}. Nên nhắn hỏi thăm riêng — bấm "Viết bản nháp bằng AI" bên dưới để có bản nháp.',
+                rec_HIBERNATING: 'Đã 46–90 ngày chưa quay lại{d}. Nên gửi lời mời quay lại.',
+                rec_NEEDS_CARE: 'Đã 22–45 ngày chưa quay lại{d} — đến lúc nhắc lịch lần tới.',
+                rec_REGULAR: 'Khách vẫn quay lại đều (trong 21 ngày gần đây). Chưa cần nhắn thêm.',
+                rec_NEW: 'Chưa có giao dịch để đánh giá — bấm "Đồng bộ POS/CRM" để tính lại từ đơn hàng thật.',
+                last_purchase: 'Giao dịch gần nhất được ghi nhận',
+                no_purchase: 'Chưa có giao dịch nào được ghi nhận',
+                writing: 'AI đang viết bản nháp...',
+                draft_note: 'Bản nháp do AI viết{h} — chưa gửi, không tạo chiến dịch. Đọc lại trước khi dùng.',
+                with_history: ' dựa trên lịch sử mua thật của khách',
+                fallback_note: 'AI chưa sẵn sàng nên đây là câu mẫu chung — chưa gửi, không tạo chiến dịch.',
+                error: 'Không viết được bản nháp: ',
+                rate: 'Bạn bấm quá nhiều lần — thử lại sau ít phút.',
+                copied: 'Đã sao chép bản nháp.',
+                nothing_to_copy: 'Chưa có bản nháp để sao chép.',
+                syncing: 'Đang đồng bộ...', sync: 'Đồng bộ POS/CRM'
+            },
+            en: {
+                none: 'No customers found.',
+                st_REGULAR: 'Regular', st_NEEDS_CARE: 'Needs care', st_HIBERNATING: 'Hibernating', st_CHURN_RISK: 'Churn risk', st_NEW: 'New',
+                risk_high: 'High', risk_mid: 'Medium', risk_low: 'Low', risk_unknown: 'Not enough data',
+                days_away: '{n} days since last visit',
+                days_n: '{n} days',
+                rank: '#{r} of {n} customers',
+                rec_CHURN_RISK: 'Not back for over 90 days{d}. Send a personal check-in — click "Draft with AI" below for a draft.',
+                rec_HIBERNATING: 'Not back for 46–90 days{d}. Worth sending a come-back invitation.',
+                rec_NEEDS_CARE: 'Not back for 22–45 days{d} — a good time for a rebooking reminder.',
+                rec_REGULAR: 'Visiting regularly (within the last 21 days). No message needed yet.',
+                rec_NEW: 'No transactions to assess yet — click "Sync POS/CRM" to recalculate from real orders.',
+                last_purchase: 'Most recent recorded transaction',
+                no_purchase: 'No transactions recorded yet',
+                writing: 'The AI is writing a draft...',
+                draft_note: 'AI-written draft{h} — not sent, no campaign created. Review it before using it.',
+                with_history: ' based on this customer\'s real purchase history',
+                fallback_note: 'The AI is not available right now, so this is a generic sample — not sent, no campaign created.',
+                error: 'Could not write a draft: ',
+                rate: 'Too many attempts — please try again in a few minutes.',
+                copied: 'Draft copied.',
+                nothing_to_copy: 'There is no draft to copy yet.',
+                syncing: 'Syncing...', sync: 'Sync POS/CRM'
+            }
+        };
+        function L(key, params) {
+            let s = (NC_VI ? NC_T.vi : NC_T.en)[key] || NC_T.en[key] || key;
+            for (const k in (params || {})) s = s.split('{' + k + '}').join(params[k]);
+            return s;
+        }
+
         // Ngày mua gần nhất: dữ liệu là ISO "2026-06-30T19:16:04.131946" — trước đây cắt theo dấu cách nên hiện nguyên chuỗi
         function fmtPurchaseDate(v) {
             if (!v) return '—';
@@ -300,22 +342,31 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const lang = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || document.documentElement.lang || 'en';
             return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
         }
+        function daysSince(v) {
+            if (!v) return null;
+            const d = new Date(String(v).replace(' ', 'T'));
+            if (isNaN(d)) return null;
+            return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+        }
 
         // Đọc đúng tiền tệ của tenant (đã inject sẵn cho MỌI template qua context processor
         // ở app.py — TenantEngine.get_region_config(business_id)), thay vì hardcode "₫" bất kể
-        // tenant thật đang ở thị trường nào. Cùng quy ước TENANT_CURRENCY/formatMoney() đã dùng
-        // ở sell.html/pos.html/dashboard.html... (xem template đó nếu cần đối chiếu).
-        const TENANT_CURRENCY = "{{ tenant_currency }}";
+        // tenant thật đang ở thị trường nào. Mọi mã tiền tệ (không chỉ USD/AUD) qua Intl.NumberFormat.
+        const TENANT_CURRENCY = String({{ (tenant_currency or 'VND') | tojson }} || 'VND').toUpperCase();
 
         function formatMoney(amount) {
             const value = Number(amount) || 0;
-            if (TENANT_CURRENCY === 'USD' || TENANT_CURRENCY === 'AUD') {
-                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (TENANT_CURRENCY === 'VND') return Math.round(value).toLocaleString('vi-VN') + '₫';
+            try {
+                return new Intl.NumberFormat(TENANT_CURRENCY === 'AUD' ? 'en-AU' : 'en-US', { style: 'currency', currency: TENANT_CURRENCY }).format(value);
+            } catch (e) {
+                return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + TENANT_CURRENCY;
             }
-            return Math.round(value).toLocaleString('vi-VN') + '₫';
         }
 
         let allCustomers = [];
+        let currentCustomer = null;
+        let suggestSeq = 0;   // bỏ kết quả AI về muộn của khách đã chọn trước đó
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchCustomers();
@@ -346,10 +397,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             set('ncTotal', n.toLocaleString());
         }
 
+        function statusLabel(s) {
+            return L('st_' + s) !== 'st_' + s ? L('st_' + s) : String(s || '—');
+        }
+
         function renderCustomers(list) {
             const tbody = document.getElementById("customerTableBody");
             if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500">Không tìm thấy khách hàng nào.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500">${L('none')}</td></tr>`;
                 return;
             }
 
@@ -359,14 +414,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                    c.status === 'NEEDS_CARE' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
                                    'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
 
+                // Cột cuối: phân khúc THẬT (trước đây in "điểm tiềm năng" kèm dấu % dưới tiêu đề "Churn" — đọc như xác suất rời bỏ)
                 return `
-                    <tr class="customer-row border-b border-white/5" onclick="selectCustomer('${c.id}', this)">
+                    <tr class="customer-row border-b border-white/5" onclick="selectCustomer('${__escJsAttr(c.id)}', this)">
                         <td class="p-4 font-bold text-white">${__escHtml(c.name)}</td>
-                        <td class="p-4 uppercase text-[10px] font-bold text-cyan-400">${c.source}</td>
+                        <td class="p-4 uppercase text-[10px] font-bold text-cyan-400">${__escHtml(c.source || '—')}</td>
                         <td class="p-4 font-black text-gray-200">${formatMoney(c.total_spend)}</td>
                         <td class="p-4 text-gray-500 font-medium">${fmtPurchaseDate(c.last_purchase)}</td>
                         <td class="p-4 text-center">
-                            <span class="text-[9px] font-black border px-2.5 py-0.5 rounded-full ${badgeColor}">${c.potential_score}%</span>
+                            <span class="text-[9px] font-black border px-2.5 py-0.5 rounded-full whitespace-nowrap ${badgeColor}">${__escHtml(statusLabel(c.status))}</span>
                         </td>
                     </tr>
                 `;
@@ -378,113 +434,113 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.querySelectorAll(".customer-row").forEach(el => el.classList.remove("active-row"));
             rowEl.classList.add("active-row");
 
-            const c = allCustomers.find(item => item.id === id);
+            const c = allCustomers.find(item => String(item.id) === String(id));
             if (!c) return;
+            currentCustomer = c;
 
             document.getElementById("detailPanelEmpty").classList.add("hidden");
             document.getElementById("detailPanelContent").classList.remove("hidden");
 
             document.getElementById("detailName").innerText = c.name;
-            document.getElementById("detailPhone").innerText = c.phone || "---";
-            document.getElementById("detailEmail").innerText = c.email || "---";
-            document.getElementById("detailService").innerText = c.service_interest || "---";
-            
-            // Format dynamic Dates for Timeline
-            const cleanDate = fmtPurchaseDate(c.last_purchase); // khách chưa mua lần nào: last_purchase = null
+            document.getElementById("detailPhone").innerText = c.phone || "—";
+            document.getElementById("detailEmail").innerText = c.email || "—";
+            document.getElementById("detailService").innerText = c.service_interest || "—";
             document.getElementById("detailLastPurchase").innerText = fmtPurchaseDate(c.last_purchase);
             document.getElementById("detailTotalSpend").innerText = formatMoney(c.total_spend);
             document.getElementById("detailPotentialScore").innerText = `${c.potential_score}/100`;
             document.getElementById("detailAINotes").innerText = c.ai_notes || "—";
-            
-            // Dynamic Star rating based on spend
-            const starsContainer = document.getElementById("detailStars");
-            let starsHtml = "";
-            const starsCount = c.total_spend > 5000000 ? 5 : c.total_spend > 2500000 ? 4 : 3;
-            for(let i=1; i<=5; i++) {
-                if(i <= starsCount) starsHtml += `<i class="fas fa-star text-[10px]"></i>`;
-                else starsHtml += `<i class="far fa-star text-[10px] text-gray-600"></i>`;
-            }
-            starsContainer.innerHTML = starsHtml;
 
-            // Dynamic Churn Heat index
+            // Xếp hạng chi tiêu THẬT trong chính tiệm (không còn sao theo ngưỡng 5.000.000 VND cố định)
+            const ranked = allCustomers.slice().sort((a, b) => (Number(b.total_spend) || 0) - (Number(a.total_spend) || 0));
+            const rank = ranked.findIndex(x => String(x.id) === String(c.id)) + 1;
+            document.getElementById("detailSpendRank").innerText = rank > 0 ? L('rank', { r: rank, n: ranked.length }) : '—';
+
+            // Rủi ro rời bỏ: mức theo phân khúc + số ngày THẬT chưa quay lại (không còn "%" bịa = 100 - điểm)
             const heatEl = document.getElementById("detailHeatIndex");
             const heatIndicator = document.getElementById("heat-indicator");
-            const churnProb = 100 - c.potential_score;
-            heatEl.innerText = `${c.status === 'CHURN_RISK' ? 'Cao' : c.status === 'HIBERNATING' ? 'Trung bình' : 'Thấp'} (${churnProb}%)`;
+            const days = daysSince(c.last_purchase);
+            const daysTxt = days == null ? '' : ' · ' + L('days_away', { n: days });
             if (c.status === 'CHURN_RISK') {
+                heatEl.innerText = L('risk_high') + daysTxt;
                 heatEl.className = "text-rose-400 text-xs font-black";
-                heatIndicator.className = "w-2.5 h-2.5 rounded-full animate-pulse bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]";
+                heatIndicator.className = "w-2.5 h-2.5 rounded-full shrink-0 bg-rose-500";
             } else if (c.status === 'HIBERNATING') {
+                heatEl.innerText = L('risk_mid') + daysTxt;
                 heatEl.className = "text-yellow-400 text-xs font-black";
-                heatIndicator.className = "w-2.5 h-2.5 rounded-full animate-pulse bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]";
-            } else {
+                heatIndicator.className = "w-2.5 h-2.5 rounded-full shrink-0 bg-yellow-500";
+            } else if (c.status === 'REGULAR' || c.status === 'NEEDS_CARE') {
+                heatEl.innerText = L('risk_low') + daysTxt;
                 heatEl.className = "text-emerald-400 text-xs font-black";
-                heatIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]";
+                heatIndicator.className = "w-2.5 h-2.5 rounded-full shrink-0 bg-emerald-500";
+            } else {
+                heatEl.innerText = L('risk_unknown');
+                heatEl.className = "text-gray-400 text-xs font-black";
+                heatIndicator.className = "w-2.5 h-2.5 rounded-full shrink-0 bg-gray-600";
             }
 
-            // Dynamic Timeline
-            document.getElementById("timeline-t1-time").innerText = cleanDate;
-            document.getElementById("timeline-t2-time").innerText = momentOffsetDate(cleanDate, -3);
-            document.getElementById("timeline-t3-time").innerText = momentOffsetDate(cleanDate, -6);
-            
-            // Dynamic Recommended Action Alert
-            const recEl = document.getElementById("detailRecommendation");
-            if (c.status === 'CHURN_RISK') {
-                recEl.innerText = `Khách hàng này có nguy cơ rời bỏ lên tới ${churnProb}%. AI đề xuất gửi ngay voucher tặng quà giảm giá 35% trong vòng 3 ngày tới để giữ chân.`;
-            } else if (c.status === 'HIBERNATING') {
-                recEl.innerText = `Khách hàng ngủ đông im lặng đã lâu. AI khuyên dùng kịch bản tri ân, tặng ưu đãi dịch vụ ${c.service_interest} đặc biệt để kích hoạt lại.`;
-            } else if (c.status === 'NEEDS_CARE') {
-                recEl.innerText = `Khách hàng quen cần tương tác định kỳ. AI đề xuất gửi lời hỏi thăm tư vấn nâng cấp combo ${c.service_interest} vào cuối tuần này.`;
-            } else {
-                recEl.innerText = `Khách VIP hoạt động tốt. AI đề xuất kích hoạt chuỗi tin nhắn cảm ơn VIP và ưu tiên xếp tua phục vụ VIP 5 sao tự động.`;
-            }
+            // Mốc thật duy nhất: lần mua gần nhất (trước đây thêm 2 mốc bịa lùi -3/-6 ngày)
+            document.getElementById("timeline-t1-time").innerText = c.last_purchase ? fmtPurchaseDate(c.last_purchase) : '—';
+            document.getElementById("timeline-t1-desc").innerText = c.last_purchase ? L('last_purchase') : L('no_purchase');
+
+            // Gợi ý hành động theo quy tắc số ngày — KHÔNG tự hứa voucher/giảm giá (trước đây "voucher 35%", "ưu tiên VIP 5 sao")
+            const recKey = ['CHURN_RISK', 'HIBERNATING', 'NEEDS_CARE', 'REGULAR'].includes(c.status) ? 'rec_' + c.status : 'rec_NEW';
+            document.getElementById("detailRecommendation").innerText = L(recKey, { d: days == null ? '' : ` (${L('days_n', { n: days })})` });
 
             // Badges
-            document.getElementById("detailBadgeStatus").innerText = c.status;
-            document.getElementById("detailBadgeSource").innerText = c.source;
+            document.getElementById("detailBadgeStatus").innerText = statusLabel(c.status);
+            document.getElementById("detailBadgeSource").innerText = c.source || '—';
 
-            // Generate AI suggestion reply based on industry and churn status
-            generateAISuggestReply(c.name, c.status, c.industry);
-        }
-
-        function momentOffsetDate(dateStr, offsetDays) {
-            try {
-                const d = new Date(dateStr);
-                d.setDate(d.getDate() + offsetDays);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            } catch(e) {
-                return dateStr;
-            }
-        }
-
-        function generateAISuggestReply(name, status, industry) {
+            // Không tự gọi AI mỗi lần bấm 1 khách (mỗi lượt tốn tiền) — chủ tiệm bấm "Viết bản nháp bằng AI" khi cần
+            suggestSeq++;
             const bodyEl = document.getElementById("aiSuggestBody");
-            bodyEl.innerHTML = `<i class="fas fa-spinner fa-spin text-sm mr-2 text-rose-400"></i> AI đang phân tích dữ liệu và soạn tin...`;
-            
+            bodyEl.dataset.draft = '';
+            bodyEl.innerText = {{ ('Bấm "Viết bản nháp bằng AI" để AI viết 1 tin cho khách này.' if default_lang == 'vi' else 'Click "Draft with AI" to have the AI write a message for this customer.') | tojson }};
+            document.getElementById("aiSuggestNote").innerText = {{ ('Chỉ là bản nháp để bạn xem — chưa gửi, không tạo chiến dịch.' if default_lang == 'vi' else 'Draft only — nothing is sent and no campaign is created.') | tojson }};
+        }
+
+        // AI (DeepSeek) viết 1 tin cho ĐÚNG khách đang chọn — chế độ xem trước của /api/ai/nurture/generate-campaign:
+        // KHÔNG tạo chiến dịch, KHÔNG tạo tin chờ duyệt. Trước đây mỗi lần bấm tạo cả 1 chiến dịch cho MỌI khách rồi
+        // bỏ qua kết quả và hiện 1 câu viết sẵn hứa "giảm 30%".
+        function generateAISuggestReply() {
+            const c = currentCustomer;
+            if (!c) return;
+            const bodyEl = document.getElementById("aiSuggestBody");
+            const noteEl = document.getElementById("aiSuggestNote");
+            const btn = document.getElementById("aiSuggestBtn");
+            const mySeq = ++suggestSeq;
+            bodyEl.dataset.draft = '';
+            bodyEl.innerText = L('writing');
+            btn.disabled = true;
+
             fetch("/api/ai/nurture/generate-campaign", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ segment: "ALL", goal: status === "CHURN_RISK" ? "RECALL" : "UPSELL", tone: "friendly" })
+                body: JSON.stringify({
+                    preview_customer_id: String(c.id),
+                    goal: (c.status === 'CHURN_RISK' || c.status === 'HIBERNATING') ? 'RECALL' : 'UPSELL',
+                    tone: 'friendly'
+                })
             })
-            .then(res => res.json())
+            .then(res => res.status === 429 ? { success: false, message: L('rate') } : res.json())
             .then(res => {
-                if (res.success) {
-                    // Let's get mock templates for display
-                    const mock_text = `Chào ${name} thương mến! 🌸 Lâu quá rồi mình chưa ghé tiệm để chăm sóc cơ thể thư giãn. Cuối tuần này bên em có chương trình ưu đãi giảm ngay 30% liệu trình Chăm Sóc Da Căng Bóng và dọn da, massage thảo dược dành riêng cho ${name}. Nhắn tin đặt lịch hẹn với em ngay hôm nay để giữ khung giờ VIP nhất nhé ạ!`;
-                    bodyEl.innerText = mock_text;
+                if (mySeq !== suggestSeq) return;
+                if (res.success && res.preview) {
+                    bodyEl.innerText = res.message || '';
+                    bodyEl.dataset.draft = res.message || '';
+                    noteEl.innerText = res.ai_generated ? L('draft_note', { h: res.used_purchase_history ? L('with_history') : '' }) : L('fallback_note');
                 } else {
-                    bodyEl.innerText = "Lỗi khi sinh tin nhắn gợi ý.";
+                    bodyEl.innerText = L('error') + (res.message || '');
                 }
-            });
+            })
+            .catch(() => { if (mySeq === suggestSeq) bodyEl.innerText = L('error'); })
+            .finally(() => { btn.disabled = false; });
         }
 
         function copyAISuggest() {
-            const text = document.getElementById("aiSuggestBody").innerText;
-            navigator.clipboard.writeText(text);
-            alert("Đã sao chép tin nhắn gợi ý của AI thành công!");
+            const text = document.getElementById("aiSuggestBody").dataset.draft || '';
+            if (!text) { alert(L('nothing_to_copy')); return; }
+            try { navigator.clipboard.writeText(text); } catch (e) {}
+            alert(L('copied'));
         }
 
         function filterCustomers() {
@@ -493,9 +549,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
             let filtered = allCustomers;
             if (search) {
-                filtered = filtered.filter(c => 
-                    c.name.toLowerCase().includes(search) || 
-                    (c.phone && c.phone.includes(search)) || 
+                filtered = filtered.filter(c =>
+                    String(c.name || '').toLowerCase().includes(search) ||
+                    (c.phone && c.phone.includes(search)) ||
                     (c.email && c.email.toLowerCase().includes(search))
                 );
             }
@@ -506,9 +562,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         function syncPOSData() {
-            const btn = document.querySelector("button[onclick='syncPOSData()']");
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang đồng bộ...';
-            
+            const btn = document.getElementById("syncPosBtn");
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ' + L('syncing');
+
             fetch("/api/ai/nurture/import-data", { method: "POST" })
                 .then(res => res.json())
                 .then(res => {
@@ -518,7 +574,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     }
                 })
                 .finally(() => {
-                    btn.innerHTML = '<i class="fas fa-sync"></i> Đồng bộ POS/CRM';
+                    btn.innerHTML = '<i class="fas fa-sync"></i> ' + L('sync');
                 });
         }
 
