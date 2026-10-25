@@ -300,15 +300,15 @@ document.addEventListener("DOMContentLoaded", () => {
         ? (window.BITPAW_SHOP_LOGO
             ? `<img src="${String(window.BITPAW_SHOP_LOGO).replace(/"/g, '')}" alt="" class="w-10 h-10 rounded-full object-cover border border-white/30">`
             : `<span class="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center font-bold">${_initial.replace(/[<>&]/g, '')}</span>`)
-        : `<img src="/static/brand/mark.svg?v=1" alt="" class="w-10 h-10">`;
+        : `<img src="/static/cho1.jpg" alt="" class="w-10 h-10 rounded-full object-cover border border-white/40">`;
     const mascotTooltip = isBookingContext ? (_pageVi ? 'Cần giúp đặt lịch?' : 'Need help booking?') : (_pageVi ? 'Cần tư vấn?' : 'Questions? Chat with us');
     contactWidget.innerHTML = `
         <div class="relative group cursor-pointer mb-1" id="mascot-toggle-btn">
             <div class="absolute right-14 top-2 bg-[#08061a] border border-cyan-500/40 text-[#22d3ee] text-[11px] font-bold py-1.5 px-3 rounded-lg rounded-tr-none w-max shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none z-50">
                 ${mascotTooltip}
             </div>
-            <div class="w-14 h-14 rounded-full flex items-center justify-center bg-cyan-500 text-white text-2xl shadow-lg hover:bg-cyan-400 transition-colors" aria-label="Chat">
-                <i class="fas fa-comment-dots"></i>
+            <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-cyan-400 shadow-lg hover:scale-105 transition-transform bg-[#08061a]" aria-label="Chat">
+                <img src="/static/cho1.jpg" alt="BitPaw" class="w-full h-full object-cover">
             </div>
         </div>
         ${isBookingContext ? '' : `
@@ -836,7 +836,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const shopDiv = document.createElement("div");
             shopDiv.className = "flex gap-2.5 items-start mt-2";
             shopDiv.innerHTML = `
-        <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 text-cyan-200 text-[11px]"><i class="fas fa-comment-dots"></i></div>
+        <div class="w-6 h-6 rounded-full border border-cyan-500/40 shrink-0 overflow-hidden"><img src="/static/cho1.jpg" alt="" class="w-full h-full object-cover"></div>
         <div class="chat-shop text-pink-100 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm bg-pink-500/15 border border-pink-400/40">
             <div class="text-[10px] font-black uppercase tracking-wider text-pink-300 mb-1">${escapeHtml(BT.shop)}</div>
             ${safeText}
@@ -857,8 +857,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             msgDiv.className = "flex gap-2.5 items-start mt-2";
             msgDiv.innerHTML = `
-        <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 overflow-hidden text-cyan-200 text-[11px]">
-                    <i class="fas fa-comment-dots"></i>
+        <div class="w-6 h-6 rounded-full border border-cyan-500/40 shrink-0 overflow-hidden">
+                    <img src="/static/cho1.jpg" alt="" class="w-full h-full object-cover">
                 </div>
                 <div class="chat-ai text-cyan-200 p-3 rounded-2xl rounded-tl-sm text-xs sm:text-sm font-semibold leading-relaxed max-w-[82%] shadow-sm">
                     ${safeText}
@@ -877,7 +877,7 @@ document.addEventListener("DOMContentLoaded", () => {
         indicator.innerHTML = `
         <span class="text-[9px] text-cyan-400 font-black ml-8 flex items-center gap-1"> <i class="fas fa-spinner fa-spin"></i> ${CHAT_CONTEXT === 'customer_booking' ? escapeHtml(BT.typing) : 'AI đang phân tích dữ liệu...'}</span>
 <div class="flex gap-2.5 items-start">
-    <div class="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 overflow-hidden text-cyan-200 text-[11px]"><i class="fas fa-comment-dots"></i></div>
+    <div class="w-6 h-6 rounded-full border border-cyan-500/40 shrink-0 overflow-hidden"><img src="/static/cho1.jpg" alt="" class="w-full h-full object-cover"></div>
     <div class="typing-bubble bg-cyan-500/10 border border-cyan-500/20">
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>

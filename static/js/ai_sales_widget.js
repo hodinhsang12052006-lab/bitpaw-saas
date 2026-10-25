@@ -529,7 +529,7 @@ document.addEventListener("DOMContentLoaded", function() {
         } else {
             item.className = "flex gap-2.5 items-start";
             item.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black mascot-glow overflow-hidden"><img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover"></div>
+                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black mascot-glow overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
                 <div class="bg-cyan-500/10 border border-cyan-500/30 p-3 rounded-2xl rounded-tl-sm max-w-[85%] text-cyan-300 text-[11px] font-medium leading-relaxed">
                     ${text}
                 </div>
@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function() {
         item.innerHTML = `
             <span class="text-[8px] text-cyan-400 font-bold ml-8 flex items-center gap-1"><i class="fas fa-spinner fa-spin"></i> ${label}</span>
             <div class="flex gap-2.5 items-start">
-                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black overflow-hidden"><img src="/static/brand/mark.svg?v=1" class="w-full h-full object-cover"></div>
+                <div class="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-black shrink-0 font-black overflow-hidden"><img src="/static/cho1.jpg" class="w-full h-full object-cover"></div>
                 <div class="typing-bubble bg-cyan-500/10 border border-cyan-500/20">
                     <div class="typing-dot"></div>
                     <div class="typing-dot"></div>
@@ -588,7 +588,7 @@ document.addEventListener("DOMContentLoaded", function() {
         <div class="bg-gradient-to-r from-cyan-600 to-blue-700 p-4 flex justify-between items-center text-white border-b border-white/20 animate-pulse-border">
             <div class="flex items-center gap-3">
                 <div class="relative">
-                    <img src="/static/brand/mark.svg?v=1" onerror="this.onerror=null; this.src='/static/brand/mark.svg?v=1';" class="w-10 h-10 rounded-full border-2 border-white/50 object-cover mascot-glow font-black flex items-center justify-center">
+                    <img src="/static/cho1.jpg" onerror="this.onerror=null; this.src='/static/cho1.jpg';" class="w-10 h-10 rounded-full border-2 border-white/50 object-cover mascot-glow font-black flex items-center justify-center">
                     <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-blue-700 rounded-full animate-pulse"></div>
                 </div>
                 <div>

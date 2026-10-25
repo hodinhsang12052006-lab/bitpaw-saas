@@ -806,10 +806,9 @@ Yêu cầu: "nâng cấp hệ thống bảo mật lên, chống hacker… crack 
 
 **C. Giao diện chuyên nghiệp (mobile + PC)**
 - Lớp "Pro" chèn vào mọi trang ứng dụng: 1 nền xanh than thống nhất, bỏ tia laser/vạch quét/hạt bay/đốm mờ khổng lồ/vòng xoay hologram, viền neon → bóng nhẹ, chữ quá đậm/giãn rộng → vừa phải, tiêu đề chữ cầu vồng → chữ trắng, tiêu đề trên điện thoại vừa màn hình.
-- Linh vật chó hoạt hình → logo phẳng (`static/brand/mark.svg`); bộ icon 3D đồ chơi tắt (giữ icon nét); **592 dòng emoji làm icon** (trong nhãn, nút, menu chọn, toast, 2 ngôn ngữ) bỏ; **40 emoji đứng riêng** (thẻ ngành, ảnh món trống, avatar 👤, ✨ "Thêm dịch vụ", 🍻 F&B) → icon nét; 12 ô trống do lần bỏ emoji cũ để sót ký tự ẩn (U+FE0F) → sửa.
+- Bộ icon 3D đồ chơi tắt (giữ icon nét); **592 dòng emoji làm icon** (trong nhãn, nút, menu chọn, toast, 2 ngôn ngữ) bỏ; **40 emoji đứng riêng** (thẻ ngành, ảnh món trống, avatar 👤, ✨ "Thêm dịch vụ", 🍻 F&B) → icon nét; 12 ô trống do lần bỏ emoji cũ để sót ký tự ẩn (U+FE0F) → sửa.
 - Trang đăng nhập viết lại (đơn giản, có "Quên mật khẩu" thật); app nhân viên ("Employee code", "Continue" thay "START SHIFT"); trang chọn ngành có tên tiếng Anh; trang lỗi/QR hỏng chỉ 1 ngôn ngữ + icon nét; tiêu đề Spa bỏ chữ có chân; nút "Calculate Pay" hồng gradient → nút viền nhẹ; Cài đặt đặt lịch + Hồ sơ nhân viên không còn tràn màn hình điện thoại; nút ngôn ngữ không đè khung đăng nhập; menu Hotel/Karaoke/Sản xuất có bản dịch tiếng Anh.
 - Giọng văn trong app: bỏ "Sếp/Boss", "Chờ xíu nha", nhân vật "kỹ sư Hậu" bịa; hoá đơn in cho khách không còn "Hẹn gặp lại sếp".
-- Ảnh xem trước khi chia sẻ link (Facebook/Zalo/iMessage): thẻ 1200×630 gọn (`static/brand/og-card.png`, `scripts/make_og_card.mjs`) thay ảnh linh vật.
 - Build lại `tailwind.output.css` (các lớp mới có thật trong CSS).
 
 **D. Trải nghiệm KHÁCH của tiệm (người quét QR / bấm link đặt lịch)**
@@ -831,6 +830,8 @@ Yêu cầu: "nâng cấp hệ thống bảo mật lên, chống hacker… crack 
 - Bài audit F&B/Karaoke/Khách sạn để lại 33 đơn đặt chỗ "QA Audit…" trong tiệm demo → đã xoá + script tự dọn (`scripts/_cleanup_audit_reservations.py`).
 - Bài đo trễ chat để lại 12 tin "latency-probe…" trong kênh chung của tiệm demo (bước dọn trống) → đã xoá + bước dọn thật.
 - `shared_modules_pha6_audit` phần Checkout đã cũ (trang checkout làm lại ở Pha 26) — thay bằng `pricing_checkout_e2e` 20/20.
+
+**⚠️ Sửa sai (25/10):** Pha 28 đã TỰ Ý thay logo chú chó Shiba của chủ dự án (`static/cho1.jpg`, 60 trang) bằng chữ B phẳng tự vẽ (`mark.svg`) và đổi ảnh chia sẻ link — chủ dự án phản đối. Đã trả lại logo chó ở cả 101 chỗ (2 chỗ vốn dùng chữ B neon của chủ cũng trả đúng ảnh gốc), xoá `mark.svg`/ảnh chia sẻ tự vẽ. Không đổi nhận diện thương hiệu khi chưa hỏi chủ.
 
 **F. Cần anh/chị quyết định**
 - Gói/quyền theo gói: hiện mọi tiệm dùng được mọi tính năng (chưa có giới hạn theo gói Essential/Pro/Empire).

@@ -913,7 +913,7 @@ _PWA_HEAD = (
 ).encode('utf-8')
 
 
-PRO_CSS_VERSION = 'p3'
+PRO_CSS_VERSION = 'p4'
 # Pha 28: lớp giao diện chuyên nghiệp chung (static/css/bitpaw-pro.css) — trang landing/giới thiệu có thiết kế riêng chỉ dùng bản "lite"
 _LANDING_PATH = re.compile(r'^/(|index|landing[a-z_]*|solutions/[a-z_]+|about|founder|ho-dinh-sang)$')
 
