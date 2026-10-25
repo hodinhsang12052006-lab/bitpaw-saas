@@ -1,3 +1,71 @@
-/* Trang landing/giới thiệu (đã có thiết kế riêng): chỉ chỉnh icon chữ B + tắt nảy — xem bitpaw-pro.css */
+/* Lớp "landing gọn" (app.py::_inject_pwa_head chèn vào 11 trang landing/giới thiệu). Giữ NGUYÊN bố cục, nội dung, logo chú chó
+   và màu nhấn riêng của từng ngành; chỉ dọn phần trang trí làm trang trông rối/"đồ chơi":
+     1. Nền: bỏ bầu trời sao chuyển động (#bg-canvas), vạch quét, lấp lánh, đốm màu mờ khổng lồ -> 1 nền xanh than + quầng sáng nhẹ
+        (cùng tông với trang ứng dụng, xem bitpaw-pro.css).
+     2. Logo chú chó ở giữa: đứng yên (trước xoay tròn + 2 vòng xoay + tia quét).
+     3. Chữ gradient nhiều màu chạy liên tục -> 1 màu nhấn của ngành.
+     4. Viền/bóng neon phát sáng, nút nhấp nháy, thẻ trôi lơ lửng -> bóng nhẹ, đứng yên. */
+
+/* 1. Nền */
+html body {
+  background-color: #0b1120 !important;
+  background-image: radial-gradient(1000px 560px at 78% -8%, rgba(34, 211, 238, .07), transparent 62%),
+                    radial-gradient(900px 520px at -8% 12%, rgba(99, 102, 241, .05), transparent 60%) !important;
+  background-attachment: fixed !important;
+}
+#bg-canvas, .scan-line, .scanline, .laser-vertical, .scanner-line, .bp-sparkle-layer, .bp-sparkle, .particle, .particles, #particles-js,
+.stars, .star-field, .matrix-rain, .noise-overlay {
+  display: none !important;
+}
+/* đốm màu mờ khổng lồ chỉ để trang trí */
+.pointer-events-none[class*="blur-[6"], .pointer-events-none[class*="blur-[7"], .pointer-events-none[class*="blur-[8"],
+.pointer-events-none[class*="blur-[9"], .pointer-events-none[class*="blur-[1"], .pointer-events-none[class*="blur-3xl"] {
+  display: none !important;
+}
+header.fixed, header.sticky, nav.fixed { background-color: rgba(11, 17, 32, .88) !important; }
+
+/* 2. Logo chú chó ở giữa: đứng yên, 1 viền mảnh */
+.hologram-container .animate-spin, .hologram-container [class*="animate-spin"]:not(img) { display: none !important; }
+.animate-spin-slow, .animated-logo-3d, [data-bp-tilt] { animation: none !important; transform: none !important; }
+.hologram-container > div[class*="rounded-full"][class*="border"] {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .45) !important;
+  border-color: rgba(148, 163, 184, .22) !important;
+}
+
+/* 3. Chữ gradient -> 1 màu nhấn (mỗi ngành giữ màu riêng) */
+.bp-gradient-text, .text-gradient, [class*="text-gradient-"], .bg-clip-text.text-transparent {
+  background-image: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  animation: none !important;
+  filter: none !important;
+}
+.text-gradient, .text-gradient-cyan, .bg-clip-text.text-transparent { color: #22d3ee !important; }
+.bp-gradient-text, .text-gradient-pink { color: #f472b6 !important; }
+.text-gradient-orange { color: #fb923c !important; }
+.text-gradient-blue { color: #60a5fa !important; }
+.text-gradient-sky { color: #38bdf8 !important; }
+.text-gradient-purple { color: #c084fc !important; }
+.text-gradient-indigo { color: #818cf8 !important; }
+.text-gradient-teal { color: #2dd4bf !important; }
+.text-gradient-amber { color: #fbbf24 !important; }
+.text-gradient-red { color: #f87171 !important; }
+.bg-clip-text.text-transparent[class*="from-pink"], .bg-clip-text.text-transparent[class*="from-rose"], .bg-clip-text.text-transparent[class*="from-fuchsia"] { color: #f472b6 !important; }
+.bg-clip-text.text-transparent[class*="from-orange"], .bg-clip-text.text-transparent[class*="from-amber"], .bg-clip-text.text-transparent[class*="from-yellow"] { color: #fbbf24 !important; }
+.bg-clip-text.text-transparent[class*="from-purple"], .bg-clip-text.text-transparent[class*="from-violet"] { color: #c084fc !important; }
+.bg-clip-text.text-transparent[class*="from-blue"], .bg-clip-text.text-transparent[class*="from-indigo"], .bg-clip-text.text-transparent[class*="from-sky"] { color: #60a5fa !important; }
+.bg-clip-text.text-transparent[class*="from-emerald"], .bg-clip-text.text-transparent[class*="from-teal"], .bg-clip-text.text-transparent[class*="from-green"] { color: #34d399 !important; }
+.bg-clip-text.text-transparent[class*="from-red"] { color: #f87171 !important; }
+.bg-clip-text.text-transparent[class*="from-white"], .bg-clip-text.text-transparent[class*="from-gray"], .bg-clip-text.text-transparent[class*="from-slate"] { color: #f8fafc !important; }
+
+/* 4. Neon -> bóng nhẹ; bỏ nhấp nháy/trôi lơ lửng */
+[class*="shadow-[0_0_"] { box-shadow: 0 8px 24px rgba(0, 0, 0, .3) !important; }
+[class*="drop-shadow-["], .neon-text, .glow-text, .text-glow { filter: none !important; text-shadow: none !important; }
+.bp-cta-pulse, .animate-bounce, .animate-ping, i.animate-pulse, [style*="animation: float"], [style*="animation:float"] { animation: none !important; }
+.animate-ping { opacity: 0 !important; }
+
+/* Icon chữ B (app/PWA) nếu có: ô bo góc, không cắt tròn */
 img[src*="/static/brand/icon-"] { border-radius: 22% !important; object-fit: contain !important; background: transparent !important; animation: none !important; transform: none !important; }
-.animate-bounce { animation: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}

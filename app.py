@@ -812,6 +812,26 @@ def _scan_nail_3d_icons():
 app.jinja_env.globals['NAIL_3D_ICONS'] = {}
 
 
+_ASSET_V = {}
+
+
+def asset_v(rel):
+    """Mã phiên bản theo NỘI DUNG file tĩnh (static/<rel>) cho ?v= — đổi file là đổi mã, trình duyệt/Cloudflare
+    (cache 4 giờ) không còn giữ bản cũ. Trước đây ?v=20261023 viết tay: sửa widget chat mà khách vẫn thấy bản cũ."""
+    v = _ASSET_V.get(rel)
+    if v is None:
+        try:
+            with open(os.path.join(app.root_path, 'static', rel), 'rb') as fh:
+                v = hashlib.md5(fh.read()).hexdigest()[:10]
+        except OSError:
+            v = '0'
+        _ASSET_V[rel] = v
+    return v
+
+
+app.jinja_env.globals['asset_v'] = asset_v
+
+
 @app.after_request
 def _disable_html_caching(response):
     """Chặn cache trình duyệt/CDN cho các trang HTML/JSON render động (Jinja), tránh người
@@ -928,10 +948,10 @@ def _inject_pwa_head(response):
     if i == -1 or b'data-bp-pwa' in body[:i]:
         return response
     css = 'bitpaw-pro-lite.css' if _LANDING_PATH.match(request.path) else 'bitpaw-pro.css'
-    pro = f'<link rel="stylesheet" href="/static/css/{css}?v={PRO_CSS_VERSION}" data-bp-pro>'
+    pro = f'<link rel="stylesheet" href="/static/css/{css}?v={asset_v("css/" + css)}" data-bp-pro>'
     cur = str(g.get('bp_currency') or '').upper()
     if cur and cur != 'VND' and css == 'bitpaw-pro.css' and re.fullmatch(r'[A-Z]{3}', cur):
-        pro += f'<script>window.BP_CURRENCY="{cur}"</script><script src="/static/js/bp-currency.js?v={PRO_CSS_VERSION}" defer></script>'
+        pro += f'<script>window.BP_CURRENCY="{cur}"</script><script src="/static/js/bp-currency.js?v={asset_v("js/bp-currency.js")}" defer></script>'
     response.set_data(body[:i] + _PWA_HEAD + pro.encode('utf-8') + body[i:])
     return response
 
