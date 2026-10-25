@@ -45,6 +45,10 @@ INDUSTRY_LABELS = {
 PAYMENT_INDUSTRIES = {'nail', 'spa', 'fnb', 'karaoke', 'hotel', 'retail'}   # có thu tiền tại quầy -> tặng Square Terminal
 STAFF_LIMIT = {'essential': 5, 'pro': None, 'empire': None}                  # None = không giới hạn
 STAFF_LIMIT_OFFICE = {'essential': 15, 'pro': None, 'empire': None}
+# Hạn mức AI tạo ảnh/video MỖI THÁNG (Replicate tính tiền thật theo ảnh/giây video) — ai_media.quota_status đọc ở đây.
+# Essential/Pro chưa có AI Studio nên = 0.
+AI_MEDIA_QUOTA = {'essential': {'images': 0, 'video_seconds': 0}, 'pro': {'images': 0, 'video_seconds': 0},
+                  'empire': {'images': 300, 'video_seconds': 300}}
 
 
 def aud(usd, setup=False):
