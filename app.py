@@ -14217,7 +14217,9 @@ try:
         'social.accounts_action': '30 per hour',
     }.items():
         if _ep in app.view_functions:
-            limiter.limit(_lim)(app.view_functions[_ep])
+            # PHẢI gán lại hàm bọc: Flask-Limiter 4 đánh dấu route "đã có giới hạn riêng" rồi chỉ hàm bọc mới kiểm tra —
+            # bỏ hàm bọc thì route vừa mất giới hạn riêng vừa mất luôn giới hạn mặc định (lỗi soát được 25/10)
+            app.view_functions[_ep] = limiter.limit(_lim)(app.view_functions[_ep])
         else:
             print(f"[!] rate limit: không thấy endpoint '{_ep}'")
 except Exception as bp_err:
