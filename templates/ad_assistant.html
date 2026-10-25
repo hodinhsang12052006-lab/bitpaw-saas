@@ -84,88 +84,6 @@
         }
         .logo-float { animation: float-logo 4s ease-in-out infinite; }
 
-        .chat-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 100;
-        }
-        .chat-toggle {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #06b6d4, #3b82f6);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(6,182,212,0.5);
-            transition: 0.2s;
-        }
-        .chat-toggle:hover { transform: scale(1.05); }
-        .chat-window {
-            position: absolute;
-            bottom: 80px;
-            right: 0;
-            width: 350px;
-            background: rgba(10, 15, 37, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(6, 182, 212, 0.4);
-            border-radius: 1.5rem;
-            overflow: hidden;
-            display: none;
-            flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .chat-window.open { display: flex; }
-        .chat-header {
-            padding: 12px 16px;
-            background: rgba(6,182,212,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-        }
-        .chat-messages {
-            height: 300px;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .chat-input-area {
-            padding: 12px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            gap: 8px;
-        }
-        .chat-input-area input {
-            flex: 1;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 2rem;
-            padding: 8px 16px;
-            color: white;
-            outline: none;
-        }
-        .message {
-            max-width: 85%;
-            padding: 8px 12px;
-            border-radius: 1rem;
-            font-size: 0.85rem;
-        }
-        .user-message {
-            background: #06b6d4;
-            color: black;
-            align-self: flex-end;
-            border-bottom-right-radius: 0;
-        }
-        .bot-message {
-            background: rgba(255,255,255,0.1);
-            align-self: flex-start;
-            border-bottom-left-radius: 0;
-        }
         
         .tab-button {
             background: transparent;
@@ -318,8 +236,17 @@
             font-weight: 600;
             z-index: 10000;
             transition: transform 0.3s ease, opacity 0.3s ease;
-            white-space: nowrap;
+            /* lỗi dài (vd lệch tiền tệ) phải xuống dòng trên điện thoại 390px, không tràn ngang */
+            white-space: normal;
+            width: max-content;
+            max-width: calc(100vw - 32px);
+            text-align: center;
         }
+        .aa-note { font-size: 11px; color: #9ca3af; line-height: 1.45; margin-top: 6px; }
+        .aa-note.warn { color: #fbbf24; }
+        .aa-btn-secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(6,182,212,0.4); }
+        .aa-btn-secondary:disabled, #createCampaignBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .fb-sponsored { font-size: 10px; color: #9ca3af; }
         .toast.show {
             transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
         .toast.error {
@@ -367,12 +294,13 @@
             </div>
         </div>
 
-        <div id="fbStatusBanner" class="hidden mb-6 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2 text-sm text-red-300">
+        <!-- Trạng thái kết nối Facebook Ads THẬT (chưa kết nối / hết hạn / đã kết nối) — nội dung do checkFacebookStatus() điền -->
+        <div id="fbStatusBanner" class="hidden mb-6 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-sm text-red-300 min-w-0">
                 <i class="fas fa-triangle-exclamation"></i>
-                <span id="fbStatusBannerText" data-i18n="ad_assistant_fb_token_expired">Kết nối Facebook Ads đã hết hạn — quảng cáo mới sẽ KHÔNG tạo được cho tới khi bạn kết nối lại.</span>
+                <span id="fbStatusBannerText"></span>
             </div>
-            <button type="button" id="fbStatusReconnectBtn" class="shrink-0 bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg" data-i18n="ad_assistant_fb_reconnect_btn">Kết nối lại</button>
+            <button type="button" id="fbStatusReconnectBtn" class="shrink-0 bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg"></button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -389,8 +317,14 @@
                         <textarea id="productDesc" rows="2" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="Mô tả ngắn về sản phẩm" data-i18n-placeholder="ad_assistant_product_desc_placeholder"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Ngân sách</span> (<span id="budgetCurrencyUnit">{{ tenant_currency or 'VND' }}</span>)</label>
-                        <input type="number" id="budget" value="{{ 2000000 if (tenant_currency or 'VND') == 'VND' else 500 }}" min="0" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="{{ 100000 if (tenant_currency or 'VND') == 'VND' else 50 }}">
+                        <!-- TỔNG ngân sách cho 7 ngày (khớp biểu đồ 7 ngày); server chia ra ngân sách/ngày + đặt ngày dừng. Không điền sẵn số nào. -->
+                        <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Tổng ngân sách 7 ngày</span> (<span id="budgetCurrencyUnit">{{ tenant_currency or 'VND' }}</span>)</label>
+                        <input type="number" id="budget" value="" min="0" inputmode="decimal" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="{{ 1000 if (tenant_currency or 'VND') == 'VND' else 1 }}" placeholder="{{ '700000' if (tenant_currency or 'VND') == 'VND' else '70' }}">
+                        <p class="aa-note" id="budgetDailyNote"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_link_label">Link đích của quảng cáo</label>
+                        <input type="url" id="adLink" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="https://" inputmode="url" autocomplete="url">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_platform_label">Nền tảng</label>
@@ -406,12 +340,17 @@
                             <input type="number" id="ageMin" placeholder="Tuổi min" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="18" data-i18n-placeholder="ad_assistant_age_min_placeholder">
                             <input type="number" id="ageMax" placeholder="Tuổi max" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="35" data-i18n-placeholder="ad_assistant_age_max_placeholder">
                         </div>
-                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="{{ 'thể thao, thời trang' if default_lang == 'vi' else '' }}" data-i18n-placeholder="ad_assistant_interests_placeholder">
+                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="" data-i18n-placeholder="ad_assistant_interests_placeholder">
                     </div>
-                    <button id="createCampaignBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-lg font-bold mt-2 relative">
-                        <span id="btnText" data-i18n="ad_assistant_create_campaign_btn">Lấy gợi ý AI & Tạo chiến dịch</span>
+                    <!-- 2 nút riêng: lấy gợi ý KHÔNG tạo gì trên Facebook; tạo chiến dịch cần xác nhận ngân sách -->
+                    <button id="suggestBtn" type="button" class="w-full aa-btn-secondary py-2 rounded-lg font-bold mt-2">
+                        <i class="fas fa-wand-magic-sparkles"></i> <span data-i18n="ad_assistant_suggest_btn">Lấy gợi ý nội dung bằng AI</span>
+                    </button>
+                    <button id="createCampaignBtn" type="button" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-lg font-bold relative">
+                        <span id="btnText" data-i18n="ad_assistant_create_campaign_btn">Tạo chiến dịch Facebook (ở trạng thái tạm dừng)</span>
                         <span id="btnLoading" class="loading-spinner hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></span>
                     </button>
+                    <p class="aa-note" id="createNote" data-i18n="ad_assistant_create_note">Chiến dịch được tạo ở trạng thái TẠM DỪNG — chỉ tiêu tiền khi bạn tự bật trên Facebook Ads Manager.</p>
                     <div id="campaignResult" class="text-sm mt-2 hidden"></div>
                 </div>
 
@@ -439,6 +378,7 @@
                     <div id="livePreviewContainer" class="flex justify-center">
                         <!-- Mockup -->
                     </div>
+                    <p class="aa-note text-center" data-i18n="ad_assistant_preview_note">Bản minh hoạ để hình dung — giao diện thật trên Facebook/TikTok sẽ khác.</p>
                 </div>
             </div>
         </div>
@@ -457,36 +397,17 @@
         </div>
     </div>
 
-    <!-- Chatbox AI -->
-    <div class="chat-container">
-        <div class="chat-toggle" id="chatToggle">
-            <i class="fas fa-comment-dots text-2xl text-white"></i>
-        </div>
-        <div class="chat-window" id="chatWindow">
-            <div class="chat-header">
-                <span><i class="fas fa-robot text-cyan-400"></i> <span data-i18n="ad_assistant_chat_header">AI Trợ lý quảng cáo</span></span>
-                <i class="fas fa-times cursor-pointer" id="closeChat"></i>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <div class="message bot-message" data-i18n="ad_assistant_chat_welcome">Chào bạn! Hãy chat với tôi, ví dụ: "Lên chiến dịch bán giày thể thao 5 triệu trên TikTok"</div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Nhập yêu cầu..." data-i18n-placeholder="ad_assistant_chat_input_placeholder">
-                <button id="sendChat" class="bg-cyan-500 px-4 py-2 rounded-full text-black font-bold" data-i18n="ad_assistant_chat_send_btn">Gửi</button>
-            </div>
-        </div>
-    </div>
+    <!-- Khung "AI Trợ lý quảng cáo" dạng chat đã gỡ: thực chất chỉ tách chữ bằng regex + chờ giả 2,5 giây, không gọi AI nào.
+         Gợi ý AI thật là nút "Lấy gợi ý nội dung bằng AI" ở form (/ad-assistant/api/suggest, DeepSeek). -->
 
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="ad_assistant_processing">Đang xử lý...</span></div></div>
     <div id="toast" class="toast" role="status"></div>
 
     <script>
-        // Client Supabase đã gỡ — tính năng Ad Assistant đã chạy hoàn toàn qua blueprint
-        // ad_assistant.py (Flask/Mongo: db.ad_suggestions_log, db.ad_campaigns), không có
-        // lời gọi Supabase thật nào trong file này.
+        // Ad Assistant chạy hoàn toàn qua blueprint ad_assistant.py (Flask/Mongo: db.ad_suggestions_log, db.ad_campaigns).
 
         // ========== MULTI-LANGUAGE (VI/EN) ==========
-        let currentLang = localStorage.getItem('bitpaw_lang') || "{{ default_lang }}";
+        let currentLang = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || "{{ default_lang }}";
 
         const translations = {
             vi: {
@@ -496,108 +417,132 @@
                 ad_assistant_product_name_placeholder: 'VD: Áo thun thể thao',
                 ad_assistant_product_desc_label: 'Mô tả (tuỳ chọn)',
                 ad_assistant_product_desc_placeholder: 'Mô tả ngắn về sản phẩm',
-                ad_assistant_budget_label: 'Ngân sách',
+                ad_assistant_budget_label: 'Tổng ngân sách 7 ngày',
+                ad_assistant_link_label: 'Link đích của quảng cáo',
                 ad_assistant_platform_label: 'Nền tảng',
                 ad_assistant_audience_label: 'Đối tượng mục tiêu (tuổi, sở thích)',
                 ad_assistant_age_min_placeholder: 'Tuổi min',
                 ad_assistant_age_max_placeholder: 'Tuổi max',
                 ad_assistant_interests_placeholder: 'Sở thích (cách nhau dấu phẩy)',
-                ad_assistant_create_campaign_btn: 'Lấy gợi ý AI & Tạo chiến dịch',
+                ad_assistant_suggest_btn: 'Lấy gợi ý nội dung bằng AI',
+                ad_assistant_create_campaign_btn: 'Tạo chiến dịch Facebook (ở trạng thái tạm dừng)',
+                ad_assistant_create_note: 'Chiến dịch được tạo ở trạng thái TẠM DỪNG — chỉ tiêu tiền khi bạn tự bật trên Facebook Ads Manager.',
+                ad_assistant_create_fb_only: 'Hiện chỉ Facebook / Instagram tạo được chiến dịch thật. TikTok / Google: chỉ lấy gợi ý nội dung.',
+                ad_assistant_create_no_role: 'Chỉ chủ tiệm / quản lý được kết nối Facebook Ads và tạo chiến dịch.',
+                ad_assistant_create_need_connect: 'Cần kết nối Facebook Ads (nút ở đầu trang) trước khi tạo chiến dịch.',
+                ad_assistant_daily_note: '≈ {daily}/ngày trong {days} ngày — chiến dịch tự dừng sau {days} ngày.',
                 ad_assistant_forecast_title: 'Lượt click ước tính (7 ngày)',
                 ad_assistant_forecast_note: '*Ước tính theo giá mỗi click tham khảo của nền tảng, không phải kết quả thật',
+                ad_assistant_preview_note: 'Bản minh hoạ để hình dung — giao diện thật trên Facebook/TikTok sẽ khác.',
                 ad_assistant_support_title: 'Gửi yêu cầu hỗ trợ',
                 ad_assistant_support_name_placeholder: 'Tên của bạn',
                 ad_assistant_support_phone_placeholder: 'Số điện thoại / Zalo',
                 ad_assistant_support_message_placeholder: 'Nội dung cần hỗ trợ...',
                 ad_assistant_support_submit_btn: 'Gửi yêu cầu',
-                ad_assistant_chat_header: 'AI Trợ lý quảng cáo',
-                ad_assistant_chat_welcome: 'Chào bạn! Hãy chat với tôi, ví dụ: "Lên chiến dịch bán giày thể thao 5 triệu trên TikTok"',
-                ad_assistant_chat_input_placeholder: 'Nhập yêu cầu...',
-                ad_assistant_chat_send_btn: 'Gửi',
                 ad_assistant_processing: 'Đang xử lý...',
                 ad_assistant_toast_default: 'Thông báo',
-                ad_assistant_no_suggestions: 'Chưa có gợi ý. Hãy nhập thông tin và nhấn "Lấy gợi ý".',
-                ad_assistant_card_fomo: 'Mẫu FOMO (Sốt hàng)',
-                ad_assistant_card_story: 'Mẫu Kể chuyện',
-                ad_assistant_card_trend: 'Mẫu Bắt trend',
+                ad_assistant_no_suggestions: 'Chưa có gợi ý. Hãy nhập thông tin và nhấn "Lấy gợi ý nội dung bằng AI".',
+                ad_assistant_card_a: 'Phương án A',
+                ad_assistant_card_b: 'Phương án B',
+                ad_assistant_card_c: 'Phương án C',
+                ad_assistant_fallback_note: 'AI chưa sẵn sàng nên đây là mẫu chung — hãy tự sửa cho đúng sản phẩm trước khi dùng.',
                 ad_assistant_cta_buy_now: 'Mua ngay',
                 ad_assistant_cta_experience: 'Trải nghiệm',
                 ad_assistant_cta_view_now: 'Xem ngay',
-                ad_assistant_cta_label: 'CTA:',
+                ad_assistant_cta_label: 'CTA gợi ý:',
                 ad_assistant_copied: 'Đã copy nội dung!',
-                ad_assistant_tiktok_mockup: 'Video TikTok Mockup',
-                ad_assistant_time_ago: '1 giờ trước ·',
+                ad_assistant_tiktok_mockup: 'Video TikTok (minh hoạ)',
+                ad_assistant_sponsored: 'Được tài trợ',
                 ad_assistant_product_image: 'Ảnh sản phẩm',
                 ad_assistant_enter_product_name: 'Vui lòng nhập tên sản phẩm.',
+                ad_assistant_enter_budget: 'Vui lòng nhập tổng ngân sách (lớn hơn 0).',
+                ad_assistant_enter_link: 'Vui lòng nhập link đích bắt đầu bằng http:// hoặc https://',
                 ad_assistant_error_prefix: 'Lỗi: ',
                 ad_assistant_connection_error: 'Lỗi kết nối đến máy chủ.',
+                ad_assistant_rate_limited: 'Bạn thao tác quá nhiều lần — vui lòng thử lại sau ít phút.',
                 ad_assistant_campaign_create_failed: 'Tạo chiến dịch thất bại',
-                ad_assistant_campaign_created: 'Đã tạo chiến dịch',
-                ad_assistant_campaign_pending: 'Gợi ý đã sẵn sàng, nhưng chưa tạo được campaign thật. Kiểm tra lại thông tin nền tảng.',
-                ad_assistant_default_product_name: 'sản phẩm mới',
-                ad_assistant_chat_analyzing: 'AI đang phân tích và lấy gợi ý...',
-                ad_assistant_chat_filled: 'Đã điền form và lấy gợi ý cho "{name}" trên {platform} với ngân sách {budget}đ.',
-                ad_assistant_fill_all_fields: 'Vui lòng nhập đầy đủ thông tin',
-                ad_assistant_support_sent: 'Yêu cầu đã gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                ad_assistant_campaign_created: 'Đã tạo chiến dịch (đang TẠM DỪNG), mã',
+                ad_assistant_campaign_created_detail: '{daily}/ngày · tự dừng {end} · nhắm {country}, tuổi {amin}–{amax}. Bật chạy trên Facebook Ads Manager khi bạn sẵn sàng (nếu bật sau ngày dừng, hãy sửa ngày kết thúc ở đó).',
+                ad_assistant_confirm_create: 'Tạo chiến dịch trên Facebook?\n\nTổng ngân sách: {total} trong {days} ngày (≈ {daily}/ngày)\nNhắm: {country}, tuổi {amin}–{amax}\nLink: {link}\n\nChiến dịch ở trạng thái TẠM DỪNG — chưa tiêu tiền cho tới khi bạn bật trên Ads Manager.',
+                ad_assistant_currency_switched: 'Tài khoản quảng cáo dùng {cur} — hãy nhập lại tổng ngân sách bằng {cur}.',
                 ad_assistant_cannot_get_suggestions: 'Không thể lấy gợi ý',
                 ad_assistant_fb_token_expired: 'Kết nối Facebook Ads đã hết hạn — quảng cáo mới sẽ KHÔNG tạo được cho tới khi bạn kết nối lại.',
+                ad_assistant_fb_not_connected: 'Chưa kết nối Facebook Ads — cần kết nối trước khi tạo chiến dịch thật.',
+                ad_assistant_fb_connected: 'Đã kết nối Facebook Ads: {account}',
                 ad_assistant_fb_reconnect_btn: 'Kết nối lại',
-                ad_assistant_fb_reconnected: 'Đã kết nối lại Facebook Ads thành công.'
+                ad_assistant_fb_connect_btn: 'Kết nối',
+                ad_assistant_fb_reconnected: 'Đã kết nối Facebook Ads.',
+                ad_assistant_prompt_token: 'Dán System User Access Token của Facebook:',
+                ad_assistant_prompt_account: 'Ad Account ID (VD: act_1234567890):',
+                ad_assistant_prompt_page: 'Page ID của Fanpage (cần để tạo quảng cáo):',
+                ad_assistant_support_sent: 'Đã gửi yêu cầu hỗ trợ — chúng tôi sẽ liên hệ lại sớm nhất có thể.'
             },
             en: {
                 ad_assistant_back_dashboard: '← Back to Dashboard',
                 ad_assistant_campaign_info_title: 'Campaign Information',
                 ad_assistant_product_name_label: 'Product / Service Name',
-                ad_assistant_product_name_placeholder: 'E.g.: Sports T-shirt',
+                ad_assistant_product_name_placeholder: 'E.g.: Gel manicure',
                 ad_assistant_product_desc_label: 'Description (optional)',
                 ad_assistant_product_desc_placeholder: 'Short product description',
-                ad_assistant_budget_label: 'Budget',
+                ad_assistant_budget_label: 'Total budget for 7 days',
+                ad_assistant_link_label: 'Ad destination link',
                 ad_assistant_platform_label: 'Platform',
                 ad_assistant_audience_label: 'Target audience (age, interests)',
                 ad_assistant_age_min_placeholder: 'Min age',
                 ad_assistant_age_max_placeholder: 'Max age',
                 ad_assistant_interests_placeholder: 'Interests (comma-separated)',
-                ad_assistant_create_campaign_btn: 'Get AI Suggestions & Create Campaign',
+                ad_assistant_suggest_btn: 'Get AI copy suggestions',
+                ad_assistant_create_campaign_btn: 'Create Facebook campaign (paused)',
+                ad_assistant_create_note: 'The campaign is created PAUSED — it only spends money after you turn it on in Facebook Ads Manager.',
+                ad_assistant_create_fb_only: 'Only Facebook / Instagram can create real campaigns for now. TikTok / Google: copy suggestions only.',
+                ad_assistant_create_no_role: 'Only the owner / a manager can connect Facebook Ads and create campaigns.',
+                ad_assistant_create_need_connect: 'Connect Facebook Ads (button at the top) before creating a campaign.',
+                ad_assistant_daily_note: '≈ {daily}/day over {days} days — the campaign stops automatically after {days} days.',
                 ad_assistant_forecast_title: 'Estimated clicks (7 days)',
                 ad_assistant_forecast_note: '*Estimate from typical cost per click on the platform, not real results',
+                ad_assistant_preview_note: 'Illustration only — the real Facebook/TikTok layout will differ.',
                 ad_assistant_support_title: 'Send a support request',
                 ad_assistant_support_name_placeholder: 'Your name',
-                ad_assistant_support_phone_placeholder: 'Phone number / Zalo',
+                ad_assistant_support_phone_placeholder: 'Phone number',
                 ad_assistant_support_message_placeholder: 'Describe what you need help with...',
                 ad_assistant_support_submit_btn: 'Send request',
-                ad_assistant_chat_header: 'AI Ad Assistant',
-                ad_assistant_chat_welcome: 'Hi! Chat with me, e.g.: "Create a campaign to sell sneakers with a 5 million budget on TikTok"',
-                ad_assistant_chat_input_placeholder: 'Type your request...',
-                ad_assistant_chat_send_btn: 'Send',
                 ad_assistant_processing: 'Processing...',
                 ad_assistant_toast_default: 'Notification',
-                ad_assistant_no_suggestions: 'No suggestions yet. Enter your info and click "Get suggestions".',
-                ad_assistant_card_fomo: 'FOMO Template (Selling fast)',
-                ad_assistant_card_story: 'Storytelling Template',
-                ad_assistant_card_trend: 'Trend-jacking Template',
+                ad_assistant_no_suggestions: 'No suggestions yet. Enter your info and click "Get AI copy suggestions".',
+                ad_assistant_card_a: 'Option A',
+                ad_assistant_card_b: 'Option B',
+                ad_assistant_card_c: 'Option C',
+                ad_assistant_fallback_note: 'AI is not available right now, so this is a generic template — edit it to fit your product before using it.',
                 ad_assistant_cta_buy_now: 'Buy now',
-                ad_assistant_cta_experience: 'Experience it',
-                ad_assistant_cta_view_now: 'View now',
-                ad_assistant_cta_label: 'CTA:',
+                ad_assistant_cta_experience: 'Try it',
+                ad_assistant_cta_view_now: 'Learn more',
+                ad_assistant_cta_label: 'Suggested CTA:',
                 ad_assistant_copied: 'Content copied!',
-                ad_assistant_tiktok_mockup: 'TikTok Video Mockup',
-                ad_assistant_time_ago: '1 hour ago ·',
+                ad_assistant_tiktok_mockup: 'TikTok video (illustration)',
+                ad_assistant_sponsored: 'Sponsored',
                 ad_assistant_product_image: 'Product image',
                 ad_assistant_enter_product_name: 'Please enter a product name.',
+                ad_assistant_enter_budget: 'Please enter a total budget greater than 0.',
+                ad_assistant_enter_link: 'Please enter a destination link starting with http:// or https://',
                 ad_assistant_error_prefix: 'Error: ',
                 ad_assistant_connection_error: 'Connection error to the server.',
+                ad_assistant_rate_limited: 'Too many attempts — please try again in a few minutes.',
                 ad_assistant_campaign_create_failed: 'Failed to create campaign',
-                ad_assistant_campaign_created: 'Campaign created',
-                ad_assistant_campaign_pending: 'Suggestions are ready, but the real campaign could not be created. Please check your platform info.',
-                ad_assistant_default_product_name: 'new product',
-                ad_assistant_chat_analyzing: 'AI is analyzing and fetching suggestions...',
-                ad_assistant_chat_filled: 'Form filled and suggestions fetched for "{name}" on {platform} with a budget of {budget}₫.',
-                ad_assistant_fill_all_fields: 'Please fill in all the information',
-                ad_assistant_support_sent: 'Request sent! We will contact you back within 15 minutes.',
+                ad_assistant_campaign_created: 'Campaign created (PAUSED), ID',
+                ad_assistant_campaign_created_detail: '{daily}/day · stops {end} · targeting {country}, age {amin}–{amax}. Turn it on in Facebook Ads Manager when you are ready (if you start it after the end date, change the end date there).',
+                ad_assistant_confirm_create: 'Create this campaign on Facebook?\n\nTotal budget: {total} over {days} days (≈ {daily}/day)\nTargeting: {country}, age {amin}–{amax}\nLink: {link}\n\nThe campaign is PAUSED — it spends nothing until you turn it on in Ads Manager.',
+                ad_assistant_currency_switched: 'Your ad account uses {cur} — please re-enter the total budget in {cur}.',
                 ad_assistant_cannot_get_suggestions: 'Unable to get suggestions',
                 ad_assistant_fb_token_expired: 'Your Facebook Ads connection has expired — new campaigns will NOT be created until you reconnect.',
+                ad_assistant_fb_not_connected: 'Facebook Ads is not connected — connect it before creating a real campaign.',
+                ad_assistant_fb_connected: 'Facebook Ads connected: {account}',
                 ad_assistant_fb_reconnect_btn: 'Reconnect',
-                ad_assistant_fb_reconnected: 'Facebook Ads reconnected successfully.'
+                ad_assistant_fb_connect_btn: 'Connect',
+                ad_assistant_fb_reconnected: 'Facebook Ads connected.',
+                ad_assistant_prompt_token: 'Paste your Facebook System User Access Token:',
+                ad_assistant_prompt_account: 'Ad Account ID (e.g. act_1234567890):',
+                ad_assistant_prompt_page: 'Facebook Page ID (needed to create ads):',
+                ad_assistant_support_sent: 'Support request sent — we will get back to you as soon as we can.'
             }
         };
 
@@ -621,9 +566,14 @@
         }
         function changeLanguage(lang) {
             currentLang = lang;
-            localStorage.setItem('bitpaw_lang', lang);
+            try { localStorage.setItem('bitpaw_lang', lang); } catch (e) {}
             applyStaticTranslations();
-            fetchSuggestions();
+            // Vẽ lại phần do JS tạo — KHÔNG gọi lại AI chỉ vì đổi ngôn ngữ (mỗi lượt gọi tốn tiền)
+            renderSuggestions(lastSuggestions);
+            renderFbBanner();
+            refreshCreateState();
+            updateDailyNote();
+            updateChart(currentBudget());
         }
         document.addEventListener('DOMContentLoaded', applyStaticTranslations);
         applyStaticTranslations();
@@ -634,11 +584,13 @@
 
         // ========== TOAST & LOADING ==========
         const toast = document.getElementById('toast');
+        let toastTimer = null;
         function showToast(msg, isError = false) {
             toast.innerText = msg;
             toast.className = 'toast ' + (isError ? 'error' : '');
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), isError ? 6000 : 3500);
         }
         const loadingOverlay = document.getElementById('loadingOverlay');
         function showLoading(show) {
@@ -646,19 +598,53 @@
             else loadingOverlay.classList.remove('active');
         }
 
-        // ==================== CHART (dự phóng client-side) ====================
+        // ==================== TIỀN TỆ & NGÂN SÁCH ====================
+        const AD_CUR = {{ (tenant_currency or 'VND') | tojson }};
+        const SHOP_COUNTRY = {{ (tenant_country or 'VN') | tojson }};
+        const SHOP_NAME = {{ shop_header_name() | tojson }};
+        const DURATION_DAYS = 7;   // khớp "Tổng ngân sách 7 ngày" + biểu đồ 7 ngày; server chia ra ngân sách/ngày
+        // Tiền tệ của con số đang nhập: mặc định tiền của tiệm; đổi theo tài khoản quảng cáo nếu Meta báo khác (không tự quy đổi)
+        let budgetCurrency = AD_CUR;
+        const budgetInput = document.getElementById('budget');
+        const adLinkInput = document.getElementById('adLink');
+        const platformSelect = document.getElementById('platform');
+
+        function currentBudget() {
+            const v = parseFloat(budgetInput.value);
+            return Number.isFinite(v) && v > 0 ? v : 0;
+        }
+        function fmtMoney(v, cur) {
+            const c = (cur || budgetCurrency || 'VND').toUpperCase();
+            try {
+                return new Intl.NumberFormat(c === 'VND' ? 'vi-VN' : 'en-US', { style: 'currency', currency: c, maximumFractionDigits: c === 'VND' ? 0 : 2 }).format(v);
+            } catch (e) {
+                return (Math.round(v * 100) / 100).toLocaleString() + ' ' + c;
+            }
+        }
+        function updateDailyNote() {
+            const el = document.getElementById('budgetDailyNote');
+            const total = currentBudget();
+            el.textContent = total ? tf('ad_assistant_daily_note', { daily: fmtMoney(total / DURATION_DAYS), days: DURATION_DAYS }) : '';
+        }
+        function setBudgetCurrency(cur) {
+            budgetCurrency = String(cur || AD_CUR).toUpperCase();
+            document.getElementById('budgetCurrencyUnit').textContent = budgetCurrency;
+        }
+
+        // ==================== CHART (ước tính client-side) ====================
         let roiChart = null;
         // Ước tính click/ngày = (ngân sách ÷ 7) ÷ giá mỗi click tham khảo của nền tảng — CỐ ĐỊNH, không ngẫu nhiên
         // (trước đây Math.random() và chia theo thang VND: tiệm đô nhập $500 ra 0 click).
-        const AD_CUR = {{ (tenant_currency or 'VND') | tojson }};
-        const REF_CPC = AD_CUR === 'VND' ? { facebook: 4000, tiktok: 3000, google: 8000 } : { facebook: 0.9, tiktok: 0.6, google: 1.8 };
+        function refCpc() {
+            const table = budgetCurrency === 'VND' ? { facebook: 4000, tiktok: 3000, google: 8000 } : { facebook: 0.9, tiktok: 0.6, google: 1.8 };
+            return table[platformSelect.value || 'facebook'] || table.facebook;
+        }
         function updateChart(budget) {
-            const platformSel = document.getElementById('platform');
-            const cpc = REF_CPC[(platformSel && platformSel.value) || 'facebook'] || REF_CPC.facebook;
-            const perDay = Math.max(0, Number(budget) || 0) / 7 / cpc;
+            const perDay = Math.max(0, Number(budget) || 0) / DURATION_DAYS / refCpc();
             const days = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
             const ramp = [0.8, 0.9, 1, 1.05, 1.08, 1.1, 1.1];   // tuần đầu nền tảng còn "học" đối tượng
             const clicks = ramp.map((r) => Math.round(perDay * r));
+            if (typeof Chart === 'undefined') return;   // CDN chart lỗi -> bỏ biểu đồ, phần còn lại vẫn chạy
             const ctx = document.getElementById('roiChart').getContext('2d');
             if (roiChart) roiChart.destroy();
             roiChart = new Chart(ctx, {
@@ -689,9 +675,21 @@
             });
         }
 
-        // ==================== LIVE PREVIEW ====================
+        // ==================== LIVE PREVIEW (tên tiệm thật thay cho tên BitPaw viết cứng) ====================
+        function escapeHtml(text) {
+            return String(text == null ? '' : text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+        function clip(text, n) {
+            const s = String(text || '');
+            return s.length > n ? s.slice(0, n - 1) + '…' : s;
+        }
+        function shopInitials() {
+            const words = String(SHOP_NAME || '').trim().split(/\s+/).filter(Boolean);
+            return (words.slice(0, 2).map(w => w[0]).join('') || '?').toUpperCase();
+        }
         function updateLivePreview(platform, headline, desc) {
             const container = document.getElementById('livePreviewContainer');
+            const name = escapeHtml(SHOP_NAME || '');
             if (platform === 'tiktok') {
                 container.innerHTML = `
                     <div class="tt-mockup">
@@ -701,13 +699,14 @@
                         </div>
                         <div class="mt-3">
                             <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white text-xs">TT</div>
-                                <div class="flex-1">
-                                    <p class="font-bold text-sm">@bitpaw_ads</p>
-                                    <p class="text-xs text-gray-400">${headline.substring(0, 50)}...</p>
+                                <div class="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white text-xs shrink-0">${escapeHtml(shopInitials())}</div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-sm truncate">${name}</p>
+                                    <p class="text-xs text-gray-400">${escapeHtml(clip(headline, 60))}</p>
                                 </div>
                             </div>
-                            <p class="text-xs mt-2">${desc.substring(0, 80)}...</p>
+                            <p class="text-xs mt-2">${escapeHtml(clip(desc, 100))}</p>
+                            <p class="fb-sponsored mt-1">${t('ad_assistant_sponsored')}</p>
                         </div>
                     </div>
                 `;
@@ -715,21 +714,21 @@
                 container.innerHTML = `
                     <div class="fb-mockup">
                         <div class="fb-header">
-                            <div class="fb-avatar">BP</div>
-                            <div>
-                                <div class="font-bold text-sm">BitPaw Ads</div>
-                                <div class="text-[10px] text-gray-400">${t('ad_assistant_time_ago')}</div>
+                            <div class="fb-avatar shrink-0">${escapeHtml(shopInitials())}</div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-sm truncate">${name}</div>
+                                <div class="fb-sponsored">${t('ad_assistant_sponsored')}</div>
                             </div>
                         </div>
                         <div class="fb-caption">
-                            <p>${headline}</p>
-                            <p class="text-gray-300 mt-1">${desc}</p>
+                            <p>${escapeHtml(headline)}</p>
+                            <p class="text-gray-300 mt-1">${escapeHtml(desc)}</p>
                         </div>
                         <div class="fb-img-placeholder">
                             <i class="fas fa-image text-3xl"></i> <span class="ml-2">${t('ad_assistant_product_image')}</span>
                         </div>
                         <div class="flex justify-around mt-3 text-gray-400 text-sm">
-                            <span><i class="far fa-heart"></i> Like</span>
+                            <span><i class="far fa-thumbs-up"></i> Like</span>
                             <span><i class="far fa-comment"></i> Comment</span>
                             <span><i class="far fa-share-square"></i> Share</span>
                         </div>
@@ -739,47 +738,53 @@
         }
 
         // ==================== RENDER A/B TESTING TỪ API ====================
+        let lastSuggestions = null;
+        // Nhãn trung tính A/B/C: AI không viết theo "mẫu FOMO/kể chuyện/bắt trend" nên không gắn nhãn đó nữa
+        function suggestionCards(s) {
+            const h = s.headlines || [], d = s.descriptions || [];
+            return [
+                { label: t('ad_assistant_card_a'), headline: h[0] || '', desc: d[0] || '', cta: t('ad_assistant_cta_buy_now') },
+                { label: t('ad_assistant_card_b'), headline: h[1] || h[0] || '', desc: d[1] || d[0] || '', cta: t('ad_assistant_cta_experience') },
+                { label: t('ad_assistant_card_c'), headline: h[2] || h[0] || '', desc: d[2] || d[0] || '', cta: t('ad_assistant_cta_view_now') }
+            ];
+        }
         function renderSuggestions(suggestions) {
             const container = document.getElementById('abContentContainer');
             if (!suggestions || !suggestions.headlines || !suggestions.descriptions) {
                 container.innerHTML = `<p class="text-gray-400">${t('ad_assistant_no_suggestions')}</p>`;
                 return;
             }
-            const headlines = suggestions.headlines;
-            const descriptions = suggestions.descriptions;
-            const cardData = [
-                { type: 'fomo', label: t('ad_assistant_card_fomo'), headline: headlines[0] || '', desc: descriptions[0] || '', cta: t('ad_assistant_cta_buy_now') },
-                { type: 'story', label: t('ad_assistant_card_story'), headline: headlines[1] || headlines[0] || '', desc: descriptions[1] || descriptions[0] || '', cta: t('ad_assistant_cta_experience') },
-                { type: 'trend', label: t('ad_assistant_card_trend'), headline: headlines[2] || headlines[0] || '', desc: descriptions[2] || descriptions[0] || '', cta: t('ad_assistant_cta_view_now') }
-            ];
-            container.innerHTML = cardData.map(card => `
+            const cards = suggestionCards(suggestions);
+            const fallbackNote = suggestions.fallback ? `<p class="aa-note warn"><i class="fas fa-circle-info"></i> ${t('ad_assistant_fallback_note')}</p>` : '';
+            container.innerHTML = fallbackNote + cards.map((card, i) => `
                 <div class="glass-card p-4">
-                    <div class="flex justify-between items-start">
+                    <div class="flex justify-between items-start gap-2">
                         <div><span class="text-emerald-400 font-bold">${card.label}</span></div>
-                        <i class="fas fa-copy copy-btn text-gray-400" data-headline="${escapeHtml(card.headline)}" data-desc="${escapeHtml(card.desc)}"></i>
+                        <button type="button" class="copy-btn text-gray-400" data-idx="${i}" aria-label="Copy"><i class="fas fa-copy"></i></button>
                     </div>
-                    <h4 class="font-bold mt-2">${card.headline}</h4>
-                    <p class="text-sm text-gray-300 mt-1">${card.desc}</p>
+                    <h4 class="font-bold mt-2 break-words">${escapeHtml(card.headline)}</h4>
+                    <p class="text-sm text-gray-300 mt-1 break-words">${escapeHtml(card.desc)}</p>
                     <div class="mt-2 text-xs text-cyan-400">${t('ad_assistant_cta_label')} ${card.cta}</div>
                 </div>
             `).join('');
-            document.querySelectorAll('.copy-btn').forEach(btn => {
+            container.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const headline = btn.getAttribute('data-headline');
-                    const desc = btn.getAttribute('data-desc');
-                    navigator.clipboard.writeText(headline + "\n" + desc);
-                    alert(t('ad_assistant_copied'));
+                    const card = cards[Number(btn.getAttribute('data-idx'))] || cards[0];
+                    try { navigator.clipboard.writeText(card.headline + "\n" + card.desc); } catch (e) {}
+                    showToast(t('ad_assistant_copied'));
                 });
             });
-            const platform = document.getElementById('platform').value;
-            updateLivePreview(platform, headlines[0] || '', descriptions[0] || '');
+            updateLivePreview(platformSelect.value, cards[0].headline, cards[0].desc);
         }
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        // ==================== GỌI API LẤY GỢI Ý (DeepSeek thật) ====================
+        function audienceFromForm() {
+            return {
+                age_min: parseInt(document.getElementById('ageMin').value) || 18,
+                age_max: parseInt(document.getElementById('ageMax').value) || 65,
+                interests: document.getElementById('interests').value.split(',').map(s => s.trim()).filter(s => s)
+            };
         }
-
-        // ==================== GỌI API LẤY GỢI Ý ====================
         async function fetchSuggestions() {
             const productName = document.getElementById('productName').value.trim();
             if (!productName) {
@@ -789,147 +794,130 @@
             const body = {
                 product_name: productName,
                 product_desc: document.getElementById('productDesc').value.trim(),
-                target_audience: {
-                    age_min: parseInt(document.getElementById('ageMin').value) || 18,
-                    age_max: parseInt(document.getElementById('ageMax').value) || 65,
-                    interests: document.getElementById('interests').value.split(',').map(s => s.trim()).filter(s => s)
-                },
-                budget: parseInt(document.getElementById('budget').value) || 1000000,
-                platform: document.getElementById('platform').value
+                target_audience: audienceFromForm(),
+                budget: currentBudget(),   // để trống = 0, KHÔNG tự điền con số nào
+                platform: platformSelect.value
             };
+            showLoading(true);
             try {
                 const response = await fetch('/ad-assistant/api/suggest', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
+                if (response.status === 429) { showToast(t('ad_assistant_rate_limited'), true); return; }
                 const data = await response.json();
                 if (data.success) {
-                    renderSuggestions(data.suggestions);
+                    lastSuggestions = data.suggestions;
+                    renderSuggestions(lastSuggestions);
                 } else {
-                    showToast(t('ad_assistant_error_prefix') + (data.error || t('ad_assistant_cannot_get_suggestions')), true);
+                    showToast(t('ad_assistant_error_prefix') + (data.error || data.message || t('ad_assistant_cannot_get_suggestions')), true);
                 }
             } catch (err) {
                 showToast(t('ad_assistant_connection_error'), true);
+            } finally {
+                showLoading(false);
             }
         }
 
-        // ==================== GỌI API TẠO CHIẾN DỊCH ====================
+        // ==================== TẠO CHIẾN DỊCH THẬT (Facebook, trạng thái TẠM DỪNG) ====================
+        let fbState = { connected: false, can_manage: true, status: null };
+        const createBtn = document.getElementById('createCampaignBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const campaignResult = document.getElementById('campaignResult');
+
+        function refreshCreateState() {
+            const note = document.getElementById('createNote');
+            let reason = '';
+            if (!fbState.can_manage) reason = t('ad_assistant_create_no_role');
+            else if (platformSelect.value !== 'facebook') reason = t('ad_assistant_create_fb_only');
+            else if (!fbState.connected || fbState.status === 'expired') reason = t('ad_assistant_create_need_connect');
+            createBtn.disabled = !!reason;
+            note.textContent = reason || t('ad_assistant_create_note');
+            note.className = 'aa-note' + (reason ? ' warn' : '');
+        }
+
         async function createCampaign() {
             const productName = document.getElementById('productName').value.trim();
-            if (!productName) {
-                showToast(t('ad_assistant_enter_product_name'), true);
-                return;
-            }
+            if (!productName) { showToast(t('ad_assistant_enter_product_name'), true); return; }
+            const total = currentBudget();
+            if (!total) { showToast(t('ad_assistant_enter_budget'), true); budgetInput.focus(); return; }
+            const link = adLinkInput.value.trim();
+            if (!/^https?:\/\/\S+$/i.test(link)) { showToast(t('ad_assistant_enter_link'), true); adLinkInput.focus(); return; }
+            const audience = audienceFromForm();
+            const amin = Math.max(18, Math.min(65, Math.min(audience.age_min, audience.age_max)));
+            const amax = Math.max(18, Math.min(65, Math.max(audience.age_min, audience.age_max)));
+            // Chủ tiệm xác nhận đúng con số sẽ gửi lên Meta trước khi tạo
+            if (!confirm(tf('ad_assistant_confirm_create', {
+                total: fmtMoney(total), days: DURATION_DAYS, daily: fmtMoney(total / DURATION_DAYS),
+                country: SHOP_COUNTRY, amin, amax, link
+            }))) return;
+
             const body = {
-                platform: document.getElementById('platform').value,
-                name: productName + " - " + new Date().toLocaleDateString(),
+                platform: 'facebook',
+                name: productName + ' - ' + new Date().toLocaleDateString(),
                 objective: 'OUTCOME_TRAFFIC',
-                budget: parseFloat(document.getElementById('budget').value) || 1000000,
-                access_token: '',
-                ad_account_id: ''
+                budget: total,                 // TỔNG cho DURATION_DAYS ngày — server chia ra ngân sách/ngày
+                duration_days: DURATION_DAYS,
+                currency: budgetCurrency,
+                link: link,
+                product_name: productName,
+                product_desc: document.getElementById('productDesc').value.trim(),
+                target_audience: audience
             };
+            // Dùng đúng Phương án A chủ tiệm đang xem; chưa lấy gợi ý thì server tự viết bằng AI từ tên sản phẩm
+            if (lastSuggestions && lastSuggestions.headlines && lastSuggestions.headlines.length) {
+                const a = suggestionCards(lastSuggestions)[0];
+                body.message = (a.headline + '\n\n' + a.desc).trim();
+            }
+
+            createBtn.disabled = true;
+            btnText.classList.add('hidden');
+            btnLoading.classList.remove('hidden');
+            campaignResult.classList.add('hidden');
             try {
                 const response = await fetch('/ad-assistant/api/create-campaign', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
-                const data = await response.json();
+                if (response.status === 429) { showToast(t('ad_assistant_rate_limited'), true); return; }
+                let data = {};
+                try { data = await response.json(); } catch (e) { data = {}; }
                 if (data.success) {
-                    return data.campaign_id;
-                } else {
-                    throw new Error(data.error || t('ad_assistant_campaign_create_failed'));
+                    const endDate = data.end_time ? new Date(String(data.end_time).replace(/\+0000$/, 'Z')).toLocaleDateString() : '';
+                    const tg = data.targeting || {};
+                    campaignResult.innerHTML = `${t('ad_assistant_campaign_created')} <span class="text-cyan-400 font-mono break-all">${escapeHtml(data.campaign_id)}</span><br><span class="text-gray-400 text-xs">${escapeHtml(tf('ad_assistant_campaign_created_detail', {
+                        daily: fmtMoney(data.daily_budget, data.currency), end: endDate,
+                        country: ((tg.geo_locations || {}).countries || []).join(', '), amin: tg.age_min, amax: tg.age_max
+                    }))}</span>`;
+                    campaignResult.classList.remove('hidden');
+                    return;
                 }
+                if (data.code === 'currency_mismatch' && data.account_currency) {
+                    // Không tự quy đổi tỷ giá: đổi đơn vị ô ngân sách theo tài khoản quảng cáo và bắt nhập lại
+                    setBudgetCurrency(data.account_currency);
+                    budgetInput.value = '';
+                    updateDailyNote();
+                    updateChart(0);
+                    budgetInput.focus();
+                    showToast(tf('ad_assistant_currency_switched', { cur: data.account_currency }), true);
+                    return;
+                }
+                if (data.reconnect_required) checkFacebookStatus();
+                showToast(t('ad_assistant_error_prefix') + (data.error || data.message || t('ad_assistant_campaign_create_failed')), true);
             } catch (err) {
-                showToast(t('ad_assistant_error_prefix') + err.message, true);
-                return null;
+                showToast(t('ad_assistant_connection_error'), true);
+            } finally {
+                btnText.classList.remove('hidden');
+                btnLoading.classList.add('hidden');
+                refreshCreateState();
             }
         }
 
-        // ==================== NÚT CHÍNH ====================
-        const createBtn = document.getElementById('createCampaignBtn');
-        const btnText = document.getElementById('btnText');
-        const btnLoading = document.getElementById('btnLoading');
-        const campaignResult = document.getElementById('campaignResult');
-
-        createBtn.addEventListener('click', async () => {
-            createBtn.disabled = true;
-            btnText.classList.add('hidden');
-            btnLoading.classList.remove('hidden');
-            campaignResult.classList.add('hidden');
-
-            await fetchSuggestions();
-            const campaignId = await createCampaign();
-
-            if (campaignId) {
-                campaignResult.innerHTML = `${t('ad_assistant_campaign_created')} <span class="text-cyan-400 font-mono">${campaignId}</span>`;
-            } else {
-                campaignResult.innerHTML = t('ad_assistant_campaign_pending');
-            }
-            campaignResult.classList.remove('hidden');
-
-            createBtn.disabled = false;
-            btnText.classList.remove('hidden');
-            btnLoading.classList.add('hidden');
-        });
-
-        // ==================== CHAT AI ====================
-        const chatToggle = document.getElementById('chatToggle');
-        const chatWindow = document.getElementById('chatWindow');
-        const closeChat = document.getElementById('closeChat');
-        const sendChat = document.getElementById('sendChat');
-        const chatInput = document.getElementById('chatInput');
-        const chatMessages = document.getElementById('chatMessages');
-
-        chatToggle.addEventListener('click', () => chatWindow.classList.toggle('open'));
-        closeChat.addEventListener('click', () => chatWindow.classList.remove('open'));
-
-        function addMessage(text, isUser) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-            msgDiv.innerText = text;
-            chatMessages.appendChild(msgDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function parseMessage(msg) {
-            const lower = msg.toLowerCase();
-            let productName = t('ad_assistant_default_product_name');
-            let budgetVal = 3000000;
-            let platformVal = "facebook";
-            const productMatch = msg.match(/bán\s+([a-zA-ZÀ-ỹ\s]+?)(?:\s+\d+\s*tr|trên|\s+với|\s+giá)/i);
-            if (productMatch) productName = productMatch[1].trim();
-            const moneyMatch = msg.match(/(\d+)\s*tr/i);
-            if (moneyMatch) budgetVal = parseInt(moneyMatch[1]) * 1000000;
-            if (lower.includes("tiktok")) platformVal = "tiktok";
-            else if (lower.includes("facebook") || lower.includes("fb")) platformVal = "facebook";
-            else if (lower.includes("google")) platformVal = "google";
-            return { productName, budgetVal, platformVal };
-        }
-
-        function autoFillFormAndFetch(productName, budgetVal, platformVal) {
-            document.getElementById('productName').value = productName;
-            document.getElementById('budget').value = budgetVal;
-            document.getElementById('platform').value = platformVal;
-            updateChart(budgetVal);
-            fetchSuggestions();
-        }
-
-        sendChat.addEventListener('click', async () => {
-            const userMsg = chatInput.value.trim();
-            if (!userMsg) return;
-            addMessage(userMsg, true);
-            chatInput.value = '';
-            addMessage(t('ad_assistant_chat_analyzing'), false);
-            const { productName, budgetVal, platformVal } = parseMessage(userMsg);
-            autoFillFormAndFetch(productName, budgetVal, platformVal);
-            setTimeout(() => {
-                if (chatMessages.lastChild) chatMessages.removeChild(chatMessages.lastChild);
-                addMessage(tf('ad_assistant_chat_filled', { name: productName, platform: platformVal, budget: budgetVal.toLocaleString() }), false);
-            }, 2500);
-        });
-        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat.click(); });
+        document.getElementById('suggestBtn').addEventListener('click', fetchSuggestions);
+        createBtn.addEventListener('click', createCampaign);
 
         // ==================== TAB SWITCHING ====================
         document.querySelectorAll('.tab-button').forEach(btn => {
@@ -944,69 +932,104 @@
         });
 
         // ==================== FORM THAY ĐỔI ====================
-        const budgetInput = document.getElementById('budget');
-        const productInput = document.getElementById('productName');
-        const platformSelect = document.getElementById('platform');
-        budgetInput.addEventListener('input', () => updateChart(parseFloat(budgetInput.value) || 0));
-        productInput.addEventListener('input', () => {}); // placeholder
+        budgetInput.addEventListener('input', () => { updateChart(currentBudget()); updateDailyNote(); });
         platformSelect.addEventListener('change', () => {
-            const headlines = document.querySelectorAll('#abContentContainer h4');
-            const descs = document.querySelectorAll('#abContentContainer p.text-gray-300');
-            if (headlines.length > 0) {
-                updateLivePreview(platformSelect.value, headlines[0].innerText, descs[0].innerText);
+            if (lastSuggestions) {
+                const a = suggestionCards(lastSuggestions)[0];
+                updateLivePreview(platformSelect.value, a.headline, a.desc);
             }
+            updateChart(currentBudget());
+            refreshCreateState();
         });
 
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
-        // ==================== TRẠNG THÁI KẾT NỐI FACEBOOK (banner "kết nối lại") ====================
+        // ==================== TRẠNG THÁI KẾT NỐI FACEBOOK (thật, từ /api/facebook-status) ====================
         const fbStatusBanner = document.getElementById('fbStatusBanner');
+        const fbStatusBannerText = document.getElementById('fbStatusBannerText');
         const fbStatusReconnectBtn = document.getElementById('fbStatusReconnectBtn');
+        let fbStatusLoaded = false;
+
+        function renderFbBanner() {
+            if (!fbStatusLoaded) return;
+            const s = fbState;
+            const base = 'mb-6 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 border ';
+            if (s.connected && s.status !== 'expired') {
+                fbStatusBanner.className = base + 'border-emerald-500/40 bg-emerald-500/10';
+                fbStatusBannerText.parentElement.className = 'flex items-center gap-2 text-sm text-emerald-300 min-w-0';
+                fbStatusBannerText.textContent = tf('ad_assistant_fb_connected', { account: s.ad_account_id || '' });
+                fbStatusReconnectBtn.textContent = t('ad_assistant_fb_reconnect_btn');
+            } else if (s.connected) {
+                fbStatusBanner.className = base + 'border-red-500/50 bg-red-500/10';
+                fbStatusBannerText.parentElement.className = 'flex items-center gap-2 text-sm text-red-300 min-w-0';
+                fbStatusBannerText.textContent = t('ad_assistant_fb_token_expired');
+                fbStatusReconnectBtn.textContent = t('ad_assistant_fb_reconnect_btn');
+            } else {
+                fbStatusBanner.className = base + 'border-amber-500/40 bg-amber-500/10';
+                fbStatusBannerText.parentElement.className = 'flex items-center gap-2 text-sm text-amber-300 min-w-0';
+                fbStatusBannerText.textContent = t('ad_assistant_fb_not_connected');
+                fbStatusReconnectBtn.textContent = t('ad_assistant_fb_connect_btn');
+            }
+            // Nút: đỏ khi hết hạn, xanh khi chưa kết nối, trung tính khi đã kết nối
+            const btnTone = (s.connected && s.status !== 'expired') ? 'bg-white/10 hover:bg-white/20'
+                : (s.connected ? 'bg-red-500/80 hover:bg-red-500' : 'bg-cyan-600/80 hover:bg-cyan-500');
+            fbStatusReconnectBtn.className = 'shrink-0 text-white text-xs font-bold px-3 py-1.5 rounded-lg ' + btnTone + (s.can_manage ? '' : ' hidden');
+        }
 
         async function checkFacebookStatus() {
             try {
                 const response = await fetch('/ad-assistant/api/facebook-status');
                 const data = await response.json();
-                if (data.success && data.connected && data.status === 'expired') {
-                    fbStatusBanner.classList.remove('hidden');
-                } else {
-                    fbStatusBanner.classList.add('hidden');
-                }
+                if (!data.success) return;
+                fbState = data;
+                fbStatusLoaded = true;
+                renderFbBanner();
+                refreshCreateState();
             } catch (err) {
                 // Lỗi mạng khi check trạng thái không nên chặn phần còn lại của trang.
             }
         }
 
         fbStatusReconnectBtn.addEventListener('click', async () => {
-            const accessToken = prompt(currentLang === 'vi' ? 'Dán System User Access Token của Facebook:' : 'Paste your Facebook System User Access Token:');
+            const accessToken = prompt(t('ad_assistant_prompt_token'));
             if (!accessToken) return;
-            const adAccountId = prompt(currentLang === 'vi' ? 'Ad Account ID (VD: act_1234567890):' : 'Ad Account ID (e.g. act_1234567890):');
+            const adAccountId = prompt(t('ad_assistant_prompt_account'));
             if (!adAccountId) return;
-            const pageId = prompt(currentLang === 'vi' ? 'Page ID (tuỳ chọn, để trống nếu không có):' : 'Page ID (optional, leave blank if none):') || '';
+            const pageId = prompt(t('ad_assistant_prompt_page')) || '';
+            showLoading(true);
             try {
                 const response = await fetch('/ad-assistant/api/connect-facebook', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: accessToken, ad_account_id: adAccountId, page_id: pageId })
+                    body: JSON.stringify({ access_token: accessToken.trim(), ad_account_id: adAccountId.trim(), page_id: pageId.trim() })
                 });
+                if (response.status === 429) { showToast(t('ad_assistant_rate_limited'), true); return; }
                 const data = await response.json();
                 if (data.success) {
-                    showToast(t('ad_assistant_fb_reconnected'));
+                    showToast(t('ad_assistant_fb_reconnected') + (data.account_name ? ' (' + data.account_name + ')' : ''));
+                    // Biết tiền tệ thật của tài khoản quảng cáo -> ô ngân sách nhập theo đúng tiền đó
+                    if (data.account_currency && String(data.account_currency).toUpperCase() !== budgetCurrency) {
+                        setBudgetCurrency(data.account_currency);
+                        budgetInput.value = '';
+                        updateDailyNote();
+                        updateChart(0);
+                    }
                     checkFacebookStatus();
                 } else {
-                    showToast(t('ad_assistant_error_prefix') + (data.error || ''), true);
+                    showToast(t('ad_assistant_error_prefix') + (data.error || data.message || ''), true);
                 }
             } catch (err) {
                 showToast(t('ad_assistant_connection_error'), true);
+            } finally {
+                showLoading(false);
             }
         });
 
         // ==================== KHỞI TẠO ====================
-        updateChart(Number(document.getElementById('budget').value) || 0);
-        document.getElementById('platform').addEventListener('change', () => updateChart(Number(document.getElementById('budget').value) || 0));
-        // KHÔNG tự lấy gợi ý lúc mở trang: ô sản phẩm còn trống -> trước đây bật ngay lỗi "hãy nhập tên sản phẩm"
-        if (document.getElementById('productName').value.trim()) fetchSuggestions();
+        updateChart(currentBudget());
+        updateDailyNote();
+        refreshCreateState();
         checkFacebookStatus();
 
     </script>

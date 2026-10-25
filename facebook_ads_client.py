@@ -8,11 +8,33 @@ Mọi hàm ở đây nhận access_token/ad_account_id đã giải mã từ ad_p
 — không tự quản lý token, không cache token, giữ module này thuần "gọi API".
 """
 import json
+import os
 
 import requests
 
 GRAPH_API_VERSION = 'v21.0'
-GRAPH_BASE = f'https://graph.facebook.com/{GRAPH_API_VERSION}'
+# Base URL đổi được qua env (FB_ADS_API_BASE) để test e2e bằng mock server local — không bao giờ phải gọi Meta thật khi test.
+GRAPH_BASE = f"{os.environ.get('FB_ADS_API_BASE', 'https://graph.facebook.com').rstrip('/')}/{GRAPH_API_VERSION}"
+
+# Meta tính ngân sách theo "đơn vị nhỏ nhất" của tiền tệ TÀI KHOẢN QUẢNG CÁO: USD/AUD... x100 (cent), còn
+# VND/JPY/KRW... không có đơn vị lẻ -> x1 (offset=1). Trước đây luôn x100 -> tiệm VND nhập 100.000đ thành
+# 10.000.000đ/ngày. Danh sách theo bảng "Currencies" của Marketing API (developers.facebook.com/docs/marketing-api/currencies).
+ZERO_DECIMAL_CURRENCIES = frozenset({'CLP', 'COP', 'CRC', 'HUF', 'ISK', 'IDR', 'JPY', 'KRW', 'PYG', 'TWD', 'VND'})
+
+
+def currency_offset(currency):
+    return 1 if (currency or '').strip().upper() in ZERO_DECIMAL_CURRENCIES else 100
+
+
+def to_minor_units(amount, currency):
+    """Số tiền (đơn vị chính, vd 12.5 USD / 150000 VND) -> số nguyên đơn vị nhỏ nhất Meta yêu cầu."""
+    return int(round(float(amount) * currency_offset(currency)))
+
+
+def normalize_ad_account_id(ad_account_id):
+    """Graph API cần dạng 'act_<số>' — chủ tiệm hay dán thiếu tiền tố 'act_'."""
+    s = str(ad_account_id or '').strip()
+    return f'act_{s}' if s.isdigit() else s
 
 # Mã "Go-Live Pentest" audit — mã lỗi Facebook OAuth chuẩn cho "token hết hạn/không hợp lệ"
 # (https://developers.facebook.com/docs/graph-api/guides/error-handling). Bắt riêng ra để caller
@@ -63,6 +85,17 @@ def _fb_get(path, access_token, timeout=20, **params):
     return _raise_for_fb_response(path, resp)
 
 
+def verify_token(access_token):
+    """GET /me — xác nhận token còn sống TRƯỚC khi lưu (trước đây lưu mù, chủ tiệm chỉ biết token sai lúc tạo
+    chiến dịch). Token hỏng -> FacebookTokenExpiredError; lỗi khác -> RuntimeError."""
+    return _fb_get('me', access_token, fields='id,name')
+
+
+def get_ad_account(access_token, ad_account_id):
+    """Tiền tệ + trạng thái THẬT của tài khoản quảng cáo — ngân sách phải đổi theo đúng tiền tệ này."""
+    return _fb_get(normalize_ad_account_id(ad_account_id), access_token, fields='id,name,currency,account_status')
+
+
 def create_campaign(access_token, ad_account_id, name, objective, status='PAUSED'):
     """objective vd: 'OUTCOME_TRAFFIC', 'OUTCOME_ENGAGEMENT', 'OUTCOME_LEADS', 'OUTCOME_SALES'.
     status mặc định PAUSED — KHÔNG tự động chạy tiêu tiền thật ngay khi vừa tạo, chủ tiệm phải
@@ -74,17 +107,21 @@ def create_campaign(access_token, ad_account_id, name, objective, status='PAUSED
     )['id']
 
 
-def create_ad_set(access_token, ad_account_id, campaign_id, name, daily_budget_cents,
-                   billing_event='IMPRESSIONS', optimization_goal='REACH', targeting=None, status='PAUSED'):
-    """daily_budget_cents: đơn vị NHỎ NHẤT của tiền tệ tài khoản quảng cáo (vd AUD -> cents),
-    KHÔNG phải đơn vị chính — Facebook API luôn yêu cầu số nguyên ở đơn vị nhỏ nhất này."""
-    targeting = targeting or {'geo_locations': {'countries': ['AU']}, 'age_min': 18, 'age_max': 65}
-    return _fb_post(
-        f'{ad_account_id}/adsets', access_token,
-        name=name, campaign_id=campaign_id, daily_budget=int(daily_budget_cents),
+def create_ad_set(access_token, ad_account_id, campaign_id, name, daily_budget_minor, targeting,
+                   billing_event='IMPRESSIONS', optimization_goal='REACH', status='PAUSED', end_time=None):
+    """daily_budget_minor: đơn vị NHỎ NHẤT của tiền tệ tài khoản quảng cáo (xem to_minor_units — USD x100,
+    VND x1). targeting BẮT BUỘC có quốc gia: trước đây mặc định cứng nước Úc (AU) nên tiệm Việt/Mỹ chạy quảng
+    cáo cho người Úc. end_time (ISO 8601): ngày dừng — ngân sách/ngày x số ngày không vượt tổng chủ tiệm nhập."""
+    if not targeting or not (targeting.get('geo_locations') or {}).get('countries'):
+        raise ValueError("targeting phải có geo_locations.countries (quốc gia của tiệm).")
+    params = dict(
+        name=name, campaign_id=campaign_id, daily_budget=int(daily_budget_minor),
         billing_event=billing_event, optimization_goal=optimization_goal,
         targeting=json.dumps(targeting), status=status,
-    )['id']
+    )
+    if end_time:
+        params['end_time'] = end_time
+    return _fb_post(f'{ad_account_id}/adsets', access_token, **params)['id']
 
 
 def upload_ad_image(access_token, ad_account_id, image_url):
@@ -135,15 +172,19 @@ def create_ad(access_token, ad_account_id, name, ad_set_id, creative_id, status=
     )['id']
 
 
-def launch_campaign(access_token, ad_account_id, page_id, name, objective, daily_budget_cents,
-                     message, link, image_url=None):
+def launch_campaign(access_token, ad_account_id, page_id, name, objective, daily_budget_minor,
+                     message, link, image_url=None, targeting=None, end_time=None):
     """Orchestrator: tạo đủ bộ Campaign -> Ad Set -> (upload ảnh nếu có) -> Ad Creative -> Ad,
     ĐÚNG yêu cầu 'tạo Ad Campaign, Ad Set, Ad Creative' — tất cả ở status=PAUSED, chủ tiệm tự
     bật chạy thật sau khi xem lại. Nếu 1 bước giữa chừng lỗi, ném RuntimeError kèm thông tin đã
     tạo được tới đâu (route gọi hàm này chịu trách nhiệm quyết định có dọn rác trên Facebook hay
     không — Facebook không có "transaction" xuyên nhiều object như MongoDB)."""
+    # Kiểm tra targeting TRƯỚC khi tạo campaign — tránh để lại campaign rác trên Facebook khi ad set chắc chắn lỗi
+    if not targeting or not (targeting.get('geo_locations') or {}).get('countries'):
+        raise ValueError("targeting phải có geo_locations.countries (quốc gia của tiệm).")
     campaign_id = create_campaign(access_token, ad_account_id, name, objective)
-    ad_set_id = create_ad_set(access_token, ad_account_id, campaign_id, f"{name} - Ad Set", daily_budget_cents)
+    ad_set_id = create_ad_set(access_token, ad_account_id, campaign_id, f"{name} - Ad Set", daily_budget_minor,
+                              targeting, end_time=end_time)
 
     image_hash = None
     if image_url:
