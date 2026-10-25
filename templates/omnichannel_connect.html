@@ -96,7 +96,6 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
             <div class="flex items-center gap-3">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl text-xs font-bold transition">EN</button>
-                <span class="text-xs bg-[#0a192f] text-cyan-400 px-4 py-2 rounded-xl border border-cyan-500/30 font-bold"><i class="fas fa-shield-alt mr-1"></i> SSL 256-bit Secured</span>
             </div>
         </div>
 
@@ -123,7 +122,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </div>
                     <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg"><i class="fas fa-network-wired"></i></div>
                 </div>
-                <div class="text-[9px] text-cyan-400 mt-2 font-bold flex items-center gap-1">Zalo, FB, WebForm</div>
+                <div class="text-[9px] text-cyan-400 mt-2 font-bold flex items-center gap-1">{{ 'Zalo, FB, WebForm' if (tenant_currency or 'VND') == 'VND' else 'Messenger, website chat, SMS' }}</div>
             </div>
 
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500 relative overflow-hidden group shadow-lg">
@@ -166,7 +165,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <i class="fab fa-facebook-messenger"></i>
                     </div>
                     <span class="text-white font-bold text-xs mt-2 block" data-i18n="omni_node1_title">1. Nhận Inbox Đa Kênh</span>
-                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">Facebook / Zalo / WhatsApp</p>
+                    <p class="text-[9px] text-gray-500 mt-0.5 leading-relaxed">{{ 'Facebook / Zalo / WhatsApp' if (tenant_currency or 'VND') == 'VND' else 'Facebook / WhatsApp / SMS' }}</p>
                 </div>
                 
                 <div class="hidden md:block w-1/12 text-center text-cyan-500/30 shrink-0">
@@ -280,6 +279,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 </div>
             </div>
 
+            {% if (tenant_currency or 'VND') == 'VND' %}{# Zalo OA chỉ có ở Việt Nam — tiệm Mỹ/Úc không hiện thẻ này #}
             <!-- Zalo OA Card -->
             <div id="card-zalo_oa" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
                 <div class="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-bl-full"></div>
@@ -313,6 +313,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <button onclick="connectPlatformDirect('zalo_oa')" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition shadow-lg glow-btn-cyan" data-i18n="omni_card_zalo_btn">Kết nối Zalo OA</button>
                 </div>
             </div>
+            {% endif %}
 
             <!-- WhatsApp Business Card -->
             <div id="card-whatsapp" class="glass-card p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden border border-white/5">
@@ -997,7 +998,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         const totalSyncedEl = document.getElementById("stat-total-synced");
                         const connectedChannelsEl = document.getElementById("stat-connected-channels");
                         if (connectedChannelsEl) {
-                            connectedChannelsEl.innerText = `${connectedCount} / 6`;
+                            connectedChannelsEl.innerText = `${connectedCount} / ${document.querySelectorAll('[id^="card-"]').length || 6}`;   // số kênh có trên trang (tiệm ngoài VN không có Zalo)
                         }
                         // khách đồng bộ THẬT = tổng lead các kênh (trước: số cứng 10,480)
                         if (totalSyncedEl) {

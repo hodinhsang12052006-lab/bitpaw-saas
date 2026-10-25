@@ -11,7 +11,7 @@ for (const pg of PAGES) {
   const errs = []; const reqs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('request', (r) => reqs.push(r.url()));
-  await p.goto('http://127.0.0.1:5001' + (pg === 'landing' ? '/landing' : `/solutions/${pg}`), { waitUntil: 'load' });
+  await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + (pg === 'landing' ? '/landing' : `/solutions/${pg}`), { waitUntil: 'load' });
   await p.waitForTimeout(1200);
   const st = await p.evaluate(() => ({
     canvasPainted: (() => { const c = document.getElementById('bg-canvas'); if (!c) return -1; try { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; } catch (e) { return 'ctx:' + e.message; } })(),
@@ -41,16 +41,16 @@ for (const pg of PAGES) {
 }
 // ngôn ngữ: chọn VN ở trang Spa -> sang F&B, Hotel, Nails vẫn VN; chọn EN ở Nails -> sang Spa ra EN
 const p = await ctx.newPage();
-await p.goto('http://127.0.0.1:5001/solutions/spa', { waitUntil: 'load' });
+await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + '/solutions/spa', { waitUntil: 'load' });
 await p.evaluate(() => changeLanguage('vi')); await p.waitForTimeout(300);
 for (const pg of ['fnb', 'hotel', 'nail', 'technical']) {
-  await p.goto('http://127.0.0.1:5001/solutions/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(600);
+  await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + '/solutions/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(600);
   const h1 = await p.evaluate(() => document.querySelector('h1').innerText.replace(/\s+/g, ' ').slice(0, 50));
   ok(/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(h1), `đã chọn VN -> ${pg} hiện tiếng Việt: "${h1}"`);
 }
 await p.evaluate(() => changeLanguage('en')); await p.waitForTimeout(300);
 for (const pg of ['spa', 'karaoke', 'production']) {
-  await p.goto('http://127.0.0.1:5001/solutions/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(600);
+  await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + '/solutions/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(600);
   const h1 = await p.evaluate(() => document.querySelector('h1').innerText.replace(/\s+/g, ' ').slice(0, 50));
   const foot = await p.evaluate(() => [...document.querySelectorAll('.bf-en')].some((e) => e.offsetParent));
   ok(!/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(h1) && foot, `đã chọn EN -> ${pg} hiện tiếng Anh (cả chân trang): "${h1}"`);

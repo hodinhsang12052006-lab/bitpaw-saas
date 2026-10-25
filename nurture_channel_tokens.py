@@ -62,6 +62,15 @@ def get_channel_token(business_id, platform):
         return None
     doc = db.nurture_channel_tokens.find_one({'business_id': business_id, 'platform': platform})
     if not doc:
+        # Chưa nối riêng cho chiến dịch -> dùng chính kênh đã nối ở Hộp thư chung (cùng Zalo OA / Fanpage)
+        inbox_ch = {'zalo_oa': 'zalo', 'facebook': 'messenger'}.get(platform)
+        if inbox_ch:
+            import inbox_channels
+            conn = inbox_channels.get_connection(business_id, inbox_ch)
+            token = (inbox_channels._zalo_token(conn) if inbox_ch == 'zalo' else decrypt_secret(conn.get('access_token_enc'))) if conn else None
+            if token:
+                return {'business_id': business_id, 'platform': platform, 'access_token': token,
+                        'account_name': conn.get('account_name'), 'external_id': conn.get('external_id'), 'source': 'inbox'}
         return None
     try:
         access_token = _fernet.decrypt(doc['access_token_enc'].encode()).decode()
@@ -70,3 +79,19 @@ def get_channel_token(business_id, platform):
     result = {k: v for k, v in doc.items() if k not in ('_id', 'access_token_enc')}
     result['access_token'] = access_token
     return result
+
+
+def encrypt_secret(value):
+    """Mã hoá 1 bí mật bất kỳ (token/app secret của kênh Hộp thư chung — inbox_channels.py) bằng CÙNG khoá Fernet."""
+    if _fernet is None:
+        raise RuntimeError("Server chưa cấu hình khoá mã hoá — không thể lưu bí mật an toàn.")
+    return _fernet.encrypt(str(value).encode()).decode()
+
+
+def decrypt_secret(token):
+    if _fernet is None or not token:
+        return None
+    try:
+        return _fernet.decrypt(token.encode()).decode()
+    except Exception:
+        return None

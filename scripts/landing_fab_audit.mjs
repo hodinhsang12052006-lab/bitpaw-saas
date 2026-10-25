@@ -6,7 +6,7 @@ const b = await chromium.launch({ channel: 'chrome' });
 const ctx = await b.newContext(iphone); const p = await ctx.newPage();
 let bad = 0; const ok = (c, m) => { if (!c) bad++; console.log((c ? '✅ ' : '❌ ') + m); };
 for (const pg of ['landing', 'solutions/nail', 'solutions/hotel']) {
-  await p.goto('http://127.0.0.1:5001/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(1200);
+  await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + '/' + pg, { waitUntil: 'load' }); await p.waitForTimeout(1200);
   const covered = await p.evaluate(() => { const f = document.querySelector('.bp-fab'); const s = getComputedStyle(f); return s.opacity > 0.5 && s.pointerEvents !== 'none'; });
   ok(!covered, `${pg}: màn hình đầu không có nút nổi che nút chính`);
   await p.mouse.wheel(0, 1500); await p.waitForTimeout(150);

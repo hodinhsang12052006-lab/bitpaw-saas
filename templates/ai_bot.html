@@ -303,6 +303,21 @@
         /* Điện thoại: 2 cột cố định w-1/4 + w-3/4 trước đây bị ép vào 390px — danh sách khách còn
            ~60px, bong bóng chat mỗi dòng 1 chữ, nút Manual/AI + gợi ý bị đẩy ra ngoài mép màn hình.
            Xếp chồng: danh sách khách ở trên (giới hạn chiều cao), khung chat full-width bên dưới. */
+        /* Hộp thư chung: dấu kênh (Messenger/Zalo/WhatsApp/Viber/SMS/Website) */
+        .ch-dot { position: absolute; right: -4px; bottom: -4px; width: 19px; height: 19px; border-radius: 999px; display: flex;
+                  align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; border: 2px solid #0b1026; }
+        .ch-chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; font-weight: 700;
+                   padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: #cbd5e1;
+                   background: rgba(0,0,0,.35); cursor: pointer; transition: background .15s, border-color .15s; }
+        .ch-chip:hover { background: rgba(255,255,255,.07); }
+        .ch-chip[aria-pressed="true"] { background: rgba(6,182,212,.16); border-color: rgba(6,182,212,.55); color: #fff; }
+        .ch-chip .ch-ic { width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+                          font-size: 10px; font-weight: 900; color: #fff; }
+        .ch-chip .ch-n { font-size: 11px; color: #94a3b8; font-weight: 800; }
+        .ch-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #e2e8f0;
+                   padding: 2px 9px 2px 3px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); }
+        .ch-pill .ch-ic { width: 17px; height: 17px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+                          font-size: 9.5px; font-weight: 900; color: #fff; }
         @media (max-width: 767px) {
             #copilotLayout { flex-direction: column; overflow-y: auto; gap: 12px; }
             #copilotListCol, #copilotChatCol { width: 100%; flex-shrink: 0; }
@@ -346,9 +361,9 @@
                 </p>
             </div>
             <div class="hidden md:flex gap-3">
-                <a href="/ai/connect-platforms"
+                <a href="/inbox/channels"
                     class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/50 px-5 py-2.5 rounded-xl transition-all font-black text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                    <i class="fas fa-network-wired"></i> Connect Support Channels
+                    <i class="fas fa-network-wired"></i> <span data-cp="connectChannels">Connect channels</span>
                 </a>
                 <a href="/ai/customer-nurturing"
                     class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
@@ -367,6 +382,7 @@
                         <input type="text" id="searchInput" placeholder="Search customers..."
                             class="glass-input icon-input-pl pl-10 py-3 text-sm rounded-2xl bg-black/50">
                     </div>
+                    <div id="channelChips" class="flex flex-wrap gap-1.5" role="toolbar" aria-label="Channels"></div>
 
                     <!-- Nurturing segment selectors -->
                     <div>
@@ -374,7 +390,7 @@
                             Segments</label>
                         <select id="nurtureFilter" onchange="applyNurtureFilter()"
                             class="glass-input w-full py-2 px-3 text-xs bg-black/60 cursor-pointer rounded-xl border border-white/10 text-cyan-400 font-semibold focus:border-cyan-500">
-                            <option value="ALL">Multi-channel Inbox (All)</option>
+                            <option value="ALL">All conversations</option>
                             <option value="NEW">🆕 New Customers</option>
                             <option value="HOT">Hot Leads (Potential > 80%)</option>
                             <option value="NEEDS_CARE">Needs Follow-up</option>
@@ -383,8 +399,8 @@
                         </select>
                     </div>
 
-                    <!-- Demo Mode toggle switch -->
-                    <div class="flex items-center justify-between px-1">
+                    <!-- Demo Mode toggle switch — chỉ tài khoản demo / super admin (công cụ trình diễn của đội bán hàng BitPaw) -->
+                    <div class="flex items-center justify-between px-1" {% if not sales_demo %}hidden{% endif %}>
                         <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Display
                             Mode</span>
                         <div class="flex items-center gap-2">
@@ -420,8 +436,7 @@
                         </div>
                         <div>
                             <h3 id="chatCustomerName" class="font-bold text-white text-sm">No customer selected</h3>
-                            <p class="text-[10px] text-cyan-400 tracking-wider flex items-center gap-1"><span
-                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active</p>
+                            <p id="chatChannelLine" class="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5"></p>
                         </div>
                     </div>
 
@@ -509,6 +524,10 @@
                     </form>
                 </div>
 
+                <div id="channelWarn" style="font-size:12.5px" class="hidden shrink-0 px-5 py-2.5 font-semibold bg-amber-500/10 border-t border-amber-400/30 text-amber-200 flex items-center gap-2">
+                    <i class="fas fa-plug-circle-exclamation"></i><span id="channelWarnText" class="flex-1"></span>
+                    <a href="/inbox/channels" class="underline text-amber-100 whitespace-nowrap" data-cp="connectNow">Connect</a>
+                </div>
                 <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
                     <form id="aiForm" class="flex items-center gap-3 relative" onsubmit="handleUserSubmit(event)">
                         <input type="text" id="userInput" placeholder="Message the customer..." autocomplete="off"
@@ -550,6 +569,7 @@
         let allCustomers = [];
         let isMockMode = false;
         let isDemoMode = false;
+        const SALES_DEMO = {{ 'true' if sales_demo else 'false' }};   // chủ tiệm thật không thấy "Sales Demo Tools"
 
         // Bumped every time ANY chat gets (re)loaded — startLiveDemo()'s multi-second delayed
         // steps check this before touching the DOM, so switching to a real customer mid-animation
@@ -563,6 +583,7 @@
         // list and the empty-state view) so a salesperson can fire off a live AI-response demo
         // in front of a client at any time, regardless of whether this tenant has real customers.
         function renderLiveDemoTriggers() {
+            if (!SALES_DEMO) return '';
             return `
                 <div class="px-1 pt-1 pb-2">
                     <p class="text-[9px] text-emerald-400/80 font-black uppercase tracking-widest mb-2 px-2">Sales Demo Tools</p>
@@ -675,12 +696,20 @@
                   panelTitle: 'BitPaw Copilot · chỉ bạn thấy, khách không thấy', askPlaceholder: 'Hỏi về tiệm của bạn...',
                   thinking: 'Copilot đang đọc số liệu của tiệm...', drafting: 'Copilot đang soạn câu trả lời...',
                   aiOn: 'AI tự trả lời khách này', aiOff: 'Bạn đang trả lời khách này — AI đã dừng', pickFirst: 'Chọn 1 khách ở danh sách bên trái trước',
-                  failed: 'Copilot đang bận, thử lại sau ít giây.' },
+                  failed: 'Copilot đang bận, thử lại sau ít giây.',
+                  connectChannels: 'Nối kênh nhắn tin', connectNow: 'Nối kênh', all: 'Tất cả', via: 'qua',
+                  replyOn: 'Trả lời qua {ch}...', replyWeb: 'Nhắn cho khách...', sent: 'Đã gửi', sending: 'Đang gửi',
+                  notSent: 'Chưa gửi được', notConnected: '{ch} chưa được nối — tin trả lời chỉ lưu ở đây, khách chưa nhận được.',
+                  failedSend: 'Chưa gửi được tới khách: ', noMatch: 'Không có hội thoại nào khớp' },
             en: { draftLabel: 'Copilot suggested reply:', useDraft: 'Use & edit', privateHint: 'Ask Copilot (private):',
                   panelTitle: 'BitPaw Copilot · only you can see this', askPlaceholder: 'Ask about your business...',
                   thinking: 'Copilot is reading your shop data...', drafting: 'Copilot is drafting a reply...',
                   aiOn: 'AI is answering this customer', aiOff: 'You are handling this customer — AI paused', pickFirst: 'Select a customer on the left first',
-                  failed: 'Copilot is busy, try again in a few seconds.' },
+                  failed: 'Copilot is busy, try again in a few seconds.',
+                  connectChannels: 'Connect channels', connectNow: 'Connect', all: 'All', via: 'via',
+                  replyOn: 'Reply on {ch}...', replyWeb: 'Message the customer...', sent: 'Sent', sending: 'Sending',
+                  notSent: 'Not delivered', notConnected: '{ch} is not connected — replies are saved here but the customer will not get them.',
+                  failedSend: 'Not delivered to the customer: ', noMatch: 'No conversations match' },
         };
         const cpt = (k) => (CP_TEXT[cpLang()] || CP_TEXT.en)[k];
         function applyCopilotLabels() {
@@ -814,7 +843,7 @@
                         <i class="fas fa-users-slash text-lg"></i>
                     </div>
                     <h4 class="text-xs font-black text-white uppercase tracking-wider">No Customers Yet</h4>
-                    <p class="text-[10px] text-gray-500 mt-1 max-w-[180px] leading-relaxed">Connect Zalo/Facebook or capture leads from your landing page.</p>
+                    <p class="text-[11px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">{{ 'Connect Zalo/Facebook' if is_vn_shop else 'Connect your website chat, Facebook Messenger or SMS' }}, or capture leads from your booking page.</p>
                 </div>
             `;
 
@@ -832,7 +861,7 @@
                 <div class="flex flex-col items-center justify-center py-20 px-8 text-center bg-black/10 rounded-3xl border border-white/5">
                     <i class="fas fa-comments text-5xl text-cyan-500/20 mb-4 animate-pulse"></i>
                     <h3 class="font-bold text-gray-300 text-sm">Inbox is Empty</h3>
-                    <p class="text-xs text-gray-600 mt-2 max-w-sm">The system is active. When a message arrives from Zalo/Facebook Page, the conversation will appear here instantly.</p>
+                    <p class="text-xs text-gray-600 mt-2 max-w-sm">The system is active. When a message arrives from {{ 'Zalo/Facebook Page' if is_vn_shop else 'your website chat, Messenger or SMS' }}, the conversation will appear here instantly.</p>
                 </div>
             `;
         }
@@ -877,48 +906,91 @@
             } else if (filterValue === 'REMARKETING') {
                 filtered = filtered.filter(c => c.status === 'HIBERNATING' || c.status === 'CHURN_RISK');
             }
+            renderChannelChips();
+            if (currentChannel !== 'all') filtered = filtered.filter(c => chOf(c) === currentChannel);
+            const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+            if (q) filtered = filtered.filter(c => [c.full_name, c.phone, c.last_message].some(v => String(v || '').toLowerCase().includes(q)));
 
             renderCustomerList(filtered);
         }
 
-        function renderCampaignsList() {
-            customerListDiv.innerHTML = `
-                <div class="p-2 space-y-3 shrink-0">
-                    <div class="glass-card p-3 rounded-xl border border-amber-500/20 bg-amber-950/20">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
-                            <span class="text-[8px] text-gray-500 font-bold">SMS + Zalo OA</span>
+        // ====== Hộp thư chung: kênh của từng hội thoại ======
+        const CH = {
+            web: { label: 'Website', icon: 'fa-solid fa-globe', bg: '#0891b2' },
+            messenger: { label: 'Messenger', icon: 'fa-brands fa-facebook-messenger', bg: '#0866ff' },
+            instagram: { label: 'Instagram', icon: 'fa-brands fa-instagram', bg: 'linear-gradient(45deg,#f58529,#dd2a7b,#8134af)' },
+            whatsapp: { label: 'WhatsApp', icon: 'fa-brands fa-whatsapp', bg: '#1fa855' },
+            zalo: { label: 'Zalo', text: 'Z', bg: '#0068ff' },
+            viber: { label: 'Viber', icon: 'fa-brands fa-viber', bg: '#7360f2' },
+            sms: { label: 'SMS', icon: 'fa-solid fa-comment-sms', bg: '#15803d' },
+        };
+        let currentChannel = 'all';
+        let channelStatus = {};
+        const chOf = (c) => (c && CH[c.channel]) ? c.channel : 'web';
+        const chIcon = (ch, cls) => {
+            const m = CH[ch] || CH.web;
+            return `<span class="${cls}" style="background:${m.bg}" aria-hidden="true">${m.text ? m.text : `<i class="${m.icon}"></i>`}</span>`;
+        };
+        async function loadChannelStatus() {
+            try { channelStatus = (await hrApi('/api/inbox/channels')).data || {}; } catch (e) { channelStatus = {}; }
+            renderChannelChips();
+        }
+        function renderChannelChips() {
+            const box = document.getElementById('channelChips');
+            if (!box) return;
+            const counts = {};
+            allCustomers.forEach(c => { const k = chOf(c); counts[k] = (counts[k] || 0) + 1; });
+            const shown = Object.keys(CH).filter(k => counts[k] || (channelStatus[k] && channelStatus[k].connected && k !== 'web'));
+            if (shown.length <= 1 && currentChannel === 'all') { box.innerHTML = ''; box.classList.add('hidden'); return; }
+            box.classList.remove('hidden');
+            const chip = (k, label, n, ic) => `<button type="button" class="ch-chip" data-ch="${k}" aria-pressed="${currentChannel === k}">${ic}${label}<span class="ch-n">${n}</span></button>`;
+            box.innerHTML = chip('all', cpt('all'), allCustomers.length, '')
+                + shown.map(k => chip(k, CH[k].label, counts[k] || 0, chIcon(k, 'ch-ic'))).join('');
+            box.querySelectorAll('.ch-chip').forEach(b => b.addEventListener('click', () => { currentChannel = b.dataset.ch; applyNurtureFilter(); }));
+        }
+        function renderChannelLine(c) {
+            const line = document.getElementById('chatChannelLine');
+            const warn = document.getElementById('channelWarn');
+            if (!c) { line.innerHTML = ''; warn.classList.add('hidden'); userInput.placeholder = cpt('replyWeb'); return; }
+            const k = chOf(c), m = CH[k];
+            line.innerHTML = `<span class="ch-pill">${chIcon(k, 'ch-ic')}${escapeHtml(cpt('via'))} ${m.label}</span>`
+                + (c.phone ? `<span class="text-gray-400">${escapeHtml(c.phone)}</span>` : '');
+            userInput.placeholder = k === 'web' ? cpt('replyWeb') : cpt('replyOn').replace('{ch}', m.label);
+            const st = channelStatus[k];
+            const down = k !== 'web' && !String(c.id || '').startsWith('mock-') && st && !st.connected;
+            warn.classList.toggle('hidden', !down);
+            if (down) document.getElementById('channelWarnText').textContent = cpt('notConnected').replace('{ch}', m.label);
+        }
+        document.getElementById('searchInput').addEventListener('input', () => applyNurtureFilter());
+
+        // Chiến dịch THẬT của tiệm (db.nurturing_campaigns). Trước đây 3 chiến dịch bịa cố định ("Sent 62/90"...) cho mọi tiệm.
+        async function renderCampaignsList() {
+            customerListDiv.innerHTML = '<div class="text-center text-cyan-400 py-10"><i class="fas fa-circle-notch fa-spin text-2xl"></i></div>';
+            let rows = [];
+            try { const r = await fetch('/api/ai/campaigns/summary'); const j = await r.json(); rows = j.data || []; } catch (e) { rows = []; }
+            const esc = (v) => (window.__escHtml ? window.__escHtml(v) : String(v == null ? '' : v));
+            if (!rows.length) {
+                customerListDiv.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-14 px-4 text-center">
+                        <i class="fas fa-bullhorn text-2xl text-gray-500 mb-3"></i>
+                        <h4 class="text-sm font-bold text-white">No campaigns yet</h4>
+                        <p class="text-xs text-gray-400 mt-1 max-w-[220px] leading-relaxed">Create a win-back or follow-up campaign: AI drafts the messages, you approve before anything is sent.</p>
+                        <a href="/campaign_builder" class="mt-4 inline-flex items-center gap-2 text-xs font-bold text-cyan-300 border border-cyan-500/40 rounded-full px-4 py-2 hover:bg-cyan-500/10"><i class="fas fa-plus"></i> Create a campaign</a>
+                    </div>`;
+                return;
+            }
+            customerListDiv.innerHTML = '<div class="p-2 space-y-3 shrink-0">' + rows.map((c) => {
+                const pct = c.total ? Math.round(c.sent * 100 / c.total) : 0;
+                return `<div class="glass-card p-3 rounded-xl border border-white/10">
+                        <div class="flex justify-between items-center mb-1 gap-2">
+                            <span class="text-[11px] ${c.active ? 'text-emerald-300' : 'text-gray-400'} font-bold">${c.active ? 'Active' : 'Paused'}</span>
+                            <span class="text-[11px] text-gray-400">${esc(c.channel)}</span>
                         </div>
-                        <h4 class="text-[11px] font-black text-white">Re-engage: 3-Week Retention Promo</h4>
-                        <p class="text-[9px] text-gray-400 mt-1">Targets customers with no visit in 3+ weeks. Sent: 62/90 automated messages.</p>
-                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full bg-amber-400" style="width: 69%;"></div>
-                        </div>
-                    </div>
-                    <div class="glass-card p-3 rounded-xl border border-cyan-500/20 bg-cyan-950/20">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
-                            <span class="text-[8px] text-gray-500 font-bold">Zalo OA</span>
-                        </div>
-                        <h4 class="text-[11px] font-black text-white">Churn Recovery Campaign</h4>
-                        <p class="text-[9px] text-gray-400 mt-1">Sent: 120/150 automated messages.</p>
-                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full bg-cyan-400" style="width: 80%;"></div>
-                        </div>
-                    </div>
-                    <div class="glass-card p-3 rounded-xl border border-purple-500/20 bg-purple-950/20">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase">Active</span>
-                            <span class="text-[8px] text-gray-500 font-bold">Facebook Messenger</span>
-                        </div>
-                        <h4 class="text-[11px] font-black text-white">VIP Loyalty Appreciation</h4>
-                        <p class="text-[9px] text-gray-400 mt-1">Sent: 45/45 automated messages.</p>
-                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full bg-purple-500" style="width: 100%;"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
+                        <h4 class="text-[13px] font-bold text-white">${esc(c.name)}</h4>
+                        <p class="text-[11px] text-gray-400 mt-1">Sent ${c.sent} of ${c.total} · ${c.pending} waiting for approval</p>
+                        <div class="w-full bg-white/10 h-1 rounded-full mt-2 overflow-hidden"><div class="h-full bg-cyan-400" style="width:${pct}%"></div></div>
+                    </div>`;
+            }).join('') + '</div>';
         }
 
         // Đưa bản nháp Copilot vào ô nhập để chủ tiệm SỬA rồi mới gửi (trước đây chèn "[AI Closing] Send special
@@ -993,16 +1065,19 @@
             // hoặc đang bật Demo Mode — tiệm đã có khách thật thì nó chỉ chen lên đầu danh sách khách.
             customerListDiv.innerHTML = (isDemoMode || customers.length === 0) ? renderLiveDemoTriggers() : '';
             if (customers.length === 0) {
-                customerListDiv.insertAdjacentHTML('beforeend', `<p class="text-center text-gray-500 text-xs py-8 font-medium">No customers found</p>`);
+                customerListDiv.insertAdjacentHTML('beforeend', `<p class="text-center text-gray-500 text-xs py-8 font-medium">${escapeHtml(allCustomers.length ? cpt('noMatch') : 'No customers found')}</p>`);
                 return;
             }
 
             customers.forEach(cus => {
                 const item = document.createElement('div');
                 item.className = `customer-item flex items-center gap-3 p-3 rounded-2xl border border-transparent transition-all cursor-pointer ${currentCustomerId === cus.id ? 'active-customer' : 'hover:bg-white/5'}`;
+                const chk = chOf(cus);
+                item.title = CH[chk].label;
                 item.innerHTML = `
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr ${currentCustomerId === cus.id ? 'from-cyan-500 to-purple-600' : 'from-gray-700 to-gray-600'} flex items-center justify-center text-white font-bold shadow-md shrink-0">
-                        ${cus.full_name?.charAt(0) || '?'}
+                    <div class="relative w-10 h-10 rounded-full bg-gradient-to-tr ${currentCustomerId === cus.id ? 'from-cyan-500 to-purple-600' : 'from-gray-700 to-gray-600'} flex items-center justify-center text-white font-bold shadow-md shrink-0">
+                        ${escapeHtml(cus.full_name?.charAt(0) || '?')}
+                        ${chIcon(chk, 'ch-dot')}
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
@@ -1026,6 +1101,7 @@
             chatCustomerName.innerText = customer.full_name || 'Customer';
             if (customer.full_name) chatAvatar.innerText = customer.full_name.charAt(0).toUpperCase(); else chatAvatar.innerHTML = '<i class="fas fa-user text-base"></i>';
 
+            renderChannelLine(customer);
             // Công tắc AI phản ánh đúng trạng thái THẬT của khách này
             renderAiMode(!customer.ai_paused);
             draftForKey = null;
@@ -1063,7 +1139,7 @@
                 } else {
                     data.forEach(msg => {
                         if (msg.sender_type === 'system') appendSystemNote(msg.content, msg.created_at);
-                        else if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type);
+                        else if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type, msg.delivery);
                         else appendAIMessageStatic(msg.content, msg.created_at);
                     });
                 }
@@ -1076,7 +1152,36 @@
             }
         }
 
-        function appendUserMessageStatic(text, time = null, senderType = 'staff') {
+        const CH_ERR_VI = {
+            not_connected: '{ch} chưa được nối — tin đã lưu ở đây nhưng khách chưa nhận được.',
+            window_24h: 'Đã quá 24 giờ kể từ tin cuối của khách — khách cần nhắn lại thì bạn mới trả lời được.',
+            token_invalid: 'Token không hợp lệ hoặc đã hết hạn — hãy nối lại kênh.',
+            token_unreadable: 'Không đọc được token của {ch} — hãy nối lại kênh.',
+            unreachable: 'Không kết nối được tới {ch}, thử lại sau ít phút.',
+            zalo_expired: 'Token Zalo đã hết hạn — nối lại Zalo (thêm refresh token để tự gia hạn).',
+            provider: '{ch} báo lỗi: {detail}',
+            rejected: '{ch} từ chối: {detail}',
+            page_mismatch: 'Token này thuộc Fanpage khác với Page ID bạn nhập.',
+            need_token: 'Hãy dán access token trước.',
+            need_ig_id: 'Cần Instagram account ID.',
+            need_phone_id: 'Cần Phone number ID.',
+            need_app_secret: 'Cần App secret — để BitPaw kiểm tra tin nhắn đúng là do Meta gửi.',
+            need_oa_secret: 'Cần OA secret key — để BitPaw kiểm tra tin nhắn đúng là do Zalo gửi.',
+            viber_webhook: 'Viber chưa nhận địa chỉ webhook: {detail} (Viber cần địa chỉ https công khai — chạy được trên trang thật).',
+        };
+        function errText(d) {
+            if (!d) return '';
+            const tpl = cpLang() === 'vi' && CH_ERR_VI[d.code];
+            if (tpl && (d.detail || !tpl.includes('{detail}'))) return tpl.replace('{ch}', d.ch || '').replace('{detail}', d.detail || '');
+            return d.error || '';
+        }
+        function deliveryMark(d) {
+            if (d && d.status === 'failed') { const e = errText(d); return `<span class="text-rose-300" title="${escapeHtml(e)}"><i class="fas fa-circle-exclamation"></i> ${escapeHtml(cpt('notSent'))}${e ? ': ' + escapeHtml(e) : ''}</span>`; }
+            if (d && d.status === 'sending') return `<i class="far fa-clock text-gray-400" title="${escapeHtml(cpt('sending'))}"></i>`;
+            return `<i class="fas fa-check-double text-cyan-400" title="${escapeHtml(cpt('sent'))}"></i>`;
+        }
+
+        function appendUserMessageStatic(text, time = null, senderType = 'staff', delivery = null) {
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const who = senderType === 'ai'
                 ? '<i class="fas fa-robot text-purple-300"></i> AI'
@@ -1085,7 +1190,7 @@
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-end">
                         <div class="chat-user text-white font-medium">${richText(text)}</div>
-                        <p class="text-[10px] text-gray-500 mt-1.5 mr-2 font-bold">${who} · <i class="fas fa-check-double text-cyan-400"></i> ${timeStr}</p>
+                        <p class="text-[11px] text-gray-500 mt-1.5 mr-2 font-bold text-right">${who} · ${deliveryMark(delivery)} ${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -1180,7 +1285,9 @@
             const btnSend = document.getElementById('btnSend');
             if (btnSend) btnSend.disabled = true;
             try {
-                await hrApi('/api/bot/messages', { method: 'POST', body: JSON.stringify({ customer_id: currentCustomerId, content: text }) });
+                const res = await hrApi('/api/bot/messages', { method: 'POST', body: JSON.stringify({ customer_id: currentCustomerId, content: text }) });
+                if (res && res.delivery && res.delivery.status === 'failed') showToast(cpt('failedSend') + errText(res.delivery), 'error');
+                if (res && res.delivery) loadMessages(currentCustomerId, { silent: true });
                 // Nhân viên đã nhận chat -> server tắt AI cho khách này (tránh khách nhận 2 câu trả lời chồng nhau)
                 renderAiMode(false);
                 const c = allCustomers.find(x => x.id === currentCustomerId);
@@ -1224,6 +1331,7 @@
 
         // Khởi động
         fetchCustomers();
+        loadChannelStatus();
         startBotRealtime();
     </script>
 </body>

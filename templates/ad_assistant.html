@@ -389,8 +389,8 @@
                         <textarea id="productDesc" rows="2" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="Mô tả ngắn về sản phẩm" data-i18n-placeholder="ad_assistant_product_desc_placeholder"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Ngân sách</span> (<span id="budgetCurrencyUnit">{{ 'USD' if tenant_currency == 'USD' else 'VNĐ' }}</span>)</label>
-                        <input type="number" id="budget" value="2000000" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="100000">
+                        <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Ngân sách</span> (<span id="budgetCurrencyUnit">{{ tenant_currency or 'VND' }}</span>)</label>
+                        <input type="number" id="budget" value="{{ 2000000 if (tenant_currency or 'VND') == 'VND' else 500 }}" min="0" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="{{ 100000 if (tenant_currency or 'VND') == 'VND' else 50 }}">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1" data-i18n="ad_assistant_platform_label">Nền tảng</label>
@@ -406,7 +406,7 @@
                             <input type="number" id="ageMin" placeholder="Tuổi min" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="18" data-i18n-placeholder="ad_assistant_age_min_placeholder">
                             <input type="number" id="ageMax" placeholder="Tuổi max" class="w-1/2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="35" data-i18n-placeholder="ad_assistant_age_max_placeholder">
                         </div>
-                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="thể thao, thời trang" data-i18n-placeholder="ad_assistant_interests_placeholder">
+                        <input type="text" id="interests" placeholder="Sở thích (cách nhau dấu phẩy)" class="w-full mt-2 bg-black/30 border border-white/10 rounded-lg p-2 text-white" value="{{ 'thể thao, thời trang' if default_lang == 'vi' else '' }}" data-i18n-placeholder="ad_assistant_interests_placeholder">
                     </div>
                     <button id="createCampaignBtn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-lg font-bold mt-2 relative">
                         <span id="btnText" data-i18n="ad_assistant_create_campaign_btn">Lấy gợi ý AI & Tạo chiến dịch</span>
@@ -478,7 +478,7 @@
     </div>
 
     <div id="loadingOverlay" class="loading-overlay"><div class="bg-black/80 rounded-2xl p-6 flex flex-col items-center gap-3 border border-cyan-500/30"><i class="fas fa-spinner fa-spin text-3xl text-cyan-400"></i><span class="text-sm" data-i18n="ad_assistant_processing">Đang xử lý...</span></div></div>
-    <div id="toast" class="toast" data-i18n="ad_assistant_toast_default">Thông báo</div>
+    <div id="toast" class="toast" role="status"></div>
 
     <script>
         // Client Supabase đã gỡ — tính năng Ad Assistant đã chạy hoàn toàn qua blueprint
@@ -503,8 +503,8 @@
                 ad_assistant_age_max_placeholder: 'Tuổi max',
                 ad_assistant_interests_placeholder: 'Sở thích (cách nhau dấu phẩy)',
                 ad_assistant_create_campaign_btn: 'Lấy gợi ý AI & Tạo chiến dịch',
-                ad_assistant_forecast_title: 'Dự phóng hiệu quả (7 ngày)',
-                ad_assistant_forecast_note: '*Dữ liệu mô phỏng, thay đổi theo ngân sách',
+                ad_assistant_forecast_title: 'Lượt click ước tính (7 ngày)',
+                ad_assistant_forecast_note: '*Ước tính theo giá mỗi click tham khảo của nền tảng, không phải kết quả thật',
                 ad_assistant_support_title: 'Gửi yêu cầu hỗ trợ',
                 ad_assistant_support_name_placeholder: 'Tên của bạn',
                 ad_assistant_support_phone_placeholder: 'Số điện thoại / Zalo',
@@ -558,8 +558,8 @@
                 ad_assistant_age_max_placeholder: 'Max age',
                 ad_assistant_interests_placeholder: 'Interests (comma-separated)',
                 ad_assistant_create_campaign_btn: 'Get AI Suggestions & Create Campaign',
-                ad_assistant_forecast_title: 'Performance Forecast (7 days)',
-                ad_assistant_forecast_note: '*Simulated data, varies with budget',
+                ad_assistant_forecast_title: 'Estimated clicks (7 days)',
+                ad_assistant_forecast_note: '*Estimate from typical cost per click on the platform, not real results',
                 ad_assistant_support_title: 'Send a support request',
                 ad_assistant_support_name_placeholder: 'Your name',
                 ad_assistant_support_phone_placeholder: 'Phone number / Zalo',
@@ -648,10 +648,17 @@
 
         // ==================== CHART (dự phóng client-side) ====================
         let roiChart = null;
+        // Ước tính click/ngày = (ngân sách ÷ 7) ÷ giá mỗi click tham khảo của nền tảng — CỐ ĐỊNH, không ngẫu nhiên
+        // (trước đây Math.random() và chia theo thang VND: tiệm đô nhập $500 ra 0 click).
+        const AD_CUR = {{ (tenant_currency or 'VND') | tojson }};
+        const REF_CPC = AD_CUR === 'VND' ? { facebook: 4000, tiktok: 3000, google: 8000 } : { facebook: 0.9, tiktok: 0.6, google: 1.8 };
         function updateChart(budget) {
-            const baseClick = Math.floor(budget / 10000);
-            const days = ['T+1', 'T+2', 'T+3', 'T+4', 'T+5', 'T+6', 'T+7'];
-            const clicks = days.map(() => Math.floor(baseClick * (0.7 + Math.random() * 0.6)));
+            const platformSel = document.getElementById('platform');
+            const cpc = REF_CPC[(platformSel && platformSel.value) || 'facebook'] || REF_CPC.facebook;
+            const perDay = Math.max(0, Number(budget) || 0) / 7 / cpc;
+            const days = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
+            const ramp = [0.8, 0.9, 1, 1.05, 1.08, 1.1, 1.1];   // tuần đầu nền tảng còn "học" đối tượng
+            const clicks = ramp.map((r) => Math.round(perDay * r));
             const ctx = document.getElementById('roiChart').getContext('2d');
             if (roiChart) roiChart.destroy();
             roiChart = new Chart(ctx, {
@@ -659,7 +666,7 @@
                 data: {
                     labels: days,
                     datasets: [{
-                        label: 'Lượt click dự kiến',
+                        label: (currentLang === 'vi' ? 'Lượt click ước tính' : 'Estimated clicks'),
                         data: clicks,
                         borderColor: '#06b6d4',
                         backgroundColor: 'rgba(6,182,212,0.1)',
@@ -940,7 +947,7 @@
         const budgetInput = document.getElementById('budget');
         const productInput = document.getElementById('productName');
         const platformSelect = document.getElementById('platform');
-        budgetInput.addEventListener('input', () => updateChart(parseInt(budgetInput.value) || 0));
+        budgetInput.addEventListener('input', () => updateChart(parseFloat(budgetInput.value) || 0));
         productInput.addEventListener('input', () => {}); // placeholder
         platformSelect.addEventListener('change', () => {
             const headlines = document.querySelectorAll('#abContentContainer h4');
@@ -996,8 +1003,10 @@
         });
 
         // ==================== KHỞI TẠO ====================
-        updateChart(2000000);
-        fetchSuggestions();
+        updateChart(Number(document.getElementById('budget').value) || 0);
+        document.getElementById('platform').addEventListener('change', () => updateChart(Number(document.getElementById('budget').value) || 0));
+        // KHÔNG tự lấy gợi ý lúc mở trang: ô sản phẩm còn trống -> trước đây bật ngay lỗi "hãy nhập tên sản phẩm"
+        if (document.getElementById('productName').value.trim()) fetchSuggestions();
         checkFacebookStatus();
 
     </script>

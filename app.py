@@ -590,6 +590,8 @@ _CSRF_EXEMPT_ENDPOINTS = [
     'messaging.cron_messages',
     # Khách trong phòng karaoke quét QR gọi món (không có tài khoản/cookie phiên)
     'api_public_karaoke_order',
+    # Hộp thư chung: webhook Meta/Zalo/Viber (xác thực bằng chữ ký của nền tảng — inbox_channels.verify_signature)
+    'inbox_webhook',
 ]
 
 # Payload size cap — chặn request body khổng lồ (DoS/spam) ở TẤT CẢ route cùng lúc, một chỗ duy
@@ -6348,7 +6350,8 @@ def toggle_room(room_id):
                 duration_minutes = math.ceil(duration_minutes / 15.0) * 15
             duration_hours = duration_minutes / 60.0
             total_price = duration_hours * room['price_per_hour']
-            prod = db.products.find_one({'name': 'Phí Giờ Karaoke', 'business_id': business_id}, {'id': 1, '_id': 0})
+            prod = db.products.find_one({'business_id': business_id, '$or': [{'is_room_fee': True}, {'name': 'Phí Giờ Karaoke'}]},
+                                        {'id': 1, '_id': 0}, sort=[('id', 1)])
             if prod:
                 prod_id = prod['id']
                 order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
@@ -6472,9 +6475,15 @@ def _karaoke_session_items(business_id, room):
                                             'order_id': None}, {'_id': 0}).sort('id', 1))
 
 
+# Món "phí giờ" (dòng tiền giờ trên hoá đơn) KHÔNG được bán như 1 món: nhận diện bằng cờ is_room_fee + tên/danh mục cũ cả
+# 2 thứ tiếng (trước đây chỉ lọc 'Phòng' / 'Phí Giờ Karaoke' -> tiệm Mỹ/Úc đặt danh mục 'Rooms' thấy phí giờ trong menu QR).
+_KARAOKE_FEE_NOR = [{'is_room_fee': True}, {'category': {'$in': ['Phòng', 'Phòng hát', 'Rooms', 'Room']}},
+                    {'name': {'$in': ['Phí Giờ Karaoke', 'Karaoke room time']}}]
+
+
 def _karaoke_menu(business_id):
-    return list(db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}, 'category': {'$ne': 'Phòng'},
-                                  'name': {'$ne': 'Phí Giờ Karaoke'}, 'price': {'$gt': 0}},
+    return list(db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}, '$nor': _KARAOKE_FEE_NOR,
+                                  'price': {'$gt': 0}},
                                  {'_id': 0, 'id': 1, 'name': 1, 'category': 1, 'price': 1, 'image_url': 1}).sort([('category', 1), ('name', 1)]).limit(200))
 
 
@@ -6612,14 +6621,19 @@ def api_karaoke_room_checkout(room_id):
         # KHÔNG có order/transaction nào được ghi — doanh thu chính của cả ngành Karaoke lặng
         # lẽ không vào sổ sách/báo cáo. Auto-tạo (idempotent, upsert atomic — an toàn nếu 2
         # lượt chốt phòng đầu tiên chạy cùng lúc) thay vì chỉ đọc rồi bỏ qua khi không thấy.
+        # Tìm theo cờ is_room_fee (hoặc tên cũ) — tiệm đổi tên món phí giờ ('Karaoke Room (per hour)') không bị tạo thêm 1
+        # món trùng; tạo mới thì đặt tên theo ngôn ngữ của tiệm.
+        _vn_shop = _tenant_currency(business_id) == 'VND'
         prod = db.products.find_one_and_update(
-            {'name': 'Phí Giờ Karaoke', 'business_id': business_id},
-            {'$setOnInsert': {
-                'id': next_mongo_id('products'), 'business_id': business_id, 'name': 'Phí Giờ Karaoke',
-                'category': 'Phòng', 'price': room['price_per_hour'], 'cost_price': 0, 'stock': 0,
+            {'business_id': business_id, '$or': [{'is_room_fee': True}, {'name': 'Phí Giờ Karaoke'}]},
+            {'$set': {'is_room_fee': True},
+             '$setOnInsert': {
+                'id': next_mongo_id('products'), 'name': 'Phí Giờ Karaoke' if _vn_shop else 'Karaoke room time',
+                'category': 'Phòng' if _vn_shop else 'Rooms', 'price': room['price_per_hour'], 'cost_price': 0, 'stock': 0,
                 'is_active': 1, 'channel_type': 'retail',
             }},
-            upsert=True, return_document=ReturnDocument.AFTER, projection={'id': 1, '_id': 0}
+            upsert=True, return_document=ReturnDocument.AFTER, projection={'id': 1, '_id': 0},
+            sort=[('id', 1)]
         )
         if prod:
             order_code = f"KTV-{uuid.uuid4().hex[:8].upper()}"
@@ -8867,12 +8881,15 @@ def brand_settings():
 def api_brand_settings_get():
     business_id = session.get('business_id') or session['user_id']
     try:
+        biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'phone': 1, 'address': 1}) or {}
         data = {
-            'brand_name': _brand_setting_get(business_id, 'brand_name', 'BitPaw'),
+            'brand_name': _shop_header_name(business_id),
             'brand_color': _brand_setting_get(business_id, 'brand_color', '#06b6d4'),
             'font_family': _brand_setting_get(business_id, 'brand_font_family', ''),
             'logo_url': _brand_setting_get(business_id, 'brand_logo_url', ''),
             'cover_url': _brand_setting_get(business_id, 'brand_cover_url', ''),
+            'phone': biz.get('phone') or '',
+            'address': biz.get('address') or '',
         }
         return jsonify({"success": True, "data": data})
     except Exception as e:
@@ -8895,6 +8912,15 @@ def api_brand_settings_save():
             _brand_setting_set(business_id, 'brand_color', request.form['brand_color'])
         if 'font_family' in request.form:
             _brand_setting_set(business_id, 'brand_font_family', request.form['font_family'])
+        # SĐT + địa chỉ tiệm: hiện trên trang đặt lịch / menu QR của khách và cho trợ lý AI trả lời "tiệm ở đâu"
+        contact = {}
+        if 'phone' in request.form:
+            contact['phone'] = re.sub(r'[^0-9+()\-. ]', '', request.form.get('phone') or '').strip()[:32]
+        if 'address' in request.form:
+            contact['address'] = re.sub(r'[<>]', '', request.form.get('address') or '').strip()[:160]
+        if contact:
+            db.businesses.update_one({'id': business_id}, {'$set': contact})
+        _HEADER_NAME_CACHE.pop(business_id, None)
 
         for field, kind, setting_key in (('logo', 'brand_logo', 'brand_logo_url'), ('cover', 'brand_cover', 'brand_cover_url')):
             file = request.files.get(field)
@@ -11562,17 +11588,17 @@ def ai_bot():
     except Exception as db_err:
         print(f"[!] SQLite brand config fallback read error: {str(db_err)}")
 
-    # Check if license details can provide tier — license_codes nằm trên MongoDB, nên tách riêng
-    # try/except khỏi khối SQLite ở trên.
+    # Gói THẬT của tiệm (plans.py). Trước đây lấy bất kỳ mã kích hoạt nào trong hệ thống (không lọc theo tiệm) -> mọi tiệm
+    # đều hiện "BitPaw Pro (Premium)".
     try:
-        license_doc = db.license_codes.find_one(
-            {'trang_thai': 'Đã kích hoạt'}, {'license_key': 1, '_id': 0}, sort=[('id', -1)]
-        )
-        if license_doc:
-            brand_tier = 'BitPaw Pro (Premium)'
-            has_profile = True
+        brand_tier = plans.PLAN_NAMES.get(plans.business_plan(db, business_id), brand_tier)
     except Exception as db_err:
-        print(f"[!] license_codes tier lookup failed: {str(db_err)}")
+        print(f"[!] plan lookup failed: {str(db_err)}")
+    is_vn_shop = _tenant_currency(business_id) == 'VND'
+    if not is_vn_shop:
+        brand_zalo = None   # Zalo OA chỉ có ở Việt Nam — tiệm Mỹ/Úc không hiện dòng "No Zalo OA Connected"
+    if brand_phone == 'Phone Not Set':
+        brand_phone = None
 
     profile = {
         "has_profile": has_profile,
@@ -11587,7 +11613,37 @@ def ai_bot():
         "joined": brand_joined,
         "branch": brand_branch
     }
-    return render_template('ai_bot.html', profile=profile)
+    # Công cụ "Sales Demo" (mô phỏng hội thoại để đội bán hàng BitPaw trình diễn) chỉ cho tài khoản demo / super admin
+    sales_demo = (session.get('role') == 'super_admin') or str(session.get('user_email') or '').endswith('@bitpawdemo.com')
+    return render_template('ai_bot.html', profile=profile, sales_demo=sales_demo, is_vn_shop=is_vn_shop)
+
+
+@app.route('/api/ai/campaigns/summary', methods=['GET'])
+@login_required
+def ai_campaigns_summary():
+    """Chiến dịch chăm sóc khách THẬT của tiệm (db.nurturing_campaigns) + số tin đã gửi / chờ duyệt / tổng — cho bộ lọc
+    "Active Campaigns" của AI Copilot (trước đây là 2 chiến dịch bịa cố định trong HTML)."""
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        camps = list(db.nurturing_campaigns.find({'business_id': business_id}, {'_id': 0, 'id': 1, 'name': 1, 'channel': 1,
+                                                  'is_active': 1, 'created_at': 1, 'campaign_goal': 1}).sort('created_at', -1).limit(20))
+        stats = {}
+        if camps:
+            for r in db.campaign_messages.aggregate([
+                {'$match': {'business_id': business_id, 'campaign_id': {'$in': [c['id'] for c in camps]}}},
+                {'$group': {'_id': {'c': '$campaign_id', 's': '$approval_status', 'd': '$delivery_status'}, 'n': {'$sum': 1}}}]):
+                st = stats.setdefault(r['_id']['c'], {})
+                key = 'SENT' if r['_id'].get('d') == 'success' else (r['_id'].get('s') or 'PENDING')   # gửi thật thành công mới tính "đã gửi"
+                st[key] = st.get(key, 0) + r['n']
+        out = []
+        for c in camps:
+            st = stats.get(c['id'], {})
+            out.append({'id': c['id'], 'name': c.get('name') or 'Campaign', 'channel': c.get('channel') or 'SMS',
+                        'active': bool(c.get('is_active')), 'created_at': c.get('created_at'), 'goal': c.get('campaign_goal'),
+                        'total': sum(st.values()), 'sent': st.get('SENT', 0), 'pending': st.get('PENDING', 0), 'approved': st.get('APPROVED', 0)})
+        return jsonify({'success': True, 'data': out})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/calendar')
@@ -11794,14 +11850,16 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
     try:
         customer_id = f"{business_id}:{customer_phone}"
         now_iso = datetime.now().isoformat()
+        # Tên mặc định theo ngôn ngữ của tiệm (tiệm Mỹ/Úc trước đây thấy "Khách +6149...") — chỉ đặt khi tạo mới,
+        # không ghi đè tên đã có (vd tên khách tự nhập ở form đặt lịch)
+        walkin = 'Khách' if _tenant_currency(business_id) == 'VND' else 'Client'
         db.bot_customers.update_one(
             {'id': customer_id},
             {'$set': {
-                'full_name': f"Khách {customer_phone}",
                 'last_message': content[:500],
                 'last_message_time': now_iso,
                 'business_id': business_id,
-            }},
+            }, '$setOnInsert': {'full_name': f"{walkin} {customer_phone}", 'channel': 'web', 'phone': customer_phone}},
             upsert=True
         )
         db.bot_messages.insert_one({
@@ -11811,6 +11869,7 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
             'business_id': business_id,
             'created_at': now_iso,
             'is_read': sender_type != 'customer',  # tin nhắn của khách mặc định "chưa đọc"
+            'channel': 'web',
         })
     except Exception:
         pass
@@ -11957,10 +12016,18 @@ def api_bot_messages_create():
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
     try:
         now_iso = datetime.now().isoformat()
-        db.bot_messages.insert_one({
-            'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
-            'business_id': business_id, 'created_at': now_iso, 'is_read': True,
-        })
+        bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
+        channel = bc.get('channel') or 'web'
+        delivery = None
+        if channel != 'web' and bc.get('ext_user_id'):
+            # Hộp thư chung: tin đi ngược về đúng Messenger/Zalo/WhatsApp/Viber/SMS của khách (inbox_channels.deliver ghi
+            # tin trước rồi gửi, kèm trạng thái giao tin THẬT — kênh chưa nối thì báo rõ "chưa gửi được").
+            delivery = inbox_channels.deliver(business_id, channel, bc['ext_user_id'], content[:2000], 'staff')
+        else:
+            db.bot_messages.insert_one({
+                'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
+                'business_id': business_id, 'created_at': now_iso, 'is_read': True, 'channel': channel,
+            })
         # Nhân viên đã nhảy vào trả lời -> AI ngừng tự trả lời khách này (chủ tiệm bật lại bằng công tắc), để
         # khách không nhận 2 câu trả lời chồng nhau (1 của người, 1 của AI) cho cùng 1 tin.
         db.bot_customers.update_one(
@@ -11968,7 +12035,7 @@ def api_bot_messages_create():
             {'$set': {'last_message': content[:500], 'last_message_time': now_iso, 'ai_paused': True, 'handoff_by_ai': False,
                       'needs_human': False}}
         )
-        return jsonify({"success": True, "ai_paused": True})
+        return jsonify({"success": True, "ai_paused": True, "channel": channel, "delivery": delivery})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -11986,6 +12053,240 @@ def api_bot_ai_mode():
     paused = not bool(data.get('enabled'))
     db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused, 'handoff_by_ai': False}})
     return jsonify({"success": True, "ai_paused": paused})
+
+
+# ========== HỘP THƯ CHUNG (Unified Inbox): Messenger · Instagram · WhatsApp · Zalo · Viber · SMS · website ==========
+# Tin của mọi kênh đổ vào CÙNG bot_customers/bot_messages mà /ai_bot hiển thị (inbox_channels.py); chủ tiệm trả lời trong
+# 1 khung, tin đi ngược về đúng kênh. AI trả lời tự động bằng ĐÚNG trợ lý đặt lịch của chat website (cùng công cụ đặt/huỷ
+# lịch thật), chỉ khác: chữ thường (không Markdown) và phải xin SĐT trước khi đặt lịch nếu kênh không có SĐT.
+import inbox_channels  # noqa: E402
+
+_VI_CHARS_RE = re.compile(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', re.I)
+_VI_WORDS_RE = re.compile(r'\b(khong|duoc|bao nhieu|nhieu|em oi|anh oi|chi oi|minh|cho em|cua|nhe|nha|vay|gium|giup|tiem|quan)\b', re.I)
+
+
+def _public_base_url():
+    host = request.host.split(':')[0]
+    return request.url_root.rstrip('/') if host in ('127.0.0.1', 'localhost') else f"https://{request.host}"
+
+
+def _inbox_walkin(business_id):
+    return 'Khách' if _tenant_currency(business_id) == 'VND' else 'Client'
+
+
+def _inbox_ai_reply(business_id, customer_id, latest_text):
+    """Trả (câu trả lời, lỗi?) cho 1 tin khách nhắn qua Messenger/Zalo/WhatsApp/Viber/SMS. ('', False) = cố ý im lặng
+    (nhân viên đang nhận khách này); ('', True) = AI lỗi -> báo chủ tiệm trả lời."""
+    bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'ai_paused': 1, 'hold_notice_at': 1, 'handoff_by_ai': 1,
+                                                       'handoff_at': 1, 'handoff_reason': 1, 'phone': 1, 'channel': 1}) or {}
+    waiting = None
+    if bc.get('ai_paused'):
+        staff_since = bc.get('handoff_at') and db.bot_messages.find_one(
+            {'customer_id': customer_id, 'sender_type': 'staff', 'created_at': {'$gte': bc['handoff_at']}}, {'_id': 1})
+        if bc.get('handoff_by_ai') and not staff_since:
+            waiting = bc
+        else:
+            return inbox_channels.plain_text(_paused_holding_reply(business_id, customer_id, bc, latest_text)), False
+    api_key = os.environ.get('DEEPSEEK_API_KEY')
+    if not api_key and os.environ.get('BITPAW_DESKTOP_MODE') != '1':
+        return '', True
+    _t0 = time.time()
+    try:
+        ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=bc.get('phone'), include_private_data=False)
+        business_name = ctx['business_name'] or 'BitPaw'
+        system_prompt = compose_booking_assistant_prompt(ctx['prompt'], business_name,
+                                                         booking_facts=_booking_assistant_facts(business_id))
+        vi = bool(_VI_CHARS_RE.search(latest_text) or _VI_WORDS_RE.search(latest_text))
+        label = inbox_channels.CHANNELS.get(bc.get('channel') or 'web', {}).get('label', 'chat')
+        system_prompt += ("\n\nLANGUAGE: the customer's latest message is in "
+                          + ("Vietnamese — reply in Vietnamese." if vi else
+                             "English (or another non-Vietnamese language) — reply in that same language, not Vietnamese."))
+        system_prompt += (f"\n\nCHANNEL: this conversation is on {label}. Plain text only (no Markdown, no tables), short like a text message."
+                          + ("" if bc.get('phone') else " You do not have the customer's phone number yet — ask for it before booking."))
+        if waiting:
+            from ai_sales_prompts import WAITING_FOR_TEAM
+            import ai_function_tools
+            system_prompt += "\n\n" + WAITING_FOR_TEAM.format(reason=waiting.get('handoff_reason') or 'customer asked for a person',
+                                                               expectation=ai_function_tools.reply_expectation(business_id, vi))
+        convo = list(db.bot_messages.find({'customer_id': customer_id, 'sender_type': {'$in': ['customer', 'ai', 'staff']}},
+                                          {'_id': 0, 'sender_type': 1, 'content': 1}).sort('created_at', -1).limit(13))[::-1]
+        if convo and convo[-1].get('sender_type') == 'customer':
+            convo = convo[:-1]  # tin cuối = tin vừa nhận, đưa vào lượt "user" bên dưới
+        messages = [{"role": "system", "content": system_prompt}]
+        for t in convo[-12:]:
+            c = (t.get('content') or '').strip()
+            if c:
+                messages.append({"role": "user" if t.get('sender_type') == 'customer' else "assistant", "content": c[:2000]})
+        messages.append({"role": "user", "content": latest_text[:2000]})
+        tools = BOOKING_TOOLS
+        if waiting:
+            tools = [t for t in tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
+        result = _call_deepseek_with_tools(messages, 0.4, 600, business_id, customer_id, api_key, tools=tools)
+        _log_ai_run('booking', business_id, time.time() - _t0, result.get('tools_used'), fallback=False)
+        text = inbox_channels.plain_text(result['choices'][0]['message']['content'] or '')
+        return text, not text
+    except Exception as e:
+        _log_ai_run('booking', business_id, time.time() - _t0, None, fallback=True, error=e)
+        print(f"[inbox ai] {e}")
+        return '', True
+
+
+def _inbox_ai_throttled(customer_id):
+    """Chống 1 người nhắn dồn dập (spam qua Messenger/Zalo/SMS...) đốt chi phí AI: tối đa 10 câu AI / hội thoại / 10 phút,
+    quá thì dừng AI và báo chủ tiệm trả lời."""
+    since = (datetime.now() - timedelta(minutes=10)).isoformat()
+    if db.bot_messages.count_documents({'customer_id': customer_id, 'sender_type': 'ai', 'created_at': {'$gte': since}}) < 10:
+        return False
+    db.bot_customers.update_one({'id': customer_id}, {'$set': {'needs_human': True,
+                                                               'handoff_reason': 'Many messages in a short time — AI paused, please reply'}})
+    return True
+
+
+def _inbox_after_customer_message(business_id, channel, customer_id, user_id, text, ai_on):
+    """Sau khi ghi tin của khách: AI trả lời (gửi về đúng kênh), hoặc đánh dấu "cần người trả lời"."""
+    if not ai_on:
+        db.bot_customers.update_one({'id': customer_id}, {'$set': {'needs_human': True}})
+        return None
+    if _inbox_ai_throttled(customer_id):
+        return None
+    reply, failed = _inbox_ai_reply(business_id, customer_id, text)
+    if reply:
+        return inbox_channels.deliver(business_id, channel, user_id, reply, 'ai', default_name=_inbox_walkin(business_id))
+    if failed:
+        db.bot_customers.update_one({'id': customer_id}, {'$set': {'needs_human': True,
+                                                                   'handoff_reason': 'AI could not answer — please reply'}})
+    return None
+
+
+def _inbox_handle_event(doc, ev):
+    business_id, channel = doc['business_id'], doc['channel']
+    cid = inbox_channels.conversation_id(business_id, channel, ev['user_id'])
+    if inbox_channels.find_message(cid, ev['ext_msg_id']):
+        return  # nền tảng gửi lại cùng 1 tin (retry) -> không xử lý / không trả lời 2 lần
+    if ev['kind'] == 'echo':
+        # Nhân viên trả lời thẳng trong Meta Business Suite / Zalo OA -> vẫn hiện trong hộp thư; tin của chính BitPaw thì bỏ qua
+        if db.bot_customers.find_one({'id': cid}, {'_id': 1}) and not inbox_channels.recently_sent_same(cid, ev['text']):
+            inbox_channels.record(business_id, channel, ev['user_id'], ev['text'], 'staff', ext_msg_id=ev['ext_msg_id'],
+                                  delivery={'status': 'sent', 'via': 'platform'})
+        return
+    inbox_channels.record(business_id, channel, ev['user_id'], ev['text'], 'customer', name=ev['name'], phone=ev['phone'],
+                          ext_msg_id=ev['ext_msg_id'], default_name=_inbox_walkin(business_id))
+    phone = inbox_channels.capture_phone(cid, ev['text']) or ev['phone']
+    if phone:
+        inbox_channels.link_customer(business_id, channel, ev['user_id'], phone)
+    db.inbox_channels.update_one({'business_id': business_id, 'channel': channel},
+                                 {'$set': {'last_inbound_at': datetime.now().isoformat()}})
+    _inbox_after_customer_message(business_id, channel, cid, ev['user_id'], ev['text'], doc.get('ai_auto_reply', True))
+
+
+@app.route('/webhooks/inbox/<channel>/<hook_key>', methods=['GET', 'POST'])
+@limiter.limit("1200 per hour")
+def inbox_webhook(channel, hook_key):
+    """Webhook công khai cho Meta (Messenger/Instagram/WhatsApp), Zalo OA, Viber. hook_key ngẫu nhiên theo tiệm + kênh;
+    POST phải có chữ ký đúng (X-Hub-Signature-256 / X-ZEvent-Signature / X-Viber-Content-Signature), sai -> 403."""
+    doc = inbox_channels.find_by_hook(channel, hook_key) if db is not None else None
+    if not doc:
+        return Response('Not found', status=404, mimetype='text/plain')
+    if request.method == 'GET':  # Meta "Verify and save" khi dán Callback URL + Verify token
+        vt = request.args.get('hub.verify_token', '')
+        if request.args.get('hub.mode') == 'subscribe' and doc.get('verify_token') and hmac.compare_digest(vt, doc['verify_token']):
+            return Response(request.args.get('hub.challenge', '')[:200], mimetype='text/plain')
+        return Response('Forbidden', status=403, mimetype='text/plain')
+    raw = request.get_data(cache=True)
+    if not inbox_channels.verify_signature(doc, raw, request.headers):
+        return Response('Forbidden', status=403, mimetype='text/plain')
+    try:
+        payload = json.loads(raw or b'{}')
+    except ValueError:
+        return Response('Bad request', status=400, mimetype='text/plain')
+    for ev in inbox_channels.parse_events(channel, payload)[:10]:
+        try:
+            _inbox_handle_event(doc, ev)
+        except Exception as e:  # 1 tin lỗi không được làm nền tảng gửi lại cả lô (trả 200)
+            print(f"[inbox] {channel} event failed: {e}")
+    return Response('EVENT_RECEIVED', mimetype='text/plain')
+
+
+def _inbox_sms_inbound(business_id, from_number, body):
+    """messaging.handle_inbound_sms gọi vào đây cho tin SMS thường (không phải STOP/START/HELP): đưa vào hộp thư chung,
+    AI trả lời bằng TwiML ngay trong webhook Twilio (không tốn thêm lệnh gọi API)."""
+    text = (body or '').strip()[:2000]
+    if not text or db is None:
+        return ''
+    cid = inbox_channels.record(business_id, 'sms', from_number, text, 'customer', phone=from_number,
+                                default_name=_inbox_walkin(business_id))
+    if not inbox_channels.ai_auto_reply_on(business_id, 'sms'):
+        db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True}})
+        return ''
+    if _inbox_ai_throttled(cid):
+        return ''
+    reply, failed = _inbox_ai_reply(business_id, cid, text)
+    if reply:
+        inbox_channels.record(business_id, 'sms', from_number, reply, 'ai', delivery={'status': 'sent', 'via': 'twiml'})
+        return reply[:1500]
+    if failed:
+        db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True, 'handoff_reason': 'AI could not answer — please reply'}})
+    return ''
+
+
+try:
+    import messaging as _messaging_mod
+    _messaging_mod.inbox_hook = _inbox_sms_inbound
+except Exception as _e:
+    print(f"[inbox] SMS hook not installed: {_e}")
+
+
+def _sms_ready(business_id):
+    try:
+        import messaging
+        return bool(messaging.get_settings(business_id).get('twilio_ready'))
+    except Exception:
+        return False
+
+
+@app.route('/inbox/channels')
+@login_required
+def inbox_channels_page():
+    return render_template('inbox_channels.html', is_vn_shop=_tenant_currency(session.get('business_id') or session['user_id']) == 'VND')
+
+
+@app.route('/api/inbox/channels', methods=['GET'])
+@login_required
+def api_inbox_channels():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        return jsonify({"success": True, "data": inbox_channels.public_status(business_id, _public_base_url(), _sms_ready(business_id))})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)[:200]}), 500
+
+
+@app.route('/api/inbox/channels/<channel>', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+@limiter.limit("30 per hour")
+def api_inbox_channel_update(channel):
+    """action: connect (kiểm tra token THẬT với nền tảng rồi mới lưu) | disconnect | ai (bật/tắt AI tự trả lời kênh này)."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    action = data.get('action')
+    if channel not in inbox_channels.CHANNELS or (action != 'ai' and channel not in inbox_channels.CONNECTABLE):
+        return jsonify({"success": False, "message": "Unknown channel."}), 400
+    try:
+        if action == 'connect':
+            fields = data.get('fields') if isinstance(data.get('fields'), dict) else {}
+            row = inbox_channels.connect(business_id, channel, fields, _public_base_url())
+            return jsonify({"success": True, "data": row})
+        if action == 'disconnect':
+            inbox_channels.disconnect(business_id, channel)
+            return jsonify({"success": True})
+        if action == 'ai':
+            inbox_channels.set_ai_auto_reply(business_id, channel, bool(data.get('enabled')))
+            return jsonify({"success": True})
+    except inbox_channels.ChannelError as e:
+        return jsonify({"success": False, "message": str(e), **e.as_dict()}), 400
+    except RuntimeError as e:  # thiếu khoá mã hoá
+        return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"success": False, "message": "Unknown action."}), 400
 
 
 @app.route('/api/ai/copilot', methods=['POST'])
@@ -12904,7 +13205,8 @@ def stream_cskh_requests():
 @app.route('/omnichannel_connect')
 @login_required
 def connect_platforms():
-    return render_template('omnichannel_connect.html')
+    # Trang cũ (trạng thái lưu SQLite, số khách bịa) thay bằng trang nối kênh THẬT của Hộp thư chung
+    return redirect('/inbox/channels')
 
 @app.route('/ai/customer-nurturing')
 @app.route('/customer_nurturing')
@@ -12921,76 +13223,27 @@ def campaign_builder():
 @app.route('/api/ai/nurture/connect-status', methods=['GET'])
 @login_required
 def nurture_connect_status():
+    """Trạng thái kênh THẬT từ Hộp thư chung (db.inbox_channels — inbox_channels.py). Trước đây đọc bảng SQLite database.db
+    (không tồn tại trên Vercel), số "khách tiềm năng" mỗi kênh là số bịa (18 + hash % 45) và trả cả access_token về trình duyệt."""
     business_id, _biz_err = _get_tenant_business_id_or_401()
     if _biz_err:
         return _biz_err
     try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute("SELECT platform, connection_status, updated_at, config_data FROM platform_connections WHERE business_id = ?", (business_id,))
-        rows = c.fetchall()
-        
-        # Build status map
-        status_map = {}
-        for row in rows:
-            status_map[row[0]] = {
-                "status": row[1],
-                "updated_at": row[2],
-                "config_data": row[3]
-            }
-        
-        conn.close()
-
-        # Count customers to use as real lead counts — giờ đọc trực tiếp từ db.customers
-        # (MongoDB), không còn shadow copy customer_profiles (SQLite) nữa.
+        st = inbox_channels.public_status(business_id, _public_base_url(), _sms_ready(business_id))
         real_leads = db.customers.count_documents({'business_id': business_id}) if db is not None else 0
-        
-        platforms = ['messenger', 'fb_page', 'zalo_oa', 'whatsapp', 'mascot_chat', 'pos_sync']
+        src = {'messenger': 'messenger', 'fb_page': 'messenger', 'zalo_oa': 'zalo', 'whatsapp': 'whatsapp',
+               'instagram': 'instagram', 'viber': 'viber', 'sms': 'sms', 'mascot_chat': 'web'}
         data = {}
-        for p in platforms:
-            p_data = status_map.get(p, {"status": "DISCONNECTED", "updated_at": None, "config_data": None})
-            status_str = p_data["status"]
-            config_str = p_data["config_data"]
-            
-            # Setup config payload from DB config_data
-            config = {}
-            if config_str:
-                try:
-                    config = json.loads(config_str)
-                except Exception:
-                    pass
-            
-            account_name = config.get("account_name", "")
-            channel_id = config.get("channel_id", "")
-            access_token = config.get("access_token", "")
-            
-            # Real setup validation check: if token or channel id is empty, connection requires configuration
-            if not access_token or not channel_id:
-                if status_str == "CONNECTED":
-                    status_str = "SETUP_REQUIRED"
-                elif status_str == "DISCONNECTED" and p in ['whatsapp', 'fb_page']:
-                    # Setup required if disconnected to match three states natively
-                    status_str = "SETUP_REQUIRED"
-                
-            if status_str == "CONNECTED":
-                last_sync = p_data["updated_at"] or "2026-05-30 00:30"
-                leads_count = real_leads if p == 'pos_sync' else (18 + (hash(p) % 45))
-            else:
-                last_sync = "Chưa đồng bộ"
-                leads_count = 0
-                
-            data[p] = {
-                "status": status_str,
-                "last_sync": last_sync,
-                "leads_count": leads_count,
-                "account_name": account_name,
-                "channel_id": channel_id,
-                "access_token": access_token
-            }
-                
+        for key, ch in src.items():
+            row = st.get(ch) or {}
+            data[key] = {"status": "CONNECTED" if row.get('connected') else "DISCONNECTED",
+                         "last_sync": row.get('last_inbound_at') or row.get('connected_at') or "",
+                         "leads_count": row.get('conversations', 0), "account_name": row.get('account_name', ''),
+                         "channel_id": row.get('external_id', '')}
+        data['pos_sync'] = {"status": "CONNECTED", "last_sync": "", "leads_count": real_leads, "account_name": "", "channel_id": ""}
         return jsonify({"success": True, "data": data})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": str(e)[:200]}), 500
 
 @app.route('/api/ai/nurture/toggle-connection', methods=['POST'])
 @login_required

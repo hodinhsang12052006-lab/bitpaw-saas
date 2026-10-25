@@ -127,12 +127,15 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <i class="fas fa-phone-alt text-gray-500 w-4 text-center shrink-0"></i>
-                    <span class="truncate">{{ profile.phone }}</span>
+                    {% if profile.phone %}<span class="truncate">{{ profile.phone }}</span>
+                    {% else %}<a href="{{ url_for('brand_settings') }}" class="truncate text-cyan-400 hover:underline">{{ 'Thêm số điện thoại' if default_lang == 'vi' else 'Add a phone number' }}</a>{% endif %}
                 </div>
+                {% if profile.zalo %}{# Zalo OA chỉ có ở Việt Nam — tiệm Mỹ/Úc không hiện #}
                 <div class="flex items-center gap-3">
                     <span class="text-blue-400 font-black text-[8px] uppercase w-4 text-center shrink-0">Zalo</span>
                     <span class="truncate">{{ profile.zalo }}</span>
                 </div>
+                {% endif %}
                 <div class="flex items-center gap-3">
                     <i class="fas fa-briefcase text-gray-500 w-4 text-center shrink-0"></i>
                     <span class="truncate">{{ profile.industry }}</span>

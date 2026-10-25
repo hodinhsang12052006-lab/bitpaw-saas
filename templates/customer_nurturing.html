@@ -83,7 +83,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     {% include 'components/app_sidebar.html' %}
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-screen p-4 md:p-8 relative overflow-hidden z-10">
+    <main class="flex-1 flex flex-col min-h-screen lg:h-screen p-4 md:p-8 relative overflow-y-auto lg:overflow-hidden z-10">
         <!-- Top Header Panel -->
         <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
@@ -136,12 +136,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
         </div>
 
-        <div class="flex gap-6 flex-1 min-h-0 relative">
+        <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 relative">
             <!-- Customer List Directory -->
-            <div class="w-7/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
+            <div class="w-full lg:w-7/12 min-h-[420px] lg:min-h-0 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
                 <!-- Filters Bar -->
-                <div class="p-4 bg-black/40 border-b border-white/10 grid grid-cols-3 gap-4">
-                    <div class="relative col-span-2">
+                <div class="p-4 bg-black/40 border-b border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="relative sm:col-span-2">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
                         <input type="text" id="custSearch" oninput="filterCustomers()" placeholder="Search by Name / Phone / Email..." data-i18n-placeholder="customer_nurturing_search_placeholder" class="glass-input pl-10 w-full py-2.5 text-xs">
                     </div>
@@ -177,7 +177,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <!-- Customer Detail Sidebar Pane -->
-            <div class="w-5/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6 relative">
+            <div class="w-full lg:w-5/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6 relative">
                 <div id="detailPanelEmpty" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[#0a0f25]/30">
                     <i class="fas fa-user-circle text-7xl text-cyan-400/20 mb-4 animate-pulse"></i>
                     <h3 class="font-bold text-gray-400 text-sm" data-i18n="customer_nurturing_select_customer">Select a Customer</h3>
@@ -292,6 +292,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     </main>
 
     <script>
+        // Ngày mua gần nhất: dữ liệu là ISO "2026-06-30T19:16:04.131946" — trước đây cắt theo dấu cách nên hiện nguyên chuỗi
+        function fmtPurchaseDate(v) {
+            if (!v) return '—';
+            const d = new Date(String(v).replace(' ', 'T'));
+            if (isNaN(d)) return String(v).split(/[ T]/)[0];
+            const lang = (function () { try { return localStorage.getItem('bitpaw_lang'); } catch (e) { return null; } })() || document.documentElement.lang || 'en';
+            return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
         // Đọc đúng tiền tệ của tenant (đã inject sẵn cho MỌI template qua context processor
         // ở app.py — TenantEngine.get_region_config(business_id)), thay vì hardcode "₫" bất kể
         // tenant thật đang ở thị trường nào. Cùng quy ước TENANT_CURRENCY/formatMoney() đã dùng
@@ -355,7 +364,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <td class="p-4 font-bold text-white">${__escHtml(c.name)}</td>
                         <td class="p-4 uppercase text-[10px] font-bold text-cyan-400">${c.source}</td>
                         <td class="p-4 font-black text-gray-200">${formatMoney(c.total_spend)}</td>
-                        <td class="p-4 text-gray-500 font-medium">${(c.last_purchase || "—").split(" ")[0]}</td>
+                        <td class="p-4 text-gray-500 font-medium">${fmtPurchaseDate(c.last_purchase)}</td>
                         <td class="p-4 text-center">
                             <span class="text-[9px] font-black border px-2.5 py-0.5 rounded-full ${badgeColor}">${c.potential_score}%</span>
                         </td>
@@ -381,8 +390,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             document.getElementById("detailService").innerText = c.service_interest || "---";
             
             // Format dynamic Dates for Timeline
-            const cleanDate = (c.last_purchase || "—").split(" ")[0]; // khách chưa mua lần nào: last_purchase = null
-            document.getElementById("detailLastPurchase").innerText = c.last_purchase || "—";
+            const cleanDate = fmtPurchaseDate(c.last_purchase); // khách chưa mua lần nào: last_purchase = null
+            document.getElementById("detailLastPurchase").innerText = fmtPurchaseDate(c.last_purchase);
             document.getElementById("detailTotalSpend").innerText = formatMoney(c.total_spend);
             document.getElementById("detailPotentialScore").innerText = `${c.potential_score}/100`;
             document.getElementById("detailAINotes").innerText = c.ai_notes || "—";

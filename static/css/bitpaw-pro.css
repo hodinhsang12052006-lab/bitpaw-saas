@@ -94,3 +94,10 @@ img[src*="/static/brand/icon-"] { border-radius: 22% !important; object-fit: con
 .plan-lock { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; letter-spacing: .02em;
   color: #fcd34d; background: rgba(252, 211, 77, .1); border: 1px solid rgba(252, 211, 77, .28); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .plan-lock i { font-size: 9px; }
+
+/* 6. Sàn đọc được (25/10/2026, chấm điểm UX các màn AI): chữ 7–10px (nhãn, ghi chú, số liệu phụ) -> 11px; chữ xám đậm
+      trên nền tối (gray/slate 500–600 ≈ 2.4–3.9:1) -> xám sáng ≥ 4.5:1. Không đụng thẻ nền trắng (hoá đơn, xem trước in). */
+[class*="text-[7px]"], [class*="text-[8px]"], [class*="text-[9px]"], [class*="text-[10px]"] { font-size: 11px !important; line-height: 1.4 !important; }
+:is(.text-gray-500, .text-slate-500, .text-zinc-500):not(:is(.bg-white, [class*="bg-white "], .bg-gray-50, .bg-gray-100, .bg-slate-50) *) { color: #94a3b8 !important; }
+:is(.text-gray-600, .text-slate-600, .text-zinc-600):not(:is(.bg-white, [class*="bg-white "], .bg-gray-50, .bg-gray-100, .bg-slate-50) *) { color: #8b97a8 !important; }
+.plan-lock { font-size: 11px; }

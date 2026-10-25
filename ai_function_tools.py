@@ -87,8 +87,17 @@ class ToolExecutionError(Exception):
     nuốt lỗi, để AI không bịa với khách là đã thành công."""
 
 
+_CHANNEL_PREFIXES = ('messenger:', 'instagram:', 'whatsapp:', 'zalo:', 'viber:', 'sms:')
+
+
 def _phone_of(customer_id):
-    return customer_id.split(':', 1)[1] if customer_id and ':' in str(customer_id) else str(customer_id or '')
+    rest = customer_id.split(':', 1)[1] if customer_id and ':' in str(customer_id) else str(customer_id or '')
+    # Hội thoại từ Hộp thư chung ("<tiệm>:messenger:<id>"): id nền tảng KHÔNG phải SĐT -> dùng SĐT khách đã nhắn
+    # (inbox_channels.capture_phone) hoặc SĐT của kênh (WhatsApp/SMS); chưa có thì '' -> AI xin SĐT trước khi đặt lịch.
+    if rest.startswith(_CHANNEL_PREFIXES):
+        doc = db.bot_customers.find_one({'id': customer_id}, {'phone': 1, '_id': 0}) or {}
+        return doc.get('phone') or ''
+    return rest
 
 
 def _require_customer(customer_id):

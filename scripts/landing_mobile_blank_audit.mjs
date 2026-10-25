@@ -9,7 +9,7 @@ for (const loc of ['vi-VN', 'en-US']) {
   for (const pg of PAGES) {
     const p = await ctx.newPage();
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-    await p.goto('http://127.0.0.1:5001' + (pg === 'landing' ? '/landing' : '/solutions/' + pg), { waitUntil: 'load' });
+    await p.goto((process.env.BASE || 'http://127.0.0.1:5001') + (pg === 'landing' ? '/landing' : '/solutions/' + pg), { waitUntil: 'load' });
     await p.waitForTimeout(900);
     const H = await p.evaluate(() => document.documentElement.scrollHeight);
     const vh = await p.evaluate(() => innerHeight);

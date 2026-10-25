@@ -125,11 +125,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                 <div class="glass-panel p-2.5 rounded-2xl flex items-center gap-3">
                     <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest" id="label_vnd">{{ tenant_currency }} ({{ '$' if tenant_currency in ['USD', 'AUD'] else 'đ' }})</span>
-                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                    {# Tiệm tiền đô: gạt sang "USD" chỉ đổi ký hiệu chứ không quy đổi -> dễ hiểu nhầm. Chỉ tiệm VND mới có công tắc xem quy đổi USD. #}
+                    <div class="relative inline-block w-12 mr-2 align-middle select-none" {% if tenant_currency != 'VND' %}hidden{% endif %}>
                         <input type="checkbox" name="toggle" id="currencyToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" onclick="toggleCurrency()"/>
                         <label for="currencyToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer border border-white/10"></label>
                     </div>
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="label_usd">USD ($)</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="label_usd" {% if tenant_currency != 'VND' %}hidden{% endif %}>USD ($)</span>
                 </div>
 
                 <button onclick="exportToImage()" class="glass-panel hover:bg-cyan-500/20 hover:border-cyan-400 text-cyan-400 font-bold py-3 px-5 rounded-2xl transition-all shadow-lg flex items-center gap-2 active:scale-95">

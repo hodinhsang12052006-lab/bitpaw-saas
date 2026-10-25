@@ -83,7 +83,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     {% include 'components/app_sidebar.html' %}
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-screen p-4 md:p-8 relative overflow-hidden z-10">
+    <main class="flex-1 flex flex-col min-h-screen lg:h-screen p-4 md:p-8 relative overflow-y-auto lg:overflow-hidden z-10">
         <!-- Top Header Panel -->
         <div class="flex justify-between items-center mb-6 shrink-0 glass-panel p-5 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
@@ -99,9 +99,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
         </div>
 
-        <div class="flex gap-6 flex-1 min-h-0 relative">
+        <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 relative">
             <!-- Left: Campaign Settings form & Visual Flow Builder -->
-            <div class="w-6/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6">
+            <div class="w-full lg:w-6/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden p-6">
                 <div class="border-b border-white/10 pb-4 mb-4 shrink-0">
                     <h3 class="font-black text-white text-base flex items-center gap-2"><i class="fas fa-sliders text-cyan-400"></i> <span data-i18n="campaignbuilder_config_title">AI Campaign Configuration</span></h3>
                     <p class="text-gray-500 text-[10px] uppercase font-bold mt-1" data-i18n="campaignbuilder_config_subtitle">AI automatically schedules a 3, 7, 14-day nurture sequence</p>
@@ -215,7 +215,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
 
             <!-- Right: Live Preview & Message Approval Grid Queue -->
-            <div class="w-6/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
+            <div class="w-full lg:w-6/12 glass-panel rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
                 <!-- NEW: Live Preview Phone Mockup & Performance Predictions -->
                 <div class="p-4 bg-black/40 border-b border-white/10 shrink-0 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                     <!-- Phone Preview Frame -->
@@ -224,7 +224,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-3 bg-gray-800 rounded-b-xl z-10"></div>
                         <!-- Screen Header -->
                         <div class="border-b border-white/5 pb-1 mb-1 text-[8px] text-gray-500 flex justify-between font-bold shrink-0 pt-1">
-                            <span data-i18n="campaignbuilder_phone_label">Zalo Chat</span>
+                            <span data-i18n="campaignbuilder_phone_label">{{ 'Zalo Chat' if (tenant_currency or 'VND') == 'VND' else 'Messages' }}</span>
                             <span>9:41 AM</span>
                         </div>
                         <!-- Message Bubble Container -->
@@ -323,7 +323,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_node3_desc: 'Tự động tạo tin nhắn ưu đãi cá nhân hóa',
                 campaignbuilder_node4_title: 'HÀNH ĐỘNG: Gửi Tin Nhắn Zalo OA / Messenger',
                 campaignbuilder_node4_desc: 'Gửi tin nhắn vào hàng chờ duyệt của quản lý',
-                campaignbuilder_phone_label: 'Zalo Chat',
+                campaignbuilder_phone_label: {{ ('Zalo Chat' if (tenant_currency or 'VND') == 'VND' else 'Tin nhắn') | tojson }},
                 campaignbuilder_phone_placeholder: 'Chọn một tin nhắn dưới đây để xem trước nội dung AI đã soạn...',
                 campaignbuilder_phone_send: 'Gửi',
                 campaignbuilder_perf_title: 'Dự Đoán Hiệu Suất AI',
@@ -399,7 +399,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_node3_desc: 'Automatically generates personalized offer messages',
                 campaignbuilder_node4_title: 'ACTION: Send Zalo OA / Messenger Message',
                 campaignbuilder_node4_desc: "Sends the message to the manager's approval queue",
-                campaignbuilder_phone_label: 'Zalo Chat',
+                campaignbuilder_phone_label: {{ ('Zalo Chat' if (tenant_currency or 'VND') == 'VND' else 'Messages') | tojson }},
                 campaignbuilder_phone_placeholder: 'Select a message below to preview the actual AI-drafted content here...',
                 campaignbuilder_phone_send: 'Send',
                 campaignbuilder_perf_title: 'AI Performance Prediction',

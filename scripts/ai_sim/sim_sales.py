@@ -50,6 +50,8 @@ PHONE_RE = re.compile(r'\+?\d[\d\s().-]{7,}\d')
 def leads_from_transcript(transcript, contact, since):
     """Lead do cuộc chat này tạo: tìm theo email/SĐT mà khách giả lập THẬT SỰ gõ (cả liên hệ persona)."""
     text = ' '.join(t['text'] for t in transcript if t['who'] == 'customer') + ' ' + contact
+    # khách đánh vần email ("dave at shop dot com dot au") — bot ghép lại đúng, bộ kiểm cũng phải nhận ra
+    text += ' ' + re.sub(r'\s+dot\s+', '.', re.sub(r'\s+at\s+', '@', text, flags=re.I), flags=re.I)
     emails = sorted(set(e.lower().rstrip('.') for e in EMAIL_RE.findall(text)))
     tails = sorted(set(re.sub(r'\D', '', ph)[-8:] for ph in PHONE_RE.findall(text) if len(re.sub(r'\D', '', ph)) >= 8))
     ors = [{'email': {'$in': emails}}] if emails else []
@@ -83,11 +85,15 @@ def main():
     ap.add_argument('--per-minute', type=int, default=17)
     a = ap.parse_args()
     os.makedirs(OUT_DIR, exist_ok=True)
-    facts = ("REAL BITPAW FACTS: Plans per month + one-time setup — Essential USD 99 + 999 setup (AUD 149 + 1,499); Pro Partner USD 299 + 2,999 "
-             "(AUD 449 + 4,499); Empire Scale USD 599 + 4,999 (AUD 899 + 7,499). Prices exclude sales tax/GST. Nothing charged at sign-up. "
-             "Company: BitPaw Technology LLC (San Francisco + Sydney). NOT available: marketplace sync (Shopee/Shopify/TikTok), OTA sync "
-             "(Booking.com/Agoda), Xero/QuickBooks integration, tax/super withholding in payroll, barcode label printing, booking deposits. "
-             "No free trial or discount is published. Data on MongoDB Atlas (encrypted at rest), per-business isolation, cards via Square.")
+    # Giá THEO NGÀNH (25/10/2026): giám khảo chấm theo ĐÚNG khối dữ kiện bot được nạp (plans.py — cùng nguồn bảng giá/checkout).
+    # Trước đây ghi cứng bảng giá phẳng cũ (Essential $99 + $999...) -> chấm sai mọi câu báo giá đúng theo ngành.
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from ai_sales_prompts import bitpaw_facts
+    facts = "\n".join([
+        "REAL BITPAW FACTS (same source as the website price table and checkout):",
+        bitpaw_facts(None, None),
+        "- No free trial or discount code is published. Data on MongoDB Atlas (encrypted at rest), per-business isolation, cards via Square.",
+        "- Any price, fee, discount or free item different from the lines above is an accuracy failure."])
     pacer = Pacer(a.per_minute)
     ps = personas(a.n)
     results = []

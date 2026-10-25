@@ -1005,6 +1005,25 @@
 
     <!-- 8. FAQ Section -->
     {# Bảng giá đúng ngành (plans.py) — trước phần hỏi đáp #}
+    {% from 'components/device_showcase.html' import device3d_assets, real_software_section %}{{ device3d_assets() }}
+    {{ real_software_section('phan-mem-that', '#0d9488',
+        ('Đây là BitPaw đang chạy ở một xưởng may', 'This is BitPaw running in a garment workshop'),
+        ('Không phải ảnh minh hoạ: màn hình ghi sản lượng theo công nhân, công đoạn và ca của xưởng demo ở California. Bấm vào màn hình để xem rõ.',
+         'Not a mock-up: the output log by worker, stage and shift at our demo workshop in California. Tap a screen to see it up close.'),
+        'production_output_pc', 'production_output_mob',
+        'Ghi sản lượng: tổng trong ngày, sản lượng từng công nhân, các dòng vừa ghi / Output log: daily total, output per worker, latest entries',
+        'Ghi sản lượng trên điện thoại / Logging output from a phone',
+        [('fa-industry', 'Sản lượng theo công nhân', 'Output per worker'), ('fa-boxes-stacked', 'Trừ nguyên liệu theo định mức', 'Materials deducted by recipe')],
+        [('fa-clipboard-list', 'Ghi sản lượng trong vài giây', 'Log output in seconds',
+          'Chọn công nhân, công đoạn, số lượng, ca — tổng trong ngày và bảng xếp hạng tự cập nhật.',
+          'Pick the worker, stage, quantity and shift; the daily total and leaderboard update on their own.'),
+         ('fa-boxes-stacked', 'Nguyên liệu theo định mức', 'Materials by recipe',
+          'Đặt định mức cho từng công đoạn, ghi sản lượng là trừ kho nguyên liệu, báo khi sắp hết.',
+          'Set a recipe per stage; logging output deducts materials and warns before you run out.'),
+         ('fa-calendar-day', 'Xem lại theo ngày', 'Look back by day',
+          'Chọn ngày bất kỳ để xem tổng sản lượng và phần của từng người; xoá dòng ghi nhầm ngay tại chỗ.',
+          'Pick any date to see the total and each worker share; remove a wrong entry on the spot.')]) }}
+
     {% set pricing_industry = 'production' %}
     {% include 'components/pricing.html' %}
 

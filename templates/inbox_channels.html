@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <title>Messaging channels · BitPaw</title>
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        :root { --bg: #08061a; --panel: rgba(12, 18, 42, .72); --line: rgba(255, 255, 255, .09); --muted: #94a3b8; --text: #e5e7eb; --cyan: #22d3ee; }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }  /* .kv/.row đặt display riêng -> không có dòng này thì form ẩn vẫn hiện */
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .glow { position: fixed; width: 640px; height: 640px; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+        main { position: relative; z-index: 1; }
+        .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+        .head h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -.01em; color: #fff; }
+        .head p { margin: 6px 0 0; color: var(--muted); font-size: 14px; max-width: 640px; line-height: 1.55; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; font-weight: 800; font-size: 13.5px; padding: 10px 16px;
+               border: 1px solid var(--line); background: rgba(255,255,255,.05); color: #fff; cursor: pointer; text-decoration: none; transition: background .15s, transform .1s; }
+        .btn:hover { background: rgba(255,255,255,.1); }
+        .btn:active { transform: scale(.98); }
+        .btn-primary { background: linear-gradient(90deg, #06b6d4, #2563eb); border-color: rgba(34,211,238,.5); }
+        .btn-primary:hover { background: linear-gradient(90deg, #22d3ee, #3b82f6); }
+        .btn-danger { color: #fecaca; border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.08); }
+        .btn[disabled] { opacity: .55; cursor: wait; }
+        .flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 6px; }
+        .flow div { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font-size: 13.5px; color: #cbd5e1; line-height: 1.5; }
+        .flow b { display: block; color: #fff; font-size: 14px; margin-bottom: 3px; }
+        .flow i { color: var(--cyan); margin-right: 6px; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px; backdrop-filter: blur(16px); display: flex; flex-direction: column; gap: 12px; }
+        .card.on { border-color: rgba(52, 211, 153, .35); }
+        .c-top { display: flex; align-items: center; gap: 12px; }
+        .logo { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 21px; font-weight: 900; flex-shrink: 0; }
+        .c-name { font-weight: 900; font-size: 16px; color: #fff; }
+        .c-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+        .pill { margin-left: auto; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--line); color: #cbd5e1; background: rgba(0,0,0,.3); }
+        .pill.on { color: #a7f3d0; border-color: rgba(52,211,153,.4); background: rgba(16,185,129,.12); }
+        .pill.warn { color: #fde68a; border-color: rgba(251,191,36,.4); background: rgba(245,158,11,.1); }
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; }
+        .kv { display: grid; gap: 8px; }
+        .kv label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .02em; }
+        .copy { display: flex; gap: 6px; }
+        .copy input { flex: 1; min-width: 0; }
+        input.f { width: 100%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.14); border-radius: 11px; padding: 10px 12px; color: #fff; font-size: 13.5px; font-family: inherit; }
+        input.f:focus { outline: none; border-color: rgba(34,211,238,.6); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+        input.f[readonly] { color: #a5f3fc; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+        .hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+        .steps { margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+        .steps a { color: #67e8f9; }
+        .err { font-size: 12.5px; color: #fecaca; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); border-radius: 10px; padding: 8px 10px; }
+        .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+        .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+        .switch span { position: absolute; inset: 0; border-radius: 999px; background: #475569; transition: background .15s; pointer-events: none; }
+        .switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+        .switch input:checked + span { background: #06b6d4; }
+        .switch input:checked + span::after { transform: translateX(18px); }
+        .switch input:focus-visible + span { outline: 2px solid #67e8f9; outline-offset: 2px; }
+        .sec-title { margin: 30px 0 4px; font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+        details summary { cursor: pointer; font-size: 13px; font-weight: 800; color: #a5f3fc; }
+        #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 99; max-width: 92vw; padding: 11px 16px; border-radius: 12px; font-weight: 700; font-size: 13.5px; display: none; }
+        @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 760px) { .flow { grid-template-columns: 1fr; } .head h1 { font-size: 22px; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+    <div class="glow" style="top:-12%;left:18%;background:rgba(6,182,212,.10)"></div>
+    <div class="glow" style="bottom:-20%;right:-10%;background:rgba(124,58,237,.10)"></div>
+    {% include 'components/app_sidebar.html' %}
+
+    <main class="flex-1 min-w-0 p-4 md:p-8">
+        <div class="head">
+            <div>
+                <h1 id="tTitle">Messaging channels</h1>
+                <p id="tLead">Every message from these apps lands in one inbox. You reply there — the reply goes back to the same app the customer used. AI answers for you around the clock.</p>
+            </div>
+            <a class="btn btn-primary" href="/ai_bot"><i class="fas fa-inbox"></i> <span id="tOpenInbox">Open inbox</span></a>
+        </div>
+
+        <div class="flow">
+            <div><b><i class="fas fa-plug"></i><span id="tF1">1 · Connect</span></b><span id="tF1d">Paste the token from the app's developer page. BitPaw checks it with the app before saving.</span></div>
+            <div><b><i class="fas fa-inbox"></i><span id="tF2">2 · One inbox</span></b><span id="tF2d">Messenger, Instagram, WhatsApp, Zalo, Viber, SMS and website chat show up together, each with its own badge.</span></div>
+            <div><b><i class="fas fa-robot"></i><span id="tF3">3 · AI replies</span></b><span id="tF3d">The AI answers questions and books real appointments. Reply yourself any time — the AI steps back.</span></div>
+        </div>
+
+        <div class="grid" id="cards"><div class="card"><div class="hint"><i class="fas fa-circle-notch fa-spin"></i> Loading…</div></div></div>
+
+        <p class="sec-title" id="tAlways">Also in the inbox</p>
+        <div class="grid" id="cards2"></div>
+    </main>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        const IS_VN = {{ 'true' if is_vn_shop else 'false' }};
+        function lang() {
+            let l = '';
+            try { l = localStorage.getItem('bitpaw_lang') || ''; } catch (e) { /* bị chặn */ }
+            return (l || document.documentElement.lang || 'en').slice(0, 2) === 'vi' ? 'vi' : 'en';
+        }
+        const T = {
+            en: {
+                tTitle: 'Messaging channels', tOpenInbox: 'Open inbox', tAlways: 'Also in the inbox',
+                tLead: 'Every message from these apps lands in one inbox. You reply there — the reply goes back to the same app the customer used. AI answers for you around the clock.',
+                tF1: '1 · Connect', tF1d: "Paste the token from the app's developer page. BitPaw checks it with the app before saving.",
+                tF2: '2 · One inbox', tF2d: 'Messenger, Instagram, WhatsApp, Zalo, Viber, SMS and website chat show up together, each with its own badge.',
+                tF3: '3 · AI replies', tF3d: 'The AI answers questions and books real appointments. Reply yourself any time — the AI steps back.',
+                connected: 'Connected', notConnected: 'Not connected', connect: 'Connect', reconnect: 'Update token', disconnect: 'Disconnect',
+                save: 'Check & connect', checking: 'Checking with', cancel: 'Cancel', copy: 'Copy', copied: 'Copied',
+                webhook: 'Webhook / Callback URL', verify: 'Verify token', aiReply: 'AI replies automatically', conv: 'conversations',
+                waiting: 'Waiting for the first message', lastIn: 'Last message', lastErr: 'Last problem', howTo: 'How to set it up',
+                sureOff: 'Disconnect this channel? New messages from it will stop coming in.', done: 'Connected — now paste the webhook address into the app (step 3).',
+                off: 'Disconnected', saved: 'Saved', required: 'required', optional: 'optional', always: 'Always on',
+                webName: 'Website chat', webSub: 'Chat on your BitPaw booking page and website', webBody: 'Customers who chat on your booking page (or the chat bubble on your BitPaw website) appear in the inbox automatically — nothing to set up.',
+                smsName: 'SMS (text messages)', smsSub: 'Twilio number for your shop', smsOn: 'Texts to your shop number appear in the inbox, and your replies go back by SMS.',
+                smsOff: 'Connect a Twilio number to receive and answer customer texts here.', smsGo: 'Set up SMS', autoRefresh: 'Token renews automatically',
+                noAutoRefresh: 'Zalo tokens last 25 hours — add the refresh token so it renews automatically.', vnOnly: 'Popular in Vietnam',
+            },
+            vi: {
+                tTitle: 'Kênh nhắn tin', tOpenInbox: 'Mở hộp thư', tAlways: 'Cũng có trong hộp thư',
+                tLead: 'Tin nhắn từ mọi ứng dụng dưới đây đổ về 1 hộp thư. Bạn trả lời ở đó — tin đi về đúng ứng dụng khách đã nhắn. AI trả lời thay bạn cả ngày lẫn đêm.',
+                tF1: '1 · Nối kênh', tF1d: 'Dán token lấy ở trang nhà phát triển của ứng dụng. BitPaw kiểm tra thật với ứng dụng rồi mới lưu.',
+                tF2: '2 · Một hộp thư', tF2d: 'Messenger, Instagram, WhatsApp, Zalo, Viber, SMS và chat website hiện chung một chỗ, mỗi tin có dấu kênh riêng.',
+                tF3: '3 · AI trả lời', tF3d: 'AI trả lời câu hỏi và đặt lịch thật. Bạn nhảy vào trả lời lúc nào cũng được — AI tự lùi lại.',
+                connected: 'Đã nối', notConnected: 'Chưa nối', connect: 'Nối kênh', reconnect: 'Cập nhật token', disconnect: 'Ngắt kết nối',
+                save: 'Kiểm tra & nối', checking: 'Đang kiểm tra với', cancel: 'Huỷ', copy: 'Chép', copied: 'Đã chép',
+                webhook: 'Địa chỉ Webhook / Callback URL', verify: 'Verify token', aiReply: 'AI tự trả lời', conv: 'hội thoại',
+                waiting: 'Đang chờ tin nhắn đầu tiên', lastIn: 'Tin gần nhất', lastErr: 'Sự cố gần nhất', howTo: 'Cách cài đặt',
+                sureOff: 'Ngắt kênh này? Tin nhắn mới từ kênh sẽ không về hộp thư nữa.', done: 'Đã nối — giờ dán địa chỉ webhook vào ứng dụng (bước 3).',
+                off: 'Đã ngắt', saved: 'Đã lưu', required: 'bắt buộc', optional: 'không bắt buộc', always: 'Luôn bật',
+                webName: 'Chat trên website', webSub: 'Chat ở trang đặt lịch và website BitPaw của tiệm', webBody: 'Khách chat ở trang đặt lịch (hoặc bong bóng chat trên website BitPaw làm cho tiệm) tự hiện trong hộp thư — không cần cài gì.',
+                smsName: 'SMS (tin nhắn điện thoại)', smsSub: 'Số Twilio của tiệm', smsOn: 'Tin khách nhắn tới số của tiệm hiện trong hộp thư, bạn trả lời thì gửi lại bằng SMS.',
+                smsOff: 'Nối 1 số Twilio để nhận và trả lời tin SMS của khách ngay tại đây.', smsGo: 'Cài SMS', autoRefresh: 'Token tự gia hạn',
+                noAutoRefresh: 'Token Zalo chỉ sống 25 giờ — thêm refresh token để tự gia hạn.', vnOnly: 'Phổ biến ở Việt Nam',
+            },
+        };
+        const t = (k) => (T[lang()] || T.en)[k] || T.en[k] || k;
+        const ERR_VI = {
+            not_connected: '{ch} chưa được nối — tin đã lưu ở đây nhưng khách chưa nhận được.',
+            window_24h: 'Đã quá 24 giờ kể từ tin cuối của khách — khách cần nhắn lại thì bạn mới trả lời được.',
+            token_invalid: 'Token không hợp lệ hoặc đã hết hạn — hãy nối lại kênh.',
+            token_unreadable: 'Không đọc được token của {ch} — hãy nối lại kênh.',
+            unreachable: 'Không kết nối được tới {ch}, thử lại sau ít phút.',
+            zalo_expired: 'Token Zalo đã hết hạn — nối lại Zalo (thêm refresh token để tự gia hạn).',
+            provider: '{ch} báo lỗi: {detail}',
+            rejected: '{ch} từ chối: {detail}',
+            page_mismatch: 'Token này thuộc Fanpage khác với Page ID bạn nhập.',
+            need_token: 'Hãy dán access token trước.',
+            need_ig_id: 'Cần Instagram account ID.',
+            need_phone_id: 'Cần Phone number ID.',
+            need_app_secret: 'Cần App secret — để BitPaw kiểm tra tin nhắn đúng là do Meta gửi.',
+            need_oa_secret: 'Cần OA secret key — để BitPaw kiểm tra tin nhắn đúng là do Zalo gửi.',
+            viber_webhook: 'Viber chưa nhận địa chỉ webhook: {detail} (Viber cần địa chỉ https công khai — chạy được trên trang thật).',
+        };
+        function errText(d) {
+            if (!d) return '';
+            const tpl = lang() === 'vi' && ERR_VI[d.code];
+            if (tpl && (d.detail || !tpl.includes('{detail}'))) return tpl.replace('{ch}', d.ch || '').replace('{detail}', d.detail || '');
+            return d.message || d.error || '';
+        }
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+        // Trường cần dán cho từng kênh + các bước lấy ở trang nhà phát triển của nền tảng
+        const DEF = {
+            messenger: {
+                name: 'Facebook Messenger', bg: '#0866ff', icon: 'fa-brands fa-facebook-messenger', sub: { en: 'Messages to your Facebook Page', vi: 'Tin nhắn tới Fanpage Facebook' },
+                fields: [['access_token', 'Page access token', 1, 1], ['app_secret', 'App secret', 1, 1], ['external_id', 'Page ID', 0, 0]],
+                steps: {
+                    en: ['On <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a> open your app → Messenger → Settings, and generate a <b>Page access token</b>.', 'Copy the <b>App secret</b> (App settings → Basic), paste both here and press Check &amp; connect.', 'In Messenger → Webhooks paste the Callback URL + Verify token shown here, then subscribe to <b>messages</b>, <b>messaging_postbacks</b> and <b>message_echoes</b>.'],
+                    vi: ['Vào <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a> → ứng dụng của bạn → Messenger → Cài đặt, tạo <b>Page access token</b>.', 'Chép <b>App secret</b> (Cài đặt ứng dụng → Cơ bản), dán cả 2 vào đây rồi bấm Kiểm tra &amp; nối.', 'Ở Messenger → Webhooks dán Callback URL + Verify token hiện ở đây, đăng ký các sự kiện <b>messages</b>, <b>messaging_postbacks</b>, <b>message_echoes</b>.'],
+                },
+            },
+            instagram: {
+                name: 'Instagram Direct', bg: 'linear-gradient(45deg,#f58529,#dd2a7b,#8134af)', icon: 'fa-brands fa-instagram', sub: { en: 'DMs to your Instagram business account', vi: 'Tin nhắn Direct tới Instagram doanh nghiệp' },
+                fields: [['access_token', 'Page access token', 1, 1], ['external_id', 'Instagram account ID', 1, 0], ['app_secret', 'App secret', 1, 1]],
+                steps: {
+                    en: ['Link your Instagram professional account to your Facebook Page, then in your Meta app add <b>Instagram</b> messaging.', 'Paste the Page access token (with instagram_manage_messages), the Instagram account ID and the App secret here.', 'In the app’s Instagram → Webhooks paste the Callback URL + Verify token and subscribe to <b>messages</b>.'],
+                    vi: ['Liên kết Instagram doanh nghiệp với Fanpage, rồi trong ứng dụng Meta thêm tính năng nhắn tin <b>Instagram</b>.', 'Dán Page access token (có quyền instagram_manage_messages), Instagram account ID và App secret vào đây.', 'Ở Instagram → Webhooks của ứng dụng dán Callback URL + Verify token, đăng ký sự kiện <b>messages</b>.'],
+                },
+            },
+            whatsapp: {
+                name: 'WhatsApp Business', bg: '#1fa855', icon: 'fa-brands fa-whatsapp', sub: { en: 'WhatsApp Cloud API number', vi: 'Số WhatsApp Cloud API' },
+                fields: [['access_token', 'Access token (permanent)', 1, 1], ['external_id', 'Phone number ID', 1, 0], ['app_secret', 'App secret', 1, 1]],
+                steps: {
+                    en: ['In your Meta app → WhatsApp → API setup, copy the <b>Phone number ID</b> and create a permanent token (System user).', 'Paste them with the App secret and press Check &amp; connect.', 'In WhatsApp → Configuration → Webhook paste the Callback URL + Verify token and subscribe to <b>messages</b>. Note: WhatsApp only lets you reply within 24 hours of the customer’s last message.'],
+                    vi: ['Trong ứng dụng Meta → WhatsApp → Thiết lập API, chép <b>Phone number ID</b> và tạo token vĩnh viễn (System user).', 'Dán cùng App secret rồi bấm Kiểm tra &amp; nối.', 'Ở WhatsApp → Cấu hình → Webhook dán Callback URL + Verify token, đăng ký sự kiện <b>messages</b>. Lưu ý: WhatsApp chỉ cho trả lời trong 24 giờ kể từ tin cuối của khách.'],
+                },
+            },
+            zalo: {
+                name: 'Zalo OA', bg: '#0068ff', text: 'Zalo', sub: { en: 'Zalo Official Account', vi: 'Zalo Official Account (OA)' },
+                fields: [['access_token', 'OA access token', 1, 1], ['oa_secret', 'OA secret key', 1, 1], ['app_id', 'App ID', 0, 0], ['app_secret', 'App secret key', 0, 1], ['refresh_token', 'Refresh token', 0, 1]],
+                steps: {
+                    en: ['On <a href="https://developers.zalo.me" target="_blank" rel="noopener">developers.zalo.me</a> open your app → Official Account and get the <b>OA access token</b> (and refresh token).', 'In Webhook settings copy the <b>OA secret key</b>; paste everything here and press Check &amp; connect.', 'Paste the Webhook URL shown here into Zalo and turn on the events <b>user_send_text</b>, <b>user_send_image</b> and <b>oa_send_text</b>.'],
+                    vi: ['Vào <a href="https://developers.zalo.me" target="_blank" rel="noopener">developers.zalo.me</a> → ứng dụng → Official Account, lấy <b>OA access token</b> (và refresh token).', 'Ở mục Webhook chép <b>OA secret key</b>; dán tất cả vào đây rồi bấm Kiểm tra &amp; nối.', 'Dán Webhook URL hiện ở đây vào Zalo và bật sự kiện <b>user_send_text</b>, <b>user_send_image</b>, <b>oa_send_text</b>.'],
+                },
+            },
+            viber: {
+                name: 'Viber', bg: '#7360f2', icon: 'fa-brands fa-viber', sub: { en: 'Viber bot for your shop', vi: 'Bot Viber của tiệm' },
+                fields: [['access_token', 'Bot token', 1, 1]],
+                steps: {
+                    en: ['Create a bot on <a href="https://partners.viber.com" target="_blank" rel="noopener">partners.viber.com</a> and copy its <b>token</b>.', 'Paste it here and press Check &amp; connect — BitPaw registers the webhook with Viber for you.'],
+                    vi: ['Tạo bot ở <a href="https://partners.viber.com" target="_blank" rel="noopener">partners.viber.com</a> và chép <b>token</b> của bot.', 'Dán vào đây rồi bấm Kiểm tra &amp; nối — BitPaw tự đăng ký webhook với Viber.'],
+                },
+            },
+        };
+        const ORDER = IS_VN ? ['zalo', 'messenger', 'instagram', 'whatsapp', 'viber'] : ['messenger', 'instagram', 'whatsapp', 'viber', 'zalo'];
+        let STATUS = {};
+        const open = {};
+
+        function toast(msg, ok) {
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.style.display = 'block';
+            el.style.background = ok ? 'rgba(16,185,129,.95)' : 'rgba(225,29,72,.95)'; el.style.color = '#fff';
+            clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = 'none'; }, ok ? 3500 : 6500);
+        }
+        async function api(path, body) {
+            const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+            let j = {};
+            try { j = await r.json(); } catch (e) { j = { success: false, message: 'HTTP ' + r.status }; }
+            if (!r.ok || !j.success) { const e = new Error(errText(j) || j.message || ('HTTP ' + r.status)); e.data = j; throw e; }
+            return j;
+        }
+        const when = (iso) => { if (!iso) return ''; try { return new Date(iso).toLocaleString(lang() === 'vi' ? 'vi-VN' : 'en-AU', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
+        const logo = (d) => `<div class="logo" style="background:${d.bg}" aria-hidden="true">${d.text ? `<span style="font-size:${d.text.length > 1 ? 13 : 20}px">${d.text}</span>` : `<i class="${d.icon}"></i>`}</div>`;
+        const copyRow = (label, value, id) => `<div class="kv"><label for="${id}">${esc(label)}</label><div class="copy"><input class="f" id="${id}" readonly value="${esc(value)}"><button type="button" class="btn" data-copy="${id}"><i class="far fa-copy"></i> ${esc(t('copy'))}</button></div></div>`;
+
+        function card(ch) {
+            const d = DEF[ch], s = STATUS[ch] || {}, L = lang();
+            const on = !!s.connected;
+            let body = '';
+            if (on) {
+                body += `<div class="row"><i class="fas fa-circle-check" style="color:#34d399"></i><b>${esc(s.account_name || d.name)}</b>${s.external_id ? `<span class="hint">· ${esc(s.external_id)}</span>` : ''}</div>`;
+                if (s.webhook_url) body += copyRow(t('webhook'), s.webhook_url, `wh_${ch}`);
+                if (s.verify_token) body += copyRow(t('verify'), s.verify_token, `vt_${ch}`);
+                body += `<div class="row"><span>${s.last_inbound_at ? `${esc(t('lastIn'))}: ${esc(when(s.last_inbound_at))}` : esc(t('waiting'))}</span><span class="hint">· ${s.conversations || 0} ${esc(t('conv'))}</span></div>`;
+                if (ch === 'zalo') body += `<div class="hint">${esc(s.auto_refresh ? t('autoRefresh') : t('noAutoRefresh'))}</div>`;
+                if (s.last_error && s.last_error.message) body += `<div class="err"><b>${esc(t('lastErr'))}:</b> ${esc(errText(s.last_error))} <span class="hint">(${esc(when(s.last_error.at))})</span></div>`;
+            }
+            const form = `<form class="kv" data-form="${ch}" ${open[ch] ? '' : 'hidden'} autocomplete="off">
+                    ${d.fields.map(([k, label, req, secret]) => `<div class="kv"><label for="f_${ch}_${k}">${esc(label)} <span class="hint">(${esc(req ? t('required') : t('optional'))})</span></label>
+                        <input class="f" id="f_${ch}_${k}" name="${k}" ${secret ? 'type="password"' : 'type="text"'} ${req ? 'required' : ''} spellcheck="false"></div>`).join('')}
+                    <div class="row"><button class="btn btn-primary" type="submit"><i class="fas fa-plug"></i> ${esc(t('save'))}</button>
+                        <button class="btn" type="button" data-cancel="${ch}">${esc(t('cancel'))}</button></div>
+                </form>`;
+            return `<section class="card ${on ? 'on' : ''}" id="card_${ch}" aria-labelledby="n_${ch}">
+                <div class="c-top">${logo(d)}<div style="min-width:0"><div class="c-name" id="n_${ch}">${esc(d.name)}</div><div class="c-sub">${esc(d.sub[L] || d.sub.en)}${ch === 'zalo' && !IS_VN ? ' · ' + esc(t('vnOnly')) : ''}</div></div>
+                    <span class="pill ${on ? 'on' : ''}">${esc(on ? t('connected') : t('notConnected'))}</span></div>
+                ${body}
+                <div class="row">
+                    <label class="row" style="gap:10px;cursor:pointer"><span class="switch"><input type="checkbox" data-ai="${ch}" ${s.ai_auto_reply !== false ? 'checked' : ''} aria-label="${esc(t('aiReply'))}"><span></span></span>${esc(t('aiReply'))}</label>
+                </div>
+                ${form}
+                <div class="row" ${open[ch] ? 'hidden' : ''}>
+                    <button class="btn ${on ? '' : 'btn-primary'}" type="button" data-open="${ch}"><i class="fas ${on ? 'fa-key' : 'fa-plug'}"></i> ${esc(on ? t('reconnect') : t('connect'))}</button>
+                    ${on ? `<button class="btn btn-danger" type="button" data-off="${ch}"><i class="fas fa-link-slash"></i> ${esc(t('disconnect'))}</button>` : ''}
+                </div>
+                <details ${on ? '' : 'open'}><summary>${esc(t('howTo'))}</summary><ol class="steps">${(d.steps[L] || d.steps.en).map((x) => `<li>${x}</li>`).join('')}</ol></details>
+            </section>`;
+        }
+
+        function render() {
+            ['tTitle', 'tLead', 'tOpenInbox', 'tAlways', 'tF1', 'tF1d', 'tF2', 'tF2d', 'tF3', 'tF3d'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = t(id); });
+            document.getElementById('cards').innerHTML = ORDER.map(card).join('');
+            const web = STATUS.web || {}, sms = STATUS.sms || {};
+            document.getElementById('cards2').innerHTML = `
+                <section class="card on"><div class="c-top">${logo({ bg: '#0891b2', icon: 'fa-solid fa-globe' })}<div><div class="c-name">${esc(t('webName'))}</div><div class="c-sub">${esc(t('webSub'))}</div></div><span class="pill on">${esc(t('always'))}</span></div>
+                    <div class="hint" style="font-size:13px">${esc(t('webBody'))}</div><div class="row"><span class="hint">${web.conversations || 0} ${esc(t('conv'))}</span></div>
+                    <div class="row"><label class="row" style="gap:10px;cursor:pointer"><span class="switch"><input type="checkbox" data-ai="web" checked disabled aria-label="${esc(t('aiReply'))}"><span></span></span>${esc(t('aiReply'))}</label></div></section>
+                <section class="card ${sms.connected ? 'on' : ''}"><div class="c-top">${logo({ bg: '#15803d', icon: 'fa-solid fa-comment-sms' })}<div><div class="c-name">${esc(t('smsName'))}</div><div class="c-sub">${esc(t('smsSub'))}</div></div><span class="pill ${sms.connected ? 'on' : ''}">${esc(sms.connected ? t('connected') : t('notConnected'))}</span></div>
+                    <div class="hint" style="font-size:13px">${esc(sms.connected ? t('smsOn') : t('smsOff'))}</div>
+                    ${sms.connected ? `<div class="row"><span class="hint">${sms.conversations || 0} ${esc(t('conv'))}</span></div><div class="row"><label class="row" style="gap:10px;cursor:pointer"><span class="switch"><input type="checkbox" data-ai="sms" ${sms.ai_auto_reply !== false ? 'checked' : ''} aria-label="${esc(t('aiReply'))}"><span></span></span>${esc(t('aiReply'))}</label></div>` : ''}
+                    <div class="row"><a class="btn ${sms.connected ? '' : 'btn-primary'}" href="/settings/messaging"><i class="fas fa-sliders"></i> ${esc(t('smsGo'))}</a></div></section>`;
+            wire();
+        }
+
+        function wire() {
+            document.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { open[b.dataset.open] = true; render(); const f = document.querySelector(`[data-form="${b.dataset.open}"] input`); if (f) f.focus(); });
+            document.querySelectorAll('[data-cancel]').forEach((b) => b.onclick = () => { open[b.dataset.cancel] = false; render(); });
+            document.querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => {
+                const el = document.getElementById(b.dataset.copy);
+                try { await navigator.clipboard.writeText(el.value); } catch (e) { el.select(); document.execCommand('copy'); }
+                b.innerHTML = `<i class="fas fa-check"></i> ${esc(t('copied'))}`; setTimeout(() => { b.innerHTML = `<i class="far fa-copy"></i> ${esc(t('copy'))}`; }, 1600);
+            });
+            document.querySelectorAll('[data-ai]').forEach((cb) => cb.onchange = async () => {
+                try { await api(`/api/inbox/channels/${cb.dataset.ai}`, { action: 'ai', enabled: cb.checked }); toast(t('saved'), true); }
+                catch (e) { cb.checked = !cb.checked; toast(e.message, false); }
+            });
+            document.querySelectorAll('[data-off]').forEach((b) => b.onclick = async () => {
+                if (!confirm(t('sureOff'))) return;
+                b.disabled = true;
+                try { await api(`/api/inbox/channels/${b.dataset.off}`, { action: 'disconnect' }); toast(t('off'), true); await load(); }
+                catch (e) { b.disabled = false; toast(e.message, false); }
+            });
+            document.querySelectorAll('[data-form]').forEach((f) => f.onsubmit = async (ev) => {
+                ev.preventDefault();
+                const ch = f.dataset.form, btn = f.querySelector('button[type=submit]');
+                const fields = {};
+                new FormData(f).forEach((v, k) => { fields[k] = String(v).trim(); });
+                btn.disabled = true; btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${esc(t('checking'))} ${esc(DEF[ch].name)}…`;
+                try {
+                    await api(`/api/inbox/channels/${ch}`, { action: 'connect', fields });
+                    open[ch] = false; toast(t('done'), true); await load();
+                    const c = document.getElementById('card_' + ch); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } catch (e) {
+                    btn.disabled = false; btn.innerHTML = `<i class="fas fa-plug"></i> ${esc(t('save'))}`; toast(e.message, false);
+                }
+            });
+        }
+
+        async function load() {
+            try { STATUS = (await api('/api/inbox/channels')).data || {}; } catch (e) { toast(e.message, false); }
+            render();
+        }
+        load();
+        document.addEventListener('click', (e) => { if (e.target.closest('[onclick*="Lang"], [data-lang], .lang-btn')) setTimeout(render, 120); });
+    </script>
+</body>
+</html>

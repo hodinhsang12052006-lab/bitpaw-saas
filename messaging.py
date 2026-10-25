@@ -33,6 +33,7 @@ MARKETING_KINDS = {'review_request', 'nurture', 'promo', 'winback'}
 STOP_WORDS = {'stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit', 'optout', 'opt-out', 'revoke'}
 START_WORDS = {'start', 'unstop', 'yes'}
 MAX_ATTEMPTS = 3
+inbox_hook = None  # app.py gắn _inbox_sms_inbound (tránh import vòng)
 _INDEXES_READY = False
 
 
@@ -539,6 +540,12 @@ def handle_inbound_sms(business_id, from_number, body):
     # tin trả lời bình thường của khách -> lưu cho chủ tiệm xem (Twilio vẫn chuyển tiếp nếu tiệm cấu hình)
     db.inbound_messages.insert_one({'id': next_mongo_id('inbound_messages'), 'business_id': business_id, 'channel': 'sms',
                                     'from': from_number, 'body': (body or '')[:1600], 'created_at': datetime.now(timezone.utc).isoformat()})
+    # Hộp thư chung (app.py::_inbox_sms_inbound): tin hiện trong /ai_bot cạnh Messenger/Zalo/..., AI trả lời nếu đang bật
+    if inbox_hook is not None:
+        try:
+            return inbox_hook(business_id, from_number, body) or ''
+        except Exception as e:
+            print(f"[sms inbox] {e}")
     return ''
 
 

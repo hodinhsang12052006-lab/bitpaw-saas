@@ -20,7 +20,20 @@ from mongo_client import db
 print(db.users.find_one({'email': '${EMAIL}'})['business_id'])`);
 const B = JSON.stringify(bid);
 const api = (url, method = 'GET', body) => p.evaluate(async ([u, m, bd]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: bd ? JSON.stringify(bd) : undefined }); let j = {}; try { j = await r.json(); } catch (e) {} return { status: r.status, ...j }; }, [url, method, body]);
-const ROOM = 4;  // Phòng Đôi — 120.000đ/giờ
+const ROOM = 4;  // phòng đôi — giá/tên đọc từ DB (demo đã đổi sang USD + tên tiếng Anh)
+const D = JSON.parse(py(`
+import json
+from mongo_client import db
+r = db.karaoke_rooms.find_one({'business_id': ${B}, 'id': ${ROOM}}, {'_id': 0, 'name': 1, 'price_per_hour': 1})
+pr = {str(x['id']): x for x in db.products.find({'business_id': ${B}, 'id': {'$in': [229, 231, 234]}}, {'_id': 0, 'id': 1, 'name': 1, 'price': 1})}
+cur = (db.businesses.find_one({'id': ${B}}, {'currency': 1}) or {}).get('currency') or 'VND'
+print(json.dumps({'room': r['name'], 'rate': r['price_per_hour'], 'beer': pr['229']['name'], 'beerP': pr['229']['price'],
+                  'fruit': pr['231']['name'], 'fruitP': pr['231']['price'], 'cur': cur}))`));
+const VND = D.cur === 'VND';
+const money = (n) => (VND ? Math.round(n).toLocaleString('vi-VN') : Number(n).toFixed(2));
+const re = (n) => new RegExp(money(n).replace(/[.$]/g, '\\$&'));
+const ITEMS = 3 * D.beerP + D.fruitP, TIME = Math.round(1.25 * D.rate * 100) / 100, TOTAL = Math.round((ITEMS + TIME) * 100) / 100;
+const near = (a, b) => Math.abs(Number(a) - Number(b)) < 0.005;
 const stock0 = JSON.parse(py(`
 import json
 from mongo_client import db
@@ -61,9 +74,9 @@ print('ok')`);
 
 // nhân viên thêm 2 lon bia; khách quét QR (iPhone) gọi 1 trái cây + 1 bia
 r = await api(`/api/karaoke/rooms/${ROOM}/items`, 'POST', { items: [{ product_id: 229, qty: 2 }] });
-rec('Nhân viên thêm món cho phòng (giá lấy ở máy chủ)', r.success && r.items_total === 50000, `tổng món ${r.items_total}`);
+rec('Nhân viên thêm món cho phòng (giá lấy ở máy chủ)', r.success && near(r.items_total, 2 * D.beerP), `tổng món ${r.items_total}`);
 r = await api(`/api/karaoke/rooms/${ROOM}/items`, 'POST', { items: [{ product_id: 234, qty: 1 }] });
-rec('Không thêm được "Phí giờ" như 1 món (chống tính 2 lần)', r.status === 400);
+rec('Không thêm được "Phí giờ" như 1 món (chống tính 2 lần)', r.status === 400, `HTTP ${r.status}`);
 {
   const { defaultBrowserType, ...iphone } = devices['iPhone 13'];
   const m = await (await b.newContext(iphone)).newPage(); const merr = []; m.on('pageerror', (e) => merr.push(e.message));
@@ -75,32 +88,34 @@ rec('Không thêm được "Phí giờ" như 1 món (chống tính 2 lần)', r.
   await m.click('#sendBtn'); await m.waitForSelector('#sentNote:not([hidden])', { timeout: 8000 }).catch(() => {});
   const note = await m.textContent('#sentNote'); const ordered = await m.textContent('#ordered').catch(() => '');
   const ov = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-  rec('Khách quét QR trên iPhone — chọn món, thấy tổng, gửi được', /Phòng Đôi/.test(hdr) && /145\.000/.test(total) && /Đã gửi/.test(note) && /Trái cây/.test(ordered) && ov <= 1 && merr.length === 0, `${hdr.trim()} · ${total} · ${note.slice(0, 40)}`);
+  const menuTxt = await m.textContent('body');
+  rec('Khách quét QR trên iPhone — chọn món, thấy tổng, gửi được', hdr.includes(D.room) && re(D.fruitP + D.beerP).test(total) && /Đã gửi|Sent/.test(note) && ordered.includes(D.fruit) && ov <= 1 && merr.length === 0, `${hdr.trim()} · ${total} · ${note.slice(0, 40)}`);
+  rec('Menu QR của khách KHÔNG có món phí giờ', !/Phí Giờ Karaoke|per hour\)|room time/i.test(menuTxt) && (await m.locator('.item[data-id="234"]').count()) === 0);
   await m.screenshot({ path: 'audit-results/screenshots/karaoke_qr_order_iphone.png' }).catch(() => {});
   await m.context().close();
 }
 rooms = await api('/api/karaoke/rooms'); room = rooms.data.find((x) => x.id === ROOM);
-rec('Màn quầy thấy món mới qua QR + tổng món', room.new_qr_orders === 2 && room.items_total === 195000 && room.items_count === 4, JSON.stringify({ new: room.new_qr_orders, total: room.items_total, n: room.items_count }));
+rec('Màn quầy thấy món mới qua QR + tổng món', room.new_qr_orders === 2 && near(room.items_total, ITEMS) && room.items_count === 4, JSON.stringify({ new: room.new_qr_orders, total: room.items_total, n: room.items_count }));
 
 // giao diện màn quầy
 await p.goto(BASE + '/karaoke', { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
 const card = await p.locator(`.glass-card[data-room-id="${ROOM}"]`).innerText();
-rec('Thẻ phòng hiện 4 món · 195.000 ₫ + món mới qua QR + đã hát 70 phút', /4 (món|items)/.test(card) && /195\.000/.test(card) && /(qua|via) QR/.test(card) && /1 (giờ|hr|h)\w* 1\d/.test(card), card.replace(/\s+/g, ' ').slice(0, 140));
+rec(`Thẻ phòng hiện 4 món · ${money(ITEMS)} + món mới qua QR + đã hát 70 phút`, /4 (món|items)/.test(card) && re(ITEMS).test(card) && /(qua|via) QR/.test(card) && /1 (giờ|hr|h)\w* 1\d/.test(card), card.replace(/\s+/g, ' ').slice(0, 140));
 await p.locator(`.glass-card[data-room-id="${ROOM}"] button:has-text("QR")`).click(); await p.waitForTimeout(500);
 rec('Nút QR hiện mã QR in được', await p.locator('#qrBox svg').count() === 1 && (await p.textContent('#qrUrl')).includes(tok));
 await p.click('#qrCloseLbl');
 await p.locator(`.glass-card[data-room-id="${ROOM}"] button[onclick^="openItems"]`).click(); await p.waitForTimeout(600);
 const list = await p.textContent('#itemsList');
-rec('Hộp món hiện đủ món + đánh dấu (QR)', /Bia Tiger/.test(list) && /Trái cây/.test(list) && /\(QR\)/.test(list), list.replace(/\s+/g, ' ').slice(0, 100));
+rec('Hộp món hiện đủ món + đánh dấu (QR)', list.includes(D.beer) && list.includes(D.fruit) && /\(QR\)/.test(list), list.replace(/\s+/g, ' ').slice(0, 100));
 await p.evaluate(() => closeItems()); await p.waitForTimeout(500);
 
-// tính tiền: 75 phút x 120.000 = 150.000 + món 195.000 = 345.000
+// tính tiền: 75 phút x giá giờ + tiền món
 await p.locator(`.glass-card[data-room-id="${ROOM}"] .checkout-room`).click(); await p.waitForTimeout(400);
 const modal = await p.textContent('#checkoutModal');
-rec('Hộp thanh toán tách tiền giờ + tiền món, tổng đúng', /150\.000/.test(modal) && /195\.000/.test(modal) && /345\.000/.test(await p.textContent('#modalAmount')), (await p.textContent('#modalAmount')).trim());
+rec('Hộp thanh toán tách tiền giờ + tiền món, tổng đúng', re(TIME).test(modal) && re(ITEMS).test(modal) && re(TOTAL).test(await p.textContent('#modalAmount')), (await p.textContent('#modalAmount')).trim());
 const [resp] = await Promise.all([p.waitForResponse((x) => x.url().endsWith(`/api/karaoke/rooms/${ROOM}/checkout`)), p.click('#confirmCheckoutBtn')]);
 const co = await resp.json();
-rec('Máy chủ tính: giờ 150.000 + món 195.000 = 345.000', co.success && co.time_amount === 150000 && co.items_amount === 195000 && co.total_amount === 345000 && co.items.length === 3, JSON.stringify({ t: co.time_amount, i: co.items_amount, total: co.total_amount }));
+rec(`Máy chủ tính: giờ ${money(TIME)} + món ${money(ITEMS)} = ${money(TOTAL)}`, co.success && near(co.time_amount, TIME) && near(co.items_amount, ITEMS) && near(co.total_amount, TOTAL) && co.items.length === 3, JSON.stringify({ t: co.time_amount, i: co.items_amount, total: co.total_amount }));
 const db1 = JSON.parse(py(`
 import json
 from mongo_client import db
@@ -110,7 +125,7 @@ tx = db.transactions.count_documents({'business_id': ${B}, 'order_id': ${co.orde
 left = db.karaoke_room_items.count_documents({'business_id': ${B}, 'room_id': ${ROOM}, 'order_id': None})
 st = {str(x['id']): x.get('stock', 0) for x in db.products.find({'business_id': ${B}, 'id': {'$in': [229, 231]}}, {'_id': 0, 'id': 1, 'stock': 1})}
 print(json.dumps({'total': o['total_amount'], 'lines': len(items), 'sum': sum(i['total_price'] for i in items), 'tx': tx, 'left': left, 'stock': st}))`));
-rec('Đơn hàng: 4 dòng (giờ + 3 món) khớp tổng, có giao dịch sổ quỹ', db1.total === 345000 && db1.lines === 4 && db1.sum === 345000 && db1.tx >= 1, JSON.stringify(db1));
+rec('Đơn hàng: 4 dòng (giờ + 3 món) khớp tổng, có giao dịch sổ quỹ', near(db1.total, TOTAL) && db1.lines === 4 && near(db1.sum, TOTAL) && db1.tx >= 1, JSON.stringify(db1));
 rec('Món đã tính tiền không còn treo ở phòng; kho tự trừ (bia -3, trái cây -1)', db1.left === 0 && db1.stock['229'] === stock0['229'] - 3 && db1.stock['231'] === stock0['231'] - 1, JSON.stringify({ before: stock0, after: db1.stock }));
 r = await pub(postUrl);
 rec('Sau khi tính tiền: link QR không còn lộ món của khách trước', r.success && r.items.length === 0 && r.open === false);

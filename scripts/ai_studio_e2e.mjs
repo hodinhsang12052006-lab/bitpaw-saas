@@ -9,7 +9,7 @@ const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
 const steps = [];
 const rec = (n, ok, note = '') => { steps.push({ n, ok }); console.log(`${ok ? '✅' : '❌'} ${n}${note ? ' — ' + note : ''}`); };
 const py = (code) => execFileSync('python', ['-c', code], { encoding: 'utf-8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }).trim().split(/\r?\n/).pop();
-const ERR = '⚠️ The AI could not answer';
+const ERR = 'The AI could not answer'; // Pha 28 bỏ emoji ⚠️ khỏi giao diện
 
 const b = await chromium.launch({ channel: 'chrome' });
 const ctx = await b.newContext({ viewport: { width: 1440, height: 950 }, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
