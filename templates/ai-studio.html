@@ -351,7 +351,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <p class="sub" data-t="imgSub">Real AI images from your description. Each one is saved to your gallery and labelled as AI-made.</p>
                     <div class="lbl" id="imgPresetLbl" data-t="lblQuality">Quality</div>
                     <div class="opts" id="imgPresets" role="radiogroup" aria-labelledby="imgPresetLbl"></div>
-                    <p class="muted mt8" data-t="priceNote">Prices are what the AI provider charges, in US dollars. Each one also counts toward your monthly allowance.</p>
+                    {% if show_costs %}<p class="muted mt8" data-t="priceNote">Super admin view: prices are what the AI provider charges BitPaw, in US dollars. Shop owners only see their monthly allowance.</p>{% else %}<p class="muted mt8" data-t="allowanceNote">Each one counts toward your plan’s monthly allowance.</p>{% endif %}
                     <div class="lbl" id="imgAspectLbl" data-t="lblShape">Shape</div>
                     <div class="seg" id="imgAspects" role="radiogroup" aria-labelledby="imgAspectLbl"></div>
                     <label class="lbl" for="imgPrompt" data-t="lblDescribe">Describe the image</label>
@@ -400,7 +400,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     </div>
                     <div class="lbl" id="vidPresetLbl" data-t="lblQuality">Quality</div>
                     <div class="opts" id="vidPresets" role="radiogroup" aria-labelledby="vidPresetLbl"></div>
-                    <p class="muted mt8" data-t="priceNote">Prices are what the AI provider charges, in US dollars. Each one also counts toward your monthly allowance.</p>
+                    {% if show_costs %}<p class="muted mt8" data-t="priceNote">Super admin view: prices are what the AI provider charges BitPaw, in US dollars. Shop owners only see their monthly allowance.</p>{% else %}<p class="muted mt8" data-t="allowanceNote">Each one counts toward your plan’s monthly allowance.</p>{% endif %}
                     <div id="vidLenBox" class="hidden">
                         <div class="lbl" id="vidLenLbl" data-t="lblLength">Length</div>
                         <div class="seg" id="vidSeconds" role="radiogroup" aria-labelledby="vidLenLbl"></div>
@@ -688,7 +688,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     const IS_VN = {{ 'true' if tenant_currency == 'VND' else 'false' }};
     const INDUSTRY = {{ (active_industry_code or 'retail') | tojson }};
     const DEFAULT_LANG = {{ (default_lang or 'en') | tojson }};
-    const CHUNK = 3400000;         // ≤ 3.4 MB / lần gửi: Vercel chặn body > 4.5 MB
+    // Giá USD của nhà cung cấp AI là giá vốn của BitPaw -> chỉ super admin thấy; chủ tiệm thấy hạn mức tháng của gói
+    const SHOW_COSTS = {{ 'true' if show_costs else 'false' }};
+    const CHUNK = 3500000;         // chỉ dự phòng: cỡ khúc thật lấy từ chunk_size mà /api/media/upload/init trả về
     const SLICE = 3500000;         // /m/<token> trả tối đa 3.5 MB mỗi lần (Range)
     const MAX_VIDEO_BYTES = 30000000, MAX_IMAGE_BYTES = 8000000;
     const esc = window.__escHtml;
@@ -758,12 +760,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             imgRules: 'Only “Poster with text” can put words in the picture. Do not describe real people without their permission.',
             aSquare: 'Square', aPortrait: 'Portrait', aStory: 'Story / Reel', aWide: 'Wide',
             pDraft: 'Draft', pHd: 'HD', pPoster: 'Poster with text', pDraftD: 'Fast and low cost — try ideas.', pHdD: 'Sharp and realistic — for posts and ads.', pPosterD: 'The only one that can write words in the image.',
-            vDraft: 'Draft', vStandard: 'Standard', vPremium: 'Premium', vDraftD: '480p, about 5 s. Quick test of an idea.', vStandardD: '720p, 5 s. Good for Reels and TikTok.', vPremiumD: 'Highest quality, with sound. 4 or 8 s.',
+            vDraft: 'Draft', vStandard: 'Standard', vPremium: 'Premium', vDraftD: '480p. Quick test of an idea.', vStandardD: '720p. Good for Reels and TikTok.', vPremiumD: 'Highest quality, with sound.',
             perImage: '≈ {p} per image', perVideo: '≈ {p} per video',
-            priceNote: 'Prices are what the AI provider charges, in US dollars. Each one also counts toward your monthly allowance.',
-            usesImage: 'Uses 1 of {left} images left this month', usesVideo: 'Uses {s} s of {left} s left this month', notInPlan: 'Not included in your plan', quotaUnknown: 'Monthly allowance not loaded',
-            costLine: 'This one: ≈ {p}', qImages: 'Images {used}/{limit} this month', qImagesNoCap: '{used} images this month', qVideo: 'Video {used}/{limit} s this month', qVideoNoCap: '{used} s of video this month',
-            qImagesNA: 'Images —', qVideoNA: 'Video —',
+            priceNote: 'Super admin view: prices are what the AI provider charges BitPaw, in US dollars. Shop owners only see their monthly allowance.',
+            allowanceNote: 'Each one counts toward your plan’s monthly allowance.',
+            usesImage: 'Uses 1 of your {limit} images this month · {left} left', usesVideo: 'Uses {s} s of your {limit} s this month · {left} s left', notInPlan: 'Not included in your plan', quotaUnknown: 'Monthly allowance not loaded',
+            costLine: 'This one: ≈ {p}', costLineImg: 'This one: 1 image from your monthly allowance', costLineVid: 'This one: {s} s from your monthly allowance',
+            qImages: 'Images {used}/{limit} this month', qImagesNoCap: '{used} images this month', qVideo: 'Video {used}/{limit} s this month', qVideoNoCap: '{used} s of video this month',
+            qImagesNA: 'Images —', qVideoNA: 'Video —', qPendingImg: '{n} being made', qPendingVid: '{n} s being made',
             vmPromo: 'Free promo video', vmClip: 'AI clip', vmPhoto: 'Animate a photo',
             vClipTitle: 'AI video clip', vClipSub: 'A short AI-made clip from your description. Saved to your gallery and labelled as AI-made.',
             vPhotoTitle: 'Animate a photo', vPhotoSub: 'Bring one of your photos to life with gentle motion. The product stays as it is in the photo.',
@@ -778,6 +782,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             errQuota: 'You have used this month’s allowance on your plan. It resets next month.', errNotConfigured: 'AI images and videos are not switched on for BitPaw yet, so nothing was made or charged. Please contact support@bitpawsoftware.com.',
             errProvider: 'The AI provider returned an error, so nothing was saved. Please try again in a minute.', errUpgrade: 'AI Studio is included in a higher plan.',
             errRate: 'Too many requests — wait a minute and try again.', errNotFound: 'This part of AI Studio is not available yet.', errLogin: 'Your session has ended — please sign in again.',
+            errGone: 'This item no longer exists — it may have been deleted in another tab.',
             errGeneric: 'Something went wrong: {msg}', seePlans: 'See plans', errDownload: 'Could not download this file. Please try again.',
             fAll: 'All', fImages: 'Images', fVideos: 'Videos', galEmpty: 'Nothing here yet. Images and videos you make appear here.', galErr: 'Could not load your gallery.',
             galLoading: 'Loading…', kAiImage: 'AI image', kAiVideo: 'AI video', kPromo: 'Promo video', kUpload: 'Upload',
@@ -861,12 +866,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             imgRules: 'Chỉ “Poster có chữ” mới viết được chữ lên ảnh. Không mô tả người thật khi chưa có sự đồng ý của họ.',
             aSquare: 'Vuông', aPortrait: 'Dọc', aStory: 'Story / Reel', aWide: 'Ngang',
             pDraft: 'Nháp nhanh', pHd: 'Chất lượng cao', pPoster: 'Poster có chữ', pDraftD: 'Nhanh, chi phí thấp — để thử ý tưởng.', pHdD: 'Sắc nét, chân thật — để đăng bài, chạy quảng cáo.', pPosterD: 'Loại duy nhất viết được chữ lên ảnh.',
-            vDraft: 'Nháp', vStandard: 'Tiêu chuẩn', vPremium: 'Cao cấp', vDraftD: '480p, khoảng 5 giây. Thử nhanh ý tưởng.', vStandardD: '720p, 5 giây. Hợp với Reels và TikTok.', vPremiumD: 'Chất lượng cao nhất, có âm thanh. 4 hoặc 8 giây.',
+            vDraft: 'Nháp', vStandard: 'Tiêu chuẩn', vPremium: 'Cao cấp', vDraftD: '480p. Thử nhanh ý tưởng.', vStandardD: '720p. Hợp với Reels và TikTok.', vPremiumD: 'Chất lượng cao nhất, có âm thanh.',
             perImage: '≈ {p} mỗi ảnh', perVideo: '≈ {p} mỗi video',
-            priceNote: 'Giá là chi phí nhà cung cấp AI tính, bằng đô la Mỹ. Mỗi lần tạo cũng được trừ vào hạn mức tháng của bạn.',
-            usesImage: 'Dùng 1 trong {left} ảnh còn lại của tháng', usesVideo: 'Dùng {s} giây trong {left} giây còn lại của tháng', notInPlan: 'Không có trong gói của bạn', quotaUnknown: 'Chưa tải được hạn mức tháng',
-            costLine: 'Lần này: ≈ {p}', qImages: 'Ảnh {used}/{limit} tháng này', qImagesNoCap: '{used} ảnh tháng này', qVideo: 'Video {used}/{limit} giây tháng này', qVideoNoCap: '{used} giây video tháng này',
-            qImagesNA: 'Ảnh —', qVideoNA: 'Video —',
+            priceNote: 'Chế độ super admin: giá là chi phí nhà cung cấp AI tính cho BitPaw, bằng đô la Mỹ. Chủ tiệm chỉ thấy hạn mức tháng.',
+            allowanceNote: 'Mỗi lần tạo được trừ vào hạn mức tháng của gói.',
+            usesImage: 'Dùng 1 trong {limit} ảnh của tháng · còn {left}', usesVideo: 'Dùng {s} giây trong {limit} giây của tháng · còn {left} giây', notInPlan: 'Không có trong gói của bạn', quotaUnknown: 'Chưa tải được hạn mức tháng',
+            costLine: 'Lần này: ≈ {p}', costLineImg: 'Lần này: 1 ảnh trong hạn mức tháng', costLineVid: 'Lần này: {s} giây trong hạn mức tháng',
+            qImages: 'Ảnh {used}/{limit} tháng này', qImagesNoCap: '{used} ảnh tháng này', qVideo: 'Video {used}/{limit} giây tháng này', qVideoNoCap: '{used} giây video tháng này',
+            qImagesNA: 'Ảnh —', qVideoNA: 'Video —', qPendingImg: '{n} đang tạo', qPendingVid: '{n} giây đang tạo',
             vmPromo: 'Video quảng cáo miễn phí', vmClip: 'Clip AI', vmPhoto: 'Làm ảnh chuyển động',
             vClipTitle: 'Clip video AI', vClipSub: 'Clip ngắn do AI tạo theo mô tả của bạn. Lưu vào thư viện và gắn nhãn là video AI.',
             vPhotoTitle: 'Làm ảnh chuyển động', vPhotoSub: 'Thổi chuyển động nhẹ vào 1 tấm ảnh của tiệm. Sản phẩm giữ nguyên như trong ảnh.',
@@ -881,6 +888,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             errQuota: 'Bạn đã dùng hết hạn mức tháng này của gói. Hạn mức làm mới vào tháng sau.', errNotConfigured: 'Tính năng tạo ảnh/video AI của BitPaw chưa được bật, nên chưa tạo gì và không tính phí. Vui lòng liên hệ support@bitpawsoftware.com.',
             errProvider: 'Nhà cung cấp AI báo lỗi nên chưa lưu gì. Vui lòng thử lại sau 1 phút.', errUpgrade: 'AI Studio có trong gói cao hơn.',
             errRate: 'Gửi quá nhiều yêu cầu — đợi 1 phút rồi thử lại.', errNotFound: 'Phần này của AI Studio chưa sẵn sàng.', errLogin: 'Phiên đăng nhập đã hết — vui lòng đăng nhập lại.',
+            errGone: 'Mục này không còn nữa — có thể đã bị xoá ở tab khác.',
             errGeneric: 'Có lỗi: {msg}', seePlans: 'Xem các gói', errDownload: 'Không tải được file này. Vui lòng thử lại.',
             fAll: 'Tất cả', fImages: 'Ảnh', fVideos: 'Video', galEmpty: 'Chưa có gì. Ảnh và video bạn tạo sẽ hiện ở đây.', galErr: 'Không tải được thư viện.',
             galLoading: 'Đang tải…', kAiImage: 'Ảnh AI', kAiVideo: 'Video AI', kPromo: 'Video quảng cáo', kUpload: 'Tải lên',
@@ -953,7 +961,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     function errText(code, j) {
         j = j || {};
         if (code === 'upgrade_required') return j.message || t('errUpgrade');
-        const map = { quota_exceeded: 'errQuota', not_configured: 'errNotConfigured', provider_error: 'errProvider', rate_limited: 'errRate', not_found: 'errNotFound', login: 'errLogin', network: 'errNetwork' };
+        // no_route = 404 KHÔNG kèm mã (bản deploy chưa có đường dẫn API này); not_found = 404 có mã từ máy chủ, tức job/file
+        // đã bị xoá hoặc không còn (vd: xoá ở tab khác) -> không được báo "tính năng chưa sẵn sàng"
+        const map = { quota_exceeded: 'errQuota', not_configured: 'errNotConfigured', provider_error: 'errProvider', rate_limited: 'errRate', no_route: 'errNotFound', not_found: 'errGone', login: 'errLogin', network: 'errNetwork' };
         if (map[code]) return t(map[code]) + (code === 'provider_error' && j.message ? ' (' + j.message + ')' : '');
         return j.message || j.error || t('errGeneric', { msg: 'HTTP ' + (j._status || '') });
     }
@@ -964,7 +974,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let j = {};
         try { j = await r.json(); } catch (e) { j = {}; }
         if (!r.ok || j.success === false) {
-            const code = j.code || (j.upgrade_required ? 'upgrade_required' : r.status === 429 ? 'rate_limited' : r.status === 404 ? 'not_found' : r.status === 401 ? 'login' : '');
+            const code = j.code || (j.upgrade_required ? 'upgrade_required' : r.status === 429 ? 'rate_limited' : r.status === 404 ? 'no_route' : r.status === 401 ? 'login' : '');
             j._status = r.status;
             const er = new Error(errText(code, j)); er.code = code; er.data = j; er.status = r.status;
             throw er;
@@ -1508,53 +1518,92 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     };
 
     // ============================================================================================
-    // HẠN MỨC + BẢNG GIÁ (giá = chi phí thật của nhà cung cấp, đồng bộ với ai_media.MODELS; backend trả quota.prices thì ưu tiên)
+    // HẠN MỨC + BẢNG PRESET. Model, giá ước tính (USD) và độ dài video lấy từ GET /api/ai_studio/quota 'presets'
+    // (= ai_media.MODELS — chủ đổi model/giá ở đó). Bảng dưới chỉ giữ nhãn EN/VI + độ dài dự phòng, KHÔNG viết cứng giá.
+    // Giá USD chỉ hiện cho super admin (SHOW_COSTS); chủ tiệm thấy mỗi lần tạo trừ bao nhiêu trong hạn mức tháng.
     // ============================================================================================
     const PRESETS = {
         image: [
-            { key: 'draft', price: 0.003, name: 'pDraft', desc: 'pDraftD', model: 'FLUX schnell' },
-            { key: 'hd', price: 0.04, name: 'pHd', desc: 'pHdD', model: 'FLUX 1.1 Pro' },
-            { key: 'poster', price: 0.03, name: 'pPoster', desc: 'pPosterD', model: 'Ideogram v3 Turbo' },
+            { key: 'draft', name: 'pDraft', desc: 'pDraftD' },
+            { key: 'hd', name: 'pHd', desc: 'pHdD' },
+            { key: 'poster', name: 'pPoster', desc: 'pPosterD' },
         ],
         video: [
-            { key: 'draft', perVideo: 0.065, secs: [5], name: 'vDraft', desc: 'vDraftD', model: 'Wan 2.2 Fast' },
-            { key: 'standard', perSecond: 0.025, secs: [5], name: 'vStandard', desc: 'vStandardD', model: 'Seedance 1 Pro Fast' },
-            { key: 'premium', perSecond: 0.15, secs: [4, 8], name: 'vPremium', desc: 'vPremiumD', model: 'Veo 3.1 Fast' },
+            { key: 'draft', secs: [5], name: 'vDraft', desc: 'vDraftD' },
+            { key: 'standard', secs: [5], name: 'vStandard', desc: 'vStandardD' },
+            { key: 'premium', secs: [4, 8], name: 'vPremium', desc: 'vPremiumD' },
         ],
     };
+    // Tên dễ đọc cho model đã biết; model mới (chủ thay trong ai_media.MODELS) hiện theo id của nó, không giữ tên cũ
+    const MODEL_LABELS = {
+        'black-forest-labs/flux-schnell': 'FLUX schnell', 'black-forest-labs/flux-1.1-pro': 'FLUX 1.1 Pro', 'ideogram-ai/ideogram-v3-turbo': 'Ideogram v3 Turbo',
+        'wan-video/wan-2.2-t2v-fast': 'Wan 2.2 Fast', 'bytedance/seedance-1-pro-fast': 'Seedance 1 Pro Fast', 'google/veo-3.1-fast': 'Veo 3.1 Fast',
+    };
+    const modelLabel = (id) => (id ? MODEL_LABELS[id] || String(id).split('/').pop() : '');
+    const pLabel = (p) => (p.name ? t(p.name) : p.key);
     const IMG_ASPECTS = [['1:1', 'aSquare'], ['4:5', 'aPortrait'], ['9:16', 'aStory'], ['16:9', 'aWide']];
     const VID_ASPECTS = [['9:16', 'aStory'], ['16:9', 'aWide']];
     const SEL = { imgPreset: 'draft', imgAspect: '1:1', vidPreset: 'standard', vidAspect: '9:16', vidSecs: 5 };
     let QUOTA = null;
-    function applyServerPrices(q) {
-        // backend có thể gửi kèm bảng giá thật (quota.prices = {image:{draft:0.003}, video:{standard:{per_second:0.025}}}) -> dùng luôn
-        const p = q && q.prices; if (!p) return;
-        PRESETS.image.forEach((x) => { const v = p.image && p.image[x.key]; if (typeof v === 'number') x.price = v; else if (v && typeof v.price === 'number') x.price = v.price; });
-        PRESETS.video.forEach((x) => {
-            const v = p.video && p.video[x.key]; if (!v) return;
-            if (typeof v.per_second === 'number') { x.perSecond = v.per_second; delete x.perVideo; }
-            if (typeof v.price_per_second === 'number') { x.perSecond = v.price_per_second; delete x.perVideo; }
-            if (typeof v.per_video === 'number') { x.perVideo = v.per_video; delete x.perSecond; }
-            if (typeof v.price_per_video === 'number') { x.perVideo = v.price_per_video; delete x.perSecond; }
+    // sp = {image: [{preset, model, aspects, estimate_usd}], video: [{preset, model, aspects, durations, estimates_usd: {'5': 0.125}}]}
+    function applyServerPresets(sp) {
+        if (!sp || typeof sp !== 'object') return false;
+        let any = false;
+        ['image', 'video'].forEach((kind) => {
+            const rows = Array.isArray(sp[kind]) ? sp[kind].filter((r) => r && typeof r.preset === 'string' && r.preset) : [];
+            if (!rows.length) return;
+            const local = {};
+            PRESETS[kind].forEach((x) => { local[x.key] = x; });
+            // theo đúng thứ tự + danh sách của máy chủ: preset chủ đã bỏ thì biến mất, preset mới thì hiện theo tên khoá
+            PRESETS[kind] = rows.map((r) => {
+                const old = local[r.preset] || {};
+                const x = { key: r.preset, name: old.name || null, desc: old.desc || null, model: typeof r.model === 'string' ? r.model : '' };
+                if (Array.isArray(r.aspects) && r.aspects.length) x.aspects = r.aspects.map(String);
+                if (kind === 'image') {
+                    if (typeof r.estimate_usd === 'number') x.price = r.estimate_usd;
+                } else {
+                    const secs = (Array.isArray(r.durations) ? r.durations : []).map(Number).filter((n) => n > 0);
+                    x.secs = secs.length ? secs : (old.secs || [5]);
+                    x.estimates = {};
+                    Object.keys(r.estimates_usd || {}).forEach((s) => { const v = r.estimates_usd[s]; if (typeof v === 'number') x.estimates[Number(s)] = v; });
+                }
+                return x;
+            });
+            any = true;
         });
+        // preset đang chọn không còn trong bảng -> chọn cái đầu tiên
+        if (!PRESETS.image.some((x) => x.key === SEL.imgPreset)) SEL.imgPreset = PRESETS.image[0].key;
+        if (!PRESETS.video.some((x) => x.key === SEL.vidPreset)) SEL.vidPreset = PRESETS.video[0].key;
+        return any;
     }
-    function setQuota(q) { if (q && (q.images || q.video_seconds)) { QUOTA = q; applyServerPrices(q); renderQuota(); renderPresets(); renderVideoForm(); } }
+    function setQuota(q) { if (q && (q.images || q.video_seconds)) { QUOTA = q; renderQuota(); renderPresets(); renderVideoForm(); } }
     async function loadQuota() {
-        try { const d = await api('/api/ai_studio/quota'); setQuota(d.quota || d.data || d); }
-        catch (e) { /* hạn mức chưa có (API chưa bật) -> hiện "—", không bịa số */ }
+        try {
+            const d = await api('/api/ai_studio/quota');
+            applyServerPresets(d.presets);
+            const q = d.quota || d.data || d;
+            if (q && (q.images || q.video_seconds)) QUOTA = q;
+        } catch (e) { /* hạn mức/preset chưa có (API chưa bật, gói chưa có) -> hiện "—", không bịa số */ }
+        renderQuota(); renderPresets(); renderVideoForm();
     }
     function qInfo(kind) {
         const b = QUOTA && QUOTA[kind === 'image' ? 'images' : 'video_seconds'];
         if (!b) return null;
-        const used = Number(b.used) || 0, limit = b.limit == null ? null : Number(b.limit);
-        return { used, limit, left: limit == null ? Infinity : Math.max(0, limit - used) };
+        // máy chủ giữ chỗ cho job đang chạy (used + pending + lần này ≤ limit) -> "còn lại" phải trừ cả pending
+        const used = Number(b.used) || 0, pending = Math.max(0, Number(b.pending) || 0), limit = b.limit == null ? null : Number(b.limit);
+        return { used, pending, limit, left: limit == null ? Infinity : Math.max(0, limit - used - pending) };
     }
     function renderQuota() {
         const qi = qInfo('image'), qv = qInfo('video');
-        $('qImages').lastElementChild.textContent = !qi ? t('qImagesNA') : qi.limit == null ? t('qImagesNoCap', { used: qi.used }) : t('qImages', { used: qi.used, limit: qi.limit });
-        $('qVideo').lastElementChild.textContent = !qv ? t('qVideoNA') : qv.limit == null ? t('qVideoNoCap', { used: Math.round(qv.used) }) : t('qVideo', { used: Math.round(qv.used), limit: qv.limit });
+        let a = !qi ? t('qImagesNA') : qi.limit == null ? t('qImagesNoCap', { used: qi.used }) : t('qImages', { used: qi.used, limit: qi.limit });
+        if (qi && qi.pending) a += ' · ' + t('qPendingImg', { n: qi.pending });
+        let v = !qv ? t('qVideoNA') : qv.limit == null ? t('qVideoNoCap', { used: Math.round(qv.used) }) : t('qVideo', { used: Math.round(qv.used), limit: qv.limit });
+        if (qv && qv.pending) v += ' · ' + t('qPendingVid', { n: Math.round(qv.pending) });
+        $('qImages').lastElementChild.textContent = a;
+        $('qVideo').lastElementChild.textContent = v;
     }
-    const vidCost = (p, secs) => (p.perVideo != null ? p.perVideo : p.perSecond * secs);
+    // giá ước tính (USD) của 1 video theo số giây — chỉ có khi máy chủ đã gửi bảng preset; chưa có thì không hiện số nào
+    const vidCost = (p, secs) => (p.estimates && typeof p.estimates[secs] === 'number' ? p.estimates[secs] : null);
     const vidSecsFor = (p) => (p.secs.includes(SEL.vidSecs) ? SEL.vidSecs : p.secs[0]);
     function quotaLine(kind, units) {
         const q = qInfo(kind);
@@ -1562,21 +1611,37 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         if (q.limit === 0) return `<span class="q off">${esc(t('notInPlan'))}</span>`;
         if (q.limit == null) return '';
         const off = q.left < units;
-        return `<span class="q${off ? ' off' : ''}">${esc(kind === 'image' ? t('usesImage', { left: q.left }) : t('usesVideo', { s: units, left: Math.floor(q.left) }))}</span>`;
+        return `<span class="q${off ? ' off' : ''}">${esc(kind === 'image' ? t('usesImage', { limit: q.limit, left: q.left }) : t('usesVideo', { s: units, limit: q.limit, left: Math.floor(q.left) }))}</span>`;
+    }
+    // dòng "lần này" dưới nút tạo: super admin thấy giá USD; chủ tiệm thấy phần hạn mức tháng bị trừ
+    function costLineText(kind, usd, units) {
+        if (SHOW_COSTS) return usd != null ? t('costLine', { p: fmtUsd(usd) }) : '';
+        const q = qInfo(kind);
+        if (!q || q.limit === 0) return '';
+        return kind === 'image' ? t('costLineImg') : t('costLineVid', { s: units });
     }
     function optCard(group, p, checked, priceText, qline) {
-        return `<label class="opt"><input type="radio" name="${group}" value="${p.key}" ${checked ? 'checked' : ''}>
-            <b>${esc(t(p.name))}</b><span class="d">${esc(t(p.desc))}</span><span class="d">${esc(p.model)}</span>
-            <span class="p">${esc(priceText)}</span>${qline}</label>`;
+        const model = modelLabel(p.model);
+        return `<label class="opt"><input type="radio" name="${group}" value="${esc(p.key)}" ${checked ? 'checked' : ''}>
+            <b>${esc(pLabel(p))}</b>${p.desc ? `<span class="d">${esc(t(p.desc))}</span>` : ''}${model ? `<span class="d">${esc(model)}</span>` : ''}
+            ${priceText ? `<span class="p">${esc(priceText)}</span>` : ''}${qline}</label>`;
     }
     function segButtons(list, cur, attr) {
         return list.map(([v, k]) => `<button type="button" role="radio" ${attr}="${v}" aria-checked="${v === cur ? 'true' : 'false'}">${esc(v)} · ${esc(t(k))}</button>`).join('');
     }
+    // khung hình mà preset hỗ trợ (theo 'aspects' của máy chủ); khung đang chọn không còn hợp lệ -> lấy cái đầu
+    function aspectsFor(list, p, selKey) {
+        const ok = p && Array.isArray(p.aspects) ? list.filter(([v]) => p.aspects.includes(v)) : list;
+        const out = ok.length ? ok : list;
+        if (!out.some(([v]) => v === SEL[selKey])) SEL[selKey] = out[0][0];
+        return out;
+    }
     function renderPresets() {
-        $('imgPresets').innerHTML = PRESETS.image.map((p) => optCard('imgPreset', p, p.key === SEL.imgPreset, t('perImage', { p: fmtUsd(p.price) }), quotaLine('image', 1))).join('');
-        $('imgAspects').innerHTML = segButtons(IMG_ASPECTS, SEL.imgAspect, 'data-a');
+        $('imgPresets').innerHTML = PRESETS.image.map((p) => optCard('imgPreset', p, p.key === SEL.imgPreset,
+            SHOW_COSTS && typeof p.price === 'number' ? t('perImage', { p: fmtUsd(p.price) }) : '', quotaLine('image', 1))).join('');
         const ip = PRESETS.image.find((x) => x.key === SEL.imgPreset) || PRESETS.image[0];
-        $('imgCostLine').textContent = t('costLine', { p: fmtUsd(ip.price) });
+        $('imgAspects').innerHTML = segButtons(aspectsFor(IMG_ASPECTS, ip, 'imgAspect'), SEL.imgAspect, 'data-a');
+        $('imgCostLine').textContent = costLineText('image', typeof ip.price === 'number' ? ip.price : null, 1);
         const q = qInfo('image');
         $('imgGo').disabled = !!(q && q.limit != null && q.left < 1);
     }
@@ -1676,7 +1741,22 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
         persistJobs();
     }
-    function presetName(kind, key) { const p = (PRESETS[kind] || []).find((x) => x.key === key); return p ? t(p.name) : (key || ''); }
+    function presetName(kind, key) { const p = (PRESETS[kind] || []).find((x) => x.key === key); return p ? pLabel(p) : (key || ''); }
+    // Link phát/tải của 1 job/file: CHỈ link /m/<token> (play_url | public_url) — có Range, mỗi lần ≤ 3.5 MB.
+    // /api/storage/file/<id> trả nguyên file trong 1 response: trên Vercel file > 4.5 MB (video 20–30 s, clip Veo/Seedance)
+    // bị lỗi 500 -> video đen, Tải về hỏng. Nên không bao giờ dùng nó ở đây.
+    function mediaUrl(x) {
+        if (!x) return '';
+        for (const u of [x.play_url, x.public_url, x.url]) {
+            if (typeof u === 'string' && u && !/\/api\/storage\/file\//.test(u)) return u;
+        }
+        return '';
+    }
+    // Super admin: giá ước tính USD. Chủ tiệm: không thấy giá vốn — video AI thì hiện số giây (đúng phần trừ vào hạn mức tháng)
+    function itemCostText(it) {
+        if (SHOW_COSTS) return typeof it.cost_estimate_usd === 'number' ? '≈ ' + fmtUsd(it.cost_estimate_usd) : '';
+        return it.kind === 'video' && Number(it.duration) > 0 ? t('seconds', { n: Number(it.duration) }) : '';
+    }
     function mediaTag(url, ct, extra) {
         if (!url) return '';
         // #t=0.1: trình duyệt hiện khung hình đầu làm ảnh bìa thay vì ô đen
@@ -1685,17 +1765,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             : `<img src="${esc(url)}" alt="" loading="lazy">`;
     }
     function jobCard(j) {
-        const kind = jobKind(j), st = j.status, url = j.url || j.public_url, fid = j.file_id;
+        const kind = jobKind(j), st = j.status, url = mediaUrl(j), fid = j.file_id;
         const pill = st === 'succeeded' ? ['ok', t('stOk')] : st === 'failed' ? ['bad', t('stFailed')] : st === 'canceled' ? ['bad', t('stCanceled')] : ['run', st === 'queued' ? t('stQueued') : t('stRunning')];
         const thumb = st === 'succeeded' && url ? mediaTag(url, j.content_type, '') : st === 'failed' || st === 'canceled' ? '<i class="fas fa-triangle-exclamation"></i>' : '<i class="fas fa-circle-notch fa-spin"></i>';
-        const cost = typeof j.cost_estimate_usd === 'number' ? `<span class="muted tnum">≈ ${esc(fmtUsd(j.cost_estimate_usd))}</span>` : '';
+        const ct = itemCostText(j), cost = ct ? `<span class="muted tnum">${esc(ct)}</span>` : '';
         let body = `<div class="top"><b>${esc(presetName(kind, j.preset))}</b><span class="st-pill ${pill[0]}">${esc(pill[1])}</span>`;
         body += isActive(j) ? `<span class="muted tnum" data-since="${j._t0 || Date.now()}">${esc(t('elapsed', { t: mmss((Date.now() - (j._t0 || Date.now())) / 1000) }))}</span>` : cost;
         body += `</div>`;
         if (j.prompt) body += `<p class="muted clamp2 mt8">${esc(j.prompt)}</p>`;
         if (isActive(j)) body += `<div class="bar indet" role="progressbar" aria-label="${esc(pill[1])}"><i></i></div>`;
         if (st === 'failed' || st === 'canceled') body += `<div class="alert" style="margin-top:8px">${esc(jobErr(j))}</div>`;
-        if (st === 'succeeded' && url) body += `<div class="row mt8">${itemActions({ id: fid, file_id: fid, url, content_type: j.content_type, kind: j.kind }, true)}</div>`;
+        if (st === 'succeeded' && url) body += `<div class="row mt8">${itemActions({ id: fid, file_id: fid, public_url: url, content_type: j.content_type, kind: j.kind }, true)}</div>`;
         return `<div class="job"><div class="thumb">${thumb}</div><div style="min-width:0">${body}</div></div>`;
     }
     function renderJobs() {
@@ -1741,16 +1821,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         $('vidPhotoBox').classList.toggle('hidden', !photo);
         $('vidPromptLbl').textContent = t(photo ? 'lblVidMotion' : 'lblVidDescribe');
         $('vidPrompt').placeholder = t(photo ? 'vidMotionPh' : 'vidPh');
-        const cur = PRESETS.video.find((x) => x.key === SEL.vidPreset) || PRESETS.video[1];
+        const cur = PRESETS.video.find((x) => x.key === SEL.vidPreset) || PRESETS.video[0];
         $('vidPresets').innerHTML = PRESETS.video.map((p) => {
-            const s = vidSecsFor(p);
-            return optCard('vidPreset', p, p.key === SEL.vidPreset, t('perVideo', { p: fmtUsd(vidCost(p, s)) }) + (p.secs.length > 1 ? ' · ' + t('seconds', { n: s }) : ''), quotaLine('video', s));
+            const s = vidSecsFor(p), c = vidCost(p, s);
+            return optCard('vidPreset', p, p.key === SEL.vidPreset, SHOW_COSTS && c != null ? t('perVideo', { p: fmtUsd(c) }) + ' · ' + t('seconds', { n: s }) : '', quotaLine('video', s));
         }).join('');
         $('vidLenBox').classList.toggle('hidden', cur.secs.length < 2);
         $('vidSeconds').innerHTML = cur.secs.map((s) => `<button type="button" role="radio" data-s="${s}" aria-checked="${s === vidSecsFor(cur) ? 'true' : 'false'}">${esc(t('seconds', { n: s }))}</button>`).join('');
-        $('vidAspects').innerHTML = segButtons(VID_ASPECTS, SEL.vidAspect, 'data-a');
+        $('vidAspects').innerHTML = segButtons(aspectsFor(VID_ASPECTS, cur, 'vidAspect'), SEL.vidAspect, 'data-a');
         const secs = vidSecsFor(cur);
-        $('vidCostLine').textContent = t('costLine', { p: fmtUsd(vidCost(cur, secs)) });
+        $('vidCostLine').textContent = costLineText('video', vidCost(cur, secs), secs);
         const q = qInfo('video');
         $('vidGo').disabled = !!(q && q.limit != null && q.left < secs);
         // ô ảnh đã chọn
@@ -1766,7 +1846,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
     async function generateVideo(btn) {
         showAlert('vidAlert', null);
-        const p = PRESETS.video.find((x) => x.key === SEL.vidPreset) || PRESETS.video[1];
+        const p = PRESETS.video.find((x) => x.key === SEL.vidPreset) || PRESETS.video[0];
         const secs = vidSecsFor(p);
         const body = { kind: 'video', preset: p.key, aspect: SEL.vidAspect, duration: secs };
         const typed = $('vidPrompt').value.trim();
@@ -1797,7 +1877,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     // ============================================================================================
     let GALLERY = [], GAL_LOADED = false, GAL_ERR = null, GAL_FILTER = 'all';
     const fileIdOf = (it) => it.file_id || it.id;
-    const urlOf = (it) => it.url || it.public_url;
+    const urlOf = (it) => mediaUrl(it);   // /m/<token> có Range — KHÔNG dùng it.url (/api/storage/file, trả nguyên file)
     const isVideoItem = (it) => /^video\//.test(it.content_type || '') || /video/.test(it.kind || '');
     function kindLabel(it) {
         if (it.kind === 'promo_video') return t('kPromo');
@@ -1824,7 +1904,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         return h;
     }
     function galCard(it) {
-        const meta = [fmtDate(it.created_at), it.preset ? presetName(isVideoItem(it) ? 'video' : 'image', it.preset) : '', typeof it.cost_estimate_usd === 'number' ? '≈ ' + fmtUsd(it.cost_estimate_usd) : ''].filter(Boolean).join(' · ');
+        const meta = [fmtDate(it.created_at), it.preset ? presetName(isVideoItem(it) ? 'video' : 'image', it.preset) : '', itemCostText(it)].filter(Boolean).join(' · ');
         return `<div class="gi"><div class="media">${mediaTag(urlOf(it), it.content_type, 'controls')}<span class="badge">${esc(kindLabel(it))}</span></div>
             <div class="meta">${it.prompt ? `<p class="clamp2">${esc(it.prompt)}</p>` : ''}<span class="tnum">${esc(meta)}</span></div>
             <div class="acts">${itemActions(it)}</div></div>`;
@@ -1854,12 +1934,20 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         if (del && del.closest('.gi')) {
             if (!confirm(t('delConfirm'))) return;
             del.disabled = true;
+            const fid = del.dataset.del;
+            const dropLocal = () => {
+                GALLERY = GALLERY.filter((x) => String(fileIdOf(x)) !== fid);
+                JOBS = JOBS.filter((j) => String(j.file_id) !== fid);
+                renderGallery(); renderJobs();
+            };
             try {
-                await api('/api/ai_studio/media/' + encodeURIComponent(del.dataset.del), { method: 'DELETE' });
-                GALLERY = GALLERY.filter((x) => String(fileIdOf(x)) !== del.dataset.del);
-                JOBS = JOBS.filter((j) => String(j.file_id) !== del.dataset.del);
-                renderGallery(); renderJobs(); toast(t('deleted'), 'ok');
-            } catch (err) { del.disabled = false; toast(err.message, 'err'); }
+                await api('/api/ai_studio/media/' + encodeURIComponent(fid), { method: 'DELETE' });
+                dropLocal(); toast(t('deleted'), 'ok');
+            } catch (err) {
+                // file đã bị xoá ở tab/máy khác (404 code not_found) -> bỏ khỏi danh sách, nói đúng chuyện
+                if (err.code === 'not_found') { dropLocal(); toast(t('errGone')); }
+                else { del.disabled = false; toast(err.message, 'err'); }
+            }
         }
     });
     // /m/<token> trả tối đa 3.5 MB mỗi lần (giới hạn 4.5 MB của Vercel) -> tải từng lát Range rồi ghép, file lớn vẫn đủ
@@ -1888,11 +1976,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     async function uploadChunked(blob, kind, onProg) {
         const ct = String(blob.type || '').split(';')[0] || 'application/octet-stream';
         const init = await postJSON('/api/media/upload/init', { kind, size: blob.size, content_type: ct });
-        const id = init.upload_id || (init.data && init.data.upload_id);
+        const info = init.data && init.data.upload_id ? init.data : init;
+        const id = info.upload_id;
         if (!id) throw new Error('upload_id missing');
-        const n = Math.max(1, Math.ceil(blob.size / CHUNK));
+        // Cắt ĐÚNG theo chunk_size/chunks máy chủ trả về: máy chủ chỉ nhận index < ceil(size / chunk_size) của nó — tự cắt
+        // theo cỡ khác (trước đây 3.4 MB so với 3.5 MB của máy chủ) làm file 3.4–3.5, 6.8–7.0 MB… hỏng ở khúc cuối (bad_index)
+        const size = Number(info.chunk_size) > 0 ? Number(info.chunk_size) : CHUNK;
+        const need = Math.max(1, Math.ceil(blob.size / size));
+        const n = Number(info.chunks) > 0 ? Number(info.chunks) : need;
+        if (n !== need) throw new Error('upload plan mismatch (' + n + ' vs ' + need + ' chunks)');
         for (let i = 0; i < n; i++) {
-            const part = blob.slice(i * CHUNK, Math.min(blob.size, (i + 1) * CHUNK));
+            const part = blob.slice(i * size, Math.min(blob.size, (i + 1) * size));
             for (let tries = 1; ; tries++) {
                 try {
                     await api(`/api/media/upload/${encodeURIComponent(id)}/chunk?index=${i}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: part });

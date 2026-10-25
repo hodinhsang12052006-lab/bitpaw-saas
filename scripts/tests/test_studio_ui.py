@@ -8,8 +8,9 @@ Không chạy Flask, không import app.py / mongo_client (mongo_client mở kế
 
 Chế độ --browser render template bằng Jinja2 thuần (stub url_for/session), phục vụ trang + /static qua page.route
 (không có máy chủ nào lắng nghe), rồi kiểm: không lỗi JS, 390 px không cuộn ngang, ảnh/video job + poll 3 s, mã lỗi
-quota_exceeded / upgrade_required / not_configured, chọn ảnh tiệm, video quảng cáo -> tải lên theo khúc ≤ 3.4 MB có 'ftyp',
-tải về theo lát Range, đổi EN/VI, không còn alert().
+quota_exceeded / upgrade_required / not_configured, chọn ảnh tiệm, video quảng cáo -> tải lên theo chunk_size của máy chủ có
+'ftyp', tải về theo lát Range qua /m/ (không bao giờ /api/storage/file), xoá file đã mất, đổi EN/VI, không còn alert(),
+chủ tiệm (show_costs=False) không thấy giá USD.
 """
 import json
 import os
@@ -77,6 +78,28 @@ def static_checks(html):
     for fn in ('getOriginalText', 'testHooks', 'generateKOCBrief', 'repurposeContent', 'analyzeVideoEdit', 'analyzeAlgorithm', 'closeAiModal',
                'openMatrixModal', 'closeMatrixModal', 'openDoctorModal', 'closeDoctorModal', 'openMobileOptimizerModal', 'createNewProject', 'populatePrompt'):
         check(f'giữ hàm {fn}()', fn in defined)
+
+    # --- hồi quy các lỗi review (F1/F4, F3, F9, F13, show_costs) ---
+    # F1/F4: thư viện / job / Tải về KHÔNG được ưu tiên it.url (/api/storage/file trả nguyên file -> Vercel 500 khi > 4.5 MB)
+    for bad in ('it.url || it.public_url', 'j.url || j.public_url', '|| it.url', '|| j.url'):
+        check(f'F1/F4: không còn "{bad}"', bad not in script)
+    check('F1/F4: urlOf dùng mediaUrl (/m/ có Range)', re.search(r'const urlOf = \(it\) => mediaUrl\(it\)', script) is not None)
+    check('F1/F4: jobCard dùng mediaUrl(j)', 'url = mediaUrl(j)' in script)
+    # F3: không tự cắt 3.4 MB; cắt theo chunk_size/chunks máy chủ trả
+    check('F3: bỏ CHUNK = 3400000', '3400000' not in script)
+    check('F3: uploadChunked đọc chunk_size + chunks từ init', 'info.chunk_size' in script and 'info.chunks' in script)
+    # F9: không viết cứng giá; đọc 'presets' từ /api/ai_studio/quota; còn lại = limit - used - pending
+    m = re.search(r'const PRESETS = (\{.*?\n    \});', script, re.S)
+    hard = bool(m) and re.search(r'price|perVideo|perSecond|\d\.\d', m.group(1))
+    check('F9: bảng PRESETS không có giá viết cứng', bool(m) and not hard, hard.group(0) if hard else ('' if m else 'không thấy PRESETS'))
+    check('F9: đọc d.presets', 'applyServerPresets(d.presets)' in script and 'applyServerPrices' not in script)
+    check('F9: còn lại trừ pending', 'limit - used - pending' in script)
+    # F13: 404 có mã not_found = mục đã mất (errGone); 404 không mã = route chưa có (errNotFound)
+    check('F13: not_found -> errGone, no_route -> errNotFound', "not_found: 'errGone'" in script and "no_route: 'errNotFound'" in script)
+    # show_costs: giá USD chỉ cho super admin
+    check('show_costs: SHOW_COSTS lấy từ biến template show_costs', "const SHOW_COSTS = {{ 'true' if show_costs else 'false' }};" in html)
+    check('show_costs: ghi chú giá chỉ khi show_costs', html.count('{% if show_costs %}<p class="muted mt8" data-t="priceNote">') == 2
+          and html.count('data-t="allowanceNote"') == 2)
     return ids, script
 
 
@@ -263,9 +286,166 @@ def promo_unit_tests():
 
 
 # ------------------------------------------------------------------------------------------------
+# 2b. Hàm THẬT của trang (cắt nguyên văn từ template) chạy trong node với fetch giả — chạy cả khi không có --browser
+# ------------------------------------------------------------------------------------------------
+def extract_js(script, name):
+    """Nguyên văn 1 khai báo `function name(...)` / `const name = ...` (đếm ngoặc {} — đủ cho code của template này)."""
+    m = re.search(r'(?:async\s+)?function\s+%s\s*\(' % re.escape(name), script) or re.search(r'const\s+%s\s*=' % re.escape(name), script)
+    if not m:
+        return None
+    i, nl, br = m.start(), script.find('\n', m.end()), script.find('{', m.end())
+    line = script[i:nl]
+    if br == -1 or (nl != -1 and nl < br) or (line.startswith('const') and line.count('{') == line.count('}')):
+        return line                                  # const một dòng (có hoặc không có {} cân bằng)
+    depth = 0
+    for j in range(br, len(script)):
+        c = script[j]
+        depth += (c == '{') - (c == '}')
+        if depth == 0:
+            end = j + 1
+            return script[i:end + (1 if script[end:end + 1] == ';' else 0)]
+    return None
+
+
+def server_presets():
+    """Bảng preset THẬT mà /api/ai_studio/quota trả (ai_media.presets_public) — process riêng, mongo_client giả."""
+    code = ('import sys, types, json\nfrom unittest import mock\nsys.path.insert(0, sys.argv[1])\n'
+            "sys.modules['mongo_client'] = types.SimpleNamespace(db=mock.MagicMock(), next_mongo_id=lambda c: 1)\n"
+            'import ai_media\nprint(json.dumps(ai_media.presets_public()))\n')
+    r = subprocess.run([sys.executable, '-c', code, ROOT], capture_output=True, text=True, encoding='utf-8', timeout=60)
+    try:
+        return json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:
+        check('lấy được ai_media.presets_public() (offline)', False, (r.stderr or r.stdout)[-300:])
+        return None
+
+
+NODE_PAGE_TESTS = r'''
+const out = []; const ok = (name, cond, note) => out.push({ name, ok: !!cond, note: note || '' });
+const SERVER_PRESETS = JSON.parse(process.env.SERVER_PRESETS || 'null');
+const res = (status, obj, notJson) => ({ ok: status < 400, status, json: async () => { if (notJson) throw new Error('html'); return obj; } });
+// máy chủ tải lên giả: chép đúng luật media_store.upload_init / upload_chunk / upload_finish
+function uploadServer(chunkSize) {
+  const S = { chunks: 0, size: 0, got: {}, rejected: [] };
+  S.fetch = async (path, opts) => {
+    opts = opts || {};
+    if (path === '/api/media/upload/init') {
+      const b = JSON.parse(opts.body); S.size = b.size; S.chunks = Math.ceil(b.size / chunkSize); S.got = {};
+      return res(200, { success: true, upload_id: 'u1', chunk_size: chunkSize, chunks: S.chunks });
+    }
+    const m = /^\/api\/media\/upload\/u1\/chunk\?index=(\d+)$/.exec(path);
+    if (m) {
+      const i = +m[1], n = opts.body.size;
+      if (!(i >= 0 && i < S.chunks)) { S.rejected.push(i); return res(400, { success: false, code: 'bad_index', message: 'Chunk index out of range.' }); }
+      if (n > chunkSize) { S.rejected.push(i); return res(413, { success: false, code: 'chunk_too_large', message: 'too big' }); }
+      S.got[i] = n; return res(200, { success: true, received: n });
+    }
+    if (path === '/api/media/upload/u1/finish') {
+      const idx = Object.keys(S.got).map(Number).sort((a, b) => a - b).join();
+      const total = Object.values(S.got).reduce((a, b) => a + b, 0);
+      if (idx !== [...Array(S.chunks).keys()].join() || total !== S.size) return res(400, { success: false, code: 'incomplete', message: 'missing chunks' });
+      return res(200, { success: true, file_id: 'f'.repeat(24), url: '/api/storage/file/' + 'f'.repeat(24), public_url: '/m/tok.mp4' });
+    }
+    return res(404, {}, true);
+  };
+  return S;
+}
+(async () => {
+  // ---- F1/F4: chỉ link /m/ (play_url | public_url), không bao giờ /api/storage/file ----
+  const sf = '/api/storage/file/' + 'a'.repeat(24);
+  ok('F1/F4 mediaUrl: url=/api/storage/file + public_url=/m/ -> /m/', mediaUrl({ url: sf, public_url: '/m/tok.mp4' }) === '/m/tok.mp4');
+  ok('F1/F4 mediaUrl: play_url thắng public_url', mediaUrl({ url: sf, public_url: '/m/a.mp4', play_url: '/m/p.mp4' }) === '/m/p.mp4');
+  ok('F1/F4 mediaUrl: chỉ có /api/storage/file -> rỗng (không dùng)', mediaUrl({ url: sf }) === '' && mediaUrl({ url: 'https://x.test' + sf }) === '');
+  ok('F1/F4 urlOf của thư viện = /m/', urlOf({ id: 1, url: sf, public_url: '/m/t.jpg' }) === '/m/t.jpg');
+
+  // ---- F3: cắt theo chunk_size/chunks máy chủ; mọi cỡ file (kể cả 3.4–3.5, 6.8–7.0 … MB) đều lưu được ----
+  for (const [srvChunk, size] of [[3500000, 3450000], [3500000, 3500000], [3500000, 6900000], [3500000, 7000000], [3500000, 8000000],
+                                  [3500000, 10300000], [3500000, 27500000], [2000000, 8000000], [3500000, 1]]) {
+    const S = uploadServer(srvChunk); globalThis.fetch = S.fetch;
+    let f = null, err = null;
+    try { f = await uploadChunked(new Blob([new Uint8Array(size)], { type: 'video/mp4' }), 'promo_video'); } catch (e) { err = e; }
+    ok(`F3 tải lên ${size} B với chunk_size ${srvChunk}: ${S.chunks} khúc, không bad_index, finish OK`,
+       f && f.file_id === 'f'.repeat(24) && !S.rejected.length && Object.keys(S.got).length === S.chunks,
+       err ? err.message : JSON.stringify({ got: S.got, rejected: S.rejected }));
+  }
+
+  // ---- F13: 404 có mã not_found = mục đã mất; 404 không mã (HTML) = route chưa có ----
+  globalThis.fetch = async () => res(404, { success: false, code: 'not_found', message: 'File not found.' });
+  let e1 = null; try { await api('/api/ai_studio/media/' + 'a'.repeat(24), { method: 'DELETE' }); } catch (e) { e1 = e; }
+  ok('F13 xoá file đã mất -> "no longer exists", không phải "not available yet"', e1 && e1.code === 'not_found' && e1.message === T.en.errGone, e1 && e1.message);
+  globalThis.fetch = async () => res(404, { success: false, code: 'not_found', message: 'Job not found.' });
+  let e2 = null; try { await api('/api/ai_studio/media/jobs/77'); } catch (e) { e2 = e; }
+  ok('F13 job không còn -> errGone', e2 && e2.message === T.en.errGone, e2 && e2.message);
+  globalThis.fetch = async () => res(404, null, true);
+  let e3 = null; try { await api('/api/ai_studio/nope'); } catch (e) { e3 = e; }
+  ok('F13 route không có (404 HTML) -> errNotFound', e3 && e3.code === 'no_route' && e3.message === T.en.errNotFound, e3 && e3.message);
+
+  // ---- F9: preset/giá/độ dài từ máy chủ; còn lại trừ pending ----
+  if (SERVER_PRESETS) {
+    applyServerPresets(SERVER_PRESETS);
+    const std = PRESETS.video.find((x) => x.key === 'standard'), prem = PRESETS.video.find((x) => x.key === 'premium');
+    const want = SERVER_PRESETS.video.find((x) => x.preset === 'standard');
+    ok('F9 độ dài + giá video lấy từ máy chủ (ai_media.MODELS)', JSON.stringify(std.secs) === JSON.stringify(want.durations)
+       && vidCost(std, want.durations[want.durations.length - 1]) === want.estimates_usd[String(want.durations[want.durations.length - 1])], JSON.stringify(std));
+    ok('F9 model = id của máy chủ', PRESETS.image.every((x, i) => x.model === SERVER_PRESETS.image[i].model) && prem.model === SERVER_PRESETS.video.find((x) => x.preset === 'premium').model);
+    ok('F9 nhãn EN/VI giữ cho preset đã biết', PRESETS.image.find((x) => x.key === 'hd').name === 'pHd' && std.name === 'vStandard');
+  }
+  // chủ đổi model/giá + bỏ 1 preset + thêm 1 preset -> giao diện theo đúng bảng mới
+  SEL.imgPreset = 'draft';
+  applyServerPresets({ image: [{ preset: 'hd', model: 'acme/new-image-2', estimate_usd: 0.05, aspects: ['1:1'] }, { preset: 'ultra', model: 'acme/ultra', estimate_usd: 0.2 }],
+                       video: [{ preset: 'premium', model: 'acme/vid-3', durations: [6], estimates_usd: { 6: 0.9 } }] });
+  ok('F9 bảng mới: preset bỏ đi biến mất, preset mới xuất hiện', PRESETS.image.map((x) => x.key).join() === 'hd,ultra' && PRESETS.video.map((x) => x.key).join() === 'premium');
+  ok('F9 giá/model mới được dùng', PRESETS.image[0].price === 0.05 && PRESETS.image[0].model === 'acme/new-image-2' && vidCost(PRESETS.video[0], 6) === 0.9 && PRESETS.video[0].secs.join() === '6');
+  ok('F9 preset đang chọn bị bỏ -> chọn cái đầu', SEL.imgPreset === 'hd' && SEL.vidPreset === 'premium');
+  ok('F9 preset mới không có nhãn dịch -> hiện tên khoá', pLabel(PRESETS.image[1]) === 'ultra');
+  ok('F9 bảng rỗng/hỏng -> giữ nguyên', applyServerPresets(null) === false && applyServerPresets({ image: [] }) === false && PRESETS.image.length === 2);
+  QUOTA = { images: { used: 290, pending: 8, limit: 300 }, video_seconds: { used: 100, pending: 16, limit: 300 } };
+  ok('F9 còn lại = limit - used - pending', qInfo('image').left === 2 && qInfo('video').left === 184, JSON.stringify([qInfo('image'), qInfo('video')]));
+  QUOTA = { images: { used: 3, limit: 50 } };
+  ok('F9 không có pending (máy chủ cũ) vẫn đúng', qInfo('image').left === 47);
+  console.log(JSON.stringify(out));
+})().catch((e) => { out.push({ name: 'page logic tests crashed', ok: false, note: String(e && e.stack || e) }); console.log(JSON.stringify(out)); });
+'''
+
+
+def page_logic_tests(script):
+    names = ['lang', 't', 'fmtUsd', 'sleep', 'CHUNK', 'PRESETS', 'pLabel', 'SEL', 'applyServerPresets', 'qInfo', 'vidCost',
+             'mediaUrl', 'urlOf', 'errText', 'api', 'postJSON', 'uploadChunked']
+    parts, missing = [], []
+    m = re.search(r'const T = (\{.*?\n    \});\n', script, re.S)
+    if not m:
+        check('page logic: tìm thấy từ điển T', False)
+        return
+    parts.append('const T = ' + m.group(1) + ';')
+    parts.append('const DEFAULT_LANG = "en"; const SHOW_COSTS = false; let QUOTA = null;')
+    parts.append("const localStorage = { getItem: () => 'en' };")
+    for n in names:
+        src = extract_js(script, n)
+        (parts.append(src) if src else missing.append(n))
+    check('page logic: cắt được mọi hàm cần thử', not missing, ','.join(missing))
+    if missing:
+        return
+    presets = server_presets()
+    with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f:
+        f.write('\n'.join(parts) + '\n' + NODE_PAGE_TESTS)
+        tmp = f.name
+    try:
+        r = node(tmp, is_file=True, env=dict(os.environ, SERVER_PRESETS=json.dumps(presets)))
+    finally:
+        os.unlink(tmp)
+    try:
+        rows = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:
+        check('page logic tests chạy được', False, (r.stderr or r.stdout)[-600:])
+        return
+    for row in rows:
+        check('page: ' + row['name'], row['ok'], row.get('note', ''))
+
+
+# ------------------------------------------------------------------------------------------------
 # 3. (tuỳ chọn) Chrome thật + API giả
 # ------------------------------------------------------------------------------------------------
-def render_standalone(lang='en', currency='USD', industry='nail'):
+def render_standalone(lang='en', currency='USD', industry='nail', show_costs=False):
     from jinja2 import Environment, FileSystemLoader, select_autoescape
 
     def url_for(endpoint, **kw):
@@ -280,7 +460,7 @@ def render_standalone(lang='en', currency='USD', industry='nail'):
         url_for=url_for, session={'user_id': 1, 'role': 'admin'}, request=Req(), default_lang=lang, tenant_currency=currency,
         active_industry_code=industry, active_industry_cfg={'modules': ['nail_services', 'attendance', 'payroll']},
         menu_i18n=menu, menu_i18n_all={'en': {}, 'vi': {}}, industry_pos_url='/sell', industry_chamcong_url='/chamcong',
-        asset_version='test')
+        asset_version='test', show_costs=show_costs)
 
 
 def find_playwright():
@@ -297,18 +477,22 @@ NODE_BROWSER = r'''
 const { chromium } = require(process.env.PW_PATH);
 const fs = require('fs'), path = require('path');
 const HTML = fs.readFileSync(process.env.HTML_FILE, 'utf8'), STATIC = process.env.STATIC_DIR, SHOTS = process.env.SHOTS;
+const HTML_OWNER = fs.readFileSync(process.env.HTML_OWNER_FILE, 'utf8');      // cùng trang, render với show_costs=False (chủ tiệm)
+const PRESETS = JSON.parse(process.env.SERVER_PRESETS || 'null');            // bảng preset THẬT của ai_media.presets_public()
 // https: WebCodecs (VideoEncoder) chỉ có trong "secure context" — trang http giả sẽ luôn rơi về WebM
 const BASE = 'https://studio.test';
 const out = []; const ok = (name, cond, note) => { out.push({ name, ok: !!cond, note: note || '' }); };
 const HEX = (c) => c.repeat(24);
 const BIG = Buffer.alloc(8000000, 7);   // file > 3.5 MB để thử tải về nhiều lát Range
+// Như API thật (_media_items / public_job): url = /api/storage/file/<id> (trả nguyên file, Vercel lỗi khi > 4.5 MB),
+// public_url = /m/<token> (có Range). Trang phải dùng public_url — mọi request tới /api/storage/file bị ghi lại + trả 500.
 const S = {
-  quota: { plan: 'empire', month: '2026-10', images: { used: 3, limit: 50 }, video_seconds: { used: 10, limit: 120 } },
+  quota: { plan: 'empire', month: '2026-10', images: { used: 3, pending: 1, limit: 50 }, video_seconds: { used: 10, pending: 0, limit: 120 } },
   items: [
-    { id: HEX('a'), file_id: HEX('a'), kind: 'image', preset: 'hd', prompt: 'Glossy nude gel nails', status: 'succeeded', public_url: '/m/a.jpg', url: '/m/a.jpg', content_type: 'image/jpeg', created_at: '2026-10-20T10:00:00Z', cost_estimate_usd: 0.04, source: 'replicate' },
-    { id: HEX('e'), file_id: HEX('e'), kind: 'promo_video', public_url: '/m/big.mp4', url: '/m/big.mp4', content_type: 'video/mp4', created_at: '2026-10-21T10:00:00Z', source: 'browser' },
+    { id: HEX('a'), file_id: HEX('a'), kind: 'image', preset: 'hd', prompt: 'Glossy nude gel nails', status: 'succeeded', public_url: '/m/a.jpg', url: '/api/storage/file/' + HEX('a'), content_type: 'image/jpeg', created_at: '2026-10-20T10:00:00Z', cost_estimate_usd: 0.04, source: 'replicate' },
+    { id: HEX('e'), file_id: HEX('e'), kind: 'promo_video', public_url: '/m/big.mp4', url: '/api/storage/file/' + HEX('e'), content_type: 'video/mp4', created_at: '2026-10-21T10:00:00Z', source: 'browser', cost_estimate_usd: 0 },
   ],
-  jobMode: 'ok', polls: 0, bodies: [], chunks: [], init: null, finish: 0, deleted: [], dialogs: [], plan: null,
+  jobMode: 'ok', polls: 0, bodies: [], chunks: [], init: null, finish: 0, deleted: [], dialogs: [], plan: null, storageHits: [], delMode: 'ok', badChunks: [],
 };
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' }).catch(() => chromium.launch());
@@ -322,6 +506,8 @@ const S = {
     if (url.host !== 'studio.test') return route.continue();      // font, Font Awesome, mp4-muxer (jsdelivr)
     const json = (o, status) => route.fulfill({ status: status || 200, contentType: 'application/json', body: JSON.stringify(o) });
     if (p === '/ai-studio') return route.fulfill({ status: 200, contentType: 'text/html', body: HTML });
+    if (p === '/ai-studio-owner') return route.fulfill({ status: 200, contentType: 'text/html', body: HTML_OWNER });
+    if (p.startsWith('/api/storage/file/')) { S.storageHits.push(p); return route.fulfill({ status: 500, body: 'FUNCTION_PAYLOAD_TOO_LARGE' }); }
     if (p.startsWith('/static/')) { const f = path.join(STATIC, p.slice(8)); return fs.existsSync(f) ? route.fulfill({ path: f }) : route.fulfill({ status: 404, body: '' }); }
     if (p.startsWith('/api/public/storage/file/') || p === '/m/a.jpg' || p === '/m/tok.jpg') return route.fulfill({ path: path.join(STATIC, 'cho1.jpg'), contentType: 'image/jpeg' });
     if (p === '/m/big.mp4') {
@@ -331,7 +517,7 @@ const S = {
       return route.fulfill({ status: 206, headers: { 'Content-Range': `bytes ${a}-${b}/${BIG.length}`, 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes' }, body: BIG.subarray(a, b + 1) });
     }
     if (p === '/api/ai_studio/brand') return json({ success: true, brand: { name: 'Lotus Nails Sydney', usp: 'Gel-X that lasts 4 weeks' } });
-    if (p === '/api/ai_studio/quota') return json({ success: true, quota: S.quota });
+    if (p === '/api/ai_studio/quota') return json(Object.assign({ success: true }, S.quota, { quota: S.quota, presets: PRESETS, configured: true }));
     if (p === '/api/ai_studio/media' && m === 'GET') return json({ success: true, items: S.items, quota: S.quota });
     if (p === '/api/ai_studio/media/jobs' && m === 'POST') {
       const body = req.postDataJSON(); S.bodies.push(body);
@@ -344,9 +530,12 @@ const S = {
     if (/^\/api\/ai_studio\/media\/jobs\/77$/.test(p)) {
       S.polls++;
       if (S.polls < 2) return json({ success: true, job: { id: 77, kind: 'image', preset: 'hd', status: 'running' } });
-      return json({ success: true, job: { id: 77, kind: 'image', preset: 'hd', status: 'succeeded', file_id: HEX('f'), public_url: '/m/tok.jpg', content_type: 'image/jpeg', cost_estimate_usd: 0.04, prompt: 'derived' } });
+      return json({ success: true, job: { id: 77, kind: 'image', preset: 'hd', status: 'succeeded', file_id: HEX('f'), url: '/api/storage/file/' + HEX('f'), public_url: '/m/tok.jpg', content_type: 'image/jpeg', cost_estimate_usd: 0.04, prompt: 'derived' } });
     }
-    if (m === 'DELETE' && p.startsWith('/api/ai_studio/media/')) { S.deleted.push(p); return json({ success: true }); }
+    if (m === 'DELETE' && p.startsWith('/api/ai_studio/media/')) {
+      if (S.delMode === 'gone') return json({ success: false, code: 'not_found', message: 'File not found.' }, 404);   // đã xoá ở tab khác
+      S.deleted.push(p); return json({ success: true });
+    }
     if (p === '/api/inventory/products') return json({ success: true, data: [
       { id: 1, name: 'Gel-X full set', image: '/api/public/storage/file/' + HEX('b') },
       { id: 2, name: 'Spa pedicure', image: '/api/public/storage/file/' + HEX('c') },
@@ -355,9 +544,15 @@ const S = {
       { start: 0, end: 3, on_screen_text: 'Gel-X that lasts 4 weeks', voiceover: 'Meet Gel-X', visual: 'photo', photo_hint: 'gel-x' },
       { start: 3, end: 6, on_screen_text: 'No damage to your nails', visual: 'text' },
       { start: 6, end: 9, on_screen_text: 'Relax with a spa pedicure', visual: 'photo', photo_hint: 'pedicure' } ] }); }
-    if (p === '/api/media/upload/init') { S.init = req.postDataJSON(); S.chunks = []; return json({ success: true, upload_id: 'up1' }); }
-    if (p === '/api/media/upload/up1/chunk') { const buf = req.postDataBuffer() || Buffer.alloc(0); S.chunks.push({ index: +url.searchParams.get('index'), size: buf.length, head: buf.subarray(0, 12).toString('latin1') }); return json({ success: true, received: buf.length }); }
-    if (p === '/api/media/upload/up1/finish') { S.finish++; return json({ success: true, file_id: HEX('d'), url: '/m/promo.mp4', public_url: '/m/promo.mp4' }); }
+    // luật của media_store: chunk_size = 3.5 MB, chỉ nhận index < ceil(size / chunk_size), khúc > chunk_size bị 413
+    if (p === '/api/media/upload/init') { S.init = req.postDataJSON(); S.chunks = []; return json({ success: true, upload_id: 'up1', chunk_size: 3500000, chunks: Math.ceil(S.init.size / 3500000) }); }
+    if (p === '/api/media/upload/up1/chunk') {
+      const buf = req.postDataBuffer() || Buffer.alloc(0), index = +url.searchParams.get('index');
+      if (!(index >= 0 && index < Math.ceil(S.init.size / 3500000))) { S.badChunks.push(index); return json({ success: false, code: 'bad_index', message: 'Chunk index out of range.' }, 400); }
+      if (buf.length > 3500000) { S.badChunks.push(index); return json({ success: false, code: 'chunk_too_large', message: 'too big' }, 413); }
+      S.chunks.push({ index, size: buf.length, head: buf.subarray(0, 12).toString('latin1') }); return json({ success: true, received: buf.length });
+    }
+    if (p === '/api/media/upload/up1/finish') { S.finish++; return json({ success: true, file_id: HEX('d'), url: '/api/storage/file/' + HEX('d'), public_url: '/m/promo.mp4' }); }
     if (p === '/api/ai_studio/generate_text') return json({ success: true, choices: [{ message: { content: 'HOOK: Gel-X that lasts four weeks\nShot 1: close-up\nBook online today #nails #gelx' } }] });
     if (p === '/api/messages/pump') return json({ success: true });
     return json({ success: false, message: 'no mock for ' + p }, 404);
@@ -366,7 +561,7 @@ const S = {
   await page.goto(BASE + '/ai-studio', { waitUntil: 'load' });
   await page.waitForTimeout(1200);
   ok('tải trang không lỗi JS', errs.length === 0, errs.join(' | '));
-  ok('hạn mức thật từ /quota', /Images 3\/50 this month/.test(await page.textContent('#qImages')), await page.textContent('#qImages'));
+  ok('hạn mức thật từ /quota (+ job đang chạy)', /Images 3\/50 this month · 1 being made/.test(await page.textContent('#qImages')), await page.textContent('#qImages'));
 
   // Viết
   await page.fill('#userPrompt', 'A TikTok for Gel-X');
@@ -399,7 +594,9 @@ const S = {
   // Ảnh: job + poll 3 s
   await page.evaluate(() => setTab('images'));
   await page.check('input[name=imgPreset][value=hd]');
-  ok('preset hiện giá + hạn mức còn lại', /US\$0\.04/.test(await page.textContent('#imgPresets')) && /47 images left/.test(await page.textContent('#imgPresets')));
+  // super admin: giá USD từ bảng preset của máy chủ; còn lại = 50 - 3 - 1 (pending) = 46
+  ok('super admin: preset hiện giá từ máy chủ + hạn mức còn lại trừ pending', /US\$0\.04/.test(await page.textContent('#imgPresets')) && /Uses 1 of your 50 images this month · 46 left/.test(await page.textContent('#imgPresets')), await page.textContent('#imgPresets'));
+  ok('model hiện theo id của máy chủ', /FLUX 1\.1 Pro/.test(await page.textContent('#imgPresets')));
   await page.fill('#imgPrompt', 'Glossy gel nails on marble');
   await page.click('#imgGo');
   await page.waitForSelector('#imgJobs .st-pill.run');
@@ -419,6 +616,10 @@ const S = {
 
   // Video: clip premium 8 s + làm ảnh chuyển động từ ảnh tiệm
   await page.evaluate(() => { setTab('video'); setVMode('clip'); });
+  await page.check('input[name=vidPreset][value=standard]');
+  const stdSecs = await page.$$eval('#vidSeconds [data-s]', (bs) => bs.map((b) => b.dataset.s).join());
+  const wantStd = PRESETS.video.find((x) => x.preset === 'standard').durations.join();
+  ok('Standard: độ dài lấy từ máy chủ (' + wantStd + ' s)', stdSecs === wantStd, stdSecs);
   await page.check('input[name=vidPreset][value=premium]');
   await page.click('#vidSeconds [data-s="8"]');
   ok('premium 8 s = US$1.20', /US\$1\.20/.test(await page.textContent('#vidCostLine')));
@@ -451,15 +652,18 @@ const S = {
   await page.waitForSelector('#promoUse:not(.hidden)', { timeout: 120000 }).catch(() => {});
   const totalUp = S.chunks.reduce((a, c) => a + c.size, 0);
   ok('video dựng xong và lưu (init → chunk → finish)', S.finish === 1 && S.init && totalUp === S.init.size, JSON.stringify({ init: S.init, chunks: S.chunks.length, totalUp, err: await page.textContent('#promoAlert') }));
-  ok('mỗi khúc ≤ 3.4 MB', S.chunks.every((c) => c.size <= 3400000));
+  ok('mỗi khúc ≤ chunk_size máy chủ (3.5 MB), không bad_index', S.chunks.every((c) => c.size <= 3500000) && !S.badChunks.length, JSON.stringify(S.badChunks));
   ok('MP4 thật qua WebCodecs (hộp ftyp) — ' + fmt, S.init && S.init.content_type === 'video/mp4' && S.chunks[0].head.slice(4, 8) === 'ftyp', S.init && S.init.content_type);
   ok('mp4-muxer nạp từ jsdelivr', await page.evaluate(() => !!(window.Mp4Muxer && window.Mp4Muxer.Muxer)));
   const dur = await page.evaluate(() => new Promise((r) => { const v = document.getElementById('promoVideo'); if (v.readyState >= 1) r(v.duration); else { v.onloadedmetadata = () => r(v.duration); setTimeout(() => r(v.duration), 4000); } }));
   ok('độ dài video ≈ 11.6 s (3 cảnh + thẻ kết)', Math.abs(dur - 11.6) < 0.6 || !isFinite(dur), String(dur));
   ok('"Use in a post" trỏ /social với file_id', /\/social\?compose=1&media=d{24}/.test(await page.getAttribute('#promoUse', 'href')));
-  // file 8 MB (video 30 s) -> 3 khúc 3.4 + 3.4 + 1.2 MB, đúng thứ tự index
+  // file 8 MB (video 30 s) -> 3 khúc 3.5 + 3.5 + 1.0 MB theo chunk_size máy chủ, đúng thứ tự index
   const up = await page.evaluate(async () => (await uploadChunked(new Blob([new Uint8Array(8000000)], { type: 'video/mp4' }), 'promo_video')).file_id);
-  ok('tải lên 8 MB = 3 khúc ≤ 3.4 MB theo thứ tự', up === HEX('d') && S.chunks.map((c) => c.index).join() === '0,1,2' && S.chunks.map((c) => c.size).join() === '3400000,3400000,1200000', JSON.stringify(S.chunks.map((c) => [c.index, c.size])));
+  ok('tải lên 8 MB = 3 khúc theo chunk_size máy chủ, đúng thứ tự', up === HEX('d') && S.chunks.map((c) => c.index).join() === '0,1,2' && S.chunks.map((c) => c.size).join() === '3500000,3500000,1000000', JSON.stringify(S.chunks.map((c) => [c.index, c.size])));
+  // F3: 3.45 MB (trước đây cắt 3.4 MB -> 2 khúc -> khúc 1 bị bad_index)
+  const up2 = await page.evaluate(async () => (await uploadChunked(new Blob([new Uint8Array(3450000)], { type: 'video/mp4' }), 'promo_video')).file_id).catch((e) => String(e));
+  ok('F3: tải lên 3.45 MB = 1 khúc, không bad_index', up2 === HEX('d') && S.chunks.length === 1 && !S.badChunks.length, String(up2) + ' ' + JSON.stringify(S.badChunks));
   await page.screenshot({ path: path.join(SHOTS, 'studio_1440_promo.png'), fullPage: true });
 
   // Thư viện: tải nhiều lát Range + xoá
@@ -470,6 +674,13 @@ const S = {
   await page.evaluate(() => { GAL_FILTER = 'all'; renderGallery(); });
   await page.click('#galGrid [data-del]'); await page.waitForTimeout(300);
   ok('xoá file gọi DELETE /api/ai_studio/media/<id>', S.deleted.length === 1 && S.dialogs.includes('confirm'));
+  // F13: file đã bị xoá ở tab khác -> 404 not_found -> báo "không còn nữa" + bỏ khỏi danh sách (không phải "chưa sẵn sàng")
+  S.delMode = 'gone';
+  const before = (await page.$$('#galGrid .gi')).length;
+  await page.click('#galGrid [data-del]'); await page.waitForTimeout(300);
+  const toastTxt = await page.textContent('#toast');
+  ok('F13: xoá file đã mất -> "no longer exists" + bỏ khỏi thư viện', /no longer exists/.test(toastTxt) && !/not available yet/.test(toastTxt) && (await page.$$('#galGrid .gi')).length === before - 1, toastTxt);
+  S.delMode = 'ok';
 
   // EN/VI tại chỗ
   await page.evaluate(() => { localStorage.setItem('bitpaw_lang', 'vi'); changeLanguage('vi'); setTab('images'); });
@@ -478,6 +689,26 @@ const S = {
   await page.evaluate(() => { localStorage.setItem('bitpaw_lang', 'en'); changeLanguage('en'); setTab('write'); });
   await page.screenshot({ path: path.join(SHOTS, 'studio_1440_write.png'), fullPage: true });
   ok('không có hộp alert() nào', !S.dialogs.includes('alert'), S.dialogs.join(','));
+  // F1/F4: không ảnh/video/Tải về nào đi qua /api/storage/file (trả nguyên file, Vercel 500 khi > 4.5 MB)
+  ok('F1/F4: không request nào tới /api/storage/file', S.storageHits.length === 0, S.storageHits.join(' '));
+
+  // Chủ tiệm (show_costs=False): KHÔNG thấy giá USD của nhà cung cấp, chỉ thấy phần trừ vào hạn mức tháng
+  S.items = S.items.concat([{ id: 91, file_id: HEX('9'), kind: 'video', preset: 'premium', duration: 8, prompt: 'Veo clip', status: 'succeeded', public_url: '/m/v.mp4', url: '/api/storage/file/' + HEX('9'), content_type: 'video/mp4', created_at: '2026-10-22T10:00:00Z', cost_estimate_usd: 1.2, source: 'replicate' }]);
+  await page.goto(BASE + '/ai-studio-owner', { waitUntil: 'load' });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => setTab('gallery'));
+  await page.waitForSelector('#galGrid .gi');
+  await page.evaluate(() => { setTab('video'); setVMode('clip'); });
+  await page.check('input[name=vidPreset][value=standard]');
+  await page.click('#vidSeconds [data-s="5"]');
+  const mainTxt = await page.evaluate(() => document.querySelector('main').textContent);
+  ok('chủ tiệm: không có US$ nào trên trang (preset, dòng chi phí, thư viện, job)', !/US\$/.test(mainTxt), (mainTxt.match(/.{0,40}US\$.{0,20}/) || [''])[0]);
+  ok('chủ tiệm: preset video ghi phần trừ hạn mức', /Uses 5 s of your 120 s this month · 110 s left/.test(await page.textContent('#vidPresets')), await page.textContent('#vidPresets'));
+  ok('chủ tiệm: dòng "lần này" = giây trong hạn mức', /This one: 5 s from your monthly allowance/.test(await page.textContent('#vidCostLine')), await page.textContent('#vidCostLine'));
+  ok('chủ tiệm: ghi chú hạn mức thay cho ghi chú giá', /monthly allowance/.test(mainTxt) && !/Super admin view/.test(mainTxt));
+  ok('chủ tiệm: video AI trong thư viện hiện số giây thay cho giá', /8 s/.test(await page.textContent('#galGrid')));
+  ok('F1/F4 (trang chủ tiệm): không request nào tới /api/storage/file', S.storageHits.length === 0, S.storageHits.join(' '));
+  await page.screenshot({ path: path.join(SHOTS, 'studio_1440_owner_video.png'), fullPage: true });
   ok('không lỗi JS suốt quá trình', errs.length === 0, errs.join(' | '));
   await browser.close();
   console.log(JSON.stringify(out));
@@ -491,15 +722,21 @@ def browser_tests():
         check('Playwright có sẵn (node_modules/playwright)', False, 'cài ở repo chính: npm i -D playwright')
         return
     shots = os.environ.get('STUDIO_SHOTS') or tempfile.mkdtemp(prefix='studio_shots_')
-    html = render_standalone()
+    presets = server_presets()
+    if not presets:
+        return
     tmpdir = tempfile.mkdtemp(prefix='studio_ui_')
     html_file = os.path.join(tmpdir, 'ai-studio.html')
+    owner_file = os.path.join(tmpdir, 'ai-studio-owner.html')
     js_file = os.path.join(tmpdir, 'browser_test.js')
     with open(html_file, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(render_standalone(show_costs=True))       # super admin: thấy giá USD của nhà cung cấp
+    with open(owner_file, 'w', encoding='utf-8') as f:
+        f.write(render_standalone(show_costs=False))      # chủ tiệm: chỉ thấy hạn mức tháng
     with open(js_file, 'w', encoding='utf-8') as f:
         f.write(NODE_BROWSER)
-    env = dict(os.environ, PW_PATH=pw, HTML_FILE=html_file, STATIC_DIR=os.path.join(ROOT, 'static'), SHOTS=shots)
+    env = dict(os.environ, PW_PATH=pw, HTML_FILE=html_file, HTML_OWNER_FILE=owner_file, STATIC_DIR=os.path.join(ROOT, 'static'),
+               SHOTS=shots, SERVER_PRESETS=json.dumps(presets))
     r = node(js_file, is_file=True, env=env, timeout=400)
     try:
         rows = json.loads(r.stdout.strip().splitlines()[-1])
@@ -516,6 +753,7 @@ def main():
     ids, script = static_checks(html)
     js_checks(html, script)
     promo_unit_tests()
+    page_logic_tests(script)
     if '--browser' in sys.argv:
         browser_tests()
     print(f'\n{"OK" if not FAILS else "FAILED"} — {len(FAILS)} lỗi')

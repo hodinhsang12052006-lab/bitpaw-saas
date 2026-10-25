@@ -11851,7 +11851,8 @@ def api_nail_pos_checked_in_load(appointment_id):
 @app.route('/ai_studio')
 @login_required
 def ai_studio():
-    return render_template('ai-studio.html')
+    # Giá USD của nhà cung cấp AI là giá vốn của BitPaw -> chỉ super admin thấy; chủ tiệm thấy hạn mức tháng của gói
+    return render_template('ai-studio.html', show_costs=session.get('role') == 'super_admin')
 
 def _persist_chat_turn(business_id, customer_phone, content, sender_type='customer'):
     """Lưu 1 lượt chat vào CRM (bot_customers/bot_messages) theo đúng business_id của tenant,
