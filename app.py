@@ -12335,6 +12335,13 @@ def api_inbox_channel_update(channel):
 def api_ai_copilot():
     """Copilot riêng của chủ tiệm (xem ai_copilot.py): mode='reply' soạn sẵn câu trả lời cho khách đang mở,
     mode='insight' tư vấn kinh doanh từ số liệu thật. Không ghi gì vào hội thoại của khách."""
+    # Chỉ chủ tiệm / admin: Copilot đọc doanh thu, hoa hồng từng nhân viên, chi tiêu khách — tài khoản nhân viên bị chặn.
+    if session.get('role', 'staff') not in ('admin', 'super_admin'):
+        _vi_msg = "AI Copilot chỉ dành cho tài khoản chủ tiệm / quản trị (vì có doanh thu và hoa hồng của nhân viên)."
+        _en_msg = "AI Copilot is for the owner / admin account only (it shows revenue and staff commissions)."
+        _l = (request.get_json(silent=True) or {}).get('lang')
+        return jsonify({"success": False, "code": "owner_only",
+                        "message": _en_msg if _l == 'en' else (_vi_msg if _l == 'vi' else _vi_en(_vi_msg, _en_msg))}), 403
     import ai_copilot
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -12729,7 +12736,7 @@ def secure_ai_generate():
     else:
         from ai_sales_prompts import bitpaw_facts
         system_prompt = compose_system_prompt(tenant_context, industry, objection_category, extra_context,
-                                              bitpaw=bitpaw_facts(SAAS_PLANS, SAAS_CURRENCIES))
+                                              bitpaw=bitpaw_facts(SAAS_PLANS, SAAS_CURRENCIES, industry=industry))
     # Dữ liệu ngành/tiệm trong prompt viết tiếng Việt nên AI hay trả lời tiếng Việt cho khách hỏi tiếng Anh (đo thật:
     # landing Production/Office EN). Chỉ định rõ ngôn ngữ theo chính tin nhắn mới nhất của khách.
     if latest_customer_message:

@@ -49,8 +49,10 @@ if hasattr(sys.stdout, 'reconfigure'):
 BASE_URL = os.getenv("ADMIN_BASE_URL", "http://127.0.0.1:5001")
 # Cùng tài khoản/mật khẩu God Mode mà test_pos_nails_e2e.py đã dùng — xem SUPERADMIN_FALLBACK_HASH
 # trong .env. Cho phép override qua biến môi trường nếu cần dùng tài khoản khác.
-ADMIN_EMAIL = os.getenv("SUPERADMIN_EMAIL", "hodinhsang30052003@gmail.com")
-ADMIN_PASSWORD = os.getenv("SUPERADMIN_PASSWORD", "0794678904Az@")
+# Tài khoản super admin cho test: CHỈ đọc từ biến môi trường (mật khẩu cũ từng ghi cứng ở đây, đã lộ trong lịch sử git —
+# chủ hệ thống phải đổi mật khẩu đó). BITPAW_QA_SUPERADMIN_* ưu tiên; SUPERADMIN_EMAIL/_PASSWORD cũ vẫn đọc được.
+ADMIN_EMAIL = os.environ.get("BITPAW_QA_SUPERADMIN_EMAIL") or os.environ.get("SUPERADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.environ.get("BITPAW_QA_SUPERADMIN_PASSWORD") or os.environ.get("SUPERADMIN_PASSWORD", "")
 
 # Đăng nhập God Mode luôn gán session['business_id'] = 'superadmin-fallback' (xem app.py
 # dòng ~648) — seed dữ liệu mock đúng vào business_id này để nó THẬT SỰ hiện ra trên các
@@ -331,6 +333,9 @@ def run_screenshots():
 # MAIN
 # ============================================================================
 if __name__ == "__main__":
+    if not (ADMIN_EMAIL and ADMIN_PASSWORD):
+        raise SystemExit("Missing super-admin test login: set BITPAW_QA_SUPERADMIN_EMAIL and BITPAW_QA_SUPERADMIN_PASSWORD "
+                         "(Thiếu tài khoản super admin cho test: hãy đặt 2 biến môi trường này).")
     print(f"\n{BOLD}{YELLOW}=== testtay.py — AU Market QA Screenshot Automation ==={RESET}")
     print(f"{CYAN}Target server: {BASE_URL}{RESET}")
     print(f"{CYAN}Screenshots will be saved to: {SCREENSHOT_DIR}{RESET}\n")

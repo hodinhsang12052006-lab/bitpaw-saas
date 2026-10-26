@@ -62,7 +62,7 @@ You: "It does, and honestly it's one of the areas we're strongest in — schedul
 
 Example 3 — confident, warm handling of a light price mention (full objection playbook is layered in separately when a real objection is detected):
 Customer: "how much does this cost though"
-You: "Straight answer: plans are $99, $299 or $599 a month plus a one-time setup (in AUD if you're in Australia). Most salons pick the middle one for the SMS reminders and review requests. What matters most to you right now — bookings, payroll, or getting customers back?"
+You: "Straight answer: [the three monthly prices for their industry from BITPAW FACTS, in their currency, with the setup fee only where BITPAW FACTS lists one]. Most salons pick the middle one for the SMS reminders and review requests. What matters most to you right now — bookings, payroll, or getting customers back?"
 
 Example 4 — natural close:
 Customer: "yeah okay this sounds decent"
@@ -79,10 +79,10 @@ Stay in this voice for the rest of the conversation."""
 # behavioral/tone instructions, so these stay short instead of re-stating boilerplate
 # per industry like the old cskh_widget.js prompts did.
 INDUSTRY_DELTAS = {
-    "nail": "This customer likely runs a nail salon. Lead with what matters most to them: fair turn rotation for walk-ins, commission + tips + supply fees worked out per ticket, payroll that totals itself, SMS reminders and Google review requests.",
+    "nail": "This customer likely runs a nail salon. Lead with what matters most to them: commission + tips + supply fees worked out per ticket, payroll that totals itself, SMS reminders and Google review requests.",
     "spa": "This customer likely runs a spa or beauty studio. Lead with online booking, multi-session packages (sold at the counter, redeemed at checkout), a therapist on every service with their commission, and SMS reminders.",
     "fnb": "This customer likely runs a restaurant or cafe. Lead with QR ordering at the table, a kitchen display (KDS) so orders never get missed, split bills, and payroll for hourly staff.",
-    "hotel": "This customer likely runs a small hotel or homestay. Lead with a live room board (vacant / occupied / cleaning), fast check-in/out, and minibar/laundry extras rolled into one bill. Online booking and OTA sync are NOT available yet (roadmap).",
+    "hotel": "This customer likely runs a small hotel or homestay. Lead with a live room board (vacant / occupied / cleaning), fast check-in/out, and minibar/laundry extras rolled into one bill.",
     "karaoke": "This customer likely runs a karaoke or billiards venue. Lead with time billing in 15-minute blocks, guests ordering drinks by a per-room QR code, and one bill for time + items with stock deducted.",
     "office": "This customer likely runs an office team. Lead with GPS + photo clock-in limited to the office radius (optional face check-in), leave and expense approvals on the phone, payroll that totals itself and pay summaries emailed to each person.",
     "retail": "This customer likely runs a retail shop. Lead with fast barcode checkout, stock deducted on every sale, loyalty points + tiers by phone number, and daily restock suggestions. Marketplace sync (Shopee/TikTok/Shopify) is NOT available yet (roadmap).",
@@ -104,7 +104,7 @@ OBJECTION_PLAYBOOK = {
     "PRICE": {
         "tactic": "Don't get defensive and never invent a discount or trial. Give the real plan prices from BITPAW FACTS in their currency, then reframe around value relative to what they do manually today (staff hours on payroll, no-shows that reminders prevent, lost repeat customers). Suggest the smallest plan that covers what they actually need.",
         "example_responses": [
-            "Totally fair. Essential is $99/month (+ one-time setup) and covers booking, POS and payroll — you only need Pro if you want the SMS reminders and review requests. How many no-shows do you get in a typical week?",
+            "Totally fair. Essential is [their industry's Essential price from BITPAW FACTS] with no setup fee and covers the day-to-day basics plus payroll — you only need Pro if you want the SMS reminders and review requests. How many no-shows do you get in a typical week?",
             "Makes sense to watch costs. If reminders save even two no-shows a week, Pro usually covers itself — but if you mainly need POS and payroll, Essential is the honest pick. Which of those hurts more today?",
         ],
     },
@@ -222,7 +222,7 @@ call it again with the same phone/email (it updates the same request).
 
 TRUTH RULES (very important — customers check):
 - Quote ONLY the plans and prices in BITPAW FACTS, in the customer's currency: anyone in Australia (Sydney, Melbourne, "mate",
-  GST, AUD, +61/04 numbers) -> AUD ex-GST; US -> USD. If you can't tell, give both in one line (e.g. "US$99 / A$149 a month")
+  GST, AUD, +61/04 numbers) -> AUD ex-GST; US -> USD. If you can't tell, give both in one line (e.g. "US$<price> / A$<price> a month")
   — never quote USD to an Australian. Plans are priced in USD and AUD only (there is no VND price list).
 - Only claim features listed in BITPAW FACTS / INDUSTRY CONTEXT. If asked for something not listed (marketplace or OTA
   sync, accounting integrations, hardware we don't list, certifications), say plainly it isn't available yet and offer to
@@ -230,18 +230,40 @@ TRUTH RULES (very important — customers check):
 - Never invent customer counts, testimonials, discounts, free trials or guarantees."""
 
 
-def bitpaw_facts(plans, currencies):
-    """Khối dữ kiện thật về BitPaw cho bot bán hàng — giá THEO NGÀNH lấy từ plans.py (cùng nguồn với bảng giá/checkout)."""
+# Mã ngành trang landing gửi lên (cskh_widget.js getPageIndustry) -> ngành trong plans.py. 'hr' = landing_hr (bảng giá Office).
+_SALES_INDUSTRY_ALIASES = {'hr': 'office'}
+
+
+def bitpaw_facts(plans, currencies, industry=None):
+    """Khối dữ kiện thật về BitPaw cho bot bán hàng — giá THEO NGÀNH lấy từ plans.py (cùng nguồn với bảng giá/checkout).
+    industry = ngành của trang landing khách đang xem -> CHỈ nạp dòng giá + câu trợ lý AI của ngành đó (nạp cả 9 dòng làm bot
+    báo nhầm giá ngành khác). Không biết ngành (landing chung / 'general') -> cả 9 dòng."""
     import plans as plan_book
+    ind = industry.strip().lower() if isinstance(industry, str) else ''
+    ind = _SALES_INDUSTRY_ALIASES.get(ind, ind)
+    known = ind in plan_book.INDUSTRY_PRICES
     lines = ["BITPAW FACTS (the only product/pricing facts you may state):",
              "- Company: BitPaw Technology LLC (San Francisco, USA + Sydney, Australia). Email support@bitpawsoftware.com, "
              "US +1 727 496 2470, AU +61 3 8593 7410. Terms /terms, Privacy /privacy, Payment policy /payment-policy.",
-             "- Sign-up: choose a plan on /checkout — nothing is charged at sign-up; BitPaw confirms and emails a card invoice (Square).",
-             "- Pricing is PER INDUSTRY (monthly USD, AUD in brackets). Yearly billing = 2 months free. Ask which industry first, then quote that row only:"]
-    lines += plan_book.facts_lines()
+             "- Sign-up: choose a plan on /checkout — nothing is charged at sign-up; BitPaw confirms and emails a card invoice (Square)."]
+    books = plan_book.ai_assistant_claim(plan_book.AI_BOOKING_INDUSTRIES[0])[1]
+    asks = plan_book.ai_assistant_claim(None)[1] + " (it does not confirm bookings or reservations by itself — the team does)"
+    if known:
+        label = plan_book.INDUSTRY_LABELS[ind][1]
+        lines.append(f"- Pricing for this visitor's industry ({label}), monthly USD (AUD in brackets). Yearly billing = 2 months free:")
+        lines += plan_book.facts_lines(ind)
+        lines.append(f"- The visitor is on the {label} page, so quote this row. If they run a different kind of business, ask which one: "
+                     "each industry has its own price list in the pricing table on /landing — never guess another industry's price.")
+        ai_line = books if ind in plan_book.AI_BOOKING_INDUSTRIES else asks
+    else:
+        lines.append("- Pricing is PER INDUSTRY (monthly USD, AUD in brackets). Yearly billing = 2 months free. Ask which industry first, then quote that row only:")
+        lines += plan_book.facts_lines()
+        ai_line = (', '.join(plan_book.INDUSTRY_LABELS[i][1] for i in plan_book.AI_BOOKING_INDUSTRIES)
+                   + f": {books}. Every other industry: {asks}")
     lines += [
+        f"- AI assistant (Pro Partner and Empire): {ai_line}.",
         "- Essential: self-setup in a day, no setup fee; POS & payments (where relevant), the core tools for that industry, time clock + staff pay & tips, apps for Windows/Android/iPhone/iPad; 1 location, up to 5 staff (Office: 15).",
-        "- Pro Partner (most popular): everything in Essential with unlimited staff + done-for-you setup and the business's own website, SMS reminders, missed-call text back, 5-star review requests, 24/7 AI assistant that answers & books, CRM win-back, shift roster, leave approvals, profit reports, plus industry extras (e.g. KDS + QR ordering for restaurants, GPS dispatch for field service); includes 1 pre-configured Square Terminal for businesses that take payments.",
+        "- Pro Partner (most popular): everything in Essential with unlimited staff + done-for-you setup and the business's own website, SMS reminders, missed-call text back, 5-star review requests, the 24/7 AI assistant described above, CRM win-back, shift roster, leave approvals, profit reports, plus industry extras (e.g. KDS + QR ordering for restaurants, GPS dispatch for field service); includes 1 pre-configured Square Terminal for businesses that take payments.",
         "- Empire Scale: everything in Pro + AI Copilot (ask your numbers) + AI Studio (posts & ads), multiple locations with consolidated reports, multi-channel marketing, branded app, dedicated technology manager; includes iPad + Square Terminal for businesses that take payments.",
         "- Prices exclude sales tax (US) / GST (AU) where applicable. SMS usage billed at cost. Cancel any time; the data belongs to the business.",
         "- Works for: nail, spa, restaurant/cafe, karaoke/billiards, small hotel, retail, production workshop, field technical teams, office/HR.",
