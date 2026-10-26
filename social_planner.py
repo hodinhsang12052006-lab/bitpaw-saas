@@ -8,7 +8,9 @@ AI lên kế hoạch đăng bài cho AI Social Manager (docs/AI_SUITE_SPEC.md §
   - performance_review: nhận xét hiệu quả từ số THẬT; < 3 bài có số liệu thì nói thẳng chưa đủ dữ liệu, không gọi AI.
 """
 import json
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor, wait as _wait
 from datetime import date, datetime, time as dtime, timedelta, timezone
 
 from mongo_client import db, next_mongo_id
@@ -80,6 +82,11 @@ SHRINK_K = 5
 PRIOR_BASE = 0.85
 PRIOR_LIFT = 0.4
 PLAN_PLATFORMS = ('facebook', 'instagram', 'google_business')   # TikTok không bao giờ tự đăng; YouTube cần video
+# Kế hoạch tuần: mỗi bài cần caption + bản Instagram (≤2200) + bản Google (≤1500) + hashtag + gợi ý ảnh ≈ 400–700 token
+# (tiếng Việt tốn hơn) -> chia lô 3 bài / lần gọi DeepSeek, các lô chạy song song để cả kế hoạch vẫn xong trong 1 request.
+PLAN_BATCH = 3
+PLAN_TOKENS_PER_ITEM = 700
+PLAN_WAIT_SECONDS = 50
 
 
 # ---------------------------------------------------------------- giờ đăng tốt nhất
@@ -99,12 +106,19 @@ def engagement_rate(metrics):
     return sum(inter) / max(base, 1)
 
 
+def _world():
+    """Bài/số liệu tạo lúc thử (máy giả) và bài thật không bao giờ lẫn nhau (cùng bộ lọc social_publisher._world)."""
+    return {'qa_test': True} if sa.test_mode() else {'qa_test': {'$ne': True}}
+
+
 def _samples(business_id, platform, tz):
-    """[(weekday, hour, rate)] theo giờ địa phương lúc bài THẬT SỰ lên, từ số liệu thật."""
+    """[(weekday, hour, rate)] theo giờ địa phương lúc bài THẬT SỰ lên, từ số liệu thật (chỉ bài cùng 'thế giới': số giả
+    của lần chạy thử không bao giờ thành "giờ tốt nhất đã học" của tiệm thật)."""
     rows = list(db.social_post_metrics.find({'business_id': business_id, 'platform': platform}, {'_id': 0}).limit(500))
     if not rows:
         return []
-    posts = {p['id']: p for p in db.social_posts.find({'business_id': business_id, 'id': {'$in': [r['post_id'] for r in rows]}},
+    posts = {p['id']: p for p in db.social_posts.find({'business_id': business_id, **_world(),
+                                                        'id': {'$in': [r['post_id'] for r in rows]}},
                                                        {'_id': 0, 'id': 1, 'targets': 1, 'scheduled_at': 1})}
     out = []
     for r in rows:
@@ -236,6 +250,54 @@ def _parse_json(text):
     return out
 
 
+def _ai_json(system, user, business_id, max_tokens, temperature=0.7):
+    """DeepSeek ở chế độ JSON (response_format json_object). Trả (text, cut): cut=True khi DeepSeek dừng vì hết max_tokens
+    (JSON có thể dở dang). Gọi thẳng ai_deepseek_client (điểm gọi DeepSeek duy nhất) để đọc được finish_reason."""
+    try:
+        from ai_deepseek_client import deepseek_chat_completion
+        desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+        res = deepseek_chat_completion(
+            {'model': 'deepseek-chat', 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
+             'temperature': temperature, 'max_tokens': max_tokens, 'response_format': {'type': 'json_object'}},
+            business_id=business_id, proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if desktop else None,
+            direct_api_key=None if desktop else os.environ.get('DEEPSEEK_API_KEY'))
+        ch = (res.get('choices') or [{}])[0] or {}
+        return (ch.get('message') or {}).get('content') or '', ch.get('finish_reason') == 'length'
+    except Exception as e:
+        raise SocialError('ai_unavailable', 'The AI writer is not available right now — try again in a minute.', str(e)[:200])
+
+
+def _plan_posts(text):
+    """Các bài AI viết trong 1 lô {"posts": [...]}. JSON bị cắt giữa chừng (hết max_tokens) thì vẫn giữ các bài đã viết trọn
+    vẹn thay vì bỏ cả lô."""
+    s = re.sub(r'^```(?:json)?\s*|\s*```$', '', (text or '').strip())
+    i, j = s.find('{'), s.rfind('}')
+    if 0 <= i < j:
+        try:
+            out = json.loads(s[i:j + 1])
+            if isinstance(out, dict) and isinstance(out.get('posts'), list):
+                return [w for w in out['posts'] if isinstance(w, dict)]
+        except ValueError:
+            pass
+    k = s.find('"posts"')
+    k = s.find('[', k) if k >= 0 else -1
+    if k < 0:
+        return []
+    dec, pos, got = json.JSONDecoder(), k + 1, []
+    while True:
+        while pos < len(s) and s[pos] in ' \t\r\n,':
+            pos += 1
+        if pos >= len(s) or s[pos] != '{':
+            break
+        try:
+            obj, pos = dec.raw_decode(s, pos)
+        except ValueError:
+            break   # bài cuối bị cắt dở: bỏ riêng bài đó
+        if isinstance(obj, dict):
+            got.append(obj)
+    return got
+
+
 def _lang_name(lang):
     return 'Vietnamese' if (lang or '').lower().startswith('vi') else 'English'
 
@@ -267,7 +329,8 @@ def _fit(platform, text):
     if platform == 'tiktok':
         return t[:150].strip()
     if platform == 'youtube':
-        return re.sub(r'[<>]', '', t)[:5000]
+        import social_publisher   # mô tả YouTube giới hạn 5000 BYTE (chữ có dấu 2–3 byte), không phải 5000 ký tự
+        return social_publisher._cut_bytes(re.sub(r'[<>]', '', t), social_publisher.YT_DESC_BYTES)
     return t[:5000]
 
 
@@ -322,12 +385,23 @@ def _photo(business_id, product):
         return None
     if g is None:
         return None
-    ct = ''
+    ct, size = '', 0
     try:
         ct = (getattr(g, 'content_type', None) or '').lower()
-    except AttributeError:
+        size = int(getattr(g, 'length', 0) or 0)
+    except (AttributeError, TypeError, ValueError):
         pass
-    return {'file_id': m.group(1), 'content_type': ct}
+    return {'file_id': m.group(1), 'content_type': ct, 'size': size}
+
+
+def _photo_fits(platform, photo):
+    """Nền tảng nhận được ảnh thật này không (Instagram: JPEG; Instagram/Google: không quá cỡ tải qua link; Facebook: ≤ 4 MB,
+    không WebP)? Không có ảnh thì Instagram không đăng được."""
+    import social_publisher as sp
+    if not photo:
+        return platform != 'instagram'
+    code = sp._media_problem(platform, 'image', photo.get('content_type') or '', int(photo.get('size') or 0))
+    return code is None or code in sp.NOTE_ONLY
 
 
 def _content_items(business_id, n, now):
@@ -419,14 +493,11 @@ def weekly_plan(business_id, user_id, start_date_local, platforms, posts_per_wee
     system = ("You are the social media manager of a local business and plan next week's posts. "
               f"Write in {_lang_name(lang)}. Use ONLY the BUSINESS FACTS, BRAND DNA and each item's facts. Quote a price only "
               "exactly as given. Never invent prices, discounts, offers, reviews, awards or results. Tips must be genuinely "
-              "useful and general (no medical claims). Return ONLY JSON: {\"posts\": [{\"idx\": <item idx>, " + ', '.join(keys) + "}]}.")
-    user = '\n\n'.join(x for x in (_facts(business_id), _brand(business_id),
-                                   'ITEMS:\n' + json.dumps(ai_items, ensure_ascii=False)) if x)
-    out = _parse_json(_ai(system, user, business_id, 0.7, 2000))
-    written = {}
-    for w in out.get('posts') or []:
-        if isinstance(w, dict) and isinstance(w.get('idx'), int):
-            written[w['idx']] = w
+              "useful and general (no medical claims). Write one post for EVERY item. Return ONLY a json object: "
+              "{\"posts\": [{\"idx\": <item idx>, " + ', '.join(keys) + "}]}.")
+    head = [x for x in (_facts(business_id), _brand(business_id)) if x]
+    batches = [ai_items[k:k + PLAN_BATCH] for k in range(0, len(ai_items), PLAN_BATCH)]
+    written, errors = _write_plan(system, head, batches, business_id)
     plan_id = next_mongo_id('social_plans')
     posts, used_times, slot_cache = [], set(), {}
     for i, it in enumerate(items):
@@ -435,7 +506,10 @@ def weekly_plan(business_id, user_id, start_date_local, platforms, posts_per_wee
         if not caption:
             continue
         photo = it.get('photo')
-        tg = [p for p in plat if not (p == 'instagram' and (not photo or photo.get('content_type') != 'image/jpeg'))]
+        tg = [p for p in plat if _photo_fits(p, photo)]
+        if photo and not tg:
+            photo = None   # ảnh thật không nền tảng nào nhận được (quá cỡ / sai định dạng): đăng chữ ở nơi nhận chữ
+            tg = [p for p in plat if _photo_fits(p, None)]
         if not tg:
             continue
         caps = {}
@@ -456,7 +530,7 @@ def weekly_plan(business_id, user_id, start_date_local, platforms, posts_per_wee
             post = social_publisher.create_post(business_id, user_id, data, created_by='ai', plan_id=plan_id)
         except SocialError as e:
             if e.code in ('media_not_found', 'media_not_shareable', 'bad_media') and photo:
-                data['media_file_ids'], data['targets'] = [], [{'platform': p} for p in tg if p != 'instagram']
+                data['media_file_ids'], data['targets'] = [], [{'platform': p} for p in tg if _photo_fits(p, None)]
                 if not data['targets']:
                     continue
                 post = social_publisher.create_post(business_id, user_id, data, created_by='ai', plan_id=plan_id)
@@ -467,19 +541,73 @@ def weekly_plan(business_id, user_id, start_date_local, platforms, posts_per_wee
         post['source'] = {'type': it['type'], 'id': it.get('id')}
         posts.append(post)
     if not posts:
+        if errors:
+            raise errors[0]   # vd ai_unavailable: nói đúng lý do thay vì "AI trả lời hỏng"
         raise SocialError('ai_bad_output', 'The AI did not return usable posts — try again.')
     skipped = [p for p in req if p not in plat]
+    unwritten = sum(1 for i in range(len(items)) if i not in written)
     plan = {'id': plan_id, 'business_id': business_id, 'created_by': user_id, 'start_date': d.isoformat(), 'platforms': plat,
             'skipped_platforms': skipped, 'posts_per_week': n, 'lang': lang, 'post_ids': [p['id'] for p in posts],
             'items': [{'type': it['type'], 'id': it.get('id'), 'has_photo': bool(it.get('photo'))} for it in items],
-            'qa_test': sa.test_mode(), 'created_at': now}
+            'unwritten': unwritten, 'qa_test': sa.test_mode(), 'created_at': now}
     db.social_plans.insert_one(dict(plan))
     plan.pop('business_id', None)
     plan['created_at'] = iso_z(now)
     plan['note'] = ('Drafts wait for your approval — nothing is posted until you approve. Posts without a real photo include an '
                     'image idea you can generate in AI Studio.' + (' TikTok and YouTube were left out: they need a video you choose.'
-                                                                    if skipped else ''))
+                                                                    if skipped else '')
+                    + (f" The AI wrote {len(items) - unwritten} of {len(items)} posts this time — make the plan again for the rest."
+                       if unwritten else ''))
+    plan['note_vi'] = ('Bài nháp chờ bạn duyệt — chưa duyệt thì không đăng gì. Bài chưa có ảnh thật kèm gợi ý ảnh để tạo trong AI '
+                       'Studio.' + (' TikTok và YouTube không có trong kế hoạch: cần video do bạn chọn.' if skipped else '')
+                       + (f" Lần này AI viết được {len(items) - unwritten}/{len(items)} bài — tạo kế hoạch lần nữa cho phần còn lại."
+                          if unwritten else ''))
     return plan, posts
+
+
+def _write_plan(system, head, batches, business_id):
+    """DeepSeek viết từng lô (≤ PLAN_BATCH bài, chế độ JSON, ngân sách token theo số bài), các lô chạy song song và cùng
+    chờ tối đa PLAN_WAIT_SECONDS. Lô lỗi / bị cắt không làm mất các bài đã viết xong. Trả ({idx: bài}, [SocialError])."""
+    def one(batch):
+        user = '\n\n'.join(head + ['ITEMS:\n' + json.dumps(batch, ensure_ascii=False)])
+        text, cut = _ai_json(system, user, business_id, 300 + PLAN_TOKENS_PER_ITEM * len(batch))
+        if cut:   # finish_reason 'length': JSON dở dang — _plan_posts vẫn giữ các bài đã viết trọn vẹn
+            print(f"[social] weekly plan batch of {len(batch)} hit max_tokens — keeping the complete posts only")
+        return _plan_posts(text)
+
+    results, errors = [], []
+    if len(batches) == 1:
+        try:
+            results.append(one(batches[0]))
+        except SocialError as e:
+            errors.append(e)
+    elif batches:
+        ex = ThreadPoolExecutor(max_workers=min(len(batches), 5))
+        futs = [ex.submit(one, b) for b in batches]
+        finished, _ = _wait(futs, timeout=PLAN_WAIT_SECONDS)
+        ex.shutdown(wait=False, cancel_futures=True)
+        for f in futs:
+            if f not in finished:
+                errors.append(SocialError('ai_unavailable', 'The AI writer took too long — try again in a minute.'))
+                continue
+            try:
+                results.append(f.result())
+            except SocialError as e:
+                errors.append(e)
+            except Exception as e:
+                errors.append(SocialError('ai_unavailable', 'The AI writer is not available right now — try again in a minute.',
+                                          str(e)[:200]))
+    allowed = {it['idx'] for b in batches for it in b}
+    written = {}
+    for got in results:
+        for w in got:
+            try:
+                idx = int(w.get('idx'))
+            except (TypeError, ValueError):
+                continue
+            if idx in allowed:
+                written.setdefault(idx, w)
+    return written, errors
 
 
 # ---------------------------------------------------------------- nhận xét hiệu quả
@@ -488,8 +616,7 @@ def performance_review(business_id, lang='en', days=90):
     now = utcnow()
     since = now - timedelta(days=days)
     rows = list(db.social_post_metrics.find({'business_id': business_id}, {'_id': 0}).limit(600))
-    world = {'qa_test': True} if sa.test_mode() else {'qa_test': {'$ne': True}}
-    posts = {p['id']: p for p in db.social_posts.find({'business_id': business_id, **world, 'id': {'$in': list({r['post_id'] for r in rows})}},
+    posts = {p['id']: p for p in db.social_posts.find({'business_id': business_id, **_world(), 'id': {'$in': list({r['post_id'] for r in rows})}},
                                                        {'_id': 0})} if rows else {}
     tz = sa.shop_tz(business_id)
     entries = []

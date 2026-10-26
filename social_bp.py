@@ -28,7 +28,8 @@ _pump_last = {}
 _pump_lock = threading.Lock()
 _HTTP = {'not_found': 404, 'busy': 409, 'not_editable': 409, 'not_cancelable': 409, 'not_pending': 409,
          'nothing_to_publish': 409, 'real_account_exists': 409, 'ai_unavailable': 502, 'unreachable': 502,
-         'provider_busy': 502, 'app_not_configured': 503, 'forbidden': 403}
+         'provider_busy': 502, 'app_not_configured': 503, 'forbidden': 403,
+         'remote_cancel_failed': 409, 'already_live': 409, 'publish_uncertain': 409}
 
 
 def _bid():
@@ -171,14 +172,22 @@ def posts_list():
     return jsonify({'success': True, 'data': [sp.public_post(p) for p in posts]})
 
 
+def _status_arg(data):
+    st = data.get('status')
+    if st is not None and not isinstance(st, str):
+        raise SocialError('bad_status', 'Status must be draft, pending_approval or scheduled.')
+    return st
+
+
 @social_bp.route('/api/social/posts', methods=['POST'])
 @login_required
 @_api
 def posts_create():
     data = _body()
-    if not _is_admin() and data.get('status') == 'scheduled':
+    admin = _is_admin()
+    if not admin and (_status_arg(data) or 'draft') == 'scheduled':
         data['status'] = 'pending_approval'   # nhân viên soạn bài -> chủ tiệm duyệt mới đăng
-    post = sp.create_post(_bid(), session.get('user_id'), data)
+    post = sp.create_post(_bid(), session.get('user_id'), data, is_admin=admin)
     return jsonify({'success': True, 'post': sp.public_post(post)})
 
 
@@ -187,11 +196,15 @@ def posts_create():
 @_api
 def posts_update(post_id):
     data, bid = _body(), _bid()
-    if not _is_admin():
+    admin = _is_admin()
+    if not admin:
+        # trạng thái THẬT SỰ sẽ dùng = cách update_post tính (null / '' = giữ trạng thái cũ): nhân viên sửa bài đã lên lịch,
+        # hoặc xin lên lịch, thì luôn quay lại chờ chủ tiệm duyệt — không có đường nào đăng nội dung chưa duyệt
         cur = sp.get_post(bid, post_id)['status']
-        if data.get('status', cur) == 'scheduled':
-            data['status'] = 'pending_approval'   # nhân viên sửa bài đã lên lịch -> quay lại chờ duyệt
-    post = sp.update_post(bid, post_id, data, session.get('user_id'))
+        eff = _status_arg(data) or cur
+        if eff == 'scheduled' or cur == 'scheduled':
+            data['status'] = 'pending_approval'
+    post = sp.update_post(bid, post_id, data, session.get('user_id'), is_admin=admin)
     return jsonify({'success': True, 'post': sp.public_post(post)})
 
 
@@ -209,7 +222,9 @@ def posts_approve(post_id):
 @role_required(*ADMIN)
 @_api
 def posts_cancel(post_id):
-    post = sp.cancel(_bid(), post_id)
+    # gỡ lịch bên Facebook/YouTube không được -> lỗi 'remote_cancel_failed' (bài vẫn hẹn bên đó, BitPaw giữ nguyên);
+    # {"force": true} khi chủ tiệm đã tự xoá bên nền tảng. Luôn đọc 'warnings' (vd 'publish_uncertain', 'already_live').
+    post = sp.cancel(_bid(), post_id, force=_body().get('force') is True)
     return jsonify({'success': True, 'post': sp.public_post(post), 'warnings': post.get('warnings') or []})
 
 
@@ -231,7 +246,8 @@ def posts_delete(post_id):
         post = sp.get_post(bid, post_id)
         if post['status'] not in ('draft', 'pending_approval') or post.get('author_id') != session.get('user_id'):
             return _forbidden('Staff can only delete their own drafts.')
-    warnings = sp.delete(bid, post_id)
+    force = _is_admin() and (_body().get('force') is True or request.args.get('force') in ('1', 'true'))
+    warnings = sp.delete(bid, post_id, force=force)
     return jsonify({'success': True, 'warnings': warnings})
 
 
